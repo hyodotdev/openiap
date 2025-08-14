@@ -7,6 +7,7 @@ import Docs from './pages/docs'
 import Languages from './pages/languages'
 import Tutorials from './pages/tutorials'
 import Sponsors from './pages/sponsors'
+import NotFound from './pages/404'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="languages" element={<Languages />} />
           <Route path="tutorials" element={<Tutorials />} />
           <Route path="sponsors" element={<Sponsors />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </>
