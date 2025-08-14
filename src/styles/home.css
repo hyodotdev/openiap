@@ -1,0 +1,392 @@
+/* Hero Section */
+.hero {
+  background: linear-gradient(180deg, 
+    #fdfbf7 0%, 
+    rgba(164, 116, 101, 0.08) 50%, 
+    rgba(164, 116, 101, 0.15) 100%);
+  color: var(--text-primary);
+  padding: 8rem 2rem 6rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at 30% 50%,
+    rgba(164, 116, 101, 0.1) 0%,
+    transparent 50%
+  );
+  animation: float 20s ease-in-out infinite;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at 70% 50%,
+    rgba(220, 104, 67, 0.08) 0%,
+    transparent 50%
+  );
+  animation: float 25s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(10deg);
+  }
+}
+
+.hero-container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-title {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.hero-title .highlight {
+  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  margin-bottom: 2.5rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Removed Features Section - using home-section classes instead */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 3rem;
+}
+
+.feature {
+  text-align: center;
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.feature h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+}
+
+.feature p {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.feature-code {
+  background: var(--code-bg);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  text-align: left;
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.feature-code::-webkit-scrollbar {
+  height: 6px;
+}
+
+.feature-code::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.feature-code::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.feature-code::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.feature-code pre {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: #abb2bf;
+  margin: 0;
+  padding: 0;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-x: visible;
+}
+
+/* Home Sections with Alternating Backgrounds */
+.home-section {
+  padding: 5rem 2rem;
+  text-align: center;
+}
+
+/* Specific section backgrounds */
+.section-problem {
+  background: var(--bg-primary);
+}
+
+.section-how {
+  background: var(--bg-secondary);
+}
+
+.section-who {
+  background: var(--bg-primary);
+}
+
+.section-why {
+  background: var(--bg-secondary);
+}
+
+.section-container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.home-section h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.section-subtitle {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin-bottom: 3rem;
+}
+
+/* Specification Grid */
+.specification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.spec-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+}
+
+/* Title area - stays at top */
+.spec-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  width: 100%;
+}
+
+.spec-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.spec-card h3 {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.spec-card-header p {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* Removed spec-card-content - spec-items handles the content area */
+
+.spec-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+}
+
+a.spec-item,
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+a.spec-item:hover {
+  transform: translateY(-2px);
+}
+
+a.spec-item:hover code {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.spec-item code {
+  background: #f6f8fa;
+  color: var(--primary-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  border: 1px solid rgba(164, 116, 101, 0.2);
+  display: inline-block;
+  transition: all 0.2s;
+}
+
+.spec-item span {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Implementations Grid */
+.implementations-grid {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.implementation-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 220px;
+}
+
+.implementation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary-color);
+}
+
+.implementation-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.implementation-card h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.implementation-card p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+/* Removed Benefits Section - using home-section classes instead */
+
+.benefits h2 {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem;
+}
+
+.benefit {
+  background: var(--bg-primary);
+  padding: 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.benefit h3 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.benefit p {
+  color: var(--text-secondary);
+}
+
+/* Light mode specific - darker text for benefits */
+:root:not(.dark) .benefit p {
+  color: #333333;
+}

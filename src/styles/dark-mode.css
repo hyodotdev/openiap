@@ -1,0 +1,107 @@
+/* Dark mode colors */
+:root.dark {
+  --primary-color: #c5b19f;
+  --primary-dark: #a47465;
+  --primary-light: #dccfc2;
+  --bg-primary: #09090b;
+  --bg-secondary: #18181f;
+  --text-primary: #e1e1e6;
+  --text-secondary: #9ca3af;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --code-bg: #1e1e26;
+  --accent-color: #ff8066;
+  --logo-text-filter: invert(1);
+}
+
+/* Dark mode specific overrides */
+:root.dark .navigation {
+  background: rgba(9, 9, 11, 0.95);
+}
+
+:root.dark .dropdown-menu {
+  background: var(--bg-secondary);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .dropdown-menu a:hover {
+  background: var(--bg-primary);
+}
+
+:root.dark .hero {
+  background: linear-gradient(180deg, 
+    var(--bg-primary) 0%, 
+    rgba(197, 177, 159, 0.05) 50%, 
+    rgba(197, 177, 159, 0.1) 100%);
+  color: var(--text-primary);
+}
+
+:root.dark .hero::before {
+  background: radial-gradient(
+    circle at 30% 50%,
+    rgba(197, 177, 159, 0.08) 0%,
+    transparent 50%
+  );
+}
+
+:root.dark .hero::after {
+  background: radial-gradient(
+    circle at 70% 50%,
+    rgba(255, 128, 102, 0.06) 0%,
+    transparent 50%
+  );
+}
+
+:root.dark .btn-primary {
+  background: var(--primary-dark);
+  color: white;
+  border: 1px solid rgba(164, 116, 101, 0.3);
+}
+
+:root.dark .btn-primary:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+:root.dark .btn-secondary {
+  background: rgba(24, 24, 31, 0.8);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root.dark .btn-secondary:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary-light);
+}
+
+:root.dark .code-block,
+:root.dark .code-snippet {
+  background: #1e1e26;
+  border: 1px solid #2e2e3e;
+}
+
+:root.dark .spec-item code {
+  background: var(--code-bg);
+  color: var(--primary-light);
+  border: 1px solid rgba(197, 177, 159, 0.2);
+}
+
+:root.dark .implementation-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+:root.dark .language-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .resource-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .community-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode transition for all elements */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

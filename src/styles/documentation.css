@@ -1,0 +1,148 @@
+/* Documentation */
+.docs-container {
+  display: flex;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 2rem;
+  gap: 3rem;
+}
+
+.docs-sidebar {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.docs-nav {
+  position: sticky;
+  top: 100px;
+}
+
+.docs-nav h3 {
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+}
+
+.docs-nav ul {
+  list-style: none;
+}
+
+.docs-nav li {
+  margin-bottom: 0.5rem;
+}
+
+.docs-nav a {
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 0.5rem 0;
+  display: block;
+  transition: color 0.2s;
+}
+
+.docs-nav a:hover,
+.docs-nav a.active {
+  color: var(--primary-color);
+}
+
+.docs-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-page h1 {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.doc-page h2 {
+  font-size: 1.75rem;
+  margin: 2rem 0 1rem;
+  color: var(--text-primary);
+}
+
+.doc-page h3 {
+  font-size: 1.25rem;
+  margin: 1.5rem 0 0.75rem;
+  color: var(--text-primary);
+}
+
+.doc-page h4 {
+  font-size: 1.1rem;
+  margin: 1.25rem 0 0.5rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.doc-page section {
+  margin-bottom: 2rem;
+}
+
+.doc-page p {
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.doc-page ul,
+.doc-page ol {
+  margin: 1rem 0 1rem 2rem;
+  color: var(--text-secondary);
+}
+
+.doc-page li {
+  margin-bottom: 0.5rem;
+}
+
+/* Type definition */
+.type-definition {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+/* Type cross-reference links */
+.type-link {
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #7d8590;
+}
+
+.type-link a {
+  color: #539bf5;
+  text-decoration: none;
+}
+
+.type-link a:hover {
+  text-decoration: underline;
+}
+
+/* Anchor Links */
+.anchor-heading {
+  position: relative;
+  scroll-margin-top: 80px;
+  display: flex;
+  align-items: center;
+}
+
+.anchor-link {
+  margin-left: 0.5em;
+  font-weight: normal;
+  color: var(--text-secondary);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 0.9em;
+}
+
+.anchor-heading:hover .anchor-link {
+  opacity: 1;
+}

@@ -1,0 +1,441 @@
+import { Link } from 'react-router-dom'
+import { useScrollToHash } from '../../hooks/useScrollToHash'
+
+function Errors() {
+  useScrollToHash()
+  
+  return (
+    <div className="doc-page">
+      <h1>Error Codes</h1>
+      
+      <section>
+        <h2>Error Structure</h2>
+        <p>All purchase errors follow a consistent structure for easy handling.</p>
+        <pre className="code-block">{`interface `}<Link to="/docs/types#purchase-error">PurchaseError</Link>{` {
+  code: String           // Error code constant
+  message: String        // Human-readable message
+  productId?: String     // Related product SKU (if applicable)
+}`}</pre>
+      </section>
+
+      <section>
+        <h2>Common Error Codes</h2>
+        
+        <h3>User Action Errors</h3>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>E_USER_CANCELLED</code></td>
+              <td>User cancelled the purchase flow</td>
+              <td>No action needed, expected behavior</td>
+            </tr>
+            <tr>
+              <td><code>E_USER_ERROR</code></td>
+              <td>User-related error during purchase</td>
+              <td>Check user account status</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Product Errors</h3>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>E_ITEM_UNAVAILABLE</code></td>
+              <td>Product not available in store</td>
+              <td>Check product configuration in store console</td>
+            </tr>
+            <tr>
+              <td><code>E_PRODUCT_NOT_AVAILABLE</code></td>
+              <td>Product SKU not found</td>
+              <td>Verify SKU matches store configuration</td>
+            </tr>
+            <tr>
+              <td><code>E_PRODUCT_ALREADY_OWNED</code></td>
+              <td>Non-consumable product already purchased</td>
+              <td>Restore purchases or check purchase history</td>
+            </tr>
+            <tr>
+              <td><code>E_ALREADY_OWNED</code></td>
+              <td>Item already owned by user</td>
+              <td>Restore purchases to unlock content</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Network & Service Errors</h3>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>E_NETWORK_ERROR</code></td>
+              <td>Network connection error</td>
+              <td>Check internet connection and retry</td>
+            </tr>
+            <tr>
+              <td><code>E_SERVICE_ERROR</code></td>
+              <td>Store service error</td>
+              <td>Wait and retry, check store service status</td>
+            </tr>
+            <tr>
+              <td><code>E_REMOTE_ERROR</code></td>
+              <td>Remote server error</td>
+              <td>Check server logs, retry request</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Validation Errors</h3>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>E_RECEIPT_FAILED</code></td>
+              <td>Receipt validation failed</td>
+              <td>Check receipt validation logic, retry validation</td>
+            </tr>
+            <tr>
+              <td><code>E_RECEIPT_FINISHED</code></td>
+              <td>Receipt already processed/finished</td>
+              <td>Transaction already completed, check records</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Platform-Specific Errors</h3>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Platform</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>E_PENDING</code></td>
+              <td>Purchase is pending approval</td>
+              <td>Android</td>
+              <td>Wait for purchase to complete</td>
+            </tr>
+            <tr>
+              <td><code>E_NOT_ENDED</code></td>
+              <td>Transaction not finished</td>
+              <td>iOS</td>
+              <td>Call finishTransaction()</td>
+            </tr>
+            <tr>
+              <td><code>E_DEVELOPER_ERROR</code></td>
+              <td>Developer configuration error</td>
+              <td>Both</td>
+              <td>Check app configuration and certificates</td>
+            </tr>
+            <tr>
+              <td><code>E_UNKNOWN</code></td>
+              <td>Unknown error occurred</td>
+              <td>Both</td>
+              <td>Check logs for details</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Error Handling Examples</h2>
+        
+        <h3>Error Handling Pattern</h3>
+        <p>Implement error handlers that respond appropriately to each error type:</p>
+        <ul>
+          <li><strong>User Cancellation</strong> - Silent handling, no alerts</li>
+          <li><strong>Product Issues</strong> - Inform user about availability</li>
+          <li><strong>Ownership Conflicts</strong> - Trigger purchase restoration</li>
+          <li><strong>Network Errors</strong> - Suggest retry with backoff</li>
+          <li><strong>Unknown Errors</strong> - Generic fallback message</li>
+        </ul>
+
+        <h3>Error Severity Classification</h3>
+        <p>Classify errors by severity for appropriate handling:</p>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Error Codes</th>
+              <th>Handling</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Info</td>
+              <td>E_USER_CANCELLED</td>
+              <td>Log only, no user notification</td>
+            </tr>
+            <tr>
+              <td>Warning</td>
+              <td>E_ALREADY_OWNED, E_PENDING</td>
+              <td>Log and attempt recovery</td>
+            </tr>
+            <tr>
+              <td>Error</td>
+              <td>All others</td>
+              <td>Log, notify user, report to analytics</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Retry Strategy</h3>
+        <p>Implement retry logic for transient errors:</p>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Error Type</th>
+              <th>Retryable</th>
+              <th>Strategy</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>E_NETWORK_ERROR</td>
+              <td>Yes</td>
+              <td>Exponential backoff (2^n seconds)</td>
+            </tr>
+            <tr>
+              <td>E_SERVICE_ERROR</td>
+              <td>Yes</td>
+              <td>Linear backoff (n * 5 seconds)</td>
+            </tr>
+            <tr>
+              <td>E_REMOTE_ERROR</td>
+              <td>Yes</td>
+              <td>Fixed delay (10 seconds)</td>
+            </tr>
+            <tr>
+              <td>E_USER_CANCELLED</td>
+              <td>No</td>
+              <td>Do not retry</td>
+            </tr>
+            <tr>
+              <td>E_ALREADY_OWNED</td>
+              <td>No</td>
+              <td>Restore instead</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Platform-Specific Error Handling</h2>
+        
+        <h3>iOS Error Codes</h3>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Native Code</th>
+              <th>Mapped Error</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>0</td>
+              <td>E_UNKNOWN</td>
+              <td>Unknown error</td>
+            </tr>
+            <tr>
+              <td>1</td>
+              <td>E_USER_CANCELLED</td>
+              <td>User cancelled transaction</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>E_NETWORK_ERROR</td>
+              <td>Network unavailable</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>E_ITEM_UNAVAILABLE</td>
+              <td>Product not available</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>E_SERVICE_ERROR</td>
+              <td>App Store service error</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>E_RECEIPT_FAILED</td>
+              <td>Receipt validation failed</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>E_ALREADY_OWNED</td>
+              <td>Product already purchased</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Android Response Codes</h3>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Response Code</th>
+              <th>Mapped Error</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>0</td>
+              <td>OK</td>
+              <td>Success</td>
+            </tr>
+            <tr>
+              <td>1</td>
+              <td>E_USER_CANCELLED</td>
+              <td>User pressed back or cancelled</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>E_SERVICE_ERROR</td>
+              <td>Network connection down</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>E_SERVICE_ERROR</td>
+              <td>Billing API unavailable</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>E_ITEM_UNAVAILABLE</td>
+              <td>Requested product not available</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>E_DEVELOPER_ERROR</td>
+              <td>Invalid arguments provided</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>E_UNKNOWN</td>
+              <td>Fatal error during API action</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td>E_ALREADY_OWNED</td>
+              <td>Item already owned</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td>E_PRODUCT_NOT_AVAILABLE</td>
+              <td>Item not owned</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Testing Error Scenarios</h2>
+        
+        <h3>Testing Error Scenarios</h3>
+        <h4>iOS Sandbox Testing</h4>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Test Account</th>
+              <th>Simulated Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>test.purchase.failed@example.com</td>
+              <td>E_RECEIPT_FAILED</td>
+            </tr>
+            <tr>
+              <td>test.purchase.cancelled@example.com</td>
+              <td>E_USER_CANCELLED</td>
+            </tr>
+            <tr>
+              <td>test.purchase.unavailable@example.com</td>
+              <td>E_ITEM_UNAVAILABLE</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h4>Android Test Cards</h4>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Card Number</th>
+              <th>Behavior</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>4111 1111 1111 1111</td>
+              <td>Always approves</td>
+            </tr>
+            <tr>
+              <td>4000 0000 0000 0002</td>
+              <td>Always declines</td>
+            </tr>
+            <tr>
+              <td>4000 0000 0000 0010</td>
+              <td>Requires authentication</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Development Testing</h3>
+        <p>For development testing, consider implementing mock error generators that can simulate various error conditions without requiring actual purchases. This allows you to:</p>
+        <ul>
+          <li>Test error handling UI flows</li>
+          <li>Verify analytics tracking</li>
+          <li>Validate retry logic</li>
+          <li>Ensure proper error recovery</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Best Practices</h2>
+        <ul>
+          <li><strong>Log all errors</strong> - Track error patterns for debugging</li>
+          <li><strong>Provide clear user feedback</strong> - Map technical errors to user-friendly messages</li>
+          <li><strong>Handle errors gracefully</strong> - Don't crash the app on purchase errors</li>
+          <li><strong>Implement retry logic</strong> - For transient network/service errors</li>
+          <li><strong>Track error metrics</strong> - Monitor error rates and types</li>
+          <li><strong>Test error scenarios</strong> - Use sandbox/test environments</li>
+          <li><strong>Document error codes</strong> - Keep error documentation updated</li>
+          <li><strong>Consider error recovery</strong> - Provide alternatives when purchases fail</li>
+        </ul>
+      </section>
+    </div>
+  )
+}
+
+export default Errors

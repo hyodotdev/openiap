@@ -1,0 +1,318 @@
+/* Code Blocks - Light mode by default */
+.code-block,
+.code-snippet,
+pre.code-block {
+  background: #f6f8fa;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  padding: 1.25rem !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  color: #24292e;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+/* Dark mode code blocks */
+:root.dark .code-block,
+:root.dark .code-snippet,
+:root.dark pre.code-block {
+  background: #282c34;
+  border: 1px solid #3e4451;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  color: #abb2bf;
+}
+
+/* Custom scrollbar for code blocks */
+.code-block::-webkit-scrollbar,
+.code-snippet::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.code-block::-webkit-scrollbar-track,
+.code-snippet::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-block::-webkit-scrollbar-thumb,
+.code-snippet::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+:root.dark .code-block::-webkit-scrollbar-thumb,
+:root.dark .code-snippet::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.code-block::-webkit-scrollbar-thumb:hover,
+.code-snippet::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .code-block::-webkit-scrollbar-thumb:hover,
+:root.dark .code-snippet::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Copy button for code blocks */
+.code-block-wrapper {
+  position: relative;
+  margin: 1.5rem 0;
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #586069;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+:root.dark .copy-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #abb2bf;
+}
+
+.copy-button:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #24292e;
+}
+
+:root.dark .copy-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #e5e5e5;
+}
+
+.copy-button.copied {
+  background: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+  border-color: rgba(40, 167, 69, 0.3);
+}
+
+:root.dark .copy-button.copied {
+  background: rgba(152, 195, 121, 0.2);
+  color: #98c379;
+  border-color: rgba(152, 195, 121, 0.3);
+}
+
+/* Inline code */
+code:not([class*="language-"]) {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875em;
+  padding: 0.2em 0.4em;
+  background: rgba(175, 184, 193, 0.2);
+  border-radius: 0.25rem;
+  color: #24292e;
+}
+
+:root.dark code:not([class*="language-"]) {
+  background: rgba(110, 118, 129, 0.4);
+  color: #e6edf3;
+}
+
+/* Code with language class (syntax highlighted) */
+code[class*="language-"] {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+/* Code inside code blocks - override inline styles */
+.code-block code,
+.code-snippet code,
+pre.code-block,
+pre code {
+  color: inherit;
+  background: transparent;
+  padding: 0;
+  white-space: pre;
+  display: block;
+  font-size: 0.9rem;
+  border-radius: 0;
+}
+
+/* Pre elements inside code blocks should not have their own padding */
+.code-block pre,
+.code-snippet pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+/* Syntax Highlighting - Light Mode (GitHub Theme) */
+/* Comments */
+.code-block .token.comment,
+.code-snippet .token.comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+/* Keywords (type, input, enum, etc) */
+.code-block .token.keyword,
+.code-snippet .token.keyword {
+  color: #d73a49;
+  font-weight: 500;
+}
+
+/* Strings */
+.code-block .token.string,
+.code-snippet .token.string {
+  color: #032f62;
+}
+
+/* Type names */
+.code-block .token.type-name,
+.code-snippet .token.type-name {
+  color: #005cc5;
+}
+
+/* Field names */
+.code-block .token.field,
+.code-snippet .token.field {
+  color: #e36209;
+}
+
+/* Function names */
+.code-block .token.function,
+.code-snippet .token.function {
+  color: #6f42c1;
+}
+
+/* Property names */
+.code-block .token.property,
+.code-snippet .token.property {
+  color: #005cc5;
+}
+
+/* Punctuation */
+.code-block .token.punctuation,
+.code-snippet .token.punctuation {
+  color: #24292e;
+}
+
+/* Built-in types */
+.code-block .token.builtin-type,
+.code-snippet .token.builtin-type {
+  color: #22863a;
+}
+
+/* Custom types */
+.code-block .token.custom-type,
+.code-snippet .token.custom-type {
+  color: #005cc5;
+}
+
+/* Required fields */
+.code-block .token.required,
+.code-snippet .token.required {
+  color: #d73a49;
+  font-weight: bold;
+}
+
+/* Enum values */
+.code-block .token.enum-value,
+.code-snippet .token.enum-value {
+  color: #e36209;
+}
+
+/* Numbers */
+.code-block .token.number,
+.code-snippet .token.number {
+  color: #005cc5;
+}
+
+/* Dark Mode Syntax Highlighting (One Dark Pro Theme) */
+:root.dark .code-block .token.comment,
+:root.dark .code-snippet .token.comment {
+  color: #5c6370;
+}
+
+:root.dark .code-block .token.keyword,
+:root.dark .code-snippet .token.keyword {
+  color: #c678dd;
+}
+
+:root.dark .code-block .token.string,
+:root.dark .code-snippet .token.string {
+  color: #98c379;
+}
+
+:root.dark .code-block .token.type-name,
+:root.dark .code-snippet .token.type-name {
+  color: #61afef;
+}
+
+:root.dark .code-block .token.field,
+:root.dark .code-snippet .token.field {
+  color: #e06c75;
+}
+
+:root.dark .code-block .token.function,
+:root.dark .code-snippet .token.function {
+  color: #61afef;
+}
+
+:root.dark .code-block .token.property,
+:root.dark .code-snippet .token.property {
+  color: #e06c75;
+}
+
+:root.dark .code-block .token.punctuation,
+:root.dark .code-snippet .token.punctuation {
+  color: #abb2bf;
+}
+
+:root.dark .code-block .token.builtin-type,
+:root.dark .code-snippet .token.builtin-type {
+  color: #e5c07b;
+}
+
+:root.dark .code-block .token.custom-type,
+:root.dark .code-snippet .token.custom-type {
+  color: #61afef;
+}
+
+:root.dark .code-block .token.required,
+:root.dark .code-snippet .token.required {
+  color: #be5046;
+}
+
+:root.dark .code-block .token.enum-value,
+:root.dark .code-snippet .token.enum-value {
+  color: #d19a66;
+}
+
+:root.dark .code-block .token.number,
+:root.dark .code-snippet .token.number {
+  color: #d19a66;
+}

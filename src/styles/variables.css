@@ -1,0 +1,16 @@
+/* CSS Variables */
+:root {
+  /* Light mode colors (inspired by iapkit.com) */
+  --primary-color: #a47465;
+  --primary-dark: #8a5d52;
+  --primary-light: #c5b19f;
+  --bg-primary: #fefefe;
+  --bg-secondary: #f9f8f7;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b5d54;
+  --border-color: rgba(0, 0, 0, 0.12);
+  --code-bg: #282c34;
+  --max-width: 1200px;
+  --accent-color: #dc6843;
+  --logo-text-filter: none;
+}
