@@ -226,8 +226,7 @@ function Types() {
   "Multiple SKUs"
   skus: [String]
   
-  # iOS options
-  "Auto-finish transaction (iOS)"
+  "iOS options: Auto-finish transaction"
   andDangerouslyFinishTransactionAutomaticallyIOS: Boolean
   
   "App account token"
@@ -239,8 +238,7 @@ function Types() {
   "Payment discount offer"
   withOffer: PaymentDiscount
   
-  # Android options
-  "Obfuscated account ID"
+  "Android options: Obfuscated account ID"
   obfuscatedAccountIdAndroid: String
   
   "Obfuscated profile ID"
@@ -415,12 +413,10 @@ input AndroidPurchaseOptions {
         
         <AnchorLink id="validation-options" level="h3">ValidationOptions</AnchorLink>
         <CodeBlock language="graphql">{`input ValidationOptions {
-  # iOS validation
-  "iOS receipt body"
+  "iOS validation: receipt body"
   receiptBody: IOSReceiptBody
   
-  # Android validation
-  "Android package name"
+  "Android validation: package name"
   packageName: String
   
   "Product purchase token"
@@ -449,8 +445,7 @@ input IOSReceiptBody {
   "HTTP status code"
   status: Int!
   
-  # iOS response fields
-  "iOS receipt object"
+  "iOS response fields: receipt object"
   receipt: JSON
   
   "Latest receipt string"
@@ -462,8 +457,7 @@ input IOSReceiptBody {
   "Pending renewal info"
   pendingRenewalInfo: [JSON]
   
-  # Android response fields
-  "Purchase state (0=purchased, 1=canceled)"
+  "Android response fields: Purchase state (0=purchased, 1=canceled)"
   purchaseState: Int
   
   "Consumption state"

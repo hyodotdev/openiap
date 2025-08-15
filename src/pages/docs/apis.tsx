@@ -15,18 +15,24 @@ function APIs() {
         
         <AnchorLink id="requestproducts" level="h3">requestProducts</AnchorLink>
         <p>Retrieve products or subscriptions from the store.</p>
-        <CodeBlock language="graphql">{`requestProducts(params: ProductRequest!): Future<[Product!]!>
+        <CodeBlock language="graphql">{`"""
+Returns: [Product!]!
+"""
+requestProducts(params: ProductRequest!): Future
 
 type ProductRequest {
   skus: [String]!
-  type: ProductType! # "inapp" | "subs"
+  type: ProductType! "Values: inapp | subs"
 }`}</CodeBlock>
         <p className="type-link">See: <Link to="/docs/types#product">Product</Link></p>
         <p>Returns a future that completes with an array of products or subscriptions matching the provided SKUs. Use <code>type: "inapp"</code> for regular products and <code>type: "subs"</code> for subscriptions.</p>
 
         <AnchorLink id="getavailablepurchases" level="h3">getAvailablePurchases</AnchorLink>
         <p>Get all available purchases for the current user.</p>
-        <CodeBlock language="graphql">{`getAvailablePurchases(options: PurchaseOptions?): Future<[Purchase!]!>
+        <CodeBlock language="graphql">{`"""
+Returns: [Purchase!]!
+"""
+getAvailablePurchases(options: PurchaseOptions?): Future
 
 type PurchaseOptions {
   alsoPublishToEventListener: Boolean?
@@ -37,7 +43,10 @@ type PurchaseOptions {
 
         <AnchorLink id="getpurchasehistories" level="h3">getPurchaseHistories</AnchorLink>
         <p>Get purchase history (iOS only).</p>
-        <CodeBlock language="graphql">{`getPurchaseHistories(options: PurchaseOptions?): Future<[ProductPurchase!]!>
+        <CodeBlock language="graphql">{`"""
+Returns: [ProductPurchase!]!
+"""
+getPurchaseHistories(options: PurchaseOptions?): Future
 
 type PurchaseOptions {
   alsoPublishToEventListener: Boolean?
@@ -52,13 +61,19 @@ type PurchaseOptions {
         
         <AnchorLink id="requestpurchase" level="h3">requestPurchase</AnchorLink>
         <p>Request a purchase (one-time or subscription).</p>
-        <CodeBlock language="graphql">{`requestPurchase(request: UnifiedPurchaseRequest!): Future<Purchase!>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Purchase!
+"""
+requestPurchase(request: UnifiedPurchaseRequest!): Future`}</CodeBlock>
         <p className="type-link">See: <Link to="/docs/types#unified-purchase-request">UnifiedPurchaseRequest</Link>, <Link to="/docs/types#purchase">Purchase</Link></p>
         <p>Initiates a purchase flow for any product type and returns a future that completes when the purchase succeeds.</p>
 
         <AnchorLink id="finishtransaction" level="h3">finishTransaction</AnchorLink>
         <p>Complete a purchase transaction. Must be called after successful verification.</p>
-        <CodeBlock language="graphql">{`finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future<Void>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBlock>
         <p className="type-link">See: <Link to="/docs/types#purchase">Purchase</Link></p>
         <p>This is a unified API that internally handles platform-specific requirements:</p>
         <ul>
@@ -74,7 +89,10 @@ type PurchaseOptions {
         
         <AnchorLink id="validatereceipt" level="h3">validateReceipt</AnchorLink>
         <p>Validate a receipt with your server or platform servers.</p>
-        <CodeBlock language="graphql">{`validateReceipt(options: ValidationOptions!): Future<ValidationResult!>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: ValidationResult!
+"""
+validateReceipt(options: ValidationOptions!): Future`}</CodeBlock>
         <p className="type-link">See: <Link to="/docs/types#validation-options">ValidationOptions</Link>, <Link to="/docs/types#validation-result">ValidationResult</Link></p>
         <p>Validates purchase receipts with the appropriate validation service.</p>
 
@@ -87,34 +105,52 @@ type PurchaseOptions {
         
         <AnchorLink id="finishtransactionios" level="h4">finishTransactionIOS</AnchorLink>
         <p>iOS-specific transaction completion.</p>
-        <CodeBlock language="graphql">{`finishTransactionIOS(transactionId: String!): Future<Void>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+finishTransactionIOS(transactionId: String!): Future`}</CodeBlock>
         <p>Directly marks a transaction as finished in the StoreKit payment queue. Usually called internally by <code>finishTransaction()</code>.</p>
 
         <AnchorLink id="cleartransactionios" level="h4">clearTransactionIOS</AnchorLink>
         <p>Clear pending transactions.</p>
-        <CodeBlock language="graphql">{`clearTransactionIOS(): Future<Void>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+clearTransactionIOS(): Future`}</CodeBlock>
         <p>Removes all pending transactions from the iOS payment queue.</p>
 
         <AnchorLink id="clearproductsios" level="h4">clearProductsIOS</AnchorLink>
         <p>Clear the products cache.</p>
-        <CodeBlock language="graphql">{`clearProductsIOS(): Future<Void>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+clearProductsIOS(): Future`}</CodeBlock>
         <p>Clears cached product information, forcing a refresh on next fetch.</p>
 
         <AnchorLink id="getstorefrontios" level="h4">getStorefrontIOS</AnchorLink>
         <p>Get the current App Store storefront country code.</p>
-        <CodeBlock language="graphql">{`getStorefrontIOS(): Future<String!>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: String!
+"""
+getStorefrontIOS(): Future`}</CodeBlock>
         <p>Returns the storefront country code (e.g., "US", "GB", "JP").</p>
         
         <AnchorLink id="android-apis" level="h3">Android APIs</AnchorLink>
         
         <AnchorLink id="acknowledgepurchaseandroid" level="h4">acknowledgePurchaseAndroid</AnchorLink>
         <p>Acknowledge a non-consumable purchase or subscription.</p>
-        <CodeBlock language="graphql">{`acknowledgePurchaseAndroid(purchaseToken: String!): Future<Void>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+acknowledgePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         <p>Acknowledges the purchase to Google Play. Required within 3 days or the purchase will be refunded. Usually called internally by <code>finishTransaction()</code>.</p>
 
         <AnchorLink id="consumepurchaseandroid" level="h4">consumePurchaseAndroid</AnchorLink>
         <p>Consume a purchase (for consumable products only).</p>
-        <CodeBlock language="graphql">{`consumePurchaseAndroid(purchaseToken: String!): Future<Void>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         <p>Marks a consumable product as consumed, allowing repurchase. Automatically acknowledges the purchase. Usually called internally by <code>finishTransaction()</code> for consumables.</p>
       </section>
 
@@ -123,12 +159,18 @@ type PurchaseOptions {
         
         <AnchorLink id="initconnection" level="h3">initConnection</AnchorLink>
         <p>Initialize connection to the store service.</p>
-        <CodeBlock language="graphql">{`initConnection(): Future<Boolean!>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+initConnection(): Future`}</CodeBlock>
         <p>Establishes connection with the platform's billing service. Returns true if successful.</p>
 
         <AnchorLink id="endconnection" level="h3">endConnection</AnchorLink>
         <p>End connection to the store service.</p>
-        <CodeBlock language="graphql">{`endConnection(): Future<Boolean!>`}</CodeBlock>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+endConnection(): Future`}</CodeBlock>
         <p>Closes the connection and cleans up resources. Returns true if successful.</p>
       </section>
 
@@ -137,11 +179,16 @@ type PurchaseOptions {
         
         <AnchorLink id="deeplinktosubscriptions" level="h3">deepLinkToSubscriptions</AnchorLink>
         <p>Open native subscription management interface.</p>
-        <CodeBlock language="graphql">{`deepLinkToSubscriptions(options: DeepLinkOptions): Future<Void>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+deepLinkToSubscriptions(options: DeepLinkOptions): Future
 
 type DeepLinkOptions {
-  skuAndroid: String?        # Required on Android
-  packageNameAndroid: String? # Required on Android
+  "Required on Android"
+  skuAndroid: String?
+  "Required on Android"
+  packageNameAndroid: String?
 }`}</CodeBlock>
         <p>Opens the platform's native subscription management interface where users can view and manage their subscriptions.</p>
       </section>
