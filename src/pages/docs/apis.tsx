@@ -78,11 +78,6 @@ type PurchaseOptions {
         <p className="type-link">See: <Link to="/docs/types#validation-options">ValidationOptions</Link>, <Link to="/docs/types#validation-result">ValidationResult</Link></p>
         <p>Validates purchase receipts with the appropriate validation service.</p>
 
-        <AnchorLink id="ispurchasevalid" level="h3">isPurchaseValid</AnchorLink>
-        <p>Quick check if a purchase is valid.</p>
-        <CodeBlock language="graphql">{`isPurchaseValid(purchase: Purchase!): Future<Boolean>`}</CodeBlock>
-        <p className="type-link">See: <Link to="/docs/types#purchase">Purchase</Link></p>
-        <p>Returns a future that completes with the validity status of the purchase.</p>
       </section>
 
       <section>
