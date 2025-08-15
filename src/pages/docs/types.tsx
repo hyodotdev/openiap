@@ -218,18 +218,40 @@ function Types() {
       <section>
         <AnchorLink id="request-types" level="h2">Request Types</AnchorLink>
         
-        <AnchorLink id="unified-purchase-request" level="h3">UnifiedPurchaseRequest</AnchorLink>
-        <CodeBlock language="graphql">{`input UnifiedPurchaseRequest {
-  "Single SKU (convenience)"
-  sku: String
+        <AnchorLink id="request-purchase-props" level="h3">RequestPurchaseProps</AnchorLink>
+        <p>Modern request purchase parameters. This is the recommended API moving forward.</p>
+        <CodeBlock language="graphql">{`type RequestPurchaseProps = RequestPurchasePropsByPlatforms`}</CodeBlock>
+        
+        <AnchorLink id="request-purchase-props-by-platforms" level="h3">RequestPurchasePropsByPlatforms</AnchorLink>
+        <p>Platform-specific request structure for regular purchases. Allows clear separation of iOS and Android parameters.</p>
+        <CodeBlock language="graphql">{`input RequestPurchasePropsByPlatforms {
+  "iOS-specific purchase parameters"
+  ios: RequestPurchaseIosProps
   
-  "Multiple SKUs"
-  skus: [String]
+  "Android-specific purchase parameters"
+  android: RequestPurchaseAndroidProps
+}`}</CodeBlock>
+
+        <AnchorLink id="request-subscription-props-by-platforms" level="h3">RequestSubscriptionPropsByPlatforms</AnchorLink>
+        <p>Platform-specific subscription request structure.</p>
+        <CodeBlock language="graphql">{`input RequestSubscriptionPropsByPlatforms {
+  "iOS-specific subscription parameters"
+  ios: RequestPurchaseIosProps
   
-  "iOS options: Auto-finish transaction"
+  "Android-specific subscription parameters"
+  android: RequestSubscriptionAndroidProps
+}`}</CodeBlock>
+
+        <AnchorLink id="request-purchase-ios-props" level="h3">RequestPurchaseIosProps</AnchorLink>
+        <p>iOS-specific purchase request parameters.</p>
+        <CodeBlock language="graphql">{`input RequestPurchaseIosProps {
+  "Product SKU"
+  sku: String!
+  
+  "Auto-finish transaction (dangerous)"
   andDangerouslyFinishTransactionAutomaticallyIOS: Boolean
   
-  "App account token"
+  "App account token for user tracking"
   appAccountToken: String
   
   "Purchase quantity"
@@ -237,8 +259,31 @@ function Types() {
   
   "Payment discount offer"
   withOffer: PaymentDiscount
+}`}</CodeBlock>
+
+        <AnchorLink id="request-purchase-android-props" level="h3">RequestPurchaseAndroidProps</AnchorLink>
+        <p>Android-specific purchase request parameters.</p>
+        <CodeBlock language="graphql">{`input RequestPurchaseAndroidProps {
+  "List of product SKUs"
+  skus: [String!]!
   
-  "Android options: Obfuscated account ID"
+  "Obfuscated account ID"
+  obfuscatedAccountIdAndroid: String
+  
+  "Obfuscated profile ID"
+  obfuscatedProfileIdAndroid: String
+  
+  "Personalized offer flag"
+  isOfferPersonalized: Boolean
+}`}</CodeBlock>
+
+        <AnchorLink id="request-subscription-android-props" level="h3">RequestSubscriptionAndroidProps</AnchorLink>
+        <p>Android-specific subscription request parameters. Extends RequestPurchaseAndroidProps.</p>
+        <CodeBlock language="graphql">{`input RequestSubscriptionAndroidProps {
+  "List of subscription SKUs"
+  skus: [String!]!
+  
+  "Obfuscated account ID"
   obfuscatedAccountIdAndroid: String
   
   "Obfuscated profile ID"
@@ -247,41 +292,22 @@ function Types() {
   "Personalized offer flag"
   isOfferPersonalized: Boolean
   
+  "Purchase token for upgrades/downgrades"
+  purchaseTokenAndroid: String
+  
+  "Replacement mode for subscription changes"
+  replacementModeAndroid: Int
+  
   "Subscription offers"
-  subscriptionOffers: [SubscriptionOffer]
-  
-  "Purchase token for upgrades"
-  purchaseTokenAndroid: String
-  
-  "Proration mode"
-  replacementModeAndroid: Int
-}`}</CodeBlock>
-
-        <AnchorLink id="platform-purchase-request" level="h3">PlatformPurchaseRequest</AnchorLink>
-        <CodeBlock language="graphql">{`input PlatformPurchaseRequest {
-  "iOS-specific purchase options"
-  ios: IOSPurchaseOptions
-  
-  "Android-specific purchase options"
-  android: AndroidPurchaseOptions
+  subscriptionOffers: [SubscriptionOffer!]
 }
 
-input IOSPurchaseOptions {
+type SubscriptionOffer {
+  "Product SKU"
   sku: String!
-  andDangerouslyFinishTransactionAutomaticallyIOS: Boolean
-  appAccountToken: String
-  quantity: Int
-  withOffer: PaymentDiscount
-}
-
-input AndroidPurchaseOptions {
-  skus: [String]!
-  obfuscatedAccountIdAndroid: String
-  obfuscatedProfileIdAndroid: String
-  isOfferPersonalized: Boolean
-  subscriptionOffers: [SubscriptionOffer]
-  purchaseTokenAndroid: String
-  replacementModeAndroid: Int
+  
+  "Offer token"
+  offerToken: String!
 }`}</CodeBlock>
       </section>
 

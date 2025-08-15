@@ -64,8 +64,8 @@ type PurchaseOptions {
         <CodeBlock language="graphql">{`"""
 Returns: Purchase!
 """
-requestPurchase(request: UnifiedPurchaseRequest!): Future`}</CodeBlock>
-        <p className="type-link">See: <Link to="/docs/types#unified-purchase-request">UnifiedPurchaseRequest</Link>, <Link to="/docs/types#purchase">Purchase</Link></p>
+requestPurchase(request: RequestPurchaseProps | RequestSubscriptionProps): Future`}</CodeBlock>
+        <p className="type-link">See: <Link to="/docs/types#request-purchase-props">RequestPurchaseProps</Link>, <Link to="/docs/types#request-subscription-props-by-platforms">RequestSubscriptionPropsByPlatforms</Link>, <Link to="/docs/types#purchase">Purchase</Link></p>
         <p>Initiates a purchase flow for any product type and returns a future that completes when the purchase succeeds.</p>
 
         <AnchorLink id="finishtransaction" level="h3">finishTransaction</AnchorLink>
