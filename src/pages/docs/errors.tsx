@@ -41,6 +41,16 @@ function Errors() {
               <td>User-related error during purchase</td>
               <td>Check user account status</td>
             </tr>
+            <tr>
+              <td><code>E_DEFERRED_PAYMENT</code></td>
+              <td>Payment was deferred (pending family approval, etc.)</td>
+              <td>Wait for payment approval</td>
+            </tr>
+            <tr>
+              <td><code>E_INTERRUPTED</code></td>
+              <td>Purchase flow was interrupted</td>
+              <td>Retry the purchase</td>
+            </tr>
           </tbody>
         </table>
 
@@ -102,6 +112,21 @@ function Errors() {
               <td>Remote server error</td>
               <td>Check server logs, retry request</td>
             </tr>
+            <tr>
+              <td><code>E_CONNECTION_CLOSED</code></td>
+              <td>Connection to store service was closed</td>
+              <td>Reinitialize connection and retry</td>
+            </tr>
+            <tr>
+              <td><code>E_IAP_NOT_AVAILABLE</code></td>
+              <td>In-app purchase service not available</td>
+              <td>Check device settings and IAP availability</td>
+            </tr>
+            <tr>
+              <td><code>E_SYNC_ERROR</code></td>
+              <td>Synchronization error with store</td>
+              <td>Retry synchronization</td>
+            </tr>
           </tbody>
         </table>
 
@@ -124,6 +149,16 @@ function Errors() {
               <td><code>E_RECEIPT_FINISHED</code></td>
               <td>Receipt already processed/finished</td>
               <td>Transaction already completed, check records</td>
+            </tr>
+            <tr>
+              <td><code>E_RECEIPT_FINISHED_FAILED</code></td>
+              <td>Failed to finish receipt processing</td>
+              <td>Check transaction state and retry</td>
+            </tr>
+            <tr>
+              <td><code>E_TRANSACTION_VALIDATION_FAILED</code></td>
+              <td>Transaction validation failed</td>
+              <td>Verify transaction data and retry</td>
             </tr>
           </tbody>
         </table>
@@ -163,6 +198,36 @@ function Errors() {
               <td>Both</td>
               <td>Check logs for details</td>
             </tr>
+            <tr>
+              <td><code>E_NOT_PREPARED</code></td>
+              <td>Store connection not initialized</td>
+              <td>Both</td>
+              <td>Call initConnection() first</td>
+            </tr>
+            <tr>
+              <td><code>E_ALREADY_PREPARED</code></td>
+              <td>Store connection already initialized</td>
+              <td>Both</td>
+              <td>Connection already established</td>
+            </tr>
+            <tr>
+              <td><code>E_BILLING_RESPONSE_JSON_PARSE_ERROR</code></td>
+              <td>Failed to parse billing response</td>
+              <td>Android</td>
+              <td>Check response format, report bug if persistent</td>
+            </tr>
+            <tr>
+              <td><code>E_PURCHASE_ERROR</code></td>
+              <td>General purchase error</td>
+              <td>Both</td>
+              <td>Check error details and retry</td>
+            </tr>
+            <tr>
+              <td><code>E_ACTIVITY_UNAVAILABLE</code></td>
+              <td>Activity context not available</td>
+              <td>Android</td>
+              <td>Ensure app is in foreground</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -193,12 +258,12 @@ function Errors() {
           <tbody>
             <tr>
               <td>Info</td>
-              <td>E_USER_CANCELLED</td>
+              <td>E_USER_CANCELLED, E_ALREADY_PREPARED</td>
               <td>Log only, no user notification</td>
             </tr>
             <tr>
               <td>Warning</td>
-              <td>E_ALREADY_OWNED, E_PENDING</td>
+              <td>E_ALREADY_OWNED, E_PENDING, E_DEFERRED_PAYMENT, E_NOT_PREPARED, E_INTERRUPTED</td>
               <td>Log and attempt recovery</td>
             </tr>
             <tr>
@@ -236,6 +301,16 @@ function Errors() {
               <td>Fixed delay (10 seconds)</td>
             </tr>
             <tr>
+              <td>E_CONNECTION_CLOSED</td>
+              <td>Yes</td>
+              <td>Reinitialize and retry</td>
+            </tr>
+            <tr>
+              <td>E_SYNC_ERROR</td>
+              <td>Yes</td>
+              <td>Exponential backoff</td>
+            </tr>
+            <tr>
               <td>E_USER_CANCELLED</td>
               <td>No</td>
               <td>Do not retry</td>
@@ -244,6 +319,16 @@ function Errors() {
               <td>E_ALREADY_OWNED</td>
               <td>No</td>
               <td>Restore instead</td>
+            </tr>
+            <tr>
+              <td>E_DEFERRED_PAYMENT</td>
+              <td>No</td>
+              <td>Wait for approval</td>
+            </tr>
+            <tr>
+              <td>E_NOT_PREPARED</td>
+              <td>No</td>
+              <td>Initialize connection first</td>
             </tr>
           </tbody>
         </table>
