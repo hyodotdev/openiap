@@ -15,7 +15,7 @@ function APIs() {
         
         <AnchorLink id="requestproducts" level="h3">requestProducts</AnchorLink>
         <p>Retrieve products or subscriptions from the store.</p>
-        <CodeBlock language="graphql">{`requestProducts(params: ProductRequest!): Future<[Product]>
+        <CodeBlock language="graphql">{`requestProducts(params: ProductRequest!): Future<[Product!]!>
 
 type ProductRequest {
   skus: [String]!
@@ -26,7 +26,7 @@ type ProductRequest {
 
         <AnchorLink id="getavailablepurchases" level="h3">getAvailablePurchases</AnchorLink>
         <p>Get all available purchases for the current user.</p>
-        <CodeBlock language="graphql">{`getAvailablePurchases(options: PurchaseOptions?): Future<[Purchase]>
+        <CodeBlock language="graphql">{`getAvailablePurchases(options: PurchaseOptions?): Future<[Purchase!]!>
 
 type PurchaseOptions {
   alsoPublishToEventListener: Boolean?
@@ -37,7 +37,7 @@ type PurchaseOptions {
 
         <AnchorLink id="getpurchasehistories" level="h3">getPurchaseHistories</AnchorLink>
         <p>Get purchase history (iOS only).</p>
-        <CodeBlock language="graphql">{`getPurchaseHistories(options: PurchaseOptions?): Future<[ProductPurchase]>
+        <CodeBlock language="graphql">{`getPurchaseHistories(options: PurchaseOptions?): Future<[ProductPurchase!]!>
 
 type PurchaseOptions {
   alsoPublishToEventListener: Boolean?
@@ -52,7 +52,7 @@ type PurchaseOptions {
         
         <AnchorLink id="requestpurchase" level="h3">requestPurchase</AnchorLink>
         <p>Request a purchase (one-time or subscription).</p>
-        <CodeBlock language="graphql">{`requestPurchase(request: UnifiedPurchaseRequest!): Future<Purchase>`}</CodeBlock>
+        <CodeBlock language="graphql">{`requestPurchase(request: UnifiedPurchaseRequest!): Future<Purchase!>`}</CodeBlock>
         <p className="type-link">See: <Link to="/docs/types#unified-purchase-request">UnifiedPurchaseRequest</Link>, <Link to="/docs/types#purchase">Purchase</Link></p>
         <p>Initiates a purchase flow for any product type and returns a future that completes when the purchase succeeds.</p>
 
@@ -74,7 +74,7 @@ type PurchaseOptions {
         
         <AnchorLink id="validatereceipt" level="h3">validateReceipt</AnchorLink>
         <p>Validate a receipt with your server or platform servers.</p>
-        <CodeBlock language="graphql">{`validateReceipt(options: ValidationOptions!): Future<ValidationResult>`}</CodeBlock>
+        <CodeBlock language="graphql">{`validateReceipt(options: ValidationOptions!): Future<ValidationResult!>`}</CodeBlock>
         <p className="type-link">See: <Link to="/docs/types#validation-options">ValidationOptions</Link>, <Link to="/docs/types#validation-result">ValidationResult</Link></p>
         <p>Validates purchase receipts with the appropriate validation service.</p>
 
@@ -102,7 +102,7 @@ type PurchaseOptions {
 
         <AnchorLink id="getstorefrontios" level="h4">getStorefrontIOS</AnchorLink>
         <p>Get the current App Store storefront country code.</p>
-        <CodeBlock language="graphql">{`getStorefrontIOS(): Future<String>`}</CodeBlock>
+        <CodeBlock language="graphql">{`getStorefrontIOS(): Future<String!>`}</CodeBlock>
         <p>Returns the storefront country code (e.g., "US", "GB", "JP").</p>
         
         <AnchorLink id="android-apis" level="h3">Android APIs</AnchorLink>
@@ -123,12 +123,12 @@ type PurchaseOptions {
         
         <AnchorLink id="initconnection" level="h3">initConnection</AnchorLink>
         <p>Initialize connection to the store service.</p>
-        <CodeBlock language="graphql">{`initConnection(): Future<Boolean>`}</CodeBlock>
+        <CodeBlock language="graphql">{`initConnection(): Future<Boolean!>`}</CodeBlock>
         <p>Establishes connection with the platform's billing service. Returns true if successful.</p>
 
         <AnchorLink id="endconnection" level="h3">endConnection</AnchorLink>
         <p>End connection to the store service.</p>
-        <CodeBlock language="graphql">{`endConnection(): Future<Boolean>`}</CodeBlock>
+        <CodeBlock language="graphql">{`endConnection(): Future<Boolean!>`}</CodeBlock>
         <p>Closes the connection and cleans up resources. Returns true if successful.</p>
       </section>
 
