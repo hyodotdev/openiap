@@ -3,6 +3,8 @@
   min-height: calc(100vh - 80px);
   padding: 3rem 2rem;
   background: var(--bg-primary);
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .content-wrapper {

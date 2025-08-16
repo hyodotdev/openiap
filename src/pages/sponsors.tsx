@@ -18,7 +18,7 @@ function Sponsors() {
             }}
           >
             <p
-              style={{ marginBottom: "1.5rem", color: "var(--text-secondary)" }}
+              style={{ marginBottom: "1.5rem", color: "var(--text-secondary, #666)" }}
             >
               We're working to expand Open IAP across more platforms and
               ecosystems, making it easier for developers everywhere to
@@ -27,7 +27,7 @@ function Sponsors() {
               to emerging technologies like XR and AI platforms.
             </p>
             <p
-              style={{ marginBottom: "1.5rem", color: "var(--text-secondary)" }}
+              style={{ marginBottom: "1.5rem", color: "var(--text-secondary, #666)" }}
             >
               When you sponsor Open IAP, you're supporting all our IAP
               libraries:
@@ -112,7 +112,7 @@ function Sponsors() {
                 <span>kmp-iap</span>
               </a>
             </div>
-            <p style={{ color: "var(--text-secondary)" }}>
+            <p style={{ color: "var(--text-secondary, #666)" }}>
               Every contribution, no matter the size, helps us dedicate more
               time to this open-source initiative.
             </p>
@@ -220,7 +220,7 @@ function Sponsors() {
             <p
               style={{
                 textAlign: "center",
-                color: "var(--text-secondary)",
+                color: "var(--text-secondary, #666)",
                 maxWidth: "700px",
                 margin: "0 auto",
                 lineHeight: "1.6",
@@ -295,7 +295,7 @@ function Sponsors() {
               >
                 $25/month
               </p>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
+              <p style={{ color: "var(--text-secondary, #666)", fontSize: "0.9rem" }}>
                 Support open-source development
               </p>
             </div>
@@ -345,7 +345,7 @@ function Sponsors() {
                   $100/month
                 </p>
                 <p
-                  style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}
+                  style={{ color: "var(--text-secondary, #666)", fontSize: "0.9rem" }}
                 >
                   Small logo in one project
                 </p>
@@ -377,7 +377,7 @@ function Sponsors() {
                   $300/month
                 </p>
                 <p
-                  style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}
+                  style={{ color: "var(--text-secondary, #666)", fontSize: "0.9rem" }}
                 >
                   Logo featured in README
                 </p>
@@ -409,7 +409,7 @@ function Sponsors() {
                   $500/month
                 </p>
                 <p
-                  style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}
+                  style={{ color: "var(--text-secondary, #666)", fontSize: "0.9rem" }}
                 >
                   Large logo & recognition
                 </p>
@@ -441,7 +441,7 @@ function Sponsors() {
                   $999/month
                 </p>
                 <p
-                  style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}
+                  style={{ color: "var(--text-secondary, #666)", fontSize: "0.9rem" }}
                 >
                   Featured across all repositories
                 </p>
@@ -461,7 +461,7 @@ function Sponsors() {
           </div>
         </section>
 
-        <section className="resources-section">
+        <section className="resources-section" style={{ overflow: 'hidden' }}>
           <h2 style={{ textAlign: "center" }}>Current Sponsors</h2>
           <div
             style={{
@@ -470,45 +470,67 @@ function Sponsors() {
               alignItems: "center",
               gap: "2rem",
               padding: "2rem 0",
+              overflow: 'hidden',
             }}
           >
-            <div style={{ textAlign: "center" }}>
+            <div style={{ textAlign: "center", width: '100%', overflow: 'hidden', padding: '0 1rem' }}>
               <p
                 style={{
                   color: "var(--accent-color)",
                   fontSize: "0.9rem",
                   fontWeight: "600",
                   letterSpacing: "0.5px",
+                  marginBottom: "1rem",
                 }}
               >
                 👼 Angel
               </p>
-              <a
-                href="https://meta.com"
-                target="_blank"
-                rel="noopener noreferrer"
+              <div
                 style={{
                   display: "flex",
+                  justifyContent: "center",
                   alignItems: "center",
                   gap: "0.1rem",
-                  textDecoration: "none",
+                  maxWidth: '100%',
                 }}
               >
-                <img
-                  src="/meta.svg"
-                  alt="Meta Logo"
-                  style={{ height: "240px", objectFit: "contain" }}
-                />
-                <img
-                  src="/meta-txt.svg"
-                  alt="Meta Text"
+                <a
+                  href="https://meta.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
-                    height: "240px",
-                    objectFit: "contain",
-                    filter: "var(--logo-text-filter, none)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.1rem",
+                    textDecoration: "none",
+                    maxHeight: "240px",
                   }}
-                />
-              </a>
+                >
+                  <img
+                    src="/meta.svg"
+                    alt="Meta Logo"
+                    style={{ 
+                      height: "100%", 
+                      maxHeight: "240px",
+                      width: 'auto', 
+                      maxWidth: '40vw', 
+                      objectFit: "contain" 
+                    }}
+                  />
+                  <img
+                    src="/meta-txt.svg"
+                    alt="Meta Text"
+                    style={{
+                      height: "100%",
+                      maxHeight: "240px",
+                      width: 'auto',
+                      maxWidth: '40vw',
+                      objectFit: "contain",
+                      filter: "var(--logo-text-filter, none)",
+                    }}
+                  />
+                </a>
+              </div>
             </div>
             <div style={{ textAlign: "center" }}>
               <p
@@ -577,7 +599,7 @@ function Sponsors() {
           <h2 style={{ textAlign: "center" }}>Contact</h2>
           <div style={{ textAlign: "center" }}>
             <p
-              style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}
+              style={{ color: "var(--text-secondary, #666)", marginBottom: "1.5rem" }}
             >
               For sponsorship inquiries or any questions, please reach out to us
             </p>
