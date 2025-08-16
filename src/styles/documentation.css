@@ -125,6 +125,57 @@
   text-decoration: underline;
 }
 
+/* Terminology Blockquote */
+.terminology-note {
+  background: linear-gradient(135deg, rgba(197, 177, 159, 0.08) 0%, rgba(255, 128, 102, 0.06) 100%);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.terminology-note p {
+  margin: 0.75rem 0;
+  line-height: 1.6;
+}
+
+.terminology-note p:first-child {
+  margin-top: 0;
+}
+
+.terminology-note p:last-child {
+  margin-bottom: 0;
+}
+
+.terminology-note code {
+  background: rgba(197, 177, 159, 0.15);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+}
+
+.terminology-note a {
+  color: var(--primary-color);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.terminology-note a:hover {
+  color: var(--primary-dark);
+}
+
+/* Dark mode for terminology note */
+:root.dark .terminology-note {
+  background: linear-gradient(135deg, rgba(197, 177, 159, 0.12) 0%, rgba(255, 128, 102, 0.08) 100%);
+  border-left-color: var(--primary-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+:root.dark .terminology-note code {
+  background: rgba(197, 177, 159, 0.25);
+}
+
 /* Anchor Links */
 .anchor-heading {
   position: relative;
