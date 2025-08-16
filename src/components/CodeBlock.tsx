@@ -27,12 +27,17 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
 
   return (
     <div className="code-block-wrapper">
-      <button 
-        className={`copy-button ${copied ? 'copied' : ''}`}
-        onClick={() => void handleCopy()}
-      >
-        {copied ? 'Copied!' : 'Copy'}
-      </button>
+      <div className="code-block-header">
+        {(language === 'typescript' || language === 'javascript') && (
+          <span className="code-block-language">{language === 'typescript' ? 'ts' : 'js'}</span>
+        )}
+        <button 
+          className={`copy-button ${copied ? 'copied' : ''}`}
+          onClick={() => void handleCopy()}
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
       <pre className="code-block">
         <code ref={codeRef} className={`language-${language}`}>
           {children}
@@ -46,27 +51,73 @@ function highlightCode(element: HTMLElement, language: string) {
   const text = element.textContent || ''
   
   if (language === 'typescript' || language === 'javascript') {
-    // TypeScript/JavaScript syntax highlighting
-    const highlighted = text
-      // Comments (must be before strings to avoid conflicts)
-      .replace(/(\/\/[^\n]*)/g, '<span class="token comment">$1</span>')
-      .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="token comment">$1</span>')
-      // Template literals and strings
-      .replace(/(`[\s\S]*?`)/g, '<span class="token string">$1</span>')
-      .replace(/("[^"]*")/g, '<span class="token string">$1</span>')
-      .replace(/('[^']*')/g, '<span class="token string">$1</span>')
-      // Keywords
-      .replace(/\b(import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with)\b/g, '<span class="token keyword">$1</span>')
-      // Built-in types and objects
-      .replace(/\b(string|number|boolean|any|unknown|never|void|null|undefined|object|symbol|bigint|Array|Object|Function|Promise|Date|RegExp|Map|Set|WeakMap|WeakSet|Error|JSON|Math|Number|String|Boolean|Symbol|BigInt|Proxy|Reflect|console)\b/g, '<span class="token builtin-type">$1</span>')
-      // Numbers
-      .replace(/\b(\d+\.?\d*)\b/g, '<span class="token number">$1</span>')
-      // Function names
-      .replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()/g, '<span class="token function">$1</span>')
-      // Property access
-      .replace(/\.([a-zA-Z_$][a-zA-Z0-9_$]*)/g, '.<span class="token property">$1</span>')
+    // Process syntax highlighting before escaping HTML
+    const lines = text.split('\n')
+    const highlightedLines = lines.map(line => {
+      let result = ''
+      let inString = false
+      let stringChar = ''
+      
+      // Check if line is a comment
+      if (line.trim().startsWith('//')) {
+        return `<span class="token comment">${line.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
+      }
+      
+      // Tokenize the line
+      const tokens: Array<{type: string, value: string}> = []
+      let current = ''
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+        
+        // Handle strings
+        if ((char === '"' || char === "'" || char === '`') && !inString) {
+          if (current) {
+            tokens.push({type: 'code', value: current})
+            current = ''
+          }
+          inString = true
+          stringChar = char
+          current = char
+        } else if (inString && char === stringChar) {
+          current += char
+          tokens.push({type: 'string', value: current})
+          current = ''
+          inString = false
+          stringChar = ''
+        } else {
+          current += char
+        }
+      }
+      
+      if (current) {
+        tokens.push({type: inString ? 'string' : 'code', value: current})
+      }
+      
+      // Process tokens
+      tokens.forEach(token => {
+        if (token.type === 'string') {
+          result += `<span class="token string">${token.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
+        } else {
+          let processed = token.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          
+          // Keywords
+          processed = processed.replace(/\b(import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with)\b/g, '<span class="token keyword">$1</span>')
+          
+          // Numbers
+          processed = processed.replace(/\b(\d+\.?\d*)\b/g, '<span class="token number">$1</span>')
+          
+          // Function calls
+          processed = processed.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()/g, '<span class="token function">$1</span>')
+          
+          result += processed
+        }
+      })
+      
+      return result
+    })
     
-    element.innerHTML = highlighted
+    element.innerHTML = highlightedLines.join('\n')
   } else if (language === 'graphql') {
     // Split by lines to process each line
     const lines = text.split('\n')

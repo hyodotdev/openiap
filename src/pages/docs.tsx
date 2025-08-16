@@ -6,6 +6,8 @@ import Events from './docs/events'
 import Errors from './docs/errors'
 import IOSSetup from './docs/ios-setup'
 import AndroidSetup from './docs/android-setup'
+import Updates from './docs/updates'
+import Announcements from './docs/announcements'
 
 function Docs() {
   return (
@@ -54,6 +56,20 @@ function Docs() {
               </NavLink>
             </li>
           </ul>
+          
+          <h3 style={{ marginTop: '2rem' }}>Updates</h3>
+          <ul>
+            <li>
+              <NavLink to="/docs/announcements" className={({ isActive }) => isActive ? 'active' : ''}>
+                Announcements
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/docs/updates" className={({ isActive }) => isActive ? 'active' : ''}>
+                Notes
+              </NavLink>
+            </li>
+          </ul>
         </nav>
       </aside>
       
@@ -67,6 +83,8 @@ function Docs() {
           <Route path="errors" element={<Errors />} />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
+          <Route path="updates" element={<Updates />} />
+          <Route path="announcements" element={<Announcements />} />
         </Routes>
       </main>
     </div>

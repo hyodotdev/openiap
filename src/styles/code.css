@@ -71,10 +71,32 @@ pre.code-block {
   margin: 1.5rem 0;
 }
 
-.copy-button {
+.code-block-header {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 10;
+}
+
+.code-block-language {
+  color: #586069;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+:root.dark .code-block-language {
+  color: #abb2bf;
+  opacity: 0.6;
+}
+
+.copy-button {
   background: rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.1);
   color: #586069;
@@ -84,7 +106,6 @@ pre.code-block {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  z-index: 10;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 

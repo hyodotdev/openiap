@@ -20,9 +20,18 @@
 .docs-nav h3 {
   margin-bottom: 1rem;
   color: var(--text-secondary);
+  opacity: 0.7;
   text-transform: uppercase;
   font-size: 0.875rem;
   letter-spacing: 0.05em;
+  font-weight: 500;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:root.dark .docs-nav h3 {
+  opacity: 0.6;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .docs-nav ul {
@@ -196,4 +205,82 @@
 
 .anchor-heading:hover .anchor-link {
   opacity: 1;
+}
+
+/* Tables */
+.error-table,
+.doc-page table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  background: var(--bg-primary);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.error-table thead,
+.doc-page table thead {
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.error-table th,
+.doc-page table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.error-table td,
+.doc-page table td {
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.error-table tbody tr:last-child td,
+.doc-page table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.error-table tbody tr:hover,
+.doc-page table tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+.error-table code,
+.doc-page table code {
+  background: var(--bg-secondary);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+  color: var(--primary-color);
+  font-family: 'Courier New', monospace;
+}
+
+/* Dark mode for tables */
+:root.dark .error-table,
+:root.dark .doc-page table {
+  background: var(--bg-secondary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .error-table thead,
+:root.dark .doc-page table thead {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+:root.dark .error-table tbody tr:hover,
+:root.dark .doc-page table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:root.dark .error-table code,
+:root.dark .doc-page table code {
+  background: rgba(255, 255, 255, 0.1);
 }

@@ -71,7 +71,7 @@ function Events() {
         <p>Fired when a user clicks on a promoted in-app purchase in the App Store.</p>
         
         <h3>Listener Setup</h3>
-        <CodeBlock language="graphql">{`promotedProductListener(listener: (String) => Void): Subscription`}</CodeBlock>
+        <CodeBlock language="graphql">{`promotedProductListenerIOS(listener: (String) => Void): Subscription`}</CodeBlock>
         <p>Registers a listener for App Store promoted product events.</p>
 
         <h3>Handling Promoted Products</h3>

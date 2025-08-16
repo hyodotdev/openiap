@@ -429,9 +429,17 @@ npx prettier --check "src/**/*.{ts,tsx,js,jsx,css,json}"
 Before committing any changes:
 
 1. Run `npx prettier --write` to format all files
-2. **ALWAYS run `npm run lint`** to check for TypeScript errors and ensure code quality
-3. Run `npm run build` to ensure no build errors
-4. Write a clear commit message following the conventions below
+2. **ALWAYS run `npm run lint`** to check for linting issues
+3. **ALWAYS run `bun run tsc` or `npm run typecheck`** to check for TypeScript errors
+4. Run `npm run build` to ensure no build errors
+5. Write a clear commit message following the conventions below
+
+**IMPORTANT**: These checks will also run in CI/CD pipeline. Always test locally first to avoid CI failures:
+- TypeScript type checking (`tsc --noEmit`)
+- ESLint checks
+- Build process
+
+Failing to run these checks locally will cause the GitHub Actions workflow to fail.
 
 ## Git Commit Message Convention
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import CodeBlock from '../../components/CodeBlock'
 import { useScrollToHash } from '../../hooks/useScrollToHash'
 
 function Errors() {
@@ -10,12 +11,12 @@ function Errors() {
       
       <section>
         <h2>Error Structure</h2>
-        <p>All purchase errors follow a consistent structure for easy handling.</p>
-        <pre className="code-block">{`interface `}<Link to="/docs/types#purchase-error">PurchaseError</Link>{` {
-  code: String           // Error code constant
-  message: String        // Human-readable message
-  productId?: String     // Related product SKU (if applicable)
-}`}</pre>
+        <p>All purchase errors follow a consistent structure for easy handling. See <Link to="/docs/types#purchase-error">PurchaseError type</Link> for details.</p>
+        <CodeBlock language="graphql">{`type PurchaseError {
+  code: String!          # Error code constant
+  message: String!       # Human-readable message
+  productId: String      # Related product SKU (if applicable)
+}`}</CodeBlock>
       </section>
 
       <section>
@@ -472,29 +473,45 @@ function Errors() {
           </tbody>
         </table>
         
-        <h4>Android Test Cards</h4>
+        <h4>Android Testing Methods</h4>
         <table className="error-table">
           <thead>
             <tr>
-              <th>Card Number</th>
-              <th>Behavior</th>
+              <th>Test Method</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>4111 1111 1111 1111</td>
-              <td>Always approves</td>
+              <td>License Testing</td>
+              <td>Add test accounts in Google Play Console for real purchases without charges</td>
             </tr>
             <tr>
-              <td>4000 0000 0000 0002</td>
-              <td>Always declines</td>
+              <td>Internal Testing Track</td>
+              <td>Deploy to internal testers for production-like testing</td>
             </tr>
             <tr>
-              <td>4000 0000 0000 0010</td>
-              <td>Requires authentication</td>
+              <td>Closed Testing</td>
+              <td>Test with limited group of users before production release</td>
+            </tr>
+            <tr>
+              <td>Test Cards (Sandbox)</td>
+              <td>Use test payment methods configured in Play Console</td>
             </tr>
           </tbody>
         </table>
+        <div style={{ 
+          background: "rgba(255, 200, 0, 0.1)", 
+          border: "1px solid rgba(255, 200, 0, 0.3)",
+          borderRadius: "0.5rem",
+          padding: "1rem",
+          marginTop: "1rem"
+        }}>
+          <p style={{ margin: 0, fontSize: "0.875rem" }}>
+            <strong>⚠️ Important:</strong> Static test product IDs like <code>android.test.purchased</code> are <strong>deprecated</strong> and no longer work. 
+            Use real product IDs with test accounts instead. <Link to="/docs/updates">See Updates page for details →</Link>
+          </p>
+        </div>
 
         <h3>Development Testing</h3>
         <p>For development testing, consider implementing mock error generators that can simulate various error conditions without requiring actual purchases. This allows you to:</p>
