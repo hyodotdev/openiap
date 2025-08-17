@@ -18,20 +18,31 @@ function Types() {
   "Product SKU/ID"
   id: String!
   
-  "Display name"
+  "Product title"
   title: String!
   
   "Product description"  
   description: String!
   
-  "Formatted price string"
-  price: String!
+  "Product type (inapp or subs)"
+  type: ProductType!
   
-  "Raw price value"
-  priceAmount: Float!
+  "Display name (optional)"
+  displayName: String
+  
+  "Formatted display price"
+  displayPrice: String!
   
   "Currency code (USD, EUR, etc)"
   currency: String!
+  
+  "Raw price value (optional)"
+  price: Float
+}
+
+enum ProductType {
+  inapp
+  subs
 }`}</CodeBlock>
 
         <h3>ProductIOS</h3>
@@ -45,9 +56,6 @@ function Types() {
   "JSON representation from StoreKit"
   jsonRepresentation: String!
   
-  "Available discounts"
-  discounts: [Discount]
-  
   "Subscription information"
   subscription: SubscriptionInfo
   
@@ -56,24 +64,93 @@ function Types() {
   
   "Intro price subscription period"
   introductoryPriceSubscriptionPeriodIOS: SubscriptionIosPeriod
+}
+
+type SubscriptionInfo {
+  "Introductory offer"
+  introductoryOffer: SubscriptionOffer
+  
+  "Promotional offers"
+  promotionalOffers: [SubscriptionOffer!]
+  
+  "Subscription group ID"
+  subscriptionGroupID: String!
+  
+  "Subscription period"
+  subscriptionPeriod: SubscriptionPeriod!
+}
+
+type SubscriptionPeriod {
+  "Period unit"
+  unit: SubscriptionIosPeriod!
+  
+  "Period value"
+  value: Int!
 }`}</CodeBlock>
 
         <h3>ProductAndroid</h3>
         <CodeBlock language="graphql">{`type ProductAndroid {
-  "Original price before discount"
-  originalPrice: String
+  "Product name"
+  name: String!
   
-  "Original price amount before discount"
-  originalPriceAmount: Float
-  
-  "Free trial period"
-  freeTrialPeriod: String
-  
-  "Icon URL"
-  iconUrl: String
+  "One-time purchase offer details"
+  oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails
   
   "Subscription offer details"
-  subscriptionOfferDetails: [OfferDetail]
+  subscriptionOfferDetails: [SubscriptionOfferDetail!]
+}
+
+type OneTimePurchaseOfferDetails {
+  "Price currency code"
+  priceCurrencyCode: String!
+  
+  "Formatted price"
+  formattedPrice: String!
+  
+  "Price amount in micros"
+  priceAmountMicros: String!
+}
+
+type SubscriptionOfferDetail {
+  "Base plan ID"
+  basePlanId: String!
+  
+  "Offer ID"
+  offerId: String!
+  
+  "Offer token"
+  offerToken: String!
+  
+  "Offer tags"
+  offerTags: [String!]!
+  
+  "Pricing phases"
+  pricingPhases: PricingPhasesAndroid!
+}
+
+type PricingPhasesAndroid {
+  "Pricing phase list"
+  pricingPhaseList: [PricingPhaseAndroid!]!
+}
+
+type PricingPhaseAndroid {
+  "Formatted price"
+  formattedPrice: String!
+  
+  "Price currency code"
+  priceCurrencyCode: String!
+  
+  "Billing period (P1W, P1M, P1Y)"
+  billingPeriod: String!
+  
+  "Billing cycle count"
+  billingCycleCount: Int!
+  
+  "Price amount in micros"
+  priceAmountMicros: String!
+  
+  "Recurrence mode"
+  recurrenceMode: Int!
 }`}</CodeBlock>
       </section>
 
@@ -83,7 +160,10 @@ function Types() {
         
         <h3>PurchaseBase</h3>
         <CodeBlock language="graphql">{`type PurchaseBase {
-  "Product SKU"
+  "Purchase ID (AKA transactionId)"
+  id: String!
+  
+  "Product ID"
   productId: String!
   
   "Purchase timestamp"
@@ -95,38 +175,61 @@ function Types() {
 
         <h3>PurchaseIOS</h3>
         <CodeBlock language="graphql">{`type PurchaseIOS {
-  "Transaction ID from StoreKit"
-  transactionId: String!
+  "iOS basic fields"
+  quantityIos: Int
+  originalTransactionDateIos: Float
+  originalTransactionIdentifierIos: String
+  appAccountToken: String
   
-  "Original transaction date"
-  originalTransactionDateIOS: Float
-  
-  "Original transaction ID"
-  originalTransactionIdIOS: String
-  
-  "Transaction state"
-  transactionState: TransactionState
-  
-  "Verification result"
-  verificationResult: VerificationResult
+  "iOS additional fields from StoreKit 2"
+  expirationDateIos: Float
+  webOrderLineItemIdIos: Int
+  environmentIos: String
+  storefrontCountryCodeIos: String
+  appBundleIdIos: String
+  productTypeIos: String
+  subscriptionGroupIdIos: String
+  isUpgradedIos: Boolean
+  ownershipTypeIos: String
+  reasonIos: String
+  reasonStringRepresentationIos: String
+  transactionReasonIos: String
+  revocationDateIos: Float
+  revocationReasonIos: String
+  offerIos: OfferIos
+  priceIos: Float
+  currencyIos: String
+  jwsRepresentationIos: String
+}
+
+type OfferIos {
+  id: String!
+  type: String!
+  paymentMode: String!
 }`}</CodeBlock>
 
         <h3>PurchaseAndroid</h3>
         <CodeBlock language="graphql">{`type PurchaseAndroid {
-  "Purchase token for validation"
-  purchaseTokenAndroid: String!
+  "Product IDs array"
+  ids: [String!]
   
-  "Purchase state (0=purchased, 1=canceled)"
-  purchaseStateAndroid: Int!
+  "Purchase token for validation"
+  purchaseTokenAndroid: String
+  
+  "Purchase data JSON"
+  dataAndroid: String
   
   "Purchase signature"
-  signatureAndroid: String!
+  signatureAndroid: String
   
   "Auto-renewing subscription"
   autoRenewingAndroid: Boolean
   
-  "Order ID"
-  orderIdAndroid: String
+  "Purchase state"
+  purchaseStateAndroid: PurchaseStateAndroid
+  
+  "Acknowledgement status"
+  isAcknowledgedAndroid: Boolean
   
   "Package name"
   packageNameAndroid: String
@@ -134,8 +237,11 @@ function Types() {
   "Developer payload"
   developerPayloadAndroid: String
   
-  "Acknowledged"
-  acknowledgedAndroid: Boolean
+  "Obfuscated account ID"
+  obfuscatedAccountIdAndroid: String
+  
+  "Obfuscated profile ID"
+  obfuscatedProfileIdAndroid: String
 }`}</CodeBlock>
       </section>
 
@@ -394,12 +500,11 @@ type SubscriptionOffer {
 
         <h4>SubscriptionIosPeriod</h4>
         <CodeBlock language="graphql">{`enum SubscriptionIosPeriod {
-  P1W   # 1 week
-  P1M   # 1 month
-  P2M   # 2 months
-  P3M   # 3 months
-  P6M   # 6 months
-  P1Y   # 1 year
+  DAY    # Daily period
+  WEEK   # Weekly period
+  MONTH  # Monthly period
+  YEAR   # Yearly period
+  ""     # Empty string (unspecified)
 }`}</CodeBlock>
 
         <h4>TransactionState</h4>
@@ -465,6 +570,13 @@ type SubscriptionOffer {
   UNSPECIFIED  # 0 - Unspecified state
   PURCHASED    # 1 - Purchase completed
   PENDING      # 2 - Purchase pending
+}`}</CodeBlock>
+
+        <h4>PurchaseStateAndroid</h4>
+        <CodeBlock language="graphql">{`enum PurchaseStateAndroid {
+  UNSPECIFIED_STATE  # 0 - Unspecified state
+  PURCHASED          # 1 - Purchase completed
+  PENDING            # 2 - Purchase pending
 }`}</CodeBlock>
       </section>
 
