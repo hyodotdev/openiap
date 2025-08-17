@@ -169,8 +169,11 @@ type PricingPhaseAndroid {
   "Purchase timestamp"
   transactionDate: Float!
   
-  "Receipt/Token for validation"
+  "Receipt/Token for validation (deprecated - use transactionReceipt for legacy)"
   transactionReceipt: String!
+  
+  "Unified purchase token for validation (jwsRepresentationIos for iOS, purchaseTokenAndroid for Android)"
+  purchaseToken: String!
 }`}</CodeBlock>
 
         <h3>PurchaseIOS</h3>
@@ -199,6 +202,8 @@ type PricingPhaseAndroid {
   offerIos: OfferIos
   priceIos: Float
   currencyIos: String
+  
+  "JWS representation for StoreKit 2 receipt validation (deprecated - use purchaseToken instead)"
   jwsRepresentationIos: String
 }
 
@@ -213,7 +218,7 @@ type OfferIos {
   "Product IDs array"
   ids: [String!]
   
-  "Purchase token for validation"
+  "Purchase token for validation (deprecated - use purchaseToken instead)"
   purchaseTokenAndroid: String
   
   "Purchase data JSON"
@@ -585,13 +590,16 @@ type SubscriptionOffer {
         
         <AnchorLink id="validation-options" level="h3">ValidationOptions</AnchorLink>
         <CodeBlock language="graphql">{`input ValidationOptions {
-  "iOS validation: receipt body"
+  "iOS validation: receipt body (for legacy StoreKit 1)"
   receiptBody: IOSReceiptBody
   
   "Android validation: package name"
   packageName: String
   
-  "Product purchase token"
+  "Unified purchase token (jwsRepresentationIos for iOS StoreKit 2, purchaseTokenAndroid for Android)"
+  purchaseToken: String
+  
+  "Product purchase token (deprecated - use purchaseToken instead)"
   productToken: String
   
   "Server access token"
