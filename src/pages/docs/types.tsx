@@ -160,6 +160,40 @@ function Types() {
       </section>
 
       <section>
+        <AnchorLink id="active-subscription" level="h2">ActiveSubscription</AnchorLink>
+        <p className="type-definition">Represents an active subscription with platform-specific details.</p>
+        
+        <CodeBlock language="graphql">{`type ActiveSubscription {
+  "Product identifier"
+  productId: String!
+  
+  "Always true for active subscriptions"
+  isActive: Boolean!
+  
+  "Subscription expiration date (iOS only)"
+  expirationDateIOS: Date?
+  
+  "Auto-renewal status (Android only)"
+  autoRenewingAndroid: Boolean?
+  
+  "Environment: 'Sandbox' | 'Production' (iOS only)"
+  environmentIOS: String?
+  
+  "True if subscription expires within 7 days"
+  willExpireSoon: Boolean?
+  
+  "Days remaining until expiration (iOS only)"
+  daysUntilExpirationIOS: Number?
+}`}</CodeBlock>
+        
+        <h3>Platform-Specific Behavior</h3>
+        <ul>
+          <li><strong>iOS</strong>: Provides exact <code>expirationDate</code>, <code>daysUntilExpiration</code>, and <code>environment</code></li>
+          <li><strong>Android</strong>: Provides <code>autoRenewing</code> status. When <code>false</code>, the subscription will not renew</li>
+        </ul>
+      </section>
+
+      <section>
         <AnchorLink id="subscription-product" level="h2">SubscriptionProduct</AnchorLink>
         <p className="type-definition">SubscriptionProduct = Product & SubscriptionExtensions</p>
         

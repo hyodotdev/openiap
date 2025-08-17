@@ -10,6 +10,30 @@ function Updates() {
       <p>Important changes and deprecations in IAP libraries and platforms.</p>
       
       <section>
+        <h2>✨ New Features</h2>
+        
+        <div style={{
+          background: 'rgba(0, 200, 100, 0.1)',
+          border: '1px solid rgba(0, 200, 100, 0.3)',
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          marginBottom: '1.5rem'
+        }}>
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 January 2025 - Subscription Status APIs
+          </h4>
+          <p>New standardized APIs for checking subscription status across platforms.</p>
+          <ul>
+            <li><code>getActiveSubscriptions()</code> - Get detailed information about active subscriptions</li>
+            <li><code>hasActiveSubscriptions()</code> - Simple boolean check for subscription status</li>
+            <li>Automatic detection of all active subscriptions without requiring product IDs</li>
+            <li>Platform-specific details (iOS expiration dates, Android auto-renewal status)</li>
+          </ul>
+          <p>See: <a href="#subscription-management">Subscription Management APIs</a></p>
+        </div>
+      </section>
+      
+      <section>
         <h2>⚠️ Breaking Changes</h2>
         
         <h3>Google Play Billing Library</h3>

@@ -189,6 +189,33 @@ endConnection(): Future`}</CodeBlock>
       <section>
         <AnchorLink id="subscription-management" level="h2">Subscription Management</AnchorLink>
         
+        <AnchorLink id="getactivesubscriptions" level="h3">getActiveSubscriptions</AnchorLink>
+        <p>Get all active subscriptions with detailed information.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [ActiveSubscription!]!
+"""
+getActiveSubscriptions(subscriptionIds: [String]?): Future
+
+type ActiveSubscription {
+  productId: String!
+  isActive: Boolean!
+  expirationDateIOS: Date?        # iOS only
+  autoRenewingAndroid: Boolean?   # Android only
+  environmentIOS: String?          # iOS only: "Sandbox" | "Production"
+  willExpireSoon: Boolean?         # True if expiring within 7 days
+  daysUntilExpirationIOS: Number?  # iOS only
+}`}</CodeBlock>
+        <p className="type-link">See: <Link to="/docs/types#active-subscription">ActiveSubscription</Link></p>
+        <p>Returns a future that completes with an array of active subscriptions. If <code>subscriptionIds</code> is not provided, returns all active subscriptions. Platform-specific fields are populated based on the current platform.</p>
+        
+        <AnchorLink id="hasactivesubscriptions" level="h3">hasActiveSubscriptions</AnchorLink>
+        <p>Check if the user has any active subscriptions.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
+        <p>Returns a future that completes with <code>true</code> if the user has at least one active subscription, <code>false</code> otherwise. If <code>subscriptionIds</code> is provided, only checks for those specific subscriptions.</p>
+        
         <AnchorLink id="deeplinktosubscriptions" level="h3">deepLinkToSubscriptions</AnchorLink>
         <p>Open native subscription management interface.</p>
         <CodeBlock language="graphql">{`"""
