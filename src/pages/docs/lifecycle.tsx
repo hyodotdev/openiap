@@ -7,7 +7,7 @@ function LifeCycle() {
 
   return (
     <div className="doc-page">
-      <h1>LifeCycle</h1>
+      <h1>Life Cycle</h1>
       <p>
         Understanding the complete lifecycle of in-app purchases is essential
         for proper implementation.

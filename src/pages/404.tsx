@@ -1,51 +1,130 @@
-import { Link } from "react-router-dom";
-import { Home, ArrowLeft } from "lucide-react";
+import { Link } from 'react-router-dom'
+import { Home, ArrowLeft } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export default function NotFound() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
-        <div className="mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 dark:bg-primary/20 mb-6">
-            <span className="text-5xl font-bold text-primary">404</span>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            Page Not Found
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Oops! The page you're looking for doesn't exist or has been moved.
-          </p>
-        </div>
+  const [isDark, setIsDark] = useState(false)
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Home className="w-4 h-4" />
-            Go to Home
-          </Link>
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'))
+    }
+    
+    checkDarkMode()
+    
+    const observer = new MutationObserver(checkDarkMode)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    })
+    
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div style={{
+      minHeight: '70vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem'
+    }}>
+      <div style={{
+        textAlign: 'center',
+        maxWidth: '600px',
+        width: '100%'
+      }}>
+        {/* 404 Number */}
+        <h1 style={{
+          fontSize: 'clamp(5rem, 12vw, 8rem)',
+          fontWeight: '700',
+          color: isDark ? '#6b7280' : '#9ca3af',
+          margin: '0',
+          lineHeight: '1',
+          letterSpacing: '-0.05em'
+        }}>
+          404
+        </h1>
+        
+        {/* Description */}
+        <p style={{
+          fontSize: '1.25rem',
+          color: 'var(--text-secondary, #6b7280)',
+          marginTop: '1.5rem',
+          marginBottom: '3rem'
+        }}>
+          Page not found
+        </p>
+
+        {/* Action Buttons */}
+        <div style={{
+          display: 'flex',
+          gap: '1rem',
+          justifyContent: 'center',
+          alignItems: 'stretch'
+        }}>
           <button
             onClick={() => window.history.back()}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              fontSize: '1rem',
+              fontWeight: '500',
+              color: isDark ? '#e5e7eb' : '#374151',
+              backgroundColor: 'transparent',
+              border: `1px solid ${isDark ? '#4b5563' : '#e5e7eb'}`,
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              outline: 'none',
+              lineHeight: '1.5'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = isDark ? 'rgba(75, 85, 99, 0.3)' : '#f9fafb'
+              e.currentTarget.style.borderColor = isDark ? '#6b7280' : '#d1d5db'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+              e.currentTarget.style.borderColor = isDark ? '#4b5563' : '#e5e7eb'
+            }}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Go Back
+            <ArrowLeft size={18} />
+            Back
           </button>
-        </div>
 
-        <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Need help? Contact us at{" "}
-            <a
-              href="mailto:support@openiap.dev"
-              className="text-primary hover:underline"
-            >
-              support@openiap.dev
-            </a>
-          </p>
+          <Link
+            to="/"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              fontSize: '1rem',
+              fontWeight: '500',
+              color: 'white',
+              backgroundColor: 'var(--primary-color, #a47465)',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              transition: 'all 0.2s ease',
+              border: '1px solid transparent',
+              lineHeight: '1.5'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 20px rgba(164, 116, 101, 0.35)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            Home
+            <Home size={18} />
+          </Link>
         </div>
       </div>
     </div>
-  );
+  )
 }

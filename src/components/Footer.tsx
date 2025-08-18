@@ -14,7 +14,7 @@ function Footer() {
             <div className="footer-section">
               <h4>Documentation</h4>
               <ul>
-                <li><a href="/docs/life-cycle">LifeCycle</a></li>
+                <li><a href="/docs/lifecycle">Life Cycle</a></li>
                 <li><a href="/docs/apis">APIs</a></li>
                 <li><a href="/docs/events">Events</a></li>
                 <li><a href="/docs/types">Types</a></li>
