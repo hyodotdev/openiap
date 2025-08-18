@@ -1,8 +1,9 @@
 import { Link, NavLink } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DarkModeToggle } from './DarkModeToggle';
 import { Menu, X } from 'lucide-react';
-import { FaGithub } from 'react-icons/fa';
+import { FaGithub, FaSearch } from 'react-icons/fa';
+import { openSearchModal } from '../lib/signals';
 
 function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -10,6 +11,19 @@ function Navigation() {
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K or Ctrl+K to open search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        openSearchModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <nav className="navigation">
@@ -68,6 +82,17 @@ function Navigation() {
         </ul>
 
         <div className="nav-actions">
+          {/* Search Button */}
+          <button
+            type="button"
+            className="search-button"
+            onClick={() => openSearchModal()}
+            aria-label="Search APIs (Cmd+K)"
+            title="Search APIs (Cmd+K)"
+          >
+            <FaSearch size={18} />
+          </button>
+
           <DarkModeToggle />
 
           {/* GitHub Link */}

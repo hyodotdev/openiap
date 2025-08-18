@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 const ReactCompilerConfig = {
-  target: '18'
-}
+  target: '18',
+};
 
 export default defineConfig({
   plugins: [
@@ -11,8 +11,9 @@ export default defineConfig({
       babel: {
         plugins: [
           ['babel-plugin-react-compiler', ReactCompilerConfig],
+          ['module:@preact/signals-react-transform'],
         ],
       },
     }),
   ],
-})
+});

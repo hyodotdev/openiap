@@ -292,3 +292,20 @@
 :root.dark .doc-page table code {
   background: rgba(255, 255, 255, 0.1);
 }
+
+/* API Search Highlight Effect */
+@keyframes highlightApi {
+  0% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.highlight-api {
+  animation: highlightApi 2s ease-out;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  margin: -0.5rem;
+}
