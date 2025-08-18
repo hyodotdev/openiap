@@ -2,19 +2,19 @@ function Subject() {
   return (
     <div className="doc-page">
       <h1>Subject</h1>
-      
+
       <section>
         <h2>Overview</h2>
         <p>
-          A Subject is both an Observable and an Observer. It can multicast values to 
-          multiple observers, making it perfect for sharing purchase events across 
-          different parts of your application.
+          A Subject is both an Observable and an Observer. It can multicast
+          values to multiple observers, making it perfect for sharing purchase
+          events across different parts of your application.
         </p>
       </section>
 
       <section>
         <h2>Types of Subjects</h2>
-        
+
         <h3>Subject</h3>
         <p>Basic subject with no initial value or replay behavior.</p>
         <pre className="code-block">{`import { Subject } from '@openiap/core'
@@ -52,7 +52,9 @@ purchaseState.next({
 })`}</pre>
 
         <h3>ReplaySubject</h3>
-        <p>Replays specified number of previous emissions to new subscribers.</p>
+        <p>
+          Replays specified number of previous emissions to new subscribers.
+        </p>
         <pre className="code-block">{`// Replay last 3 purchases
 const recentPurchases = new ReplaySubject(3)
 
@@ -144,13 +146,17 @@ eventBus.emit({
         <ul>
           <li>Always unsubscribe from Subjects to prevent memory leaks</li>
           <li>Use BehaviorSubject for state that needs an initial value</li>
-          <li>Use ReplaySubject carefully - large buffers can consume memory</li>
+          <li>
+            Use ReplaySubject carefully - large buffers can consume memory
+          </li>
           <li>Consider using state management libraries for complex state</li>
-          <li>Protect Subjects by exposing only Observable interface when possible</li>
+          <li>
+            Protect Subjects by exposing only Observable interface when possible
+          </li>
         </ul>
       </section>
     </div>
-  )
+  );
 }
 
-export default Subject
+export default Subject;

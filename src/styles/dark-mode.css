@@ -28,10 +28,12 @@
 }
 
 :root.dark .hero {
-  background: linear-gradient(180deg, 
-    var(--bg-primary) 0%, 
-    rgba(197, 177, 159, 0.05) 50%, 
-    rgba(197, 177, 159, 0.1) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--bg-primary) 0%,
+    rgba(197, 177, 159, 0.05) 50%,
+    rgba(197, 177, 159, 0.1) 100%
+  );
   color: var(--text-primary);
 }
 
@@ -103,10 +105,13 @@
 
 /* Dark mode transition for all elements */
 * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 /* Fix for SVG visibility in dark mode on all browsers */
-:root.dark img[src*="meta-txt.svg"] {
+:root.dark img[src*='meta-txt.svg'] {
   filter: invert(1) brightness(1.5) contrast(1.1);
 }

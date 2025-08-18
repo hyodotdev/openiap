@@ -3,56 +3,56 @@
   .nav-container {
     padding: 1rem;
   }
-  
+
   .logo {
     margin-right: 0;
     font-size: 1.25rem;
   }
-  
+
   .logo-image {
     width: 28px;
     height: 28px;
   }
-  
+
   .desktop-menu {
     display: none !important;
   }
-  
+
   .mobile-menu-button {
     display: block;
   }
-  
+
   .mobile-menu {
     display: block;
   }
-  
+
   /* Adjust dark mode button for mobile */
   .nav-actions > button:first-child {
     display: block;
   }
-  
+
   .hero-title {
     font-size: 2.5rem;
   }
-  
+
   .hero-actions {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .docs-container {
     flex-direction: column;
   }
-  
+
   .docs-sidebar {
     width: 100%;
     margin-bottom: 2rem;
   }
-  
+
   .docs-nav {
     position: static;
   }
-  
+
   .features-container,
   .benefit-grid,
   .languages-grid,
@@ -60,25 +60,25 @@
   .community-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .page-container {
     padding: 2rem 1rem;
   }
-  
+
   .contributors-info {
     flex-direction: column;
     gap: 1.5rem;
   }
-  
+
   .specification-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .implementations-grid {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .implementation-card {
     width: 100%;
   }

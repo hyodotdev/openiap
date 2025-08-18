@@ -1,13 +1,13 @@
-import { Routes, Route } from 'react-router-dom'
-import Layout from './components/Layout'
-import ScrollToTop from './components/ScrollToTop'
-import Home from './pages/home'
-import Introduction from './pages/introduction'
-import Docs from './pages/docs'
-import Languages from './pages/languages'
-import Tutorials from './pages/tutorials'
-import Sponsors from './pages/sponsors'
-import NotFound from './pages/404'
+import { Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import ScrollToTop from './components/ScrollToTop';
+import Home from './pages/home';
+import Introduction from './pages/introduction';
+import Docs from './pages/docs';
+import Languages from './pages/languages';
+import Tutorials from './pages/tutorials';
+import Sponsors from './pages/sponsors';
+import NotFound from './pages/404';
 
 function App() {
   return (
@@ -25,7 +25,7 @@ function App() {
         </Route>
       </Routes>
     </>
-  )
+  );
 }
 
-export default App
+export default App;

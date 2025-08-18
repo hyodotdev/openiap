@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom";
-import CodeBlock from "../../components/CodeBlock";
-import AnchorLink from "../../components/AnchorLink";
-import { useScrollToHash } from "../../hooks/useScrollToHash";
+import { Link } from 'react-router-dom';
+import CodeBlock from '../../components/CodeBlock';
+import AnchorLink from '../../components/AnchorLink';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 function LifeCycle() {
   useScrollToHash();
 
@@ -17,7 +17,7 @@ function LifeCycle() {
         <img
           src="/purchase-flow.png"
           alt="IAP Lifecycle"
-          style={{ width: "100%", maxWidth: "900px", margin: "2rem 0" }}
+          style={{ width: '100%', maxWidth: '900px', margin: '2rem 0' }}
         />
       </section>
 
@@ -30,7 +30,7 @@ function LifeCycle() {
           1. Initialization
         </AnchorLink>
         <p>
-          Establish connection to the store service using{" "}
+          Establish connection to the store service using{' '}
           <Link to="/docs/apis#initconnection">initConnection</Link>. This must
           be done before any other IAP operations.
         </p>
@@ -39,7 +39,7 @@ function LifeCycle() {
           2. Product Discovery
         </AnchorLink>
         <p>
-          Fetch available products from the store using{" "}
+          Fetch available products from the store using{' '}
           <Link to="/docs/apis#requestproducts">requestProducts</Link>. Products
           must be configured in App Store Connect or Google Play Console.
         </p>
@@ -48,7 +48,7 @@ function LifeCycle() {
           3. Purchase Request
         </AnchorLink>
         <p>
-          User initiates purchase via{" "}
+          User initiates purchase via{' '}
           <Link to="/docs/apis#requestpurchase">requestPurchase</Link>. The
           platform payment UI is displayed.
         </p>
@@ -57,8 +57,8 @@ function LifeCycle() {
           4. Purchase Processing
         </AnchorLink>
         <p>
-          The store processes payment. Your app receives updates via{" "}
-          <code>purchaseUpdatedListener</code> or{" "}
+          The store processes payment. Your app receives updates via{' '}
+          <code>purchaseUpdatedListener</code> or{' '}
           <code>purchaseErrorListener</code>.
         </p>
 
@@ -82,7 +82,7 @@ function LifeCycle() {
           7. Transaction Completion
         </AnchorLink>
         <p>
-          Call <Link to="/docs/apis#finishtransaction">finishTransaction</Link>{" "}
+          Call <Link to="/docs/apis#finishtransaction">finishTransaction</Link>{' '}
           to complete the purchase. Unfinished transactions remain in queue and
           may cause issues.
         </p>
@@ -91,7 +91,7 @@ function LifeCycle() {
           8. Connection Cleanup
         </AnchorLink>
         <p>
-          When IAP is no longer needed, call{" "}
+          When IAP is no longer needed, call{' '}
           <Link to="/docs/apis#endconnection">endConnection</Link> to free
           resources.
         </p>
@@ -179,7 +179,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           Android purchases must be acknowledged within 3 days or they will be
-          automatically refunded. Always call <code>finishTransaction</code>{" "}
+          automatically refunded. Always call <code>finishTransaction</code>{' '}
           promptly.
         </p>
 

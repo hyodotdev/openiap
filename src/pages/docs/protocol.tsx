@@ -2,15 +2,16 @@ function Protocol() {
   return (
     <div className="doc-page">
       <h1>Open IAP Specification</h1>
-      
+
       <section>
         <h2>Overview</h2>
         <p>
-          Open IAP is an open specification that standardizes in-app purchase 
-          implementations across diverse platforms and frameworks. As new platforms emerge 
-          (StoreKit 2, Android Billing v8, Vision Pro, Horizon OS) and frameworks multiply 
-          (React Native, Flutter, KMP), the need for a unified specification becomes critical 
-          to prevent API fragmentation and reduce developer complexity.
+          Open IAP is an open specification that standardizes in-app purchase
+          implementations across diverse platforms and frameworks. As new
+          platforms emerge (StoreKit 2, Android Billing v8, Vision Pro, Horizon
+          OS) and frameworks multiply (React Native, Flutter, KMP), the need for
+          a unified specification becomes critical to prevent API fragmentation
+          and reduce developer complexity.
         </p>
       </section>
 
@@ -118,7 +119,7 @@ promotedSubscription.remove()`}</pre>
 
       <section>
         <h2>Platform-Specific Features</h2>
-        
+
         <h3>iOS Features</h3>
         <pre className="code-block">{`// Get storefront info
 const storefront = await IAP.getStorefrontIOS() // 'US', 'GB', etc.
@@ -182,7 +183,7 @@ await IAP.requestPurchase({
 }`}</pre>
       </section>
     </div>
-  )
+  );
 }
 
-export default Protocol
+export default Protocol;

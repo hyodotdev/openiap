@@ -8,7 +8,10 @@
     "build": "bun run typecheck && bunx vite build",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit --pretty false && bunx vite build",
-    "preview": "bunx vite preview"
+    "preview": "bunx vite preview",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
+    "prepare": "husky"
   },
   "dependencies": {
     "@types/prismjs": "^1.26.5",
@@ -31,10 +34,18 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.7",
     "globals": "^16.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
     "lucide-react": "^0.539.0",
+    "prettier": "^3.6.2",
     "sharp-cli": "^5.2.0",
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.39.1",
     "vite": "^5.3.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,css,json}": [
+      "prettier --write"
+    ]
   }
 }

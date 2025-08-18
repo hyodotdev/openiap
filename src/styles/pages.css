@@ -37,7 +37,9 @@
   border: 1px solid var(--border-color);
   border-radius: 0.75rem;
   padding: 2rem;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .language-card:hover {
@@ -148,7 +150,9 @@
   border-radius: 0.75rem;
   padding: 1.5rem;
   text-decoration: none;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .resource-item:hover {
@@ -192,7 +196,9 @@
   padding: 2rem;
   text-align: center;
   text-decoration: none;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   display: block;
 }
 

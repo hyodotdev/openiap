@@ -1,18 +1,22 @@
-import AnchorLink from '../../components/AnchorLink'
-import CodeBlock from '../../components/CodeBlock'
-import { useScrollToHash } from '../../hooks/useScrollToHash'
+import AnchorLink from '../../components/AnchorLink';
+import CodeBlock from '../../components/CodeBlock';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function Types() {
-  useScrollToHash()
-  
+  useScrollToHash();
+
   return (
     <div className="doc-page">
       <h1>Types</h1>
-      
+
       <section>
-        <AnchorLink id="product" level="h2">Product</AnchorLink>
-        <p className="type-definition">Product = ProductBase & (ProductIOS | ProductAndroid)</p>
-        
+        <AnchorLink id="product" level="h2">
+          Product
+        </AnchorLink>
+        <p className="type-definition">
+          Product = ProductBase & (ProductIOS | ProductAndroid)
+        </p>
+
         <h3>ProductBase</h3>
         <CodeBlock language="graphql">{`type ProductBase {
   "Product SKU/ID"
@@ -155,9 +159,13 @@ type PricingPhaseAndroid {
       </section>
 
       <section>
-        <AnchorLink id="purchase" level="h2">Purchase</AnchorLink>
-        <p className="type-definition">Purchase = PurchaseBase & (PurchaseIOS | PurchaseAndroid)</p>
-        
+        <AnchorLink id="purchase" level="h2">
+          Purchase
+        </AnchorLink>
+        <p className="type-definition">
+          Purchase = PurchaseBase & (PurchaseIOS | PurchaseAndroid)
+        </p>
+
         <h3>PurchaseBase</h3>
         <CodeBlock language="graphql">{`type PurchaseBase {
   "Purchase ID (AKA transactionId)"
@@ -251,9 +259,13 @@ type OfferIos {
       </section>
 
       <section>
-        <AnchorLink id="product-purchase" level="h2">ProductPurchase</AnchorLink>
-        <p className="type-definition">ProductPurchase = Purchase & PurchaseDetails</p>
-        
+        <AnchorLink id="product-purchase" level="h2">
+          ProductPurchase
+        </AnchorLink>
+        <p className="type-definition">
+          ProductPurchase = Purchase & PurchaseDetails
+        </p>
+
         <h3>PurchaseDetails</h3>
         <CodeBlock language="graphql">{`type PurchaseDetails {
   "Whether the purchase has been consumed (Android)"
@@ -271,9 +283,13 @@ type OfferIos {
       </section>
 
       <section>
-        <AnchorLink id="active-subscription" level="h2">ActiveSubscription</AnchorLink>
-        <p className="type-definition">Represents an active subscription with platform-specific details.</p>
-        
+        <AnchorLink id="active-subscription" level="h2">
+          ActiveSubscription
+        </AnchorLink>
+        <p className="type-definition">
+          Represents an active subscription with platform-specific details.
+        </p>
+
         <CodeBlock language="graphql">{`type ActiveSubscription {
   "Product identifier"
   productId: String!
@@ -296,18 +312,28 @@ type OfferIos {
   "Days remaining until expiration (iOS only)"
   daysUntilExpirationIOS: Number?
 }`}</CodeBlock>
-        
+
         <h3>Platform-Specific Behavior</h3>
         <ul>
-          <li><strong>iOS</strong>: Provides exact <code>expirationDate</code>, <code>daysUntilExpiration</code>, and <code>environment</code></li>
-          <li><strong>Android</strong>: Provides <code>autoRenewing</code> status. When <code>false</code>, the subscription will not renew</li>
+          <li>
+            <strong>iOS</strong>: Provides exact <code>expirationDate</code>,{' '}
+            <code>daysUntilExpiration</code>, and <code>environment</code>
+          </li>
+          <li>
+            <strong>Android</strong>: Provides <code>autoRenewing</code> status.
+            When <code>false</code>, the subscription will not renew
+          </li>
         </ul>
       </section>
 
       <section>
-        <AnchorLink id="subscription-product" level="h2">SubscriptionProduct</AnchorLink>
-        <p className="type-definition">SubscriptionProduct = Product & SubscriptionExtensions</p>
-        
+        <AnchorLink id="subscription-product" level="h2">
+          SubscriptionProduct
+        </AnchorLink>
+        <p className="type-definition">
+          SubscriptionProduct = Product & SubscriptionExtensions
+        </p>
+
         <h3>SubscriptionExtensions</h3>
         <CodeBlock language="graphql">{`type SubscriptionExtensions {
   "Subscription period (P1M, P3M, P1Y, etc)"
@@ -361,14 +387,26 @@ type OfferIos {
       </section>
 
       <section>
-        <AnchorLink id="request-types" level="h2">Request Types</AnchorLink>
-        
-        <AnchorLink id="request-purchase-props" level="h3">RequestPurchaseProps</AnchorLink>
-        <p>Modern request purchase parameters. This is the recommended API moving forward.</p>
+        <AnchorLink id="request-types" level="h2">
+          Request Types
+        </AnchorLink>
+
+        <AnchorLink id="request-purchase-props" level="h3">
+          RequestPurchaseProps
+        </AnchorLink>
+        <p>
+          Modern request purchase parameters. This is the recommended API moving
+          forward.
+        </p>
         <CodeBlock language="graphql">{`type RequestPurchaseProps = RequestPurchasePropsByPlatforms`}</CodeBlock>
-        
-        <AnchorLink id="request-purchase-props-by-platforms" level="h3">RequestPurchasePropsByPlatforms</AnchorLink>
-        <p>Platform-specific request structure for regular purchases. Allows clear separation of iOS and Android parameters.</p>
+
+        <AnchorLink id="request-purchase-props-by-platforms" level="h3">
+          RequestPurchasePropsByPlatforms
+        </AnchorLink>
+        <p>
+          Platform-specific request structure for regular purchases. Allows
+          clear separation of iOS and Android parameters.
+        </p>
         <CodeBlock language="graphql">{`input RequestPurchasePropsByPlatforms {
   "iOS-specific purchase parameters"
   ios: RequestPurchaseIosProps
@@ -377,7 +415,9 @@ type OfferIos {
   android: RequestPurchaseAndroidProps
 }`}</CodeBlock>
 
-        <AnchorLink id="request-subscription-props-by-platforms" level="h3">RequestSubscriptionPropsByPlatforms</AnchorLink>
+        <AnchorLink id="request-subscription-props-by-platforms" level="h3">
+          RequestSubscriptionPropsByPlatforms
+        </AnchorLink>
         <p>Platform-specific subscription request structure.</p>
         <CodeBlock language="graphql">{`input RequestSubscriptionPropsByPlatforms {
   "iOS-specific subscription parameters"
@@ -387,7 +427,9 @@ type OfferIos {
   android: RequestSubscriptionAndroidProps
 }`}</CodeBlock>
 
-        <AnchorLink id="request-purchase-ios-props" level="h3">RequestPurchaseIosProps</AnchorLink>
+        <AnchorLink id="request-purchase-ios-props" level="h3">
+          RequestPurchaseIosProps
+        </AnchorLink>
         <p>iOS-specific purchase request parameters.</p>
         <CodeBlock language="graphql">{`input RequestPurchaseIosProps {
   "Product SKU"
@@ -406,7 +448,9 @@ type OfferIos {
   withOffer: PaymentDiscount
 }`}</CodeBlock>
 
-        <AnchorLink id="request-purchase-android-props" level="h3">RequestPurchaseAndroidProps</AnchorLink>
+        <AnchorLink id="request-purchase-android-props" level="h3">
+          RequestPurchaseAndroidProps
+        </AnchorLink>
         <p>Android-specific purchase request parameters.</p>
         <CodeBlock language="graphql">{`input RequestPurchaseAndroidProps {
   "List of product SKUs"
@@ -422,8 +466,13 @@ type OfferIos {
   isOfferPersonalized: Boolean
 }`}</CodeBlock>
 
-        <AnchorLink id="request-subscription-android-props" level="h3">RequestSubscriptionAndroidProps</AnchorLink>
-        <p>Android-specific subscription request parameters. Extends RequestPurchaseAndroidProps.</p>
+        <AnchorLink id="request-subscription-android-props" level="h3">
+          RequestSubscriptionAndroidProps
+        </AnchorLink>
+        <p>
+          Android-specific subscription request parameters. Extends
+          RequestPurchaseAndroidProps.
+        </p>
         <CodeBlock language="graphql">{`input RequestSubscriptionAndroidProps {
   "List of subscription SKUs"
   skus: [String!]!
@@ -457,10 +506,14 @@ type SubscriptionOffer {
       </section>
 
       <section>
-        <AnchorLink id="platform-specific-types" level="h2">Platform-Specific Types</AnchorLink>
-        
-        <AnchorLink id="ios-types" level="h3">iOS Specific Types</AnchorLink>
-        
+        <AnchorLink id="platform-specific-types" level="h2">
+          Platform-Specific Types
+        </AnchorLink>
+
+        <AnchorLink id="ios-types" level="h3">
+          iOS Specific Types
+        </AnchorLink>
+
         <h4>PaymentDiscount</h4>
         <CodeBlock language="graphql">{`type PaymentDiscount {
   "Discount identifier"
@@ -521,8 +574,10 @@ type SubscriptionOffer {
   DEFERRED
 }`}</CodeBlock>
 
-        <AnchorLink id="android-types" level="h3">Android Specific Types</AnchorLink>
-        
+        <AnchorLink id="android-types" level="h3">
+          Android Specific Types
+        </AnchorLink>
+
         <h4>SubscriptionOffer</h4>
         <CodeBlock language="graphql">{`type SubscriptionOffer {
   "Product SKU"
@@ -586,9 +641,13 @@ type SubscriptionOffer {
       </section>
 
       <section>
-        <AnchorLink id="validation-types" level="h2">Validation Types</AnchorLink>
-        
-        <AnchorLink id="validation-options" level="h3">ValidationOptions</AnchorLink>
+        <AnchorLink id="validation-types" level="h2">
+          Validation Types
+        </AnchorLink>
+
+        <AnchorLink id="validation-options" level="h3">
+          ValidationOptions
+        </AnchorLink>
         <CodeBlock language="graphql">{`input ValidationOptions {
   "iOS validation: receipt body (for legacy StoreKit 1)"
   receiptBody: IOSReceiptBody
@@ -617,7 +676,9 @@ input IOSReceiptBody {
   password: String
 }`}</CodeBlock>
 
-        <AnchorLink id="validation-result" level="h3">ValidationResult</AnchorLink>
+        <AnchorLink id="validation-result" level="h3">
+          ValidationResult
+        </AnchorLink>
         <CodeBlock language="graphql">{`type ValidationResult {
   "Validation success status"
   isValid: Boolean!
@@ -649,9 +710,13 @@ input IOSReceiptBody {
       </section>
 
       <section>
-        <AnchorLink id="event-types" level="h2">Event Types</AnchorLink>
-        
-        <AnchorLink id="iap-event" level="h3">IapEvent</AnchorLink>
+        <AnchorLink id="event-types" level="h2">
+          Event Types
+        </AnchorLink>
+
+        <AnchorLink id="iap-event" level="h3">
+          IapEvent
+        </AnchorLink>
         <CodeBlock language="graphql">{`enum IapEvent {
   "Purchase successful or updated"
   PURCHASE_UPDATED
@@ -663,7 +728,9 @@ input IOSReceiptBody {
   PROMOTED_PRODUCT_IOS
 }`}</CodeBlock>
 
-        <AnchorLink id="purchase-error" level="h3">PurchaseError</AnchorLink>
+        <AnchorLink id="purchase-error" level="h3">
+          PurchaseError
+        </AnchorLink>
         <CodeBlock language="graphql">{`type PurchaseError {
   "Error code constant"
   code: String!
@@ -676,7 +743,7 @@ input IOSReceiptBody {
 }`}</CodeBlock>
       </section>
     </div>
-  )
+  );
 }
 
-export default Types
+export default Types;

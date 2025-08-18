@@ -1,17 +1,21 @@
-import { Link } from 'react-router-dom'
-import CodeBlock from '../../components/CodeBlock'
-import { useScrollToHash } from '../../hooks/useScrollToHash'
+import { Link } from 'react-router-dom';
+import CodeBlock from '../../components/CodeBlock';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function Errors() {
-  useScrollToHash()
-  
+  useScrollToHash();
+
   return (
     <div className="doc-page">
       <h1>Error Codes</h1>
-      
+
       <section>
         <h2>Error Structure</h2>
-        <p>All purchase errors follow a consistent structure for easy handling. See <Link to="/docs/types#purchase-error">PurchaseError type</Link> for details.</p>
+        <p>
+          All purchase errors follow a consistent structure for easy handling.
+          See <Link to="/docs/types#purchase-error">PurchaseError type</Link>{' '}
+          for details.
+        </p>
         <CodeBlock language="graphql">{`type PurchaseError {
   code: String!          # Error code constant
   message: String!       # Human-readable message
@@ -21,7 +25,7 @@ function Errors() {
 
       <section>
         <h2>Common Error Codes</h2>
-        
+
         <h3>User Action Errors</h3>
         <table className="error-table">
           <thead>
@@ -33,22 +37,30 @@ function Errors() {
           </thead>
           <tbody>
             <tr>
-              <td><code>E_USER_CANCELLED</code></td>
+              <td>
+                <code>E_USER_CANCELLED</code>
+              </td>
               <td>User cancelled the purchase flow</td>
               <td>No action needed, expected behavior</td>
             </tr>
             <tr>
-              <td><code>E_USER_ERROR</code></td>
+              <td>
+                <code>E_USER_ERROR</code>
+              </td>
               <td>User-related error during purchase</td>
               <td>Check user account status</td>
             </tr>
             <tr>
-              <td><code>E_DEFERRED_PAYMENT</code></td>
+              <td>
+                <code>E_DEFERRED_PAYMENT</code>
+              </td>
               <td>Payment was deferred (pending family approval, etc.)</td>
               <td>Wait for payment approval</td>
             </tr>
             <tr>
-              <td><code>E_INTERRUPTED</code></td>
+              <td>
+                <code>E_INTERRUPTED</code>
+              </td>
               <td>Purchase flow was interrupted</td>
               <td>Retry the purchase</td>
             </tr>
@@ -66,22 +78,30 @@ function Errors() {
           </thead>
           <tbody>
             <tr>
-              <td><code>E_ITEM_UNAVAILABLE</code></td>
+              <td>
+                <code>E_ITEM_UNAVAILABLE</code>
+              </td>
               <td>Product not available in store</td>
               <td>Check product configuration in store console</td>
             </tr>
             <tr>
-              <td><code>E_PRODUCT_NOT_AVAILABLE</code></td>
+              <td>
+                <code>E_PRODUCT_NOT_AVAILABLE</code>
+              </td>
               <td>Product SKU not found</td>
               <td>Verify SKU matches store configuration</td>
             </tr>
             <tr>
-              <td><code>E_PRODUCT_ALREADY_OWNED</code></td>
+              <td>
+                <code>E_PRODUCT_ALREADY_OWNED</code>
+              </td>
               <td>Non-consumable product already purchased</td>
               <td>Restore purchases or check purchase history</td>
             </tr>
             <tr>
-              <td><code>E_ALREADY_OWNED</code></td>
+              <td>
+                <code>E_ALREADY_OWNED</code>
+              </td>
               <td>Item already owned by user</td>
               <td>Restore purchases to unlock content</td>
             </tr>
@@ -99,32 +119,44 @@ function Errors() {
           </thead>
           <tbody>
             <tr>
-              <td><code>E_NETWORK_ERROR</code></td>
+              <td>
+                <code>E_NETWORK_ERROR</code>
+              </td>
               <td>Network connection error</td>
               <td>Check internet connection and retry</td>
             </tr>
             <tr>
-              <td><code>E_SERVICE_ERROR</code></td>
+              <td>
+                <code>E_SERVICE_ERROR</code>
+              </td>
               <td>Store service error</td>
               <td>Wait and retry, check store service status</td>
             </tr>
             <tr>
-              <td><code>E_REMOTE_ERROR</code></td>
+              <td>
+                <code>E_REMOTE_ERROR</code>
+              </td>
               <td>Remote server error</td>
               <td>Check server logs, retry request</td>
             </tr>
             <tr>
-              <td><code>E_CONNECTION_CLOSED</code></td>
+              <td>
+                <code>E_CONNECTION_CLOSED</code>
+              </td>
               <td>Connection to store service was closed</td>
               <td>Reinitialize connection and retry</td>
             </tr>
             <tr>
-              <td><code>E_IAP_NOT_AVAILABLE</code></td>
+              <td>
+                <code>E_IAP_NOT_AVAILABLE</code>
+              </td>
               <td>In-app purchase service not available</td>
               <td>Check device settings and IAP availability</td>
             </tr>
             <tr>
-              <td><code>E_SYNC_ERROR</code></td>
+              <td>
+                <code>E_SYNC_ERROR</code>
+              </td>
               <td>Synchronization error with store</td>
               <td>Retry synchronization</td>
             </tr>
@@ -142,22 +174,30 @@ function Errors() {
           </thead>
           <tbody>
             <tr>
-              <td><code>E_RECEIPT_FAILED</code></td>
+              <td>
+                <code>E_RECEIPT_FAILED</code>
+              </td>
               <td>Receipt validation failed</td>
               <td>Check receipt validation logic, retry validation</td>
             </tr>
             <tr>
-              <td><code>E_RECEIPT_FINISHED</code></td>
+              <td>
+                <code>E_RECEIPT_FINISHED</code>
+              </td>
               <td>Receipt already processed/finished</td>
               <td>Transaction already completed, check records</td>
             </tr>
             <tr>
-              <td><code>E_RECEIPT_FINISHED_FAILED</code></td>
+              <td>
+                <code>E_RECEIPT_FINISHED_FAILED</code>
+              </td>
               <td>Failed to finish receipt processing</td>
               <td>Check transaction state and retry</td>
             </tr>
             <tr>
-              <td><code>E_TRANSACTION_VALIDATION_FAILED</code></td>
+              <td>
+                <code>E_TRANSACTION_VALIDATION_FAILED</code>
+              </td>
               <td>Transaction validation failed</td>
               <td>Verify transaction data and retry</td>
             </tr>
@@ -176,55 +216,73 @@ function Errors() {
           </thead>
           <tbody>
             <tr>
-              <td><code>E_PENDING</code></td>
+              <td>
+                <code>E_PENDING</code>
+              </td>
               <td>Purchase is pending approval</td>
               <td>Android</td>
               <td>Wait for purchase to complete</td>
             </tr>
             <tr>
-              <td><code>E_NOT_ENDED</code></td>
+              <td>
+                <code>E_NOT_ENDED</code>
+              </td>
               <td>Transaction not finished</td>
               <td>iOS</td>
               <td>Call finishTransaction()</td>
             </tr>
             <tr>
-              <td><code>E_DEVELOPER_ERROR</code></td>
+              <td>
+                <code>E_DEVELOPER_ERROR</code>
+              </td>
               <td>Developer configuration error</td>
               <td>Both</td>
               <td>Check app configuration and certificates</td>
             </tr>
             <tr>
-              <td><code>E_UNKNOWN</code></td>
+              <td>
+                <code>E_UNKNOWN</code>
+              </td>
               <td>Unknown error occurred</td>
               <td>Both</td>
               <td>Check logs for details</td>
             </tr>
             <tr>
-              <td><code>E_NOT_PREPARED</code></td>
+              <td>
+                <code>E_NOT_PREPARED</code>
+              </td>
               <td>Store connection not initialized</td>
               <td>Both</td>
               <td>Call initConnection() first</td>
             </tr>
             <tr>
-              <td><code>E_ALREADY_PREPARED</code></td>
+              <td>
+                <code>E_ALREADY_PREPARED</code>
+              </td>
               <td>Store connection already initialized</td>
               <td>Both</td>
               <td>Connection already established</td>
             </tr>
             <tr>
-              <td><code>E_BILLING_RESPONSE_JSON_PARSE_ERROR</code></td>
+              <td>
+                <code>E_BILLING_RESPONSE_JSON_PARSE_ERROR</code>
+              </td>
               <td>Failed to parse billing response</td>
               <td>Android</td>
               <td>Check response format, report bug if persistent</td>
             </tr>
             <tr>
-              <td><code>E_PURCHASE_ERROR</code></td>
+              <td>
+                <code>E_PURCHASE_ERROR</code>
+              </td>
               <td>General purchase error</td>
               <td>Both</td>
               <td>Check error details and retry</td>
             </tr>
             <tr>
-              <td><code>E_ACTIVITY_UNAVAILABLE</code></td>
+              <td>
+                <code>E_ACTIVITY_UNAVAILABLE</code>
+              </td>
               <td>Activity context not available</td>
               <td>Android</td>
               <td>Ensure app is in foreground</td>
@@ -235,15 +293,28 @@ function Errors() {
 
       <section>
         <h2>Error Handling Examples</h2>
-        
+
         <h3>Error Handling Pattern</h3>
-        <p>Implement error handlers that respond appropriately to each error type:</p>
+        <p>
+          Implement error handlers that respond appropriately to each error
+          type:
+        </p>
         <ul>
-          <li><strong>User Cancellation</strong> - Silent handling, no alerts</li>
-          <li><strong>Product Issues</strong> - Inform user about availability</li>
-          <li><strong>Ownership Conflicts</strong> - Trigger purchase restoration</li>
-          <li><strong>Network Errors</strong> - Suggest retry with backoff</li>
-          <li><strong>Unknown Errors</strong> - Generic fallback message</li>
+          <li>
+            <strong>User Cancellation</strong> - Silent handling, no alerts
+          </li>
+          <li>
+            <strong>Product Issues</strong> - Inform user about availability
+          </li>
+          <li>
+            <strong>Ownership Conflicts</strong> - Trigger purchase restoration
+          </li>
+          <li>
+            <strong>Network Errors</strong> - Suggest retry with backoff
+          </li>
+          <li>
+            <strong>Unknown Errors</strong> - Generic fallback message
+          </li>
         </ul>
 
         <h3>Error Severity Classification</h3>
@@ -264,7 +335,10 @@ function Errors() {
             </tr>
             <tr>
               <td>Warning</td>
-              <td>E_ALREADY_OWNED, E_PENDING, E_DEFERRED_PAYMENT, E_NOT_PREPARED, E_INTERRUPTED</td>
+              <td>
+                E_ALREADY_OWNED, E_PENDING, E_DEFERRED_PAYMENT, E_NOT_PREPARED,
+                E_INTERRUPTED
+              </td>
               <td>Log and attempt recovery</td>
             </tr>
             <tr>
@@ -337,7 +411,7 @@ function Errors() {
 
       <section>
         <h2>Platform-Specific Error Handling</h2>
-        
+
         <h3>iOS Error Codes</h3>
         <table className="error-table">
           <thead>
@@ -447,7 +521,7 @@ function Errors() {
 
       <section>
         <h2>Testing Error Scenarios</h2>
-        
+
         <h3>Testing Error Scenarios</h3>
         <h4>iOS Sandbox Testing</h4>
         <table className="error-table">
@@ -472,7 +546,7 @@ function Errors() {
             </tr>
           </tbody>
         </table>
-        
+
         <h4>Android Testing Methods</h4>
         <table className="error-table">
           <thead>
@@ -484,7 +558,10 @@ function Errors() {
           <tbody>
             <tr>
               <td>License Testing</td>
-              <td>Add test accounts in Google Play Console for real purchases without charges</td>
+              <td>
+                Add test accounts in Google Play Console for real purchases
+                without charges
+              </td>
             </tr>
             <tr>
               <td>Internal Testing Track</td>
@@ -492,7 +569,9 @@ function Errors() {
             </tr>
             <tr>
               <td>Closed Testing</td>
-              <td>Test with limited group of users before production release</td>
+              <td>
+                Test with limited group of users before production release
+              </td>
             </tr>
             <tr>
               <td>Test Cards (Sandbox)</td>
@@ -500,21 +579,29 @@ function Errors() {
             </tr>
           </tbody>
         </table>
-        <div style={{ 
-          background: "rgba(255, 200, 0, 0.1)", 
-          border: "1px solid rgba(255, 200, 0, 0.3)",
-          borderRadius: "0.5rem",
-          padding: "1rem",
-          marginTop: "1rem"
-        }}>
-          <p style={{ margin: 0, fontSize: "0.875rem" }}>
-            <strong>⚠️ Important:</strong> Static test product IDs like <code>android.test.purchased</code> are <strong>deprecated</strong> and no longer work. 
-            Use real product IDs with test accounts instead. <Link to="/docs/updates">See Updates page for details →</Link>
+        <div
+          style={{
+            background: 'rgba(255, 200, 0, 0.1)',
+            border: '1px solid rgba(255, 200, 0, 0.3)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginTop: '1rem',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: '0.875rem' }}>
+            <strong>⚠️ Important:</strong> Static test product IDs like{' '}
+            <code>android.test.purchased</code> are <strong>deprecated</strong>{' '}
+            and no longer work. Use real product IDs with test accounts instead.{' '}
+            <Link to="/docs/updates">See Updates page for details →</Link>
           </p>
         </div>
 
         <h3>Development Testing</h3>
-        <p>For development testing, consider implementing mock error generators that can simulate various error conditions without requiring actual purchases. This allows you to:</p>
+        <p>
+          For development testing, consider implementing mock error generators
+          that can simulate various error conditions without requiring actual
+          purchases. This allows you to:
+        </p>
         <ul>
           <li>Test error handling UI flows</li>
           <li>Verify analytics tracking</li>
@@ -526,18 +613,40 @@ function Errors() {
       <section>
         <h2>Best Practices</h2>
         <ul>
-          <li><strong>Log all errors</strong> - Track error patterns for debugging</li>
-          <li><strong>Provide clear user feedback</strong> - Map technical errors to user-friendly messages</li>
-          <li><strong>Handle errors gracefully</strong> - Don't crash the app on purchase errors</li>
-          <li><strong>Implement retry logic</strong> - For transient network/service errors</li>
-          <li><strong>Track error metrics</strong> - Monitor error rates and types</li>
-          <li><strong>Test error scenarios</strong> - Use sandbox/test environments</li>
-          <li><strong>Document error codes</strong> - Keep error documentation updated</li>
-          <li><strong>Consider error recovery</strong> - Provide alternatives when purchases fail</li>
+          <li>
+            <strong>Log all errors</strong> - Track error patterns for debugging
+          </li>
+          <li>
+            <strong>Provide clear user feedback</strong> - Map technical errors
+            to user-friendly messages
+          </li>
+          <li>
+            <strong>Handle errors gracefully</strong> - Don't crash the app on
+            purchase errors
+          </li>
+          <li>
+            <strong>Implement retry logic</strong> - For transient
+            network/service errors
+          </li>
+          <li>
+            <strong>Track error metrics</strong> - Monitor error rates and types
+          </li>
+          <li>
+            <strong>Test error scenarios</strong> - Use sandbox/test
+            environments
+          </li>
+          <li>
+            <strong>Document error codes</strong> - Keep error documentation
+            updated
+          </li>
+          <li>
+            <strong>Consider error recovery</strong> - Provide alternatives when
+            purchases fail
+          </li>
         </ul>
       </section>
     </div>
-  )
+  );
 }
 
-export default Errors
+export default Errors;

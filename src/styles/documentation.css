@@ -136,7 +136,11 @@
 
 /* Terminology Blockquote */
 .terminology-note {
-  background: linear-gradient(135deg, rgba(197, 177, 159, 0.08) 0%, rgba(255, 128, 102, 0.06) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(197, 177, 159, 0.08) 0%,
+    rgba(255, 128, 102, 0.06) 100%
+  );
   border-left: 4px solid var(--primary-color);
   border-radius: 0.5rem;
   padding: 1.5rem;
@@ -176,7 +180,11 @@
 
 /* Dark mode for terminology note */
 :root.dark .terminology-note {
-  background: linear-gradient(135deg, rgba(197, 177, 159, 0.12) 0%, rgba(255, 128, 102, 0.08) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(197, 177, 159, 0.12) 0%,
+    rgba(255, 128, 102, 0.08) 100%
+  );
   border-left-color: var(--primary-light);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }

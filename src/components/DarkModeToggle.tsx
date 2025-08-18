@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react";
-import { Moon, Sun } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Moon, Sun } from 'lucide-react';
 
 export function DarkModeToggle() {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     // Check localStorage and system preference
-    const stored = localStorage.getItem("theme");
+    const stored = localStorage.getItem('theme');
     if (stored) {
-      setIsDark(stored === "dark");
-      applyTheme(stored === "dark");
+      setIsDark(stored === 'dark');
+      applyTheme(stored === 'dark');
     } else {
       const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
+        '(prefers-color-scheme: dark)'
       ).matches;
       setIsDark(prefersDark);
       applyTheme(prefersDark);
@@ -21,20 +21,20 @@ export function DarkModeToggle() {
 
   const applyTheme = (dark: boolean) => {
     if (dark) {
-      document.documentElement.classList.add("dark");
-      document.documentElement.style.backgroundColor = "#09090b";
-      document.body.style.backgroundColor = "#09090b";
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.backgroundColor = '#09090b';
+      document.body.style.backgroundColor = '#09090b';
     } else {
-      document.documentElement.classList.remove("dark");
-      document.documentElement.style.backgroundColor = "#fefefe";
-      document.body.style.backgroundColor = "#fefefe";
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.backgroundColor = '#fefefe';
+      document.body.style.backgroundColor = '#fefefe';
     }
   };
 
   const toggleDarkMode = () => {
     const newTheme = !isDark;
     setIsDark(newTheme);
-    localStorage.setItem("theme", newTheme ? "dark" : "light");
+    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
     applyTheme(newTheme);
   };
 
@@ -51,7 +51,7 @@ export function DarkModeToggle() {
         alignItems: 'center',
         justifyContent: 'center',
         transition: 'background 0.2s',
-        color: 'var(--text-primary)'
+        color: 'var(--text-primary)',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = 'var(--bg-secondary)';

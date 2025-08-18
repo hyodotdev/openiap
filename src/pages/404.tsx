@@ -1,68 +1,78 @@
-import { Link } from 'react-router-dom'
-import { Home, ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom';
+import { Home, ArrowLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function NotFound() {
-  const [isDark, setIsDark] = useState(false)
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
-      setIsDark(document.documentElement.classList.contains('dark'))
-    }
-    
-    checkDarkMode()
-    
-    const observer = new MutationObserver(checkDarkMode)
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['class']
-    })
-    
-    return () => observer.disconnect()
-  }, [])
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div style={{
-      minHeight: '70vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem'
-    }}>
-      <div style={{
-        textAlign: 'center',
-        maxWidth: '600px',
-        width: '100%'
-      }}>
+    <div
+      style={{
+        minHeight: '70vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem',
+      }}
+    >
+      <div
+        style={{
+          textAlign: 'center',
+          maxWidth: '600px',
+          width: '100%',
+        }}
+      >
         {/* 404 Number */}
-        <h1 style={{
-          fontSize: 'clamp(5rem, 12vw, 8rem)',
-          fontWeight: '700',
-          color: isDark ? '#6b7280' : '#9ca3af',
-          margin: '0',
-          lineHeight: '1',
-          letterSpacing: '-0.05em'
-        }}>
+        <h1
+          style={{
+            fontSize: 'clamp(5rem, 12vw, 8rem)',
+            fontWeight: '700',
+            color: isDark ? '#6b7280' : '#9ca3af',
+            margin: '0',
+            lineHeight: '1',
+            letterSpacing: '-0.05em',
+          }}
+        >
           404
         </h1>
-        
+
         {/* Description */}
-        <p style={{
-          fontSize: '1.25rem',
-          color: 'var(--text-secondary, #6b7280)',
-          marginTop: '1.5rem',
-          marginBottom: '3rem'
-        }}>
+        <p
+          style={{
+            fontSize: '1.25rem',
+            color: 'var(--text-secondary, #6b7280)',
+            marginTop: '1.5rem',
+            marginBottom: '3rem',
+          }}
+        >
           Page not found
         </p>
 
         {/* Action Buttons */}
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          justifyContent: 'center',
-          alignItems: 'stretch'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '1rem',
+            justifyContent: 'center',
+            alignItems: 'stretch',
+          }}
+        >
           <button
             onClick={() => window.history.back()}
             style={{
@@ -79,15 +89,21 @@ export default function NotFound() {
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               outline: 'none',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = isDark ? 'rgba(75, 85, 99, 0.3)' : '#f9fafb'
-              e.currentTarget.style.borderColor = isDark ? '#6b7280' : '#d1d5db'
+              e.currentTarget.style.backgroundColor = isDark
+                ? 'rgba(75, 85, 99, 0.3)'
+                : '#f9fafb';
+              e.currentTarget.style.borderColor = isDark
+                ? '#6b7280'
+                : '#d1d5db';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-              e.currentTarget.style.borderColor = isDark ? '#4b5563' : '#e5e7eb'
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = isDark
+                ? '#4b5563'
+                : '#e5e7eb';
             }}
           >
             <ArrowLeft size={18} />
@@ -109,11 +125,12 @@ export default function NotFound() {
               textDecoration: 'none',
               transition: 'all 0.2s ease',
               border: '1px solid transparent',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 20px rgba(164, 116, 101, 0.35)';
+              e.currentTarget.style.boxShadow =
+                '0 8px 20px rgba(164, 116, 101, 0.35)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
@@ -126,5 +143,5 @@ export default function NotFound() {
         </div>
       </div>
     </div>
-  )
+  );
 }

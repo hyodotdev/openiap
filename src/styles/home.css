@@ -1,9 +1,11 @@
 /* Hero Section */
 .hero {
-  background: linear-gradient(180deg, 
-    #fdfbf7 0%, 
-    rgba(164, 116, 101, 0.08) 50%, 
-    rgba(164, 116, 101, 0.15) 100%);
+  background: linear-gradient(
+    180deg,
+    #fdfbf7 0%,
+    rgba(164, 116, 101, 0.08) 50%,
+    rgba(164, 116, 101, 0.15) 100%
+  );
   color: var(--text-primary);
   padding: 8rem 2rem 6rem;
   position: relative;
@@ -41,7 +43,8 @@
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) rotate(0deg);
   }
   50% {
@@ -271,7 +274,9 @@ a.spec-item,
   text-align: center;
   text-decoration: none;
   color: inherit;
-  transition: transform 0.2s, opacity 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s;
 }
 
 a.spec-item:hover {

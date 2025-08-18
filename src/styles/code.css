@@ -88,7 +88,8 @@ pre.code-block {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   opacity: 0.7;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
 :root.dark .code-block-language {
@@ -106,7 +107,8 @@ pre.code-block {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
 :root.dark .copy-button {
@@ -138,7 +140,7 @@ pre.code-block {
 }
 
 /* Inline code */
-code:not([class*="language-"]) {
+code:not([class*='language-']) {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.875em;
   padding: 0.2em 0.4em;
@@ -147,13 +149,13 @@ code:not([class*="language-"]) {
   color: #24292e;
 }
 
-:root.dark code:not([class*="language-"]) {
+:root.dark code:not([class*='language-']) {
   background: rgba(110, 118, 129, 0.4);
   color: #e6edf3;
 }
 
 /* Code with language class (syntax highlighted) */
-code[class*="language-"] {
+code[class*='language-'] {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   background: transparent;
   padding: 0;

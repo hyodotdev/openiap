@@ -2,18 +2,19 @@ function Operators() {
   return (
     <div className="doc-page">
       <h1>Operators</h1>
-      
+
       <section>
         <h2>Overview</h2>
         <p>
-          Operators are functions that allow you to manipulate and transform purchase streams. 
-          They enable powerful composition patterns for handling complex purchase flows.
+          Operators are functions that allow you to manipulate and transform
+          purchase streams. They enable powerful composition patterns for
+          handling complex purchase flows.
         </p>
       </section>
 
       <section>
         <h2>Creation Operators</h2>
-        
+
         <h3>create</h3>
         <pre className="code-block">{`IAP.create(observer => {
   observer.next(purchaseData)
@@ -32,7 +33,7 @@ function Operators() {
 
       <section>
         <h2>Transformation Operators</h2>
-        
+
         <h3>map</h3>
         <pre className="code-block">{`purchase.pipe(
   map(result => ({
@@ -54,7 +55,7 @@ function Operators() {
 
       <section>
         <h2>Error Handling Operators</h2>
-        
+
         <h3>catchError</h3>
         <pre className="code-block">{`purchase.pipe(
   catchError(error => {
@@ -81,7 +82,7 @@ function Operators() {
 
       <section>
         <h2>Utility Operators</h2>
-        
+
         <h3>tap</h3>
         <pre className="code-block">{`purchase.pipe(
   tap(result => console.log('Purchase result:', result)),
@@ -101,7 +102,7 @@ function Operators() {
 
       <section>
         <h2>Combination Operators</h2>
-        
+
         <h3>merge</h3>
         <pre className="code-block">{`IAP.merge(
   iapl.purchase('product1'),
@@ -119,7 +120,7 @@ function Operators() {
 )`}</pre>
       </section>
     </div>
-  )
+  );
 }
 
-export default Operators
+export default Operators;

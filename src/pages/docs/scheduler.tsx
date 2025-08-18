@@ -2,18 +2,19 @@ function Scheduler() {
   return (
     <div className="doc-page">
       <h1>Scheduler</h1>
-      
+
       <section>
         <h2>Overview</h2>
         <p>
-          Schedulers control when and how Observable execution happens. They're essential 
-          for managing concurrency, timing, and execution context in purchase flows.
+          Schedulers control when and how Observable execution happens. They're
+          essential for managing concurrency, timing, and execution context in
+          purchase flows.
         </p>
       </section>
 
       <section>
         <h2>Built-in Schedulers</h2>
-        
+
         <h3>asyncScheduler</h3>
         <p>Schedules work asynchronously using setTimeout/setInterval.</p>
         <pre className="code-block">{`import { asyncScheduler } from '@openiap/core'
@@ -31,7 +32,9 @@ purchase.pipe(
 )`}</pre>
 
         <h3>animationFrameScheduler</h3>
-        <p>Schedules work using requestAnimationFrame - ideal for UI updates.</p>
+        <p>
+          Schedules work using requestAnimationFrame - ideal for UI updates.
+        </p>
         <pre className="code-block">{`purchaseProgress.pipe(
   observeOn(animationFrameScheduler),
   map(progress => updateProgressBar(progress))
@@ -40,7 +43,7 @@ purchase.pipe(
 
       <section>
         <h2>Controlling Execution</h2>
-        
+
         <h3>subscribeOn</h3>
         <p>Controls which scheduler is used for subscription.</p>
         <pre className="code-block">{`heavyComputation.pipe(
@@ -58,7 +61,7 @@ purchase.pipe(
 
       <section>
         <h2>Timing Operations</h2>
-        
+
         <h3>Delayed Execution</h3>
         <pre className="code-block">{`// Delay purchase by 2 seconds
 purchase.pipe(
@@ -141,12 +144,16 @@ it('should handle purchase timeout', () => {
           <li>Use asyncScheduler for I/O operations and API calls</li>
           <li>Use animationFrameScheduler for smooth UI updates</li>
           <li>Avoid synchronous schedulers for heavy computations</li>
-          <li>Always specify schedulers in unit tests for deterministic behavior</li>
-          <li>Consider custom schedulers for specialized timing requirements</li>
+          <li>
+            Always specify schedulers in unit tests for deterministic behavior
+          </li>
+          <li>
+            Consider custom schedulers for specialized timing requirements
+          </li>
         </ul>
       </section>
     </div>
-  )
+  );
 }
 
-export default Scheduler
+export default Scheduler;

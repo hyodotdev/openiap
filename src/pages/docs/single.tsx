@@ -2,13 +2,13 @@ function Single() {
   return (
     <div className="doc-page">
       <h1>Single</h1>
-      
+
       <section>
         <h2>Overview</h2>
         <p>
-          A Single is a specialized Observable that emits exactly one value or an error. 
-          It's perfect for one-time purchase operations that either succeed with a result 
-          or fail with an error.
+          A Single is a specialized Observable that emits exactly one value or
+          an error. It's perfect for one-time purchase operations that either
+          succeed with a result or fail with an error.
         </p>
       </section>
 
@@ -36,9 +36,7 @@ const purchaseSingle = Single.fromPromise(
 
       <section>
         <h2>Single vs Observable</h2>
-        <p>
-          Singles are ideal for purchase operations because:
-        </p>
+        <p>Singles are ideal for purchase operations because:</p>
         <ul>
           <li>A purchase either succeeds or fails (no multiple emissions)</li>
           <li>Simplified API for single-value operations</li>
@@ -49,7 +47,7 @@ const purchaseSingle = Single.fromPromise(
 
       <section>
         <h2>Common Patterns</h2>
-        
+
         <h3>Purchase with Verification</h3>
         <pre className="code-block">{`const purchaseAndVerify = (productId: string) =>
   Single.create(observer => {
@@ -108,7 +106,7 @@ const single = observable.pipe(
 )`}</pre>
       </section>
     </div>
-  )
+  );
 }
 
-export default Single
+export default Single;
