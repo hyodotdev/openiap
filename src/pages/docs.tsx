@@ -7,6 +7,7 @@ import Errors from './docs/errors';
 import IOSSetup from './docs/ios-setup';
 import AndroidSetup from './docs/android-setup';
 import Updates from './docs/updates';
+import Versions from './docs/versions';
 import Announcements from './docs/announcements';
 import NotFound from './404';
 
@@ -97,6 +98,14 @@ function Docs() {
                 Notes
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/docs/versions"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                Versions
+              </NavLink>
+            </li>
           </ul>
         </nav>
       </aside>
@@ -112,6 +121,7 @@ function Docs() {
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="updates" element={<Updates />} />
+          <Route path="versions" element={<Versions />} />
           <Route path="announcements" element={<Announcements />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
