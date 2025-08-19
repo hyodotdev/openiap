@@ -14,148 +14,106 @@ function Types() {
           Product
         </AnchorLink>
         <p className="type-definition">
-          Product = ProductBase & (ProductIOS | ProductAndroid)
+          Product = (ProductAndroid & AndroidPlatform) | (ProductIOS &
+          IosPlatform)
         </p>
 
-        <h3>ProductBase</h3>
-        <CodeBlock language="graphql">{`type ProductBase {
-  "Product SKU/ID"
-  id: String!
-  
-  "Product title"
-  title: String!
-  
-  "Product description"  
-  description: String!
-  
-  "Product type (inapp or subs)"
-  type: ProductType!
-  
-  "Display name (optional)"
-  displayName: String
-  
-  "Formatted display price"
-  displayPrice: String!
-  
-  "Currency code (USD, EUR, etc)"
-  currency: String!
-  
-  "Raw price value (optional)"
-  price: Float
-}
+        <h3>ProductCommon</h3>
+        <CodeBlock language="typescript">{`type ProductCommon = {
+  id: string;
+  title: string;
+  description: string;
+  type: ProductType;
+  displayName?: string;
+  displayPrice: string;
+  currency: string;
+  price?: number;
+  debugDescription?: string;
+  platform?: string;  // Added for platform identification
+};
 
-enum ProductType {
-  inapp
-  subs
-}`}</CodeBlock>
+type ProductType = 'inapp' | 'subs';`}</CodeBlock>
 
         <h3>ProductIOS</h3>
-        <CodeBlock language="graphql">{`type ProductIOS {
-  "Display name on App Store"
-  displayName: String!
-  
-  "Whether product can be shared with family"
-  isFamilyShareable: Boolean!
-  
-  "JSON representation from StoreKit"
-  jsonRepresentation: String!
-  
-  "Subscription information"
-  subscription: SubscriptionInfo
-  
-  "Intro price number of periods"
-  introductoryPriceNumberOfPeriodsIOS: String
-  
-  "Intro price subscription period"
-  introductoryPriceSubscriptionPeriodIOS: SubscriptionIosPeriod
-}
+        <CodeBlock language="typescript">{`type ProductIOS = ProductCommon & {
+  displayNameIOS: string;
+  isFamilyShareableIOS: boolean;
+  jsonRepresentationIOS: string;
+  platform: "ios";  // Literal type
+  subscriptionInfoIOS?: SubscriptionInfo;
+  // deprecated fields
+  displayName?: string;
+  isFamilyShareable?: boolean;
+  jsonRepresentation?: string;
+  subscription?: SubscriptionInfo;
+  introductoryPriceNumberOfPeriodsIOS?: string;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
+};
 
-type SubscriptionInfo {
-  "Introductory offer"
-  introductoryOffer: SubscriptionOffer
-  
-  "Promotional offers"
-  promotionalOffers: [SubscriptionOffer!]
-  
-  "Subscription group ID"
-  subscriptionGroupId: String!
-  
-  "Subscription period"
-  subscriptionPeriod: SubscriptionPeriod!
-}
+type SubscriptionInfo = {
+  introductoryOffer?: SubscriptionOffer;
+  promotionalOffers?: SubscriptionOffer[];
+  subscriptionGroupId: string;
+  subscriptionPeriod: {
+    unit: SubscriptionIosPeriod;
+    value: number;
+  };
+};
 
-type SubscriptionPeriod {
-  "Period unit"
-  unit: SubscriptionIosPeriod!
-  
-  "Period value"
-  value: Int!
-}`}</CodeBlock>
+type SubscriptionOffer = {
+  displayPrice: string;
+  id: string;
+  paymentMode: PaymentMode;
+  period: {
+    unit: SubscriptionIosPeriod;
+    value: number;
+  };
+  periodCount: number;
+  price: number;
+  type: 'introductory' | 'promotional';
+};
+
+type PaymentMode = '' | 'FREETRIAL' | 'PAYASYOUGO' | 'PAYUPFRONT';
+type SubscriptionIosPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | '';`}</CodeBlock>
 
         <h3>ProductAndroid</h3>
-        <CodeBlock language="graphql">{`type ProductAndroid {
-  "Product name"
-  name: String!
-  
-  "One-time purchase offer details"
-  oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails
-  
-  "Subscription offer details"
-  subscriptionOfferDetails: [SubscriptionOfferDetail!]
-}
+        <CodeBlock language="typescript">{`type ProductAndroid = ProductCommon & {
+  nameAndroid: string;
+  oneTimePurchaseOfferDetailsAndroid?: ProductAndroidOneTimePurchaseOfferDetail;
+  platform: "android";  // Literal type
+  subscriptionOfferDetailsAndroid?: ProductSubscriptionAndroidOfferDetail[];
+  // deprecated fields
+  name?: string;
+  oneTimePurchaseOfferDetails?: ProductAndroidOneTimePurchaseOfferDetail;
+  subscriptionOfferDetails?: ProductSubscriptionAndroidOfferDetail[];
+};
 
-type OneTimePurchaseOfferDetails {
-  "Price currency code"
-  priceCurrencyCode: String!
-  
-  "Formatted price"
-  formattedPrice: String!
-  
-  "Price amount in micros"
-  priceAmountMicros: String!
-}
+type ProductAndroidOneTimePurchaseOfferDetail = {
+  priceCurrencyCode: string;
+  formattedPrice: string;
+  priceAmountMicros: string;
+};
 
-type SubscriptionOfferDetail {
-  "Base plan ID"
-  basePlanId: String!
-  
-  "Offer ID"
-  offerId: String!
-  
-  "Offer token"
-  offerToken: String!
-  
-  "Offer tags"
-  offerTags: [String!]!
-  
-  "Pricing phases"
-  pricingPhases: PricingPhasesAndroid!
-}
+type ProductSubscriptionAndroidOfferDetail = {
+  basePlanId: string;
+  offerId: string;
+  offerToken: string;
+  offerTags: string[];
+  pricingPhases: ProductAndroidPricingPhases;
+};
 
-type PricingPhasesAndroid {
-  "Pricing phase list"
-  pricingPhaseList: [PricingPhaseAndroid!]!
-}
+type ProductAndroidPricingPhases = {
+  pricingPhaseList: ProductAndroidPricingPhase[];
+};
 
-type PricingPhaseAndroid {
-  "Formatted price"
-  formattedPrice: String!
-  
-  "Price currency code"
-  priceCurrencyCode: String!
-  
-  "Billing period (P1W, P1M, P1Y)"
-  billingPeriod: String!
-  
-  "Billing cycle count"
-  billingCycleCount: Int!
-  
-  "Price amount in micros"
-  priceAmountMicros: String!
-  
-  "Recurrence mode"
-  recurrenceMode: Int!
-}`}</CodeBlock>
+type ProductAndroidPricingPhase = {
+  formattedPrice: string;
+  priceCurrencyCode: string;
+  billingPeriod: string; // P1W, P1M, P1Y
+  billingCycleCount: number;
+  priceAmountMicros: string;
+  recurrenceMode: number;
+};`}</CodeBlock>
       </section>
 
       <section>
@@ -163,123 +121,165 @@ type PricingPhaseAndroid {
           Purchase
         </AnchorLink>
         <p className="type-definition">
-          Purchase = PurchaseBase & (PurchaseIOS | PurchaseAndroid)
+          Purchase = (PurchaseAndroid & AndroidPlatform) | (PurchaseIOS &
+          IosPlatform)
         </p>
 
-        <h3>PurchaseBase</h3>
-        <CodeBlock language="graphql">{`type PurchaseBase {
-  "Purchase ID (AKA transactionId)"
-  id: String!
-  
-  "Product ID"
-  productId: String!
-  
-  "Purchase timestamp"
-  transactionDate: Float!
-  
-  "Receipt/Token for validation (deprecated - use transactionReceipt for legacy)"
-  transactionReceipt: String!
-  
-  "Unified purchase token for validation (jwsRepresentationIOS for iOS, purchaseTokenAndroid for Android)"
-  purchaseToken: String!
-}`}</CodeBlock>
+        <h3>PurchaseCommon</h3>
+        <CodeBlock language="typescript">{`type PurchaseCommon = {
+  id: string;
+  productId: string;
+  ids?: string[];  // Common field for both platforms
+  transactionId?: string; // @deprecated - use id instead
+  transactionDate: number;
+  transactionReceipt: string;
+  purchaseToken?: string;
+  platform?: string;  // Added for platform identification
+};`}</CodeBlock>
 
-        <h3>PurchaseIOS</h3>
-        <CodeBlock language="graphql">{`type PurchaseIOS {
-  "iOS basic fields"
-  quantityIOS: Int
-  originalTransactionDateIOS: Float
-  originalTransactionIdentifierIOS: String
-  appAccountToken: String
+        <h3>ProductPurchaseIOS</h3>
+        <CodeBlock language="typescript">{`type ProductPurchaseIOS = PurchaseCommon & {
+  platform: "ios";  // Literal type
+  quantityIOS?: number;
+  originalTransactionDateIOS?: number;
+  originalTransactionIdentifierIOS?: string;
+  appAccountToken?: string;
+  expirationDateIOS?: number;
+  webOrderLineItemIdIOS?: number;
+  environmentIOS?: string;
+  storefrontCountryCodeIOS?: string;
+  appBundleIdIOS?: string;
+  productTypeIOS?: string;
+  subscriptionGroupIdIOS?: string;
+  isUpgradedIOS?: boolean;
+  ownershipTypeIOS?: string;
+  reasonIOS?: string;
+  reasonStringRepresentationIOS?: string;
+  transactionReasonIOS?: 'PURCHASE' | 'RENEWAL' | string;
+  revocationDateIOS?: number;
+  revocationReasonIOS?: string;
+  offerIOS?: {
+    id: string;
+    type: string;
+    paymentMode: string;
+  };
   
-  "iOS additional fields from StoreKit 2"
-  expirationDateIOS: Float
-  webOrderLineItemIdIOS: Int
-  environmentIOS: String
-  storefrontCountryCodeIOS: String
-  appBundleIdIOS: String
-  productTypeIOS: String
-  subscriptionGroupIdIOS: String
-  isUpgradedIOS: Boolean
-  ownershipTypeIOS: String
-  reasonIOS: String
-  reasonStringRepresentationIOS: String
-  transactionReasonIOS: String
-  revocationDateIOS: Float
-  revocationReasonIOS: String
-  offerIOS: OfferIOS
-  priceIOS: Float
-  currencyIOS: String
-  
-  "JWS representation for StoreKit 2 receipt validation (deprecated - use purchaseToken instead)"
-  jwsRepresentationIOS: String
+  currencyCodeIOS?: string;
+  currencySymbolIOS?: string;
+  countryCodeIOS?: string;
+  jwsRepresentationIOS?: string; // @deprecated
+};`}</CodeBlock>
+
+        <h3>ProductPurchaseAndroid</h3>
+        <CodeBlock language="typescript">{`export enum PurchaseAndroidState {
+  UNSPECIFIED_STATE = 0,
+  PURCHASED = 1,
+  PENDING = 2,
 }
 
-type OfferIOS {
-  id: String!
-  type: String!
-  paymentMode: String!
-}`}</CodeBlock>
-
-        <h3>PurchaseAndroid</h3>
-        <CodeBlock language="graphql">{`type PurchaseAndroid {
-  "Product IDs array"
-  ids: [String!]
-  
-  "Purchase token for validation (deprecated - use purchaseToken instead)"
-  purchaseTokenAndroid: String
-  
-  "Purchase data JSON"
-  dataAndroid: String
-  
-  "Purchase signature"
-  signatureAndroid: String
-  
-  "Auto-renewing subscription"
-  autoRenewingAndroid: Boolean
-  
-  "Purchase state"
-  purchaseStateAndroid: PurchaseStateAndroid
-  
-  "Acknowledgement status"
-  isAcknowledgedAndroid: Boolean
-  
-  "Package name"
-  packageNameAndroid: String
-  
-  "Developer payload"
-  developerPayloadAndroid: String
-  
-  "Obfuscated account ID"
-  obfuscatedAccountIdAndroid: String
-  
-  "Obfuscated profile ID"
-  obfuscatedProfileIdAndroid: String
-}`}</CodeBlock>
+type ProductPurchaseAndroid = PurchaseCommon & {
+  platform: "android";  // Literal type
+  purchaseTokenAndroid?: string; // @deprecated
+  dataAndroid?: string;
+  signatureAndroid?: string;
+  autoRenewingAndroid?: boolean;
+  purchaseStateAndroid?: PurchaseAndroidState;
+  isAcknowledgedAndroid?: boolean;
+  packageNameAndroid?: string;
+  developerPayloadAndroid?: string;
+  obfuscatedAccountIdAndroid?: string;
+  obfuscatedProfileIdAndroid?: string;
+};`}</CodeBlock>
       </section>
 
       <section>
-        <AnchorLink id="product-purchase" level="h2">
-          ProductPurchase
+        <AnchorLink id="product-subscription" level="h2">
+          ProductSubscription
         </AnchorLink>
         <p className="type-definition">
-          ProductPurchase = Purchase & PurchaseDetails
+          ProductSubscription = (ProductSubscriptionAndroid & AndroidPlatform) |
+          (ProductSubscriptionIOS & IosPlatform)
         </p>
 
-        <h3>PurchaseDetails</h3>
-        <CodeBlock language="graphql">{`type PurchaseDetails {
-  "Whether the purchase has been consumed (Android)"
-  isConsumedAndroid: Boolean
-  
-  "Whether the purchase has been acknowledged (Android)"
-  isAcknowledgedAndroid: Boolean
-  
-  "Whether the transaction is finished (iOS)"
-  isFinishedIOS: Boolean
-  
-  "Purchase state details"
-  purchaseState: PurchaseState
-}`}</CodeBlock>
+        <h3>ProductSubscriptionCommon</h3>
+        <CodeBlock language="typescript">{`type ProductSubscriptionCommon = ProductCommon & {
+  type: 'subs';
+};`}</CodeBlock>
+
+        <h3>ProductSubscriptionIOS</h3>
+        <CodeBlock language="typescript">{`type Discount = {
+  identifier: string;
+  type: string;
+  numberOfPeriods: string;
+  price: string;
+  localizedPrice: string;
+  paymentMode: PaymentMode;
+  subscriptionPeriod: string;
+};
+
+type ProductSubscriptionIOS = ProductIOS & {
+  discountsIOS?: Discount[];
+  introductoryPriceIOS?: string;
+  introductoryPriceAsAmountIOS?: string;
+  introductoryPricePaymentModeIOS?: PaymentMode;
+  introductoryPriceNumberOfPeriodsIOS?: string;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
+  platform: "ios";
+  subscriptionPeriodNumberIOS?: string;
+  subscriptionPeriodUnitIOS?: SubscriptionIosPeriod;
+  // deprecated
+  discounts?: Discount[];
+  introductoryPrice?: string;
+};`}</CodeBlock>
+
+        <h3>ProductSubscriptionAndroid</h3>
+        <CodeBlock language="typescript">{`type ProductSubscriptionAndroidOfferDetails = {
+  basePlanId: string;
+  offerId: string | null;
+  offerToken: string;
+  pricingPhases: ProductAndroidPricingPhases;
+  offerTags: string[];
+};
+
+type ProductSubscriptionAndroid = ProductAndroid & {
+  subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
+  subscriptionOfferDetails?: ProductSubscriptionAndroidOfferDetails[]; // deprecated
+};`}</CodeBlock>
+      </section>
+
+      <section>
+        <AnchorLink id="unified-platform-types" level="h2">
+          Unified Platform Types
+        </AnchorLink>
+        <p className="type-definition">
+          These types combine platform-specific types with discriminators for
+          type safety.
+        </p>
+
+        <h3>Platform Discriminators</h3>
+        <CodeBlock language="typescript">{`type IosPlatform = { platform: 'ios' };
+type AndroidPlatform = { platform: 'android' };`}</CodeBlock>
+
+        <h3>Unified Types</h3>
+        <CodeBlock language="typescript">{`// Product Union Types
+type Product = 
+  | (ProductAndroid & AndroidPlatform)
+  | (ProductIOS & IosPlatform);
+
+type SubscriptionProduct =
+  | (ProductSubscriptionAndroid & AndroidPlatform)
+  | (ProductSubscriptionIOS & IosPlatform);
+
+// Purchase Union Types  
+type ProductPurchase =
+  | (ProductPurchaseAndroid & AndroidPlatform)
+  | (ProductPurchaseIOS & IosPlatform);
+
+type SubscriptionPurchase =
+  | (ProductPurchaseAndroid & AndroidPlatform & {autoRenewingAndroid: boolean})
+  | (ProductPurchaseIOS & IosPlatform);
+
+type Purchase = ProductPurchase | SubscriptionPurchase;`}</CodeBlock>
       </section>
 
       <section>
