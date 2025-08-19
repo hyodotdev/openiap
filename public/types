@@ -1,0 +1,386 @@
+// ============================================================================
+// CORE TYPES
+// ============================================================================
+
+export type ChangeEventPayload = {
+  value: string;
+};
+
+export type ProductType = 'inapp' | 'subs';
+
+// ============================================================================
+// COMMON TYPES (Base types shared across all platforms)
+// ============================================================================
+
+export type ProductCommon = {
+  id: string;
+  title: string;
+  description: string;
+  type: ProductType;
+  displayName?: string;
+  displayPrice: string;
+  currency: string;
+  price?: number;
+  debugDescription?: string;
+  platform?: string;
+};
+
+export type PurchaseCommon = {
+  id: string; // Transaction identifier - used by finishTransaction
+  productId: string; // Product identifier - which product was purchased
+  ids?: string[]; // Product identifiers for purchases that include multiple products
+  transactionId?: string; // @deprecated - use id instead
+  transactionDate: number;
+  transactionReceipt: string;
+  purchaseToken?: string; // Unified purchase token (jwsRepresentation for iOS, purchaseToken for Android)
+  platform?: string;
+};
+
+export type ProductSubscriptionCommon = ProductCommon & {
+  type: 'subs';
+};
+
+// ============================================================================
+// PLATFORM TYPES
+// ============================================================================
+
+export type IosPlatform = { platform: 'ios' };
+export type AndroidPlatform = { platform: 'android' };
+
+// ============================================================================
+// IOS TYPES
+// ============================================================================
+
+type SubscriptionIosPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | '';
+type PaymentMode = '' | 'FREETRIAL' | 'PAYASYOUGO' | 'PAYUPFRONT';
+
+type SubscriptionOffer = {
+  displayPrice: string;
+  id: string;
+  paymentMode: PaymentMode;
+  period: {
+    unit: SubscriptionIosPeriod;
+    value: number;
+  };
+  periodCount: number;
+  price: number;
+  type: 'introductory' | 'promotional';
+};
+
+type SubscriptionInfo = {
+  introductoryOffer?: SubscriptionOffer;
+  promotionalOffers?: SubscriptionOffer[];
+  subscriptionGroupId: string;
+  subscriptionPeriod: {
+    unit: SubscriptionIosPeriod;
+    value: number;
+  };
+};
+
+export type Discount = {
+  identifier: string;
+  type: string;
+  numberOfPeriods: string;
+  price: string;
+  localizedPrice: string;
+  paymentMode: PaymentMode;
+  subscriptionPeriod: string;
+};
+
+export type ProductIOS = ProductCommon & {
+  displayNameIOS: string;
+  isFamilyShareableIOS: boolean;
+  jsonRepresentationIOS: string;
+  platform: 'ios';
+  subscriptionInfoIOS?: SubscriptionInfo;
+  // deprecated fields
+  displayName?: string;
+  isFamilyShareable?: boolean;
+  jsonRepresentation?: string;
+  subscription?: SubscriptionInfo;
+  introductoryPriceNumberOfPeriodsIOS?: string;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
+};
+
+export type ProductSubscriptionIOS = ProductIOS & {
+  discountsIOS?: Discount[];
+  introductoryPriceIOS?: string;
+  introductoryPriceAsAmountIOS?: string;
+  introductoryPricePaymentModeIOS?: PaymentMode;
+  introductoryPriceNumberOfPeriodsIOS?: string;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
+  platform: 'ios';
+  subscriptionPeriodNumberIOS?: string;
+  subscriptionPeriodUnitIOS?: SubscriptionIosPeriod;
+  // deprecated
+  discounts?: Discount[];
+  introductoryPrice?: string;
+};
+
+export type ProductPurchaseIOS = PurchaseCommon & {
+  platform: 'ios';
+  quantityIOS?: number;
+  originalTransactionDateIOS?: number;
+  originalTransactionIdentifierIOS?: string;
+  appAccountToken?: string;
+  // iOS additional fields from StoreKit 2
+  expirationDateIOS?: number;
+  webOrderLineItemIdIOS?: number;
+  environmentIOS?: string;
+  storefrontCountryCodeIOS?: string;
+  appBundleIdIOS?: string;
+  productTypeIOS?: string;
+  subscriptionGroupIdIOS?: string;
+  isUpgradedIOS?: boolean;
+  ownershipTypeIOS?: string;
+  reasonIOS?: string;
+  reasonStringRepresentationIOS?: string;
+  transactionReasonIOS?: 'PURCHASE' | 'RENEWAL' | string;
+  revocationDateIOS?: number;
+  revocationReasonIOS?: string;
+  offerIOS?: {
+    id: string;
+    type: string;
+    paymentMode: string;
+  };
+  // Price locale fields
+  currencyCodeIOS?: string;
+  currencySymbolIOS?: string;
+  countryCodeIOS?: string;
+  /**
+   * @deprecated Use `purchaseToken` instead. This field will be removed in a future version.
+   * iOS 15+ JWS representation is now available through the `purchaseToken` field.
+   */
+  jwsRepresentationIOS?: string;
+};
+
+// ============================================================================
+// ANDROID TYPES
+// ============================================================================
+
+type ProductAndroidOneTimePurchaseOfferDetail = {
+  priceCurrencyCode: string;
+  formattedPrice: string;
+  priceAmountMicros: string;
+};
+
+type PricingPhaseAndroid = {
+  formattedPrice: string;
+  priceCurrencyCode: string;
+  billingPeriod: string; // P1W, P1M, P1Y
+  billingCycleCount: number;
+  priceAmountMicros: string;
+  recurrenceMode: number;
+};
+
+type PricingPhasesAndroid = {
+  pricingPhaseList: PricingPhaseAndroid[];
+};
+
+type ProductSubscriptionAndroidOfferDetail = {
+  basePlanId: string;
+  offerId: string;
+  offerToken: string;
+  offerTags: string[];
+  pricingPhases: PricingPhasesAndroid;
+};
+
+type ProductSubscriptionAndroidOfferDetails = {
+  basePlanId: string;
+  offerId: string | null;
+  offerToken: string;
+  pricingPhases: PricingPhasesAndroid;
+  offerTags: string[];
+};
+
+export type ProductAndroid = ProductCommon & {
+  nameAndroid: string;
+  oneTimePurchaseOfferDetailsAndroid?: ProductAndroidOneTimePurchaseOfferDetail;
+  platform: 'android';
+  subscriptionOfferDetailsAndroid?: ProductSubscriptionAndroidOfferDetail[];
+  // deprecated fields
+  name?: string;
+  oneTimePurchaseOfferDetails?: ProductAndroidOneTimePurchaseOfferDetail;
+  subscriptionOfferDetails?: ProductSubscriptionAndroidOfferDetail[];
+};
+
+export type ProductSubscriptionAndroid = ProductAndroid & {
+  subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
+  // deprecated
+  subscriptionOfferDetails?: ProductSubscriptionAndroidOfferDetails[];
+};
+
+export enum PurchaseAndroidState {
+  UNSPECIFIED_STATE = 0,
+  PURCHASED = 1,
+  PENDING = 2,
+}
+
+export type ProductPurchaseAndroid = PurchaseCommon & {
+  platform: 'android';
+  /**
+   * @deprecated Use `purchaseToken` instead. This field will be removed in a future version.
+   */
+  purchaseTokenAndroid?: string;
+  dataAndroid?: string;
+  signatureAndroid?: string;
+  autoRenewingAndroid?: boolean;
+  purchaseStateAndroid?: PurchaseAndroidState;
+  isAcknowledgedAndroid?: boolean;
+  packageNameAndroid?: string;
+  developerPayloadAndroid?: string;
+  obfuscatedAccountIdAndroid?: string;
+  obfuscatedProfileIdAndroid?: string;
+};
+
+// ============================================================================
+// TYPE ALIASES
+// ============================================================================
+
+// Preferred naming
+export type PurchaseIOS = ProductPurchaseIOS;
+export type PurchaseAndroid = ProductPurchaseAndroid;
+
+// Legacy naming for backward compatibility
+export type SubscriptionProductIOS = ProductSubscriptionIOS;
+export type SubscriptionProductAndroid = ProductSubscriptionAndroid;
+
+// ============================================================================
+// UNION TYPES
+// ============================================================================
+
+// Product Union Types
+export type Product =
+  | (ProductAndroid & AndroidPlatform)
+  | (ProductIOS & IosPlatform);
+
+export type SubscriptionProduct =
+  | (ProductSubscriptionAndroid & AndroidPlatform)
+  | (ProductSubscriptionIOS & IosPlatform);
+
+// Purchase Union Types
+export type ProductPurchase =
+  | (ProductPurchaseAndroid & AndroidPlatform)
+  | (ProductPurchaseIOS & IosPlatform);
+
+export type SubscriptionPurchase =
+  | (ProductPurchaseAndroid &
+      AndroidPlatform & { autoRenewingAndroid: boolean })
+  | (ProductPurchaseIOS & IosPlatform);
+
+export type Purchase = ProductPurchase | SubscriptionPurchase;
+
+// ============================================================================
+// REQUEST TYPES
+// ============================================================================
+
+// iOS-specific purchase request parameters
+export interface RequestPurchaseIosProps {
+  readonly sku: string;
+  readonly andDangerouslyFinishTransactionAutomatically?: boolean;
+  readonly appAccountToken?: string;
+  readonly quantity?: number;
+  readonly withOffer?: PaymentDiscount;
+}
+
+// Android-specific purchase request parameters
+export interface RequestPurchaseAndroidProps {
+  readonly skus: string[];
+  readonly obfuscatedAccountIdAndroid?: string;
+  readonly obfuscatedProfileIdAndroid?: string;
+  readonly isOfferPersonalized?: boolean;
+}
+
+// Android-specific subscription request parameters
+export interface RequestSubscriptionAndroidProps
+  extends RequestPurchaseAndroidProps {
+  readonly purchaseTokenAndroid?: string;
+  readonly replacementModeAndroid?: number;
+  readonly subscriptionOffers: {
+    sku: string;
+    offerToken: string;
+  }[];
+}
+
+// Platform-specific request structures
+export interface RequestPurchasePropsByPlatforms {
+  readonly ios?: RequestPurchaseIosProps;
+  readonly android?: RequestPurchaseAndroidProps;
+}
+
+export interface RequestSubscriptionPropsByPlatforms {
+  readonly ios?: RequestPurchaseIosProps;
+  readonly android?: RequestSubscriptionAndroidProps;
+}
+
+// Modern request types (v2.7.0+)
+export type RequestPurchaseProps = RequestPurchasePropsByPlatforms;
+export type RequestSubscriptionProps = RequestSubscriptionPropsByPlatforms;
+
+// ============================================================================
+// ERROR TYPES
+// ============================================================================
+
+export enum ErrorCode {
+  E_UNKNOWN = 'E_UNKNOWN',
+  E_USER_CANCELLED = 'E_USER_CANCELLED',
+  E_USER_ERROR = 'E_USER_ERROR',
+  E_ITEM_UNAVAILABLE = 'E_ITEM_UNAVAILABLE',
+  E_REMOTE_ERROR = 'E_REMOTE_ERROR',
+  E_NETWORK_ERROR = 'E_NETWORK_ERROR',
+  E_SERVICE_ERROR = 'E_SERVICE_ERROR',
+  E_RECEIPT_FAILED = 'E_RECEIPT_FAILED',
+  E_RECEIPT_FINISHED_FAILED = 'E_RECEIPT_FINISHED_FAILED',
+  E_NOT_PREPARED = 'E_NOT_PREPARED',
+  E_NOT_ENDED = 'E_NOT_ENDED',
+  E_ALREADY_OWNED = 'E_ALREADY_OWNED',
+  E_DEVELOPER_ERROR = 'E_DEVELOPER_ERROR',
+  E_BILLING_RESPONSE_JSON_PARSE_ERROR = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
+  E_DEFERRED_PAYMENT = 'E_DEFERRED_PAYMENT',
+  E_INTERRUPTED = 'E_INTERRUPTED',
+  E_IAP_NOT_AVAILABLE = 'E_IAP_NOT_AVAILABLE',
+  E_PURCHASE_ERROR = 'E_PURCHASE_ERROR',
+  E_SYNC_ERROR = 'E_SYNC_ERROR',
+  E_TRANSACTION_VALIDATION_FAILED = 'E_TRANSACTION_VALIDATION_FAILED',
+  E_ACTIVITY_UNAVAILABLE = 'E_ACTIVITY_UNAVAILABLE',
+  E_ALREADY_PREPARED = 'E_ALREADY_PREPARED',
+  E_PENDING = 'E_PENDING',
+  E_CONNECTION_CLOSED = 'E_CONNECTION_CLOSED',
+}
+
+export type PurchaseResult = {
+  responseCode?: number;
+  debugMessage?: string;
+  code?: string;
+  message?: string;
+  /**
+   * @deprecated Use `purchaseToken` instead. This field will be removed in a future version.
+   */
+  purchaseTokenAndroid?: string;
+  purchaseToken?: string;
+};
+
+// Additional iOS types
+export type PaymentDiscount = {
+  identifier: string;
+  keyIdentifier: string;
+  nonce: string;
+  signature: string;
+  timestamp: number;
+};
+
+export type AppTransactionIOS = {
+  appTransactionId?: string;
+  originalPlatform?: string;
+  bundleId: string;
+  appVersion: string;
+  originalAppVersion: string;
+  originalPurchaseDate: number;
+  deviceVerification: string;
+  deviceVerificationNonce: string;
+  environment: string;
+  signedDate: number;
+  appId?: number;
+  appVersionId?: number;
+  preorderDate?: number;
+};

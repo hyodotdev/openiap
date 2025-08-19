@@ -5,9 +5,54 @@ import { useScrollToHash } from '../../hooks/useScrollToHash';
 function Types() {
   useScrollToHash();
 
+  const handleDownloadTypes = () => {
+    const link = document.createElement('a');
+    link.href = '/types';
+    link.download = 'types.ts';
+    link.click();
+  };
+
   return (
     <div className="doc-page">
-      <h1>Types</h1>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1.5rem',
+        }}
+      >
+        <h1 style={{ margin: 0 }}>Types</h1>
+        <button
+          onClick={handleDownloadTypes}
+          style={{
+            backgroundColor: '#007acc',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'background-color 0.2s',
+          }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.backgroundColor = '#005a9e')
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.backgroundColor = '#007acc')
+          }
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 12l-4-4h2.5V3h3v5H12l-4 4z" />
+            <path d="M2 14h12v1H2v-1z" />
+          </svg>
+          Download types.ts
+        </button>
+      </div>
 
       <section>
         <AnchorLink id="product" level="h2">
