@@ -78,7 +78,7 @@ type SubscriptionInfo {
   promotionalOffers: [SubscriptionOffer!]
   
   "Subscription group ID"
-  subscriptionGroupID: String!
+  subscriptionGroupId: String!
   
   "Subscription period"
   subscriptionPeriod: SubscriptionPeriod!
@@ -180,42 +180,42 @@ type PricingPhaseAndroid {
   "Receipt/Token for validation (deprecated - use transactionReceipt for legacy)"
   transactionReceipt: String!
   
-  "Unified purchase token for validation (jwsRepresentationIos for iOS, purchaseTokenAndroid for Android)"
+  "Unified purchase token for validation (jwsRepresentationIOS for iOS, purchaseTokenAndroid for Android)"
   purchaseToken: String!
 }`}</CodeBlock>
 
         <h3>PurchaseIOS</h3>
         <CodeBlock language="graphql">{`type PurchaseIOS {
   "iOS basic fields"
-  quantityIos: Int
-  originalTransactionDateIos: Float
-  originalTransactionIdentifierIos: String
+  quantityIOS: Int
+  originalTransactionDateIOS: Float
+  originalTransactionIdentifierIOS: String
   appAccountToken: String
   
   "iOS additional fields from StoreKit 2"
-  expirationDateIos: Float
-  webOrderLineItemIdIos: Int
-  environmentIos: String
-  storefrontCountryCodeIos: String
-  appBundleIdIos: String
-  productTypeIos: String
-  subscriptionGroupIdIos: String
-  isUpgradedIos: Boolean
-  ownershipTypeIos: String
-  reasonIos: String
-  reasonStringRepresentationIos: String
-  transactionReasonIos: String
-  revocationDateIos: Float
-  revocationReasonIos: String
-  offerIos: OfferIos
-  priceIos: Float
-  currencyIos: String
+  expirationDateIOS: Float
+  webOrderLineItemIdIOS: Int
+  environmentIOS: String
+  storefrontCountryCodeIOS: String
+  appBundleIdIOS: String
+  productTypeIOS: String
+  subscriptionGroupIdIOS: String
+  isUpgradedIOS: Boolean
+  ownershipTypeIOS: String
+  reasonIOS: String
+  reasonStringRepresentationIOS: String
+  transactionReasonIOS: String
+  revocationDateIOS: Float
+  revocationReasonIOS: String
+  offerIOS: OfferIOS
+  priceIOS: Float
+  currencyIOS: String
   
   "JWS representation for StoreKit 2 receipt validation (deprecated - use purchaseToken instead)"
-  jwsRepresentationIos: String
+  jwsRepresentationIOS: String
 }
 
-type OfferIos {
+type OfferIOS {
   id: String!
   type: String!
   paymentMode: String!
@@ -355,7 +355,7 @@ type OfferIos {
         <h3>SubscriptionInfo (iOS)</h3>
         <CodeBlock language="graphql">{`type SubscriptionInfo {
   "Subscription group identifier"
-  subscriptionGroupIdentifier: String!
+  subscriptionGroupId: String!
   
   "Subscription period"
   subscriptionPeriod: SubscriptionIosPeriod!
@@ -655,7 +655,7 @@ type SubscriptionOffer {
   "Android validation: package name"
   packageName: String
   
-  "Unified purchase token (jwsRepresentationIos for iOS StoreKit 2, purchaseTokenAndroid for Android)"
+  "Unified purchase token (jwsRepresentationIOS for iOS StoreKit 2, purchaseTokenAndroid for Android)"
   purchaseToken: String
   
   "Product purchase token (deprecated - use purchaseToken instead)"

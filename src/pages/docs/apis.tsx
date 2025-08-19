@@ -260,7 +260,7 @@ validateReceipt(options: ValidationOptions!): Future`}</CodeBlock>
                 <strong>Subscription</strong>
               </td>
               <td>
-                <code>originalTransactionIdentifierIos</code>
+                <code>originalTransactionIdentifierIOS</code>
               </td>
               <td>Track subscription ownership across renewals</td>
             </tr>
