@@ -7,7 +7,7 @@ function Versions() {
     <div className="doc-page">
       <h1>Versions</h1>
       <p>
-        Current version: <strong>1.0.0</strong>
+        Current version: <strong>v1.0.0 (2025.08)</strong>
       </p>
     </div>
   );

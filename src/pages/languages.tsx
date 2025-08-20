@@ -78,7 +78,7 @@ function Languages() {
             />
             <h3>kmp-iap</h3>
             <p>Kotlin Multiplatform implementation of Open IAP specification</p>
-            <pre className="code-snippet">{`implementation("io.github.hyochan:kmp-iap:0.1.0")`}</pre>
+            <pre className="code-snippet">{`implementation("io.github.hyochan:kmp-iap:1.0.0-beta.14")`}</pre>
             <div className="language-links">
               <a
                 href="https://github.com/hyochan/kmp-iap"

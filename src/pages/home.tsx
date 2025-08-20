@@ -14,6 +14,22 @@ function Home() {
           <h1 className="hero-title">
             Open <span className="highlight">IAP</span> Specification
           </h1>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '0.25rem 0.75rem',
+                backgroundColor: 'var(--accent-color)',
+                color: 'white',
+                borderRadius: '1rem',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                letterSpacing: '0.5px',
+              }}
+            >
+              v1.0.0
+            </span>
+          </div>
           <p className="hero-subtitle">
             Unifying fragmented IAP implementations across platforms,
             frameworks, and emerging technologies
