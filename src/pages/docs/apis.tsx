@@ -57,30 +57,31 @@ function APIs() {
           Product Management
         </AnchorLink>
 
-        <AnchorLink id="requestproducts" level="h3">
+        <AnchorLink id="request-products" level="h3">
           requestProducts
         </AnchorLink>
         <p>Retrieve products or subscriptions from the store.</p>
         <CodeBlock language="graphql">{`"""
-Returns: [Product!]!
+Returns: [Product!]! | [SubscriptionProduct!]!
 """
 requestProducts(params: ProductRequest!): Future
 
 type ProductRequest {
   skus: [String]!
-  type: ProductType! "Values: inapp | subs"
+  type?: ProductType  "Values: 'inapp' | 'subs', defaults to 'inapp'"
 }`}</CodeBlock>
         <p className="type-link">
-          See: <Link to="/docs/types#product">Product</Link>
+          See: <Link to="/docs/types#product">Product</Link>,{' '}
+          <Link to="/docs/types#subscription-product">SubscriptionProduct</Link>
         </p>
         <p>
           Returns a future that completes with an array of products or
           subscriptions matching the provided SKUs. Use{' '}
-          <code>type: "inapp"</code> for regular products and{' '}
+          <code>type: "inapp"</code> for regular products (default) and{' '}
           <code>type: "subs"</code> for subscriptions.
         </p>
 
-        <AnchorLink id="getavailablepurchases" level="h3">
+        <AnchorLink id="get-available-purchases" level="h3">
           getAvailablePurchases
         </AnchorLink>
         <p>Get all available purchases for the current user.</p>
@@ -97,17 +98,32 @@ type PurchaseOptions {
           See: <Link to="/docs/types#purchase">Purchase</Link>
         </p>
         <p>
-          Returns a future that completes with all non-consumed purchases. On
-          iOS, this includes purchase history. On Android with Google Play
-          Billing v8+, only active purchases are returned.
+          Returns all purchases that haven't been properly finished/consumed:
+        </p>
+        <ul>
+          <li>
+            <strong>Consumables:</strong> Products not yet consumed (finished
+            with isConsumable=true)
+          </li>
+          <li>
+            <strong>Non-consumables:</strong> Products not yet finished
+          </li>
+          <li>
+            <strong>Subscriptions:</strong> Currently active subscriptions
+          </li>
+        </ul>
+        <p>
+          <strong>Platform differences:</strong> On iOS, this includes purchase
+          history. On Android with Google Play Billing v8+, only active
+          purchases are returned.
         </p>
 
-        <AnchorLink id="getpurchasehistories" level="h3">
+        <AnchorLink id="get-purchase-histories" level="h3">
           getPurchaseHistories
         </AnchorLink>
         <p>Get purchase history (iOS only).</p>
         <CodeBlock language="graphql">{`"""
-Returns: [ProductPurchase!]!
+Returns: [Purchase!]!
 """
 getPurchaseHistories(options: PurchaseOptions?): Future
 
@@ -116,7 +132,7 @@ type PurchaseOptions {
   onlyIncludeActiveItems: Boolean?
 }`}</CodeBlock>
         <p className="type-link">
-          See: <Link to="/docs/types#product-purchase">ProductPurchase</Link>
+          See: <Link to="/docs/types#purchase">Purchase</Link>
         </p>
         <p>
           <strong>Note:</strong> On Android with Google Play Billing v8+, this
@@ -130,14 +146,19 @@ type PurchaseOptions {
           Purchase Operations
         </AnchorLink>
 
-        <AnchorLink id="requestpurchase" level="h3">
+        <AnchorLink id="request-purchase" level="h3">
           requestPurchase
         </AnchorLink>
-        <p>Request a purchase (one-time or subscription).</p>
+        <p>Request a purchase for products or subscriptions.</p>
         <CodeBlock language="graphql">{`"""
-Returns: Purchase!
+Returns: Purchase | Purchase[] | void
 """
-requestPurchase(request: RequestPurchaseProps | RequestSubscriptionProps): Future`}</CodeBlock>
+requestPurchase(params: PurchaseParams): Future
+
+type PurchaseParams {
+  request: RequestPurchaseProps | RequestSubscriptionProps
+  type?: String  "Values: 'inapp' | 'subs', defaults to 'inapp'"
+}`}</CodeBlock>
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#request-purchase-props">
@@ -150,11 +171,13 @@ requestPurchase(request: RequestPurchaseProps | RequestSubscriptionProps): Futur
           , <Link to="/docs/types#purchase">Purchase</Link>
         </p>
         <p>
-          Initiates a purchase flow for any product type and returns a future
-          that completes when the purchase succeeds.
+          Initiates a purchase flow for any product type. Use{' '}
+          <code>type: 'subs'</code>
+          for subscription purchases. Returns a Purchase object (iOS) or array
+          (Android).
         </p>
 
-        <AnchorLink id="finishtransaction" level="h3">
+        <AnchorLink id="finish-transaction" level="h3">
           finishTransaction
         </AnchorLink>
         <p>
@@ -168,29 +191,57 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
         <p className="type-link">
           See: <Link to="/docs/types#purchase">Purchase</Link>
         </p>
+
+        <h4>The isConsumable Flag</h4>
         <p>
-          This is a unified API that internally handles platform-specific
-          requirements:
+          The <code>isConsumable</code> flag determines how the transaction is
+          completed:
         </p>
         <ul>
           <li>
-            <strong>iOS</strong>: Calls <code>finishTransactionIOS()</code> to
-            remove the transaction from the payment queue
+            <strong>Consumables (isConsumable=true)</strong>: Products that can
+            be purchased multiple times (e.g., "20 credits", "100 coins").
+            Setting this flag allows repurchase on Android.
           </li>
           <li>
-            <strong>Android Consumables</strong>: Calls{' '}
-            <code>consumePurchaseAndroid()</code> to mark the product as
-            consumed
+            <strong>Non-consumables (isConsumable=false or omitted)</strong>:
+            One-time purchases that provide permanent benefits (e.g., "remove
+            ads", "premium features"). Cannot be purchased again.
           </li>
           <li>
-            <strong>Android Non-consumables/Subscriptions</strong>: Calls{' '}
-            <code>acknowledgePurchaseAndroid()</code> to acknowledge the
-            purchase
+            <strong>Subscriptions (DO NOT set isConsumable=true)</strong>:
+            Auto-renewable subscriptions are managed by the platform. Setting
+            isConsumable=true is incorrect and should be avoided.
+          </li>
+        </ul>
+
+        <p>
+          <strong>Platform behavior:</strong>
+        </p>
+        <ul>
+          <li>
+            <strong>iOS</strong>: The flag doesn't affect behavior as StoreKit
+            handles this automatically. Always calls{' '}
+            <code>finishTransactionIOS()</code>.
+          </li>
+          <li>
+            <strong>Android</strong>:
+            <ul>
+              <li>
+                When <code>isConsumable=true</code>: Calls{' '}
+                <code>consumePurchaseAndroid()</code>
+              </li>
+              <li>
+                When <code>isConsumable=false</code>: Calls{' '}
+                <code>acknowledgePurchaseAndroid()</code>
+              </li>
+            </ul>
           </li>
         </ul>
         <p>
           <strong>Important</strong>: Always call this after validating the
-          receipt to avoid losing track of purchases.
+          receipt to avoid losing track of purchases. Android purchases must be
+          acknowledged within 3 days or they will be automatically refunded.
         </p>
       </section>
 
@@ -199,7 +250,7 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
           Validation
         </AnchorLink>
 
-        <AnchorLink id="validatereceipt" level="h3">
+        <AnchorLink id="validate-receipt" level="h3">
           validateReceipt
         </AnchorLink>
         <p>Validate a receipt with your server or platform servers.</p>
@@ -338,7 +389,7 @@ validateReceipt(options: ValidationOptions!): Future`}</CodeBlock>
           iOS APIs
         </AnchorLink>
 
-        <AnchorLink id="finishtransactionios" level="h4">
+        <AnchorLink id="finish-transaction-ios" level="h4">
           finishTransactionIOS
         </AnchorLink>
         <p>iOS-specific transaction completion.</p>
@@ -351,7 +402,7 @@ finishTransactionIOS(transactionId: String!): Future`}</CodeBlock>
           queue. Usually called internally by <code>finishTransaction()</code>.
         </p>
 
-        <AnchorLink id="cleartransactionios" level="h4">
+        <AnchorLink id="clear-transaction-ios" level="h4">
           clearTransactionIOS
         </AnchorLink>
         <p>Clear pending transactions.</p>
@@ -361,7 +412,7 @@ Returns: Void
 clearTransactionIOS(): Future`}</CodeBlock>
         <p>Removes all pending transactions from the iOS payment queue.</p>
 
-        <AnchorLink id="clearproductsios" level="h4">
+        <AnchorLink id="clear-products-ios" level="h4">
           clearProductsIOS
         </AnchorLink>
         <p>Clear the products cache.</p>
@@ -373,7 +424,7 @@ clearProductsIOS(): Future`}</CodeBlock>
           Clears cached product information, forcing a refresh on next fetch.
         </p>
 
-        <AnchorLink id="getstorefrontios" level="h4">
+        <AnchorLink id="get-storefront-ios" level="h4">
           getStorefrontIOS
         </AnchorLink>
         <p>Get the current App Store storefront country code.</p>
@@ -387,7 +438,7 @@ getStorefrontIOS(): Future`}</CodeBlock>
           Android APIs
         </AnchorLink>
 
-        <AnchorLink id="acknowledgepurchaseandroid" level="h4">
+        <AnchorLink id="acknowledge-purchase-android" level="h4">
           acknowledgePurchaseAndroid
         </AnchorLink>
         <p>Acknowledge a non-consumable purchase or subscription.</p>
@@ -401,7 +452,7 @@ acknowledgePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
           <code>finishTransaction()</code>.
         </p>
 
-        <AnchorLink id="consumepurchaseandroid" level="h4">
+        <AnchorLink id="consume-purchase-android" level="h4">
           consumePurchaseAndroid
         </AnchorLink>
         <p>Consume a purchase (for consumable products only).</p>
@@ -421,7 +472,7 @@ consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
           Connection Management
         </AnchorLink>
 
-        <AnchorLink id="initconnection" level="h3">
+        <AnchorLink id="init-connection" level="h3">
           initConnection
         </AnchorLink>
         <p>Initialize connection to the store service.</p>
@@ -434,7 +485,7 @@ initConnection(): Future`}</CodeBlock>
           true if successful.
         </p>
 
-        <AnchorLink id="endconnection" level="h3">
+        <AnchorLink id="end-connection" level="h3">
           endConnection
         </AnchorLink>
         <p>End connection to the store service.</p>
@@ -453,7 +504,7 @@ endConnection(): Future`}</CodeBlock>
           Subscription Management
         </AnchorLink>
 
-        <AnchorLink id="getactivesubscriptions" level="h3">
+        <AnchorLink id="get-active-subscriptions" level="h3">
           getActiveSubscriptions
         </AnchorLink>
         <p>Get all active subscriptions with detailed information.</p>
@@ -482,7 +533,7 @@ type ActiveSubscription {
           current platform.
         </p>
 
-        <AnchorLink id="hasactivesubscriptions" level="h3">
+        <AnchorLink id="has-active-subscriptions" level="h3">
           hasActiveSubscriptions
         </AnchorLink>
         <p>Check if the user has any active subscriptions.</p>
@@ -497,7 +548,7 @@ hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
           specific subscriptions.
         </p>
 
-        <AnchorLink id="deeplinktosubscriptions" level="h3">
+        <AnchorLink id="deeplink-to-subscriptions" level="h3">
           deepLinkToSubscriptions
         </AnchorLink>
         <p>Open native subscription management interface.</p>

@@ -196,19 +196,19 @@ function Home() {
                 <p>Standard methods across all platforms</p>
               </div>
               <div className="spec-items">
-                <Link to="/docs/apis#initconnection" className="spec-item">
+                <Link to="/docs/apis#init-connection" className="spec-item">
                   <code>initConnection()</code>
                   <span>Initialize IAP service</span>
                 </Link>
-                <Link to="/docs/apis#requestproducts" className="spec-item">
+                <Link to="/docs/apis#request-products" className="spec-item">
                   <code>requestProducts()</code>
                   <span>Fetch product details</span>
                 </Link>
-                <Link to="/docs/apis#requestpurchase" className="spec-item">
+                <Link to="/docs/apis#request-purchase" className="spec-item">
                   <code>requestPurchase()</code>
                   <span>Initiate purchase flow</span>
                 </Link>
-                <Link to="/docs/apis#finishtransaction" className="spec-item">
+                <Link to="/docs/apis#finish-transaction" className="spec-item">
                   <code>finishTransaction()</code>
                   <span>Complete purchase</span>
                 </Link>

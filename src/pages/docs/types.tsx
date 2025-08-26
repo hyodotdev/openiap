@@ -162,82 +162,6 @@ type ProductAndroidPricingPhase = {
       </section>
 
       <section>
-        <AnchorLink id="purchase" level="h2">
-          Purchase
-        </AnchorLink>
-        <p className="type-definition">
-          Purchase = (PurchaseAndroid & AndroidPlatform) | (PurchaseIOS &
-          IosPlatform)
-        </p>
-
-        <h3>PurchaseCommon</h3>
-        <CodeBlock language="typescript">{`type PurchaseCommon = {
-  id: string;
-  productId: string;
-  ids?: string[];  // Common field for both platforms
-  transactionId?: string; // @deprecated - use id instead
-  transactionDate: number;
-  transactionReceipt: string;
-  purchaseToken?: string;
-  platform?: string;  // Added for platform identification
-};`}</CodeBlock>
-
-        <h3>ProductPurchaseIOS</h3>
-        <CodeBlock language="typescript">{`type ProductPurchaseIOS = PurchaseCommon & {
-  platform: "ios";  // Literal type
-  quantityIOS?: number;
-  originalTransactionDateIOS?: number;
-  originalTransactionIdentifierIOS?: string;
-  appAccountToken?: string;
-  expirationDateIOS?: number;
-  webOrderLineItemIdIOS?: number;
-  environmentIOS?: string;
-  storefrontCountryCodeIOS?: string;
-  appBundleIdIOS?: string;
-  productTypeIOS?: string;
-  subscriptionGroupIdIOS?: string;
-  isUpgradedIOS?: boolean;
-  ownershipTypeIOS?: string;
-  reasonIOS?: string;
-  reasonStringRepresentationIOS?: string;
-  transactionReasonIOS?: 'PURCHASE' | 'RENEWAL' | string;
-  revocationDateIOS?: number;
-  revocationReasonIOS?: string;
-  offerIOS?: {
-    id: string;
-    type: string;
-    paymentMode: string;
-  };
-  
-  currencyCodeIOS?: string;
-  currencySymbolIOS?: string;
-  countryCodeIOS?: string;
-  jwsRepresentationIOS?: string; // @deprecated
-};`}</CodeBlock>
-
-        <h3>ProductPurchaseAndroid</h3>
-        <CodeBlock language="typescript">{`export enum PurchaseAndroidState {
-  UNSPECIFIED_STATE = 0,
-  PURCHASED = 1,
-  PENDING = 2,
-}
-
-type ProductPurchaseAndroid = PurchaseCommon & {
-  platform: "android";  // Literal type
-  purchaseTokenAndroid?: string; // @deprecated
-  dataAndroid?: string;
-  signatureAndroid?: string;
-  autoRenewingAndroid?: boolean;
-  purchaseStateAndroid?: PurchaseAndroidState;
-  isAcknowledgedAndroid?: boolean;
-  packageNameAndroid?: string;
-  developerPayloadAndroid?: string;
-  obfuscatedAccountIdAndroid?: string;
-  obfuscatedProfileIdAndroid?: string;
-};`}</CodeBlock>
-      </section>
-
-      <section>
         <AnchorLink id="product-subscription" level="h2">
           ProductSubscription
         </AnchorLink>
@@ -293,6 +217,82 @@ type ProductSubscriptionAndroid = ProductAndroid & {
       </section>
 
       <section>
+        <AnchorLink id="purchase" level="h2">
+          Purchase
+        </AnchorLink>
+        <p className="type-definition">
+          Purchase = (PurchaseAndroid & AndroidPlatform) | (PurchaseIOS &
+          IosPlatform)
+        </p>
+
+        <h3>PurchaseCommon</h3>
+        <CodeBlock language="typescript">{`type PurchaseCommon = {
+  id: string;
+  productId: string;
+  ids?: string[];  // Common field for both platforms
+  transactionId?: string; // @deprecated - use id instead
+  transactionDate: number;
+  transactionReceipt: string;
+  purchaseToken?: string;
+  platform?: string;  // Added for platform identification
+};`}</CodeBlock>
+
+        <h3>PurchaseIOS</h3>
+        <CodeBlock language="typescript">{`type PurchaseIOS = PurchaseCommon & {
+  platform: "ios";  // Literal type
+  quantityIOS?: number;
+  originalTransactionDateIOS?: number;
+  originalTransactionIdentifierIOS?: string;
+  appAccountToken?: string;
+  expirationDateIOS?: number;
+  webOrderLineItemIdIOS?: number;
+  environmentIOS?: string;
+  storefrontCountryCodeIOS?: string;
+  appBundleIdIOS?: string;
+  productTypeIOS?: string;
+  subscriptionGroupIdIOS?: string;
+  isUpgradedIOS?: boolean;
+  ownershipTypeIOS?: string;
+  reasonIOS?: string;
+  reasonStringRepresentationIOS?: string;
+  transactionReasonIOS?: 'PURCHASE' | 'RENEWAL' | string;
+  revocationDateIOS?: number;
+  revocationReasonIOS?: string;
+  offerIOS?: {
+    id: string;
+    type: string;
+    paymentMode: string;
+  };
+  
+  currencyCodeIOS?: string;
+  currencySymbolIOS?: string;
+  countryCodeIOS?: string;
+  jwsRepresentationIOS?: string; // @deprecated
+};`}</CodeBlock>
+
+        <h3>PurchaseAndroid</h3>
+        <CodeBlock language="typescript">{`export enum PurchaseAndroidState {
+  UNSPECIFIED_STATE = 0,
+  PURCHASED = 1,
+  PENDING = 2,
+}
+
+type PurchaseAndroid = PurchaseCommon & {
+  platform: "android";  // Literal type
+  purchaseTokenAndroid?: string; // @deprecated
+  dataAndroid?: string;
+  signatureAndroid?: string;
+  autoRenewingAndroid?: boolean;
+  purchaseStateAndroid?: PurchaseAndroidState;
+  isAcknowledgedAndroid?: boolean;
+  packageNameAndroid?: string;
+  developerPayloadAndroid?: string;
+  obfuscatedAccountIdAndroid?: string;
+  obfuscatedProfileIdAndroid?: string;
+};`}</CodeBlock>
+      </section>
+
+      <section>
         <AnchorLink id="unified-platform-types" level="h2">
           Unified Platform Types
         </AnchorLink>
@@ -316,15 +316,9 @@ type SubscriptionProduct =
   | (ProductSubscriptionIOS & IosPlatform);
 
 // Purchase Union Types  
-type ProductPurchase =
-  | (ProductPurchaseAndroid & AndroidPlatform)
-  | (ProductPurchaseIOS & IosPlatform);
-
-type SubscriptionPurchase =
-  | (ProductPurchaseAndroid & AndroidPlatform & {autoRenewingAndroid: boolean})
-  | (ProductPurchaseIOS & IosPlatform);
-
-type Purchase = ProductPurchase | SubscriptionPurchase;`}</CodeBlock>
+type Purchase =
+  | (PurchaseAndroid & AndroidPlatform)
+  | (PurchaseIOS & IosPlatform);`}</CodeBlock>
       </section>
 
       <section>

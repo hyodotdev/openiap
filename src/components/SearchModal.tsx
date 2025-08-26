@@ -27,7 +27,7 @@ const apiData: ApiItem[] = [
     description: 'Retrieve products or subscriptions from the store',
     parameters: 'ProductRequest',
     returns: '[Product!]!',
-    path: '/docs/apis#requestproducts',
+    path: '/docs/apis#request-products',
   },
   {
     id: 'getavailablepurchases',
@@ -36,7 +36,7 @@ const apiData: ApiItem[] = [
     description: 'Get all available purchases for the current user',
     parameters: 'PurchaseOptions?',
     returns: '[Purchase!]!',
-    path: '/docs/apis#getavailablepurchases',
+    path: '/docs/apis#get-available-purchases',
   },
   {
     id: 'getpurchasehistories',
@@ -44,8 +44,8 @@ const apiData: ApiItem[] = [
     category: 'Product Management',
     description: 'Get purchase history (iOS only)',
     parameters: 'PurchaseOptions?',
-    returns: '[ProductPurchase!]!',
-    path: '/docs/apis#getpurchasehistories',
+    returns: '[Purchase!]!',
+    path: '/docs/apis#get-purchase-histories',
   },
 
   // Purchase Operations
@@ -56,7 +56,7 @@ const apiData: ApiItem[] = [
     description: 'Request a purchase (one-time or subscription)',
     parameters: 'RequestPurchaseProps | RequestSubscriptionProps',
     returns: 'Purchase!',
-    path: '/docs/apis#requestpurchase',
+    path: '/docs/apis#request-purchase',
   },
   {
     id: 'finishtransaction',
@@ -66,7 +66,7 @@ const apiData: ApiItem[] = [
       'Complete a purchase transaction. Must be called after successful verification',
     parameters: 'Purchase!, isConsumable: Boolean?',
     returns: 'Void',
-    path: '/docs/apis#finishtransaction',
+    path: '/docs/apis#finish-transaction',
   },
 
   // Validation
@@ -77,7 +77,7 @@ const apiData: ApiItem[] = [
     description: 'Validate a receipt with your server or platform servers',
     parameters: 'ValidationOptions!',
     returns: 'ValidationResult!',
-    path: '/docs/apis#validatereceipt',
+    path: '/docs/apis#validate-receipt',
   },
 
   // iOS APIs
@@ -88,7 +88,7 @@ const apiData: ApiItem[] = [
     description: 'iOS-specific transaction completion',
     parameters: 'transactionId: String!',
     returns: 'Void',
-    path: '/docs/apis#finishtransactionios',
+    path: '/docs/apis#finish-transaction-ios',
   },
   {
     id: 'cleartransactionios',
@@ -97,7 +97,7 @@ const apiData: ApiItem[] = [
     description: 'Clear pending transactions',
     parameters: '',
     returns: 'Void',
-    path: '/docs/apis#cleartransactionios',
+    path: '/docs/apis#clear-transaction-ios',
   },
   {
     id: 'clearproductsios',
@@ -106,7 +106,7 @@ const apiData: ApiItem[] = [
     description: 'Clear the products cache',
     parameters: '',
     returns: 'Void',
-    path: '/docs/apis#clearproductsios',
+    path: '/docs/apis#clear-products-ios',
   },
   {
     id: 'getstorefrontios',
@@ -115,7 +115,7 @@ const apiData: ApiItem[] = [
     description: 'Get the current App Store storefront country code',
     parameters: '',
     returns: 'String!',
-    path: '/docs/apis#getstorefrontios',
+    path: '/docs/apis#get-storefront-ios',
   },
 
   // Android APIs
@@ -126,7 +126,7 @@ const apiData: ApiItem[] = [
     description: 'Acknowledge a non-consumable purchase or subscription',
     parameters: 'purchaseToken: String!',
     returns: 'Void',
-    path: '/docs/apis#acknowledgepurchaseandroid',
+    path: '/docs/apis#acknowledge-purchase-android',
   },
   {
     id: 'consumepurchaseandroid',
@@ -135,7 +135,7 @@ const apiData: ApiItem[] = [
     description: 'Consume a purchase (for consumable products only)',
     parameters: 'purchaseToken: String!',
     returns: 'Void',
-    path: '/docs/apis#consumepurchaseandroid',
+    path: '/docs/apis#consume-purchase-android',
   },
 
   // Connection Management
@@ -146,7 +146,7 @@ const apiData: ApiItem[] = [
     description: 'Initialize connection to the store service',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis#initconnection',
+    path: '/docs/apis#init-connection',
   },
   {
     id: 'endconnection',
@@ -155,7 +155,7 @@ const apiData: ApiItem[] = [
     description: 'End connection to the store service',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis#endconnection',
+    path: '/docs/apis#end-connection',
   },
 
   // Subscription Management
@@ -166,7 +166,7 @@ const apiData: ApiItem[] = [
     description: 'Get all active subscriptions with detailed information',
     parameters: 'subscriptionIds: [String]?',
     returns: '[ActiveSubscription!]!',
-    path: '/docs/apis#getactivesubscriptions',
+    path: '/docs/apis#get-active-subscriptions',
   },
   {
     id: 'hasactivesubscriptions',
@@ -175,7 +175,7 @@ const apiData: ApiItem[] = [
     description: 'Check if the user has any active subscriptions',
     parameters: 'subscriptionIds: [String]?',
     returns: 'Boolean!',
-    path: '/docs/apis#hasactivesubscriptions',
+    path: '/docs/apis#has-active-subscriptions',
   },
   {
     id: 'deeplinktosubscriptions',
@@ -184,7 +184,7 @@ const apiData: ApiItem[] = [
     description: 'Open native subscription management interface',
     parameters: 'DeepLinkOptions',
     returns: 'Void',
-    path: '/docs/apis#deeplinktosubscriptions',
+    path: '/docs/apis#deeplink-to-subscriptions',
   },
 ];
 

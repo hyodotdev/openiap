@@ -37,14 +37,14 @@ function Protocol() {
   // Transaction management
   finishTransaction(params: {
     purchase: Purchase
-    isConsumable?: boolean
+    isConsumable?: boolean  // true for consumables, false/omit for non-consumables and subscriptions
   }): Promise<PurchaseResult | boolean>
   
   // Purchase history
   getAvailablePurchases(params?: {
     alsoPublishToEventListener?: boolean
     onlyIncludeActiveItems?: boolean
-  }): Promise<ProductPurchase[]>
+  }): Promise<Purchase[]>
   
   // Receipt validation (server-side recommended)
   validateReceipt(
@@ -82,10 +82,10 @@ const purchase = await IAP.requestPurchase({
   type: 'inapp'
 })
 
-// Finish transaction
+// Finish transaction (example with consumable)
 await IAP.finishTransaction({
   purchase,
-  isConsumable: true
+  isConsumable: true  // Set to true only for consumable products
 })`}</pre>
       </section>
 
@@ -169,7 +169,7 @@ await IAP.requestPurchase({
   const isValid = await verifyOnServer(purchase)
   
   if (isValid) {
-    // Finish the transaction
+    // Finish the transaction (non-consumable example)
     await IAP.finishTransaction({ purchase, isConsumable: false })
   }
 } catch (error) {

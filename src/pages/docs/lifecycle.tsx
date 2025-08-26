@@ -31,7 +31,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           Establish connection to the store service using{' '}
-          <Link to="/docs/apis#initconnection">initConnection</Link>. This must
+          <Link to="/docs/apis#init-connection">initConnection</Link>. This must
           be done before any other IAP operations.
         </p>
 
@@ -40,8 +40,9 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           Fetch available products from the store using{' '}
-          <Link to="/docs/apis#requestproducts">requestProducts</Link>. Products
-          must be configured in App Store Connect or Google Play Console.
+          <Link to="/docs/apis#request-products">requestProducts</Link>.
+          Products must be configured in App Store Connect or Google Play
+          Console.
         </p>
 
         <AnchorLink id="purchase-request" level="h3">
@@ -49,7 +50,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           User initiates purchase via{' '}
-          <Link to="/docs/apis#requestpurchase">requestPurchase</Link>. The
+          <Link to="/docs/apis#request-purchase">requestPurchase</Link>. The
           platform payment UI is displayed.
         </p>
 
@@ -82,7 +83,7 @@ function LifeCycle() {
           7. Transaction Completion
         </AnchorLink>
         <p>
-          Call <Link to="/docs/apis#finishtransaction">finishTransaction</Link>{' '}
+          Call <Link to="/docs/apis#finish-transaction">finishTransaction</Link>{' '}
           to complete the purchase. Unfinished transactions remain in queue and
           may cause issues.
         </p>
@@ -92,7 +93,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           When IAP is no longer needed, call{' '}
-          <Link to="/docs/apis#endconnection">endConnection</Link> to free
+          <Link to="/docs/apis#end-connection">endConnection</Link> to free
           resources.
         </p>
       </section>
