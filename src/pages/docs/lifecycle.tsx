@@ -68,7 +68,9 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           <strong>Critical:</strong> Always validate receipts server-side for
-          security. Never trust client-side validation alone in production.
+          security. Never trust client-side validation alone in production. This
+          applies to ALL purchase types: consumables, non-consumables, and
+          subscriptions.
         </p>
 
         <AnchorLink id="content-delivery" level="h3">
@@ -85,7 +87,9 @@ function LifeCycle() {
         <p>
           Call <Link to="/docs/apis#finish-transaction">finishTransaction</Link>{' '}
           to complete the purchase. Unfinished transactions remain in queue and
-          may cause issues.
+          may cause issues. Set <code>isConsumable=true</code> only for
+          consumable products, and <code>false</code> or omit for
+          non-consumables and subscriptions.
         </p>
 
         <AnchorLink id="connection-cleanup" level="h3">

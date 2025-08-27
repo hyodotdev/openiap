@@ -102,11 +102,12 @@ type PurchaseOptions {
         </p>
         <ul>
           <li>
-            <strong>Consumables:</strong> Products not yet consumed (finished
-            with isConsumable=true)
+            <strong>Consumables:</strong> Products not yet consumed (not yet
+            called <code>finishTransaction</code> with isConsumable=true)
           </li>
           <li>
-            <strong>Non-consumables:</strong> Products not yet finished
+            <strong>Non-consumables:</strong> Products not yet finished (not yet
+            called <code>finishTransaction</code>)
           </li>
           <li>
             <strong>Subscriptions:</strong> Currently active subscriptions
@@ -182,7 +183,8 @@ type PurchaseParams {
         </AnchorLink>
         <p>
           Complete a purchase transaction. Must be called after successful
-          verification.
+          receipt validation for ALL purchase types to properly finish the
+          transaction and remove it from the queue.
         </p>
         <CodeBlock language="graphql">{`"""
 Returns: Void
@@ -209,9 +211,10 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
             ads", "premium features"). Cannot be purchased again.
           </li>
           <li>
-            <strong>Subscriptions (DO NOT set isConsumable=true)</strong>:
-            Auto-renewable subscriptions are managed by the platform. Setting
-            isConsumable=true is incorrect and should be avoided.
+            <strong>Subscriptions (isConsumable=false or omitted)</strong>:
+            Auto-renewable subscriptions are managed by the platform. Never set
+            isConsumable=true for subscriptions as it's logically incorrect and
+            may cause issues on Android.
           </li>
         </ul>
 
@@ -243,6 +246,25 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
           receipt to avoid losing track of purchases. Android purchases must be
           acknowledged within 3 days or they will be automatically refunded.
         </p>
+
+        <h4>Typical Purchase Flow</h4>
+        <ol>
+          <li>
+            User initiates purchase with <code>requestPurchase</code>
+          </li>
+          <li>
+            Listen for purchase updates via <code>purchaseUpdatedListener</code>
+          </li>
+          <li>
+            Validate the receipt with <code>validateReceipt</code> (for ALL
+            types)
+          </li>
+          <li>Grant entitlements to the user</li>
+          <li>
+            Call <code>finishTransaction</code> with appropriate{' '}
+            <code>isConsumable</code> flag
+          </li>
+        </ol>
       </section>
 
       <section>
@@ -253,7 +275,13 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
         <AnchorLink id="validate-receipt" level="h3">
           validateReceipt
         </AnchorLink>
-        <p>Validate a receipt with your server or platform servers.</p>
+        <p>
+          Validate a receipt with your server or platform servers.
+          <strong>
+            All purchase types (consumables, non-consumables, and subscriptions)
+            should be validated before granting entitlements.
+          </strong>
+        </p>
         <CodeBlock language="graphql">{`"""
 Returns: ValidationResult!
 """
