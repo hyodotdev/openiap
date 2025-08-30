@@ -93,6 +93,27 @@ function Errors() {
             </tr>
             <tr>
               <td>
+                <code>E_SKU_NOT_FOUND</code>
+              </td>
+              <td>SKU not found in product list</td>
+              <td>Verify SKU exists in store configuration</td>
+            </tr>
+            <tr>
+              <td>
+                <code>E_SKU_OFFER_MISMATCH</code>
+              </td>
+              <td>SKU offer ID mismatch</td>
+              <td>Check offer configuration for the SKU</td>
+            </tr>
+            <tr>
+              <td>
+                <code>E_QUERY_PRODUCT</code>
+              </td>
+              <td>Failed to query product details</td>
+              <td>Check product IDs and retry</td>
+            </tr>
+            <tr>
+              <td>
                 <code>E_PRODUCT_ALREADY_OWNED</code>
               </td>
               <td>Non-consumable product already purchased</td>
@@ -104,6 +125,13 @@ function Errors() {
               </td>
               <td>Item already owned by user</td>
               <td>Restore purchases to unlock content</td>
+            </tr>
+            <tr>
+              <td>
+                <code>E_ITEM_NOT_OWNED</code>
+              </td>
+              <td>Item not owned by user</td>
+              <td>Purchase the item first</td>
             </tr>
           </tbody>
         </table>
@@ -141,6 +169,20 @@ function Errors() {
             </tr>
             <tr>
               <td>
+                <code>E_INIT_CONNECTION</code>
+              </td>
+              <td>Failed to initialize store connection</td>
+              <td>Check store service availability and retry</td>
+            </tr>
+            <tr>
+              <td>
+                <code>E_SERVICE_DISCONNECTED</code>
+              </td>
+              <td>Store service disconnected</td>
+              <td>Reconnect to the store service</td>
+            </tr>
+            <tr>
+              <td>
                 <code>E_CONNECTION_CLOSED</code>
               </td>
               <td>Connection to store service was closed</td>
@@ -152,6 +194,20 @@ function Errors() {
               </td>
               <td>In-app purchase service not available</td>
               <td>Check device settings and IAP availability</td>
+            </tr>
+            <tr>
+              <td>
+                <code>E_BILLING_UNAVAILABLE</code>
+              </td>
+              <td>Billing service is unavailable</td>
+              <td>Check Google Play/App Store availability</td>
+            </tr>
+            <tr>
+              <td>
+                <code>E_FEATURE_NOT_SUPPORTED</code>
+              </td>
+              <td>Requested feature not supported</td>
+              <td>Check device/OS version compatibility</td>
             </tr>
             <tr>
               <td>
@@ -200,6 +256,13 @@ function Errors() {
               </td>
               <td>Transaction validation failed</td>
               <td>Verify transaction data and retry</td>
+            </tr>
+            <tr>
+              <td>
+                <code>E_EMPTY_SKU_LIST</code>
+              </td>
+              <td>Empty SKU list provided</td>
+              <td>Provide at least one SKU to query</td>
             </tr>
           </tbody>
         </table>

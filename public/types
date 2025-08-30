@@ -304,7 +304,7 @@ export type SubscriptionPurchase =
  * Combined purchase type that includes all purchase types
  * Used as return type for getAvailablePurchases
  */
-export type Purchase = 
+export type Purchase =
   | (PurchaseAndroid & AndroidPlatform)
   | (PurchaseIOS & IosPlatform);
 
@@ -384,6 +384,15 @@ export enum ErrorCode {
   E_ALREADY_PREPARED = 'E_ALREADY_PREPARED',
   E_PENDING = 'E_PENDING',
   E_CONNECTION_CLOSED = 'E_CONNECTION_CLOSED',
+  E_INIT_CONNECTION = 'E_INIT_CONNECTION',
+  E_SERVICE_DISCONNECTED = 'E_SERVICE_DISCONNECTED',
+  E_QUERY_PRODUCT = 'E_QUERY_PRODUCT',
+  E_SKU_NOT_FOUND = 'E_SKU_NOT_FOUND',
+  E_SKU_OFFER_MISMATCH = 'E_SKU_OFFER_MISMATCH',
+  E_ITEM_NOT_OWNED = 'E_ITEM_NOT_OWNED',
+  E_BILLING_UNAVAILABLE = 'E_BILLING_UNAVAILABLE',
+  E_FEATURE_NOT_SUPPORTED = 'E_FEATURE_NOT_SUPPORTED',
+  E_EMPTY_SKU_LIST = 'E_EMPTY_SKU_LIST',
 }
 
 export type PurchaseResult = {
@@ -461,7 +470,7 @@ export interface FinishTransactionParams {
 /**
  * Main IAP context interface providing all in-app purchase functionality
  */
-export interface IAPContext {
+export interface IapContext {
   /** Current list of available products */
   products: Product[];
   /** Current list of available subscription products */
@@ -489,7 +498,7 @@ export interface IAPContext {
   sync(): Promise<void>;
 
   // Product methods
-  /** 
+  /**
    * Request products from the store
    * @param params.skus - Array of product SKUs to fetch
    * @param params.type - Type of products: 'inapp' for regular products or 'subs' for subscriptions
@@ -500,7 +509,7 @@ export interface IAPContext {
   }): Promise<Product[] | SubscriptionProduct[]>;
 
   // Purchase methods
-  /** 
+  /**
    * Request a purchase for products or subscriptions
    * @param params.request - Platform-specific purchase parameters
    * @param params.type - Type of purchase: 'inapp' for products or 'subs' for subscriptions
@@ -536,10 +545,7 @@ export interface IAPContext {
 
   // Receipt validation
   /** Validate a receipt (server-side validation recommended) */
-  validateReceipt(
-    sku: string,
-    options?: ValidationOptions
-  ): Promise<ValidationResult>;
+  validateReceipt(options: ValidationOptions): Promise<ValidationResult>;
 }
 
 /**
@@ -558,43 +564,46 @@ export interface PurchaseError {
  * Validation options for receipt validation
  */
 export interface ValidationOptions {
-  /** iOS receipt body (for legacy StoreKit 1) */
-  receiptBody?: {
-    receiptData: string;
-    password?: string;
+  /** Product SKU to validate */
+  sku: string;
+  /** Android-specific validation options */
+  androidOptions?: {
+    packageName: string;
+    productToken: string;
+    accessToken: string;
+    isSub?: boolean;
   };
-  /** Android package name */
-  packageName?: string;
-  /** Unified purchase token */
-  purchaseToken?: string;
-  /** Product token (deprecated - use purchaseToken) */
-  productToken?: string;
-  /** Server access token */
-  accessToken?: string;
-  /** Whether this is a subscription */
-  isSub?: boolean;
+}
+
+/**
+ * iOS receipt validation result
+ */
+export interface ReceiptIOS {
+  /** Whether the receipt is valid */
+  isValid: boolean;
+  /** Receipt data string */
+  receiptData: string;
+  /** JWS representation */
+  jwsRepresentation: string;
+  /** Latest transaction if available */
+  latestTransaction?: Purchase;
+}
+
+/**
+ * Android receipt validation result
+ */
+export interface ReceiptAndroid {
+  /** Whether the receipt is valid */
+  isValid: boolean;
+  /** Receipt data string */
+  receiptData: string;
+  /** JWS representation */
+  jwsRepresentation: string;
+  /** Latest transaction if available */
+  latestTransaction?: Purchase;
 }
 
 /**
  * Validation result from receipt validation
  */
-export interface ValidationResult {
-  /** Whether the receipt is valid */
-  isValid: boolean;
-  /** HTTP status code */
-  status: number;
-  /** iOS receipt object */
-  receipt?: any;
-  /** Latest receipt string */
-  latestReceipt?: string;
-  /** Latest receipt info array */
-  latestReceiptInfo?: any[];
-  /** Pending renewal info */
-  pendingRenewalInfo?: any[];
-  /** Android purchase state */
-  purchaseState?: number;
-  /** Android consumption state */
-  consumptionState?: number;
-  /** Android acknowledgement state */
-  acknowledgementState?: number;
-}
+export type ValidationResult = ReceiptAndroid | ReceiptIOS;
