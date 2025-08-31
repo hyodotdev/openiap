@@ -545,7 +545,9 @@ export interface IapContext {
 
   // Receipt validation
   /** Validate a receipt (server-side validation recommended) */
-  validateReceipt(options: ValidationOptions): Promise<ValidationResult>;
+  validateReceipt(
+    options: ValidateReceiptProps
+  ): Promise<ReceiptValidationResult>;
 }
 
 /**
@@ -563,7 +565,7 @@ export interface PurchaseError {
 /**
  * Validation options for receipt validation
  */
-export interface ValidationOptions {
+export interface ValidateReceiptProps {
   /** Product SKU to validate */
   sku: string;
   /** Android-specific validation options */
@@ -604,6 +606,26 @@ export interface ReceiptAndroid {
 }
 
 /**
- * Validation result from receipt validation
+ * Receipt validation result from receipt validation
  */
-export type ValidationResult = ReceiptAndroid | ReceiptIOS;
+export type ReceiptValidationResult = ReceiptAndroid | ReceiptIOS;
+
+/**
+ * Represents an active subscription with platform-specific details
+ */
+export interface ActiveSubscription {
+  /** Product identifier (SKU) of the subscription */
+  productId: string;
+  /** Whether the subscription is currently active */
+  isActive: boolean;
+  /** iOS: Subscription expiration date */
+  expirationDateIOS?: Date;
+  /** Android: Whether the subscription auto-renews */
+  autoRenewingAndroid?: boolean;
+  /** iOS: Environment where the subscription was purchased (Production/Sandbox) */
+  environmentIOS?: string;
+  /** Whether the subscription will expire soon (typically within 7 days) */
+  willExpireSoon?: boolean;
+  /** iOS: Number of days until the subscription expires */
+  daysUntilExpirationIOS?: number;
+}
