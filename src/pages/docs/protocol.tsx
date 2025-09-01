@@ -49,8 +49,8 @@ function Protocol() {
   // Receipt validation (server-side recommended)
   validateReceipt(
     sku: string,
-    options?: ValidationOptions
-  ): Promise<ValidationResult>
+    options?: ReceiptValidationProps
+  ): Promise<ReceiptValidationResult>
 }`}</pre>
       </section>
 

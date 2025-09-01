@@ -546,7 +546,13 @@ export interface IapContext {
   // Receipt validation
   /** Validate a receipt (server-side validation recommended) */
   validateReceipt(
-    options: ValidateReceiptProps
+    sku: string,
+    androidOptions?: {
+      packageName: string;
+      productToken: string;
+      accessToken: string;
+      isSub?: boolean;
+    }
   ): Promise<ReceiptValidationResult>;
 }
 
@@ -565,7 +571,7 @@ export interface PurchaseError {
 /**
  * Validation options for receipt validation
  */
-export interface ValidateReceiptProps {
+export interface ReceiptValidationProps {
   /** Product SKU to validate */
   sku: string;
   /** Android-specific validation options */
@@ -580,7 +586,7 @@ export interface ValidateReceiptProps {
 /**
  * iOS receipt validation result
  */
-export interface ReceiptIOS {
+export interface ReceiptValidationResultIOS {
   /** Whether the receipt is valid */
   isValid: boolean;
   /** Receipt data string */
@@ -594,21 +600,31 @@ export interface ReceiptIOS {
 /**
  * Android receipt validation result
  */
-export interface ReceiptAndroid {
-  /** Whether the receipt is valid */
-  isValid: boolean;
-  /** Receipt data string */
-  receiptData: string;
-  /** JWS representation */
-  jwsRepresentation: string;
-  /** Latest transaction if available */
-  latestTransaction?: Purchase;
+export interface ReceiptValidationResultAndroid {
+  autoRenewing: boolean;
+  betaProduct: boolean;
+  cancelDate: number | null;
+  cancelReason: string;
+  deferredDate: number | null;
+  deferredSku: number | null;
+  freeTrialEndDate: number;
+  gracePeriodEndDate: number;
+  parentProductId: string;
+  productId: string;
+  productType: string;
+  purchaseDate: number;
+  quantity: number;
+  receiptId: string;
+  renewalDate: number;
+  term: string;
+  termSku: string;
+  testTransaction: boolean;
 }
 
 /**
  * Receipt validation result from receipt validation
  */
-export type ReceiptValidationResult = ReceiptAndroid | ReceiptIOS;
+export type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidationResultIOS;
 
 /**
  * Represents an active subscription with platform-specific details

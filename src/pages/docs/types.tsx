@@ -716,9 +716,9 @@ input IOSReceiptBody {
 }`}</CodeBlock>
 
         <AnchorLink id="validation-result" level="h3">
-          ValidationResult
+          ReceiptValidationResult
         </AnchorLink>
-        <CodeBlock language="graphql">{`type ValidationResult {
+        <CodeBlock language="graphql">{`type ReceiptValidationResult {
   "Validation success status"
   isValid: Boolean!
   

@@ -73,10 +73,10 @@ const apiData: ApiItem[] = [
   {
     id: 'validatereceipt',
     title: 'validateReceipt',
-    category: 'Validation',
+    category: 'Receipt Validation',
     description: 'Validate a receipt with your server or platform servers',
-    parameters: 'ValidationOptions!',
-    returns: 'ValidationResult!',
+    parameters: 'ReceiptValidationProps!',
+    returns: 'ReceiptValidationResult!',
     path: '/docs/apis#validate-receipt',
   },
 

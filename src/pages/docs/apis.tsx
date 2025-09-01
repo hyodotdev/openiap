@@ -283,13 +283,18 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
           </strong>
         </p>
         <CodeBlock language="graphql">{`"""
-Returns: ValidationResult!
+Returns: ReceiptValidationResult!
 """
-validateReceipt(options: ValidationOptions!): Future`}</CodeBlock>
+validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
         <p className="type-link">
           See:{' '}
-          <Link to="/docs/types#validation-options">ValidationOptions</Link>,{' '}
-          <Link to="/docs/types#validation-result">ValidationResult</Link>
+          <Link to="/docs/types#validation-options">
+            ReceiptValidationProps
+          </Link>
+          ,{' '}
+          <Link to="/docs/types#validation-result">
+            ReceiptValidationResult
+          </Link>
         </p>
         <p>
           Validates purchase receipts with the appropriate validation service.
