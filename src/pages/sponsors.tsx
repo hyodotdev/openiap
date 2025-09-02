@@ -562,36 +562,6 @@ function Sponsors() {
                 </a>
               </div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <p
-                style={{
-                  color: 'var(--accent-color)',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  marginBottom: '1rem',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                🥉 Bronze
-              </p>
-              <a
-                href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  textDecoration: 'none',
-                }}
-              >
-                <img
-                  src="/sponsors/courier.png"
-                  alt="Courier Logo"
-                  style={{ height: '50px', objectFit: 'contain' }}
-                />
-              </a>
-            </div>
             <div style={{ textAlign: 'center', opacity: '0.5' }}>
               <p
                 style={{
@@ -604,23 +574,49 @@ function Sponsors() {
               >
                 Past Supporters
               </p>
-              <a
-                href="https://namiml.com"
-                target="_blank"
-                rel="noopener noreferrer"
+              <div
                 style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '0.3rem',
-                  textDecoration: 'none',
+                  gap: '1rem',
                 }}
               >
-                <img
-                  src="/sponsors/nami.png"
-                  alt="Namiml Logo"
-                  style={{ height: '30px', objectFit: 'contain' }}
-                />
-              </a>
+                <a
+                  href="https://namiml.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <img
+                    src="/sponsors/nami.png"
+                    alt="Namiml Logo"
+                    style={{ height: '35px', objectFit: 'contain' }}
+                  />
+                </a>
+                <a
+                  href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <img
+                    src="/sponsors/courier.png"
+                    alt="Courier Logo"
+                    style={{ height: '28px', objectFit: 'contain' }}
+                  />
+                </a>
+              </div>
             </div>
           </div>
         </section>
