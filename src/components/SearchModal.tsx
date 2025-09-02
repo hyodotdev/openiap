@@ -89,10 +89,10 @@ const apiData: ApiItem[] = [
   },
   {
     id: 'get-purchase-histories',
-    title: 'getPurchaseHistories (Deprecated)',
-    category: 'Product Management',
+    title: 'getPurchaseHistories',
+    category: 'Product Management (Deprecated)',
     description:
-      'Get purchase history (iOS only) - Use getAvailablePurchases instead',
+      '⚠️ DEPRECATED: Get purchase history (iOS only) - Use getAvailablePurchases instead',
     parameters: 'PurchaseOptions?',
     returns: '[Purchase!]!',
     path: '/docs/apis#get-purchase-histories',

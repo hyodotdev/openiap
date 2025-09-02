@@ -219,13 +219,19 @@ type PurchaseOptions {
         </p>
 
         <AnchorLink id="get-purchase-histories" level="h3">
-          getPurchaseHistories (Deprecated)
+          <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>
+            getPurchaseHistories
+          </span>{' '}
+          <span style={{ color: '#ff6b35' }}>(Deprecated)</span>
         </AnchorLink>
         <div className="deprecated-notice">
-          <strong>⚠️ Deprecated:</strong> Use <code>getAvailablePurchases</code>{' '}
+          <strong>⚠️ DEPRECATED:</strong> This API is deprecated and will be
+          removed in a future version. Use <code>getAvailablePurchases</code>{' '}
           instead.
         </div>
-        <p>Get purchase history (iOS only).</p>
+        <p>
+          Get purchase history (iOS only) - <strong>Deprecated</strong>.
+        </p>
         <CodeBlock language="graphql">{`"""
 Returns: [Purchase!]!
 """
