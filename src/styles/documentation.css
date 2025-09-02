@@ -392,21 +392,13 @@
 :root.dark .doc-page a.external-link,
 :root.dark .doc-page a[target='_blank'] {
   color: #d4a574;
-  background: linear-gradient(
-    to bottom,
-    transparent 60%,
-    rgba(212, 165, 116, 0.15) 60%
-  );
+  border-bottom-color: rgba(212, 165, 116, 0.3);
 }
 
 :root.dark .doc-page a.external-link:hover,
 :root.dark .doc-page a[target='_blank']:hover {
   color: #e6c299;
-  background: linear-gradient(
-    to bottom,
-    transparent 60%,
-    rgba(212, 165, 116, 0.3) 60%
-  );
+  border-bottom-color: rgba(212, 165, 116, 0.6);
 }
 
 :root.dark .version-links {
