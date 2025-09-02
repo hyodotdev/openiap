@@ -1,5 +1,79 @@
 # Project Guidelines for Claude
 
+## API Naming Conventions (expo-iap/react-native-iap)
+
+### Platform-Specific Function Naming
+
+This project follows the expo-iap naming conventions for clarity and consistency:
+
+#### 1. iOS-Specific Functions (IOS suffix)
+All iOS-only functions must end with `IOS`:
+- `clearTransactionIOS`
+- `clearProductsIOS`
+- `getStorefrontIOS`
+- `getPromotedProductIOS`
+- `requestPurchaseOnPromotedProductIOS`
+- `getPendingTransactionsIOS`
+- `isEligibleForIntroOfferIOS`
+- `subscriptionStatusIOS`
+- `currentEntitlementIOS`
+- `latestTransactionIOS`
+- `showManageSubscriptionsIOS`
+- `beginRefundRequestIOS`
+- `isTransactionVerifiedIOS`
+- `getTransactionJwsIOS`
+- `getReceiptDataIOS`
+- `syncIOS`
+- `presentCodeRedemptionSheetIOS`
+- `getAppTransactionIOS`
+
+#### 2. Android-Specific Functions (Android suffix)
+All Android-only functions must end with `Android`:
+- `acknowledgePurchaseAndroid`
+- `consumePurchaseAndroid`
+- `flushFailedPurchaseCachedAsPendingAndroid`
+- `getPackageNameAndroid`
+
+#### 3. Cross-Platform Functions (No suffix)
+Functions available on both platforms have no suffix:
+- `requestProducts` - Get product information
+- `requestPurchase` - Initiate purchase
+- `getAvailablePurchases` - Get user's purchases
+- `finishTransaction` - Complete transaction
+- `validateReceipt` - Validate purchase receipt
+- `initConnection` - Initialize store connection
+- `endConnection` - Close store connection
+- `getActiveSubscriptions` - Get active subscriptions
+- `hasActiveSubscriptions` - Check subscription status
+- `deepLinkToSubscriptions` - Open subscription management
+
+### Naming Rules
+
+1. **Platform Suffixes**:
+   - iOS only: `functionNameIOS`
+   - Android only: `functionNameAndroid`
+   - Cross-platform: no suffix
+
+2. **Action Prefixes**:
+   - `get` - Retrieve data (e.g., `getPromotedProductIOS`)
+   - `request` - Async operations/requests (e.g., `requestPurchase`)
+   - `clear` - Remove/reset (e.g., `clearTransactionIOS`)
+   - `is/has` - Boolean checks (e.g., `isEligibleForIntroOfferIOS`)
+   - `show/present` - Display UI (e.g., `showManageSubscriptionsIOS`)
+   - `begin` - Start a process (e.g., `beginRefundRequestIOS`)
+   - `finish/end` - Complete a process (e.g., `finishTransaction`)
+
+3. **URL Anchors**: Use kebab-case for all URL anchors:
+   - Function: `requestProducts` → Anchor: `#request-products`
+   - Function: `getAppTransactionIOS` → Anchor: `#get-app-transaction-ios`
+
+4. **Search IDs**: Use kebab-case for search modal IDs:
+   - Correct: `id: 'request-products'`
+   - Incorrect: `id: 'requestproducts'`
+
+### Deprecated Functions
+- `buyPromotedProductIOS` → Use `requestPurchaseOnPromotedProductIOS`
+
 ## Modal Pattern with Preact Signals
 
 ### Global Modal Management

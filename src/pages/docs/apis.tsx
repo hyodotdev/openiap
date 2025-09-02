@@ -51,7 +51,106 @@ function APIs() {
           </p>
         </blockquote>
       </section>
+      <section>
+        <AnchorLink id="connection-management" level="h2">
+          Connection Management
+        </AnchorLink>
 
+        <AnchorLink id="init-connection" level="h3">
+          initConnection
+        </AnchorLink>
+        <p>Initialize connection to the store service.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+initConnection(): Future`}</CodeBlock>
+        <p>
+          Establishes connection with the platform's billing service. Returns
+          true if successful.
+        </p>
+
+        <AnchorLink id="end-connection" level="h3">
+          endConnection
+        </AnchorLink>
+        <p>End connection to the store service.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+endConnection(): Future`}</CodeBlock>
+        <p>
+          Closes the connection and cleans up resources. Returns true if
+          successful.
+        </p>
+      </section>
+      <section>
+        <AnchorLink id="subscription-management" level="h2">
+          Subscription Management
+        </AnchorLink>
+
+        <AnchorLink id="get-active-subscriptions" level="h3">
+          getActiveSubscriptions
+        </AnchorLink>
+        <p>Get all active subscriptions with detailed information.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [ActiveSubscription!]!
+"""
+getActiveSubscriptions(subscriptionIds: [String]?): Future
+
+type ActiveSubscription {
+  productId: String!
+  isActive: Boolean!
+  expirationDateIOS: Date?        # iOS only
+  autoRenewingAndroid: Boolean?   # Android only
+  environmentIOS: String?          # iOS only: "Sandbox" | "Production"
+  willExpireSoon: Boolean?         # True if expiring within 7 days
+  daysUntilExpirationIOS: Number?  # iOS only
+}`}</CodeBlock>
+        <p className="type-link">
+          See:{' '}
+          <Link to="/docs/types#active-subscription">ActiveSubscription</Link>
+        </p>
+        <p>
+          Returns a future that completes with an array of active subscriptions.
+          If <code>subscriptionIds</code> is not provided, returns all active
+          subscriptions. Platform-specific fields are populated based on the
+          current platform.
+        </p>
+
+        <AnchorLink id="has-active-subscriptions" level="h3">
+          hasActiveSubscriptions
+        </AnchorLink>
+        <p>Check if the user has any active subscriptions.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
+        <p>
+          Returns a future that completes with <code>true</code> if the user has
+          at least one active subscription, <code>false</code> otherwise. If{' '}
+          <code>subscriptionIds</code> is provided, only checks for those
+          specific subscriptions.
+        </p>
+
+        <AnchorLink id="deep-link-to-subscriptions" level="h3">
+          deepLinkToSubscriptions
+        </AnchorLink>
+        <p>Open native subscription management interface.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+deepLinkToSubscriptions(options: DeepLinkOptions): Future
+
+type DeepLinkOptions {
+  "Required on Android"
+  skuAndroid: String?
+  "Required on Android"
+  packageNameAndroid: String?
+}`}</CodeBlock>
+        <p>
+          Opens the platform's native subscription management interface where
+          users can view and manage their subscriptions.
+        </p>
+      </section>
       <section>
         <AnchorLink id="product-management" level="h2">
           Product Management
@@ -91,8 +190,8 @@ Returns: [Purchase!]!
 getAvailablePurchases(options: PurchaseOptions?): Future
 
 type PurchaseOptions {
-  alsoPublishToEventListener: Boolean?
-  onlyIncludeActiveItems: Boolean?
+  alsoPublishToEventListenerIOS: Boolean?  # iOS only
+  onlyIncludeActiveItemsIOS: Boolean?      # iOS only
 }`}</CodeBlock>
         <p className="type-link">
           See: <Link to="/docs/types#purchase">Purchase</Link>
@@ -120,28 +219,36 @@ type PurchaseOptions {
         </p>
 
         <AnchorLink id="get-purchase-histories" level="h3">
-          getPurchaseHistories
+          <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>
+            getPurchaseHistories
+          </span>{' '}
+          <span style={{ color: '#ff6b35' }}>(Deprecated)</span>
         </AnchorLink>
-        <p>Get purchase history (iOS only).</p>
+        <div className="deprecated-notice">
+          <strong>⚠️ DEPRECATED:</strong> This API is deprecated and will be
+          removed in a future version. Use <code>getAvailablePurchases</code>{' '}
+          instead.
+        </div>
+        <p>
+          Get purchase history (iOS only) - <strong>Deprecated</strong>.
+        </p>
         <CodeBlock language="graphql">{`"""
 Returns: [Purchase!]!
 """
 getPurchaseHistories(options: PurchaseOptions?): Future
 
 type PurchaseOptions {
-  alsoPublishToEventListener: Boolean?
-  onlyIncludeActiveItems: Boolean?
+  alsoPublishToEventListenerIOS: Boolean?  # iOS only
+  onlyIncludeActiveItemsIOS: Boolean?      # iOS only
 }`}</CodeBlock>
         <p className="type-link">
           See: <Link to="/docs/types#purchase">Purchase</Link>
         </p>
         <p>
-          <strong>Note:</strong> On Android with Google Play Billing v8+, this
-          returns an empty array as purchase history is no longer available. Use{' '}
-          <code>getAvailablePurchases</code> instead to get active purchases.
+          This API is deprecated and will be removed in a future version. Use{' '}
+          <code>getAvailablePurchases</code> instead.
         </p>
       </section>
-
       <section>
         <AnchorLink id="purchase-operations" level="h2">
           Purchase Operations
@@ -224,8 +331,7 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
         <ul>
           <li>
             <strong>iOS</strong>: The flag doesn't affect behavior as StoreKit
-            handles this automatically. Always calls{' '}
-            <code>finishTransactionIOS()</code>.
+            handles this automatically.
           </li>
           <li>
             <strong>Android</strong>:
@@ -266,7 +372,6 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
           </li>
         </ol>
       </section>
-
       <section>
         <AnchorLink id="validation" level="h2">
           Validation
@@ -412,7 +517,6 @@ validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
           </li>
         </ul>
       </section>
-
       <section>
         <AnchorLink id="platform-specific-apis" level="h2">
           Platform-Specific APIs
@@ -421,19 +525,6 @@ validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
         <AnchorLink id="ios-apis" level="h3">
           iOS APIs
         </AnchorLink>
-
-        <AnchorLink id="finish-transaction-ios" level="h4">
-          finishTransactionIOS
-        </AnchorLink>
-        <p>iOS-specific transaction completion.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-finishTransactionIOS(transactionId: String!): Future`}</CodeBlock>
-        <p>
-          Directly marks a transaction as finished in the StoreKit payment
-          queue. Usually called internally by <code>finishTransaction()</code>.
-        </p>
 
         <AnchorLink id="clear-transaction-ios" level="h4">
           clearTransactionIOS
@@ -445,18 +536,6 @@ Returns: Void
 clearTransactionIOS(): Future`}</CodeBlock>
         <p>Removes all pending transactions from the iOS payment queue.</p>
 
-        <AnchorLink id="clear-products-ios" level="h4">
-          clearProductsIOS
-        </AnchorLink>
-        <p>Clear the products cache.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-clearProductsIOS(): Future`}</CodeBlock>
-        <p>
-          Clears cached product information, forcing a refresh on next fetch.
-        </p>
-
         <AnchorLink id="get-storefront-ios" level="h4">
           getStorefrontIOS
         </AnchorLink>
@@ -466,6 +545,213 @@ Returns: String!
 """
 getStorefrontIOS(): Future`}</CodeBlock>
         <p>Returns the storefront country code (e.g., "US", "GB", "JP").</p>
+
+        <AnchorLink id="get-promoted-product-ios" level="h4">
+          getPromotedProductIOS
+        </AnchorLink>
+        <p>Get the currently promoted product (iOS 11+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Product?
+"""
+getPromotedProductIOS(): Future`}</CodeBlock>
+        <p>
+          Returns the product that was promoted in the App Store, if any.
+          Requires iOS 11 or later.
+        </p>
+
+        <AnchorLink id="request-purchase-on-promoted-product-ios" level="h4">
+          requestPurchaseOnPromotedProductIOS
+        </AnchorLink>
+        <p>Purchase a promoted product (iOS 11+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Purchase!
+"""
+requestPurchaseOnPromotedProductIOS(): Future`}</CodeBlock>
+        <p>
+          Initiates a purchase for the promoted product. The product must have
+          been previously promoted via the App Store.
+        </p>
+
+        <AnchorLink id="get-pending-transactions-ios" level="h4">
+          getPendingTransactionsIOS
+        </AnchorLink>
+        <p>Get all pending transactions.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [Purchase!]!
+"""
+getPendingTransactionsIOS(): Future`}</CodeBlock>
+        <p>
+          Returns all transactions that are pending completion in the StoreKit
+          payment queue.
+        </p>
+
+        <AnchorLink id="is-eligible-for-intro-offer-ios" level="h4">
+          isEligibleForIntroOfferIOS
+        </AnchorLink>
+        <p>Check if user is eligible for introductory offer.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+isEligibleForIntroOfferIOS(productIds: [String!]!): Future`}</CodeBlock>
+        <p>
+          Returns true if the user is eligible for an introductory price, false
+          otherwise. Requires iOS 12.2+.
+        </p>
+
+        <AnchorLink id="subscription-status-ios" level="h4">
+          subscriptionStatusIOS
+        </AnchorLink>
+        <p>Get subscription status (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [SubscriptionStatus!]!
+"""
+subscriptionStatusIOS(skus: [String!]?): Future`}</CodeBlock>
+        <p>
+          Returns detailed subscription status information using StoreKit 2.
+          Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="current-entitlement-ios" level="h4">
+          currentEntitlementIOS
+        </AnchorLink>
+        <p>Get current entitlements (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [Entitlement!]!
+"""
+currentEntitlementIOS(skus: [String!]?): Future`}</CodeBlock>
+        <p>
+          Returns current entitlements for the user using StoreKit 2. Requires
+          iOS 15+.
+        </p>
+
+        <AnchorLink id="latest-transaction-ios" level="h4">
+          latestTransactionIOS
+        </AnchorLink>
+        <p>Get latest transaction for a product (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Transaction?
+"""
+latestTransactionIOS(sku: String!): Future`}</CodeBlock>
+        <p>
+          Returns the most recent transaction for a specific product using
+          StoreKit 2. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="show-manage-subscriptions-ios" level="h4">
+          showManageSubscriptionsIOS
+        </AnchorLink>
+        <p>Show subscription management UI (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+showManageSubscriptionsIOS(): Future`}</CodeBlock>
+        <p>
+          Opens the native subscription management interface. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="begin-refund-request-ios" level="h4">
+          beginRefundRequestIOS
+        </AnchorLink>
+        <p>Initiate refund request (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: RefundResult!
+"""
+beginRefundRequestIOS(sku: String!): Future`}</CodeBlock>
+        <p>
+          Presents the refund request sheet for a specific product. Requires iOS
+          15+.
+        </p>
+
+        <AnchorLink id="is-transaction-verified-ios" level="h4">
+          isTransactionVerifiedIOS
+        </AnchorLink>
+        <p>Verify transaction authenticity (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+isTransactionVerifiedIOS(transactionId: String!): Future`}</CodeBlock>
+        <p>
+          Verifies the transaction signature using StoreKit 2. Returns true if
+          valid, false otherwise. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="get-transaction-jws-ios" level="h4">
+          getTransactionJwsIOS
+        </AnchorLink>
+        <p>Get transaction JWS token (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: String!
+"""
+getTransactionJwsIOS(transactionId: String!): Future`}</CodeBlock>
+        <p>
+          Returns the JSON Web Signature for a transaction. Used for server-side
+          validation. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="get-receipt-data-ios" level="h4">
+          getReceiptDataIOS
+        </AnchorLink>
+        <p>Get receipt data for validation.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: String!
+"""
+getReceiptDataIOS(): Future`}</CodeBlock>
+        <p>Returns the base64-encoded receipt data for server validation.</p>
+
+        <AnchorLink id="sync-ios" level="h4">
+          syncIOS
+        </AnchorLink>
+        <p>Sync StoreKit transactions (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+syncIOS(): Future`}</CodeBlock>
+        <p>
+          Forces a sync with StoreKit to ensure all transactions are up to date.
+          Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="present-code-redemption-sheet-ios" level="h4">
+          presentCodeRedemptionSheetIOS
+        </AnchorLink>
+        <p>Show promo code redemption UI.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+presentCodeRedemptionSheetIOS(): Future`}</CodeBlock>
+        <p>Presents the sheet for redeeming App Store promo codes.</p>
+
+        <AnchorLink id="get-app-transaction-ios" level="h4">
+          getAppTransactionIOS
+        </AnchorLink>
+        <p>Get app transaction information (iOS 16+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: AppTransaction?
+"""
+getAppTransactionIOS(): Future
+
+type AppTransaction {
+  bundleId: String!
+  appVersion: String!
+  originalAppVersion: String!
+  originalPurchaseDate: Date!
+  deviceVerification: String!
+  deviceVerificationNonce: String!
+  environment: String!  # "Sandbox" | "Production"
+  signedDate: Date!
+  appId: Number!
+  appVersionId: Number!
+  preorderDate: Date?
+  # iOS 18.4+ properties
+  appTransactionId: String?  # Requires iOS 18.4+
+  originalPlatform: String?  # Requires iOS 18.4+
+}`}</CodeBlock>
+        <p>
+          Returns information about the app's original purchase or download.
+          This includes details about when the app was first installed, the
+          version, and verification data. Requires iOS 16+. Additional
+          properties are available on iOS 18.4+ when built with Xcode 16.4+.
+        </p>
 
         <AnchorLink id="android-apis" level="h3">
           Android APIs
@@ -481,8 +767,14 @@ Returns: Void
 acknowledgePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         <p>
           Acknowledges the purchase to Google Play. Required within 3 days or
-          the purchase will be refunded. Usually called internally by{' '}
-          <code>finishTransaction()</code>.
+          the purchase will be refunded.
+        </p>
+        <p>
+          <strong>Note:</strong> This is called automatically by{' '}
+          <Link to="/docs/apis#finish-transaction">
+            <code>finishTransaction()</code>
+          </Link>{' '}
+          when <code>isConsumable</code> is <code>false</code>.
         </p>
 
         <AnchorLink id="consume-purchase-android" level="h4">
@@ -495,110 +787,30 @@ Returns: Void
 consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         <p>
           Marks a consumable product as consumed, allowing repurchase.
-          Automatically acknowledges the purchase. Usually called internally by{' '}
-          <code>finishTransaction()</code> for consumables.
-        </p>
-      </section>
-
-      <section>
-        <AnchorLink id="connection-management" level="h2">
-          Connection Management
-        </AnchorLink>
-
-        <AnchorLink id="init-connection" level="h3">
-          initConnection
-        </AnchorLink>
-        <p>Initialize connection to the store service.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-initConnection(): Future`}</CodeBlock>
-        <p>
-          Establishes connection with the platform's billing service. Returns
-          true if successful.
-        </p>
-
-        <AnchorLink id="end-connection" level="h3">
-          endConnection
-        </AnchorLink>
-        <p>End connection to the store service.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-endConnection(): Future`}</CodeBlock>
-        <p>
-          Closes the connection and cleans up resources. Returns true if
-          successful.
-        </p>
-      </section>
-
-      <section>
-        <AnchorLink id="subscription-management" level="h2">
-          Subscription Management
-        </AnchorLink>
-
-        <AnchorLink id="get-active-subscriptions" level="h3">
-          getActiveSubscriptions
-        </AnchorLink>
-        <p>Get all active subscriptions with detailed information.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: [ActiveSubscription!]!
-"""
-getActiveSubscriptions(subscriptionIds: [String]?): Future
-
-type ActiveSubscription {
-  productId: String!
-  isActive: Boolean!
-  expirationDateIOS: Date?        # iOS only
-  autoRenewingAndroid: Boolean?   # Android only
-  environmentIOS: String?          # iOS only: "Sandbox" | "Production"
-  willExpireSoon: Boolean?         # True if expiring within 7 days
-  daysUntilExpirationIOS: Number?  # iOS only
-}`}</CodeBlock>
-        <p className="type-link">
-          See:{' '}
-          <Link to="/docs/types#active-subscription">ActiveSubscription</Link>
+          Automatically acknowledges the purchase.
         </p>
         <p>
-          Returns a future that completes with an array of active subscriptions.
-          If <code>subscriptionIds</code> is not provided, returns all active
-          subscriptions. Platform-specific fields are populated based on the
-          current platform.
+          <strong>Note:</strong> This is called automatically by{' '}
+          <Link to="/docs/apis#finish-transaction">
+            <code>finishTransaction()</code>
+          </Link>{' '}
+          when <code>isConsumable</code> is <code>true</code>.
         </p>
 
-        <AnchorLink id="has-active-subscriptions" level="h3">
-          hasActiveSubscriptions
+        <AnchorLink
+          id="flush-failed-purchase-cached-as-pending-android"
+          level="h4"
+        >
+          flushFailedPurchaseCachedAsPendingAndroid
         </AnchorLink>
-        <p>Check if the user has any active subscriptions.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
-        <p>
-          Returns a future that completes with <code>true</code> if the user has
-          at least one active subscription, <code>false</code> otherwise. If{' '}
-          <code>subscriptionIds</code> is provided, only checks for those
-          specific subscriptions.
-        </p>
-
-        <AnchorLink id="deeplink-to-subscriptions" level="h3">
-          deepLinkToSubscriptions
-        </AnchorLink>
-        <p>Open native subscription management interface.</p>
+        <p>Clear failed purchases from cache (Android only).</p>
         <CodeBlock language="graphql">{`"""
 Returns: Void
 """
-deepLinkToSubscriptions(options: DeepLinkOptions): Future
-
-type DeepLinkOptions {
-  "Required on Android"
-  skuAndroid: String?
-  "Required on Android"
-  packageNameAndroid: String?
-}`}</CodeBlock>
+flushFailedPurchaseCachedAsPendingAndroid(): Future`}</CodeBlock>
         <p>
-          Opens the platform's native subscription management interface where
-          users can view and manage their subscriptions.
+          Clears any failed purchases that are cached as pending. Use this when
+          you want to retry failed purchases or clear the pending state.
         </p>
       </section>
     </div>

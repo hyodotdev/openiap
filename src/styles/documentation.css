@@ -293,6 +293,132 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Documentation Links - Oatmeal Colors */
+.doc-page a:not(.anchor-link) {
+  color: #8b6545; /* Warm brown */
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.doc-page a:not(.anchor-link):hover {
+  border-bottom-color: #d4a574; /* Light oatmeal */
+}
+
+/* External links with icon */
+.doc-page a.external-link,
+.doc-page a[target='_blank'] {
+  color: #8b6545;
+  text-decoration: none;
+  border-bottom: 1px dotted #d4a574;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.doc-page a.external-link:hover,
+.doc-page a[target='_blank']:hover {
+  color: var(--primary-dark);
+  border-bottom-style: solid;
+}
+
+.doc-page a.external-link::after,
+.doc-page a[target='_blank']:not(.no-icon)::after {
+  content: '↗';
+  font-size: 0.75em;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.doc-page a.external-link:hover::after,
+.doc-page a[target='_blank']:hover::after {
+  transform: translate(2px, -2px);
+  opacity: 1;
+}
+
+/* Deprecated notice */
+.deprecated-notice {
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 0.375rem;
+  color: #856404;
+}
+
+.deprecated-notice strong {
+  color: #ff6b35;
+}
+
+:root.dark .deprecated-notice {
+  background: rgba(255, 193, 7, 0.1);
+  border-color: rgba(255, 193, 7, 0.3);
+  color: #ffc107;
+}
+
+:root.dark .deprecated-notice strong {
+  color: #ff8c42;
+}
+
+/* Version page specific styles */
+.version-links {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border-left: 3px solid #d4a574;
+}
+
+.version-links ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.version-links li {
+  margin: 0.5rem 0;
+}
+
+/* Dark mode adjustments for links - Oatmeal theme */
+:root.dark .doc-page a:not(.anchor-link) {
+  color: #d4a574;
+}
+
+:root.dark .doc-page a:not(.anchor-link):hover {
+  color: #e6c299;
+  border-bottom-color: #d4a574;
+}
+
+:root.dark .doc-page a.external-link,
+:root.dark .doc-page a[target='_blank'] {
+  color: #d4a574;
+  border-bottom-color: rgba(212, 165, 116, 0.3);
+}
+
+:root.dark .doc-page a.external-link:hover,
+:root.dark .doc-page a[target='_blank']:hover {
+  color: #e6c299;
+  border-bottom-color: rgba(212, 165, 116, 0.6);
+}
+
+:root.dark .version-links {
+  background: linear-gradient(
+    135deg,
+    rgba(164, 116, 101, 0.1) 0%,
+    rgba(164, 116, 101, 0.15) 100%
+  );
+  border-left-color: #d4a574;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+:root.dark .version-links strong {
+  color: #d4a574;
+}
+
+:root.dark .version-links a:hover {
+  background: rgba(212, 165, 116, 0.2);
+}
+
 /* API Search Highlight Effect */
 @keyframes highlightApi {
   0% {

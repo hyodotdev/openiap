@@ -47,7 +47,7 @@ function FeatureCode({ code }: FeatureCodeProps) {
     <div className="feature-code">
       <button
         className={`copy-button ${copied ? 'copied' : ''}`}
-        onClick={handleCopy}
+        onClick={() => void handleCopy()}
         style={{
           position: 'absolute',
           top: '0.5rem',
