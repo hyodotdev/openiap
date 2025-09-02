@@ -73,7 +73,6 @@ Functions available on both platforms have no suffix:
    - Incorrect: `id: 'requestproducts'`
 
 ### Deprecated Functions
-- `getPurchaseHistories` → Use `getAvailablePurchases`
 - `buyPromotedProductIOS` → Use `requestPurchaseOnPromotedProductIOS`
 
 ## Modal Pattern with Preact Signals
