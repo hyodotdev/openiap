@@ -8,7 +8,6 @@ This project follows the expo-iap naming conventions for clarity and consistency
 
 #### 1. iOS-Specific Functions (IOS suffix)
 All iOS-only functions must end with `IOS`:
-- `finishTransactionIOS`
 - `clearTransactionIOS`
 - `clearProductsIOS`
 - `getStorefrontIOS`
