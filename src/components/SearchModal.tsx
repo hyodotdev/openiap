@@ -19,6 +19,55 @@ interface SearchModalProps {
 }
 
 const apiData: ApiItem[] = [
+  // Connection Management
+  {
+    id: 'init-connection',
+    title: 'initConnection',
+    category: 'Connection Management',
+    description: 'Initialize connection to the store service',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis#init-connection',
+  },
+  {
+    id: 'end-connection',
+    title: 'endConnection',
+    category: 'Connection Management',
+    description: 'End connection to the store service',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis#end-connection',
+  },
+
+  // Subscription Management
+  {
+    id: 'get-active-subscriptions',
+    title: 'getActiveSubscriptions',
+    category: 'Subscription Management',
+    description: 'Get all active subscriptions with detailed information',
+    parameters: 'subscriptionIds: [String]?',
+    returns: '[ActiveSubscription!]!',
+    path: '/docs/apis#get-active-subscriptions',
+  },
+  {
+    id: 'has-active-subscriptions',
+    title: 'hasActiveSubscriptions',
+    category: 'Subscription Management',
+    description: 'Check if the user has any active subscriptions',
+    parameters: 'subscriptionIds: [String]?',
+    returns: 'Boolean!',
+    path: '/docs/apis#has-active-subscriptions',
+  },
+  {
+    id: 'deep-link-to-subscriptions',
+    title: 'deepLinkToSubscriptions',
+    category: 'Subscription Management',
+    description: 'Open native subscription management interface',
+    parameters: 'DeepLinkOptions',
+    returns: 'Void',
+    path: '/docs/apis#deep-link-to-subscriptions',
+  },
+
   // Product Management
   {
     id: 'request-products',
@@ -263,64 +312,6 @@ const apiData: ApiItem[] = [
     parameters: '',
     returns: 'Void',
     path: '/docs/apis#flush-failed-purchase-cached-as-pending-android',
-  },
-  {
-    id: 'get-package-name-android',
-    title: 'getPackageNameAndroid',
-    category: 'Android APIs',
-    description: 'Get the app package name',
-    parameters: '',
-    returns: 'String!',
-    path: '/docs/apis#get-package-name-android',
-  },
-
-  // Connection Management
-  {
-    id: 'init-connection',
-    title: 'initConnection',
-    category: 'Connection Management',
-    description: 'Initialize connection to the store service',
-    parameters: '',
-    returns: 'Boolean!',
-    path: '/docs/apis#init-connection',
-  },
-  {
-    id: 'end-connection',
-    title: 'endConnection',
-    category: 'Connection Management',
-    description: 'End connection to the store service',
-    parameters: '',
-    returns: 'Boolean!',
-    path: '/docs/apis#end-connection',
-  },
-
-  // Subscription Management
-  {
-    id: 'get-active-subscriptions',
-    title: 'getActiveSubscriptions',
-    category: 'Subscription Management',
-    description: 'Get all active subscriptions with detailed information',
-    parameters: 'subscriptionIds: [String]?',
-    returns: '[ActiveSubscription!]!',
-    path: '/docs/apis#get-active-subscriptions',
-  },
-  {
-    id: 'has-active-subscriptions',
-    title: 'hasActiveSubscriptions',
-    category: 'Subscription Management',
-    description: 'Check if the user has any active subscriptions',
-    parameters: 'subscriptionIds: [String]?',
-    returns: 'Boolean!',
-    path: '/docs/apis#has-active-subscriptions',
-  },
-  {
-    id: 'deep-link-to-subscriptions',
-    title: 'deepLinkToSubscriptions',
-    category: 'Subscription Management',
-    description: 'Open native subscription management interface',
-    parameters: 'DeepLinkOptions',
-    returns: 'Void',
-    path: '/docs/apis#deep-link-to-subscriptions',
   },
 ];
 

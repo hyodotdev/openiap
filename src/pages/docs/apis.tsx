@@ -51,7 +51,106 @@ function APIs() {
           </p>
         </blockquote>
       </section>
+      <section>
+        <AnchorLink id="connection-management" level="h2">
+          Connection Management
+        </AnchorLink>
 
+        <AnchorLink id="init-connection" level="h3">
+          initConnection
+        </AnchorLink>
+        <p>Initialize connection to the store service.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+initConnection(): Future`}</CodeBlock>
+        <p>
+          Establishes connection with the platform's billing service. Returns
+          true if successful.
+        </p>
+
+        <AnchorLink id="end-connection" level="h3">
+          endConnection
+        </AnchorLink>
+        <p>End connection to the store service.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+endConnection(): Future`}</CodeBlock>
+        <p>
+          Closes the connection and cleans up resources. Returns true if
+          successful.
+        </p>
+      </section>
+      <section>
+        <AnchorLink id="subscription-management" level="h2">
+          Subscription Management
+        </AnchorLink>
+
+        <AnchorLink id="get-active-subscriptions" level="h3">
+          getActiveSubscriptions
+        </AnchorLink>
+        <p>Get all active subscriptions with detailed information.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [ActiveSubscription!]!
+"""
+getActiveSubscriptions(subscriptionIds: [String]?): Future
+
+type ActiveSubscription {
+  productId: String!
+  isActive: Boolean!
+  expirationDateIOS: Date?        # iOS only
+  autoRenewingAndroid: Boolean?   # Android only
+  environmentIOS: String?          # iOS only: "Sandbox" | "Production"
+  willExpireSoon: Boolean?         # True if expiring within 7 days
+  daysUntilExpirationIOS: Number?  # iOS only
+}`}</CodeBlock>
+        <p className="type-link">
+          See:{' '}
+          <Link to="/docs/types#active-subscription">ActiveSubscription</Link>
+        </p>
+        <p>
+          Returns a future that completes with an array of active subscriptions.
+          If <code>subscriptionIds</code> is not provided, returns all active
+          subscriptions. Platform-specific fields are populated based on the
+          current platform.
+        </p>
+
+        <AnchorLink id="has-active-subscriptions" level="h3">
+          hasActiveSubscriptions
+        </AnchorLink>
+        <p>Check if the user has any active subscriptions.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
+        <p>
+          Returns a future that completes with <code>true</code> if the user has
+          at least one active subscription, <code>false</code> otherwise. If{' '}
+          <code>subscriptionIds</code> is provided, only checks for those
+          specific subscriptions.
+        </p>
+
+        <AnchorLink id="deep-link-to-subscriptions" level="h3">
+          deepLinkToSubscriptions
+        </AnchorLink>
+        <p>Open native subscription management interface.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+deepLinkToSubscriptions(options: DeepLinkOptions): Future
+
+type DeepLinkOptions {
+  "Required on Android"
+  skuAndroid: String?
+  "Required on Android"
+  packageNameAndroid: String?
+}`}</CodeBlock>
+        <p>
+          Opens the platform's native subscription management interface where
+          users can view and manage their subscriptions.
+        </p>
+      </section>
       <section>
         <AnchorLink id="product-management" level="h2">
           Product Management
@@ -144,7 +243,6 @@ type PurchaseOptions {
           <code>getAvailablePurchases</code> instead.
         </p>
       </section>
-
       <section>
         <AnchorLink id="purchase-operations" level="h2">
           Purchase Operations
@@ -268,7 +366,6 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
           </li>
         </ol>
       </section>
-
       <section>
         <AnchorLink id="validation" level="h2">
           Validation
@@ -414,7 +511,6 @@ validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
           </li>
         </ul>
       </section>
-
       <section>
         <AnchorLink id="platform-specific-apis" level="h2">
           Platform-Specific APIs
@@ -669,8 +765,10 @@ acknowledgePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         </p>
         <p>
           <strong>Note:</strong> This is called automatically by{' '}
-          <code>finishTransaction()</code> when <code>isConsumable</code> is{' '}
-          <code>false</code>.
+          <Link to="/docs/apis#finish-transaction">
+            <code>finishTransaction()</code>
+          </Link>{' '}
+          when <code>isConsumable</code> is <code>false</code>.
         </p>
 
         <AnchorLink id="consume-purchase-android" level="h4">
@@ -687,8 +785,10 @@ consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         </p>
         <p>
           <strong>Note:</strong> This is called automatically by{' '}
-          <code>finishTransaction()</code> when <code>isConsumable</code> is{' '}
-          <code>true</code>.
+          <Link to="/docs/apis#finish-transaction">
+            <code>finishTransaction()</code>
+          </Link>{' '}
+          when <code>isConsumable</code> is <code>true</code>.
         </p>
 
         <AnchorLink
@@ -705,121 +805,6 @@ flushFailedPurchaseCachedAsPendingAndroid(): Future`}</CodeBlock>
         <p>
           Clears any failed purchases that are cached as pending. Use this when
           you want to retry failed purchases or clear the pending state.
-        </p>
-
-        <AnchorLink id="get-package-name-android" level="h4">
-          getPackageNameAndroid
-        </AnchorLink>
-        <p>Get the app's package name (Android only).</p>
-        <CodeBlock language="graphql">{`"""
-Returns: String!
-"""
-getPackageNameAndroid(): Future`}</CodeBlock>
-        <p>
-          Returns the Android application's package name. Useful for validation
-          and deep linking operations.
-        </p>
-      </section>
-
-      <section>
-        <AnchorLink id="connection-management" level="h2">
-          Connection Management
-        </AnchorLink>
-
-        <AnchorLink id="init-connection" level="h3">
-          initConnection
-        </AnchorLink>
-        <p>Initialize connection to the store service.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-initConnection(): Future`}</CodeBlock>
-        <p>
-          Establishes connection with the platform's billing service. Returns
-          true if successful.
-        </p>
-
-        <AnchorLink id="end-connection" level="h3">
-          endConnection
-        </AnchorLink>
-        <p>End connection to the store service.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-endConnection(): Future`}</CodeBlock>
-        <p>
-          Closes the connection and cleans up resources. Returns true if
-          successful.
-        </p>
-      </section>
-
-      <section>
-        <AnchorLink id="subscription-management" level="h2">
-          Subscription Management
-        </AnchorLink>
-
-        <AnchorLink id="get-active-subscriptions" level="h3">
-          getActiveSubscriptions
-        </AnchorLink>
-        <p>Get all active subscriptions with detailed information.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: [ActiveSubscription!]!
-"""
-getActiveSubscriptions(subscriptionIds: [String]?): Future
-
-type ActiveSubscription {
-  productId: String!
-  isActive: Boolean!
-  expirationDateIOS: Date?        # iOS only
-  autoRenewingAndroid: Boolean?   # Android only
-  environmentIOS: String?          # iOS only: "Sandbox" | "Production"
-  willExpireSoon: Boolean?         # True if expiring within 7 days
-  daysUntilExpirationIOS: Number?  # iOS only
-}`}</CodeBlock>
-        <p className="type-link">
-          See:{' '}
-          <Link to="/docs/types#active-subscription">ActiveSubscription</Link>
-        </p>
-        <p>
-          Returns a future that completes with an array of active subscriptions.
-          If <code>subscriptionIds</code> is not provided, returns all active
-          subscriptions. Platform-specific fields are populated based on the
-          current platform.
-        </p>
-
-        <AnchorLink id="has-active-subscriptions" level="h3">
-          hasActiveSubscriptions
-        </AnchorLink>
-        <p>Check if the user has any active subscriptions.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
-        <p>
-          Returns a future that completes with <code>true</code> if the user has
-          at least one active subscription, <code>false</code> otherwise. If{' '}
-          <code>subscriptionIds</code> is provided, only checks for those
-          specific subscriptions.
-        </p>
-
-        <AnchorLink id="deep-link-to-subscriptions" level="h3">
-          deepLinkToSubscriptions
-        </AnchorLink>
-        <p>Open native subscription management interface.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-deepLinkToSubscriptions(options: DeepLinkOptions): Future
-
-type DeepLinkOptions {
-  "Required on Android"
-  skuAndroid: String?
-  "Required on Android"
-  packageNameAndroid: String?
-}`}</CodeBlock>
-        <p>
-          Opens the platform's native subscription management interface where
-          users can view and manage their subscriptions.
         </p>
       </section>
     </div>

@@ -17,8 +17,8 @@ function Versions() {
             Added comprehensive iOS API documentation (19 APIs with IOS suffix)
           </li>
           <li>
-            Added missing Android APIs
-            (flushFailedPurchaseCachedAsPendingAndroid, getPackageNameAndroid)
+            Added missing Android API
+            (flushFailedPurchaseCachedAsPendingAndroid)
           </li>
           <li>Added getAppTransactionIOS documentation (iOS 16+)</li>
           <li>Fixed camelCase to kebab-case conversion in search modal</li>
