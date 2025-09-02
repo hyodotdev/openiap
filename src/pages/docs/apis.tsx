@@ -581,7 +581,7 @@ hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
           specific subscriptions.
         </p>
 
-        <AnchorLink id="deeplink-to-subscriptions" level="h3">
+        <AnchorLink id="deep-link-to-subscriptions" level="h3">
           deepLinkToSubscriptions
         </AnchorLink>
         <p>Open native subscription management interface.</p>

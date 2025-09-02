@@ -33,7 +33,7 @@ function AnchorLink({ id, level, children }: AnchorLinkProps) {
     }
     // Copy to clipboard
     const url = `${window.location.pathname}#${id}`;
-    navigator.clipboard.writeText(window.location.origin + url);
+    void navigator.clipboard.writeText(window.location.origin + url);
   };
 
   return (

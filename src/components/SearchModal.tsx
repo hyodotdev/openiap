@@ -21,7 +21,7 @@ interface SearchModalProps {
 const apiData: ApiItem[] = [
   // Product Management
   {
-    id: 'requestproducts',
+    id: 'request-products',
     title: 'requestProducts',
     category: 'Product Management',
     description: 'Retrieve products or subscriptions from the store',
@@ -30,7 +30,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#request-products',
   },
   {
-    id: 'getavailablepurchases',
+    id: 'get-available-purchases',
     title: 'getAvailablePurchases',
     category: 'Product Management',
     description: 'Get all available purchases for the current user',
@@ -39,7 +39,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#get-available-purchases',
   },
   {
-    id: 'getpurchasehistories',
+    id: 'get-purchase-histories',
     title: 'getPurchaseHistories',
     category: 'Product Management',
     description: 'Get purchase history (iOS only)',
@@ -50,7 +50,7 @@ const apiData: ApiItem[] = [
 
   // Purchase Operations
   {
-    id: 'requestpurchase',
+    id: 'request-purchase',
     title: 'requestPurchase',
     category: 'Purchase Operations',
     description: 'Request a purchase (one-time or subscription)',
@@ -59,7 +59,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#request-purchase',
   },
   {
-    id: 'finishtransaction',
+    id: 'finish-transaction',
     title: 'finishTransaction',
     category: 'Purchase Operations',
     description:
@@ -71,7 +71,7 @@ const apiData: ApiItem[] = [
 
   // Validation
   {
-    id: 'validatereceipt',
+    id: 'validate-receipt',
     title: 'validateReceipt',
     category: 'Receipt Validation',
     description: 'Validate a receipt with your server or platform servers',
@@ -82,7 +82,7 @@ const apiData: ApiItem[] = [
 
   // iOS APIs
   {
-    id: 'finishtransactionios',
+    id: 'finish-transaction-ios',
     title: 'finishTransactionIOS',
     category: 'iOS APIs',
     description: 'iOS-specific transaction completion',
@@ -91,7 +91,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#finish-transaction-ios',
   },
   {
-    id: 'cleartransactionios',
+    id: 'clear-transaction-ios',
     title: 'clearTransactionIOS',
     category: 'iOS APIs',
     description: 'Clear pending transactions',
@@ -100,7 +100,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#clear-transaction-ios',
   },
   {
-    id: 'clearproductsios',
+    id: 'clear-products-ios',
     title: 'clearProductsIOS',
     category: 'iOS APIs',
     description: 'Clear the products cache',
@@ -109,7 +109,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#clear-products-ios',
   },
   {
-    id: 'getstorefrontios',
+    id: 'get-storefront-ios',
     title: 'getStorefrontIOS',
     category: 'iOS APIs',
     description: 'Get the current App Store storefront country code',
@@ -117,10 +117,145 @@ const apiData: ApiItem[] = [
     returns: 'String!',
     path: '/docs/apis#get-storefront-ios',
   },
+  {
+    id: 'get-promoted-product-ios',
+    title: 'getPromotedProductIOS',
+    category: 'iOS APIs',
+    description: 'Get the currently promoted product (iOS 11+)',
+    parameters: '',
+    returns: 'Product?',
+    path: '/docs/apis#get-promoted-product-ios',
+  },
+  {
+    id: 'request-purchase-on-promoted-product-ios',
+    title: 'requestPurchaseOnPromotedProductIOS',
+    category: 'iOS APIs',
+    description: 'Purchase a promoted product (iOS 11+)',
+    parameters: '',
+    returns: 'Purchase!',
+    path: '/docs/apis#request-purchase-on-promoted-product-ios',
+  },
+  {
+    id: 'get-pending-transactions-ios',
+    title: 'getPendingTransactionsIOS',
+    category: 'iOS APIs',
+    description: 'Get all pending transactions',
+    parameters: '',
+    returns: '[Purchase!]!',
+    path: '/docs/apis#get-pending-transactions-ios',
+  },
+  {
+    id: 'is-eligible-for-intro-offer-ios',
+    title: 'isEligibleForIntroOfferIOS',
+    category: 'iOS APIs',
+    description: 'Check if user is eligible for introductory offer',
+    parameters: 'productIds: [String!]!',
+    returns: 'Boolean!',
+    path: '/docs/apis#is-eligible-for-intro-offer-ios',
+  },
+  {
+    id: 'subscription-status-ios',
+    title: 'subscriptionStatusIOS',
+    category: 'iOS APIs',
+    description: 'Get subscription status (iOS 15+)',
+    parameters: 'skus: [String!]?',
+    returns: '[SubscriptionStatus!]!',
+    path: '/docs/apis#subscription-status-ios',
+  },
+  {
+    id: 'current-entitlement-ios',
+    title: 'currentEntitlementIOS',
+    category: 'iOS APIs',
+    description: 'Get current entitlements (iOS 15+)',
+    parameters: 'skus: [String!]?',
+    returns: '[Entitlement!]!',
+    path: '/docs/apis#current-entitlement-ios',
+  },
+  {
+    id: 'latest-transaction-ios',
+    title: 'latestTransactionIOS',
+    category: 'iOS APIs',
+    description: 'Get latest transaction for a product (iOS 15+)',
+    parameters: 'sku: String!',
+    returns: 'Transaction?',
+    path: '/docs/apis#latest-transaction-ios',
+  },
+  {
+    id: 'show-manage-subscriptions-ios',
+    title: 'showManageSubscriptionsIOS',
+    category: 'iOS APIs',
+    description: 'Show subscription management UI (iOS 15+)',
+    parameters: '',
+    returns: 'Void',
+    path: '/docs/apis#show-manage-subscriptions-ios',
+  },
+  {
+    id: 'begin-refund-request-ios',
+    title: 'beginRefundRequestIOS',
+    category: 'iOS APIs',
+    description: 'Initiate refund request (iOS 15+)',
+    parameters: 'sku: String!',
+    returns: 'RefundResult!',
+    path: '/docs/apis#begin-refund-request-ios',
+  },
+  {
+    id: 'is-transaction-verified-ios',
+    title: 'isTransactionVerifiedIOS',
+    category: 'iOS APIs',
+    description: 'Verify transaction authenticity (iOS 15+)',
+    parameters: 'transactionId: String!',
+    returns: 'Boolean!',
+    path: '/docs/apis#is-transaction-verified-ios',
+  },
+  {
+    id: 'get-transaction-jws-ios',
+    title: 'getTransactionJwsIOS',
+    category: 'iOS APIs',
+    description: 'Get transaction JWS token (iOS 15+)',
+    parameters: 'transactionId: String!',
+    returns: 'String!',
+    path: '/docs/apis#get-transaction-jws-ios',
+  },
+  {
+    id: 'get-receipt-data-ios',
+    title: 'getReceiptDataIOS',
+    category: 'iOS APIs',
+    description: 'Get receipt data for validation',
+    parameters: '',
+    returns: 'String!',
+    path: '/docs/apis#get-receipt-data-ios',
+  },
+  {
+    id: 'sync-ios',
+    title: 'syncIOS',
+    category: 'iOS APIs',
+    description: 'Sync StoreKit transactions (iOS 15+)',
+    parameters: '',
+    returns: 'Void',
+    path: '/docs/apis#sync-ios',
+  },
+  {
+    id: 'present-code-redemption-sheet-ios',
+    title: 'presentCodeRedemptionSheetIOS',
+    category: 'iOS APIs',
+    description: 'Show promo code redemption UI',
+    parameters: '',
+    returns: 'Void',
+    path: '/docs/apis#present-code-redemption-sheet-ios',
+  },
+  {
+    id: 'get-app-transaction-ios',
+    title: 'getAppTransactionIOS',
+    category: 'iOS APIs',
+    description: 'Get app transaction information (iOS 16+)',
+    parameters: '',
+    returns: 'AppTransaction?',
+    path: '/docs/apis#get-app-transaction-ios',
+  },
 
   // Android APIs
   {
-    id: 'acknowledgepurchaseandroid',
+    id: 'acknowledge-purchase-android',
     title: 'acknowledgePurchaseAndroid',
     category: 'Android APIs',
     description: 'Acknowledge a non-consumable purchase or subscription',
@@ -129,7 +264,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#acknowledge-purchase-android',
   },
   {
-    id: 'consumepurchaseandroid',
+    id: 'consume-purchase-android',
     title: 'consumePurchaseAndroid',
     category: 'Android APIs',
     description: 'Consume a purchase (for consumable products only)',
@@ -137,10 +272,28 @@ const apiData: ApiItem[] = [
     returns: 'Void',
     path: '/docs/apis#consume-purchase-android',
   },
+  {
+    id: 'flush-failed-purchase-cached-as-pending-android',
+    title: 'flushFailedPurchaseCachedAsPendingAndroid',
+    category: 'Android APIs',
+    description: 'Clear failed purchases from cache',
+    parameters: '',
+    returns: 'Void',
+    path: '/docs/apis#flush-failed-purchase-cached-as-pending-android',
+  },
+  {
+    id: 'get-package-name-android',
+    title: 'getPackageNameAndroid',
+    category: 'Android APIs',
+    description: 'Get the app package name',
+    parameters: '',
+    returns: 'String!',
+    path: '/docs/apis#get-package-name-android',
+  },
 
   // Connection Management
   {
-    id: 'initconnection',
+    id: 'init-connection',
     title: 'initConnection',
     category: 'Connection Management',
     description: 'Initialize connection to the store service',
@@ -149,7 +302,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#init-connection',
   },
   {
-    id: 'endconnection',
+    id: 'end-connection',
     title: 'endConnection',
     category: 'Connection Management',
     description: 'End connection to the store service',
@@ -160,7 +313,7 @@ const apiData: ApiItem[] = [
 
   // Subscription Management
   {
-    id: 'getactivesubscriptions',
+    id: 'get-active-subscriptions',
     title: 'getActiveSubscriptions',
     category: 'Subscription Management',
     description: 'Get all active subscriptions with detailed information',
@@ -169,7 +322,7 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#get-active-subscriptions',
   },
   {
-    id: 'hasactivesubscriptions',
+    id: 'has-active-subscriptions',
     title: 'hasActiveSubscriptions',
     category: 'Subscription Management',
     description: 'Check if the user has any active subscriptions',
@@ -178,13 +331,13 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#has-active-subscriptions',
   },
   {
-    id: 'deeplinktosubscriptions',
+    id: 'deep-link-to-subscriptions',
     title: 'deepLinkToSubscriptions',
     category: 'Subscription Management',
     description: 'Open native subscription management interface',
     parameters: 'DeepLinkOptions',
     returns: 'Void',
-    path: '/docs/apis#deeplink-to-subscriptions',
+    path: '/docs/apis#deep-link-to-subscriptions',
   },
 ];
 
