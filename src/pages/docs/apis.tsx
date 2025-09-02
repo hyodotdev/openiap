@@ -467,6 +467,213 @@ Returns: String!
 getStorefrontIOS(): Future`}</CodeBlock>
         <p>Returns the storefront country code (e.g., "US", "GB", "JP").</p>
 
+        <AnchorLink id="get-promoted-product-ios" level="h4">
+          getPromotedProductIOS
+        </AnchorLink>
+        <p>Get the currently promoted product (iOS 11+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Product?
+"""
+getPromotedProductIOS(): Future`}</CodeBlock>
+        <p>
+          Returns the product that was promoted in the App Store, if any.
+          Requires iOS 11 or later.
+        </p>
+
+        <AnchorLink id="request-purchase-on-promoted-product-ios" level="h4">
+          requestPurchaseOnPromotedProductIOS
+        </AnchorLink>
+        <p>Purchase a promoted product (iOS 11+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Purchase!
+"""
+requestPurchaseOnPromotedProductIOS(): Future`}</CodeBlock>
+        <p>
+          Initiates a purchase for the promoted product. The product must have
+          been previously promoted via the App Store.
+        </p>
+
+        <AnchorLink id="get-pending-transactions-ios" level="h4">
+          getPendingTransactionsIOS
+        </AnchorLink>
+        <p>Get all pending transactions.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [Purchase!]!
+"""
+getPendingTransactionsIOS(): Future`}</CodeBlock>
+        <p>
+          Returns all transactions that are pending completion in the StoreKit
+          payment queue.
+        </p>
+
+        <AnchorLink id="is-eligible-for-intro-offer-ios" level="h4">
+          isEligibleForIntroOfferIOS
+        </AnchorLink>
+        <p>Check if user is eligible for introductory offer.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+isEligibleForIntroOfferIOS(productIds: [String!]!): Future`}</CodeBlock>
+        <p>
+          Returns true if the user is eligible for an introductory price, false
+          otherwise. Requires iOS 12.2+.
+        </p>
+
+        <AnchorLink id="subscription-status-ios" level="h4">
+          subscriptionStatusIOS
+        </AnchorLink>
+        <p>Get subscription status (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [SubscriptionStatus!]!
+"""
+subscriptionStatusIOS(skus: [String!]?): Future`}</CodeBlock>
+        <p>
+          Returns detailed subscription status information using StoreKit 2.
+          Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="current-entitlement-ios" level="h4">
+          currentEntitlementIOS
+        </AnchorLink>
+        <p>Get current entitlements (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: [Entitlement!]!
+"""
+currentEntitlementIOS(skus: [String!]?): Future`}</CodeBlock>
+        <p>
+          Returns current entitlements for the user using StoreKit 2. Requires
+          iOS 15+.
+        </p>
+
+        <AnchorLink id="latest-transaction-ios" level="h4">
+          latestTransactionIOS
+        </AnchorLink>
+        <p>Get latest transaction for a product (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Transaction?
+"""
+latestTransactionIOS(sku: String!): Future`}</CodeBlock>
+        <p>
+          Returns the most recent transaction for a specific product using
+          StoreKit 2. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="show-manage-subscriptions-ios" level="h4">
+          showManageSubscriptionsIOS
+        </AnchorLink>
+        <p>Show subscription management UI (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+showManageSubscriptionsIOS(): Future`}</CodeBlock>
+        <p>
+          Opens the native subscription management interface. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="begin-refund-request-ios" level="h4">
+          beginRefundRequestIOS
+        </AnchorLink>
+        <p>Initiate refund request (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: RefundResult!
+"""
+beginRefundRequestIOS(sku: String!): Future`}</CodeBlock>
+        <p>
+          Presents the refund request sheet for a specific product. Requires iOS
+          15+.
+        </p>
+
+        <AnchorLink id="is-transaction-verified-ios" level="h4">
+          isTransactionVerifiedIOS
+        </AnchorLink>
+        <p>Verify transaction authenticity (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Boolean!
+"""
+isTransactionVerifiedIOS(transactionId: String!): Future`}</CodeBlock>
+        <p>
+          Verifies the transaction signature using StoreKit 2. Returns true if
+          valid, false otherwise. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="get-transaction-jws-ios" level="h4">
+          getTransactionJwsIOS
+        </AnchorLink>
+        <p>Get transaction JWS token (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: String!
+"""
+getTransactionJwsIOS(transactionId: String!): Future`}</CodeBlock>
+        <p>
+          Returns the JSON Web Signature for a transaction. Used for server-side
+          validation. Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="get-receipt-data-ios" level="h4">
+          getReceiptDataIOS
+        </AnchorLink>
+        <p>Get receipt data for validation.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: String!
+"""
+getReceiptDataIOS(): Future`}</CodeBlock>
+        <p>Returns the base64-encoded receipt data for server validation.</p>
+
+        <AnchorLink id="sync-ios" level="h4">
+          syncIOS
+        </AnchorLink>
+        <p>Sync StoreKit transactions (iOS 15+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+syncIOS(): Future`}</CodeBlock>
+        <p>
+          Forces a sync with StoreKit to ensure all transactions are up to date.
+          Requires iOS 15+.
+        </p>
+
+        <AnchorLink id="present-code-redemption-sheet-ios" level="h4">
+          presentCodeRedemptionSheetIOS
+        </AnchorLink>
+        <p>Show promo code redemption UI.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+presentCodeRedemptionSheetIOS(): Future`}</CodeBlock>
+        <p>Presents the sheet for redeeming App Store promo codes.</p>
+
+        <AnchorLink id="get-app-transaction-ios" level="h4">
+          getAppTransactionIOS
+        </AnchorLink>
+        <p>Get app transaction information (iOS 16+).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: AppTransaction?
+"""
+getAppTransactionIOS(): Future
+
+type AppTransaction {
+  bundleId: String!
+  appVersion: String!
+  originalAppVersion: String!
+  originalPurchaseDate: Date!
+  deviceVerification: String!
+  deviceVerificationNonce: String!
+  environment: String!  # "Sandbox" | "Production"
+  signedDate: Date!
+  appId: Number!
+  appVersionId: Number!
+  preorderDate: Date?
+  # iOS 18.4+ properties
+  appTransactionId: String?  # Requires iOS 18.4+
+  originalPlatform: String?  # Requires iOS 18.4+
+}`}</CodeBlock>
+        <p>
+          Returns information about the app's original purchase or download.
+          This includes details about when the app was first installed, the
+          version, and verification data. Requires iOS 16+. Additional
+          properties are available on iOS 18.4+ when built with Xcode 16.4+.
+        </p>
+
         <AnchorLink id="android-apis" level="h3">
           Android APIs
         </AnchorLink>
@@ -497,6 +704,35 @@ consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
           Marks a consumable product as consumed, allowing repurchase.
           Automatically acknowledges the purchase. Usually called internally by{' '}
           <code>finishTransaction()</code> for consumables.
+        </p>
+
+        <AnchorLink
+          id="flush-failed-purchase-cached-as-pending-android"
+          level="h4"
+        >
+          flushFailedPurchaseCachedAsPendingAndroid
+        </AnchorLink>
+        <p>Clear failed purchases from cache (Android only).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+flushFailedPurchaseCachedAsPendingAndroid(): Future`}</CodeBlock>
+        <p>
+          Clears any failed purchases that are cached as pending. Use this when
+          you want to retry failed purchases or clear the pending state.
+        </p>
+
+        <AnchorLink id="get-package-name-android" level="h4">
+          getPackageNameAndroid
+        </AnchorLink>
+        <p>Get the app's package name (Android only).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: String!
+"""
+getPackageNameAndroid(): Future`}</CodeBlock>
+        <p>
+          Returns the Android application's package name. Useful for validation
+          and deep linking operations.
         </p>
       </section>
 
