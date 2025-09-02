@@ -337,6 +337,30 @@
   opacity: 1;
 }
 
+/* Deprecated notice */
+.deprecated-notice {
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 0.375rem;
+  color: #856404;
+}
+
+.deprecated-notice strong {
+  color: #ff6b35;
+}
+
+:root.dark .deprecated-notice {
+  background: rgba(255, 193, 7, 0.1);
+  border-color: rgba(255, 193, 7, 0.3);
+  color: #ffc107;
+}
+
+:root.dark .deprecated-notice strong {
+  color: #ff8c42;
+}
+
 /* Version page specific styles */
 .version-links {
   margin-top: 1rem;

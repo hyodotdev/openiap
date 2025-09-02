@@ -91,8 +91,8 @@ Returns: [Purchase!]!
 getAvailablePurchases(options: PurchaseOptions?): Future
 
 type PurchaseOptions {
-  alsoPublishToEventListener: Boolean?
-  onlyIncludeActiveItems: Boolean?
+  alsoPublishToEventListenerIOS: Boolean?  # iOS only
+  onlyIncludeActiveItemsIOS: Boolean?      # iOS only
 }`}</CodeBlock>
         <p className="type-link">
           See: <Link to="/docs/types#purchase">Purchase</Link>
@@ -120,8 +120,12 @@ type PurchaseOptions {
         </p>
 
         <AnchorLink id="get-purchase-histories" level="h3">
-          getPurchaseHistories
+          getPurchaseHistories (Deprecated)
         </AnchorLink>
+        <div className="deprecated-notice">
+          <strong>⚠️ Deprecated:</strong> Use <code>getAvailablePurchases</code>{' '}
+          instead.
+        </div>
         <p>Get purchase history (iOS only).</p>
         <CodeBlock language="graphql">{`"""
 Returns: [Purchase!]!
@@ -129,16 +133,15 @@ Returns: [Purchase!]!
 getPurchaseHistories(options: PurchaseOptions?): Future
 
 type PurchaseOptions {
-  alsoPublishToEventListener: Boolean?
-  onlyIncludeActiveItems: Boolean?
+  alsoPublishToEventListenerIOS: Boolean?  # iOS only
+  onlyIncludeActiveItemsIOS: Boolean?      # iOS only
 }`}</CodeBlock>
         <p className="type-link">
           See: <Link to="/docs/types#purchase">Purchase</Link>
         </p>
         <p>
-          <strong>Note:</strong> On Android with Google Play Billing v8+, this
-          returns an empty array as purchase history is no longer available. Use{' '}
-          <code>getAvailablePurchases</code> instead to get active purchases.
+          This API is deprecated and will be removed in a future version. Use{' '}
+          <code>getAvailablePurchases</code> instead.
         </p>
       </section>
 
@@ -224,8 +227,7 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
         <ul>
           <li>
             <strong>iOS</strong>: The flag doesn't affect behavior as StoreKit
-            handles this automatically. Always calls{' '}
-            <code>finishTransactionIOS()</code>.
+            handles this automatically.
           </li>
           <li>
             <strong>Android</strong>:
@@ -422,19 +424,6 @@ validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
           iOS APIs
         </AnchorLink>
 
-        <AnchorLink id="finish-transaction-ios" level="h4">
-          finishTransactionIOS
-        </AnchorLink>
-        <p>iOS-specific transaction completion.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-finishTransactionIOS(transactionId: String!): Future`}</CodeBlock>
-        <p>
-          Directly marks a transaction as finished in the StoreKit payment
-          queue. Usually called internally by <code>finishTransaction()</code>.
-        </p>
-
         <AnchorLink id="clear-transaction-ios" level="h4">
           clearTransactionIOS
         </AnchorLink>
@@ -444,18 +433,6 @@ Returns: Void
 """
 clearTransactionIOS(): Future`}</CodeBlock>
         <p>Removes all pending transactions from the iOS payment queue.</p>
-
-        <AnchorLink id="clear-products-ios" level="h4">
-          clearProductsIOS
-        </AnchorLink>
-        <p>Clear the products cache.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-clearProductsIOS(): Future`}</CodeBlock>
-        <p>
-          Clears cached product information, forcing a refresh on next fetch.
-        </p>
 
         <AnchorLink id="get-storefront-ios" level="h4">
           getStorefrontIOS
@@ -688,8 +665,12 @@ Returns: Void
 acknowledgePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         <p>
           Acknowledges the purchase to Google Play. Required within 3 days or
-          the purchase will be refunded. Usually called internally by{' '}
-          <code>finishTransaction()</code>.
+          the purchase will be refunded.
+        </p>
+        <p>
+          <strong>Note:</strong> This is called automatically by{' '}
+          <code>finishTransaction()</code> when <code>isConsumable</code> is{' '}
+          <code>false</code>.
         </p>
 
         <AnchorLink id="consume-purchase-android" level="h4">
@@ -702,8 +683,12 @@ Returns: Void
 consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
         <p>
           Marks a consumable product as consumed, allowing repurchase.
-          Automatically acknowledges the purchase. Usually called internally by{' '}
-          <code>finishTransaction()</code> for consumables.
+          Automatically acknowledges the purchase.
+        </p>
+        <p>
+          <strong>Note:</strong> This is called automatically by{' '}
+          <code>finishTransaction()</code> when <code>isConsumable</code> is{' '}
+          <code>true</code>.
         </p>
 
         <AnchorLink

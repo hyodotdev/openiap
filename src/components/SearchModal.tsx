@@ -40,9 +40,10 @@ const apiData: ApiItem[] = [
   },
   {
     id: 'get-purchase-histories',
-    title: 'getPurchaseHistories',
+    title: 'getPurchaseHistories (Deprecated)',
     category: 'Product Management',
-    description: 'Get purchase history (iOS only)',
+    description:
+      'Get purchase history (iOS only) - Use getAvailablePurchases instead',
     parameters: 'PurchaseOptions?',
     returns: '[Purchase!]!',
     path: '/docs/apis#get-purchase-histories',
@@ -82,15 +83,6 @@ const apiData: ApiItem[] = [
 
   // iOS APIs
   {
-    id: 'finish-transaction-ios',
-    title: 'finishTransactionIOS',
-    category: 'iOS APIs',
-    description: 'iOS-specific transaction completion',
-    parameters: 'transactionId: String!',
-    returns: 'Void',
-    path: '/docs/apis#finish-transaction-ios',
-  },
-  {
     id: 'clear-transaction-ios',
     title: 'clearTransactionIOS',
     category: 'iOS APIs',
@@ -98,15 +90,6 @@ const apiData: ApiItem[] = [
     parameters: '',
     returns: 'Void',
     path: '/docs/apis#clear-transaction-ios',
-  },
-  {
-    id: 'clear-products-ios',
-    title: 'clearProductsIOS',
-    category: 'iOS APIs',
-    description: 'Clear the products cache',
-    parameters: '',
-    returns: 'Void',
-    path: '/docs/apis#clear-products-ios',
   },
   {
     id: 'get-storefront-ios',
