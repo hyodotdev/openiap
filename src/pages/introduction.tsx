@@ -40,7 +40,7 @@ function Introduction() {
           <h3>Unified APIs</h3>
           <p>
             Open IAP defines standard methods like <code>initConnection()</code>
-            , <code>requestProducts()</code>,<code>requestPurchase()</code>, and{' '}
+            , <code>fetchProducts()</code>,<code>requestPurchase()</code>, and{' '}
             <code>finishTransaction()</code> that work consistently across all
             platforms. Library maintainers implement these standard APIs,
             ensuring developers have a consistent experience.

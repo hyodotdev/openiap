@@ -40,9 +40,8 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           Fetch available products from the store using{' '}
-          <Link to="/docs/apis#request-products">requestProducts</Link>.
-          Products must be configured in App Store Connect or Google Play
-          Console.
+          <Link to="/docs/apis#fetch-products">fetchProducts</Link>. Products
+          must be configured in App Store Connect or Google Play Console.
         </p>
 
         <AnchorLink id="purchase-request" level="h3">

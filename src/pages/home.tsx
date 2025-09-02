@@ -200,8 +200,8 @@ function Home() {
                   <code>initConnection()</code>
                   <span>Initialize IAP service</span>
                 </Link>
-                <Link to="/docs/apis#request-products" className="spec-item">
-                  <code>requestProducts()</code>
+                <Link to="/docs/apis#fetch-products" className="spec-item">
+                  <code>fetchProducts()</code>
                   <span>Fetch product details</span>
                 </Link>
                 <Link to="/docs/apis#request-purchase" className="spec-item">

@@ -499,6 +499,17 @@ export interface IapContext {
 
   // Product methods
   /**
+   * Fetch products from the store
+   * @param params.skus - Array of product SKUs to fetch
+   * @param params.type - Type of products: 'inapp' for regular products or 'subs' for subscriptions
+   */
+  fetchProducts(params: {
+    skus: string[];
+    type?: ProductType; // 'inapp' | 'subs', defaults to 'inapp'
+  }): Promise<Product[] | SubscriptionProduct[]>;
+
+  /**
+   * @deprecated Use fetchProducts instead
    * Request products from the store
    * @param params.skus - Array of product SKUs to fetch
    * @param params.type - Type of products: 'inapp' for regular products or 'subs' for subscriptions

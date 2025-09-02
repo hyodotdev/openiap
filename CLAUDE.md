@@ -36,7 +36,7 @@ All Android-only functions must end with `Android`:
 
 #### 3. Cross-Platform Functions (No suffix)
 Functions available on both platforms have no suffix:
-- `requestProducts` - Get product information
+- `fetchProducts` - Get product information
 - `requestPurchase` - Initiate purchase
 - `getAvailablePurchases` - Get user's purchases
 - `finishTransaction` - Complete transaction
@@ -64,7 +64,7 @@ Functions available on both platforms have no suffix:
    - `finish/end` - Complete a process (e.g., `finishTransaction`)
 
 3. **URL Anchors**: Use kebab-case for all URL anchors:
-   - Function: `requestProducts` → Anchor: `#request-products`
+   - Function: `fetchProducts` → Anchor: `#fetch-products`
    - Function: `getAppTransactionIOS` → Anchor: `#get-app-transaction-ios`
 
 4. **Search IDs**: Use kebab-case for search modal IDs:
@@ -73,6 +73,7 @@ Functions available on both platforms have no suffix:
 
 ### Deprecated Functions
 - `buyPromotedProductIOS` → Use `requestPurchaseOnPromotedProductIOS`
+- `requestProducts` → Use `fetchProducts`
 
 ## Modal Pattern with Preact Signals
 

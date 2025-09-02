@@ -70,13 +70,13 @@ const apiData: ApiItem[] = [
 
   // Product Management
   {
-    id: 'request-products',
-    title: 'requestProducts',
+    id: 'fetch-products',
+    title: 'fetchProducts',
     category: 'Product Management',
     description: 'Retrieve products or subscriptions from the store',
     parameters: 'ProductRequest',
     returns: '[Product!]!',
-    path: '/docs/apis#request-products',
+    path: '/docs/apis#fetch-products',
   },
   {
     id: 'get-available-purchases',

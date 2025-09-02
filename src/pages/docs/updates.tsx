@@ -159,7 +159,7 @@ function Updates() {
         <h4>Before (Deprecated):</h4>
         <CodeBlock language="typescript">
           {`// ❌ This no longer works
-const testProduct = await requestProducts(['android.test.purchased'])
+const testProduct = await fetchProducts(['android.test.purchased'])
 // Returns SERVICE_DISCONNECTED error`}
         </CodeBlock>
 
@@ -168,7 +168,7 @@ const testProduct = await requestProducts(['android.test.purchased'])
           {`// ✅ Use real product with test account
 // 1. Add test account in Play Console
 // 2. Use real product ID
-const testProduct = await requestProducts(['your_real_product_id'])
+const testProduct = await fetchProducts(['your_real_product_id'])
 // Test account won't be charged`}
         </CodeBlock>
 

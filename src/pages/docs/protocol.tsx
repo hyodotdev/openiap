@@ -23,7 +23,7 @@ function Protocol() {
   endConnection(): Promise<boolean>
   
   // Product management
-  requestProducts(params: {
+  fetchProducts(params: {
     skus: string[]
     type?: 'inapp' | 'subs'
   }): Promise<Product[] | SubscriptionProduct[]>
@@ -62,13 +62,13 @@ function Protocol() {
 await IAP.initConnection()
 
 // Get products
-const products = await IAP.requestProducts({
+const products = await IAP.fetchProducts({
   skus: ['premium', 'pro'],
   type: 'inapp'
 })
 
 // Get subscriptions
-const subscriptions = await IAP.requestProducts({
+const subscriptions = await IAP.fetchProducts({
   skus: ['monthly', 'yearly'],
   type: 'subs'
 })
