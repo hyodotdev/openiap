@@ -11,13 +11,49 @@ function Languages() {
         <div className="languages-grid">
           <div className="language-card">
             <img
+              src="https://react-native-iap.hyo.dev/img/logo.png"
+              alt="React Native IAP"
+              className="language-logo"
+              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
+            />
+            <h3>react-native-iap</h3>
+            <p>
+              React Native & Expo implementation of Open IAP specification
+              (Nitro Modules)
+            </p>
+            <pre className="code-snippet">{`npm install react-native-iap`}</pre>
+            <div className="language-links">
+              <a
+                href="https://github.com/dooboolab-community/react-native-iap"
+                className="learn-more"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View on GitHub →
+              </a>
+              <a
+                href="https://react-native-iap.hyo.dev"
+                className="learn-more"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Documentation →
+              </a>
+            </div>
+          </div>
+
+          <div className="language-card">
+            <img
               src="https://expo-iap.hyo.dev/img/icon.png"
               alt="Expo IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
             />
             <h3>expo-iap</h3>
-            <p>React Native & Expo implementation of Open IAP specification</p>
+            <p>
+              React Native & Expo implementation of Open IAP specification (Expo
+              Modules)
+            </p>
             <pre className="code-snippet">{`npm install expo-iap`}</pre>
             <div className="language-links">
               <a

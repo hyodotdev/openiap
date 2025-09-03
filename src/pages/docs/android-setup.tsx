@@ -292,13 +292,23 @@ function AndroidSetup() {
         <ul>
           <li>
             <a
+              href="https://github.com/dooboolab-community/react-native-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              react-native-iap
+            </a>{' '}
+            - For React Native & Expo projects (Nitro Modules)
+          </li>
+          <li>
+            <a
               href="https://github.com/hyochan/expo-iap"
               target="_blank"
               rel="noopener noreferrer"
             >
               expo-iap
             </a>{' '}
-            - For React Native & Expo projects
+            - For React Native & Expo projects (Expo Modules)
           </li>
           <li>
             <a

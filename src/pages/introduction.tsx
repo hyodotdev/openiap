@@ -103,6 +103,19 @@ function Introduction() {
             <li>
               <strong>
                 <a
+                  href="https://github.com/dooboolab-community/react-native-iap"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap
+                </a>
+                :
+              </strong>{' '}
+              React Native & Expo implementation (Nitro Modules)
+            </li>
+            <li>
+              <strong>
+                <a
                   href="https://github.com/hyochan/expo-iap"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -111,7 +124,7 @@ function Introduction() {
                 </a>
                 :
               </strong>{' '}
-              React Native & Expo implementation
+              React Native & Expo implementation (Expo Modules)
             </li>
             <li>
               <strong>

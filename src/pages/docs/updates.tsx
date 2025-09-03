@@ -22,7 +22,7 @@ function Updates() {
           }}
         >
           <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
-            📅 January 2025 - Subscription Status APIs
+            📅 August 2025 - Subscription Status APIs
           </h4>
           <p>
             New standardized APIs for checking subscription status across

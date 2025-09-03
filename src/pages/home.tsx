@@ -276,6 +276,23 @@ function Home() {
           </p>
           <div className="implementations-grid">
             <a
+              href="https://react-native-iap.hyo.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="implementation-card"
+            >
+              <img
+                src="https://react-native-iap.hyo.dev/img/logo.png"
+                alt="React Native IAP"
+                className="implementation-logo"
+              />
+              <div>
+                <h3>react-native-iap</h3>
+                <p>React Native & Expo (Nitro Modules)</p>
+              </div>
+            </a>
+
+            <a
               href="https://expo-iap.hyo.dev"
               target="_blank"
               rel="noopener noreferrer"
@@ -288,7 +305,7 @@ function Home() {
               />
               <div>
                 <h3>expo-iap</h3>
-                <p>React Native & Expo</p>
+                <p>React Native & Expo (Expo Modules)</p>
               </div>
             </a>
 

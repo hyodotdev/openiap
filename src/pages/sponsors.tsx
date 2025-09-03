@@ -49,6 +49,29 @@ function Sponsors() {
               }}
             >
               <a
+                href="https://github.com/dooboolab-community/react-native-iap"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <img
+                  src="https://react-native-iap.hyo.dev/img/logo.png"
+                  alt="react-native-iap"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    objectFit: 'contain',
+                  }}
+                />
+                <span>react-native-iap</span>
+              </a>
+              <a
                 href="https://github.com/hyochan/expo-iap"
                 target="_blank"
                 rel="noopener noreferrer"
