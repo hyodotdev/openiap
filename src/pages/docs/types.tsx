@@ -86,13 +86,6 @@ type ProductType = 'inapp' | 'subs';`}</CodeBlock>
   jsonRepresentationIOS: string;
   platform: "ios";  // Literal type
   subscriptionInfoIOS?: SubscriptionInfo;
-  // deprecated fields
-  displayName?: string;
-  isFamilyShareable?: boolean;
-  jsonRepresentation?: string;
-  subscription?: SubscriptionInfo;
-  introductoryPriceNumberOfPeriodsIOS?: string;
-  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
 };
 
 type SubscriptionInfo = {
@@ -127,10 +120,6 @@ type SubscriptionIosPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | '';`}</CodeBloc
   oneTimePurchaseOfferDetailsAndroid?: ProductAndroidOneTimePurchaseOfferDetail;
   platform: "android";  // Literal type
   subscriptionOfferDetailsAndroid?: ProductSubscriptionAndroidOfferDetail[];
-  // deprecated fields
-  name?: string;
-  oneTimePurchaseOfferDetails?: ProductAndroidOneTimePurchaseOfferDetail;
-  subscriptionOfferDetails?: ProductSubscriptionAndroidOfferDetail[];
 };
 
 type ProductAndroidOneTimePurchaseOfferDetail = {
@@ -144,14 +133,14 @@ type ProductSubscriptionAndroidOfferDetail = {
   offerId: string;
   offerToken: string;
   offerTags: string[];
-  pricingPhases: ProductAndroidPricingPhases;
+  pricingPhases: PricingPhasesAndroid;
 };
 
-type ProductAndroidPricingPhases = {
-  pricingPhaseList: ProductAndroidPricingPhase[];
+type PricingPhasesAndroid = {
+  pricingPhaseList: PricingPhaseAndroid[];
 };
 
-type ProductAndroidPricingPhase = {
+type PricingPhaseAndroid = {
   formattedPrice: string;
   priceCurrencyCode: string;
   billingPeriod: string; // P1W, P1M, P1Y
@@ -196,9 +185,6 @@ type ProductSubscriptionIOS = ProductIOS & {
   platform: "ios";
   subscriptionPeriodNumberIOS?: string;
   subscriptionPeriodUnitIOS?: SubscriptionIosPeriod;
-  // deprecated
-  discounts?: Discount[];
-  introductoryPrice?: string;
 };`}</CodeBlock>
 
         <h3>ProductSubscriptionAndroid</h3>
@@ -206,13 +192,12 @@ type ProductSubscriptionIOS = ProductIOS & {
   basePlanId: string;
   offerId: string | null;
   offerToken: string;
-  pricingPhases: ProductAndroidPricingPhases;
+  pricingPhases: PricingPhasesAndroid;
   offerTags: string[];
 };
 
 type ProductSubscriptionAndroid = ProductAndroid & {
   subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
-  subscriptionOfferDetails?: ProductSubscriptionAndroidOfferDetails[]; // deprecated
 };`}</CodeBlock>
       </section>
 
@@ -230,7 +215,6 @@ type ProductSubscriptionAndroid = ProductAndroid & {
   id: string;
   productId: string;
   ids?: string[];  // Common field for both platforms
-  transactionId?: string; // @deprecated - use id instead
   transactionDate: number;
   transactionReceipt: string;
   purchaseToken?: string;
@@ -267,7 +251,6 @@ type ProductSubscriptionAndroid = ProductAndroid & {
   currencyCodeIOS?: string;
   currencySymbolIOS?: string;
   countryCodeIOS?: string;
-  jwsRepresentationIOS?: string; // @deprecated
 };`}</CodeBlock>
 
         <h3>PurchaseAndroid</h3>
@@ -279,7 +262,6 @@ type ProductSubscriptionAndroid = ProductAndroid & {
 
 type PurchaseAndroid = PurchaseCommon & {
   platform: "android";  // Literal type
-  purchaseTokenAndroid?: string; // @deprecated
   dataAndroid?: string;
   signatureAndroid?: string;
   autoRenewingAndroid?: boolean;
@@ -319,110 +301,6 @@ type SubscriptionProduct =
 type Purchase =
   | (PurchaseAndroid & AndroidPlatform)
   | (PurchaseIOS & IosPlatform);`}</CodeBlock>
-      </section>
-
-      <section>
-        <AnchorLink id="active-subscription" level="h2">
-          ActiveSubscription
-        </AnchorLink>
-        <p className="type-definition">
-          Represents an active subscription with platform-specific details.
-        </p>
-
-        <CodeBlock language="graphql">{`type ActiveSubscription {
-  "Product identifier"
-  productId: String!
-  
-  "Always true for active subscriptions"
-  isActive: Boolean!
-  
-  "Subscription expiration date (iOS only)"
-  expirationDateIOS: Date?
-  
-  "Auto-renewal status (Android only)"
-  autoRenewingAndroid: Boolean?
-  
-  "Environment: 'Sandbox' | 'Production' (iOS only)"
-  environmentIOS: String?
-  
-  "True if subscription expires within 7 days"
-  willExpireSoon: Boolean?
-  
-  "Days remaining until expiration (iOS only)"
-  daysUntilExpirationIOS: Number?
-}`}</CodeBlock>
-
-        <h3>Platform-Specific Behavior</h3>
-        <ul>
-          <li>
-            <strong>iOS</strong>: Provides exact <code>expirationDate</code>,{' '}
-            <code>daysUntilExpiration</code>, and <code>environment</code>
-          </li>
-          <li>
-            <strong>Android</strong>: Provides <code>autoRenewing</code> status.
-            When <code>false</code>, the subscription will not renew
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <AnchorLink id="subscription-product" level="h2">
-          SubscriptionProduct
-        </AnchorLink>
-        <p className="type-definition">
-          SubscriptionProduct = Product & SubscriptionExtensions
-        </p>
-
-        <h3>SubscriptionExtensions</h3>
-        <CodeBlock language="graphql">{`type SubscriptionExtensions {
-  "Subscription period (P1M, P3M, P1Y, etc)"
-  subscriptionPeriod: String!
-  
-  "Introductory offer price"
-  introductoryPrice: String
-  
-  "Intro price payment mode"
-  introductoryPricePaymentMode: String
-  
-  "Number of intro price periods"
-  introductoryPriceNumberOfPeriods: Int
-  
-  "Intro price subscription period"
-  introductoryPriceSubscriptionPeriod: String
-}`}</CodeBlock>
-
-        <h3>SubscriptionInfo (iOS)</h3>
-        <CodeBlock language="graphql">{`type SubscriptionInfo {
-  "Subscription group identifier"
-  subscriptionGroupId: String!
-  
-  "Subscription period"
-  subscriptionPeriod: SubscriptionIosPeriod!
-  
-  "Introductory price info"
-  introductoryPrice: IntroductoryPrice
-  
-  "Promotional offers"
-  promotionalOffers: [PromotionalOffer]
-}`}</CodeBlock>
-
-        <h3>OfferDetail (Android)</h3>
-        <CodeBlock language="graphql">{`type OfferDetail {
-  "Offer ID"
-  offerId: String!
-  
-  "Base plan ID"
-  basePlanId: String!
-  
-  "Offer token"
-  offerToken: String!
-  
-  "Pricing phases"
-  pricingPhases: [PricingPhase]
-  
-  "Offer tags"
-  offerTags: [String]
-}`}</CodeBlock>
       </section>
 
       <section>
@@ -475,7 +353,7 @@ type Purchase =
   sku: String!
   
   "Auto-finish transaction (dangerous)"
-  andDangerouslyFinishTransactionAutomaticallyIOS: Boolean
+  andDangerouslyFinishTransactionAutomatically: Boolean
   
   "App account token for user tracking"
   appAccountToken: String
@@ -483,8 +361,8 @@ type Purchase =
   "Purchase quantity"
   quantity: Int
   
-  "Payment discount offer"
-  withOffer: PaymentDiscount
+  "Discount offer to apply"
+  withOffer: DiscountOffer
 }`}</CodeBlock>
 
         <AnchorLink id="request-purchase-android-props" level="h3">
@@ -545,6 +423,67 @@ type SubscriptionOffer {
       </section>
 
       <section>
+        <AnchorLink id="receipt-validation-types" level="h2">
+          ReceiptValidation Types
+        </AnchorLink>
+
+        <AnchorLink id="receipt-validation" level="h3">
+          ReceiptValidation
+        </AnchorLink>
+        <CodeBlock language="typescript">{`interface ReceiptValidationProps {
+  /** Product SKU to validate */
+  sku: string;
+  /** Android-specific validation options */
+  androidOptions?: {
+    packageName: string;
+    productToken: string;
+    accessToken: string;
+    isSub?: boolean;
+  };
+}`}</CodeBlock>
+
+        <AnchorLink id="validation-result" level="h3">
+          ReceiptValidationResult
+        </AnchorLink>
+        <CodeBlock language="typescript">{`// iOS Receipt Validation Result
+interface ReceiptValidationResultIOS {
+  /** Whether the receipt is valid */
+  isValid: boolean;
+  /** Receipt data string */
+  receiptData: string;
+  /** JWS representation */
+  jwsRepresentation: string;
+  /** Latest transaction if available */
+  latestTransaction?: Purchase;
+}
+
+// Android Receipt Validation Result
+interface ReceiptValidationResultAndroid {
+  autoRenewing: boolean;
+  betaProduct: boolean;
+  cancelDate: number | null;
+  cancelReason: string;
+  deferredDate: number | null;
+  deferredSku: number | null;
+  freeTrialEndDate: number;
+  gracePeriodEndDate: number;
+  parentProductId: string;
+  productId: string;
+  productType: string;
+  purchaseDate: number;
+  quantity: number;
+  receiptId: string;
+  renewalDate: number;
+  term: string;
+  termSku: string;
+  testTransaction: boolean;
+}
+
+// Union type for receipt validation results
+type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidationResultIOS;`}</CodeBlock>
+      </section>
+
+      <section>
         <AnchorLink id="platform-specific-types" level="h2">
           Platform-Specific Types
         </AnchorLink>
@@ -553,8 +492,11 @@ type SubscriptionOffer {
           iOS Specific Types
         </AnchorLink>
 
-        <h4>PaymentDiscount</h4>
-        <CodeBlock language="graphql">{`type PaymentDiscount {
+        <h4>DiscountOffer</h4>
+        <p>
+          Used when requesting a purchase with a promotional offer or discount.
+        </p>
+        <CodeBlock language="graphql">{`type DiscountOffer {
   "Discount identifier"
   identifier: String!
   
@@ -572,6 +514,10 @@ type SubscriptionOffer {
 }`}</CodeBlock>
 
         <h4>Discount</h4>
+        <p>
+          Discount information returned from the store as part of product
+          details.
+        </p>
         <CodeBlock language="graphql">{`type Discount {
   "Discount identifier"
   identifier: String!
@@ -602,15 +548,6 @@ type SubscriptionOffer {
   MONTH  # Monthly period
   YEAR   # Yearly period
   ""     # Empty string (unspecified)
-}`}</CodeBlock>
-
-        <h4>TransactionState</h4>
-        <CodeBlock language="graphql">{`enum TransactionState {
-  PURCHASING
-  PURCHASED
-  FAILED
-  RESTORED
-  DEFERRED
 }`}</CodeBlock>
 
         <AnchorLink id="android-types" level="h3">
@@ -647,23 +584,6 @@ type SubscriptionOffer {
   recurrenceMode: RecurrenceMode
 }`}</CodeBlock>
 
-        <h4>RecurrenceMode</h4>
-        <CodeBlock language="graphql">{`enum RecurrenceMode {
-  INFINITE_RECURRING    # Charges recur forever
-  FINITE_RECURRING      # Charges recur for a fixed number of cycles
-  NON_RECURRING        # Charges occur once
-}`}</CodeBlock>
-
-        <h4>ReplacementMode</h4>
-        <CodeBlock language="graphql">{`enum ReplacementMode {
-  UNKNOWN_REPLACEMENT_MODE
-  IMMEDIATE_WITH_TIME_PRORATION
-  IMMEDIATE_AND_CHARGE_PRORATED_PRICE
-  IMMEDIATE_WITHOUT_PRORATION
-  DEFERRED
-  IMMEDIATE_AND_CHARGE_FULL_PRICE
-}`}</CodeBlock>
-
         <h4>PurchaseState</h4>
         <CodeBlock language="graphql">{`enum PurchaseState {
   UNSPECIFIED  # 0 - Unspecified state
@@ -676,109 +596,6 @@ type SubscriptionOffer {
   UNSPECIFIED_STATE  # 0 - Unspecified state
   PURCHASED          # 1 - Purchase completed
   PENDING            # 2 - Purchase pending
-}`}</CodeBlock>
-      </section>
-
-      <section>
-        <AnchorLink id="validation-types" level="h2">
-          Validation Types
-        </AnchorLink>
-
-        <AnchorLink id="validation-options" level="h3">
-          ValidationOptions
-        </AnchorLink>
-        <CodeBlock language="graphql">{`input ValidationOptions {
-  "iOS validation: receipt body (for legacy StoreKit 1)"
-  receiptBody: IOSReceiptBody
-  
-  "Android validation: package name"
-  packageName: String
-  
-  "Unified purchase token (jwsRepresentationIOS for iOS StoreKit 2, purchaseTokenAndroid for Android)"
-  purchaseToken: String
-  
-  "Product purchase token (deprecated - use purchaseToken instead)"
-  productToken: String
-  
-  "Server access token"
-  accessToken: String
-  
-  "Is subscription product"
-  isSub: Boolean
-}
-
-input IOSReceiptBody {
-  "Base64 encoded receipt data"
-  receiptData: String!
-  
-  "Shared secret for subscriptions"
-  password: String
-}`}</CodeBlock>
-
-        <AnchorLink id="validation-result" level="h3">
-          ReceiptValidationResult
-        </AnchorLink>
-        <CodeBlock language="graphql">{`type ReceiptValidationResult {
-  "Validation success status"
-  isValid: Boolean!
-  
-  "HTTP status code"
-  status: Int!
-  
-  "iOS response fields: receipt object"
-  receipt: JSON
-  
-  "Latest receipt string"
-  latestReceipt: String
-  
-  "Latest receipt info array"
-  latestReceiptInfo: [JSON]
-  
-  "Pending renewal info"
-  pendingRenewalInfo: [JSON]
-  
-  "Android response fields: Purchase state (0=purchased, 1=canceled)"
-  purchaseState: Int
-  
-  "Consumption state"
-  consumptionState: Int
-  
-  "Acknowledgement state"
-  acknowledgementState: Int
-}`}</CodeBlock>
-      </section>
-
-      <section>
-        <AnchorLink id="event-types" level="h2">
-          Event Types
-        </AnchorLink>
-
-        <AnchorLink id="iap-event" level="h3">
-          IapEvent
-        </AnchorLink>
-        <CodeBlock language="graphql">{`enum IapEvent {
-  "Purchase successful or updated"
-  PURCHASE_UPDATED
-  
-  "Purchase failed or cancelled"
-  PURCHASE_ERROR
-  
-  "Promoted product clicked (iOS)"
-  PROMOTED_PRODUCT_IOS
-}`}</CodeBlock>
-
-        <AnchorLink id="purchase-error" level="h3">
-          PurchaseError
-        </AnchorLink>
-        <CodeBlock language="graphql">{`type PurchaseError {
-  "Error code constant"
-  code: String!
-  
-  "Human-readable error message"
-  message: String!
-  
-  "Related product SKU"
-  productId: String
 }`}</CodeBlock>
       </section>
     </div>

@@ -98,7 +98,7 @@ fetchProducts(params: ProductRequest!): Future
 
 type ProductRequest {
   skus: [String]!
-  type?: ProductType  "Values: 'inapp' | 'subs', defaults to 'inapp'"
+  type?: ProductType  "Values: 'inapp' | 'subs'. If not provided, fetches both types"
 }`}</CodeBlock>
         <p className="type-link">
           See: <Link to="/docs/types#product">Product</Link>,{' '}
@@ -107,8 +107,9 @@ type ProductRequest {
         <p>
           Returns a future that completes with an array of products or
           subscriptions matching the provided SKUs. Use{' '}
-          <code>type: "inapp"</code> for regular products (default) and{' '}
-          <code>type: "subs"</code> for subscriptions.
+          <code>type: "inapp"</code> for regular products only,{' '}
+          <code>type: "subs"</code> for subscriptions only, or omit the type
+          parameter to fetch both products and subscriptions.
         </p>
 
         <AnchorLink id="get-available-purchases" level="h3">
@@ -196,7 +197,7 @@ requestPurchase(params: PurchaseParams): Future
 
 type PurchaseParams {
   request: RequestPurchaseProps | RequestSubscriptionProps
-  type?: String  "Values: 'inapp' | 'subs', defaults to 'inapp'"
+  type?: String  "'inapp' | 'subs', defaults to 'inapp'"
 }`}</CodeBlock>
         <p className="type-link">
           See:{' '}
@@ -210,11 +211,18 @@ type PurchaseParams {
           , <Link to="/docs/types#purchase">Purchase</Link>
         </p>
         <p>
-          Initiates a purchase flow for any product type. Use{' '}
-          <code>type: 'subs'</code>
-          for subscription purchases. Returns a Purchase object (iOS) or array
-          (Android).
+          Initiates a purchase flow for any product type. Returns a Purchase
+          object (iOS) or array (Android).
         </p>
+        <blockquote className="info-note">
+          <p>
+            <strong>Note:</strong> The <code>type</code> parameter is required
+            for Android to properly distinguish between regular in-app purchases
+            and subscriptions in the Google Play Billing system. While iOS can
+            determine the type from the product itself, Android requires
+            explicit type specification.
+          </p>
+        </blockquote>
 
         <AnchorLink id="finish-transaction" level="h3">
           finishTransaction

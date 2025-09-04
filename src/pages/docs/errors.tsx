@@ -86,13 +86,6 @@ function Errors() {
             </tr>
             <tr>
               <td>
-                <code>E_PRODUCT_NOT_AVAILABLE</code>
-              </td>
-              <td>Product SKU not found</td>
-              <td>Verify SKU matches store configuration</td>
-            </tr>
-            <tr>
-              <td>
                 <code>E_SKU_NOT_FOUND</code>
               </td>
               <td>SKU not found in product list</td>
@@ -111,13 +104,6 @@ function Errors() {
               </td>
               <td>Failed to query product details</td>
               <td>Check product IDs and retry</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_PRODUCT_ALREADY_OWNED</code>
-              </td>
-              <td>Non-consumable product already purchased</td>
-              <td>Restore purchases or check purchase history</td>
             </tr>
             <tr>
               <td>
@@ -418,7 +404,7 @@ function Errors() {
           <thead>
             <tr>
               <th>Error Type</th>
-              <th>Retryable</th>
+              <th>Can Retry</th>
               <th>Strategy</th>
             </tr>
           </thead>
@@ -575,7 +561,7 @@ function Errors() {
             </tr>
             <tr>
               <td>8</td>
-              <td>E_PRODUCT_NOT_AVAILABLE</td>
+              <td>E_ITEM_NOT_OWNED</td>
               <td>Item not owned</td>
             </tr>
           </tbody>
@@ -674,39 +660,45 @@ function Errors() {
       </section>
 
       <section>
-        <h2>Best Practices</h2>
-        <ul>
-          <li>
-            <strong>Log all errors</strong> - Track error patterns for debugging
-          </li>
-          <li>
-            <strong>Provide clear user feedback</strong> - Map technical errors
-            to user-friendly messages
-          </li>
-          <li>
-            <strong>Handle errors gracefully</strong> - Don't crash the app on
-            purchase errors
-          </li>
-          <li>
-            <strong>Implement retry logic</strong> - For transient
-            network/service errors
-          </li>
-          <li>
-            <strong>Track error metrics</strong> - Monitor error rates and types
-          </li>
-          <li>
-            <strong>Test error scenarios</strong> - Use sandbox/test
-            environments
-          </li>
-          <li>
-            <strong>Document error codes</strong> - Keep error documentation
-            updated
-          </li>
-          <li>
-            <strong>Consider error recovery</strong> - Provide alternatives when
-            purchases fail
-          </li>
-        </ul>
+        <h2>ErrorCode Enum</h2>
+        <p>
+          Complete list of error codes that can be returned by the IAP library.
+        </p>
+        <CodeBlock language="typescript">{`enum ErrorCode {
+  E_UNKNOWN = 'E_UNKNOWN',
+  E_USER_CANCELLED = 'E_USER_CANCELLED',
+  E_USER_ERROR = 'E_USER_ERROR',
+  E_ITEM_UNAVAILABLE = 'E_ITEM_UNAVAILABLE',
+  E_REMOTE_ERROR = 'E_REMOTE_ERROR',
+  E_NETWORK_ERROR = 'E_NETWORK_ERROR',
+  E_SERVICE_ERROR = 'E_SERVICE_ERROR',
+  E_RECEIPT_FAILED = 'E_RECEIPT_FAILED',
+  E_RECEIPT_FINISHED_FAILED = 'E_RECEIPT_FINISHED_FAILED',
+  E_NOT_PREPARED = 'E_NOT_PREPARED',
+  E_NOT_ENDED = 'E_NOT_ENDED',
+  E_ALREADY_OWNED = 'E_ALREADY_OWNED',
+  E_DEVELOPER_ERROR = 'E_DEVELOPER_ERROR',
+  E_BILLING_RESPONSE_JSON_PARSE_ERROR = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
+  E_DEFERRED_PAYMENT = 'E_DEFERRED_PAYMENT',
+  E_INTERRUPTED = 'E_INTERRUPTED',
+  E_IAP_NOT_AVAILABLE = 'E_IAP_NOT_AVAILABLE',
+  E_PURCHASE_ERROR = 'E_PURCHASE_ERROR',
+  E_SYNC_ERROR = 'E_SYNC_ERROR',
+  E_TRANSACTION_VALIDATION_FAILED = 'E_TRANSACTION_VALIDATION_FAILED',
+  E_ACTIVITY_UNAVAILABLE = 'E_ACTIVITY_UNAVAILABLE',
+  E_ALREADY_PREPARED = 'E_ALREADY_PREPARED',
+  E_PENDING = 'E_PENDING',
+  E_CONNECTION_CLOSED = 'E_CONNECTION_CLOSED',
+  E_INIT_CONNECTION = 'E_INIT_CONNECTION',
+  E_SERVICE_DISCONNECTED = 'E_SERVICE_DISCONNECTED',
+  E_QUERY_PRODUCT = 'E_QUERY_PRODUCT',
+  E_SKU_NOT_FOUND = 'E_SKU_NOT_FOUND',
+  E_SKU_OFFER_MISMATCH = 'E_SKU_OFFER_MISMATCH',
+  E_ITEM_NOT_OWNED = 'E_ITEM_NOT_OWNED',
+  E_BILLING_UNAVAILABLE = 'E_BILLING_UNAVAILABLE',
+  E_FEATURE_NOT_SUPPORTED = 'E_FEATURE_NOT_SUPPORTED',
+  E_EMPTY_SKU_LIST = 'E_EMPTY_SKU_LIST',
+}`}</CodeBlock>
       </section>
     </div>
   );
