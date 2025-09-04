@@ -69,16 +69,14 @@ function Types() {
   id: string;
   title: string;
   description: string;
-  type: ProductType;
+  type: "inapp" | "subs";  // Product type for Android compatibility
   displayName?: string;
   displayPrice: string;
   currency: string;
   price?: number;
   debugDescription?: string;
   platform?: string;  // Added for platform identification
-};
-
-type ProductType = 'inapp' | 'subs';`}</CodeBlock>
+};`}</CodeBlock>
 
         <h3>Platform-Specific Fields</h3>
         <PlatformTabs>
@@ -92,7 +90,17 @@ type ProductType = 'inapp' | 'subs';`}</CodeBlock>
   jsonRepresentationIOS: string;
   platform: "ios";  // Literal type
   subscriptionInfoIOS?: SubscriptionInfo;
+  typeIOS: ProductTypeIOS;  // Detailed iOS product type
 };
+
+
+// iOS detailed product types
+enum ProductTypeIOS {
+  consumable = "consumable",
+  nonConsumable = "nonConsumable", 
+  autoRenewableSubscription = "autoRenewableSubscription",
+  nonRenewingSubscription = "nonRenewingSubscription"
+}
 
 type SubscriptionInfo = {
   introductoryOffer?: SubscriptionOffer;
@@ -244,7 +252,19 @@ type ProductSubscriptionAndroid = ProductAndroid & {
   transactionReceipt: string;
   purchaseToken?: string;
   platform?: string;  // Added for platform identification
-};`}</CodeBlock>
+  quantity: number;  // Purchase quantity (defaults to 1)
+  purchaseState: PurchaseState;  // Purchase state (common field)
+  isAutoRenewing: boolean;  // Auto-renewable subscription flag (common field)
+};
+
+enum PurchaseState {
+  pending = "pending",
+  purchased = "purchased", 
+  failed = "failed",
+  restored = "restored",   // iOS only
+  deferred = "deferred",    // iOS only
+  unknown = "unknown"
+}`}</CodeBlock>
 
         <h3>Platform-Specific Fields</h3>
         <PlatformTabs>
@@ -263,7 +283,6 @@ type ProductSubscriptionAndroid = ProductAndroid & {
   environmentIOS?: string;
   storefrontCountryCodeIOS?: string;
   appBundleIdIOS?: string;
-  productTypeIOS?: string;
   subscriptionGroupIdIOS?: string;
   isUpgradedIOS?: boolean;
   ownershipTypeIOS?: string;
@@ -287,24 +306,22 @@ type ProductSubscriptionAndroid = ProductAndroid & {
             android: (
               <>
                 <h4>PurchaseAndroid</h4>
-                <CodeBlock language="typescript">{`export enum PurchaseAndroidState {
-  UNSPECIFIED_STATE = 0,
-  PURCHASED = 1,
-  PENDING = 2,
-}
-
-type PurchaseAndroid = PurchaseCommon & {
+                <CodeBlock language="typescript">{`type PurchaseAndroid = PurchaseCommon & {
   platform: "android";  // Literal type
   dataAndroid?: string;
   signatureAndroid?: string;
   autoRenewingAndroid?: boolean;
-  purchaseStateAndroid?: PurchaseAndroidState;
   isAcknowledgedAndroid?: boolean;
   packageNameAndroid?: string;
   developerPayloadAndroid?: string;
   obfuscatedAccountIdAndroid?: string;
   obfuscatedProfileIdAndroid?: string;
-};`}</CodeBlock>
+};
+
+// Note: Android only maps to these PurchaseState values:
+// - "purchased" (Google Play state 1)
+// - "pending" (Google Play state 2)
+// - "failed" (Google Play state 0 or errors)`}</CodeBlock>
               </>
             ),
           }}
@@ -338,6 +355,46 @@ type SubscriptionProduct =
 type Purchase =
   | (PurchaseAndroid & AndroidPlatform)
   | (PurchaseIOS & IosPlatform);`}</CodeBlock>
+      </section>
+
+      <section>
+        <AnchorLink id="product-request" level="h2">
+          Product Request
+        </AnchorLink>
+        <p>Product request parameters for fetching products from the store.</p>
+
+        <h3>ProductRequest</h3>
+        <CodeBlock language="typescript">{`type ProductRequest = {
+  skus: string[];                           // Product SKUs to fetch
+  type?: "inapp" | "subs" | "all";         // Filter type (default: "inapp")
+};
+
+// Filter types:
+// - "inapp": Returns consumable, nonConsumable, and nonRenewingSubscription
+// - "subs": Returns only autoRenewableSubscription
+// - "all": Returns all product types`}</CodeBlock>
+
+        <h3>Usage Example</h3>
+        <CodeBlock language="typescript">{`// Fetch in-app purchases (default)
+const inappProducts = await getProducts({ skus: ["product1", "product2"] });
+
+// Explicitly fetch in-app purchases
+const inappProducts = await getProducts({ 
+  skus: ["product1", "product2"],
+  type: "inapp"
+});
+
+// Fetch only subscriptions
+const subscriptions = await getProducts({ 
+  skus: ["sub1", "sub2"],
+  type: "subs"
+});
+
+// Fetch all products (both in-app and subscriptions)
+const allProducts = await getProducts({ 
+  skus: ["product1", "sub1"],
+  type: "all"
+});`}</CodeBlock>
       </section>
 
       <section>
@@ -675,14 +732,6 @@ type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidatio
   
   "Recurrence mode"
   recurrenceMode: RecurrenceMode
-}`}</CodeBlock>
-
-                <h4>PurchaseStateAndroid</h4>
-                <p>Purchase state values for Android transactions.</p>
-                <CodeBlock language="graphql">{`enum PurchaseStateAndroid {
-  UNSPECIFIED_STATE  # 0 - Unspecified state
-  PURCHASED          # 1 - Purchase completed
-  PENDING            # 2 - Purchase pending
 }`}</CodeBlock>
 
                 <h4>PricingPhasesAndroid</h4>

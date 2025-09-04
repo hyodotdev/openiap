@@ -42,8 +42,8 @@ function Protocol() {
   
   // Purchase history
   getAvailablePurchases(params?: {
-    alsoPublishToEventListener?: boolean
-    onlyIncludeActiveItems?: boolean
+    alsoPublishToEventListenerIOS?: boolean
+    onlyIncludeActiveItemsIOS?: boolean
   }): Promise<Purchase[]>
   
   // Receipt validation (server-side recommended)

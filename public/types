@@ -6,7 +6,13 @@ export type ChangeEventPayload = {
   value: string;
 };
 
-export type ProductType = 'inapp' | 'subs';
+// iOS detailed product types (4 types)
+export enum ProductTypeIOS {
+  consumable = 'consumable',
+  nonConsumable = 'nonConsumable',
+  autoRenewableSubscription = 'autoRenewableSubscription',
+  nonRenewingSubscription = 'nonRenewingSubscription',
+}
 
 // ============================================================================
 // COMMON TYPES (Base types shared across all platforms)
@@ -22,8 +28,8 @@ export type ProductCommon = {
   title: string;
   /** Product description */
   description: string;
-  /** Product type: 'inapp' for one-time purchases (consumable/non-consumable), 'subs' for subscriptions */
-  type: ProductType;
+  /** Product type: 'inapp' or 'subs' for Android compatibility */
+  type: 'inapp' | 'subs';  // Note: this is the actual product type, not for filtering
   /** Display name for the product */
   displayName?: string;
   /** Formatted price string for display (e.g., "$9.99") */
@@ -59,7 +65,22 @@ export type PurchaseCommon = {
   purchaseToken?: string;
   /** Platform identifier ('ios' or 'android') */
   platform?: string;
+  /** Purchase quantity (defaults to 1) */
+  quantity: number;
+  /** Purchase state (common field) */
+  purchaseState: PurchaseState;
+  /** Auto-renewable subscription flag (common field) */
+  isAutoRenewing: boolean;
 };
+
+export enum PurchaseState {
+  pending = 'pending',
+  purchased = 'purchased',
+  failed = 'failed',
+  restored = 'restored', // iOS only
+  deferred = 'deferred', // iOS only
+  unknown = 'unknown',
+}
 
 export type ProductSubscriptionCommon = ProductCommon & {
   type: 'subs';
@@ -118,6 +139,7 @@ export type ProductIOS = ProductCommon & {
   jsonRepresentationIOS: string;
   platform: 'ios';
   subscriptionInfoIOS?: SubscriptionInfo;
+  typeIOS: ProductTypeIOS; // Detailed iOS product type
   // deprecated fields
   displayName?: string;
   isFamilyShareable?: boolean;
@@ -235,12 +257,6 @@ export type ProductSubscriptionAndroid = ProductAndroid & {
   subscriptionOfferDetails?: ProductSubscriptionAndroidOfferDetails[];
 };
 
-export enum PurchaseAndroidState {
-  UNSPECIFIED_STATE = 0,
-  PURCHASED = 1,
-  PENDING = 2,
-}
-
 export type PurchaseAndroid = PurchaseCommon & {
   platform: 'android';
   /**
@@ -250,7 +266,6 @@ export type PurchaseAndroid = PurchaseCommon & {
   dataAndroid?: string;
   signatureAndroid?: string;
   autoRenewingAndroid?: boolean;
-  purchaseStateAndroid?: PurchaseAndroidState;
   isAcknowledgedAndroid?: boolean;
   packageNameAndroid?: string;
   developerPayloadAndroid?: string;
@@ -311,6 +326,14 @@ export type Purchase =
 // ============================================================================
 // REQUEST TYPES
 // ============================================================================
+
+// Product request parameters for fetching products from the store
+export interface ProductRequest {
+  /** Product SKUs to fetch */
+  skus: string[];
+  /** Filter type: "inapp" (default), "subs", or "all" */
+  type?: 'inapp' | 'subs' | 'all';
+}
 
 // iOS-specific purchase request parameters
 export interface RequestPurchaseIosProps {
@@ -441,9 +464,9 @@ export type AppTransactionIOS = {
  */
 export interface PurchaseOptions {
   /** Whether to also publish purchases to event listener */
-  alsoPublishToEventListener?: boolean;
+  alsoPublishToEventListenerIOS?: boolean;
   /** Whether to only include active items (subscriptions that are still active) */
-  onlyIncludeActiveItems?: boolean;
+  onlyIncludeActiveItemsIOS?: boolean;
 }
 
 /**
@@ -501,22 +524,11 @@ export interface IapContext {
   /**
    * Fetch products from the store
    * @param params.skus - Array of product SKUs to fetch
-   * @param params.type - Type of products: 'inapp' for regular products, 'subs' for subscriptions, or omit to fetch both
+   * @param params.type - Type of products: 'inapp' for regular products, 'subs' for subscriptions, 'all' to fetch both. Defaults to 'inapp'
    */
   fetchProducts(params: {
     skus: string[];
-    type?: ProductType; // 'inapp' | 'subs', if not provided fetches both
-  }): Promise<Product[] | SubscriptionProduct[]>;
-
-  /**
-   * @deprecated Use fetchProducts instead
-   * Request products from the store
-   * @param params.skus - Array of product SKUs to fetch
-   * @param params.type - Type of products: 'inapp' for regular products, 'subs' for subscriptions, or omit to fetch both
-   */
-  requestProducts(params: {
-    skus: string[];
-    type?: ProductType; // 'inapp' | 'subs', if not provided fetches both
+    type?: 'inapp' | 'subs' | 'all'; // Defaults to 'inapp'
   }): Promise<Product[] | SubscriptionProduct[]>;
 
   // Purchase methods
@@ -548,11 +560,6 @@ export interface IapContext {
    * - Active subscriptions
    */
   getAvailablePurchases(options?: PurchaseOptions): Promise<Purchase[]>;
-  /**
-   * Get purchase history (iOS only, deprecated on Android).
-   * On Android with Play Billing v8+, returns empty array.
-   */
-  getPurchaseHistories(options?: PurchaseOptions): Promise<Purchase[]>;
 
   // Receipt validation
   /** Validate a receipt (server-side validation recommended) */
@@ -622,7 +629,7 @@ export interface ReceiptValidationResultAndroid {
   gracePeriodEndDate: number;
   parentProductId: string;
   productId: string;
-  productType: string;
+  productType: 'inapp' | 'subs';
   purchaseDate: number;
   quantity: number;
   receiptId: string;
@@ -635,7 +642,9 @@ export interface ReceiptValidationResultAndroid {
 /**
  * Receipt validation result from receipt validation
  */
-export type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidationResultIOS;
+export type ReceiptValidationResult =
+  | ReceiptValidationResultAndroid
+  | ReceiptValidationResultIOS;
 
 /**
  * Represents an active subscription with platform-specific details
