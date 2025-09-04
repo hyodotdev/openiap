@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../components/CodeBlock';
+import PlatformTabs from '../../components/PlatformTabs';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function Errors() {
@@ -252,92 +253,6 @@ function Errors() {
             </tr>
           </tbody>
         </table>
-
-        <h3>Platform-Specific Errors</h3>
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Description</th>
-              <th>Platform</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>E_PENDING</code>
-              </td>
-              <td>Purchase is pending approval</td>
-              <td>Android</td>
-              <td>Wait for purchase to complete</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_NOT_ENDED</code>
-              </td>
-              <td>Transaction not finished</td>
-              <td>iOS</td>
-              <td>Call finishTransaction()</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_DEVELOPER_ERROR</code>
-              </td>
-              <td>Developer configuration error</td>
-              <td>Both</td>
-              <td>Check app configuration and certificates</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_UNKNOWN</code>
-              </td>
-              <td>Unknown error occurred</td>
-              <td>Both</td>
-              <td>Check logs for details</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_NOT_PREPARED</code>
-              </td>
-              <td>Store connection not initialized</td>
-              <td>Both</td>
-              <td>Call initConnection() first</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_ALREADY_PREPARED</code>
-              </td>
-              <td>Store connection already initialized</td>
-              <td>Both</td>
-              <td>Connection already established</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_BILLING_RESPONSE_JSON_PARSE_ERROR</code>
-              </td>
-              <td>Failed to parse billing response</td>
-              <td>Android</td>
-              <td>Check response format, report bug if persistent</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_PURCHASE_ERROR</code>
-              </td>
-              <td>General purchase error</td>
-              <td>Both</td>
-              <td>Check error details and retry</td>
-            </tr>
-            <tr>
-              <td>
-                <code>E_ACTIVITY_UNAVAILABLE</code>
-              </td>
-              <td>Activity context not available</td>
-              <td>Android</td>
-              <td>Ensure app is in foreground</td>
-            </tr>
-          </tbody>
-        </table>
       </section>
 
       <section>
@@ -366,40 +281,13 @@ function Errors() {
           </li>
         </ul>
 
-        <h3>Error Severity Classification</h3>
-        <p>Classify errors by severity for appropriate handling:</p>
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Severity</th>
-              <th>Error Codes</th>
-              <th>Handling</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Info</td>
-              <td>E_USER_CANCELLED, E_ALREADY_PREPARED</td>
-              <td>Log only, no user notification</td>
-            </tr>
-            <tr>
-              <td>Warning</td>
-              <td>
-                E_ALREADY_OWNED, E_PENDING, E_DEFERRED_PAYMENT, E_NOT_PREPARED,
-                E_INTERRUPTED
-              </td>
-              <td>Log and attempt recovery</td>
-            </tr>
-            <tr>
-              <td>Error</td>
-              <td>All others</td>
-              <td>Log, notify user, report to analytics</td>
-            </tr>
-          </tbody>
-        </table>
-
         <h3>Retry Strategy</h3>
         <p>Implement retry logic for transient errors:</p>
+        <div className="info-note">
+          <strong>Note:</strong> These retry strategies are automatically
+          handled within the OpenIAP module. You don't need to implement them
+          manually.
+        </div>
         <table className="error-table">
           <thead>
             <tr>
@@ -461,111 +349,162 @@ function Errors() {
       <section>
         <h2>Platform-Specific Error Handling</h2>
 
-        <h3>iOS Error Codes</h3>
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Native Code</th>
-              <th>Mapped Error</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>0</td>
-              <td>E_UNKNOWN</td>
-              <td>Unknown error</td>
-            </tr>
-            <tr>
-              <td>1</td>
-              <td>E_USER_CANCELLED</td>
-              <td>User cancelled transaction</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>E_NETWORK_ERROR</td>
-              <td>Network unavailable</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>E_ITEM_UNAVAILABLE</td>
-              <td>Product not available</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td>E_SERVICE_ERROR</td>
-              <td>App Store service error</td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td>E_RECEIPT_FAILED</td>
-              <td>Receipt validation failed</td>
-            </tr>
-            <tr>
-              <td>6</td>
-              <td>E_ALREADY_OWNED</td>
-              <td>Product already purchased</td>
-            </tr>
-          </tbody>
-        </table>
+        <PlatformTabs>
+          {{
+            ios: (
+              <>
+                <h3>iOS Error Codes</h3>
+                <table className="error-table">
+                  <thead>
+                    <tr>
+                      <th>Native Code</th>
+                      <th>Mapped Error</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>0</td>
+                      <td>E_UNKNOWN</td>
+                      <td>Unknown error</td>
+                    </tr>
+                    <tr>
+                      <td>1</td>
+                      <td>E_USER_CANCELLED</td>
+                      <td>User cancelled transaction</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>E_NETWORK_ERROR</td>
+                      <td>Network unavailable</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>E_ITEM_UNAVAILABLE</td>
+                      <td>Product not available</td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td>E_SERVICE_ERROR</td>
+                      <td>App Store service error</td>
+                    </tr>
+                    <tr>
+                      <td>5</td>
+                      <td>E_RECEIPT_FAILED</td>
+                      <td>Receipt validation failed</td>
+                    </tr>
+                    <tr>
+                      <td>6</td>
+                      <td>E_ALREADY_OWNED</td>
+                      <td>Product already purchased</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            ),
+            android: (
+              <>
+                <h3>Android Response Codes</h3>
+                <table className="error-table">
+                  <thead>
+                    <tr>
+                      <th>Response Code</th>
+                      <th>Mapped Error</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>0</td>
+                      <td>OK</td>
+                      <td>Success</td>
+                    </tr>
+                    <tr>
+                      <td>1</td>
+                      <td>E_USER_CANCELLED</td>
+                      <td>User pressed back or cancelled</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>E_SERVICE_ERROR</td>
+                      <td>Network connection down</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>E_SERVICE_ERROR</td>
+                      <td>Billing API unavailable</td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td>E_ITEM_UNAVAILABLE</td>
+                      <td>Requested product not available</td>
+                    </tr>
+                    <tr>
+                      <td>5</td>
+                      <td>E_DEVELOPER_ERROR</td>
+                      <td>Invalid arguments provided</td>
+                    </tr>
+                    <tr>
+                      <td>6</td>
+                      <td>E_UNKNOWN</td>
+                      <td>Fatal error during API action</td>
+                    </tr>
+                    <tr>
+                      <td>7</td>
+                      <td>E_ALREADY_OWNED</td>
+                      <td>Item already owned</td>
+                    </tr>
+                    <tr>
+                      <td>8</td>
+                      <td>E_ITEM_NOT_OWNED</td>
+                      <td>Item not owned</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            ),
+          }}
+        </PlatformTabs>
 
-        <h3>Android Response Codes</h3>
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Response Code</th>
-              <th>Mapped Error</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>0</td>
-              <td>OK</td>
-              <td>Success</td>
-            </tr>
-            <tr>
-              <td>1</td>
-              <td>E_USER_CANCELLED</td>
-              <td>User pressed back or cancelled</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>E_SERVICE_ERROR</td>
-              <td>Network connection down</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>E_SERVICE_ERROR</td>
-              <td>Billing API unavailable</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td>E_ITEM_UNAVAILABLE</td>
-              <td>Requested product not available</td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td>E_DEVELOPER_ERROR</td>
-              <td>Invalid arguments provided</td>
-            </tr>
-            <tr>
-              <td>6</td>
-              <td>E_UNKNOWN</td>
-              <td>Fatal error during API action</td>
-            </tr>
-            <tr>
-              <td>7</td>
-              <td>E_ALREADY_OWNED</td>
-              <td>Item already owned</td>
-            </tr>
-            <tr>
-              <td>8</td>
-              <td>E_ITEM_NOT_OWNED</td>
-              <td>Item not owned</td>
-            </tr>
-          </tbody>
-        </table>
+        <h3>ErrorCode Enum (Unified)</h3>
+        <p>
+          Complete list of error codes that can be returned by the IAP library.
+        </p>
+        <CodeBlock language="typescript">{`enum ErrorCode {
+  E_UNKNOWN = 'E_UNKNOWN',
+  E_USER_CANCELLED = 'E_USER_CANCELLED',
+  E_USER_ERROR = 'E_USER_ERROR',
+  E_ITEM_UNAVAILABLE = 'E_ITEM_UNAVAILABLE',
+  E_REMOTE_ERROR = 'E_REMOTE_ERROR',
+  E_NETWORK_ERROR = 'E_NETWORK_ERROR',
+  E_SERVICE_ERROR = 'E_SERVICE_ERROR',
+  E_RECEIPT_FAILED = 'E_RECEIPT_FAILED',
+  E_RECEIPT_FINISHED_FAILED = 'E_RECEIPT_FINISHED_FAILED',
+  E_NOT_PREPARED = 'E_NOT_PREPARED',
+  E_NOT_ENDED = 'E_NOT_ENDED',
+  E_ALREADY_OWNED = 'E_ALREADY_OWNED',
+  E_DEVELOPER_ERROR = 'E_DEVELOPER_ERROR',
+  E_BILLING_RESPONSE_JSON_PARSE_ERROR = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
+  E_DEFERRED_PAYMENT = 'E_DEFERRED_PAYMENT',
+  E_INTERRUPTED = 'E_INTERRUPTED',
+  E_IAP_NOT_AVAILABLE = 'E_IAP_NOT_AVAILABLE',
+  E_PURCHASE_ERROR = 'E_PURCHASE_ERROR',
+  E_SYNC_ERROR = 'E_SYNC_ERROR',
+  E_TRANSACTION_VALIDATION_FAILED = 'E_TRANSACTION_VALIDATION_FAILED',
+  E_ACTIVITY_UNAVAILABLE = 'E_ACTIVITY_UNAVAILABLE',
+  E_ALREADY_PREPARED = 'E_ALREADY_PREPARED',
+  E_PENDING = 'E_PENDING',
+  E_CONNECTION_CLOSED = 'E_CONNECTION_CLOSED',
+  E_INIT_CONNECTION = 'E_INIT_CONNECTION',
+  E_SERVICE_DISCONNECTED = 'E_SERVICE_DISCONNECTED',
+  E_QUERY_PRODUCT = 'E_QUERY_PRODUCT',
+  E_SKU_NOT_FOUND = 'E_SKU_NOT_FOUND',
+  E_SKU_OFFER_MISMATCH = 'E_SKU_OFFER_MISMATCH',
+  E_ITEM_NOT_OWNED = 'E_ITEM_NOT_OWNED',
+  E_BILLING_UNAVAILABLE = 'E_BILLING_UNAVAILABLE',
+  E_FEATURE_NOT_SUPPORTED = 'E_FEATURE_NOT_SUPPORTED',
+  E_EMPTY_SKU_LIST = 'E_EMPTY_SKU_LIST',
+}`}</CodeBlock>
       </section>
 
       <section>
@@ -657,48 +596,6 @@ function Errors() {
           <li>Validate retry logic</li>
           <li>Ensure proper error recovery</li>
         </ul>
-      </section>
-
-      <section>
-        <h2>ErrorCode Enum</h2>
-        <p>
-          Complete list of error codes that can be returned by the IAP library.
-        </p>
-        <CodeBlock language="typescript">{`enum ErrorCode {
-  E_UNKNOWN = 'E_UNKNOWN',
-  E_USER_CANCELLED = 'E_USER_CANCELLED',
-  E_USER_ERROR = 'E_USER_ERROR',
-  E_ITEM_UNAVAILABLE = 'E_ITEM_UNAVAILABLE',
-  E_REMOTE_ERROR = 'E_REMOTE_ERROR',
-  E_NETWORK_ERROR = 'E_NETWORK_ERROR',
-  E_SERVICE_ERROR = 'E_SERVICE_ERROR',
-  E_RECEIPT_FAILED = 'E_RECEIPT_FAILED',
-  E_RECEIPT_FINISHED_FAILED = 'E_RECEIPT_FINISHED_FAILED',
-  E_NOT_PREPARED = 'E_NOT_PREPARED',
-  E_NOT_ENDED = 'E_NOT_ENDED',
-  E_ALREADY_OWNED = 'E_ALREADY_OWNED',
-  E_DEVELOPER_ERROR = 'E_DEVELOPER_ERROR',
-  E_BILLING_RESPONSE_JSON_PARSE_ERROR = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
-  E_DEFERRED_PAYMENT = 'E_DEFERRED_PAYMENT',
-  E_INTERRUPTED = 'E_INTERRUPTED',
-  E_IAP_NOT_AVAILABLE = 'E_IAP_NOT_AVAILABLE',
-  E_PURCHASE_ERROR = 'E_PURCHASE_ERROR',
-  E_SYNC_ERROR = 'E_SYNC_ERROR',
-  E_TRANSACTION_VALIDATION_FAILED = 'E_TRANSACTION_VALIDATION_FAILED',
-  E_ACTIVITY_UNAVAILABLE = 'E_ACTIVITY_UNAVAILABLE',
-  E_ALREADY_PREPARED = 'E_ALREADY_PREPARED',
-  E_PENDING = 'E_PENDING',
-  E_CONNECTION_CLOSED = 'E_CONNECTION_CLOSED',
-  E_INIT_CONNECTION = 'E_INIT_CONNECTION',
-  E_SERVICE_DISCONNECTED = 'E_SERVICE_DISCONNECTED',
-  E_QUERY_PRODUCT = 'E_QUERY_PRODUCT',
-  E_SKU_NOT_FOUND = 'E_SKU_NOT_FOUND',
-  E_SKU_OFFER_MISMATCH = 'E_SKU_OFFER_MISMATCH',
-  E_ITEM_NOT_OWNED = 'E_ITEM_NOT_OWNED',
-  E_BILLING_UNAVAILABLE = 'E_BILLING_UNAVAILABLE',
-  E_FEATURE_NOT_SUPPORTED = 'E_FEATURE_NOT_SUPPORTED',
-  E_EMPTY_SKU_LIST = 'E_EMPTY_SKU_LIST',
-}`}</CodeBlock>
       </section>
     </div>
   );

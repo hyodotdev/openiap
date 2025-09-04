@@ -14,8 +14,8 @@ function Updates() {
 
         <div
           style={{
-            background: 'rgba(0, 200, 100, 0.1)',
-            border: '1px solid rgba(0, 200, 100, 0.3)',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
             borderRadius: '0.5rem',
             padding: '1rem',
             marginBottom: '1.5rem',
@@ -60,8 +60,8 @@ function Updates() {
 
         <div
           style={{
-            background: 'rgba(255, 200, 0, 0.1)',
-            border: '1px solid rgba(255, 200, 0, 0.3)',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
             borderRadius: '0.5rem',
             padding: '1rem',
             marginBottom: '1.5rem',

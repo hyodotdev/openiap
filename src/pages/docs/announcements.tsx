@@ -11,13 +11,12 @@ function Announcements() {
       <section>
         <div
           style={{
-            background:
-              'linear-gradient(135deg, rgba(24, 119, 242, 0.1) 0%, rgba(24, 119, 242, 0.05) 100%)',
-            border: '2px solid rgba(24, 119, 242, 0.3)',
+            background: 'var(--bg-secondary)',
+            border: '2px solid var(--border-color)',
             borderRadius: '1rem',
             padding: '2rem',
             marginBottom: '2rem',
-            boxShadow: '0 4px 12px rgba(24, 119, 242, 0.1)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           }}
         >
           <div
@@ -35,7 +34,10 @@ function Announcements() {
                 href="https://meta.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: '#1877F2', textDecoration: 'none' }}
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'none',
+                }}
               >
                 Meta
               </a>
@@ -60,9 +62,9 @@ function Announcements() {
             style={{
               marginTop: '1.5rem',
               padding: '1rem',
-              background: 'rgba(24, 119, 242, 0.05)',
+              background: 'var(--bg-secondary)',
               borderRadius: '0.5rem',
-              borderLeft: '4px solid rgba(24, 119, 242, 0.5)',
+              borderLeft: '4px solid var(--primary-color)',
             }}
           >
             <strong>Note:</strong> Open IAP will continue to operate

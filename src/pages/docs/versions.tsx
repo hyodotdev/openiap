@@ -9,6 +9,63 @@ function Versions() {
       <h1>Version History</h1>
 
       <section>
+        <AnchorLink id="v1-1-0" level="h2">
+          v1.1.0 (2025.09)
+        </AnchorLink>
+        <ul>
+          <li>
+            <strong>Type System Improvements:</strong>
+            <ul>
+              <li>Renamed PaymentDiscount → DiscountOffer for clarity</li>
+              <li>
+                Added comprehensive ErrorCode enum with 34 error constants
+              </li>
+              <li>Renamed IapEvent → OpenIapEvent for consistency</li>
+              <li>
+                Fixed fetchProducts type parameter behavior (fetches both types
+                when not specified)
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Documentation Restructuring:</strong>
+            <ul>
+              <li>
+                Added PlatformTabs component with iOS/Android content separation
+                and smooth animations
+              </li>
+              <li>
+                Restructured Platform-Specific Types and Error Handling with
+                tabbed navigation
+              </li>
+              <li>
+                Unified ErrorCode enum location and removed duplicate error
+                tables
+              </li>
+              <li>Added info-note styling and retry strategy notes</li>
+              <li>
+                Changed "ProductCommon" to "Common Fields" throughout
+                documentation
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <div className="version-links">
+          <strong>Key Changes:</strong>
+          <ul>
+            <li>Type definitions now match actual implementation exactly</li>
+            <li>Platform-specific documentation clearly separated</li>
+            <li>
+              Unified error handling approach with comprehensive error codes
+            </li>
+            <li>
+              Improved developer experience with clearer naming conventions
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
         <AnchorLink id="v1-0-1" level="h2">
           v1.0.1 (2025.09)
         </AnchorLink>
