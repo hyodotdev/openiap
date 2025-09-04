@@ -167,3 +167,78 @@
   width: 20px;
   height: 20px;
 }
+
+/* Platform Tabs */
+.platform-tabs {
+  margin: 1rem 0;
+}
+
+.platform-tabs-header {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+}
+
+.platform-tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.platform-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.platform-tab.active {
+  color: var(--primary-color);
+  background: var(--bg-secondary);
+}
+
+.platform-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary-color);
+}
+
+.platform-tabs-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Info Note */
+.info-note {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.info-note strong {
+  color: var(--primary-dark);
+}

@@ -318,7 +318,7 @@ export interface RequestPurchaseIosProps {
   readonly andDangerouslyFinishTransactionAutomatically?: boolean;
   readonly appAccountToken?: string;
   readonly quantity?: number;
-  readonly withOffer?: PaymentDiscount;
+  readonly withOffer?: DiscountOffer;
 }
 
 // Android-specific purchase request parameters
@@ -408,7 +408,7 @@ export type PurchaseResult = {
 };
 
 // Additional iOS types
-export type PaymentDiscount = {
+export type DiscountOffer = {
   identifier: string;
   keyIdentifier: string;
   nonce: string;
@@ -501,22 +501,22 @@ export interface IapContext {
   /**
    * Fetch products from the store
    * @param params.skus - Array of product SKUs to fetch
-   * @param params.type - Type of products: 'inapp' for regular products or 'subs' for subscriptions
+   * @param params.type - Type of products: 'inapp' for regular products, 'subs' for subscriptions, or omit to fetch both
    */
   fetchProducts(params: {
     skus: string[];
-    type?: ProductType; // 'inapp' | 'subs', defaults to 'inapp'
+    type?: ProductType; // 'inapp' | 'subs', if not provided fetches both
   }): Promise<Product[] | SubscriptionProduct[]>;
 
   /**
    * @deprecated Use fetchProducts instead
    * Request products from the store
    * @param params.skus - Array of product SKUs to fetch
-   * @param params.type - Type of products: 'inapp' for regular products or 'subs' for subscriptions
+   * @param params.type - Type of products: 'inapp' for regular products, 'subs' for subscriptions, or omit to fetch both
    */
   requestProducts(params: {
     skus: string[];
-    type?: ProductType; // 'inapp' | 'subs', defaults to 'inapp'
+    type?: ProductType; // 'inapp' | 'subs', if not provided fetches both
   }): Promise<Product[] | SubscriptionProduct[]>;
 
   // Purchase methods
