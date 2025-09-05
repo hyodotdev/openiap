@@ -334,6 +334,9 @@ type ActiveSubscription {
   environmentIOS: String?          # iOS only: "Sandbox" | "Production"
   willExpireSoon: Boolean?         # True if expiring within 7 days
   daysUntilExpirationIOS: Number?  # iOS only
+  transactionId: String!           # Transaction identifier for backend validation
+  purchaseToken: String?           # JWT token (iOS) or purchase token (Android) for backend validation
+  transactionDate: Number!         # Transaction timestamp
 }`}</CodeBlock>
         <p className="type-link">
           See:{' '}
@@ -647,7 +650,7 @@ currentEntitlementIOS(skus: [String!]?): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Get latest transaction for a product (iOS 15+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Transaction?
+Returns: Purchase?
 """
 latestTransactionIOS(sku: String!): Future`}</CodeBlock>
                 <p>
@@ -658,14 +661,20 @@ latestTransactionIOS(sku: String!): Future`}</CodeBlock>
                 <AnchorLink id="show-manage-subscriptions-ios" level="h4">
                   showManageSubscriptionsIOS
                 </AnchorLink>
-                <p>Show subscription management UI (iOS 15+).</p>
+                <p>
+                  Show subscription management UI and detect status changes (iOS
+                  15+).
+                </p>
                 <CodeBlock language="graphql">{`"""
-Returns: Void
+Returns: [Purchase!]
 """
 showManageSubscriptionsIOS(): Future`}</CodeBlock>
                 <p>
-                  Opens the native subscription management interface. Requires
-                  iOS 15+.
+                  Opens the native subscription management interface and returns
+                  an array of purchases for subscriptions whose auto-renewal
+                  status changed. Each returned purchase includes transaction
+                  details and renewal information. Returns an empty array if no
+                  changes were made. Requires iOS 15+.
                 </p>
 
                 <AnchorLink id="begin-refund-request-ios" level="h4">

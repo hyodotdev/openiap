@@ -9,6 +9,41 @@ function Versions() {
       <h1>Version History</h1>
 
       <section>
+        <AnchorLink id="v1-1-1" level="h2">
+          v1.1.1 (2025.09)
+        </AnchorLink>
+        <ul>
+          <li>
+            <strong>Type Enhancements:</strong>
+            <ul>
+              <li>
+                Enhanced ActiveSubscription interface with backend validation
+                fields:
+                <ul>
+                  <li>Added transactionId for transaction identification</li>
+                  <li>
+                    Added purchaseToken for JWT (iOS) or purchase token
+                    (Android)
+                  </li>
+                  <li>Added transactionDate for transaction timestamp</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>API Documentation Updates:</strong>
+            <ul>
+              <li>
+                Updated showManageSubscriptionsIOS to correctly reflect it
+                returns Purchase[] containing subscriptions with changed
+                auto-renewal status
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+
+      <section>
         <AnchorLink id="v1-1-0" level="h2">
           v1.1.0 (2025.09)
         </AnchorLink>
