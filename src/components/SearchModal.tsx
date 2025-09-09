@@ -195,6 +195,15 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#subscription-status-ios',
   },
   {
+    id: 'restore-purchases',
+    title: 'restorePurchases',
+    category: 'Purchase Operations',
+    description: 'Restore completed transactions (cross-platform)',
+    parameters: '',
+    returns: 'Void',
+    path: '/docs/apis#restore-purchases',
+  },
+  {
     id: 'current-entitlement-ios',
     title: 'currentEntitlementIOS',
     category: 'iOS APIs',

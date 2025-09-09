@@ -311,6 +311,32 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
             <code>isConsumable</code> flag
           </li>
         </ol>
+
+        <AnchorLink id="restore-purchases" level="h3">
+          restorePurchases
+        </AnchorLink>
+        <p>Restore completed transactions (cross-platform behavior).</p>
+        <CodeBlock language="graphql">{`"""
+Returns: Void
+"""
+restorePurchases(): Future`}</CodeBlock>
+        <p>
+          iOS: performs a lightweight sync with <code>syncIOS()</code> to
+          refresh transactions (sync errors are ignored), then calls{' '}
+          <code>getAvailablePurchases()</code> to surface restored items.
+        </p>
+        <p>
+          Android: directly calls <code>getAvailablePurchases()</code> (Google
+          Play restoration happens via query).
+        </p>
+        <blockquote className="info-note">
+          <p>
+            Implementation note: this function leverages existing APIs (
+            <code>syncIOS</code> and <code>getAvailablePurchases</code>) and is
+            implemented in each framework library rather than as a separate
+            native method.
+          </p>
+        </blockquote>
       </section>
       <section>
         <AnchorLink id="subscription-management" level="h2">
