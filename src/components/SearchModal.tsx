@@ -191,7 +191,7 @@ const apiData: ApiItem[] = [
     category: 'iOS APIs',
     description: 'Get subscription status (iOS 15+)',
     parameters: 'skus: [String!]?',
-    returns: '[SubscriptionStatus!]!',
+    returns: '[SubscriptionStatusIOS!]!',
     path: '/docs/apis#subscription-status-ios',
   },
   {

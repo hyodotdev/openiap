@@ -696,6 +696,25 @@ type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidatio
   PAYASYOUGO   # Pay as you go
   PAYUPFRONT   # Pay up front
 }`}</CodeBlock>
+
+                <h4>SubscriptionStatusIOS</h4>
+                <p>
+                  Represents subscription status information from StoreKit 2.
+                </p>
+                <CodeBlock language="typescript">{`type RenewalInfo = {
+  jsonRepresentation?: string;
+  willAutoRenew: boolean;
+  autoRenewPreference?: string;
+};
+
+export type SubscriptionStatusIOS = {
+  /**
+   * StoreKit RenewalState
+   * See: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalstate
+   */
+  state: string;
+  renewalInfo?: RenewalInfo;
+};`}</CodeBlock>
               </>
             ),
             android: (

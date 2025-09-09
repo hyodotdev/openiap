@@ -624,7 +624,7 @@ isEligibleForIntroOfferIOS(productIds: [String!]!): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Get subscription status (iOS 15+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: [SubscriptionStatus!]!
+Returns: [SubscriptionStatusIOS!]!
 """
 subscriptionStatusIOS(skus: [String!]?): Future`}</CodeBlock>
                 <p>

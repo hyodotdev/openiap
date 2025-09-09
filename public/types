@@ -202,6 +202,25 @@ export type PurchaseIOS = PurchaseCommon & {
 };
 
 // ============================================================================
+// IOS SUBSCRIPTION STATUS TYPES
+// ============================================================================
+
+type RenewalInfo = {
+  jsonRepresentation?: string;
+  willAutoRenew: boolean;
+  autoRenewPreference?: string;
+};
+
+export type SubscriptionStatusIOS = {
+  /**
+   * StoreKit RenewalState
+   * See: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalstate
+   */
+  state: string;
+  renewalInfo?: RenewalInfo;
+};
+
+// ============================================================================
 // ANDROID TYPES
 // ============================================================================
 
