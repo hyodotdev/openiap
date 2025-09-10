@@ -61,7 +61,7 @@ function Sponsors() {
                 }}
               >
                 <img
-                  src="https://react-native-iap.hyo.dev/img/logo.png"
+                  src="https://hyochan.github.io/react-native-iap/img/logo.png"
                   alt="react-native-iap"
                   style={{
                     width: '32px',
@@ -84,7 +84,7 @@ function Sponsors() {
                 }}
               >
                 <img
-                  src="https://expo-iap.hyo.dev/img/icon.png"
+                  src="https://hyochan.github.io/expo-iap/img/icon.png"
                   alt="expo-iap"
                   style={{
                     width: '32px',
@@ -107,7 +107,7 @@ function Sponsors() {
                 }}
               >
                 <img
-                  src="https://flutter-inapp-purchase.hyo.dev/img/logo.png"
+                  src="https://hyochan.github.io/flutter_inapp_purchase/img/logo.png"
                   alt="flutter_inapp_purchase"
                   style={{
                     width: '32px',
@@ -130,7 +130,7 @@ function Sponsors() {
                 }}
               >
                 <img
-                  src="https://kmp-iap.hyo.dev/img/logo.png"
+                  src="https://hyochan.github.io/kmp-iap/img/logo.png"
                   alt="kmp-iap"
                   style={{
                     width: '32px',

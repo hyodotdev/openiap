@@ -11,7 +11,7 @@ function Languages() {
         <div className="languages-grid">
           <div className="language-card">
             <img
-              src="https://react-native-iap.hyo.dev/img/logo.png"
+              src="https://hyochan.github.io/react-native-iap/img/logo.png"
               alt="React Native IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -32,7 +32,7 @@ function Languages() {
                 View on GitHub →
               </a>
               <a
-                href="https://react-native-iap.hyo.dev"
+                href="https://hyochan.github.io/react-native-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -44,7 +44,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="https://expo-iap.hyo.dev/img/icon.png"
+              src="https://hyochan.github.io/expo-iap/img/icon.png"
               alt="Expo IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -65,7 +65,7 @@ function Languages() {
                 View on GitHub →
               </a>
               <a
-                href="https://expo-iap.hyo.dev"
+                href="https://hyochan.github.io/expo-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -77,7 +77,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="https://flutter-inapp-purchase.hyo.dev/img/logo.png"
+              src="https://hyochan.github.io/flutter_inapp_purchase/img/logo.png"
               alt="Flutter IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -95,7 +95,7 @@ function Languages() {
                 View on GitHub →
               </a>
               <a
-                href="https://flutter-inapp-purchase.hyo.dev"
+                href="https://hyochan.github.io/flutter_inapp_purchase"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -107,7 +107,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="https://kmp-iap.hyo.dev/img/logo.png"
+              src="https://hyochan.github.io/kmp-iap/img/logo.png"
               alt="KMP IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -125,7 +125,7 @@ function Languages() {
                 View on GitHub →
               </a>
               <a
-                href="https://kmp-iap.hyo.dev"
+                href="https://hyochan.github.io/kmp-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"

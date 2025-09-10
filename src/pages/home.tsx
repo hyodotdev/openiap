@@ -276,13 +276,13 @@ function Home() {
           </p>
           <div className="implementations-grid">
             <a
-              href="https://react-native-iap.hyo.dev"
+              href="https://hyochan.github.io/react-native-iap"
               target="_blank"
               rel="noopener noreferrer"
               className="implementation-card"
             >
               <img
-                src="https://react-native-iap.hyo.dev/img/logo.png"
+                src="https://hyochan.github.io/react-native-iap/img/logo.png"
                 alt="React Native IAP"
                 className="implementation-logo"
               />
@@ -293,13 +293,13 @@ function Home() {
             </a>
 
             <a
-              href="https://expo-iap.hyo.dev"
+              href="https://hyochan.github.io/expo-iap"
               target="_blank"
               rel="noopener noreferrer"
               className="implementation-card"
             >
               <img
-                src="https://expo-iap.hyo.dev/img/icon.png"
+                src="https://hyochan.github.io/expo-iap/img/icon.png"
                 alt="Expo IAP"
                 className="implementation-logo"
               />
@@ -310,13 +310,13 @@ function Home() {
             </a>
 
             <a
-              href="https://flutter-inapp-purchase.hyo.dev"
+              href="https://hyochan.github.io/flutter_inapp_purchase"
               target="_blank"
               rel="noopener noreferrer"
               className="implementation-card"
             >
               <img
-                src="https://flutter-inapp-purchase.hyo.dev/img/logo.png"
+                src="https://hyochan.github.io/flutter_inapp_purchase/img/logo.png"
                 alt="Flutter IAP"
                 className="implementation-logo"
               />
@@ -327,13 +327,13 @@ function Home() {
             </a>
 
             <a
-              href="https://kmp-iap.hyo.dev"
+              href="https://hyochan.github.io/kmp-iap"
               target="_blank"
               rel="noopener noreferrer"
               className="implementation-card"
             >
               <img
-                src="https://kmp-iap.hyo.dev/img/logo.png"
+                src="https://hyochan.github.io/kmp-iap/img/logo.png"
                 alt="KMP IAP"
                 className="implementation-logo"
               />
