@@ -1,0 +1,22 @@
+title: "Propose an idea"
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Select the platform this idea targets
+      options:
+        - Android
+        - iOS
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: What's the problem and your proposed solution?
+      placeholder: Describe the idea and rationale
+    validations:
+      required: true
+

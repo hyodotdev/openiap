@@ -1,0 +1,22 @@
+title: "Your question in one sentence"
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Select the platform related to this question
+      options:
+        - Android
+        - iOS
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you need help with?
+      description: Be specific; include expected/actual behavior, steps tried, and any logs
+      placeholder: Describe your question in detail
+    validations:
+      required: true
+

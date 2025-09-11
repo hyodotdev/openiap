@@ -1,0 +1,22 @@
+title: "Show and tell"
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Select the platform relevant to your showcase
+      options:
+        - Android
+        - iOS
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: showcase
+    attributes:
+      label: What did you build?
+      description: Share links, screenshots, and a short description
+      placeholder: Tell us about it!
+    validations:
+      required: true
+

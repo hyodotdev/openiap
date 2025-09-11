@@ -1,0 +1,22 @@
+title: "Start a general discussion"
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Select the platform related to this discussion
+      options:
+        - Android
+        - iOS
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Details
+      description: Provide context, screenshots, code, or links
+      placeholder: Write as much detail as helpful
+    validations:
+      required: true
+

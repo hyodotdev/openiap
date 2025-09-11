@@ -1,0 +1,96 @@
+name: Platform Labeler
+
+on:
+  discussion:
+    types: [created, edited]
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+  discussions: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply platform labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isDiscussion = !!context.payload.discussion;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            function extractPlatform(raw) {
+              if (!raw) return null;
+              const text = String(raw).replace(/\r\n/g, "\n");
+              const sect = text.match(/(?:^|\n)#{2,6}\s*Platform\s*\n+([\s\S]*?)(?=\n#{2,6}\s|$)/i);
+              const segment = (sect ? sect[1] : text).toLowerCase();
+              const hasAndroid = /(^|\W)android(\W|$)/i.test(segment);
+              const hasIOS = /(^|\W)ios(\W|$)|(^|\W)iOS(\W|$)/i.test(segment);
+              const hasBoth = /(^|\W)both(\W|$)/i.test(segment);
+              if (hasBoth || (hasAndroid && hasIOS)) return 'cross-platform';
+              if (hasAndroid) return 'android';
+              if (hasIOS) return 'ios';
+              return null;
+            }
+
+            const body = isDiscussion ? context.payload.discussion?.body : context.payload.issue?.body;
+            const platform = extractPlatform(body);
+            if (!platform) {
+              core.info('No platform detected in body');
+              return;
+            }
+            const desiredLabels = platform === 'cross-platform' ? ['cross-platform'] : [platform];
+
+            if (isDiscussion) {
+              const number = context.payload.discussion.number;
+              const query = `query($owner:String!,$repo:String!,$number:Int!){
+                repository(owner:$owner,name:$repo){
+                  discussion(number:$number){ id labels(first:100){ nodes { id name } } }
+                  labels(first:100){ nodes { id name } }
+                }
+              }`;
+              const data = await github.graphql(query, { owner, repo, number });
+              const discussion = data.repository.discussion;
+              const repoLabels = data.repository.labels.nodes;
+              const platformNames = ['android','ios','cross-platform'];
+              const current = discussion.labels.nodes.map(n => n.name.toLowerCase());
+              const toRemoveNames = current.filter(n => platformNames.includes(n) && !desiredLabels.includes(n));
+              const toAddNames = desiredLabels.filter(n => !current.includes(n));
+              const idMap = Object.fromEntries(repoLabels.map(n => [n.name.toLowerCase(), n.id]));
+              const addIds = toAddNames.map(n => idMap[n]).filter(Boolean);
+              const removeIds = toRemoveNames.map(n => idMap[n]).filter(Boolean);
+
+              if (addIds.length) {
+                await github.graphql(
+                  `mutation($labelableId:ID!, $labelIds:[ID!]!){ addLabelsToLabelable(input:{labelableId:$labelableId,labelIds:$labelIds}){ clientMutationId } }`,
+                  { labelableId: discussion.id, labelIds: addIds }
+                );
+                core.info(`Added labels: ${toAddNames.join(', ')}`);
+              }
+              if (removeIds.length) {
+                await github.graphql(
+                  `mutation($labelableId:ID!, $labelIds:[ID!]!){ removeLabelsFromLabelable(input:{labelableId:$labelableId,labelIds:$labelIds}){ clientMutationId } }`,
+                  { labelableId: discussion.id, labelIds: removeIds }
+                );
+                core.info(`Removed labels: ${toRemoveNames.join(', ')}`);
+              }
+            } else {
+              const issue_number = context.payload.issue.number;
+              const { data: currentLabelsData } = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number, per_page: 100 });
+              const current = currentLabelsData.map(l => l.name.toLowerCase());
+              const platformNames = ['android','ios','cross-platform'];
+              const toRemove = current.filter(n => platformNames.includes(n) && !desiredLabels.includes(n));
+              const toAdd = desiredLabels.filter(n => !current.includes(n));
+              for (const name of toRemove) {
+                try { await github.rest.issues.removeLabel({ owner, repo, issue_number, name }); } catch (e) { core.info(`removeLabel skipped: ${name}`); }
+              }
+              if (toAdd.length) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number, labels: toAdd });
+                core.info(`Added labels: ${toAdd.join(', ')}`);
+              }
+            }
+

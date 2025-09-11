@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a problem
+labels: ["🐛 bug"]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Select the affected platform
+      options:
+        - Android
+        - iOS
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+      placeholder: Clear, minimal reproduction steps help a lot
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. Go to …\n2. Click …\n3. See error …
+    validations:
+      required: false
+
