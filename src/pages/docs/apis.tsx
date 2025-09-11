@@ -859,17 +859,44 @@ consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
                   id="flush-failed-purchase-cached-as-pending-android"
                   level="h4"
                 >
-                  flushFailedPurchaseCachedAsPendingAndroid
+                  <span
+                    style={{ textDecoration: 'line-through', opacity: 0.7 }}
+                  >
+                    flushFailedPurchaseCachedAsPendingAndroid
+                  </span>{' '}
+                  <span style={{ color: '#ff6b35' }}>(Deprecated)</span>
                 </AnchorLink>
-                <p>Clear failed purchases from cache (Android only).</p>
-                <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-flushFailedPurchaseCachedAsPendingAndroid(): Future`}</CodeBlock>
+                <div className="deprecated-notice">
+                  <strong>⚠️ REMOVED:</strong> In recent versions of
+                  <code> react-native-iap</code>, the method{' '}
+                  <code>flushFailedPurchasesCachedAsPendingAndroid</code> has
+                  been removed.
+                </div>
+                <blockquote className="info-note">
+                  <p>
+                    Its original purpose — forcing Google Play Billing to clear
+                    failed purchases cached as pending — is now handled by
+                    calling <code>getAvailablePurchases()</code> at startup and
+                    processing any returned purchases:
+                  </p>
+                </blockquote>
+                <CodeBlock language="typescript">{`// On app startup (Android)
+const purchases = await getAvailablePurchases();
+
+for (const p of purchases) {
+  // Decide based on your product type
+  if (/* consumable */) {
+    await consumePurchaseAndroid(p.purchaseToken);
+  } else {
+    await acknowledgePurchaseAndroid(p.purchaseToken);
+  }
+
+  // Always finish the transaction after processing
+  await finishTransaction(p, /* isConsumable */ /* true/false */);
+}`}</CodeBlock>
                 <p>
-                  Clears any failed purchases that are cached as pending. Use
-                  this when you want to retry failed purchases or clear the
-                  pending state.
+                  This flow ensures pending transactions are surfaced and
+                  properly resolved without needing the old flush API.
                 </p>
               </>
             ),

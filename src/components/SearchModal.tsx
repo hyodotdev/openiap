@@ -316,8 +316,9 @@ const apiData: ApiItem[] = [
   {
     id: 'flush-failed-purchase-cached-as-pending-android',
     title: 'flushFailedPurchaseCachedAsPendingAndroid',
-    category: 'Android APIs',
-    description: 'Clear failed purchases from cache',
+    category: 'Android APIs (Deprecated)',
+    description:
+      '⚠️ REMOVED: Use getAvailablePurchases at startup, then acknowledge/consume and finishTransaction',
     parameters: '',
     returns: 'Void',
     path: '/docs/apis#flush-failed-purchase-cached-as-pending-android',

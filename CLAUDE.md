@@ -31,7 +31,6 @@ All iOS-only functions must end with `IOS`:
 All Android-only functions must end with `Android`:
 - `acknowledgePurchaseAndroid`
 - `consumePurchaseAndroid`
-- `flushFailedPurchaseCachedAsPendingAndroid`
 - `getPackageNameAndroid`
 
 #### 3. Cross-Platform Functions (No suffix)
