@@ -1,6 +1,9 @@
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 import AnchorLink from '../../components/AnchorLink';
 
+// Single source of truth for the latest version string
+export const LATEST_VERSION = 'v1.1.1';
+
 function Versions() {
   useScrollToHash();
 
@@ -10,7 +13,7 @@ function Versions() {
 
       <section>
         <AnchorLink id="v1-1-1" level="h2">
-          v1.1.1 (2025.09)
+          {LATEST_VERSION} (2025.09)
         </AnchorLink>
         <ul>
           <li>

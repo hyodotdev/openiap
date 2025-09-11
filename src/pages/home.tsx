@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { LATEST_VERSION } from './docs/versions';
 
 function Home() {
   return (
@@ -27,7 +28,7 @@ function Home() {
                 letterSpacing: '0.5px',
               }}
             >
-              v1.0.0
+              {LATEST_VERSION}
             </span>
           </div>
           <p className="hero-subtitle">
