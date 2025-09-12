@@ -16,7 +16,8 @@ function Home() {
             Open <span className="highlight">IAP</span> Specification
           </h1>
           <div style={{ marginBottom: '1.5rem' }}>
-            <span
+            <Link
+              to={`/docs/versions#${LATEST_VERSION.replace(/\./g, '-')}`}
               style={{
                 display: 'inline-block',
                 padding: '0.25rem 0.75rem',
@@ -26,10 +27,12 @@ function Home() {
                 fontSize: '0.875rem',
                 fontWeight: '600',
                 letterSpacing: '0.5px',
+                textDecoration: 'none',
               }}
+              title={`Go to ${LATEST_VERSION} in versions`}
             >
               {LATEST_VERSION}
-            </span>
+            </Link>
           </div>
           <p className="hero-subtitle">
             Unifying fragmented IAP implementations across platforms,
@@ -46,6 +49,40 @@ function Home() {
               rel="noopener noreferrer"
             >
               View on Github
+            </a>
+          </div>
+          <div className="hero-divider" role="separator" aria-hidden="true" />
+          <div className="hero-caption">Our Core Libraries</div>
+          <div className="hero-modules hero-modules-grid">
+            <a
+              href="https://github.com/hyodotdev/openiap-apple"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="module-card"
+              title="OpenIAP module for Apple"
+            >
+              <img src="/openiap-apple.png" alt="openiap-apple" />
+              <div className="module-text">
+                <div className="module-title">openiap-apple</div>
+                <div className="module-desc">
+                  Apple StoreKit 2 official module
+                </div>
+              </div>
+            </a>
+            <a
+              href="https://github.com/hyodotdev/openiap-google"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="module-card"
+              title="OpenIAP module for Google"
+            >
+              <img src="/openiap-google.png" alt="openiap-google" />
+              <div className="module-text">
+                <div className="module-title">openiap-google</div>
+                <div className="module-desc">
+                  Google Play Billing official module
+                </div>
+              </div>
             </a>
           </div>
           <div

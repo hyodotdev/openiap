@@ -31,12 +31,78 @@ function Sponsors() {
             </p>
             <p
               style={{
+                marginBottom: '1rem',
+                color: 'var(--text-secondary, #666)',
+              }}
+            >
+              When you sponsor Open IAP, you're supporting all our IAP modules:
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                gap: '2rem',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                marginBottom: '1.25rem',
+                alignItems: 'center',
+              }}
+            >
+              <a
+                href="https://github.com/hyodotdev/openiap-apple"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <img
+                  src="/openiap-apple.png"
+                  alt="openiap-apple"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    objectFit: 'contain',
+                    borderRadius: '6px',
+                  }}
+                />
+                <span>openiap-apple</span>
+              </a>
+              <a
+                href="https://github.com/hyodotdev/openiap-google"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <img
+                  src="/openiap-google.png"
+                  alt="openiap-google"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    objectFit: 'contain',
+                    borderRadius: '6px',
+                  }}
+                />
+                <span>openiap-google</span>
+              </a>
+            </div>
+            <p
+              style={{
                 marginBottom: '1.5rem',
                 color: 'var(--text-secondary, #666)',
               }}
             >
-              When you sponsor Open IAP, you're supporting all our IAP
-              libraries:
+              and libraries which use our modules:
             </p>
             <div
               style={{

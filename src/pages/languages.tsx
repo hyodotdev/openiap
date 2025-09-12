@@ -7,7 +7,58 @@ function Languages() {
           Libraries that implement the Open IAP specification for different
           platforms and frameworks
         </p>
+        <h2 style={{ marginTop: '2.5rem' }}>Open IAP Modules</h2>
+        <p className="page-subtitle">
+          Official modules maintained under the OpenIAP organization
+        </p>
+        <div className="languages-grid">
+          <div className="language-card">
+            <img
+              src="/openiap-apple.png"
+              alt="OpenIAP Apple"
+              className="language-logo"
+              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
+            />
+            <h3>openiap-apple</h3>
+            <p>Official OpenIAP module for Apple platforms (StoreKit 2)</p>
+            <div className="language-links">
+              <a
+                href="https://github.com/hyodotdev/openiap-apple"
+                className="learn-more"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View on GitHub →
+              </a>
+            </div>
+          </div>
 
+          <div className="language-card">
+            <img
+              src="/openiap-google.png"
+              alt="OpenIAP Google"
+              className="language-logo"
+              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
+            />
+            <h3>openiap-google</h3>
+            <p>Official OpenIAP module for Google Play Billing</p>
+            <div className="language-links">
+              <a
+                href="https://github.com/hyodotdev/openiap-google"
+                className="learn-more"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View on GitHub →
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <h2 style={{ marginTop: '2.5rem' }}>Framework Implementations</h2>
+        <p className="page-subtitle">
+          These frameworks build on the Open IAP Modules above
+        </p>
         <div className="languages-grid">
           <div className="language-card">
             <img

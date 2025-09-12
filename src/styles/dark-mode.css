@@ -95,6 +95,36 @@
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
+/* Dark mode for hero module cards and caption */
+:root.dark .module-card {
+  background: linear-gradient(
+    180deg,
+    rgba(24, 24, 31, 0.96) 0%,
+    rgba(24, 24, 31, 0.92) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+:root.dark .module-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+:root.dark .module-card .module-desc {
+  color: var(--text-secondary);
+}
+
+:root.dark .hero-divider {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 20%,
+    rgba(255, 255, 255, 0.12) 80%,
+    transparent 100%
+  );
+}
+
 :root.dark .resource-item:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
