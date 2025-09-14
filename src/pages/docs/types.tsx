@@ -249,7 +249,7 @@ type ProductSubscriptionAndroid = ProductAndroid & {
   productId: string;
   ids?: string[];  // Common field for both platforms
   transactionDate: number;
-  transactionReceipt: string;
+  /** Unified purchase token (jwsRepresentation for iOS, purchaseToken for Android) */
   purchaseToken?: string;
   platform?: string;  // Added for platform identification
   quantity: number;  // Purchase quantity (defaults to 1)
@@ -566,7 +566,7 @@ type SubscriptionOffer {
   };
 }`}</CodeBlock>
 
-        <AnchorLink id="validation-result" level="h3">
+        <AnchorLink id="receipt-validation-result" level="h3">
           ReceiptValidationResult
         </AnchorLink>
         <PlatformTabs>

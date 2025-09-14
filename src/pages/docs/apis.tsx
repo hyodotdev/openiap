@@ -431,11 +431,11 @@ Returns: ReceiptValidationResult!
 validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
         <p className="type-link">
           See:{' '}
-          <Link to="/docs/types#validation-options">
+          <Link to="/docs/types#receipt-validation-types">
             ReceiptValidationProps
           </Link>
           ,{' '}
-          <Link to="/docs/types#validation-result">
+          <Link to="/docs/types#receipt-validation-result">
             ReceiptValidationResult
           </Link>
         </p>
