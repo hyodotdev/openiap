@@ -39,28 +39,28 @@ function Errors() {
           <tbody>
             <tr>
               <td>
-                <code>E_USER_CANCELLED</code>
+                <code>UserCancelled</code>
               </td>
               <td>User cancelled the purchase flow</td>
               <td>No action needed, expected behavior</td>
             </tr>
             <tr>
               <td>
-                <code>E_USER_ERROR</code>
+                <code>UserError</code>
               </td>
               <td>User-related error during purchase</td>
               <td>Check user account status</td>
             </tr>
             <tr>
               <td>
-                <code>E_DEFERRED_PAYMENT</code>
+                <code>DeferredPayment</code>
               </td>
               <td>Payment was deferred (pending family approval, etc.)</td>
               <td>Wait for payment approval</td>
             </tr>
             <tr>
               <td>
-                <code>E_INTERRUPTED</code>
+                <code>Interrupted</code>
               </td>
               <td>Purchase flow was interrupted</td>
               <td>Retry the purchase</td>
@@ -80,42 +80,42 @@ function Errors() {
           <tbody>
             <tr>
               <td>
-                <code>E_ITEM_UNAVAILABLE</code>
+                <code>ItemUnavailable</code>
               </td>
               <td>Product not available in store</td>
               <td>Check product configuration in store console</td>
             </tr>
             <tr>
               <td>
-                <code>E_SKU_NOT_FOUND</code>
+                <code>SkuNotFound</code>
               </td>
               <td>SKU not found in product list</td>
               <td>Verify SKU exists in store configuration</td>
             </tr>
             <tr>
               <td>
-                <code>E_SKU_OFFER_MISMATCH</code>
+                <code>SkuOfferMismatch</code>
               </td>
               <td>SKU offer ID mismatch</td>
               <td>Check offer configuration for the SKU</td>
             </tr>
             <tr>
               <td>
-                <code>E_QUERY_PRODUCT</code>
+                <code>QueryProduct</code>
               </td>
               <td>Failed to query product details</td>
               <td>Check product IDs and retry</td>
             </tr>
             <tr>
               <td>
-                <code>E_ALREADY_OWNED</code>
+                <code>AlreadyOwned</code>
               </td>
               <td>Item already owned by user</td>
               <td>Restore purchases to unlock content</td>
             </tr>
             <tr>
               <td>
-                <code>E_ITEM_NOT_OWNED</code>
+                <code>ItemNotOwned</code>
               </td>
               <td>Item not owned by user</td>
               <td>Purchase the item first</td>
@@ -135,70 +135,70 @@ function Errors() {
           <tbody>
             <tr>
               <td>
-                <code>E_NETWORK_ERROR</code>
+                <code>NetworkError</code>
               </td>
               <td>Network connection error</td>
               <td>Check internet connection and retry</td>
             </tr>
             <tr>
               <td>
-                <code>E_SERVICE_ERROR</code>
+                <code>ServiceError</code>
               </td>
               <td>Store service error</td>
               <td>Wait and retry, check store service status</td>
             </tr>
             <tr>
               <td>
-                <code>E_REMOTE_ERROR</code>
+                <code>RemoteError</code>
               </td>
               <td>Remote server error</td>
               <td>Check server logs, retry request</td>
             </tr>
             <tr>
               <td>
-                <code>E_INIT_CONNECTION</code>
+                <code>InitConnection</code>
               </td>
               <td>Failed to initialize store connection</td>
               <td>Check store service availability and retry</td>
             </tr>
             <tr>
               <td>
-                <code>E_SERVICE_DISCONNECTED</code>
+                <code>ServiceDisconnected</code>
               </td>
               <td>Store service disconnected</td>
               <td>Reconnect to the store service</td>
             </tr>
             <tr>
               <td>
-                <code>E_CONNECTION_CLOSED</code>
+                <code>ConnectionClosed</code>
               </td>
               <td>Connection to store service was closed</td>
               <td>Reinitialize connection and retry</td>
             </tr>
             <tr>
               <td>
-                <code>E_IAP_NOT_AVAILABLE</code>
+                <code>IapNotAvailable</code>
               </td>
               <td>In-app purchase service not available</td>
               <td>Check device settings and IAP availability</td>
             </tr>
             <tr>
               <td>
-                <code>E_BILLING_UNAVAILABLE</code>
+                <code>BillingUnavailable</code>
               </td>
               <td>Billing service is unavailable</td>
               <td>Check Google Play/App Store availability</td>
             </tr>
             <tr>
               <td>
-                <code>E_FEATURE_NOT_SUPPORTED</code>
+                <code>FeatureNotSupported</code>
               </td>
               <td>Requested feature not supported</td>
               <td>Check device/OS version compatibility</td>
             </tr>
             <tr>
               <td>
-                <code>E_SYNC_ERROR</code>
+                <code>SyncError</code>
               </td>
               <td>Synchronization error with store</td>
               <td>Retry synchronization</td>
@@ -218,35 +218,35 @@ function Errors() {
           <tbody>
             <tr>
               <td>
-                <code>E_RECEIPT_FAILED</code>
+                <code>ReceiptFailed</code>
               </td>
               <td>Receipt validation failed</td>
               <td>Check receipt validation logic, retry validation</td>
             </tr>
             <tr>
               <td>
-                <code>E_RECEIPT_FINISHED</code>
+                <code>ReceiptFinished</code>
               </td>
               <td>Receipt already processed/finished</td>
               <td>Transaction already completed, check records</td>
             </tr>
             <tr>
               <td>
-                <code>E_RECEIPT_FINISHED_FAILED</code>
+                <code>ReceiptFinishedFailed</code>
               </td>
               <td>Failed to finish receipt processing</td>
               <td>Check transaction state and retry</td>
             </tr>
             <tr>
               <td>
-                <code>E_TRANSACTION_VALIDATION_FAILED</code>
+                <code>TransactionValidationFailed</code>
               </td>
               <td>Transaction validation failed</td>
               <td>Verify transaction data and retry</td>
             </tr>
             <tr>
               <td>
-                <code>E_EMPTY_SKU_LIST</code>
+                <code>EmptySkuList</code>
               </td>
               <td>Empty SKU list provided</td>
               <td>Provide at least one SKU to query</td>
@@ -298,47 +298,47 @@ function Errors() {
           </thead>
           <tbody>
             <tr>
-              <td>E_NETWORK_ERROR</td>
+              <td>NetworkError</td>
               <td>Yes</td>
               <td>Exponential backoff (2^n seconds)</td>
             </tr>
             <tr>
-              <td>E_SERVICE_ERROR</td>
+              <td>ServiceError</td>
               <td>Yes</td>
               <td>Linear backoff (n * 5 seconds)</td>
             </tr>
             <tr>
-              <td>E_REMOTE_ERROR</td>
+              <td>RemoteError</td>
               <td>Yes</td>
               <td>Fixed delay (10 seconds)</td>
             </tr>
             <tr>
-              <td>E_CONNECTION_CLOSED</td>
+              <td>ConnectionClosed</td>
               <td>Yes</td>
               <td>Reinitialize and retry</td>
             </tr>
             <tr>
-              <td>E_SYNC_ERROR</td>
+              <td>SyncError</td>
               <td>Yes</td>
               <td>Exponential backoff</td>
             </tr>
             <tr>
-              <td>E_USER_CANCELLED</td>
+              <td>UserCancelled</td>
               <td>No</td>
               <td>Do not retry</td>
             </tr>
             <tr>
-              <td>E_ALREADY_OWNED</td>
+              <td>AlreadyOwned</td>
               <td>No</td>
               <td>Restore instead</td>
             </tr>
             <tr>
-              <td>E_DEFERRED_PAYMENT</td>
+              <td>DeferredPayment</td>
               <td>No</td>
               <td>Wait for approval</td>
             </tr>
             <tr>
-              <td>E_NOT_PREPARED</td>
+              <td>NotPrepared</td>
               <td>No</td>
               <td>Initialize connection first</td>
             </tr>
@@ -365,37 +365,37 @@ function Errors() {
                   <tbody>
                     <tr>
                       <td>0</td>
-                      <td>E_UNKNOWN</td>
+                      <td>Unknown</td>
                       <td>Unknown error</td>
                     </tr>
                     <tr>
                       <td>1</td>
-                      <td>E_USER_CANCELLED</td>
+                      <td>UserCancelled</td>
                       <td>User cancelled transaction</td>
                     </tr>
                     <tr>
                       <td>2</td>
-                      <td>E_NETWORK_ERROR</td>
+                      <td>NetworkError</td>
                       <td>Network unavailable</td>
                     </tr>
                     <tr>
                       <td>3</td>
-                      <td>E_ITEM_UNAVAILABLE</td>
+                      <td>ItemUnavailable</td>
                       <td>Product not available</td>
                     </tr>
                     <tr>
                       <td>4</td>
-                      <td>E_SERVICE_ERROR</td>
+                      <td>ServiceError</td>
                       <td>App Store service error</td>
                     </tr>
                     <tr>
                       <td>5</td>
-                      <td>E_RECEIPT_FAILED</td>
+                      <td>ReceiptFailed</td>
                       <td>Receipt validation failed</td>
                     </tr>
                     <tr>
                       <td>6</td>
-                      <td>E_ALREADY_OWNED</td>
+                      <td>AlreadyOwned</td>
                       <td>Product already purchased</td>
                     </tr>
                   </tbody>
@@ -421,42 +421,42 @@ function Errors() {
                     </tr>
                     <tr>
                       <td>1</td>
-                      <td>E_USER_CANCELLED</td>
+                      <td>UserCancelled</td>
                       <td>User pressed back or cancelled</td>
                     </tr>
                     <tr>
                       <td>2</td>
-                      <td>E_SERVICE_ERROR</td>
+                      <td>ServiceError</td>
                       <td>Network connection down</td>
                     </tr>
                     <tr>
                       <td>3</td>
-                      <td>E_SERVICE_ERROR</td>
+                      <td>ServiceError</td>
                       <td>Billing API unavailable</td>
                     </tr>
                     <tr>
                       <td>4</td>
-                      <td>E_ITEM_UNAVAILABLE</td>
+                      <td>ItemUnavailable</td>
                       <td>Requested product not available</td>
                     </tr>
                     <tr>
                       <td>5</td>
-                      <td>E_DEVELOPER_ERROR</td>
+                      <td>DeveloperError</td>
                       <td>Invalid arguments provided</td>
                     </tr>
                     <tr>
                       <td>6</td>
-                      <td>E_UNKNOWN</td>
+                      <td>Unknown</td>
                       <td>Fatal error during API action</td>
                     </tr>
                     <tr>
                       <td>7</td>
-                      <td>E_ALREADY_OWNED</td>
+                      <td>AlreadyOwned</td>
                       <td>Item already owned</td>
                     </tr>
                     <tr>
                       <td>8</td>
-                      <td>E_ITEM_NOT_OWNED</td>
+                      <td>ItemNotOwned</td>
                       <td>Item not owned</td>
                     </tr>
                   </tbody>
@@ -471,40 +471,40 @@ function Errors() {
           Complete list of error codes that can be returned by the IAP library.
         </p>
         <CodeBlock language="typescript">{`enum ErrorCode {
-  E_UNKNOWN = 'E_UNKNOWN',
-  E_USER_CANCELLED = 'E_USER_CANCELLED',
-  E_USER_ERROR = 'E_USER_ERROR',
-  E_ITEM_UNAVAILABLE = 'E_ITEM_UNAVAILABLE',
-  E_REMOTE_ERROR = 'E_REMOTE_ERROR',
-  E_NETWORK_ERROR = 'E_NETWORK_ERROR',
-  E_SERVICE_ERROR = 'E_SERVICE_ERROR',
-  E_RECEIPT_FAILED = 'E_RECEIPT_FAILED',
-  E_RECEIPT_FINISHED = 'E_RECEIPT_FINISHED',
-  E_RECEIPT_FINISHED_FAILED = 'E_RECEIPT_FINISHED_FAILED',
-  E_NOT_PREPARED = 'E_NOT_PREPARED',
-  E_NOT_ENDED = 'E_NOT_ENDED',
-  E_ALREADY_OWNED = 'E_ALREADY_OWNED',
-  E_DEVELOPER_ERROR = 'E_DEVELOPER_ERROR',
-  E_BILLING_RESPONSE_JSON_PARSE_ERROR = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
-  E_DEFERRED_PAYMENT = 'E_DEFERRED_PAYMENT',
-  E_INTERRUPTED = 'E_INTERRUPTED',
-  E_IAP_NOT_AVAILABLE = 'E_IAP_NOT_AVAILABLE',
-  E_PURCHASE_ERROR = 'E_PURCHASE_ERROR',
-  E_SYNC_ERROR = 'E_SYNC_ERROR',
-  E_TRANSACTION_VALIDATION_FAILED = 'E_TRANSACTION_VALIDATION_FAILED',
-  E_ACTIVITY_UNAVAILABLE = 'E_ACTIVITY_UNAVAILABLE',
-  E_ALREADY_PREPARED = 'E_ALREADY_PREPARED',
-  E_PENDING = 'E_PENDING',
-  E_CONNECTION_CLOSED = 'E_CONNECTION_CLOSED',
-  E_INIT_CONNECTION = 'E_INIT_CONNECTION',
-  E_SERVICE_DISCONNECTED = 'E_SERVICE_DISCONNECTED',
-  E_QUERY_PRODUCT = 'E_QUERY_PRODUCT',
-  E_SKU_NOT_FOUND = 'E_SKU_NOT_FOUND',
-  E_SKU_OFFER_MISMATCH = 'E_SKU_OFFER_MISMATCH',
-  E_ITEM_NOT_OWNED = 'E_ITEM_NOT_OWNED',
-  E_BILLING_UNAVAILABLE = 'E_BILLING_UNAVAILABLE',
-  E_FEATURE_NOT_SUPPORTED = 'E_FEATURE_NOT_SUPPORTED',
-  E_EMPTY_SKU_LIST = 'E_EMPTY_SKU_LIST',
+  Unknown = 'E_UNKNOWN',
+  UserCancelled = 'E_USER_CANCELLED',
+  UserError = 'E_USER_ERROR',
+  ItemUnavailable = 'E_ITEM_UNAVAILABLE',
+  RemoteError = 'E_REMOTE_ERROR',
+  NetworkError = 'E_NETWORK_ERROR',
+  ServiceError = 'E_SERVICE_ERROR',
+  ReceiptFailed = 'E_RECEIPT_FAILED',
+  ReceiptFinished = 'E_RECEIPT_FINISHED',
+  ReceiptFinishedFailed = 'E_RECEIPT_FINISHED_FAILED',
+  NotPrepared = 'E_NOT_PREPARED',
+  NotEnded = 'E_NOT_ENDED',
+  AlreadyOwned = 'E_ALREADY_OWNED',
+  DeveloperError = 'E_DEVELOPER_ERROR',
+  BillingResponseJsonParseError = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
+  DeferredPayment = 'E_DEFERRED_PAYMENT',
+  Interrupted = 'E_INTERRUPTED',
+  IapNotAvailable = 'E_IAP_NOT_AVAILABLE',
+  PurchaseError = 'E_PURCHASE_ERROR',
+  SyncError = 'E_SYNC_ERROR',
+  TransactionValidationFailed = 'E_TRANSACTION_VALIDATION_FAILED',
+  ActivityUnavailable = 'E_ACTIVITY_UNAVAILABLE',
+  AlreadyPrepared = 'E_ALREADY_PREPARED',
+  Pending = 'E_PENDING',
+  ConnectionClosed = 'E_CONNECTION_CLOSED',
+  InitConnection = 'E_INIT_CONNECTION',
+  ServiceDisconnected = 'E_SERVICE_DISCONNECTED',
+  QueryProduct = 'E_QUERY_PRODUCT',
+  SkuNotFound = 'E_SKU_NOT_FOUND',
+  SkuOfferMismatch = 'E_SKU_OFFER_MISMATCH',
+  ItemNotOwned = 'E_ITEM_NOT_OWNED',
+  BillingUnavailable = 'E_BILLING_UNAVAILABLE',
+  FeatureNotSupported = 'E_FEATURE_NOT_SUPPORTED',
+  EmptySkuList = 'E_EMPTY_SKU_LIST',
 }`}</CodeBlock>
       </section>
 
@@ -523,15 +523,15 @@ function Errors() {
           <tbody>
             <tr>
               <td>test.purchase.failed@example.com</td>
-              <td>E_RECEIPT_FAILED</td>
+              <td>ReceiptFailed</td>
             </tr>
             <tr>
               <td>test.purchase.cancelled@example.com</td>
-              <td>E_USER_CANCELLED</td>
+              <td>UserCancelled</td>
             </tr>
             <tr>
               <td>test.purchase.unavailable@example.com</td>
-              <td>E_ITEM_UNAVAILABLE</td>
+              <td>ItemUnavailable</td>
             </tr>
           </tbody>
         </table>

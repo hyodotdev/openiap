@@ -20,9 +20,9 @@ function Events() {
 
         <h3>Event Types</h3>
         <CodeBlock language="graphql">{`enum OpenIapEvent {
-  PURCHASE_UPDATED
-  PURCHASE_ERROR
-  PROMOTED_PRODUCT_IOS
+  PurchaseUpdated
+  PurchaseError
+  PromotedProductIos
 }`}</CodeBlock>
       </section>
 
@@ -87,19 +87,19 @@ function Events() {
         </p>
         <ul>
           <li>
-            <code>E_USER_CANCELLED</code> - No action required
+            <code>UserCancelled</code> - No action required
           </li>
           <li>
-            <code>E_ITEM_UNAVAILABLE</code> - Check product availability
+            <code>ItemUnavailable</code> - Check product availability
           </li>
           <li>
-            <code>E_NETWORK_ERROR</code> - Retry with backoff
+            <code>NetworkError</code> - Retry with backoff
           </li>
           <li>
-            <code>E_ALREADY_OWNED</code> - Restore purchases
+            <code>AlreadyOwned</code> - Restore purchases
           </li>
           <li>
-            <code>E_RECEIPT_FAILED</code> - Retry validation
+            <code>ReceiptFailed</code> - Retry validation
           </li>
         </ul>
       </section>

@@ -150,38 +150,8 @@ type PurchaseOptions {
           history. On Android with Google Play Billing v8+, only active
           purchases are returned.
         </p>
-
-        <AnchorLink id="get-purchase-histories" level="h3">
-          <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>
-            getPurchaseHistories
-          </span>{' '}
-          <span style={{ color: '#ff6b35' }}>(Deprecated)</span>
-        </AnchorLink>
-        <div className="deprecated-notice">
-          <strong>⚠️ DEPRECATED:</strong> This API is deprecated and will be
-          removed in a future version. Use <code>getAvailablePurchases</code>{' '}
-          instead.
-        </div>
-        <p>
-          Get purchase history (iOS only) - <strong>Deprecated</strong>.
-        </p>
-        <CodeBlock language="graphql">{`"""
-Returns: [Purchase!]!
-"""
-getPurchaseHistories(options: PurchaseOptions?): Future
-
-type PurchaseOptions {
-  alsoPublishToEventListenerIOS: Boolean?  # iOS only
-  onlyIncludeActiveItemsIOS: Boolean?      # iOS only
-}`}</CodeBlock>
-        <p className="type-link">
-          See: <Link to="/docs/types#purchase">Purchase</Link>
-        </p>
-        <p>
-          This API is deprecated and will be removed in a future version. Use{' '}
-          <code>getAvailablePurchases</code> instead.
-        </p>
       </section>
+
       <section>
         <AnchorLink id="purchase-operations" level="h2">
           Purchase Operations
@@ -194,10 +164,10 @@ type PurchaseOptions {
         <CodeBlock language="graphql">{`"""
 Returns: Purchase | Purchase[] | void
 """
-requestPurchase(params: PurchaseParams): Future
+requestPurchase(props: RequestPurchaseProps): Future
 
-type PurchaseParams {
-  request: RequestPurchaseProps | RequestSubscriptionProps
+type RequestPurchaseProps {
+  params: RequestPurchaseParams | RequestSubscriptionParams
   type?: String  "'inapp' | 'subs', defaults to 'inapp'"
 }`}</CodeBlock>
         <p className="type-link">
@@ -206,8 +176,12 @@ type PurchaseParams {
             RequestPurchaseProps
           </Link>
           ,{' '}
-          <Link to="/docs/types#request-subscription-props-by-platforms">
-            RequestSubscriptionPropsByPlatforms
+          <Link to="/docs/types#request-purchase-params">
+            RequestPurchaseParams
+          </Link>
+          ,{' '}
+          <Link to="/docs/types#request-subscription-params-by-platforms">
+            RequestSubscriptionParamsByPlatforms
           </Link>
           , <Link to="/docs/types#purchase">Purchase</Link>
         </p>

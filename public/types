@@ -8,10 +8,10 @@ export type ChangeEventPayload = {
 
 // iOS detailed product types (4 types)
 export enum ProductTypeIOS {
-  consumable = 'consumable',
-  nonConsumable = 'nonConsumable',
-  autoRenewableSubscription = 'autoRenewableSubscription',
-  nonRenewingSubscription = 'nonRenewingSubscription',
+  Consumable = 'Consumable',
+  NonConsumable = 'NonConsumable',
+  AutoRenewableSubscription = 'AutoRenewableSubscription',
+  NonRenewingSubscription = 'NonRenewingSubscription',
 }
 
 // ============================================================================
@@ -72,12 +72,12 @@ export type PurchaseCommon = {
 };
 
 export enum PurchaseState {
-  pending = 'pending',
-  purchased = 'purchased',
-  failed = 'failed',
-  restored = 'restored', // iOS only
-  deferred = 'deferred', // iOS only
-  unknown = 'unknown',
+  Pending = 'Pending',
+  Purchased = 'Purchased',
+  Failed = 'Failed',
+  Restored = 'Restored', // iOS only
+  Deferred = 'Deferred', // iOS only
+  Unknown = 'Unknown',
 }
 
 export type ProductSubscriptionCommon = ProductCommon & {
@@ -95,15 +95,15 @@ export type AndroidPlatform = { platform: 'android' };
 // IOS TYPES
 // ============================================================================
 
-type SubscriptionIosPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | '';
-type PaymentMode = '' | 'FREETRIAL' | 'PAYASYOUGO' | 'PAYUPFRONT';
+type SubscriptionPeriodIOS = 'Day' | 'Week' | 'Month' | 'Year' | '';
+type PaymentMode = '' | 'FreeTrial' | 'PayAsYouGo' | 'PayUpFront';
 
 type SubscriptionOffer = {
   displayPrice: string;
   id: string;
   paymentMode: PaymentMode;
   period: {
-    unit: SubscriptionIosPeriod;
+    unit: SubscriptionPeriodIOS;
     value: number;
   };
   periodCount: number;
@@ -116,7 +116,7 @@ type SubscriptionInfo = {
   promotionalOffers?: SubscriptionOffer[];
   subscriptionGroupId: string;
   subscriptionPeriod: {
-    unit: SubscriptionIosPeriod;
+    unit: SubscriptionPeriodIOS;
     value: number;
   };
 };
@@ -144,7 +144,7 @@ export type ProductIOS = ProductCommon & {
   jsonRepresentation?: string;
   subscription?: SubscriptionInfo;
   introductoryPriceNumberOfPeriodsIOS?: string;
-  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionPeriodIOS;
 };
 
 export type ProductSubscriptionIOS = ProductIOS & {
@@ -153,10 +153,10 @@ export type ProductSubscriptionIOS = ProductIOS & {
   introductoryPriceAsAmountIOS?: string;
   introductoryPricePaymentModeIOS?: PaymentMode;
   introductoryPriceNumberOfPeriodsIOS?: string;
-  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionPeriodIOS;
   platform: 'ios';
   subscriptionPeriodNumberIOS?: string;
-  subscriptionPeriodUnitIOS?: SubscriptionIosPeriod;
+  subscriptionPeriodUnitIOS?: SubscriptionPeriodIOS;
   // deprecated
   discounts?: Discount[];
   introductoryPrice?: string;
@@ -353,7 +353,7 @@ export interface ProductRequest {
 }
 
 // iOS-specific purchase request parameters
-export interface RequestPurchaseIosProps {
+export interface RequestPurchaseIosParams {
   readonly sku: string;
   readonly andDangerouslyFinishTransactionAutomatically?: boolean;
   readonly appAccountToken?: string;
@@ -362,7 +362,7 @@ export interface RequestPurchaseIosProps {
 }
 
 // Android-specific purchase request parameters
-export interface RequestPurchaseAndroidProps {
+export interface RequestPurchaseAndroidParams {
   readonly skus: string[];
   readonly obfuscatedAccountIdAndroid?: string;
   readonly obfuscatedProfileIdAndroid?: string;
@@ -370,8 +370,8 @@ export interface RequestPurchaseAndroidProps {
 }
 
 // Android-specific subscription request parameters
-export interface RequestSubscriptionAndroidProps
-  extends RequestPurchaseAndroidProps {
+export interface RequestSubscriptionAndroidParams
+  extends RequestPurchaseAndroidParams {
   readonly purchaseTokenAndroid?: string;
   readonly replacementModeAndroid?: number;
   readonly subscriptionOffers: {
@@ -381,59 +381,66 @@ export interface RequestSubscriptionAndroidProps
 }
 
 // Platform-specific request structures
-export interface RequestPurchasePropsByPlatforms {
-  readonly ios?: RequestPurchaseIosProps;
-  readonly android?: RequestPurchaseAndroidProps;
+export interface RequestPurchaseParamsByPlatforms {
+  readonly ios?: RequestPurchaseIosParams;
+  readonly android?: RequestPurchaseAndroidParams;
 }
 
-export interface RequestSubscriptionPropsByPlatforms {
-  readonly ios?: RequestPurchaseIosProps;
-  readonly android?: RequestSubscriptionAndroidProps;
+export interface RequestSubscriptionParamsByPlatforms {
+  readonly ios?: RequestPurchaseIosParams;
+  readonly android?: RequestSubscriptionAndroidParams;
 }
 
 // Modern request types (v2.7.0+)
-export type RequestPurchaseProps = RequestPurchasePropsByPlatforms;
-export type RequestSubscriptionProps = RequestSubscriptionPropsByPlatforms;
+export type RequestPurchaseParams = RequestPurchaseParamsByPlatforms;
+export type RequestSubscriptionParams = RequestSubscriptionParamsByPlatforms;
+
+export interface RequestPurchaseProps {
+  /** Platform-specific request parameters */
+  params: RequestPurchaseParams | RequestSubscriptionParams;
+  /** Purchase type hint (defaults to 'inapp') */
+  type?: 'inapp' | 'subs';
+}
 
 // ============================================================================
 // ERROR TYPES
 // ============================================================================
 
 export enum ErrorCode {
-  E_UNKNOWN = 'E_UNKNOWN',
-  E_USER_CANCELLED = 'E_USER_CANCELLED',
-  E_USER_ERROR = 'E_USER_ERROR',
-  E_ITEM_UNAVAILABLE = 'E_ITEM_UNAVAILABLE',
-  E_REMOTE_ERROR = 'E_REMOTE_ERROR',
-  E_NETWORK_ERROR = 'E_NETWORK_ERROR',
-  E_SERVICE_ERROR = 'E_SERVICE_ERROR',
-  E_RECEIPT_FAILED = 'E_RECEIPT_FAILED',
-  E_RECEIPT_FINISHED = 'E_RECEIPT_FINISHED',
-  E_RECEIPT_FINISHED_FAILED = 'E_RECEIPT_FINISHED_FAILED',
-  E_NOT_PREPARED = 'E_NOT_PREPARED',
-  E_NOT_ENDED = 'E_NOT_ENDED',
-  E_ALREADY_OWNED = 'E_ALREADY_OWNED',
-  E_DEVELOPER_ERROR = 'E_DEVELOPER_ERROR',
-  E_BILLING_RESPONSE_JSON_PARSE_ERROR = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
-  E_DEFERRED_PAYMENT = 'E_DEFERRED_PAYMENT',
-  E_INTERRUPTED = 'E_INTERRUPTED',
-  E_IAP_NOT_AVAILABLE = 'E_IAP_NOT_AVAILABLE',
-  E_PURCHASE_ERROR = 'E_PURCHASE_ERROR',
-  E_SYNC_ERROR = 'E_SYNC_ERROR',
-  E_TRANSACTION_VALIDATION_FAILED = 'E_TRANSACTION_VALIDATION_FAILED',
-  E_ACTIVITY_UNAVAILABLE = 'E_ACTIVITY_UNAVAILABLE',
-  E_ALREADY_PREPARED = 'E_ALREADY_PREPARED',
-  E_PENDING = 'E_PENDING',
-  E_CONNECTION_CLOSED = 'E_CONNECTION_CLOSED',
-  E_INIT_CONNECTION = 'E_INIT_CONNECTION',
-  E_SERVICE_DISCONNECTED = 'E_SERVICE_DISCONNECTED',
-  E_QUERY_PRODUCT = 'E_QUERY_PRODUCT',
-  E_SKU_NOT_FOUND = 'E_SKU_NOT_FOUND',
-  E_SKU_OFFER_MISMATCH = 'E_SKU_OFFER_MISMATCH',
-  E_ITEM_NOT_OWNED = 'E_ITEM_NOT_OWNED',
-  E_BILLING_UNAVAILABLE = 'E_BILLING_UNAVAILABLE',
-  E_FEATURE_NOT_SUPPORTED = 'E_FEATURE_NOT_SUPPORTED',
-  E_EMPTY_SKU_LIST = 'E_EMPTY_SKU_LIST',
+  Unknown = 'E_UNKNOWN',
+  UserCancelled = 'E_USER_CANCELLED',
+  UserError = 'E_USER_ERROR',
+  ItemUnavailable = 'E_ITEM_UNAVAILABLE',
+  RemoteError = 'E_REMOTE_ERROR',
+  NetworkError = 'E_NETWORK_ERROR',
+  ServiceError = 'E_SERVICE_ERROR',
+  ReceiptFailed = 'E_RECEIPT_FAILED',
+  ReceiptFinished = 'E_RECEIPT_FINISHED',
+  ReceiptFinishedFailed = 'E_RECEIPT_FINISHED_FAILED',
+  NotPrepared = 'E_NOT_PREPARED',
+  NotEnded = 'E_NOT_ENDED',
+  AlreadyOwned = 'E_ALREADY_OWNED',
+  DeveloperError = 'E_DEVELOPER_ERROR',
+  BillingResponseJsonParseError = 'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
+  DeferredPayment = 'E_DEFERRED_PAYMENT',
+  Interrupted = 'E_INTERRUPTED',
+  IapNotAvailable = 'E_IAP_NOT_AVAILABLE',
+  PurchaseError = 'E_PURCHASE_ERROR',
+  SyncError = 'E_SYNC_ERROR',
+  TransactionValidationFailed = 'E_TRANSACTION_VALIDATION_FAILED',
+  ActivityUnavailable = 'E_ACTIVITY_UNAVAILABLE',
+  AlreadyPrepared = 'E_ALREADY_PREPARED',
+  Pending = 'E_PENDING',
+  ConnectionClosed = 'E_CONNECTION_CLOSED',
+  InitConnection = 'E_INIT_CONNECTION',
+  ServiceDisconnected = 'E_SERVICE_DISCONNECTED',
+  QueryProduct = 'E_QUERY_PRODUCT',
+  SkuNotFound = 'E_SKU_NOT_FOUND',
+  SkuOfferMismatch = 'E_SKU_OFFER_MISMATCH',
+  ItemNotOwned = 'E_ITEM_NOT_OWNED',
+  BillingUnavailable = 'E_BILLING_UNAVAILABLE',
+  FeatureNotSupported = 'E_FEATURE_NOT_SUPPORTED',
+  EmptySkuList = 'E_EMPTY_SKU_LIST',
 }
 
 export type PurchaseResult = {
@@ -478,7 +485,7 @@ export type AppTransactionIOS = {
 // ============================================================================
 
 /**
- * Options for getAvailablePurchases and getPurchaseHistories methods
+ * Options for getAvailablePurchases
  */
 export interface PurchaseOptions {
   /** Whether to also publish purchases to event listener */
@@ -552,13 +559,10 @@ export interface IapContext {
   // Purchase methods
   /**
    * Request a purchase for products or subscriptions
-   * @param params.request - Platform-specific purchase parameters
-   * @param params.type - Type of purchase: 'inapp' for products or 'subs' for subscriptions
+   * @param props.params - Platform-specific purchase parameters
+   * @param props.type - Type of purchase: 'inapp' for products or 'subs' for subscriptions
    */
-  requestPurchase(params: {
-    request: RequestPurchaseProps | RequestSubscriptionProps;
-    type?: 'inapp' | 'subs'; // defaults to 'inapp'
-  }): Promise<Purchase | Purchase[] | void>;
+  requestPurchase(props: RequestPurchaseProps): Promise<Purchase | Purchase[] | void>;
   /**
    * Finish a transaction and consume if applicable.
    * IMPORTANT: Every purchase must be finished to complete the transaction.
@@ -569,7 +573,7 @@ export interface IapContext {
     params: FinishTransactionParams
   ): Promise<PurchaseResult | boolean>;
 
-  // Purchase history methods
+  // Purchase retrieval methods
   /**
    * Get all available purchases for the current user.
    * Returns:
