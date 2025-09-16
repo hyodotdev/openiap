@@ -19,7 +19,7 @@ function Events() {
         </p>
 
         <h3>Event Types</h3>
-        <CodeBlock language="graphql">{`enum OpenIapEvent {
+        <CodeBlock language="graphql">{`enum IapEvent {
   PurchaseUpdated
   PurchaseError
   PromotedProductIos

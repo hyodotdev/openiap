@@ -91,7 +91,7 @@ await IAP.finishTransaction({
 
       <section>
         <h2>Event Listeners</h2>
-        <pre className="code-block">{`import { OpenIapEvent, purchaseUpdatedListener, purchaseErrorListener } from '@openiap/core'
+        <pre className="code-block">{`import { IapEvent, purchaseUpdatedListener, purchaseErrorListener } from '@openiap/core'
 
 // Listen for purchase updates
 const updateSubscription = purchaseUpdatedListener((purchase) => {

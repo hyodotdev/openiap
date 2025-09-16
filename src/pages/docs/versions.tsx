@@ -2,7 +2,7 @@ import { useScrollToHash } from '../../hooks/useScrollToHash';
 import AnchorLink from '../../components/AnchorLink';
 
 // Single source of truth for the latest version string
-export const LATEST_VERSION = 'v1.1.1';
+export const LATEST_VERSION = 'v1.1.11';
 
 function Versions() {
   useScrollToHash();
@@ -12,8 +12,44 @@ function Versions() {
       <h1>Version History</h1>
 
       <section>
+        <AnchorLink id="v1-1-11" level="h2">
+          {LATEST_VERSION} (2025.10)
+        </AnchorLink>
+        <ul>
+          <li>
+            <strong>Docs Alignment:</strong>
+            <ul>
+              <li>
+                Adopted the <code>RequestPurchaseProps</code> wrapper and
+                per-platform params naming across type docs and API references.
+              </li>
+              <li>
+                Synced search metadata and protocol examples with the
+                <code>props.params</code> structure used in the latest SDKs.
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Error Code Consistency:</strong>
+            <ul>
+              <li>
+                Documented <code>ErrorCode</code> enum values using the
+                canonical <code>E_SNAKE_CASE</code> strings returned by OpenIAP
+                modules.
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Release Coordination:</strong> Skipped intermediate 1.1.x
+            tags so the docs version stays aligned with other OpenIAP libraries
+            that shipped coordinated updates.
+          </li>
+        </ul>
+      </section>
+
+      <section>
         <AnchorLink id="v1-1-1" level="h2">
-          {LATEST_VERSION} (2025.09)
+          v1.1.1 (2025.09)
         </AnchorLink>
         <ul>
           <li>
@@ -58,7 +94,6 @@ function Versions() {
               <li>
                 Added comprehensive ErrorCode enum with 34 error constants
               </li>
-              <li>Renamed IapEvent → OpenIapEvent for consistency</li>
               <li>
                 Fixed fetchProducts type parameter behavior (fetches both types
                 when not specified)

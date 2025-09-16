@@ -55,6 +55,14 @@ function Types() {
         </button>
       </div>
 
+      <div className="info-note">
+        <strong>v1.1.11:</strong> Request type docs now use the{' '}
+        <code>RequestPurchaseProps</code> wrapper with per-platform params to
+        mirror the latest OpenIAP SDKs. The version jumps from 1.1.1 to 1.1.11
+        so the docs stay aligned with the other OpenIAP modules that shipped
+        coordinated changes.
+      </div>
+
       <section>
         <AnchorLink id="product" level="h2">
           Product
