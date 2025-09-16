@@ -25,14 +25,21 @@ function Protocol() {
   // Product management
   fetchProducts(params: {
     skus: string[]
-    type?: 'inapp' | 'subs'
+    type?: 'in-app' | 'subs'
   }): Promise<Product[] | SubscriptionProduct[]>
   
   // Purchase operations
-  requestPurchase(props: {
-    params: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms
-    type?: 'inapp' | 'subs'
-  }): Promise<Purchase | Purchase[] | void>
+  requestPurchase(
+    props:
+      | {
+          params: RequestPurchasePropsByPlatforms
+          type: 'in-app'
+        }
+      | {
+          params: RequestSubscriptionPropsByPlatforms
+          type: 'subs'
+        }
+  ): Promise<Purchase | Purchase[] | void>
   
   // Transaction management
   finishTransaction(params: {
@@ -64,7 +71,7 @@ await IAP.initConnection()
 // Get products
 const products = await IAP.fetchProducts({
   skus: ['premium', 'pro'],
-  type: 'inapp'
+  type: 'in-app'
 })
 
 // Get subscriptions
@@ -79,7 +86,7 @@ const purchase = await IAP.requestPurchase({
     ios: { sku: 'premium' },
     android: { skus: ['premium'] }
   },
-  type: 'inapp'
+  type: 'in-app'
 })
 
 // Finish transaction (example with consumable)

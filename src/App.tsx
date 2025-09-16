@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { ToastContainer } from 'react-toastify';
 import Layout from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
 import SearchModal from './components/SearchModal';
@@ -40,6 +41,20 @@ function App() {
         </Route>
       </Routes>
       <SearchModal isOpen={isSearchOpen} onClose={closeSearchModal} />
+      <ToastContainer
+        position="bottom-center"
+        toastStyle={{
+          borderRadius: '0.75rem',
+          backgroundColor: 'var(--bg-secondary)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border-color)',
+          maxWidth: '28rem',
+          width: 'min(90vw, 28rem)',
+        }}
+        closeButton={false}
+        newestOnTop
+        pauseOnFocusLoss
+      />
     </>
   );
 }
