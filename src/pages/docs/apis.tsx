@@ -167,7 +167,7 @@ Returns: Purchase | Purchase[] | void
 requestPurchase(props: RequestPurchaseProps): Future
 
 type RequestPurchaseProps {
-  params: RequestPurchaseParams | RequestSubscriptionParams
+  params: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms
   type?: String  "'inapp' | 'subs', defaults to 'inapp'"
 }`}</CodeBlock>
         <p className="type-link">
@@ -176,12 +176,12 @@ type RequestPurchaseProps {
             RequestPurchaseProps
           </Link>
           ,{' '}
-          <Link to="/docs/types#request-purchase-params">
-            RequestPurchaseParams
+          <Link to="/docs/types#request-purchase-props-by-platforms">
+            RequestPurchasePropsByPlatforms
           </Link>
           ,{' '}
-          <Link to="/docs/types#request-subscription-params-by-platforms">
-            RequestSubscriptionParamsByPlatforms
+          <Link to="/docs/types#request-subscription-props-by-platforms">
+            RequestSubscriptionPropsByPlatforms
           </Link>
           , <Link to="/docs/types#purchase">Purchase</Link>
         </p>

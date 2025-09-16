@@ -352,8 +352,8 @@ export interface ProductRequest {
   type?: 'inapp' | 'subs' | 'all';
 }
 
-// iOS-specific purchase request parameters
-export interface RequestPurchaseIosParams {
+// iOS-specific purchase request props
+export interface RequestPurchaseIosProps {
   readonly sku: string;
   readonly andDangerouslyFinishTransactionAutomatically?: boolean;
   readonly appAccountToken?: string;
@@ -361,17 +361,17 @@ export interface RequestPurchaseIosParams {
   readonly withOffer?: DiscountOffer;
 }
 
-// Android-specific purchase request parameters
-export interface RequestPurchaseAndroidParams {
+// Android-specific purchase request props
+export interface RequestPurchaseAndroidProps {
   readonly skus: string[];
   readonly obfuscatedAccountIdAndroid?: string;
   readonly obfuscatedProfileIdAndroid?: string;
   readonly isOfferPersonalized?: boolean;
 }
 
-// Android-specific subscription request parameters
-export interface RequestSubscriptionAndroidParams
-  extends RequestPurchaseAndroidParams {
+// Android-specific subscription request props
+export interface RequestSubscriptionAndroidProps
+  extends RequestPurchaseAndroidProps {
   readonly purchaseTokenAndroid?: string;
   readonly replacementModeAndroid?: number;
   readonly subscriptionOffers: {
@@ -380,24 +380,26 @@ export interface RequestSubscriptionAndroidParams
   }[];
 }
 
+export type RequestSubscriptionIosProps = RequestPurchaseIosProps;
+
 // Platform-specific request structures
-export interface RequestPurchaseParamsByPlatforms {
-  readonly ios?: RequestPurchaseIosParams;
-  readonly android?: RequestPurchaseAndroidParams;
+export interface RequestPurchasePropsByPlatforms {
+  readonly ios?: RequestPurchaseIosProps;
+  readonly android?: RequestPurchaseAndroidProps;
 }
 
-export interface RequestSubscriptionParamsByPlatforms {
-  readonly ios?: RequestPurchaseIosParams;
-  readonly android?: RequestSubscriptionAndroidParams;
+export interface RequestSubscriptionPropsByPlatforms {
+  readonly ios?: RequestSubscriptionIosProps;
+  readonly android?: RequestSubscriptionAndroidProps;
 }
 
-// Modern request types (v2.7.0+)
-export type RequestPurchaseParams = RequestPurchaseParamsByPlatforms;
-export type RequestSubscriptionParams = RequestSubscriptionParamsByPlatforms;
+// Modern request props (v2.7.0+)
+export type RequestPurchaseParams = RequestPurchasePropsByPlatforms;
+export type RequestSubscriptionParams = RequestSubscriptionPropsByPlatforms;
 
 export interface RequestPurchaseProps {
-  /** Platform-specific request parameters */
-  params: RequestPurchaseParams | RequestSubscriptionParams;
+  /** Platform-specific request props */
+  params: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms;
   /** Purchase type hint (defaults to 'inapp') */
   type?: 'inapp' | 'subs';
 }

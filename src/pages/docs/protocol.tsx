@@ -30,7 +30,7 @@ function Protocol() {
   
   // Purchase operations
   requestPurchase(props: {
-    params: RequestPurchaseParams | RequestSubscriptionParams
+    params: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms
     type?: 'inapp' | 'subs'
   }): Promise<Purchase | Purchase[] | void>
   

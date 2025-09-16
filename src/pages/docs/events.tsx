@@ -22,7 +22,7 @@ function Events() {
         <CodeBlock language="graphql">{`enum IapEvent {
   PurchaseUpdated
   PurchaseError
-  PromotedProductIos
+  PromotedProductIOS
 }`}</CodeBlock>
       </section>
 

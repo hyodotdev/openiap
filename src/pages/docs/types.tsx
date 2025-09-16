@@ -413,59 +413,58 @@ const allProducts = await getProducts({
         </AnchorLink>
         <p>
           Top-level arguments for <code>requestPurchase</code>. Wraps
-          platform-specific params and optional purchase type hints.
+          platform-specific props and optional purchase type hints.
         </p>
         <CodeBlock language="graphql">{`type RequestPurchaseProps = {
-  params: RequestPurchaseParams | RequestSubscriptionParams
+  params: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms
   type?: 'inapp' | 'subs'
 }`}</CodeBlock>
 
-        <AnchorLink id="request-purchase-params" level="h3">
-          RequestPurchaseParams
-        </AnchorLink>
-        <p>
-          Modern request purchase parameters. This is the recommended API moving
-          forward.
-        </p>
-        <CodeBlock language="graphql">{`type RequestPurchaseParams = RequestPurchaseParamsByPlatforms`}</CodeBlock>
-
-        <AnchorLink id="request-purchase-params-by-platforms" level="h3">
-          RequestPurchaseParamsByPlatforms
+        <AnchorLink id="request-purchase-props-by-platforms" level="h3">
+          RequestPurchasePropsByPlatforms
         </AnchorLink>
         <p>
           Platform-specific request structure for regular purchases. Allows
-          clear separation of iOS and Android parameters.
+          clear separation of iOS and Android props.
         </p>
-        <CodeBlock language="graphql">{`input RequestPurchaseParamsByPlatforms {
-  "iOS-specific purchase parameters"
-  ios: RequestPurchaseIosParams
-  
-  "Android-specific purchase parameters"
-  android: RequestPurchaseAndroidParams
+        <CodeBlock language="graphql">{`input RequestPurchasePropsByPlatforms {
+  """
+  iOS-specific purchase parameters
+  """
+  ios: RequestPurchaseIosProps
+
+  """
+  Android-specific purchase parameters
+  """
+  android: RequestPurchaseAndroidProps
 }`}</CodeBlock>
 
-        <AnchorLink id="request-subscription-params-by-platforms" level="h3">
-          RequestSubscriptionParamsByPlatforms
+        <AnchorLink id="request-subscription-props-by-platforms" level="h3">
+          RequestSubscriptionPropsByPlatforms
         </AnchorLink>
         <p>Platform-specific subscription request structure.</p>
-        <CodeBlock language="graphql">{`input RequestSubscriptionParamsByPlatforms {
-  "iOS-specific subscription parameters"
-  ios: RequestPurchaseIosParams
-  
-  "Android-specific subscription parameters"
-  android: RequestSubscriptionAndroidParams
+        <CodeBlock language="graphql">{`input RequestSubscriptionPropsByPlatforms {
+  """
+  iOS-specific subscription parameters
+  """
+  ios: RequestSubscriptionIosProps
+
+  """
+  Android-specific subscription parameters
+  """
+  android: RequestSubscriptionAndroidProps
 }`}</CodeBlock>
 
-        <AnchorLink id="platform-specific-request-params" level="h3">
-          Platform-Specific Request Params
+        <AnchorLink id="platform-specific-request-props" level="h3">
+          Platform-Specific Request Props
         </AnchorLink>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>RequestPurchaseIosParams</h4>
-                <p>iOS-specific purchase request parameters.</p>
-                <CodeBlock language="graphql">{`input RequestPurchaseIosParams {
+                <h4>RequestPurchaseIosProps</h4>
+                <p>iOS-specific purchase request props.</p>
+                <CodeBlock language="graphql">{`input RequestPurchaseIosProps {
   "Product SKU"
   sku: String!
   
@@ -485,9 +484,9 @@ const allProducts = await getProducts({
             ),
             android: (
               <>
-                <h4>RequestPurchaseAndroidParams</h4>
-                <p>Android-specific purchase request parameters.</p>
-                <CodeBlock language="graphql">{`input RequestPurchaseAndroidParams {
+                <h4>RequestPurchaseAndroidProps</h4>
+                <p>Android-specific purchase request props.</p>
+                <CodeBlock language="graphql">{`input RequestPurchaseAndroidProps {
   "List of product SKUs"
   skus: [String!]!
   
@@ -505,30 +504,30 @@ const allProducts = await getProducts({
           }}
         </PlatformTabs>
 
-        <AnchorLink id="subscription-request-params" level="h3">
-          Subscription Request Params
+        <AnchorLink id="subscription-request-props" level="h3">
+          Subscription Request Props
         </AnchorLink>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>RequestSubscriptionIosParams</h4>
+                <h4>RequestSubscriptionIosProps</h4>
                 <p>
-                  For iOS subscriptions, use the same parameters as
-                  RequestPurchaseIosParams.
+                  For iOS subscriptions, use the same props as
+                  RequestPurchaseIosProps.
                 </p>
-                <CodeBlock language="graphql">{`// iOS uses the same params as regular purchases
-type RequestSubscriptionIosParams = RequestPurchaseIosParams`}</CodeBlock>
+                <CodeBlock language="graphql">{`// iOS uses the same props as regular purchases
+type RequestSubscriptionIosProps = RequestPurchaseIosProps`}</CodeBlock>
               </>
             ),
             android: (
               <>
-                <h4>RequestSubscriptionAndroidParams</h4>
+                <h4>RequestSubscriptionAndroidProps</h4>
                 <p>
-                  Android-specific subscription request parameters. Extends
-                  RequestPurchaseAndroidParams.
+                  Android-specific subscription request props. Extends
+                  RequestPurchaseAndroidProps.
                 </p>
-                <CodeBlock language="graphql">{`input RequestSubscriptionAndroidParams {
+                <CodeBlock language="graphql">{`input RequestSubscriptionAndroidProps {
   "List of subscription SKUs"
   skus: [String!]!
   
