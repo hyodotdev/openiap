@@ -17,6 +17,100 @@ function Announcements() {
             padding: '2rem',
             marginBottom: '2rem',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden',
+            overflowWrap: 'break-word',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: '2rem' }}>📰</span>
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              openiap-gql v1.0.0 is live
+            </h2>
+          </div>
+          <p
+            style={{
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '1rem',
+            }}
+          >
+            September 2024
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Our GraphQL gateway for OpenIAP has reached its first stable
+            release. Version 1.0.0 delivers a strongly typed schema, realtime
+            subscription awareness, and polished tooling to help teams ship
+            production-ready experiences faster.
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              Explore the{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap-gql/releases/tag/1.0.0"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                detailed v1.0.0 release notes
+              </a>
+            </li>
+            <li>
+              Subscription-aware directives with live entitlement helpers built
+              in
+            </li>
+            <li>
+              Explorer presets and copy-ready queries for rapid onboarding
+            </li>
+          </ul>
+          <div
+            style={{
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '1.5rem',
+            }}
+          >
+            Want to kick the tires? Point your tooling at the new playground and
+            start testing subscriptions with mocked entitlements in seconds.
+          </div>
+          <img
+            src="https://private-user-images.githubusercontent.com/27461460/490032984-d53df582-fbb0-4df8-9fd3-a4411eba5ef6.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTgwMjY4MjksIm5iZiI6MTc1ODAyNjUyOSwicGF0aCI6Ii8yNzQ2MTQ2MC80OTAwMzI5ODQtZDUzZGY1ODItZmJiMC00ZGY4LTlmZDMtYTQ0MTFlYmE1ZWY2LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTA5MTYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwOTE2VDEyNDIwOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWM0NWQ3OTVhOGQ2YjM1MjUzZDAwY2VlOGVkMzgwNDcxMjQ5OTZjMTRhYWJjMDQ3NjM5MjE5MmFhOTVmOTRmNDAmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.KDybzXAKzMhdNNXz05nFT2GTTbfVkbFbjfM1BU8O0f0"
+            alt="GraphQL explorer showcasing the openiap-gql release"
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: '720px',
+              borderRadius: '0.75rem',
+              margin: '0 auto',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+            }}
+          />
+        </div>
+      </section>
+
+      <section>
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '2px solid var(--border-color)',
+            borderRadius: '1rem',
+            padding: '2rem',
+            marginBottom: '2rem',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           }}
         >
           <div
