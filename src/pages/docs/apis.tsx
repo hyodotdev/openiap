@@ -99,7 +99,7 @@ fetchProducts(params: ProductRequest!): Future
 
 type ProductRequest {
   skus: [String]!
-  type?: ProductType  "Values: 'inapp' | 'subs'. If not provided, fetches both types"
+  type?: ProductType  "Values: 'in-app' | 'subs' | 'all'. Defaults to 'in-app'"
 }`}</CodeBlock>
         <p className="type-link">
           See: <Link to="/docs/types#product">Product</Link>,{' '}
@@ -108,9 +108,11 @@ type ProductRequest {
         <p>
           Returns a future that completes with an array of products or
           subscriptions matching the provided SKUs. Use{' '}
-          <code>type: "inapp"</code> for regular products only,{' '}
-          <code>type: "subs"</code> for subscriptions only, or omit the type
-          parameter to fetch both products and subscriptions.
+          <code>type: "in-app"</code> for regular products only,{' '}
+          <code>type: "subs"</code> for subscriptions only,{' '}
+          <code>type: "all"</code> for both products and subscriptions, or omit
+          the type parameter to fall back to the default <code>'in-app'</code>
+          behavior.
         </p>
 
         <AnchorLink id="get-available-purchases" level="h3">
@@ -166,10 +168,15 @@ Returns: Purchase | Purchase[] | void
 """
 requestPurchase(props: RequestPurchaseProps): Future
 
-type RequestPurchaseProps {
-  params: RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms
-  type?: String  "'inapp' | 'subs', defaults to 'inapp'"
-}`}</CodeBlock>
+type RequestPurchaseProps =
+  | {
+      params: RequestPurchasePropsByPlatforms
+      type: 'in-app'
+    }
+  | {
+      params: RequestSubscriptionPropsByPlatforms
+      type: 'subs'
+    }`}</CodeBlock>
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#request-purchase-props">
@@ -191,11 +198,12 @@ type RequestPurchaseProps {
         </p>
         <blockquote className="info-note">
           <p>
-            <strong>Note:</strong> The <code>type</code> parameter is required
-            for Android to properly distinguish between regular in-app purchases
-            and subscriptions in the Google Play Billing system. While iOS can
-            determine the type from the product itself, Android requires
-            explicit type specification.
+            <strong>Note:</strong> Use the union shape to keep platforms in
+            sync—<code>type: 'in-app'</code> pairs with
+            <code>RequestPurchasePropsByPlatforms</code>, and
+            <code>type: 'subs'</code> pairs with
+            <code>RequestSubscriptionPropsByPlatforms</code>. This ensures both
+            Google Play Billing and StoreKit receive the correct payloads.
           </p>
         </blockquote>
 
