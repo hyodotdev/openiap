@@ -261,14 +261,14 @@ function Home() {
               </div>
               <div className="spec-items">
                 <Link
-                  to="/docs/events#purchaseupdatedevent"
+                  to="/docs/events#purchase-updated-event"
                   className="spec-item"
                 >
                   <code>purchaseUpdatedListener</code>
                   <span>Purchase state changes</span>
                 </Link>
                 <Link
-                  to="/docs/events#purchaseerrorevent"
+                  to="/docs/events#purchase-error-event"
                   className="spec-item"
                 >
                   <code>purchaseErrorListener</code>

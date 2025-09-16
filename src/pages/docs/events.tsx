@@ -27,7 +27,7 @@ function Events() {
       </section>
 
       <section>
-        <AnchorLink id="purchaseupdatedevent" level="h2">
+        <AnchorLink id="purchase-updated-event" level="h2">
           Purchase Updated Event
         </AnchorLink>
         <p>
@@ -63,7 +63,7 @@ function Events() {
       </section>
 
       <section>
-        <AnchorLink id="purchaseerrorevent" level="h2">
+        <AnchorLink id="purchase-error-event" level="h2">
           Purchase Error Event
         </AnchorLink>
         <p>Fired when a purchase fails or is cancelled by the user.</p>
@@ -120,20 +120,20 @@ function Events() {
           <li>Receive product SKU via listener</li>
           <li>
             Fetch product details using{' '}
-            <Link to="/docs/apis#getproducts">getProducts</Link>
+            <Link to="/docs/apis#fetch-products">fetchProducts</Link>
           </li>
           <li>Display product information to user</li>
           <li>
             Call{' '}
-            <Link to="/docs/apis#buypromotedproductios">
-              buyPromotedProductIOS
+            <Link to="/docs/apis#request-purchase-on-promoted-product-ios">
+              requestPurchaseOnPromotedProductIOS
             </Link>{' '}
             if user confirms
           </li>
         </ol>
         <p>
           Also check{' '}
-          <Link to="/docs/apis#getpromotedproductios">
+          <Link to="/docs/apis#get-promoted-product-ios">
             getPromotedProductIOS
           </Link>{' '}
           on app launch for pending promoted products.

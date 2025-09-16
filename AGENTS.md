@@ -85,7 +85,7 @@ Functions available on both platforms have no suffix:
 
 ### Deprecated Functions
 
-- `buyPromotedProductIOS` → Use `requestPurchaseOnPromotedProductIOS`
+- `buy-promoted-product-ios` → Use `requestPurchaseOnPromotedProductIOS`
 - `requestProducts` → Use `fetchProducts`
 
 ## Modal Pattern with Preact Signals
