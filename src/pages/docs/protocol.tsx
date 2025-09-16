@@ -29,8 +29,8 @@ function Protocol() {
   }): Promise<Product[] | SubscriptionProduct[]>
   
   // Purchase operations
-  requestPurchase(params: {
-    request: PurchaseRequest
+  requestPurchase(props: {
+    params: RequestPurchaseParams | RequestSubscriptionParams
     type?: 'inapp' | 'subs'
   }): Promise<Purchase | Purchase[] | void>
   
@@ -75,7 +75,7 @@ const subscriptions = await IAP.fetchProducts({
 
 // Make a purchase
 const purchase = await IAP.requestPurchase({
-  request: {
+  params: {
     ios: { sku: 'premium' },
     android: { skus: ['premium'] }
   },
@@ -91,7 +91,7 @@ await IAP.finishTransaction({
 
       <section>
         <h2>Event Listeners</h2>
-        <pre className="code-block">{`import { OpenIapEvent, purchaseUpdatedListener, purchaseErrorListener } from '@openiap/core'
+        <pre className="code-block">{`import { IapEvent, purchaseUpdatedListener, purchaseErrorListener } from '@openiap/core'
 
 // Listen for purchase updates
 const updateSubscription = purchaseUpdatedListener((purchase) => {
@@ -126,7 +126,7 @@ const storefront = await IAP.getStorefrontIOS() // 'US', 'GB', etc.
 
 // iOS purchase with offer
 await IAP.requestPurchase({
-  request: {
+  params: {
     ios: {
       sku: 'premium',
       withOffer: {
@@ -143,7 +143,7 @@ await IAP.requestPurchase({
         <h3>Android Features</h3>
         <pre className="code-block">{`// Android subscription with offers
 await IAP.requestPurchase({
-  request: {
+  params: {
     android: {
       skus: ['monthly_sub'],
       subscriptionOffers: [{
@@ -162,7 +162,7 @@ await IAP.requestPurchase({
         <h2>Error Handling</h2>
         <pre className="code-block">{`try {
   const purchase = await IAP.requestPurchase({
-    request: { ios: { sku: 'premium' }, android: { skus: ['premium'] } }
+    params: { ios: { sku: 'premium' }, android: { skus: ['premium'] } }
   })
   
   // Verify receipt on your server

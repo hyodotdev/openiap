@@ -55,6 +55,14 @@ function Types() {
         </button>
       </div>
 
+      <div className="info-note">
+        <strong>v1.1.11:</strong> Request type docs now use the{' '}
+        <code>RequestPurchaseProps</code> wrapper with per-platform params to
+        mirror the latest OpenIAP SDKs. The version jumps from 1.1.1 to 1.1.11
+        so the docs stay aligned with the other OpenIAP modules that shipped
+        coordinated changes.
+      </div>
+
       <section>
         <AnchorLink id="product" level="h2">
           Product
@@ -84,7 +92,14 @@ function Types() {
             ios: (
               <>
                 <h4>ProductIOS</h4>
-                <CodeBlock language="typescript">{`type ProductIOS = ProductCommon & {
+                <CodeBlock language="typescript">{`enum ProductTypeIOS {
+  Consumable = "Consumable",
+  NonConsumable = "NonConsumable", 
+  AutoRenewableSubscription = "AutoRenewableSubscription",
+  NonRenewingSubscription = "NonRenewingSubscription"
+}
+
+type ProductIOS = ProductCommon & {
   displayNameIOS: string;
   isFamilyShareableIOS: boolean;
   jsonRepresentationIOS: string;
@@ -93,21 +108,12 @@ function Types() {
   typeIOS: ProductTypeIOS;  // Detailed iOS product type
 };
 
-
-// iOS detailed product types
-enum ProductTypeIOS {
-  consumable = "consumable",
-  nonConsumable = "nonConsumable", 
-  autoRenewableSubscription = "autoRenewableSubscription",
-  nonRenewingSubscription = "nonRenewingSubscription"
-}
-
 type SubscriptionInfo = {
   introductoryOffer?: SubscriptionOffer;
   promotionalOffers?: SubscriptionOffer[];
   subscriptionGroupId: string;
   subscriptionPeriod: {
-    unit: SubscriptionIosPeriod;
+    unit: SubscriptionPeriodIOS;
     value: number;
   };
 };
@@ -117,7 +123,7 @@ type SubscriptionOffer = {
   id: string;
   paymentMode: PaymentMode;
   period: {
-    unit: SubscriptionIosPeriod;
+    unit: SubscriptionPeriodIOS;
     value: number;
   };
   periodCount: number;
@@ -125,8 +131,8 @@ type SubscriptionOffer = {
   type: 'introductory' | 'promotional';
 };
 
-type PaymentMode = '' | 'FREETRIAL' | 'PAYASYOUGO' | 'PAYUPFRONT';
-type SubscriptionIosPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | '';`}</CodeBlock>
+type PaymentMode = '' | 'FreeTrial' | 'PayAsYouGo' | 'PayUpFront';
+type SubscriptionPeriodIOS = 'Day' | 'Week' | 'Month' | 'Year' | '';`}</CodeBlock>
               </>
             ),
             android: (
@@ -136,7 +142,7 @@ type SubscriptionIosPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | '';`}</CodeBloc
   nameAndroid: string;
   oneTimePurchaseOfferDetailsAndroid?: ProductAndroidOneTimePurchaseOfferDetail;
   platform: "android";  // Literal type
-  subscriptionOfferDetailsAndroid?: ProductSubscriptionAndroidOfferDetail[];
+  subscriptionOfferDetailsAndroid?: SubscriptionProductAndroidOfferDetail[];
 };
 
 type ProductAndroidOneTimePurchaseOfferDetail = {
@@ -145,7 +151,7 @@ type ProductAndroidOneTimePurchaseOfferDetail = {
   priceAmountMicros: string;
 };
 
-type ProductSubscriptionAndroidOfferDetail = {
+type SubscriptionProductAndroidOfferDetail = {
   basePlanId: string;
   offerId: string;
   offerToken: string;
@@ -173,15 +179,15 @@ type PricingPhaseAndroid = {
 
       <section>
         <AnchorLink id="product-subscription" level="h2">
-          ProductSubscription
+          SubscriptionProduct
         </AnchorLink>
         <p className="type-definition">
-          ProductSubscription = (ProductSubscriptionAndroid & AndroidPlatform) |
-          (ProductSubscriptionIOS & IosPlatform)
+          SubscriptionProduct = (SubscriptionProductAndroid & AndroidPlatform) |
+          (SubscriptionProductIOS & IosPlatform)
         </p>
 
         <h3>Common Fields</h3>
-        <CodeBlock language="typescript">{`type ProductSubscriptionCommon = ProductCommon & {
+        <CodeBlock language="typescript">{`type SubscriptionProductCommon = ProductCommon & {
   type: 'subs';
 };`}</CodeBlock>
 
@@ -190,7 +196,7 @@ type PricingPhaseAndroid = {
           {{
             ios: (
               <>
-                <h4>ProductSubscriptionIOS</h4>
+                <h4>SubscriptionProductIOS</h4>
                 <CodeBlock language="typescript">{`type Discount = {
   identifier: string;
   type: string;
@@ -201,23 +207,23 @@ type PricingPhaseAndroid = {
   subscriptionPeriod: string;
 };
 
-type ProductSubscriptionIOS = ProductIOS & {
+type SubscriptionProductIOS = ProductIOS & {
   discountsIOS?: Discount[];
   introductoryPriceIOS?: string;
   introductoryPriceAsAmountIOS?: string;
   introductoryPricePaymentModeIOS?: PaymentMode;
   introductoryPriceNumberOfPeriodsIOS?: string;
-  introductoryPriceSubscriptionPeriodIOS?: SubscriptionIosPeriod;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionPeriodIOS;
   platform: "ios";
   subscriptionPeriodNumberIOS?: string;
-  subscriptionPeriodUnitIOS?: SubscriptionIosPeriod;
+  subscriptionPeriodUnitIOS?: SubscriptionPeriodIOS;
 };`}</CodeBlock>
               </>
             ),
             android: (
               <>
-                <h4>ProductSubscriptionAndroid</h4>
-                <CodeBlock language="typescript">{`type ProductSubscriptionAndroidOfferDetails = {
+                <h4>SubscriptionProductAndroid</h4>
+                <CodeBlock language="typescript">{`type SubscriptionProductAndroidOfferDetails = {
   basePlanId: string;
   offerId: string | null;
   offerToken: string;
@@ -225,8 +231,8 @@ type ProductSubscriptionIOS = ProductIOS & {
   offerTags: string[];
 };
 
-type ProductSubscriptionAndroid = ProductAndroid & {
-  subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
+type SubscriptionProductAndroid = ProductAndroid & {
+  subscriptionOfferDetailsAndroid: SubscriptionProductAndroidOfferDetails[];
 };`}</CodeBlock>
               </>
             ),
@@ -244,7 +250,16 @@ type ProductSubscriptionAndroid = ProductAndroid & {
         </p>
 
         <h3>Common Fields</h3>
-        <CodeBlock language="typescript">{`type PurchaseCommon = {
+        <CodeBlock language="typescript">{`enum PurchaseState {
+  Pending = "Pending",
+  Purchased = "Purchased", 
+  Failed = "Failed",
+  Restored = "Restored",   // iOS only
+  Deferred = "Deferred",    // iOS only
+  Unknown = "Unknown"
+}
+
+type PurchaseCommon = {
   id: string;
   productId: string;
   ids?: string[];  // Common field for both platforms
@@ -255,16 +270,7 @@ type ProductSubscriptionAndroid = ProductAndroid & {
   quantity: number;  // Purchase quantity (defaults to 1)
   purchaseState: PurchaseState;  // Purchase state (common field)
   isAutoRenewing: boolean;  // Auto-renewable subscription flag (common field)
-};
-
-enum PurchaseState {
-  pending = "pending",
-  purchased = "purchased", 
-  failed = "failed",
-  restored = "restored",   // iOS only
-  deferred = "deferred",    // iOS only
-  unknown = "unknown"
-}`}</CodeBlock>
+};`}</CodeBlock>
 
         <h3>Platform-Specific Fields</h3>
         <PlatformTabs>
@@ -348,8 +354,8 @@ type Product =
   | (ProductIOS & IosPlatform);
 
 type SubscriptionProduct =
-  | (ProductSubscriptionAndroid & AndroidPlatform)
-  | (ProductSubscriptionIOS & IosPlatform);
+  | (SubscriptionProductAndroid & AndroidPlatform)
+  | (SubscriptionProductIOS & IosPlatform);
 
 // Purchase Union Types  
 type Purchase =
@@ -406,48 +412,60 @@ const allProducts = await getProducts({
           RequestPurchaseProps
         </AnchorLink>
         <p>
+          Top-level arguments for <code>requestPurchase</code>. Wraps
+          platform-specific params and optional purchase type hints.
+        </p>
+        <CodeBlock language="graphql">{`type RequestPurchaseProps = {
+  params: RequestPurchaseParams | RequestSubscriptionParams
+  type?: 'inapp' | 'subs'
+}`}</CodeBlock>
+
+        <AnchorLink id="request-purchase-params" level="h3">
+          RequestPurchaseParams
+        </AnchorLink>
+        <p>
           Modern request purchase parameters. This is the recommended API moving
           forward.
         </p>
-        <CodeBlock language="graphql">{`type RequestPurchaseProps = RequestPurchasePropsByPlatforms`}</CodeBlock>
+        <CodeBlock language="graphql">{`type RequestPurchaseParams = RequestPurchaseParamsByPlatforms`}</CodeBlock>
 
-        <AnchorLink id="request-purchase-props-by-platforms" level="h3">
-          RequestPurchasePropsByPlatforms
+        <AnchorLink id="request-purchase-params-by-platforms" level="h3">
+          RequestPurchaseParamsByPlatforms
         </AnchorLink>
         <p>
           Platform-specific request structure for regular purchases. Allows
           clear separation of iOS and Android parameters.
         </p>
-        <CodeBlock language="graphql">{`input RequestPurchasePropsByPlatforms {
+        <CodeBlock language="graphql">{`input RequestPurchaseParamsByPlatforms {
   "iOS-specific purchase parameters"
-  ios: RequestPurchaseIosProps
+  ios: RequestPurchaseIosParams
   
   "Android-specific purchase parameters"
-  android: RequestPurchaseAndroidProps
+  android: RequestPurchaseAndroidParams
 }`}</CodeBlock>
 
-        <AnchorLink id="request-subscription-props-by-platforms" level="h3">
-          RequestSubscriptionPropsByPlatforms
+        <AnchorLink id="request-subscription-params-by-platforms" level="h3">
+          RequestSubscriptionParamsByPlatforms
         </AnchorLink>
         <p>Platform-specific subscription request structure.</p>
-        <CodeBlock language="graphql">{`input RequestSubscriptionPropsByPlatforms {
+        <CodeBlock language="graphql">{`input RequestSubscriptionParamsByPlatforms {
   "iOS-specific subscription parameters"
-  ios: RequestPurchaseIosProps
+  ios: RequestPurchaseIosParams
   
   "Android-specific subscription parameters"
-  android: RequestSubscriptionAndroidProps
+  android: RequestSubscriptionAndroidParams
 }`}</CodeBlock>
 
-        <AnchorLink id="platform-specific-request-props" level="h3">
-          Platform-Specific Request Props
+        <AnchorLink id="platform-specific-request-params" level="h3">
+          Platform-Specific Request Params
         </AnchorLink>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>RequestPurchaseIosProps</h4>
+                <h4>RequestPurchaseIosParams</h4>
                 <p>iOS-specific purchase request parameters.</p>
-                <CodeBlock language="graphql">{`input RequestPurchaseIosProps {
+                <CodeBlock language="graphql">{`input RequestPurchaseIosParams {
   "Product SKU"
   sku: String!
   
@@ -467,9 +485,9 @@ const allProducts = await getProducts({
             ),
             android: (
               <>
-                <h4>RequestPurchaseAndroidProps</h4>
+                <h4>RequestPurchaseAndroidParams</h4>
                 <p>Android-specific purchase request parameters.</p>
-                <CodeBlock language="graphql">{`input RequestPurchaseAndroidProps {
+                <CodeBlock language="graphql">{`input RequestPurchaseAndroidParams {
   "List of product SKUs"
   skus: [String!]!
   
@@ -487,30 +505,30 @@ const allProducts = await getProducts({
           }}
         </PlatformTabs>
 
-        <AnchorLink id="subscription-request-props" level="h3">
-          Subscription Request Props
+        <AnchorLink id="subscription-request-params" level="h3">
+          Subscription Request Params
         </AnchorLink>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>RequestSubscriptionIosProps</h4>
+                <h4>RequestSubscriptionIosParams</h4>
                 <p>
                   For iOS subscriptions, use the same parameters as
-                  RequestPurchaseIosProps.
+                  RequestPurchaseIosParams.
                 </p>
-                <CodeBlock language="graphql">{`// iOS uses the same props as regular purchases
-type RequestSubscriptionIosProps = RequestPurchaseIosProps`}</CodeBlock>
+                <CodeBlock language="graphql">{`// iOS uses the same params as regular purchases
+type RequestSubscriptionIosParams = RequestPurchaseIosParams`}</CodeBlock>
               </>
             ),
             android: (
               <>
-                <h4>RequestSubscriptionAndroidProps</h4>
+                <h4>RequestSubscriptionAndroidParams</h4>
                 <p>
                   Android-specific subscription request parameters. Extends
-                  RequestPurchaseAndroidProps.
+                  RequestPurchaseAndroidParams.
                 </p>
-                <CodeBlock language="graphql">{`input RequestSubscriptionAndroidProps {
+                <CodeBlock language="graphql">{`input RequestSubscriptionAndroidParams {
   "List of subscription SKUs"
   skus: [String!]!
   
@@ -673,28 +691,28 @@ type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidatio
   "Raw discount price value"
   priceAmount: Float!
   
-  "Payment mode (payAsYouGo, payUpFront, freeTrial)"
+  "Payment mode (PayAsYouGo, PayUpFront, FreeTrial)"
   paymentMode: String!
   
   "Subscription period for discount"
   subscriptionPeriod: String!
 }`}</CodeBlock>
 
-                <h4>SubscriptionIosPeriod</h4>
-                <CodeBlock language="graphql">{`enum SubscriptionIosPeriod {
-  DAY    # Daily period
-  WEEK   # Weekly period
-  MONTH  # Monthly period
-  YEAR   # Yearly period
+                <h4>SubscriptionPeriodIOS</h4>
+                <CodeBlock language="graphql">{`enum SubscriptionPeriodIOS {
+  Day    # Daily period
+  Week   # Weekly period
+  Month  # Monthly period
+  Year   # Yearly period
   ""     # Empty string (unspecified)
 }`}</CodeBlock>
 
                 <h4>PaymentMode</h4>
                 <CodeBlock language="graphql">{`enum PaymentMode {
-  ""           # Empty string
-  FREETRIAL    # Free trial
-  PAYASYOUGO   # Pay as you go
-  PAYUPFRONT   # Pay up front
+  ""            # Empty string
+  FreeTrial      # Free trial
+  PayAsYouGo     # Pay as you go
+  PayUpFront     # Pay up front
 }`}</CodeBlock>
 
                 <h4>SubscriptionStatusIOS</h4>

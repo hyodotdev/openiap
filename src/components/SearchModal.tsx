@@ -87,24 +87,13 @@ const apiData: ApiItem[] = [
     returns: '[Purchase!]!',
     path: '/docs/apis#get-available-purchases',
   },
-  {
-    id: 'get-purchase-histories',
-    title: 'getPurchaseHistories',
-    category: 'Product Management (Deprecated)',
-    description:
-      '⚠️ DEPRECATED: Get purchase history (iOS only) - Use getAvailablePurchases instead',
-    parameters: 'PurchaseOptions?',
-    returns: '[Purchase!]!',
-    path: '/docs/apis#get-purchase-histories',
-  },
-
   // Purchase Operations
   {
     id: 'request-purchase',
     title: 'requestPurchase',
     category: 'Purchase Operations',
     description: 'Request a purchase (one-time or subscription)',
-    parameters: 'RequestPurchaseProps | RequestSubscriptionProps',
+    parameters: 'RequestPurchaseProps',
     returns: 'Purchase!',
     path: '/docs/apis#request-purchase',
   },

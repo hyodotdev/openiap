@@ -160,7 +160,7 @@ function Updates() {
         <CodeBlock language="typescript">
           {`// ❌ This no longer works
 const testProduct = await fetchProducts(['android.test.purchased'])
-// Returns SERVICE_DISCONNECTED error`}
+// Returns E_SERVICE_DISCONNECTED error`}
         </CodeBlock>
 
         <h4>After (Current approach):</h4>
