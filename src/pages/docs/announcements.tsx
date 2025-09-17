@@ -42,7 +42,7 @@ function Announcements() {
               marginBottom: '1rem',
             }}
           >
-            September 2024
+            September 2025
           </p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Our GraphQL gateway for OpenIAP has reached its first stable
@@ -87,7 +87,7 @@ function Announcements() {
             start testing subscriptions with mocked entitlements in seconds.
           </div>
           <img
-            src="https://private-user-images.githubusercontent.com/27461460/490032984-d53df582-fbb0-4df8-9fd3-a4411eba5ef6.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTgwMjY4MjksIm5iZiI6MTc1ODAyNjUyOSwicGF0aCI6Ii8yNzQ2MTQ2MC80OTAwMzI5ODQtZDUzZGY1ODItZmJiMC00ZGY4LTlmZDMtYTQ0MTFlYmE1ZWY2LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTA5MTYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwOTE2VDEyNDIwOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWM0NWQ3OTVhOGQ2YjM1MjUzZDAwY2VlOGVkMzgwNDcxMjQ5OTZjMTRhYWJjMDQ3NjM5MjE5MmFhOTVmOTRmNDAmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.KDybzXAKzMhdNNXz05nFT2GTTbfVkbFbjfM1BU8O0f0"
+            src="https://github.com/user-attachments/assets/d53df582-fbb0-4df8-9fd3-a4411eba5ef6"
             alt="GraphQL explorer showcasing the openiap-gql release"
             style={{
               display: 'block',
