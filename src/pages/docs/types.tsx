@@ -395,6 +395,19 @@ type PurchaseCommon = {
   isAutoRenewing: boolean;  // Auto-renewable subscription flag (common field)
 };`}</CodeBlock>
 
+        <p>
+          The shared <code>id</code> field maps to Google Play's{' '}
+          <code>orderId</code>. When Play omits it—common for consumables—the
+          SDK falls back to the long <code>purchaseToken</code> so you retain a
+          stable primary key. The token length makes the fallback easy to spot.
+        </p>
+        <p>
+          <code>transactionId</code> also mirrors the same <code>orderId</code>
+          value for consistency. On iOS, <code>id</code> and{' '}
+          <code>transactionId</code> are always identical; on Android they match
+          unless the <code>id</code> field needs to fall back to the token.
+        </p>
+
         <h3>Platform-Specific Fields</h3>
         <PlatformTabs>
           {{
