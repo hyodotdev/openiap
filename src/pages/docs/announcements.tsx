@@ -6,7 +6,7 @@ function Announcements() {
   return (
     <div className="doc-page">
       <h1>📢 Announcements</h1>
-      <p>Important news and updates about Open IAP</p>
+      <p>Important news and updates about OpenIAP</p>
 
       <section>
         <div
@@ -251,7 +251,7 @@ function Announcements() {
             August 15, 2025
           </p>
           <p style={{ lineHeight: '1.7', marginBottom: '1.5rem' }}>
-            We're thrilled to announce that Open IAP is now officially backed by
+            We're thrilled to announce that OpenIAP is now officially backed by
             Meta! This partnership marks a significant milestone in our mission
             to standardize and simplify in-app purchases across all platforms.
           </p>
@@ -264,7 +264,7 @@ function Announcements() {
               borderLeft: '4px solid var(--primary-color)',
             }}
           >
-            <strong>Note:</strong> Open IAP will continue to operate
+            <strong>Note:</strong> OpenIAP will continue to operate
             independently with the same commitment to developer experience and
             cross-platform compatibility. Our core libraries remain MIT licensed
             and free to use.

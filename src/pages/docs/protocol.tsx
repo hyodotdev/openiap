@@ -1,12 +1,12 @@
 function Protocol() {
   return (
     <div className="doc-page">
-      <h1>Open IAP Specification</h1>
+      <h1>OpenIAP Specification</h1>
 
       <section>
         <h2>Overview</h2>
         <p>
-          Open IAP is an open specification that standardizes in-app purchase
+          OpenIAP is an open specification that standardizes in-app purchase
           implementations across diverse platforms and frameworks. As new
           platforms emerge (StoreKit 2, Android Billing v8, Vision Pro, Horizon
           OS) and frameworks multiply (React Native, Flutter, KMP), the need for

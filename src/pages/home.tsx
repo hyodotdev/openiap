@@ -7,7 +7,7 @@ function Home() {
         <div className="hero-container">
           <img
             src="/logo.png"
-            alt="Open IAP"
+            alt="OpenIAP"
             className="hero-logo"
             style={{ width: '120px', height: '120px', marginBottom: '2rem' }}
           />
@@ -154,7 +154,7 @@ function Home() {
             platform, increasing complexity and errors.
             <br />
             <br />
-            <strong>Open IAP is our answer:</strong> A unified, open
+            <strong>OpenIAP is our answer:</strong> A unified, open
             specification that reduces fragmentation and enables consistent IAP
             implementations across all platforms. This standardization is
             especially critical in the AI coding era.
@@ -164,7 +164,7 @@ function Home() {
               <h3>End Fragmentation</h3>
               <p>
                 Multiple IAP libraries with different APIs create complexity.
-                Open IAP provides a unified specification that all libraries can
+                OpenIAP provides a unified specification that all libraries can
                 implement.
               </p>
             </div>
@@ -172,13 +172,13 @@ function Home() {
               <h3>Future-Proof</h3>
               <p>
                 As StoreKit 2, Android Billing v8, and new platforms emerge,
-                Open IAP abstracts these changes behind a stable API.
+                OpenIAP abstracts these changes behind a stable API.
               </p>
             </div>
             <div className="benefit">
               <h3>AI-Ready</h3>
               <p>
-                In the AI coding era, standardized APIs are crucial. Open IAP
+                In the AI coding era, standardized APIs are crucial. OpenIAP
                 enables AI assistants to generate consistent IAP code.
               </p>
             </div>
@@ -211,7 +211,7 @@ function Home() {
               </h3>
               <p>
                 Horizon OS, Android XR, Vision Pro - new realities need
-                purchases. Open IAP is ready for the spatial computing era.
+                purchases. OpenIAP is ready for the spatial computing era.
               </p>
             </div>
           </div>
@@ -220,7 +220,7 @@ function Home() {
 
       <section className="home-section section-how">
         <div className="section-container">
-          <h2>How Open IAP Works</h2>
+          <h2>How OpenIAP Works</h2>
           <p className="section-subtitle">
             Unifying diverse platform APIs into a single, consistent
             specification
@@ -307,9 +307,9 @@ function Home() {
 
       <section className="home-section section-who">
         <div className="section-container">
-          <h2>Who uses Open IAP?</h2>
+          <h2>Who uses OpenIAP?</h2>
           <p className="section-subtitle">
-            Leading IAP libraries implementing the Open IAP specification
+            Leading IAP libraries implementing the OpenIAP specification
           </p>
           <div className="implementations-grid">
             <a

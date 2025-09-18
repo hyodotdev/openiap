@@ -295,14 +295,14 @@ function IOSSetup() {
 
       <section>
         <h2 id="integration" className="anchor-heading">
-          Integration with Open IAP Libraries
+          Integration with OpenIAP Libraries
           <a href="#integration" className="anchor-link">
             #
           </a>
         </h2>
 
         <p>
-          To implement in-app purchases on iOS, use one of the Open IAP
+          To implement in-app purchases on iOS, use one of the OpenIAP
           specification libraries:
         </p>
 
@@ -350,7 +350,7 @@ function IOSSetup() {
         </ul>
 
         <p>
-          These libraries implement the Open IAP specification and handle
+          These libraries implement the OpenIAP specification and handle
           iOS-specific requirements.
         </p>
 
@@ -364,7 +364,7 @@ function IOSSetup() {
           }}
         >
           <strong>💡 Note:</strong> Refer to the specific library documentation
-          for implementation details. Each library follows the Open IAP
+          for implementation details. Each library follows the OpenIAP
           specification while handling platform-specific requirements.
         </div>
       </section>
@@ -436,7 +436,7 @@ function IOSSetup() {
             margin: '1rem 0',
           }}
         >
-          <strong>⚠️ Important:</strong> Open IAP libraries handle these
+          <strong>⚠️ Important:</strong> OpenIAP libraries handle these
           iOS-specific requirements automatically. Consult the library
           documentation for your chosen framework to ensure proper
           implementation.

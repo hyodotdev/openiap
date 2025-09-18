@@ -278,14 +278,14 @@ function AndroidSetup() {
 
       <section>
         <h2 id="integration" className="anchor-heading">
-          Integration with Open IAP Libraries
+          Integration with OpenIAP Libraries
           <a href="#integration" className="anchor-link">
             #
           </a>
         </h2>
 
         <p>
-          To implement in-app purchases on Android, use one of the Open IAP
+          To implement in-app purchases on Android, use one of the OpenIAP
           specification libraries:
         </p>
 
@@ -333,7 +333,7 @@ function AndroidSetup() {
         </ul>
 
         <p>
-          These libraries implement the Open IAP specification and handle
+          These libraries implement the OpenIAP specification and handle
           Android-specific requirements.
         </p>
 
@@ -347,7 +347,7 @@ function AndroidSetup() {
           }}
         >
           <strong>💡 Note:</strong> Refer to the specific library documentation
-          for implementation details. Each library follows the Open IAP
+          for implementation details. Each library follows the OpenIAP
           specification while handling platform-specific requirements.
         </div>
       </section>
@@ -416,7 +416,7 @@ function AndroidSetup() {
             margin: '1rem 0',
           }}
         >
-          <strong>⚠️ Important:</strong> Open IAP libraries handle these
+          <strong>⚠️ Important:</strong> OpenIAP libraries handle these
           Android-specific requirements automatically. Consult the library
           documentation for your chosen framework to ensure proper
           implementation.

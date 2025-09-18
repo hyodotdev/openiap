@@ -29,8 +29,8 @@ function Navigation() {
     <nav className="navigation">
       <div className="nav-container">
         <Link to="/" className="logo">
-          <img src="/logo.png" alt="Open IAP" className="logo-image" />
-          <span className="logo-text">Open IAP</span>
+          <img src="/logo.png" alt="OpenIAP" className="logo-image" />
+          <span className="logo-text">OpenIAP</span>
         </Link>
 
         {/* Desktop Menu */}

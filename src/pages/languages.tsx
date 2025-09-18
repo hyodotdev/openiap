@@ -2,12 +2,12 @@ function Languages() {
   return (
     <div className="page-container">
       <div className="content-wrapper">
-        <h1>Open IAP Implementations</h1>
+        <h1>OpenIAP Implementations</h1>
         <p className="page-subtitle">
-          Libraries that implement the Open IAP specification for different
+          Libraries that implement the OpenIAP specification for different
           platforms and frameworks
         </p>
-        <h2 style={{ marginTop: '2.5rem' }}>Open IAP Modules</h2>
+        <h2 style={{ marginTop: '2.5rem' }}>OpenIAP Modules</h2>
         <p className="page-subtitle">
           Official modules maintained under the OpenIAP organization
         </p>
@@ -57,7 +57,7 @@ function Languages() {
 
         <h2 style={{ marginTop: '2.5rem' }}>Framework Implementations</h2>
         <p className="page-subtitle">
-          These frameworks build on the Open IAP Modules above
+          These frameworks build on the OpenIAP Modules above
         </p>
         <div className="languages-grid">
           <div className="language-card">
@@ -69,8 +69,8 @@ function Languages() {
             />
             <h3>react-native-iap</h3>
             <p>
-              React Native & Expo implementation of Open IAP specification
-              (Nitro Modules)
+              React Native & Expo implementation of OpenIAP specification (Nitro
+              Modules)
             </p>
             <pre className="code-snippet">{`npm install react-native-iap`}</pre>
             <div className="language-links">
@@ -102,7 +102,7 @@ function Languages() {
             />
             <h3>expo-iap</h3>
             <p>
-              React Native & Expo implementation of Open IAP specification (Expo
+              React Native & Expo implementation of OpenIAP specification (Expo
               Modules)
             </p>
             <pre className="code-snippet">{`npm install expo-iap`}</pre>
@@ -134,7 +134,7 @@ function Languages() {
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
             />
             <h3>flutter_inapp_purchase</h3>
-            <p>Flutter implementation of Open IAP specification</p>
+            <p>Flutter implementation of OpenIAP specification</p>
             <pre className="code-snippet">{`flutter pub add flutter_inapp_purchase`}</pre>
             <div className="language-links">
               <a
@@ -164,7 +164,7 @@ function Languages() {
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
             />
             <h3>kmp-iap</h3>
-            <p>Kotlin Multiplatform implementation of Open IAP specification</p>
+            <p>Kotlin Multiplatform implementation of OpenIAP specification</p>
             <pre className="code-snippet">{`implementation("io.github.hyochan:kmp-iap:1.0.0-rc.3")`}</pre>
             <div className="language-links">
               <a
@@ -188,9 +188,9 @@ function Languages() {
         </div>
 
         <div className="contribute-section">
-          <h2>Implement Open IAP for Your Platform</h2>
+          <h2>Implement OpenIAP for Your Platform</h2>
           <p>
-            Have you implemented the Open IAP specification for another platform
+            Have you implemented the OpenIAP specification for another platform
             or framework? We'd love to include your library here!
           </p>
           <a

@@ -2,16 +2,16 @@ function Introduction() {
   return (
     <div className="page-container">
       <div className="content-wrapper">
-        <h1>Introduction to Open IAP</h1>
+        <h1>Introduction to OpenIAP</h1>
 
         <section className="intro-section">
-          <h2>What is Open IAP?</h2>
+          <h2>What is OpenIAP?</h2>
           <p>
-            Open IAP is an open specification that standardizes in-app purchase
+            OpenIAP is an open specification that standardizes in-app purchase
             implementations across diverse platforms and frameworks. As the IAP
             ecosystem becomes increasingly fragmented with new platforms
             (StoreKit 2, Android Billing v8, Vision Pro, Horizon OS) and
-            frameworks (React Native, Flutter, KMP), Open IAP provides a unified
+            frameworks (React Native, Flutter, KMP), OpenIAP provides a unified
             specification that reduces complexity and ensures consistency.
           </p>
         </section>
@@ -39,8 +39,8 @@ function Introduction() {
 
           <h3>Unified APIs</h3>
           <p>
-            Open IAP defines standard methods like <code>initConnection()</code>
-            , <code>fetchProducts()</code>,<code>requestPurchase()</code>, and{' '}
+            OpenIAP defines standard methods like <code>initConnection()</code>,{' '}
+            <code>fetchProducts()</code>,<code>requestPurchase()</code>, and{' '}
             <code>finishTransaction()</code> that work consistently across all
             platforms. Library maintainers implement these standard APIs,
             ensuring developers have a consistent experience.
@@ -94,9 +94,9 @@ function Introduction() {
         </section>
 
         <section className="intro-section">
-          <h2>Who's Using Open IAP?</h2>
+          <h2>Who's Using OpenIAP?</h2>
           <p>
-            Leading IAP libraries are already implementing the Open IAP
+            Leading IAP libraries are already implementing the OpenIAP
             specification:
           </p>
           <ul>
@@ -154,8 +154,8 @@ function Introduction() {
             </li>
           </ul>
           <p>
-            These libraries demonstrate that Open IAP's unified approach works
-            in practice, providing consistent APIs while leveraging
+            These libraries demonstrate that OpenIAP's unified approach works in
+            practice, providing consistent APIs while leveraging
             platform-specific capabilities.
           </p>
         </section>

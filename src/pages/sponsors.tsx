@@ -2,7 +2,7 @@ function Sponsors() {
   return (
     <div className="page-container">
       <div className="content-wrapper" style={{ textAlign: 'center' }}>
-        <h1>Support Open IAP</h1>
+        <h1>Support OpenIAP</h1>
         <p className="page-subtitle">
           Help us make in-app purchases accessible and standardized for everyone
         </p>
@@ -23,7 +23,7 @@ function Sponsors() {
                 color: 'var(--text-secondary, #666)',
               }}
             >
-              We're working to expand Open IAP across more platforms and
+              We're working to expand OpenIAP across more platforms and
               ecosystems, making it easier for developers everywhere to
               implement in-app purchases. Your support directly helps us
               maintain libraries, improve documentation, and bring IAP standards
@@ -35,7 +35,7 @@ function Sponsors() {
                 color: 'var(--text-secondary, #666)',
               }}
             >
-              When you sponsor Open IAP, you're supporting all our IAP modules:
+              When you sponsor OpenIAP, you're supporting all our IAP modules:
             </p>
             <div
               style={{
