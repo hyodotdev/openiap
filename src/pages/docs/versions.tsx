@@ -1,7 +1,7 @@
 import AnchorLink from '../../components/AnchorLink';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
-const GQL_TAG_VERSION = '1.0.4';
+const GQL_TAG_VERSION = '1.0.6';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';

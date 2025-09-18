@@ -451,6 +451,7 @@ type PurchaseCommon = {
                 <CodeBlock language="typescript">{`type PurchaseAndroid = PurchaseCommon & {
   platform: "android";  // Literal type
   dataAndroid?: string;
+  transactionId?: string;
   signatureAndroid?: string;
   autoRenewingAndroid?: boolean;
   isAcknowledgedAndroid?: boolean;
