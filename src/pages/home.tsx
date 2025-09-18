@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { LATEST_VERSION } from './docs/versions';
 
 function Home() {
   return (
@@ -17,7 +16,7 @@ function Home() {
           </h1>
           <div style={{ marginBottom: '1.5rem' }}>
             <Link
-              to={`/docs/versions#${LATEST_VERSION.replace(/\./g, '-')}`}
+              to="/docs/versions"
               style={{
                 display: 'inline-block',
                 padding: '0.25rem 0.75rem',
@@ -29,9 +28,9 @@ function Home() {
                 letterSpacing: '0.5px',
                 textDecoration: 'none',
               }}
-              title={`Go to ${LATEST_VERSION} in versions`}
+              title="View versions"
             >
-              {LATEST_VERSION}
+              versions
             </Link>
           </div>
           <p className="hero-subtitle">

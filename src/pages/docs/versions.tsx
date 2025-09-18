@@ -1,237 +1,189 @@
-import { useScrollToHash } from '../../hooks/useScrollToHash';
 import AnchorLink from '../../components/AnchorLink';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 
-// Single source of truth for the latest version string
-export const LATEST_VERSION = 'v1.1.11';
+const GQL_TAG_VERSION = '1.0.4';
+
+const GOOGLE_MAVEN_BADGE =
+  'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
+const GOOGLE_MAVEN_ARTIFACT =
+  'https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google';
+const APPLE_SWIFT_BADGE =
+  'https://img.shields.io/github/v/tag/hyodotdev/openiap-apple?label=Swift%20Package&logo=swift&color=orange';
+const APPLE_SWIFT_URL = 'https://github.com/hyodotdev/openiap-apple';
+const APPLE_COCOAPODS_BADGE =
+  'https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods';
+const APPLE_COCOAPODS_URL = 'https://cocoapods.org/pods/openiap';
+const GQL_RELEASES_URL = 'https://github.com/hyodotdev/openiap-gql/releases';
+const GQL_RELEASES = [
+  {
+    tag: GQL_TAG_VERSION,
+    url: `https://github.com/hyodotdev/openiap-gql/releases/tag/${GQL_TAG_VERSION}`,
+  },
+];
 
 function Versions() {
   useScrollToHash();
+  const latestGqlRelease = GQL_RELEASES[0] ?? {
+    tag: '—',
+    url: GQL_RELEASES_URL,
+  };
 
   return (
     <div className="doc-page">
-      <h1>Version History</h1>
+      <h1>Versions &amp; Release Channels</h1>
+      <p className="lead">
+        Quickly scan the latest OpenIAP ecosystem versions using the badges and
+        release links below. This page updates in lockstep with each library
+        release train.
+      </p>
 
       <section>
-        <AnchorLink id="v1-1-11" level="h2">
-          {LATEST_VERSION} (2025.10)
+        <AnchorLink id="openiap-google" level="h2">
+          OpenIAP Google Library
         </AnchorLink>
-        <ul>
-          <li>
-            <strong>Docs Alignment:</strong>
-            <ul>
-              <li>
-                Adopted the <code>RequestPurchaseProps</code> wrapper and
-                per-platform params naming across type docs and API references.
-              </li>
-              <li>
-                Synced search metadata and protocol examples with the
-                <code>props.params</code> structure used in the latest SDKs.
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Error Code Consistency:</strong>
-            <ul>
-              <li>
-                Documented <code>ErrorCode</code> enum values using the
-                canonical <code>E_SNAKE_CASE</code> strings returned by OpenIAP
-                modules.
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Release Coordination:</strong> Skipped intermediate 1.1.x
-            tags so the docs version stays aligned with other OpenIAP libraries
-            that shipped coordinated updates.
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <AnchorLink id="v1-1-1" level="h2">
-          v1.1.1 (2025.09)
-        </AnchorLink>
-        <ul>
-          <li>
-            <strong>Type Enhancements:</strong>
-            <ul>
-              <li>
-                Enhanced ActiveSubscription interface with backend validation
-                fields:
-                <ul>
-                  <li>Added transactionId for transaction identification</li>
-                  <li>
-                    Added purchaseToken for JWT (iOS) or purchase token
-                    (Android)
-                  </li>
-                  <li>Added transactionDate for transaction timestamp</li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>API Documentation Updates:</strong>
-            <ul>
-              <li>
-                Updated showManageSubscriptionsIOS to correctly reflect it
-                returns Purchase[] containing subscriptions with changed
-                auto-renewal status
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <AnchorLink id="v1-1-0" level="h2">
-          v1.1.0 (2025.09)
-        </AnchorLink>
-        <ul>
-          <li>
-            <strong>Type System Improvements:</strong>
-            <ul>
-              <li>Renamed PaymentDiscount → DiscountOffer for clarity</li>
-              <li>
-                Added comprehensive ErrorCode enum with 34 error constants
-              </li>
-              <li>
-                Fixed fetchProducts type parameter behavior (fetches both types
-                when not specified)
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Documentation Restructuring:</strong>
-            <ul>
-              <li>
-                Added PlatformTabs component with iOS/Android content separation
-                and smooth animations
-              </li>
-              <li>
-                Restructured Platform-Specific Types and Error Handling with
-                tabbed navigation
-              </li>
-              <li>
-                Unified ErrorCode enum location and removed duplicate error
-                tables
-              </li>
-              <li>Added info-note styling and retry strategy notes</li>
-              <li>
-                Changed "ProductCommon" to "Common Fields" throughout
-                documentation
-              </li>
-            </ul>
-          </li>
-        </ul>
-        <div className="version-links">
-          <strong>Key Changes:</strong>
-          <ul>
-            <li>Type definitions now match actual implementation exactly</li>
-            <li>Platform-specific documentation clearly separated</li>
-            <li>
-              Unified error handling approach with comprehensive error codes
-            </li>
-            <li>
-              Improved developer experience with clearer naming conventions
-            </li>
-          </ul>
+        <p>
+          The Google Play Billing implementation ships through Maven Central.
+          Use the badge below to monitor the currently published artifact.
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <a
+            href={GOOGLE_MAVEN_ARTIFACT}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View io.github.hyochan.openiap:openiap-google on Maven Central"
+            className="badge-link"
+          >
+            <img
+              src={GOOGLE_MAVEN_BADGE}
+              alt="Maven Central status for openiap-google"
+              style={{ height: '28px' }}
+            />
+          </a>
+          <code style={{ fontSize: '0.85rem' }}>
+            io.github.hyochan.openiap:openiap-google
+          </code>
         </div>
-      </section>
-
-      <section>
-        <AnchorLink id="v1-0-1" level="h2">
-          v1.0.1 (2025.09)
-        </AnchorLink>
         <ul>
           <li>
-            Added comprehensive iOS API documentation (19 APIs with IOS suffix)
+            Latest stable release badge reflects Maven Central publication.
           </li>
-          <li>Added getAppTransactionIOS documentation (iOS 16+)</li>
-          <li>Fixed camelCase to kebab-case conversion in search modal</li>
-          <li>Updated API naming conventions following expo-iap standards</li>
+          <li>
+            Releases follow the core OpenIAP spec cadence; check the tag notes
+            on GitHub for API surface changes.
+          </li>
         </ul>
-        <div className="version-links">
-          <strong>Implementations:</strong>
-          <ul>
-            <li>
-              <a
-                href="https://github.com/hyochan/react-native-iap/pull/2986"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                react-native-iap#2986 - Add iOS/Android naming conventions
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/hyochan/expo-iap/pull/182"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                expo-iap#182 - Implement platform-specific API naming
-              </a>
-            </li>
-          </ul>
-        </div>
       </section>
 
       <section>
-        <AnchorLink id="v1-0-0" level="h2">
-          v1.0.0 (2025.08)
+        <AnchorLink id="openiap-apple" level="h2">
+          OpenIAP Apple Library
         </AnchorLink>
-        <ul>
-          <li>Initial release of OpenIAP documentation</li>
-          <li>Complete API reference</li>
-          <li>Platform setup guides</li>
-          <li>Type definitions</li>
-        </ul>
-        <div className="version-links">
-          <strong>Supported Libraries:</strong>
-          <ul>
-            <li>
-              <a
-                href="https://github.com/hyochan/react-native-iap"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                react-native-iap - React Native in-app purchases
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/hyochan/expo-iap"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                expo-iap - Expo in-app purchases module
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/hyochan/kmp-iap"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                kmp-iap - Kotlin Multiplatform in-app purchases
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/hyochan/flutter_inapp_purchase"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                flutter_inapp_purchase - Flutter in-app purchases plugin
-              </a>
-            </li>
-          </ul>
+        <p>
+          StoreKit 2 support is distributed via Swift Package Manager and
+          CocoaPods. Both channels are updated in lockstep.
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+            margin: '1rem 0',
+          }}
+        >
+          <a
+            href={APPLE_SWIFT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="OpenIAP Apple Swift Package"
+          >
+            <img
+              src={APPLE_SWIFT_BADGE}
+              alt="Swift Package"
+              style={{ height: '28px' }}
+            />
+          </a>
+          <a
+            href={APPLE_COCOAPODS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="OpenIAP CocoaPods"
+          >
+            <img
+              src={APPLE_COCOAPODS_BADGE}
+              alt="CocoaPods version for openiap"
+              style={{ height: '28px' }}
+            />
+          </a>
         </div>
+        <ul>
+          <li>
+            SPM packages are tagged with the same semantic versions as docs.
+          </li>
+          <li>CocoaPods specs are pushed immediately after SPM releases.</li>
+        </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="openiap-gql" level="h2">
+          OpenIAP GraphQL Schema (GQL)
+        </AnchorLink>
+        <p>
+          The GraphQL schema powers API docs and SDK generators. Review the
+          latest schema exports from the releases tab.
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <a
+            href={latestGqlRelease.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+          >
+            Latest tag: {latestGqlRelease.tag}
+          </a>
+          <a
+            href={GQL_RELEASES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-block',
+              padding: '0.4rem 1rem',
+              borderRadius: '9999px',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              textDecoration: 'none',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+            }}
+          >
+            View all releases
+          </a>
+        </div>
+        <ul>
+          <li>
+            Each release bundles TypeScript, Swift, Kotlin, and Dart bindings.
+          </li>
+          <li>
+            Downloads mirror the assets linked from the documentation Types page
+            for the same tag.
+          </li>
+        </ul>
       </section>
     </div>
   );

@@ -553,9 +553,10 @@ validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Clear pending transactions.</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Void
+Clear pending transactions from the StoreKit payment queue
 """
-clearTransactionIOS(): Future`}</CodeBlock>
+# Future
+clearTransactionIOS: Boolean!`}</CodeBlock>
                 <p>
                   Removes all pending transactions from the iOS payment queue.
                 </p>
@@ -565,9 +566,10 @@ clearTransactionIOS(): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Get the current App Store storefront country code.</p>
                 <CodeBlock language="graphql">{`"""
-Returns: String!
+Get the current App Store storefront country code
 """
-getStorefrontIOS(): Future`}</CodeBlock>
+# Future
+getStorefrontIOS: String!`}</CodeBlock>
                 <p>
                   Returns the storefront country code (e.g., "US", "GB", "JP").
                 </p>
@@ -577,9 +579,10 @@ getStorefrontIOS(): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Get the currently promoted product (iOS 11+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Product?
+Get the currently promoted product (iOS 11+)
 """
-getPromotedProductIOS(): Future`}</CodeBlock>
+# Future
+getPromotedProductIOS: ProductIOS`}</CodeBlock>
                 <p>
                   Returns the product that was promoted in the App Store, if
                   any. Requires iOS 11 or later.
@@ -593,9 +596,10 @@ getPromotedProductIOS(): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Purchase a promoted product (iOS 11+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Purchase!
+Purchase the promoted product surfaced by the App Store
 """
-requestPurchaseOnPromotedProductIOS(): Future`}</CodeBlock>
+# Future
+requestPurchaseOnPromotedProductIOS: Boolean!`}</CodeBlock>
                 <p>
                   Initiates a purchase for the promoted product. The product
                   must have been previously promoted via the App Store.
@@ -604,27 +608,32 @@ requestPurchaseOnPromotedProductIOS(): Future`}</CodeBlock>
                 <AnchorLink id="get-pending-transactions-ios" level="h4">
                   getPendingTransactionsIOS
                 </AnchorLink>
-                <p>Get all pending transactions.</p>
+                <p>Retrieve all pending transactions in the StoreKit queue.</p>
                 <CodeBlock language="graphql">{`"""
-Returns: [Purchase!]!
+Retrieve all pending transactions in the StoreKit queue
 """
-getPendingTransactionsIOS(): Future`}</CodeBlock>
+# Future
+getPendingTransactionsIOS: [PurchaseIOS!]!`}</CodeBlock>
                 <p>
                   Returns all transactions that are pending completion in the
-                  StoreKit payment queue.
+                  StoreKit payment queue as <code>PurchaseIOS</code> objects.
                 </p>
 
                 <AnchorLink id="is-eligible-for-intro-offer-ios" level="h4">
                   isEligibleForIntroOfferIOS
                 </AnchorLink>
-                <p>Check if user is eligible for introductory offer.</p>
-                <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-isEligibleForIntroOfferIOS(productIds: [String!]!): Future`}</CodeBlock>
                 <p>
-                  Returns true if the user is eligible for an introductory
-                  price, false otherwise. Requires iOS 12.2+.
+                  Check introductory offer eligibility for a subscription group.
+                </p>
+                <CodeBlock language="graphql">{`"""
+Check introductory offer eligibility for a subscription group
+"""
+# Future
+isEligibleForIntroOfferIOS(groupID: String!): Boolean!`}</CodeBlock>
+                <p>
+                  Returns true if the user is eligible for an introductory price
+                  within the specified subscription group, false otherwise.
+                  Requires iOS 12.2+.
                 </p>
 
                 <AnchorLink id="subscription-status-ios" level="h4">
@@ -632,9 +641,10 @@ isEligibleForIntroOfferIOS(productIds: [String!]!): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Get subscription status (iOS 15+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: [SubscriptionStatusIOS!]!
+Get StoreKit 2 subscription status details (iOS 15+)
 """
-subscriptionStatusIOS(skus: [String!]?): Future`}</CodeBlock>
+# Future
+subscriptionStatusIOS(sku: String!): [SubscriptionStatusIOS!]!`}</CodeBlock>
                 <p>
                   Returns detailed subscription status information using
                   StoreKit 2. Requires iOS 15+.
@@ -643,14 +653,15 @@ subscriptionStatusIOS(skus: [String!]?): Future`}</CodeBlock>
                 <AnchorLink id="current-entitlement-ios" level="h4">
                   currentEntitlementIOS
                 </AnchorLink>
-                <p>Get current entitlements (iOS 15+).</p>
+                <p>Get current StoreKit 2 entitlements (iOS 15+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: [Entitlement!]!
+Get current StoreKit 2 entitlements (iOS 15+)
 """
-currentEntitlementIOS(skus: [String!]?): Future`}</CodeBlock>
+# Future
+currentEntitlementIOS(sku: String!): PurchaseIOS`}</CodeBlock>
                 <p>
-                  Returns current entitlements for the user using StoreKit 2.
-                  Requires iOS 15+.
+                  Returns the active StoreKit 2 entitlement for the provided
+                  product identifier. Requires iOS 15+.
                 </p>
 
                 <AnchorLink id="latest-transaction-ios" level="h4">
@@ -658,9 +669,10 @@ currentEntitlementIOS(skus: [String!]?): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Get latest transaction for a product (iOS 15+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Purchase?
+Get the latest transaction for a product using StoreKit 2
 """
-latestTransactionIOS(sku: String!): Future`}</CodeBlock>
+# Future
+latestTransactionIOS(sku: String!): PurchaseIOS`}</CodeBlock>
                 <p>
                   Returns the most recent transaction for a specific product
                   using StoreKit 2. Requires iOS 15+.
@@ -674,9 +686,10 @@ latestTransactionIOS(sku: String!): Future`}</CodeBlock>
                   15+).
                 </p>
                 <CodeBlock language="graphql">{`"""
-Returns: [Purchase!]
+Open subscription management UI and return changed purchases (iOS 15+)
 """
-showManageSubscriptionsIOS(): Future`}</CodeBlock>
+# Future
+showManageSubscriptionsIOS: [PurchaseIOS!]!`}</CodeBlock>
                 <p>
                   Opens the native subscription management interface and returns
                   an array of purchases for subscriptions whose auto-renewal
@@ -690,22 +703,25 @@ showManageSubscriptionsIOS(): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Initiate refund request (iOS 15+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: RefundResult!
+Initiate a refund request for a product (iOS 15+)
 """
-beginRefundRequestIOS(sku: String!): Future`}</CodeBlock>
+# Future
+beginRefundRequestIOS(sku: String!): String`}</CodeBlock>
                 <p>
-                  Presents the refund request sheet for a specific product.
-                  Requires iOS 15+.
+                  Presents the refund request sheet for a specific product and
+                  returns a string token when submission succeeds. Requires iOS
+                  15+.
                 </p>
 
                 <AnchorLink id="is-transaction-verified-ios" level="h4">
                   isTransactionVerifiedIOS
                 </AnchorLink>
-                <p>Verify transaction authenticity (iOS 15+).</p>
+                <p>Verify a StoreKit 2 transaction signature.</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Boolean!
+Verify a StoreKit 2 transaction signature
 """
-isTransactionVerifiedIOS(transactionId: String!): Future`}</CodeBlock>
+# Future
+isTransactionVerifiedIOS(sku: String!): Boolean!`}</CodeBlock>
                 <p>
                   Verifies the transaction signature using StoreKit 2. Returns
                   true if valid, false otherwise. Requires iOS 15+.
@@ -714,36 +730,40 @@ isTransactionVerifiedIOS(transactionId: String!): Future`}</CodeBlock>
                 <AnchorLink id="get-transaction-jws-ios" level="h4">
                   getTransactionJwsIOS
                 </AnchorLink>
-                <p>Get transaction JWS token (iOS 15+).</p>
+                <p>Get the transaction JWS (StoreKit 2).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: String!
+Get the transaction JWS (StoreKit 2)
 """
-getTransactionJwsIOS(transactionId: String!): Future`}</CodeBlock>
+# Future
+getTransactionJwsIOS(sku: String!): String`}</CodeBlock>
                 <p>
-                  Returns the JSON Web Signature for a transaction. Used for
-                  server-side validation. Requires iOS 15+.
+                  Returns the JSON Web Signature for a product's transaction.
+                  Use this token for server-side validation. Requires iOS 15+.
                 </p>
 
                 <AnchorLink id="get-receipt-data-ios" level="h4">
                   getReceiptDataIOS
                 </AnchorLink>
-                <p>Get receipt data for validation.</p>
+                <p>Get base64-encoded receipt data for validation.</p>
                 <CodeBlock language="graphql">{`"""
-Returns: String!
+Get base64-encoded receipt data for validation
 """
-getReceiptDataIOS(): Future`}</CodeBlock>
+# Future
+getReceiptDataIOS: String`}</CodeBlock>
                 <p>
                   Returns the base64-encoded receipt data for server validation.
+                  When no receipt exists, returns <code>null</code>.
                 </p>
 
                 <AnchorLink id="sync-ios" level="h4">
                   syncIOS
                 </AnchorLink>
-                <p>Sync StoreKit transactions (iOS 15+).</p>
+                <p>Force a StoreKit sync for transactions (iOS 15+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Void
+Force a StoreKit sync for transactions (iOS 15+)
 """
-syncIOS(): Future`}</CodeBlock>
+# Future
+syncIOS: Boolean!`}</CodeBlock>
                 <p>
                   Forces a sync with StoreKit to ensure all transactions are up
                   to date. Requires iOS 15+.
@@ -752,23 +772,24 @@ syncIOS(): Future`}</CodeBlock>
                 <AnchorLink id="present-code-redemption-sheet-ios" level="h4">
                   presentCodeRedemptionSheetIOS
                 </AnchorLink>
-                <p>Show promo code redemption UI.</p>
+                <p>Present the App Store code redemption sheet.</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Void
+Present the App Store code redemption sheet
 """
-presentCodeRedemptionSheetIOS(): Future`}</CodeBlock>
+# Future
+presentCodeRedemptionSheetIOS: Boolean!`}</CodeBlock>
                 <p>Presents the sheet for redeeming App Store promo codes.</p>
 
                 <AnchorLink id="get-app-transaction-ios" level="h4">
                   getAppTransactionIOS
                 </AnchorLink>
-                <p>Get app transaction information (iOS 16+).</p>
+                <p>Fetch the current app transaction (iOS 16+).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: AppTransaction?
+Fetch the current app transaction (iOS 16+)
 """
-getAppTransactionIOS(): Future
-
-type AppTransaction {
+# Future
+getAppTransactionIOS: AppTransaction`}</CodeBlock>
+                <CodeBlock language="graphql">{`type AppTransaction {
   bundleId: String!
   appVersion: String!
   originalAppVersion: String!
@@ -791,6 +812,22 @@ type AppTransaction {
                   16+. Additional properties are available on iOS 18.4+ when
                   built with Xcode 16.4+.
                 </p>
+
+                <AnchorLink id="validate-receipt-ios" level="h4">
+                  validateReceiptIOS
+                </AnchorLink>
+                <p>Validate a receipt for a specific product.</p>
+                <CodeBlock language="graphql">{`"""
+Validate a receipt for a specific product
+"""
+# Future
+validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS!`}</CodeBlock>
+                <p>
+                  Validates a receipt payload against the App Store using the
+                  provided validation options. Returns the parsed validation
+                  result for the product. Requires server credentials matching
+                  the configured environment.
+                </p>
               </>
             ),
             android: (
@@ -802,12 +839,14 @@ type AppTransaction {
                 </AnchorLink>
                 <p>Acknowledge a non-consumable purchase or subscription.</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Void
+Acknowledge a non-consumable purchase or subscription
 """
-acknowledgePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
+# Future
+acknowledgePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
                 <p>
                   Acknowledges the purchase to Google Play. Required within 3
-                  days or the purchase will be refunded.
+                  days or the purchase will be refunded. Returns
+                  <code>true</code> when the acknowledgment succeeds.
                 </p>
                 <p>
                   <strong>Note:</strong> This is called automatically by{' '}
@@ -822,12 +861,14 @@ acknowledgePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
                 </AnchorLink>
                 <p>Consume a purchase (for consumable products only).</p>
                 <CodeBlock language="graphql">{`"""
-Returns: Void
+Consume a purchase token so it can be repurchased
 """
-consumePurchaseAndroid(purchaseToken: String!): Future`}</CodeBlock>
+# Future
+consumePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
                 <p>
                   Marks a consumable product as consumed, allowing repurchase.
-                  Automatically acknowledges the purchase.
+                  Automatically acknowledges the purchase. Returns
+                  <code>true</code> when the consume request is accepted.
                 </p>
                 <p>
                   <strong>Note:</strong> This is called automatically by{' '}
