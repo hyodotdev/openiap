@@ -821,7 +821,7 @@ getAppTransactionIOS: AppTransaction`}</CodeBlock>
 Validate a receipt for a specific product
 """
 # Future
-validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS!`}</CodeBlock>
+validateReceiptIOS(sku: String!): ReceiptValidationResultIOS!`}</CodeBlock>
                 <p>
                   Validates a receipt payload against the App Store using the
                   provided validation options. Returns the parsed validation
