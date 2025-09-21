@@ -1,7 +1,6 @@
 import AnchorLink from '../../components/AnchorLink';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
-
-const GQL_TAG_VERSION = '1.0.6';
+import { GQL_RELEASE } from '../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
@@ -14,18 +13,12 @@ const APPLE_COCOAPODS_BADGE =
   'https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods';
 const APPLE_COCOAPODS_URL = 'https://cocoapods.org/pods/openiap';
 const GQL_RELEASES_URL = 'https://github.com/hyodotdev/openiap-gql/releases';
-const GQL_RELEASES = [
-  {
-    tag: GQL_TAG_VERSION,
-    url: `https://github.com/hyodotdev/openiap-gql/releases/tag/${GQL_TAG_VERSION}`,
-  },
-];
 
 function Versions() {
   useScrollToHash();
-  const latestGqlRelease = GQL_RELEASES[0] ?? {
+  const latestGqlRelease = GQL_RELEASE ?? {
     tag: '—',
-    url: GQL_RELEASES_URL,
+    pageUrl: GQL_RELEASES_URL,
   };
 
   return (
@@ -150,7 +143,7 @@ function Versions() {
           }}
         >
           <a
-            href={latestGqlRelease.url}
+            href={latestGqlRelease.pageUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-secondary"
