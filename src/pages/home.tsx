@@ -12,7 +12,7 @@ function Home() {
             style={{ width: '120px', height: '120px', marginBottom: '2rem' }}
           />
           <h1 className="hero-title">
-            Open <span className="highlight">IAP</span> Specification
+            Open <span className="highlight">IAP</span>
           </h1>
           <div style={{ marginBottom: '1.5rem' }}>
             <Link
