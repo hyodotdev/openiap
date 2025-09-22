@@ -199,14 +199,50 @@ function Types() {
   id: string;
   title: string;
   description: string;
-  type: "in-app" | "subs";  // Product type for Android compatibility
+  type: "in-app" | "subs";
   displayName?: string;
   displayPrice: string;
   currency: string;
   price?: number;
   debugDescription?: string;
-  platform?: string;  // Added for platform identification
+  platform?: string;
 };`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>id</code> — Unique product identifier
+            </li>
+            <li>
+              <code>title</code> — Product title
+            </li>
+            <li>
+              <code>description</code> — Product description
+            </li>
+            <li>
+              <code>type</code> — Product type
+            </li>
+            <li>
+              <code>displayName</code> — Display name
+            </li>
+            <li>
+              <code>displayPrice</code> — Formatted price with currency symbol
+            </li>
+            <li>
+              <code>currency</code> — ISO 4217 currency code
+            </li>
+            <li>
+              <code>price</code> — Numeric price
+            </li>
+            <li>
+              <code>debugDescription</code> — Debug description
+            </li>
+            <li>
+              <code>platform</code> — Platform discriminator (e.g., ios,
+              android)
+            </li>
+          </ul>
+        </div>
 
         <h3>Platform-Specific Fields</h3>
         <PlatformTabs>
@@ -225,9 +261,9 @@ type ProductIOS = ProductCommon & {
   displayNameIOS: string;
   isFamilyShareableIOS: boolean;
   jsonRepresentationIOS: string;
-  platform: "ios";  // Literal type
+  platform: "ios";
   subscriptionInfoIOS?: SubscriptionInfo;
-  typeIOS: ProductTypeIOS;  // Detailed iOS product type
+  typeIOS: ProductTypeIOS;
 };
 
 type SubscriptionInfo = {
@@ -255,6 +291,88 @@ type SubscriptionOffer = {
 
 type PaymentMode = '' | 'FreeTrial' | 'PayAsYouGo' | 'PayUpFront';
 type SubscriptionPeriodIOS = 'Day' | 'Week' | 'Month' | 'Year' | '';`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>displayNameIOS</code> — iOS display name
+                    </li>
+                    <li>
+                      <code>isFamilyShareableIOS</code> — Family Sharing support
+                    </li>
+                    <li>
+                      <code>jsonRepresentationIOS</code> — Raw JSON string
+                    </li>
+                    <li>
+                      <code>platform</code> — Platform discriminator
+                    </li>
+                    <li>
+                      <code>subscriptionInfoIOS</code> — Subscription metadata
+                    </li>
+                    <li>
+                      <code>typeIOS</code> — Detailed iOS product type
+                    </li>
+                  </ul>
+                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
+                    SubscriptionInfo
+                  </h5>
+                  <ul>
+                    <li>
+                      <code>introductoryOffer</code> — Introductory offer
+                    </li>
+                    <li>
+                      <code>promotionalOffers</code> — Promotional offers
+                    </li>
+                    <li>
+                      <code>subscriptionGroupId</code> — Subscription group ID
+                    </li>
+                    <li>
+                      <code>subscriptionPeriod</code> — Subscription period
+                      <ul>
+                        <li>
+                          <code>unit</code> — Period unit
+                        </li>
+                        <li>
+                          <code>value</code> — Period length
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
+                    SubscriptionOffer
+                  </h5>
+                  <ul>
+                    <li>
+                      <code>displayPrice</code> — Formatted price
+                    </li>
+                    <li>
+                      <code>id</code> — Offer ID
+                    </li>
+                    <li>
+                      <code>paymentMode</code> — Payment mode
+                    </li>
+                    <li>
+                      <code>period</code> — Offer period
+                      <ul>
+                        <li>
+                          <code>unit</code> — Period unit
+                        </li>
+                        <li>
+                          <code>value</code> — Period length
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <code>periodCount</code> — Billing cycles
+                    </li>
+                    <li>
+                      <code>price</code> — Numeric price
+                    </li>
+                    <li>
+                      <code>type</code> — Offer type
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
             android: (
@@ -263,7 +381,7 @@ type SubscriptionPeriodIOS = 'Day' | 'Week' | 'Month' | 'Year' | '';`}</CodeBloc
                 <CodeBlock language="typescript">{`type ProductAndroid = ProductCommon & {
   nameAndroid: string;
   oneTimePurchaseOfferDetailsAndroid?: ProductAndroidOneTimePurchaseOfferDetail;
-  platform: "android";  // Literal type
+  platform: "android";
   subscriptionOfferDetailsAndroid?: SubscriptionProductAndroidOfferDetail[];
 };
 
@@ -288,11 +406,90 @@ type PricingPhasesAndroid = {
 type PricingPhaseAndroid = {
   formattedPrice: string;
   priceCurrencyCode: string;
-  billingPeriod: string; // P1W, P1M, P1Y
+  billingPeriod: string;
   billingCycleCount: number;
   priceAmountMicros: string;
   recurrenceMode: number;
 };`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>nameAndroid</code> — Android product name
+                    </li>
+                    <li>
+                      <code>oneTimePurchaseOfferDetailsAndroid</code> — One-time
+                      purchase offer details
+                    </li>
+                    <li>
+                      <code>platform</code> — Platform discriminator
+                    </li>
+                    <li>
+                      <code>subscriptionOfferDetailsAndroid</code> —
+                      Subscription offer details
+                    </li>
+                  </ul>
+                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
+                    ProductAndroidOneTimePurchaseOfferDetail
+                  </h5>
+                  <ul>
+                    <li>
+                      <code>priceCurrencyCode</code> — Currency code
+                    </li>
+                    <li>
+                      <code>formattedPrice</code> — Formatted price
+                    </li>
+                    <li>
+                      <code>priceAmountMicros</code> — Price in micros
+                    </li>
+                  </ul>
+                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
+                    SubscriptionProductAndroidOfferDetail
+                  </h5>
+                  <ul>
+                    <li>
+                      <code>basePlanId</code> — Base plan ID
+                    </li>
+                    <li>
+                      <code>offerId</code> — Offer ID
+                    </li>
+                    <li>
+                      <code>offerToken</code> — Offer token
+                    </li>
+                    <li>
+                      <code>offerTags</code> — Offer tags
+                    </li>
+                    <li>
+                      <code>pricingPhases</code> — Pricing phases
+                    </li>
+                  </ul>
+                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
+                    PricingPhasesAndroid / PricingPhaseAndroid
+                  </h5>
+                  <ul>
+                    <li>
+                      <code>pricingPhaseList</code> — Pricing phase list
+                    </li>
+                    <li>
+                      <code>formattedPrice</code> — Phase formatted price
+                    </li>
+                    <li>
+                      <code>priceCurrencyCode</code> — Currency code
+                    </li>
+                    <li>
+                      <code>billingPeriod</code> — Billing period (P1W/P1M/P1Y)
+                    </li>
+                    <li>
+                      <code>billingCycleCount</code> — Billing cycles
+                    </li>
+                    <li>
+                      <code>priceAmountMicros</code> — Price in micros
+                    </li>
+                    <li>
+                      <code>recurrenceMode</code> — Recurrence mode
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
           }}
@@ -312,6 +509,15 @@ type PricingPhaseAndroid = {
         <CodeBlock language="typescript">{`type SubscriptionProductCommon = ProductCommon & {
   type: 'subs';
 };`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>type</code> — Discriminator indicating a subscription
+              product
+            </li>
+          </ul>
+        </div>
 
         <h3>Platform-Specific Fields</h3>
         <PlatformTabs>
@@ -340,6 +546,50 @@ type SubscriptionProductIOS = ProductIOS & {
   subscriptionPeriodNumberIOS?: string;
   subscriptionPeriodUnitIOS?: SubscriptionPeriodIOS;
 };`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>discountsIOS</code> — iOS discount list
+                    </li>
+                    <li>
+                      <code>introductoryPrice</code> — Introductory price
+                      details
+                      <ul>
+                        <li>
+                          <code>introductoryPriceIOS</code> — Formatted price
+                        </li>
+                        <li>
+                          <code>introductoryPriceAsAmountIOS</code> — Numeric
+                          price
+                        </li>
+                        <li>
+                          <code>introductoryPricePaymentModeIOS</code> — Payment
+                          mode
+                        </li>
+                        <li>
+                          <code>introductoryPriceNumberOfPeriodsIOS</code> —
+                          Number of periods
+                        </li>
+                        <li>
+                          <code>introductoryPriceSubscriptionPeriodIOS</code> —
+                          Period unit
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <code>platform</code> — Platform discriminator
+                    </li>
+                    <li>
+                      <code>subscriptionPeriodNumberIOS</code> — Subscription
+                      period length
+                    </li>
+                    <li>
+                      <code>subscriptionPeriodUnitIOS</code> — Subscription
+                      period unit
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
             android: (
@@ -356,6 +606,35 @@ type SubscriptionProductIOS = ProductIOS & {
 type SubscriptionProductAndroid = ProductAndroid & {
   subscriptionOfferDetailsAndroid: SubscriptionProductAndroidOfferDetails[];
 };`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>subscriptionOfferDetailsAndroid</code> — Android
+                      subscription offers
+                    </li>
+                  </ul>
+                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
+                    SubscriptionProductAndroidOfferDetails
+                  </h5>
+                  <ul>
+                    <li>
+                      <code>basePlanId</code> — Base plan ID
+                    </li>
+                    <li>
+                      <code>offerId</code> — Offer ID
+                    </li>
+                    <li>
+                      <code>offerToken</code> — Offer token
+                    </li>
+                    <li>
+                      <code>pricingPhases</code> — Pricing phases
+                    </li>
+                    <li>
+                      <code>offerTags</code> — Offer tags
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
           }}
@@ -376,23 +655,54 @@ type SubscriptionProductAndroid = ProductAndroid & {
   Pending = "Pending",
   Purchased = "Purchased", 
   Failed = "Failed",
-  Restored = "Restored",   // iOS only
-  Deferred = "Deferred",    // iOS only
+  Restored = "Restored",
+  Deferred = "Deferred",
   Unknown = "Unknown"
 }
 
 type PurchaseCommon = {
   id: string;
   productId: string;
-  ids?: string[];  // Common field for both platforms
+  ids?: string[];
   transactionDate: number;
-  /** Unified purchase token (jwsRepresentation for iOS, purchaseToken for Android) */
   purchaseToken?: string;
-  platform?: string;  // Added for platform identification
-  quantity: number;  // Purchase quantity (defaults to 1)
-  purchaseState: PurchaseState;  // Purchase state (common field)
-  isAutoRenewing: boolean;  // Auto-renewable subscription flag (common field)
+  platform?: string;
+  quantity: number;
+  purchaseState: PurchaseState;
+  isAutoRenewing: boolean;
 };`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>id</code> — Purchase identifier (primary key)
+            </li>
+            <li>
+              <code>productId</code> — Purchased product ID
+            </li>
+            <li>
+              <code>ids</code> — Included SKUs for bundled purchases
+            </li>
+            <li>
+              <code>transactionDate</code> — Epoch ms timestamp
+            </li>
+            <li>
+              <code>purchaseToken</code> — Unified token (JWS/Play token)
+            </li>
+            <li>
+              <code>platform</code> — Platform discriminator
+            </li>
+            <li>
+              <code>quantity</code> — Purchase quantity
+            </li>
+            <li>
+              <code>purchaseState</code> — Purchase state
+            </li>
+            <li>
+              <code>isAutoRenewing</code> — Auto-renew flag
+            </li>
+          </ul>
+        </div>
 
         <p>
           The shared <code>id</code> field maps to Google Play's{' '}
@@ -414,7 +724,7 @@ type PurchaseCommon = {
               <>
                 <h4>PurchaseIOS</h4>
                 <CodeBlock language="typescript">{`type PurchaseIOS = PurchaseCommon & {
-  platform: "ios";  // Literal type
+  platform: "ios";
   quantityIOS?: number;
   originalTransactionDateIOS?: number;
   originalTransactionIdentifierIOS?: string;
@@ -437,18 +747,96 @@ type PurchaseCommon = {
     type: string;
     paymentMode: string;
   };
-  
   currencyCodeIOS?: string;
   currencySymbolIOS?: string;
   countryCodeIOS?: string;
 };`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>quantityIOS</code> — Quantity (iOS)
+                    </li>
+                    <li>
+                      <code>originalTransactionDateIOS</code> — Original
+                      purchase timestamp
+                    </li>
+                    <li>
+                      <code>originalTransactionIdentifierIOS</code> — Original
+                      transaction ID
+                    </li>
+                    <li>
+                      <code>appAccountToken</code> — App account token
+                    </li>
+                    <li>
+                      <code>expirationDateIOS</code> — Expiration timestamp
+                    </li>
+                    <li>
+                      <code>webOrderLineItemIdIOS</code> — Web order line item
+                      ID
+                    </li>
+                    <li>
+                      <code>environmentIOS</code> — Environment
+                      (Sandbox/Production)
+                    </li>
+                    <li>
+                      <code>storefrontCountryCodeIOS</code> — Storefront country
+                      code
+                    </li>
+                    <li>
+                      <code>appBundleIdIOS</code> — App bundle ID
+                    </li>
+                    <li>
+                      <code>subscriptionGroupIdIOS</code> — Subscription group
+                      ID
+                    </li>
+                    <li>
+                      <code>isUpgradedIOS</code> — Upgraded flag
+                    </li>
+                    <li>
+                      <code>ownershipTypeIOS</code> — Ownership type
+                    </li>
+                    <li>
+                      <code>transactionReasonIOS</code> — Transaction reason
+                    </li>
+                    <li>
+                      <code>revocationDateIOS</code> — Revocation timestamp
+                    </li>
+                    <li>
+                      <code>revocationReasonIOS</code> — Revocation reason
+                    </li>
+                    <li>
+                      <code>offerIOS</code> — Offer metadata
+                      <ul>
+                        <li>
+                          <code>id</code> — Offer ID
+                        </li>
+                        <li>
+                          <code>type</code> — Offer type
+                        </li>
+                        <li>
+                          <code>paymentMode</code> — Payment mode
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <code>currencyCodeIOS</code> — Currency code
+                    </li>
+                    <li>
+                      <code>currencySymbolIOS</code> — Currency symbol
+                    </li>
+                    <li>
+                      <code>countryCodeIOS</code> — Country code
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
             android: (
               <>
                 <h4>PurchaseAndroid</h4>
                 <CodeBlock language="typescript">{`type PurchaseAndroid = PurchaseCommon & {
-  platform: "android";  // Literal type
+  platform: "android";
   dataAndroid?: string;
   transactionId?: string;
   signatureAndroid?: string;
@@ -458,12 +846,41 @@ type PurchaseCommon = {
   developerPayloadAndroid?: string;
   obfuscatedAccountIdAndroid?: string;
   obfuscatedProfileIdAndroid?: string;
-};
-
-// Note: Android only maps to these PurchaseState values:
-// - "purchased" (Google Play state 1)
-// - "pending" (Google Play state 2)
-// - "failed" (Google Play state 0 or errors)`}</CodeBlock>
+};`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>dataAndroid</code> — Raw receipt data
+                    </li>
+                    <li>
+                      <code>transactionId</code> — Transaction ID
+                    </li>
+                    <li>
+                      <code>signatureAndroid</code> — Signature
+                    </li>
+                    <li>
+                      <code>autoRenewingAndroid</code> — Auto-renewing flag
+                    </li>
+                    <li>
+                      <code>isAcknowledgedAndroid</code> — Acknowledged flag
+                    </li>
+                    <li>
+                      <code>packageNameAndroid</code> — Package name
+                    </li>
+                    <li>
+                      <code>developerPayloadAndroid</code> — Developer payload
+                    </li>
+                    <li>
+                      <code>obfuscatedAccountIdAndroid</code> — Obfuscated
+                      account ID
+                    </li>
+                    <li>
+                      <code>obfuscatedProfileIdAndroid</code> — Obfuscated
+                      profile ID
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
           }}
@@ -507,14 +924,21 @@ type Purchase =
 
         <h3>ProductRequest</h3>
         <CodeBlock language="typescript">{`type ProductRequest = {
-  skus: string[];                           // Product SKUs to fetch
-  type?: "in-app" | "subs" | "all";         // Filter type (default: "in-app")
-};
-
-// Filter types:
-// - "in-app": Returns consumable, nonConsumable, and nonRenewingSubscription
-// - "subs": Returns only autoRenewableSubscription
-// - "all": Returns all product types`}</CodeBlock>
+  skus: string[];
+  type?: "in-app" | "subs" | "all";
+};`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>skus</code> — Product identifiers to fetch
+            </li>
+            <li>
+              <code>type</code> — Result filter: in-app (IAPs), subs
+              (subscriptions), all (both)
+            </li>
+          </ul>
+        </div>
 
         <h3>Usage Example</h3>
         <CodeBlock language="typescript">{`// Fetch in-app purchases (default)
@@ -561,6 +985,27 @@ const allProducts = await getProducts({
       params: RequestSubscriptionPropsByPlatforms
       type: 'subs'
     }`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <h5 style={{ margin: '0.75rem 0 0.25rem' }}>Variant: In‑app</h5>
+          <ul>
+            <li>
+              <code>params</code> — Platform-specific in‑app params
+            </li>
+            <li>
+              <code>type</code> — Purchase type discriminator
+            </li>
+          </ul>
+          <h5 style={{ margin: '0.75rem 0 0.25rem' }}>Variant: Subscription</h5>
+          <ul>
+            <li>
+              <code>params</code> — Platform-specific subscription params
+            </li>
+            <li>
+              <code>type</code> — Purchase type discriminator
+            </li>
+          </ul>
+        </div>
         <p>
           Use the <code>'in-app'</code> variant when purchasing regular items
           and
@@ -576,32 +1021,40 @@ const allProducts = await getProducts({
           clear separation of iOS and Android props.
         </p>
         <CodeBlock language="graphql">{`input RequestPurchasePropsByPlatforms {
-  """
-  iOS-specific purchase parameters
-  """
   ios: RequestPurchaseIosProps
-
-  """
-  Android-specific purchase parameters
-  """
   android: RequestPurchaseAndroidProps
 }`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>ios</code> — iOS in‑app purchase parameters
+            </li>
+            <li>
+              <code>android</code> — Android in‑app purchase parameters
+            </li>
+          </ul>
+        </div>
 
         <AnchorLink id="request-subscription-props-by-platforms" level="h3">
           RequestSubscriptionPropsByPlatforms
         </AnchorLink>
         <p>Platform-specific subscription request structure.</p>
         <CodeBlock language="graphql">{`input RequestSubscriptionPropsByPlatforms {
-  """
-  iOS-specific subscription parameters
-  """
   ios: RequestSubscriptionIosProps
-
-  """
-  Android-specific subscription parameters
-  """
   android: RequestSubscriptionAndroidProps
 }`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>ios</code> — iOS subscription parameters
+            </li>
+            <li>
+              <code>android</code> — Android subscription parameters
+            </li>
+          </ul>
+        </div>
 
         <AnchorLink id="platform-specific-request-props" level="h3">
           Platform-Specific Request Props
@@ -613,21 +1066,34 @@ const allProducts = await getProducts({
                 <h4>RequestPurchaseIosProps</h4>
                 <p>iOS-specific purchase request props.</p>
                 <CodeBlock language="graphql">{`input RequestPurchaseIosProps {
-  "Product SKU"
   sku: String!
-  
-  "Auto-finish transaction (dangerous)"
   andDangerouslyFinishTransactionAutomatically: Boolean
-  
-  "App account token for user tracking"
   appAccountToken: String
-  
-  "Purchase quantity"
   quantity: Int
-  
-  "Discount offer to apply"
   withOffer: DiscountOffer
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>sku</code> — Product identifier to purchase
+                    </li>
+                    <li>
+                      <code>andDangerouslyFinishTransactionAutomatically</code>{' '}
+                      — Auto‑finish transaction (advanced)
+                    </li>
+                    <li>
+                      <code>appAccountToken</code> — App server account token
+                    </li>
+                    <li>
+                      <code>quantity</code> — Quantity to purchase
+                    </li>
+                    <li>
+                      <code>withOffer</code> — Promotional/discount offer to
+                      apply
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
             android: (
@@ -635,18 +1101,31 @@ const allProducts = await getProducts({
                 <h4>RequestPurchaseAndroidProps</h4>
                 <p>Android-specific purchase request props.</p>
                 <CodeBlock language="graphql">{`input RequestPurchaseAndroidProps {
-  "List of product SKUs"
   skus: [String!]!
-  
-  "Obfuscated account ID"
   obfuscatedAccountIdAndroid: String
-  
-  "Obfuscated profile ID"
   obfuscatedProfileIdAndroid: String
-  
-  "Personalized offer flag"
   isOfferPersonalized: Boolean
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>skus</code> — Product identifiers to purchase
+                    </li>
+                    <li>
+                      <code>obfuscatedAccountIdAndroid</code> — Obfuscated
+                      account ID
+                    </li>
+                    <li>
+                      <code>obfuscatedProfileIdAndroid</code> — Obfuscated
+                      profile ID
+                    </li>
+                    <li>
+                      <code>isOfferPersonalized</code> — Indicates a
+                      personalized offer
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
           }}
@@ -666,6 +1145,15 @@ const allProducts = await getProducts({
                 </p>
                 <CodeBlock language="graphql">{`// iOS uses the same props as regular purchases
 type RequestSubscriptionIosProps = RequestPurchaseIosProps`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>RequestSubscriptionIosProps</code> — Alias of{' '}
+                      <code>RequestPurchaseIosProps</code>
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
             android: (
@@ -676,35 +1164,61 @@ type RequestSubscriptionIosProps = RequestPurchaseIosProps`}</CodeBlock>
                   RequestPurchaseAndroidProps.
                 </p>
                 <CodeBlock language="graphql">{`input RequestSubscriptionAndroidProps {
-  "List of subscription SKUs"
   skus: [String!]!
-  
-  "Obfuscated account ID"
   obfuscatedAccountIdAndroid: String
-  
-  "Obfuscated profile ID"
   obfuscatedProfileIdAndroid: String
-  
-  "Personalized offer flag"
   isOfferPersonalized: Boolean
-  
-  "Purchase token for upgrades/downgrades"
   purchaseTokenAndroid: String
-  
-  "Replacement mode for subscription changes"
   replacementModeAndroid: Int
-  
-  "Subscription offers"
   subscriptionOffers: [SubscriptionOffer!]
 }
 
 type SubscriptionOffer {
-  "Product SKU"
   sku: String!
-  
-  "Offer token"
   offerToken: String!
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>skus</code> — Subscription identifiers to purchase
+                    </li>
+                    <li>
+                      <code>obfuscatedAccountIdAndroid</code> — Obfuscated
+                      account ID
+                    </li>
+                    <li>
+                      <code>obfuscatedProfileIdAndroid</code> — Obfuscated
+                      profile ID
+                    </li>
+                    <li>
+                      <code>isOfferPersonalized</code> — Indicates a
+                      personalized offer
+                    </li>
+                    <li>
+                      <code>purchaseTokenAndroid</code> — Existing purchase
+                      token for change (upgrade/downgrade)
+                    </li>
+                    <li>
+                      <code>replacementModeAndroid</code> — Replacement mode
+                      strategy
+                    </li>
+                    <li>
+                      <code>subscriptionOffers</code> — Offers to apply
+                    </li>
+                  </ul>
+                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
+                    SubscriptionOffer
+                  </h5>
+                  <ul>
+                    <li>
+                      <code>sku</code> — Product identifier
+                    </li>
+                    <li>
+                      <code>offerToken</code> — Play Billing offer token
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
           }}
@@ -720,9 +1234,7 @@ type SubscriptionOffer {
           ReceiptValidationProps
         </AnchorLink>
         <CodeBlock language="typescript">{`interface ReceiptValidationProps {
-  /** Product SKU to validate */
   sku: string;
-  /** Android-specific validation options */
   androidOptions?: {
     packageName: string;
     productToken: string;
@@ -730,6 +1242,32 @@ type SubscriptionOffer {
     isSub?: boolean;
   };
 }`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>sku</code> — Product identifier to validate
+            </li>
+            <li>
+              <code>androidOptions</code> — Android Play Developer API options
+            </li>
+          </ul>
+          <h5 style={{ margin: '0.75rem 0 0.25rem' }}>androidOptions</h5>
+          <ul>
+            <li>
+              <code>packageName</code> — Application package name
+            </li>
+            <li>
+              <code>productToken</code> — Purchase token
+            </li>
+            <li>
+              <code>accessToken</code> — OAuth access token
+            </li>
+            <li>
+              <code>isSub</code> — Treat as subscription when true
+            </li>
+          </ul>
+        </div>
 
         <AnchorLink id="receipt-validation-result" level="h3">
           ReceiptValidationResult
@@ -740,15 +1278,29 @@ type SubscriptionOffer {
               <>
                 <h4>ReceiptValidationResultIOS</h4>
                 <CodeBlock language="typescript">{`interface ReceiptValidationResultIOS {
-  /** Whether the receipt is valid */
   isValid: boolean;
-  /** Receipt data string */
   receiptData: string;
-  /** JWS representation */
   jwsRepresentation: string;
-  /** Latest transaction if available */
   latestTransaction?: Purchase;
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>isValid</code> — Validation success flag
+                    </li>
+                    <li>
+                      <code>receiptData</code> — Raw App Store receipt
+                    </li>
+                    <li>
+                      <code>jwsRepresentation</code> — JWS-encoded receipt
+                    </li>
+                    <li>
+                      <code>latestTransaction</code> — Most recent related
+                      transaction
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
             android: (
@@ -774,6 +1326,65 @@ type SubscriptionOffer {
   termSku: string;
   testTransaction: boolean;
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>autoRenewing</code> — Auto‑renew state
+                    </li>
+                    <li>
+                      <code>betaProduct</code> — Indicates a beta product
+                    </li>
+                    <li>
+                      <code>cancelDate</code> — Cancellation timestamp
+                    </li>
+                    <li>
+                      <code>cancelReason</code> — Cancellation reason
+                    </li>
+                    <li>
+                      <code>deferredDate</code> — Deferred change date
+                    </li>
+                    <li>
+                      <code>deferredSku</code> — Deferred SKU
+                    </li>
+                    <li>
+                      <code>freeTrialEndDate</code> — Free trial end
+                    </li>
+                    <li>
+                      <code>gracePeriodEndDate</code> — Grace period end
+                    </li>
+                    <li>
+                      <code>parentProductId</code> — Parent product ID
+                    </li>
+                    <li>
+                      <code>productId</code> — Product ID
+                    </li>
+                    <li>
+                      <code>productType</code> — Product type
+                    </li>
+                    <li>
+                      <code>purchaseDate</code> — Purchase timestamp
+                    </li>
+                    <li>
+                      <code>quantity</code> — Quantity
+                    </li>
+                    <li>
+                      <code>receiptId</code> — Receipt ID
+                    </li>
+                    <li>
+                      <code>renewalDate</code> — Renewal timestamp
+                    </li>
+                    <li>
+                      <code>term</code> — Subscription term
+                    </li>
+                    <li>
+                      <code>termSku</code> — Term SKU
+                    </li>
+                    <li>
+                      <code>testTransaction</code> — Test transaction flag
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
           }}
@@ -801,21 +1412,32 @@ type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidatio
                   discount.
                 </p>
                 <CodeBlock language="graphql">{`type DiscountOffer {
-  "Discount identifier"
   identifier: String!
-  
-  "Key identifier for validation"
   keyIdentifier: String!
-  
-  "Cryptographic nonce"
   nonce: String!
-  
-  "Signature for validation"
   signature: String!
-  
-  "Timestamp of discount offer"
   timestamp: Float!
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>identifier</code> — Discount identifier
+                    </li>
+                    <li>
+                      <code>keyIdentifier</code> — Key ID used for validation
+                    </li>
+                    <li>
+                      <code>nonce</code> — Cryptographic nonce
+                    </li>
+                    <li>
+                      <code>signature</code> — Signature for validation
+                    </li>
+                    <li>
+                      <code>timestamp</code> — Offer timestamp
+                    </li>
+                  </ul>
+                </div>
 
                 <h4>Discount</h4>
                 <p>
@@ -823,44 +1445,96 @@ type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidatio
                   product details.
                 </p>
                 <CodeBlock language="graphql">{`type Discount {
-  "Discount identifier"
   identifier: String!
-  
-  "Discount type (introductory, subscription)"
   type: String!
-  
-  "Number of billing periods"
   numberOfPeriods: Int!
-  
-  "Formatted discount price"
   price: String!
-  
-  "Raw discount price value"
   priceAmount: Float!
-  
-  "Payment mode (PayAsYouGo, PayUpFront, FreeTrial)"
   paymentMode: String!
-  
-  "Subscription period for discount"
   subscriptionPeriod: String!
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>identifier</code> — Discount identifier
+                    </li>
+                    <li>
+                      <code>type</code> — Discount type (introductory,
+                      subscription, etc.)
+                    </li>
+                    <li>
+                      <code>numberOfPeriods</code> — Billing periods covered
+                    </li>
+                    <li>
+                      <code>price</code> — Formatted price
+                    </li>
+                    <li>
+                      <code>priceAmount</code> — Numeric price amount
+                    </li>
+                    <li>
+                      <code>paymentMode</code> — Payment mode label
+                    </li>
+                    <li>
+                      <code>subscriptionPeriod</code> — Subscription period
+                      label
+                    </li>
+                  </ul>
+                </div>
 
                 <h4>SubscriptionPeriodIOS</h4>
                 <CodeBlock language="graphql">{`enum SubscriptionPeriodIOS {
-  Day    # Daily period
-  Week   # Weekly period
-  Month  # Monthly period
-  Year   # Yearly period
-  ""     # Empty string (unspecified)
+  Day
+  Week
+  Month
+  Year
+  ""
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>Day</code> — Daily period
+                    </li>
+                    <li>
+                      <code>Week</code> — Weekly period
+                    </li>
+                    <li>
+                      <code>Month</code> — Monthly period
+                    </li>
+                    <li>
+                      <code>Year</code> — Yearly period
+                    </li>
+                    <li>
+                      <code>""</code> — Unspecified
+                    </li>
+                  </ul>
+                </div>
 
                 <h4>PaymentMode</h4>
                 <CodeBlock language="graphql">{`enum PaymentMode {
-  ""            # Empty string
-  FreeTrial      # Free trial
-  PayAsYouGo     # Pay as you go
-  PayUpFront     # Pay up front
+  ""
+  FreeTrial
+  PayAsYouGo
+  PayUpFront
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>""</code> — Unspecified
+                    </li>
+                    <li>
+                      <code>FreeTrial</code> — Free trial
+                    </li>
+                    <li>
+                      <code>PayAsYouGo</code> — Pay as you go
+                    </li>
+                    <li>
+                      <code>PayUpFront</code> — Pay up front
+                    </li>
+                  </ul>
+                </div>
 
                 <h4>SubscriptionStatusIOS</h4>
                 <p>
@@ -873,13 +1547,32 @@ type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidatio
 };
 
 export type SubscriptionStatusIOS = {
-  /**
-   * StoreKit RenewalState
-   * See: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalstate
-   */
   state: string;
   renewalInfo?: RenewalInfo;
 };`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>state</code> — StoreKit renewal state
+                    </li>
+                    <li>
+                      <code>renewalInfo</code> — Renewal details
+                      <ul>
+                        <li>
+                          <code>jsonRepresentation</code> — Raw JSON
+                        </li>
+                        <li>
+                          <code>willAutoRenew</code> — Auto-renew flag
+                        </li>
+                        <li>
+                          <code>autoRenewPreference</code> — Auto-renew
+                          preference
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
             android: (
@@ -889,49 +1582,105 @@ export type SubscriptionStatusIOS = {
                 <h4>SubscriptionOffer</h4>
                 <p>Subscription offer details for Android purchases.</p>
                 <CodeBlock language="graphql">{`type SubscriptionOffer {
-  "Product SKU"
   sku: String!
-  
-  "Offer token for purchase"
   offerToken: String!
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>sku</code> — Product identifier
+                    </li>
+                    <li>
+                      <code>offerToken</code> — Play Billing offer token
+                    </li>
+                  </ul>
+                </div>
 
                 <h4>PricingPhase</h4>
                 <p>Pricing phase information for Android subscriptions.</p>
                 <CodeBlock language="graphql">{`type PricingPhase {
-  "Billing period (P1W, P1M, P3M, P6M, P1Y)"
   billingPeriod: String!
-  
-  "Formatted price"
   formattedPrice: String!
-  
-  "Price amount in micros"
   priceAmountMicros: String!
-  
-  "Currency code"
   priceCurrencyCode: String!
-  
-  "Number of cycles"
   billingCycleCount: Int
-  
-  "Recurrence mode"
   recurrenceMode: RecurrenceMode
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>billingPeriod</code> — ISO8601 period (e.g., P1W,
+                      P1M, P1Y)
+                    </li>
+                    <li>
+                      <code>formattedPrice</code> — Formatted price
+                    </li>
+                    <li>
+                      <code>priceAmountMicros</code> — Price in micros
+                    </li>
+                    <li>
+                      <code>priceCurrencyCode</code> — ISO 4217 currency
+                    </li>
+                    <li>
+                      <code>billingCycleCount</code> — Number of cycles
+                    </li>
+                    <li>
+                      <code>recurrenceMode</code> — Recurrence mode
+                    </li>
+                  </ul>
+                </div>
 
                 <h4>PricingPhasesAndroid</h4>
                 <CodeBlock language="graphql">{`type PricingPhasesAndroid {
   pricingPhaseList: [PricingPhaseAndroid!]!
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>pricingPhaseList</code> — Pricing phases
+                      <ul>
+                        <li>See PricingPhaseAndroid for item fields</li>
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
 
                 <h4>PricingPhaseAndroid</h4>
                 <CodeBlock language="graphql">{`type PricingPhaseAndroid {
   formattedPrice: String!
   priceCurrencyCode: String!
-  billingPeriod: String!  # P1W, P1M, P1Y
+  billingPeriod: String!
   billingCycleCount: Int!
   priceAmountMicros: String!
   recurrenceMode: Int!
 }`}</CodeBlock>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>Field Reference</h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>formattedPrice</code> — Formatted price
+                    </li>
+                    <li>
+                      <code>priceCurrencyCode</code> — ISO 4217 currency
+                    </li>
+                    <li>
+                      <code>billingPeriod</code> — ISO8601 period (e.g., P1W,
+                      P1M, P1Y)
+                    </li>
+                    <li>
+                      <code>billingCycleCount</code> — Number of cycles
+                    </li>
+                    <li>
+                      <code>priceAmountMicros</code> — Price in micros
+                    </li>
+                    <li>
+                      <code>recurrenceMode</code> — Recurrence mode
+                    </li>
+                  </ul>
+                </div>
               </>
             ),
           }}
