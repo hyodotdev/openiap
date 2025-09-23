@@ -332,20 +332,7 @@ restorePurchases(): Future`}</CodeBlock>
         <CodeBlock language="graphql">{`"""
 Returns: [ActiveSubscription!]!
 """
-getActiveSubscriptions(subscriptionIds: [String]?): Future
-
-type ActiveSubscription {
-  productId: String!
-  isActive: Boolean!
-  expirationDateIOS: Date?        # iOS only
-  autoRenewingAndroid: Boolean?   # Android only
-  environmentIOS: String?          # iOS only: "Sandbox" | "Production"
-  willExpireSoon: Boolean?         # True if expiring within 7 days
-  daysUntilExpirationIOS: Number?  # iOS only
-  transactionId: String!           # Transaction identifier for backend validation
-  purchaseToken: String?           # JWT token (iOS) or purchase token (Android) for backend validation
-  transactionDate: Number!         # Transaction timestamp
-}`}</CodeBlock>
+getActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#active-subscription">ActiveSubscription</Link>

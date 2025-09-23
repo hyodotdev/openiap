@@ -642,6 +642,35 @@ type SubscriptionProductAndroid = ProductAndroid & {
       </section>
 
       <section>
+        <AnchorLink id="unified-platform-types" level="h2">
+          Unified Platform Types
+        </AnchorLink>
+        <p>
+          These types combine platform-specific types with discriminators for
+          type safety.
+        </p>
+
+        <h3>Platform Discriminators</h3>
+        <CodeBlock language="typescript">{`type IosPlatform = { platform: 'ios' };
+type AndroidPlatform = { platform: 'android' };`}</CodeBlock>
+
+        <h3>Unified Types</h3>
+        <CodeBlock language="typescript">{`// Product Union Types
+type Product = 
+  | (ProductAndroid & AndroidPlatform)
+  | (ProductIOS & IosPlatform);
+
+type SubscriptionProduct =
+  | (SubscriptionProductAndroid & AndroidPlatform)
+  | (SubscriptionProductIOS & IosPlatform);
+
+// Purchase Union Types  
+type Purchase =
+  | (PurchaseAndroid & AndroidPlatform)
+  | (PurchaseIOS & IosPlatform);`}</CodeBlock>
+      </section>
+
+      <section>
         <AnchorLink id="purchase" level="h2">
           Purchase
         </AnchorLink>
@@ -914,6 +943,70 @@ type SubscriptionProduct =
 type Purchase =
   | (PurchaseAndroid & AndroidPlatform)
   | (PurchaseIOS & IosPlatform);`}</CodeBlock>
+      </section>
+
+      <section>
+        <AnchorLink id="active-subscription" level="h2">
+          ActiveSubscription
+        </AnchorLink>
+        <p>
+          Represents an active subscription returned by{' '}
+          <code>getActiveSubscriptions()</code>.
+        </p>
+
+        <CodeBlock language="typescript">{`type ActiveSubscription = {
+  productId: string;
+  isActive: boolean;
+  expirationDateIOS?: number;        // iOS only
+  autoRenewingAndroid?: boolean;     // Android only
+  environmentIOS?: string;           // iOS only: "Sandbox" | "Production"
+  willExpireSoon?: boolean;          // True if expiring within 7 days
+  daysUntilExpirationIOS?: number;   // iOS only
+  transactionId: string;             // Transaction identifier for backend validation
+  purchaseToken?: string;            // JWT token (iOS) or purchase token (Android) for backend validation
+  transactionDate: number;           // Transaction timestamp
+};`}</CodeBlock>
+
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>productId</code> — Subscription product identifier
+            </li>
+            <li>
+              <code>isActive</code> — Whether the subscription is currently
+              active
+            </li>
+            <li>
+              <code>expirationDateIOS</code> — iOS expiration timestamp (epoch
+              ms)
+            </li>
+            <li>
+              <code>autoRenewingAndroid</code> — Android auto-renewal status
+            </li>
+            <li>
+              <code>environmentIOS</code> — iOS environment ("Sandbox" |
+              "Production")
+            </li>
+            <li>
+              <code>willExpireSoon</code> — True if expiring within 7 days
+            </li>
+            <li>
+              <code>daysUntilExpirationIOS</code> — iOS days until expiration
+            </li>
+            <li>
+              <code>transactionId</code> — Transaction identifier for backend
+              validation
+            </li>
+            <li>
+              <code>purchaseToken</code> — JWT token (iOS) or purchase token
+              (Android)
+            </li>
+            <li>
+              <code>transactionDate</code> — Transaction timestamp (epoch ms)
+            </li>
+          </ul>
+        </div>
       </section>
 
       <section>
