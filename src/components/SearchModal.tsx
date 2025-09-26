@@ -320,16 +320,6 @@ const apiData: ApiItem[] = [
     returns: 'Boolean!',
     path: '/docs/apis#consume-purchase-android',
   },
-  {
-    id: 'flush-failed-purchase-cached-as-pending-android',
-    title: 'flushFailedPurchaseCachedAsPendingAndroid',
-    category: 'Android APIs (Deprecated)',
-    description:
-      '⚠️ REMOVED: Use getAvailablePurchases at startup, then acknowledge/consume and finishTransaction',
-    parameters: '',
-    returns: 'Void',
-    path: '/docs/apis#flush-failed-purchase-cached-as-pending-android',
-  },
 ];
 
 function SearchModal({ isOpen, onClose }: SearchModalProps) {
