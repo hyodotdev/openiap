@@ -43,6 +43,7 @@ All Android-only functions must end with `Android`:
 - `acknowledgePurchaseAndroid`
 - `consumePurchaseAndroid`
 - `getPackageNameAndroid`
+- `getStorefrontAndroid`
 
 #### 3. Cross-Platform Functions (No suffix)
 
