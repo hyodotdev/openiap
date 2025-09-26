@@ -319,6 +319,27 @@ restorePurchases(): Future`}</CodeBlock>
             native method.
           </p>
         </blockquote>
+
+        <AnchorLink id="get-storefront" level="h3">
+          getStorefront
+        </AnchorLink>
+        <p>Get storefront metadata for the active user.</p>
+        <CodeBlock language="graphql">{`"""
+Returns: String!
+"""
+getStorefront(): Future`}</CodeBlock>
+        <p>
+          Resolves with the ISO 3166-1 alpha-2 country code for the active
+          storefront. Returns an empty string when the storefront cannot be
+          determined.
+        </p>
+        <blockquote className="info-note">
+          <p>
+            iOS uses the active StoreKit storefront. Android queries Google Play
+            Billing for the billing config and returns the same country code
+            string, falling back to an empty value when the call fails.
+          </p>
+        </blockquote>
       </section>
       <section>
         <AnchorLink id="subscription-management" level="h2">
@@ -551,9 +572,16 @@ clearTransactionIOS: Boolean!`}</CodeBlock>
                 <AnchorLink id="get-storefront-ios" level="h4">
                   getStorefrontIOS
                 </AnchorLink>
-                <p>Get the current App Store storefront country code.</p>
+                <p>
+                  <strong>Deprecated.</strong> Use{' '}
+                  <Link to="/docs/apis#get-storefront">
+                    <code>getStorefront()</code>
+                  </Link>{' '}
+                  for cross-platform storefront data.
+                </p>
                 <CodeBlock language="graphql">{`"""
-Get the current App Store storefront country code
+@deprecated(reason: "Use getStorefront")
+Returns: String!
 """
 # Future
 getStorefrontIOS: String!`}</CodeBlock>
@@ -561,6 +589,13 @@ getStorefrontIOS: String!`}</CodeBlock>
                   Returns the storefront country code (e.g., "US", "GB", "JP")
                   for the active App Store account.
                 </p>
+                <blockquote className="info-note">
+                  <p>
+                    This legacy helper will proxy to{' '}
+                    <code>getStorefront()</code> where possible and will be
+                    removed in a future release.
+                  </p>
+                </blockquote>
 
                 <AnchorLink id="get-promoted-product-ios" level="h4">
                   getPromotedProductIOS
@@ -864,33 +899,6 @@ consumePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
                     <code>finishTransaction()</code>
                   </Link>{' '}
                   when <code>isConsumable</code> is <code>true</code>.
-                </p>
-
-                <AnchorLink id="get-storefront-android" level="h4">
-                  getStorefrontAndroid
-                </AnchorLink>
-                <p>Get Google Play storefront metadata for the active user.</p>
-                <CodeBlock language="graphql">{`extend type Query {
-  """
-  Returns: StorefrontResultAndroid!
-  """
-  # Future
-  getStorefrontAndroid: StorefrontResultAndroid!
-}
-
-type StorefrontResultAndroid {
-  countryCode: String!
-  identifier: String!
-}`}</CodeBlock>
-                <p className="type-link">
-                  See:{' '}
-                  <Link to="/docs/types#storefront-result-android">
-                    StorefrontResultAndroid
-                  </Link>
-                </p>
-                <p>
-                  Returns the Google Play storefront identifier and ISO 3166-1
-                  alpha-2 country code for the current account.
                 </p>
               </>
             ),

@@ -118,7 +118,6 @@ const apiData: ApiItem[] = [
     returns: 'ReceiptValidationResult!',
     path: '/docs/apis#validate-receipt',
   },
-
   // iOS APIs
   {
     id: 'clear-transaction-ios',
@@ -133,19 +132,10 @@ const apiData: ApiItem[] = [
     id: 'get-storefront-ios',
     title: 'getStorefrontIOS',
     category: 'iOS APIs',
-    description: 'Get the current App Store storefront country code',
+    description: 'Deprecated. Use getStorefront for cross-platform data',
     parameters: '',
     returns: 'String!',
     path: '/docs/apis#get-storefront-ios',
-  },
-  {
-    id: 'get-storefront-android',
-    title: 'getStorefrontAndroid',
-    category: 'Android APIs',
-    description: 'Get Google Play storefront metadata for the active user',
-    parameters: '',
-    returns: 'StorefrontResultAndroid!',
-    path: '/docs/apis#get-storefront-android',
   },
   {
     id: 'get-promoted-product-ios',
@@ -200,6 +190,16 @@ const apiData: ApiItem[] = [
     parameters: '',
     returns: 'Void',
     path: '/docs/apis#restore-purchases',
+  },
+  // Storefront
+  {
+    id: 'get-storefront',
+    title: 'getStorefront',
+    category: 'Storefront',
+    description: 'Get storefront country code for the active user',
+    parameters: '',
+    returns: 'String!',
+    path: '/docs/apis#get-storefront',
   },
   {
     id: 'current-entitlement-ios',

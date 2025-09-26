@@ -43,7 +43,6 @@ All Android-only functions must end with `Android`:
 - `acknowledgePurchaseAndroid`
 - `consumePurchaseAndroid`
 - `getPackageNameAndroid`
-- `getStorefrontAndroid`
 
 #### 3. Cross-Platform Functions (No suffix)
 
@@ -59,6 +58,7 @@ Functions available on both platforms have no suffix:
 - `getActiveSubscriptions` - Get active subscriptions
 - `hasActiveSubscriptions` - Check subscription status
 - `deepLinkToSubscriptions` - Open subscription management
+- `getStorefront` - Get storefront metadata
 
 ### Naming Rules
 
@@ -88,6 +88,7 @@ Functions available on both platforms have no suffix:
 
 - `buy-promoted-product-ios` → Use `requestPurchaseOnPromotedProductIOS`
 - `requestProducts` → Use `fetchProducts`
+- `get-storefront-ios` → Use `getStorefront`
 
 ## Modal Pattern with Preact Signals
 
