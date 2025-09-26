@@ -49,6 +49,13 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
   );
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function highlightCode(element: HTMLElement, language: string) {
   const text = element.textContent || '';
 
@@ -62,7 +69,7 @@ function highlightCode(element: HTMLElement, language: string) {
 
       // Check if line is a comment
       if (line.trim().startsWith('//')) {
-        return `<span class="token comment">${line.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
+        return `<span class="token comment">${escapeHtml(line)}</span>`;
       }
 
       // Tokenize the line
@@ -99,11 +106,9 @@ function highlightCode(element: HTMLElement, language: string) {
       // Process tokens
       tokens.forEach((token) => {
         if (token.type === 'string') {
-          result += `<span class="token string">${token.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
+          result += `<span class="token string">${escapeHtml(token.value)}</span>`;
         } else {
-          let processed = token.value
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+          let processed = escapeHtml(token.value);
 
           // Keywords
           processed = processed.replace(
@@ -132,43 +137,48 @@ function highlightCode(element: HTMLElement, language: string) {
 
     element.innerHTML = highlightedLines.join('\n');
   } else if (language === 'graphql') {
-    // Split by lines to process each line
     const lines = text.split('\n');
-    const highlightedLines = lines.map((line) => {
-      // Skip empty lines
-      if (!line.trim()) return line;
+    let inBlockString = false;
 
-      // Comments first (highest priority)
-      if (
-        line.trim().startsWith('#') ||
-        (line.includes('"') && line.trim().startsWith('"'))
-      ) {
-        return line
-          .replace(/(#[^\n]*)/g, '<span class="token comment">$1</span>')
-          .replace(/"([^"]*)"/g, '<span class="token string">"$1"</span>');
+    const highlightedLines = lines.map((line) => {
+      const trimmed = line.trim();
+      const escaped = escapeHtml(line);
+
+      if (!trimmed) {
+        return escaped;
+      }
+
+      // Block string delimiters and contents
+      if (trimmed.startsWith('"""')) {
+        const result = `<span class="token string">${escaped}</span>`;
+        const isSingleLineBlock =
+          trimmed.length > 3 && trimmed.endsWith('"""') && trimmed !== '"""';
+        if (!isSingleLineBlock) {
+          inBlockString = !inBlockString;
+        }
+        return result;
+      }
+
+      if (inBlockString) {
+        return `<span class="token string">${escaped}</span>`;
+      }
+
+      // Line comments
+      if (trimmed.startsWith('#')) {
+        return `<span class="token comment">${escaped}</span>`;
       }
 
       // Type/Input/Enum declarations
-      if (line.match(/^\s*(type|input|enum)\s+(\w+)/)) {
-        return line
-          .replace(
-            /\b(type|input|enum)\b/g,
-            '<span class="token keyword">$1</span>'
-          )
-          .replace(
-            /\b(type|input|enum)\s+(\w+)/g,
-            '$1 <span class="token type-name">$2</span>'
-          )
-          .replace(/\b(implements)\b/g, '<span class="token keyword">$1</span>')
-          .replace(
-            /\b(implements)\s+(\w+)/g,
-            '$1 <span class="token type-name">$2</span>'
-          );
+      const typeMatch = line.match(/^(\s*)(type|input|enum)\s+(\w+)(.*)$/);
+      if (typeMatch) {
+        const [, leading, keyword, typeName, rest] = typeMatch;
+        const escapedRest = rest ? escapeHtml(rest) : '';
+        return `${escapeHtml(leading)}<span class="token keyword">${keyword}</span> <span class="token type-name">${typeName}</span>${escapedRest}`;
       }
 
       // Enum values (all caps with underscores)
-      if (line.match(/^\s*[A-Z_]+\s*$/)) {
-        return line.replace(
+      if (/^\s*[A-Z_]+\s*$/.test(line)) {
+        return escaped.replace(
           /([A-Z_]+)/g,
           '<span class="token enum-value">$1</span>'
         );
@@ -176,47 +186,40 @@ function highlightCode(element: HTMLElement, language: string) {
 
       // Field definitions (fieldName: Type)
       if (line.includes(':')) {
-        return (
-          line
-            // Field name before colon
-            .replace(
-              /^(\s*)(\w+)(\s*)(:)/g,
-              '$1<span class="token field">$2</span>$3<span class="token punctuation">$4</span>'
-            )
-            // Types after colon
-            .replace(
-              /:\s*(\[?)(\w+)(\]?)(!?)/g,
-              function (_match, bracket1, type, bracket2, exclaim) {
-                let result = ':<span class="token punctuation"> </span>';
-                if (bracket1)
-                  result += '<span class="token punctuation">[</span>';
+        const fieldProcessed = escaped.replace(
+          /^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*)(:)/g,
+          '$1<span class="token field">$2</span>$3<span class="token punctuation">$4</span>'
+        );
 
-                // Check if it's a built-in type or custom type
-                const builtInTypes = [
-                  'String',
-                  'Int',
-                  'Float',
-                  'Boolean',
-                  'ID',
-                  'JSON',
-                  'Void',
-                ];
-                if (builtInTypes.includes(type)) {
-                  result += `<span class="token builtin-type">${type}</span>`;
-                } else {
-                  result += `<span class="token custom-type">${type}</span>`;
-                }
+        return fieldProcessed.replace(
+          /:\s*(\[?)([A-Za-z_][A-Za-z0-9_]*)(\]?)(!?)/g,
+          (_match, bracket1, type, bracket2, exclaim) => {
+            let result = ':<span class="token punctuation"> </span>';
+            if (bracket1) result += '<span class="token punctuation">[</span>';
 
-                if (bracket2)
-                  result += '<span class="token punctuation">]</span>';
-                if (exclaim) result += '<span class="token required">!</span>';
-                return result;
-              }
-            )
+            const builtInTypes = [
+              'String',
+              'Int',
+              'Float',
+              'Boolean',
+              'ID',
+              'JSON',
+              'Void',
+            ];
+            if (builtInTypes.includes(type)) {
+              result += `<span class="token builtin-type">${type}</span>`;
+            } else {
+              result += `<span class="token custom-type">${type}</span>`;
+            }
+
+            if (bracket2) result += '<span class="token punctuation">]</span>';
+            if (exclaim) result += '<span class="token required">!</span>';
+            return result;
+          }
         );
       }
 
-      return line;
+      return escaped;
     });
 
     element.innerHTML = highlightedLines.join('\n');
