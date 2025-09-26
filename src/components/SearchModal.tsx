@@ -139,6 +139,15 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#get-storefront-ios',
   },
   {
+    id: 'get-storefront-android',
+    title: 'getStorefrontAndroid',
+    category: 'Android APIs',
+    description: 'Get Google Play storefront metadata for the active user',
+    parameters: '',
+    returns: 'StorefrontResultAndroid!',
+    path: '/docs/apis#get-storefront-android',
+  },
+  {
     id: 'get-promoted-product-ios',
     title: 'getPromotedProductIOS',
     category: 'iOS APIs',

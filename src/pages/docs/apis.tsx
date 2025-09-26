@@ -558,7 +558,8 @@ Get the current App Store storefront country code
 # Future
 getStorefrontIOS: String!`}</CodeBlock>
                 <p>
-                  Returns the storefront country code (e.g., "US", "GB", "JP").
+                  Returns the storefront country code (e.g., "US", "GB", "JP")
+                  for the active App Store account.
                 </p>
 
                 <AnchorLink id="get-promoted-product-ios" level="h4">
@@ -863,6 +864,33 @@ consumePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
                     <code>finishTransaction()</code>
                   </Link>{' '}
                   when <code>isConsumable</code> is <code>true</code>.
+                </p>
+
+                <AnchorLink id="get-storefront-android" level="h4">
+                  getStorefrontAndroid
+                </AnchorLink>
+                <p>Get Google Play storefront metadata for the active user.</p>
+                <CodeBlock language="graphql">{`extend type Query {
+  """
+  Returns: StorefrontResultAndroid!
+  """
+  # Future
+  getStorefrontAndroid: StorefrontResultAndroid!
+}
+
+type StorefrontResultAndroid {
+  countryCode: String!
+  identifier: String!
+}`}</CodeBlock>
+                <p className="type-link">
+                  See:{' '}
+                  <Link to="/docs/types#storefront-result-android">
+                    StorefrontResultAndroid
+                  </Link>
+                </p>
+                <p>
+                  Returns the Google Play storefront identifier and ISO 3166-1
+                  alpha-2 country code for the current account.
                 </p>
 
                 <AnchorLink

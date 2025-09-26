@@ -671,6 +671,64 @@ type Purchase =
       </section>
 
       <section>
+        <AnchorLink id="storefront" level="h2">
+          Storefront
+        </AnchorLink>
+        <p>
+          Storefront metadata describing the marketplace associated with the
+          current user.
+        </p>
+        <CodeBlock language="typescript">{`type Storefront = {
+  countryCode: string;
+  identifier: string;
+};`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>countryCode</code> — ISO 3166-1 alpha-2 code (e.g., "US",
+              "KR")
+            </li>
+            <li>
+              <code>identifier</code> — Storefront identifier (e.g., "USA",
+              "KOR") returned by StoreKit and other billing providers
+            </li>
+          </ul>
+        </div>
+        <blockquote className="info-note">
+          <p>
+            On iOS the values are sourced from the active StoreKit storefront.
+            Other platforms return the same structure and may yield empty
+            strings when the storefront is unavailable.
+          </p>
+        </blockquote>
+
+        <AnchorLink id="storefront-result-android" level="h3">
+          StorefrontResultAndroid
+        </AnchorLink>
+        <p>
+          Android-specific storefront payload returned by{' '}
+          <code>getStorefrontAndroid</code>.
+        </p>
+        <CodeBlock language="typescript">{`type StorefrontResultAndroid = {
+  countryCode: string;
+  identifier: string;
+};`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>countryCode</code> — ISO 3166-1 alpha-2 code (e.g., "US",
+              "KR")
+            </li>
+            <li>
+              <code>identifier</code> — Google Play storefront identifier
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
         <AnchorLink id="purchase" level="h2">
           Purchase
         </AnchorLink>
