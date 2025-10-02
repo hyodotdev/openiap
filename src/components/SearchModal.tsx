@@ -98,6 +98,24 @@ const apiData: ApiItem[] = [
     path: '/docs/apis#request-purchase',
   },
   {
+    id: 'ios-external-purchase-links',
+    title: 'iOS External Purchase Links',
+    category: 'Purchase Operations',
+    description: 'Redirect users to external website for purchase (iOS only)',
+    parameters: 'externalPurchaseUrlOnIOS',
+    returns: '',
+    path: '/docs/apis#ios-external-purchase-links',
+  },
+  {
+    id: 'android-alternative-billing',
+    title: 'Android Alternative Billing',
+    category: 'Purchase Operations',
+    description: 'Google Play alternative billing flow (Android only)',
+    parameters: '',
+    returns: '',
+    path: '/docs/apis#android-alternative-billing',
+  },
+  {
     id: 'finish-transaction',
     title: 'finishTransaction',
     category: 'Purchase Operations',
@@ -319,6 +337,36 @@ const apiData: ApiItem[] = [
     parameters: 'purchaseToken: String!',
     returns: 'Boolean!',
     path: '/docs/apis#consume-purchase-android',
+  },
+  {
+    id: 'check-alternative-billing-availability-android',
+    title: 'checkAlternativeBillingAvailabilityAndroid',
+    category: 'Android APIs',
+    description:
+      'Check if alternative billing is available (Step 1 of alternative billing)',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis#check-alternative-billing-availability-android',
+  },
+  {
+    id: 'show-alternative-billing-dialog-android',
+    title: 'showAlternativeBillingDialogAndroid',
+    category: 'Android APIs',
+    description:
+      'Show alternative billing dialog to user (Step 2 of alternative billing)',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis#show-alternative-billing-dialog-android',
+  },
+  {
+    id: 'create-alternative-billing-token-android',
+    title: 'createAlternativeBillingTokenAndroid',
+    category: 'Android APIs',
+    description:
+      'Create external transaction token for Google Play (Step 3 of alternative billing)',
+    parameters: '',
+    returns: 'String',
+    path: '/docs/apis#create-alternative-billing-token-android',
   },
 ];
 

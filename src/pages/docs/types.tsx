@@ -1066,22 +1066,22 @@ type Purchase =
 
         <h3>Usage Example</h3>
         <CodeBlock language="typescript">{`// Fetch in-app purchases (default)
-const inappProducts = await getProducts({ skus: ["product1", "product2"] });
+const inappProducts = await fetchProducts({ skus: ["product1", "product2"] });
 
 // Explicitly fetch in-app purchases
-const inappProducts = await getProducts({ 
+const inappProducts = await fetchProducts({
   skus: ["product1", "product2"],
   type: "in-app"
 });
 
 // Fetch only subscriptions
-const subscriptions = await getProducts({ 
+const subscriptions = await fetchProducts({
   skus: ["sub1", "sub2"],
   type: "subs"
 });
 
 // Fetch all products (both in-app and subscriptions)
-const allProducts = await getProducts({ 
+const allProducts = await fetchProducts({
   skus: ["product1", "sub1"],
   type: "all"
 });`}</CodeBlock>
@@ -1111,31 +1111,69 @@ const allProducts = await getProducts({
     }`}</CodeBlock>
         <div style={{ marginTop: '0.5rem' }}>
           <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <h5 style={{ margin: '0.75rem 0 0.25rem' }}>Variant: In‑app</h5>
           <ul>
             <li>
-              <code>params</code> — Platform-specific in‑app params
+              <code>params</code> — Platform-specific purchase parameters
             </li>
             <li>
-              <code>type</code> — Purchase type discriminator
-            </li>
-          </ul>
-          <h5 style={{ margin: '0.75rem 0 0.25rem' }}>Variant: Subscription</h5>
-          <ul>
-            <li>
-              <code>params</code> — Platform-specific subscription params
-            </li>
-            <li>
-              <code>type</code> — Purchase type discriminator
+              <code>type</code> — Purchase type discriminator (
+              <code>'in-app'</code> or <code>'subs'</code>)
             </li>
           </ul>
         </div>
         <p>
           Use the <code>'in-app'</code> variant when purchasing regular items
-          and
-          <code>'subs'</code> when purchasing subscriptions. This keeps the
+          and <code>'subs'</code> when purchasing subscriptions. This keeps the
           payloads aligned with their platform-specific structures.
         </p>
+
+        <h4>Basic Usage Example</h4>
+        <CodeBlock language="typescript">{`// Standard in-app purchase
+await requestPurchase({
+  params: {
+    ios: { sku: 'premium' },
+    android: { skus: ['premium'] }
+  },
+  type: 'in-app'
+});
+
+// Subscription purchase
+await requestPurchase({
+  params: {
+    ios: { sku: 'monthly_sub' },
+    android: { skus: ['monthly_sub'] }
+  },
+  type: 'subs'
+});`}</CodeBlock>
+
+        <AnchorLink id="ios-external-purchase-links" level="h4">
+          iOS External Purchase Links
+        </AnchorLink>
+        <p>
+          Starting from openiap-gql 1.0.10, iOS supports external purchase links
+          via the <code>externalPurchaseUrlOnIOS</code> parameter.
+        </p>
+        <blockquote className="info-note">
+          <p>
+            <strong>Important:</strong> External purchase links redirect users
+            to an external website. No StoreKit transaction is created, and{' '}
+            <code>purchaseUpdatedListener</code> will not be triggered. You must
+            implement your own flow to handle purchase completion (deep links,
+            server verification, offer codes).
+          </p>
+        </blockquote>
+
+        <h5>iOS External Purchase Example</h5>
+        <CodeBlock language="typescript">{`// iOS external purchase link
+await requestPurchase({
+  params: {
+    ios: {
+      sku: 'premium',
+      externalPurchaseUrlOnIOS: 'https://your-payment-site.com/checkout'
+    }
+  },
+  type: 'in-app'
+});`}</CodeBlock>
 
         <AnchorLink id="request-purchase-props-by-platforms" level="h3">
           RequestPurchasePropsByPlatforms
@@ -1195,6 +1233,7 @@ const allProducts = await getProducts({
   appAccountToken: String
   quantity: Int
   withOffer: DiscountOffer
+  externalPurchaseUrlOnIOS: String
 }`}</CodeBlock>
                 <div style={{ marginTop: '0.5rem' }}>
                   <h4 style={{ margin: 0 }}>Field Reference</h4>
@@ -1215,6 +1254,11 @@ const allProducts = await getProducts({
                     <li>
                       <code>withOffer</code> — Promotional/discount offer to
                       apply
+                    </li>
+                    <li>
+                      <code>externalPurchaseUrlOnIOS</code> — URL for external
+                      purchase link (requires{' '}
+                      <code>useAlternativeBilling: true</code>)
                     </li>
                   </ul>
                 </div>
@@ -1347,6 +1391,86 @@ type SubscriptionOffer {
             ),
           }}
         </PlatformTabs>
+      </section>
+
+      <section>
+        <AnchorLink id="alternative-billing-types" level="h2">
+          Alternative Billing Types
+        </AnchorLink>
+
+        <AnchorLink id="alternative-billing-mode-android" level="h3">
+          AlternativeBillingModeAndroid
+        </AnchorLink>
+        <p>
+          Alternative billing mode for Android. Controls which billing system is
+          used during <code>initConnection</code>.
+        </p>
+        <CodeBlock language="graphql">{`enum AlternativeBillingModeAndroid {
+  """
+  Standard Google Play billing (default)
+  """
+  NONE
+
+  """
+  User choice billing - user can select between Google Play or alternative
+  Requires Google Play Billing Library 7.0+
+  """
+  USER_CHOICE
+
+  """
+  Alternative billing only - no Google Play billing option
+  Requires Google Play Billing Library 6.2+
+  """
+  ALTERNATIVE_ONLY
+}`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Values</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>NONE</code> — Standard Google Play billing (default)
+            </li>
+            <li>
+              <code>USER_CHOICE</code> — User can select between Google Play or
+              alternative billing (requires Billing Library 7.0+)
+            </li>
+            <li>
+              <code>ALTERNATIVE_ONLY</code> — Alternative billing only, no
+              Google Play billing option (requires Billing Library 6.2+)
+            </li>
+          </ul>
+        </div>
+
+        <AnchorLink id="init-connection-config" level="h3">
+          InitConnectionConfig
+        </AnchorLink>
+        <p>Configuration options for initializing the billing connection.</p>
+        <CodeBlock language="typescript">{`interface InitConnectionConfig {
+  alternativeBillingModeAndroid?: AlternativeBillingModeAndroid;
+}`}</CodeBlock>
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>alternativeBillingModeAndroid</code> — (Android only)
+              Alternative billing mode. Defaults to <code>NONE</code> if not
+              specified.
+            </li>
+          </ul>
+        </div>
+
+        <h4>Usage Example</h4>
+        <CodeBlock language="typescript">{`// Initialize with user choice billing
+await initConnection({
+  alternativeBillingModeAndroid: 'USER_CHOICE'
+});
+
+// Initialize with alternative billing only
+await initConnection({
+  alternativeBillingModeAndroid: 'ALTERNATIVE_ONLY'
+});
+
+// Standard billing (default)
+await initConnection();`}</CodeBlock>
       </section>
 
       <section>

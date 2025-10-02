@@ -64,11 +64,30 @@ function APIs() {
         <CodeBlock language="graphql">{`"""
 Returns: Boolean!
 """
-initConnection(): Future`}</CodeBlock>
+initConnection(config: InitConnectionConfig?): Future`}</CodeBlock>
         <p>
           Establishes connection with the platform's billing service. Returns
-          true if successful.
+          true if successful. Optionally accepts configuration for alternative
+          billing on Android.
         </p>
+        <p className="type-link">
+          See:{' '}
+          <Link to="/docs/types#init-connection-config">
+            InitConnectionConfig
+          </Link>
+        </p>
+        <CodeBlock language="typescript">{`// Standard connection
+await initConnection();
+
+// Android with user choice billing
+await initConnection({
+  alternativeBillingModeAndroid: 'USER_CHOICE'
+});
+
+// Android with alternative billing only
+await initConnection({
+  alternativeBillingModeAndroid: 'ALTERNATIVE_ONLY'
+});`}</CodeBlock>
 
         <AnchorLink id="end-connection" level="h3">
           endConnection
@@ -206,6 +225,63 @@ type RequestPurchaseProps =
             Google Play Billing and StoreKit receive the correct payloads.
           </p>
         </blockquote>
+
+        <AnchorLink id="ios-external-purchase-links" level="h4">
+          iOS External Purchase Links
+        </AnchorLink>
+        <p>
+          Starting from openiap-gql 1.0.10, iOS supports external purchase links
+          via the <code>externalPurchaseUrlOnIOS</code> parameter in{' '}
+          <code>requestPurchase</code>.
+        </p>
+        <CodeBlock language="typescript">{`await requestPurchase({
+  params: {
+    ios: {
+      sku: 'premium',
+      externalPurchaseUrlOnIOS: 'https://your-payment-site.com/checkout'
+    }
+  },
+  type: 'in-app'
+});`}</CodeBlock>
+        <blockquote className="info-note">
+          <p>
+            <strong>Important:</strong> External purchase links redirect users
+            to an external website. No StoreKit transaction is created, and{' '}
+            <code>purchaseUpdatedListener</code> will <strong>not</strong> be
+            triggered. You are responsible for:
+          </p>
+          <ul>
+            <li>
+              Implementing deep links or universal links to return users to your
+              app after purchase
+            </li>
+            <li>Verifying purchase completion on your server</li>
+            <li>
+              Granting entitlements to users (either directly or via StoreKit
+              offer codes)
+            </li>
+          </ul>
+          <p>
+            The external link flow only opens the URL—it does not create
+            StoreKit transactions or trigger purchase events.
+          </p>
+        </blockquote>
+
+        <AnchorLink id="android-alternative-billing" level="h4">
+          Android Alternative Billing
+        </AnchorLink>
+        <p>
+          For Android alternative billing, see the{' '}
+          <Link to="/docs/apis#check-alternative-billing-availability-android">
+            Android Alternative Billing APIs
+          </Link>{' '}
+          section in Platform-Specific APIs. Android alternative billing
+          requires a three-step flow and configuration during{' '}
+          <Link to="/docs/apis#init-connection">
+            <code>initConnection</code>
+          </Link>
+          .
+        </p>
 
         <AnchorLink id="finish-transaction" level="h3">
           finishTransaction
@@ -900,6 +976,127 @@ consumePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
                   </Link>{' '}
                   when <code>isConsumable</code> is <code>true</code>.
                 </p>
+
+                <h3>Android Alternative Billing APIs</h3>
+                <p>
+                  Three-step flow for implementing alternative billing on
+                  Android. These APIs work with Google Play Billing Library
+                  6.2+.
+                </p>
+
+                <AnchorLink
+                  id="check-alternative-billing-availability-android"
+                  level="h4"
+                >
+                  checkAlternativeBillingAvailabilityAndroid
+                </AnchorLink>
+                <p>
+                  Check if alternative billing is available for this
+                  user/device. This is <strong>Step 1</strong> of the
+                  alternative billing flow.
+                </p>
+                <CodeBlock language="graphql">{`"""
+Check if alternative billing is available for this user/device
+Step 1 of alternative billing flow
+
+Returns true if available, false otherwise
+Throws OpenIapError.NotPrepared if billing client not ready
+"""
+# Future
+checkAlternativeBillingAvailabilityAndroid: Boolean!`}</CodeBlock>
+                <p>
+                  Returns <code>true</code> if alternative billing is available,{' '}
+                  <code>false</code> otherwise. Throws{' '}
+                  <code>OpenIapError.NotPrepared</code> if the billing client is
+                  not ready.
+                </p>
+
+                <AnchorLink
+                  id="show-alternative-billing-dialog-android"
+                  level="h4"
+                >
+                  showAlternativeBillingDialogAndroid
+                </AnchorLink>
+                <p>
+                  Show alternative billing information dialog to the user. This
+                  is <strong>Step 2</strong> of the alternative billing flow and
+                  must be called <strong>before</strong> processing payment in
+                  your payment system.
+                </p>
+                <CodeBlock language="graphql">{`"""
+Show alternative billing information dialog to user
+Step 2 of alternative billing flow
+Must be called BEFORE processing payment in your payment system
+
+Returns true if user accepted, false if user canceled
+Throws OpenIapError.NotPrepared if billing client not ready
+"""
+# Future
+showAlternativeBillingDialogAndroid: Boolean!`}</CodeBlock>
+                <p>
+                  Returns <code>true</code> if the user accepted,{' '}
+                  <code>false</code> if the user canceled. Throws{' '}
+                  <code>OpenIapError.NotPrepared</code> if the billing client is
+                  not ready.
+                </p>
+
+                <AnchorLink
+                  id="create-alternative-billing-token-android"
+                  level="h4"
+                >
+                  createAlternativeBillingTokenAndroid
+                </AnchorLink>
+                <p>
+                  Create external transaction token for Google Play reporting.
+                  This is <strong>Step 3</strong> of the alternative billing
+                  flow and must be called <strong>after</strong> successful
+                  payment in your payment system.
+                </p>
+                <CodeBlock language="graphql">{`"""
+Create external transaction token for Google Play reporting
+Step 3 of alternative billing flow
+Must be called AFTER successful payment in your payment system
+Token must be reported to Google Play backend within 24 hours
+
+Returns token string, or null if creation failed
+Throws OpenIapError.NotPrepared if billing client not ready
+"""
+# Future
+createAlternativeBillingTokenAndroid: String`}</CodeBlock>
+                <p>
+                  Returns a token string that must be reported to Google Play
+                  backend within 24 hours, or <code>null</code> if creation
+                  failed. Throws <code>OpenIapError.NotPrepared</code> if the
+                  billing client is not ready.
+                </p>
+
+                <h4>Alternative Billing Flow Example</h4>
+                <CodeBlock language="typescript">{`// Step 1: Check availability
+const isAvailable = await checkAlternativeBillingAvailabilityAndroid();
+if (!isAvailable) {
+  // Fall back to standard billing
+  return;
+}
+
+// Step 2: Show dialog to user
+const userAccepted = await showAlternativeBillingDialogAndroid();
+if (!userAccepted) {
+  // User canceled
+  return;
+}
+
+// Process payment in your payment system
+const paymentSuccess = await processPaymentInYourSystem();
+
+if (paymentSuccess) {
+  // Step 3: Create token and report to Google Play
+  const token = await createAlternativeBillingTokenAndroid();
+
+  if (token) {
+    // Report token to Google Play backend within 24 hours
+    await reportTokenToGooglePlay(token);
+  }
+}`}</CodeBlock>
               </>
             ),
           }}
