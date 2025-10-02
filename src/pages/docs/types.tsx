@@ -1030,6 +1030,7 @@ type Purchase =
   transactionDate: number;           // Transaction timestamp
   basePlanIdAndroid?: string;        // Android only: base plan identifier
   currentPlanId?: string;            // Unified plan/tier identifier
+  purchaseTokenAndroid?: string;     // Android only: purchase token for subscription upgrade/downgrade
 };`}</CodeBlock>
 
         <div style={{ marginTop: '0.5rem' }}>
@@ -1087,6 +1088,10 @@ type Purchase =
                   "com.example.premium_yearly")
                 </li>
               </ul>
+            </li>
+            <li>
+              <code>purchaseTokenAndroid</code> — Android-specific purchase
+              token required for subscription upgrade/downgrade operations
             </li>
           </ul>
         </div>
