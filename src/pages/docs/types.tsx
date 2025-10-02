@@ -730,6 +730,7 @@ type PurchaseCommon = {
   quantity: number;
   purchaseState: PurchaseState;
   isAutoRenewing: boolean;
+  currentPlanId?: string;
 };`}</CodeBlock>
         <div style={{ marginTop: '0.5rem' }}>
           <h4 style={{ margin: 0 }}>Field Reference</h4>
@@ -760,6 +761,20 @@ type PurchaseCommon = {
             </li>
             <li>
               <code>isAutoRenewing</code> — Auto-renew flag
+            </li>
+            <li>
+              <code>currentPlanId</code> — The current plan identifier. This
+              provides a unified way to identify which specific plan/tier the
+              user is subscribed to:
+              <ul>
+                <li>
+                  On Android: the basePlanId (e.g., "premium", "premium-year")
+                </li>
+                <li>
+                  On iOS: the productId (e.g., "com.example.premium_monthly",
+                  "com.example.premium_yearly")
+                </li>
+              </ul>
             </li>
           </ul>
         </div>
@@ -810,6 +825,7 @@ type PurchaseCommon = {
   currencyCodeIOS?: string;
   currencySymbolIOS?: string;
   countryCodeIOS?: string;
+  currentPlanId?: string;
 };`}</CodeBlock>
                 <div style={{ marginTop: '0.5rem' }}>
                   <h4 style={{ margin: 0 }}>Field Reference</h4>
@@ -888,6 +904,14 @@ type PurchaseCommon = {
                     <li>
                       <code>countryCodeIOS</code> — Country code
                     </li>
+                    <li>
+                      <code>currentPlanId</code> — The current plan identifier.
+                      On iOS, this is the productId (e.g.,
+                      "com.example.premium_monthly",
+                      "com.example.premium_yearly"). This provides a unified way
+                      to identify which specific plan/tier the user is
+                      subscribed to across platforms.
+                    </li>
                   </ul>
                 </div>
               </>
@@ -906,6 +930,7 @@ type PurchaseCommon = {
   developerPayloadAndroid?: string;
   obfuscatedAccountIdAndroid?: string;
   obfuscatedProfileIdAndroid?: string;
+  currentPlanId?: string;
 };`}</CodeBlock>
                 <div style={{ marginTop: '0.5rem' }}>
                   <h4 style={{ margin: 0 }}>Field Reference</h4>
@@ -938,6 +963,13 @@ type PurchaseCommon = {
                     <li>
                       <code>obfuscatedProfileIdAndroid</code> — Obfuscated
                       profile ID
+                    </li>
+                    <li>
+                      <code>currentPlanId</code> — The current plan identifier.
+                      On Android, this is the basePlanId (e.g., "premium",
+                      "premium-year"). This provides a unified way to identify
+                      which specific plan/tier the user is subscribed to across
+                      platforms.
                     </li>
                   </ul>
                 </div>
@@ -996,6 +1028,8 @@ type Purchase =
   transactionId: string;             // Transaction identifier for backend validation
   purchaseToken?: string;            // JWT token (iOS) or purchase token (Android) for backend validation
   transactionDate: number;           // Transaction timestamp
+  basePlanIdAndroid?: string;        // Android only: base plan identifier
+  currentPlanId?: string;            // Unified plan/tier identifier
 };`}</CodeBlock>
 
         <div style={{ marginTop: '0.5rem' }}>
@@ -1035,6 +1069,24 @@ type Purchase =
             </li>
             <li>
               <code>transactionDate</code> — Transaction timestamp (epoch ms)
+            </li>
+            <li>
+              <code>basePlanIdAndroid</code> — Android-specific base plan
+              identifier (e.g., "premium", "premium-year")
+            </li>
+            <li>
+              <code>currentPlanId</code> — The current plan identifier. This
+              provides a unified way to identify which specific plan/tier the
+              user is subscribed to:
+              <ul>
+                <li>
+                  On Android: the basePlanId (e.g., "premium", "premium-year")
+                </li>
+                <li>
+                  On iOS: the productId (e.g., "com.example.premium_monthly",
+                  "com.example.premium_yearly")
+                </li>
+              </ul>
             </li>
           </ul>
         </div>
