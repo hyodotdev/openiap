@@ -339,3 +339,57 @@ pre code {
 :root.dark .code-snippet .token.number {
   color: #d19a66;
 }
+
+/* Swift/Kotlin specific tokens */
+.code-block .token.class-name,
+.code-snippet .token.class-name {
+  color: #005cc5;
+  font-weight: 500;
+}
+
+.code-block .token.decorator,
+.code-snippet .token.decorator {
+  color: #6f42c1;
+  font-style: italic;
+}
+
+:root.dark .code-block .token.class-name,
+:root.dark .code-snippet .token.class-name {
+  color: #e5c07b;
+}
+
+:root.dark .code-block .token.decorator,
+:root.dark .code-snippet .token.decorator {
+  color: #c678dd;
+}
+
+/* XML specific tokens */
+.code-block .token.tag,
+.code-snippet .token.tag {
+  color: #22863a;
+}
+
+.code-block .token.attr-name,
+.code-snippet .token.attr-name {
+  color: #005cc5;
+}
+
+.code-block .token.attr-value,
+.code-snippet .token.attr-value {
+  color: #032f62;
+}
+
+:root.dark .code-block .token.tag,
+:root.dark .code-snippet .token.tag {
+  color: #e06c75;
+}
+
+:root.dark .code-block .token.attr-name,
+:root.dark .code-snippet .token.attr-name {
+  color: #d19a66;
+}
+
+:root.dark .code-block .token.attr-value,
+:root.dark .code-snippet .token.attr-value {
+  color: #98c379;
+}

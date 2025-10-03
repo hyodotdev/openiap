@@ -23,6 +23,7 @@ function Events() {
   PurchaseUpdated
   PurchaseError
   PromotedProductIOS
+  UserChoiceBillingAndroid
 }`}</CodeBlock>
       </section>
 
@@ -105,7 +106,9 @@ function Events() {
       </section>
 
       <section>
-        <h2>Promoted Product Event (iOS)</h2>
+        <AnchorLink id="promoted-product-event-ios" level="h2">
+          Promoted Product Event (iOS)
+        </AnchorLink>
         <p>
           Fired when a user clicks on a promoted in-app purchase in the App
           Store.
@@ -137,6 +140,95 @@ function Events() {
             getPromotedProductIOS
           </Link>{' '}
           on app launch for pending promoted products.
+        </p>
+      </section>
+
+      <section>
+        <AnchorLink id="user-choice-billing-event-android" level="h2">
+          User Choice Billing Event (Android)
+        </AnchorLink>
+        <p>
+          Fired when a user selects alternative billing in the User Choice
+          Billing dialog on Android.
+        </p>
+
+        <h3>Listener Setup</h3>
+        <CodeBlock language="graphql">{`userChoiceBillingListenerAndroid(
+  listener: (UserChoiceBillingDetails) => Void
+): Subscription`}</CodeBlock>
+        <p>
+          Registers a listener for User Choice Billing events. This listener is
+          only triggered when the user selects alternative billing instead of
+          Google Play billing.
+        </p>
+
+        <h3>Event Payload</h3>
+        <CodeBlock language="graphql">{`type UserChoiceBillingDetails {
+  externalTransactionToken: String!
+  products: [String!]!
+}`}</CodeBlock>
+        <p>
+          <strong>externalTransactionToken</strong> - Token that must be
+          reported to Google Play within 24 hours
+          <br />
+          <strong>products</strong> - List of product IDs selected by the user
+        </p>
+
+        <h3>Handling User Choice Billing</h3>
+        <ol>
+          <li>
+            Receive <code>UserChoiceBillingDetails</code> via listener
+          </li>
+          <li>Process payment with your backend payment system</li>
+          <li>Send the external transaction token to your backend</li>
+          <li>
+            Backend reports token to Google Play within 24 hours (required for
+            compliance)
+          </li>
+          <li>Grant user access to purchased content</li>
+        </ol>
+
+        <div
+          style={{
+            background: 'rgba(255, 200, 0, 0.1)',
+            border: '1px solid rgba(255, 200, 0, 0.3)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginTop: '1rem',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: '0.875rem' }}>
+            <strong>⚠️ Important:</strong> The external transaction token MUST
+            be reported to Google Play within 24 hours. Failure to report tokens
+            may result in account suspension. It is strongly recommended to
+            handle token reporting on your backend server for reliability and
+            security.
+          </p>
+        </div>
+
+        <h3>Flow Comparison</h3>
+        <p>
+          When using User Choice Billing mode, there are two possible flows
+          depending on user selection:
+        </p>
+        <ul>
+          <li>
+            <strong>Google Play selected</strong> - Standard{' '}
+            <code>PurchaseUpdated</code> event fires (handle normally)
+          </li>
+          <li>
+            <strong>Alternative billing selected</strong> -{' '}
+            <code>UserChoiceBillingAndroid</code> event fires (handle with your
+            payment system)
+          </li>
+        </ul>
+
+        <p>
+          See{' '}
+          <Link to="/docs/external-purchase#platform-implementation">
+            External Purchase documentation
+          </Link>{' '}
+          for complete implementation examples.
         </p>
       </section>
 

@@ -6,11 +6,59 @@ function Updates() {
 
   return (
     <div className="doc-page">
-      <h1>Notes</h1>
+      <h1>Updates</h1>
       <p>Important changes and deprecations in IAP libraries and platforms.</p>
 
       <section>
         <h2>✨ New Features</h2>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap-gql 1.0.12 - External Purchase Support
+          </h4>
+          <p>
+            External purchase/alternative billing support for iOS and Android.
+          </p>
+          <ul>
+            <li>
+              <strong>iOS External Purchase</strong> - StoreKit External
+              Purchase API support (iOS 15.4+, iOS 18.2+ recommended)
+            </li>
+            <li>
+              <strong>Android Alternative Billing</strong> - Google Play
+              Alternative Billing support (Billing Library 6.2+/7.0+)
+            </li>
+            <li>
+              <code>canPresentExternalPurchaseNoticeIOS()</code>,{' '}
+              <code>presentExternalPurchaseNoticeSheetIOS()</code>,{' '}
+              <code>presentExternalPurchaseLinkIOS()</code> - iOS 18.2+ APIs
+            </li>
+            <li>
+              <code>checkAlternativeBillingAvailability()</code>,{' '}
+              <code>showAlternativeBillingInformationDialog()</code>,{' '}
+              <code>createAlternativeBillingReportingToken()</code> - Android
+              APIs
+            </li>
+            <li>
+              <code>userChoiceBillingListenerAndroid</code> - Event listener for
+              User Choice Billing
+            </li>
+          </ul>
+          <p>
+            See: <a href="/docs/external-purchase">External Purchase Guide</a>,{' '}
+            <a href="/docs/events#user-choice-billing-event-android">
+              User Choice Billing Event
+            </a>
+          </p>
+        </div>
 
         <div
           style={{

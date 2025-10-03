@@ -368,6 +368,44 @@ const apiData: ApiItem[] = [
     returns: 'String',
     path: '/docs/apis#create-alternative-billing-token-android',
   },
+
+  // Documentation Pages
+  {
+    id: 'external-purchase-page',
+    title: 'External Purchase',
+    category: 'Documentation',
+    description:
+      'External purchase links for iOS - redirect users to external payment websites (iOS 16.0+)',
+    path: '/docs/external-purchase',
+  },
+  {
+    id: 'types-page',
+    title: 'Types',
+    category: 'Documentation',
+    description: 'Type definitions and data structures',
+    path: '/docs/types',
+  },
+  {
+    id: 'apis-page',
+    title: 'APIs',
+    category: 'Documentation',
+    description: 'API reference and function signatures',
+    path: '/docs/apis',
+  },
+  {
+    id: 'events-page',
+    title: 'Events',
+    category: 'Documentation',
+    description: 'Event listeners and callbacks',
+    path: '/docs/events',
+  },
+  {
+    id: 'errors-page',
+    title: 'Errors',
+    category: 'Documentation',
+    description: 'Error codes and error handling',
+    path: '/docs/errors',
+  },
 ];
 
 function SearchModal({ isOpen, onClose }: SearchModalProps) {
