@@ -1,14 +1,10 @@
 import versionsFile from '../../openiap-versions.json?raw';
 
-type VersionKey = 'apple' | 'google' | 'gql';
+type VersionKey = 'gql';
 
 type VersionRecord = Record<VersionKey, string>;
 
-const REQUIRED_KEYS: readonly VersionKey[] = [
-  'apple',
-  'google',
-  'gql',
-] as const;
+const REQUIRED_KEYS: readonly VersionKey[] = ['gql'] as const;
 
 function parseVersions(json: string): Record<string, unknown> {
   try {
