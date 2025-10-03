@@ -4,6 +4,7 @@ import Types from './docs/types';
 import APIs from './docs/apis';
 import Events from './docs/events';
 import Errors from './docs/errors';
+import ExternalPurchase from './docs/external-purchase';
 import IOSSetup from './docs/ios-setup';
 import AndroidSetup from './docs/android-setup';
 import Updates from './docs/updates';
@@ -56,6 +57,14 @@ function Docs() {
                 className={({ isActive }) => (isActive ? 'active' : '')}
               >
                 Errors
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/external-purchase"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                External Purchase
               </NavLink>
             </li>
           </ul>
@@ -118,6 +127,7 @@ function Docs() {
           <Route path="apis" element={<APIs />} />
           <Route path="events" element={<Events />} />
           <Route path="errors" element={<Errors />} />
+          <Route path="external-purchase" element={<ExternalPurchase />} />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="updates" element={<Updates />} />

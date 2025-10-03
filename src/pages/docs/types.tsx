@@ -1531,6 +1531,84 @@ await initConnection();`}</CodeBlock>
       </section>
 
       <section>
+        <AnchorLink id="external-purchase-link" level="h2">
+          External Purchase Link (iOS)
+        </AnchorLink>
+        <p>
+          External purchase link support for iOS, available from openiap-gql
+          1.0.10+. Redirects users to an external website for payment
+          processing.
+        </p>
+
+        <blockquote className="info-note">
+          <p>
+            <strong>Important:</strong> When using external purchase links, no
+            StoreKit transaction is created, and{' '}
+            <code>purchaseUpdatedListener</code> will NOT be triggered. You must
+            implement your own flow to handle purchase completion using deep
+            links, server verification, or offer codes.
+          </p>
+        </blockquote>
+
+        <AnchorLink id="external-purchase-url" level="h3">
+          externalPurchaseUrlOnIOS
+        </AnchorLink>
+        <p>
+          Optional parameter in <code>RequestPurchaseIosProps</code> that
+          redirects users to an external payment website instead of using
+          StoreKit.
+        </p>
+
+        <CodeBlock language="typescript">{`interface RequestPurchaseIosProps {
+  sku: string;
+  externalPurchaseUrlOnIOS?: string;  // External purchase link
+  // ... other fields
+}`}</CodeBlock>
+
+        <div style={{ marginTop: '0.5rem' }}>
+          <h4 style={{ margin: 0 }}>Field Reference</h4>
+          <ul style={{ marginTop: '0.5rem' }}>
+            <li>
+              <code>externalPurchaseUrlOnIOS</code> — URL to redirect users for
+              external payment. Requires{' '}
+              <code>useAlternativeBilling: true</code> in requestPurchase
+              options.
+            </li>
+          </ul>
+        </div>
+
+        <h4>Usage Example</h4>
+        <CodeBlock language="typescript">{`// Redirect to external payment site
+await requestPurchase({
+  request: {
+    ios: {
+      sku: 'premium_product',
+      externalPurchaseUrlOnIOS: 'https://your-payment-site.com/checkout',
+      quantity: 1,
+    },
+  },
+  type: 'in-app',
+  useAlternativeBilling: true,  // Required for external links
+});
+
+// User will be redirected to Safari
+// Implement deep linking to return users to your app`}</CodeBlock>
+
+        <h4>Requirements</h4>
+        <ul>
+          <li>iOS 16.0+ required</li>
+          <li>
+            Must set <code>useAlternativeBilling: true</code>
+          </li>
+          <li>
+            No <code>onPurchaseUpdated</code> callback will fire
+          </li>
+          <li>Implement deep linking for app return flow</li>
+          <li>Handle purchase verification on your backend</li>
+        </ul>
+      </section>
+
+      <section>
         <AnchorLink id="receipt-validation-types" level="h2">
           ReceiptValidation Types
         </AnchorLink>

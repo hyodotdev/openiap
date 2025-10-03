@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 
 interface CodeBlockProps {
   children: string;
-  language?: 'graphql' | 'typescript' | 'javascript';
+  language?:
+    | 'graphql'
+    | 'typescript'
+    | 'javascript'
+    | 'swift'
+    | 'kotlin'
+    | 'xml';
 }
 
 function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
@@ -25,13 +31,28 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
     }
   };
 
+  const getLanguageLabel = () => {
+    switch (language) {
+      case 'typescript':
+        return 'ts';
+      case 'javascript':
+        return 'js';
+      case 'swift':
+        return 'swift';
+      case 'kotlin':
+        return 'kt';
+      case 'xml':
+        return 'xml';
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="code-block-wrapper">
       <div className="code-block-header">
-        {(language === 'typescript' || language === 'javascript') && (
-          <span className="code-block-language">
-            {language === 'typescript' ? 'ts' : 'js'}
-          </span>
+        {getLanguageLabel() && (
+          <span className="code-block-language">{getLanguageLabel()}</span>
         )}
         <button
           className={`copy-button ${copied ? 'copied' : ''}`}
@@ -131,6 +152,145 @@ function highlightCode(element: HTMLElement, language: string) {
           result += processed;
         }
       });
+
+      return result;
+    });
+
+    element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'swift' || language === 'kotlin') {
+    // Swift and Kotlin syntax highlighting
+    const lines = text.split('\n');
+    const highlightedLines = lines.map((line) => {
+      let result = '';
+      let inString = false;
+      let stringChar = '';
+
+      // Check if line is a comment
+      if (line.trim().startsWith('//')) {
+        return `<span class="token comment">${escapeHtml(line)}</span>`;
+      }
+
+      // Tokenize the line
+      const tokens: Array<{ type: string; value: string }> = [];
+      let current = '';
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        // Handle strings
+        if ((char === '"' || char === "'") && !inString) {
+          if (current) {
+            tokens.push({ type: 'code', value: current });
+            current = '';
+          }
+          inString = true;
+          stringChar = char;
+          current = char;
+        } else if (inString && char === stringChar && line[i - 1] !== '\\') {
+          current += char;
+          tokens.push({ type: 'string', value: current });
+          current = '';
+          inString = false;
+          stringChar = '';
+        } else {
+          current += char;
+        }
+      }
+
+      if (current) {
+        tokens.push({ type: inString ? 'string' : 'code', value: current });
+      }
+
+      // Process tokens
+      tokens.forEach((token) => {
+        if (token.type === 'string') {
+          result += `<span class="token string">${escapeHtml(token.value)}</span>`;
+        } else {
+          let processed = escapeHtml(token.value);
+
+          // Swift/Kotlin keywords
+          const keywords =
+            language === 'swift'
+              ? 'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|@available'
+              : 'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where';
+
+          processed = processed.replace(
+            new RegExp(`\\b(${keywords})\\b`, 'g'),
+            '<span class="token keyword">$1</span>'
+          );
+
+          // Numbers
+          processed = processed.replace(
+            /\b(\d+\.?\d*)\b/g,
+            '<span class="token number">$1</span>'
+          );
+
+          // Function calls and declarations
+          processed = processed.replace(
+            /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()/g,
+            '<span class="token function">$1</span>'
+          );
+
+          // Types (capitalized words not after a dot)
+          processed = processed.replace(
+            /\b([A-Z][a-zA-Z0-9_]*)\b/g,
+            '<span class="token class-name">$1</span>'
+          );
+
+          // Annotations/Attributes
+          processed = processed.replace(
+            /@([a-zA-Z_][a-zA-Z0-9_]*)/g,
+            '<span class="token decorator">@$1</span>'
+          );
+
+          result += processed;
+        }
+      });
+
+      return result;
+    });
+
+    element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'xml') {
+    // XML syntax highlighting
+    const lines = text.split('\n');
+    const highlightedLines = lines.map((line) => {
+      if (!line.trim()) return escapeHtml(line);
+
+      let result = escapeHtml(line);
+
+      // Comments
+      if (result.includes('&lt;!--')) {
+        return result.replace(
+          /(&lt;!--.*?--&gt;)/g,
+          '<span class="token comment">$1</span>'
+        );
+      }
+
+      // Opening/closing tags with attributes
+      result = result.replace(
+        /(&lt;\/?)([a-zA-Z][a-zA-Z0-9-]*)(.*?)(&gt;)/g,
+        (_match, open, tag, attrs, close) => {
+          let tagHtml = '<span class="token punctuation">' + open + '</span>';
+          tagHtml += '<span class="token tag">' + tag + '</span>';
+
+          // Process attributes if present
+          if (attrs.trim()) {
+            let processedAttrs = attrs.replace(
+              /\s*([a-zA-Z][a-zA-Z0-9-]*)=/g,
+              ' <span class="token attr-name">$1</span>='
+            );
+            processedAttrs = processedAttrs.replace(
+              /="([^"]*)"/g,
+              '=<span class="token attr-value">"$1"</span>'
+            );
+            tagHtml += processedAttrs;
+          }
+
+          tagHtml += '<span class="token punctuation">' + close + '</span>';
+          return tagHtml;
+        }
+      );
 
       return result;
     });
