@@ -1122,6 +1122,7 @@ type Purchase =
   basePlanIdAndroid?: string;        // Android only: base plan identifier
   currentPlanId?: string;            // Unified plan/tier identifier
   purchaseTokenAndroid?: string;     // Android only: purchase token for subscription upgrade/downgrade
+  renewalInfoIOS?: RenewalInfoIOS;   // iOS only: subscription renewal information from StoreKit 2
 };`}</CodeBlock>
 
         <div style={{ marginTop: '0.5rem' }}>
@@ -1184,7 +1185,36 @@ type Purchase =
               <code>purchaseTokenAndroid</code> — Android-specific purchase
               token required for subscription upgrade/downgrade operations
             </li>
+            <li>
+              <code>renewalInfoIOS</code> — iOS-specific subscription renewal
+              information from StoreKit 2. Contains details about subscription
+              renewal status, pending upgrades/downgrades, and auto-renewal
+              preferences. See <a href="#renewal-info-ios">RenewalInfoIOS</a>{' '}
+              for details.
+            </li>
           </ul>
+        </div>
+
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            backgroundColor: '#f0f9ff',
+            borderLeft: '4px solid #3b82f6',
+            borderRadius: '0.25rem',
+          }}
+        >
+          <strong>💡 Tip:</strong> Use <code>renewalInfoIOS</code> to detect
+          subscription upgrades/downgrades:
+          <CodeBlock language="typescript">{`// Check for pending upgrades
+if (subscription.renewalInfoIOS?.pendingUpgradeProductId) {
+  console.log('Upgrade pending to:', subscription.renewalInfoIOS.pendingUpgradeProductId);
+}
+
+// Check if subscription is cancelled
+if (subscription.renewalInfoIOS?.willAutoRenew === false) {
+  console.log('Subscription will not auto-renew');
+}`}</CodeBlock>
         </div>
       </section>
 

@@ -425,7 +425,10 @@ getStorefront(): Future`}</CodeBlock>
         <AnchorLink id="get-active-subscriptions" level="h3">
           getActiveSubscriptions
         </AnchorLink>
-        <p>Get all active subscriptions with detailed information.</p>
+        <p>
+          Get all active subscriptions with detailed information including
+          renewal status.
+        </p>
         <CodeBlock language="graphql">{`"""
 Returns: [ActiveSubscription!]!
 """
@@ -440,6 +443,47 @@ getActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
           subscriptions. Platform-specific fields are populated based on the
           current platform.
         </p>
+
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            backgroundColor: '#ecfdf5',
+            borderLeft: '4px solid #10b981',
+            borderRadius: '0.25rem',
+          }}
+        >
+          <strong>✨ New in iOS:</strong> Each subscription now includes{' '}
+          <code>renewalInfoIOS</code> with renewal status information:
+          <ul style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+            <li>
+              <code>willAutoRenew</code> — Whether subscription will auto-renew
+            </li>
+            <li>
+              <code>pendingUpgradeProductId</code> — Product ID of pending
+              upgrade/downgrade
+            </li>
+            <li>
+              <code>renewalDate</code> — Next renewal date
+            </li>
+            <li>
+              <code>expirationReason</code> — Why subscription expired (if
+              cancelled)
+            </li>
+          </ul>
+        </div>
+
+        <CodeBlock language="typescript">{`// Example: Detect subscription upgrades
+const subscriptions = await getActiveSubscriptions();
+for (const sub of subscriptions) {
+  if (sub.renewalInfoIOS?.pendingUpgradeProductId) {
+    console.log(\`Upgrading from \${sub.productId} to \${sub.renewalInfoIOS.pendingUpgradeProductId}\`);
+  }
+
+  if (sub.renewalInfoIOS?.willAutoRenew === false) {
+    console.log(\`Subscription \${sub.productId} will not renew\`);
+  }
+}`}</CodeBlock>
 
         <AnchorLink id="has-active-subscriptions" level="h3">
           hasActiveSubscriptions
