@@ -826,6 +826,23 @@ type PurchaseCommon = {
   currencySymbolIOS?: string;
   countryCodeIOS?: string;
   currentPlanId?: string;
+  renewalInfoIOS?: RenewalInfoIOS;
+};
+
+// RenewalInfoIOS - from Product.SubscriptionInfo.RenewalInfo
+// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
+type RenewalInfoIOS = {
+  willAutoRenew: boolean;
+  autoRenewPreference?: string;
+  jsonRepresentation?: string;
+  expirationReason?: string;
+  gracePeriodExpirationDate?: number;
+  isInBillingRetry?: boolean;
+  pendingUpgradeProductId?: string;
+  priceIncreaseStatus?: string;
+  renewalDate?: number;
+  renewalOfferId?: string;
+  renewalOfferType?: string;
 };`}</CodeBlock>
                 <div style={{ marginTop: '0.5rem' }}>
                   <h4 style={{ margin: 0 }}>Field Reference</h4>
@@ -911,6 +928,80 @@ type PurchaseCommon = {
                       "com.example.premium_yearly"). This provides a unified way
                       to identify which specific plan/tier the user is
                       subscribed to across platforms.
+                    </li>
+                    <li>
+                      <code>renewalInfoIOS</code> — Subscription renewal
+                      information object (see RenewalInfoIOS type below)
+                    </li>
+                  </ul>
+                </div>
+                <div style={{ marginTop: '1rem' }}>
+                  <h4 style={{ margin: 0 }}>
+                    RenewalInfoIOS{' '}
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'normal' }}>
+                      (from{' '}
+                      <a
+                        href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Product.SubscriptionInfo.RenewalInfo
+                      </a>
+                      )
+                    </span>
+                  </h4>
+                  <ul style={{ marginTop: '0.5rem' }}>
+                    <li>
+                      <code>willAutoRenew</code> — Whether the subscription will
+                      automatically renew
+                    </li>
+                    <li>
+                      <code>autoRenewPreference</code> — Product ID the
+                      subscription will renew to (may differ from current if
+                      upgrade/downgrade pending)
+                    </li>
+                    <li>
+                      <code>jsonRepresentation</code> — JSON representation of
+                      renewal info
+                    </li>
+                    <li>
+                      <code>expirationReason</code> — Why the subscription
+                      expired. Possible values: "VOLUNTARY", "BILLING_ERROR",
+                      "DID_NOT_AGREE_TO_PRICE_INCREASE",
+                      "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+                    </li>
+                    <li>
+                      <code>gracePeriodExpirationDate</code> — Grace period
+                      expiration timestamp (milliseconds since epoch). When set,
+                      subscription is in grace period
+                    </li>
+                    <li>
+                      <code>isInBillingRetry</code> — True if subscription
+                      failed to renew due to billing issue and is retrying
+                    </li>
+                    <li>
+                      <code>pendingUpgradeProductId</code> — Product ID that
+                      will be used on next renewal (when user
+                      upgrades/downgrades). If set and different from current
+                      productId, subscription will change on expiration
+                    </li>
+                    <li>
+                      <code>priceIncreaseStatus</code> — User's response to
+                      subscription price increase. Possible values: "AGREED",
+                      "PENDING", null
+                    </li>
+                    <li>
+                      <code>renewalDate</code> — Expected renewal timestamp
+                      (milliseconds since epoch)
+                    </li>
+                    <li>
+                      <code>renewalOfferId</code> — Offer ID applied to next
+                      renewal
+                    </li>
+                    <li>
+                      <code>renewalOfferType</code> — Type of offer applied to
+                      next renewal: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE",
+                      "WIN_BACK", etc.
                     </li>
                   </ul>
                 </div>
