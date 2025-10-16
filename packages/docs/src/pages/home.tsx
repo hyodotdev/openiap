@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { OPENIAP_VERSIONS } from '../lib/versioning';
 
 function Home() {
   return (
@@ -30,7 +31,7 @@ function Home() {
               }}
               title="View versions"
             >
-              versions
+              v{OPENIAP_VERSIONS.gql}
             </Link>
           </div>
           <p className="hero-subtitle">
