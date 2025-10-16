@@ -35,6 +35,6 @@ export const OPENIAP_VERSIONS = Object.freeze(ensureVersions(parsedVersions));
 
 export const GQL_RELEASE = Object.freeze({
   tag: OPENIAP_VERSIONS.gql,
-  pageUrl: `https://github.com/hyodotdev/openiap-gql/releases/tag/${OPENIAP_VERSIONS.gql}`,
-  downloadPrefix: `https://github.com/hyodotdev/openiap-gql/releases/download/${OPENIAP_VERSIONS.gql}/`,
+  pageUrl: `https://github.com/hyodotdev/openiap/releases/tag/${OPENIAP_VERSIONS.gql}`,
+  downloadPrefix: `https://github.com/hyodotdev/openiap/releases/download/${OPENIAP_VERSIONS.gql}/`,
 });

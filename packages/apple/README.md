@@ -297,7 +297,7 @@ class StoreViewModel: ObservableObject {
 
 ## 📚 Data Models
 
-Our Swift data models are generated from the shared GraphQL schema in [`openiap-gql`](https://github.com/hyodotdev/openiap-gql). Run `./scripts/generate-types.sh` (or the equivalent tooling in that repo) to update `Sources/Models/Types.swift`, and every consumer—including the example app—should rely on those generated definitions instead of hand-written structs.
+Our Swift data models are generated from the shared GraphQL schema in the [`openiap` monorepo](https://github.com/hyodotdev/openiap/tree/main/packages/gql). Run `./scripts/generate-types.sh` to update `Sources/Models/Types.swift`, and every consumer—including the example app—should rely on those generated definitions instead of hand-written structs.
 
 <details>
 <summary>ProductIOS snapshot</summary>

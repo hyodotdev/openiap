@@ -1,6 +1,6 @@
 # openiap-gql Code Generation Guide
 
-[![Generate Types](https://github.com/hyodotdev/openiap-gql/actions/workflows/generate-types.yml/badge.svg)](https://github.com/hyodotdev/openiap-gql/actions/workflows/generate-types.yml)
+[![Generate Types](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
