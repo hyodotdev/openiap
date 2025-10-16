@@ -1,0 +1,46 @@
+# Android-specific API operations
+
+extend type Mutation {
+  """
+  Acknowledge a non-consumable purchase or subscription
+  """
+  # Future
+  acknowledgePurchaseAndroid(purchaseToken: String!): Boolean!
+  """
+  Consume a purchase token so it can be repurchased
+  """
+  # Future
+  consumePurchaseAndroid(purchaseToken: String!): Boolean!
+
+  # Alternative Billing APIs
+  """
+  Check if alternative billing is available for this user/device
+  Step 1 of alternative billing flow
+
+  Returns true if available, false otherwise
+  Throws OpenIapError.NotPrepared if billing client not ready
+  """
+  # Future
+  checkAlternativeBillingAvailabilityAndroid: Boolean!
+  """
+  Show alternative billing information dialog to user
+  Step 2 of alternative billing flow
+  Must be called BEFORE processing payment in your payment system
+
+  Returns true if user accepted, false if user canceled
+  Throws OpenIapError.NotPrepared if billing client not ready
+  """
+  # Future
+  showAlternativeBillingDialogAndroid: Boolean!
+  """
+  Create external transaction token for Google Play reporting
+  Step 3 of alternative billing flow
+  Must be called AFTER successful payment in your payment system
+  Token must be reported to Google Play backend within 24 hours
+
+  Returns token string, or null if creation failed
+  Throws OpenIapError.NotPrepared if billing client not ready
+  """
+  # Future
+  createAlternativeBillingTokenAndroid: String
+}

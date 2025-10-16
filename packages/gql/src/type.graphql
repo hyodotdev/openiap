@@ -1,0 +1,243 @@
+# openiap.dev GraphQL Types for cross-platform IAP (common)
+
+# Platform discriminators
+enum IapPlatform {
+  IOS
+  Android
+}
+
+# Common product types
+enum ProductType {
+  InApp
+  Subs
+}
+
+# Purchase lifecycle states
+enum PurchaseState {
+  Pending
+  Purchased
+  Failed
+  Restored
+  Deferred
+  Unknown
+}
+
+# Event types emitted by OpenIAP listeners
+enum IapEvent {
+  PurchaseUpdated
+  PurchaseError
+  PromotedProductIOS
+  UserChoiceBillingAndroid
+}
+
+# Common product fields
+interface ProductCommon {
+  id: ID!
+  title: String!
+  description: String!
+  type: ProductType!
+  displayName: String
+  displayPrice: String!
+  currency: String!
+  price: Float
+  debugDescription: String
+  platform: IapPlatform!
+}
+
+# Common purchase fields
+interface PurchaseCommon {
+  id: ID!
+  productId: String!
+  ids: [String!]
+  transactionDate: Float!
+  """
+  Unified purchase token (iOS JWS, Android purchaseToken)
+  """
+  purchaseToken: String
+  platform: IapPlatform!
+  quantity: Int!
+  purchaseState: PurchaseState!
+  isAutoRenewing: Boolean!
+  """
+  The current plan identifier. This is:
+  - On Android: the basePlanId (e.g., "premium", "premium-year")
+  - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly")
+  This provides a unified way to identify which specific plan/tier the user is subscribed to.
+  """
+  currentPlanId: String
+}
+
+# Unions for platform-specific types
+union Product = ProductAndroid | ProductIOS
+union ProductSubscription = ProductSubscriptionAndroid | ProductSubscriptionIOS
+union Purchase = PurchaseAndroid | PurchaseIOS
+
+# Generic result for APIs that do not return payloads
+type VoidResult {
+  success: Boolean!
+}
+
+# => Union
+# Product fetch responses can return products, subscriptions, or both
+type FetchProductsResult {
+  products: [Product!]
+  subscriptions: [ProductSubscription!]
+}
+
+# => Union
+# Result container for requestPurchase (iOS returns a single purchase, Android an array)
+type RequestPurchaseResult {
+  purchase: Purchase
+  purchases: [Purchase!]
+}
+
+# Product request parameters
+enum ProductQueryType {
+  InApp
+  Subs
+  All
+}
+
+input ProductRequest {
+  skus: [String!]!
+  type: ProductQueryType = InApp
+}
+
+# Optional filters when querying existing purchases or subscriptions
+input PurchaseOptions {
+  """
+  Also emit results through the iOS event listeners
+  """
+  alsoPublishToEventListenerIOS: Boolean
+  """
+  Limit to currently active items on iOS
+  """
+  onlyIncludeActiveItemsIOS: Boolean
+}
+
+# Parameters for requestPurchase
+input RequestPurchaseProps {
+  """
+  Per-platform purchase request props
+  """
+  requestPurchase: RequestPurchasePropsByPlatforms
+  """
+  Per-platform subscription request props
+  """
+  requestSubscription: RequestSubscriptionPropsByPlatforms
+  """
+  Explicit purchase type hint (defaults to in-app)
+  """
+  type: ProductQueryType = InApp
+  """
+  Use alternative billing (Google Play alternative billing, Apple external purchase link)
+  """
+  useAlternativeBilling: Boolean
+}
+
+# Minimal purchase information required to finish transactions
+input PurchaseInput {
+  id: ID!
+  productId: String!
+  ids: [String!]
+  transactionDate: Float!
+  purchaseToken: String
+  platform: IapPlatform!
+  quantity: Int!
+  purchaseState: PurchaseState!
+  isAutoRenewing: Boolean!
+}
+
+# Options for deep linking into subscription management
+input DeepLinkOptions {
+  """
+  Android SKU to open (required on Android)
+  """
+  skuAndroid: String
+  """
+  Android package name to target (required on Android)
+  """
+  packageNameAndroid: String
+}
+
+# Request props (platform-specific containers)
+input RequestPurchasePropsByPlatforms {
+  """
+  iOS-specific purchase parameters
+  """
+  ios: RequestPurchaseIosProps
+  """
+  Android-specific purchase parameters
+  """
+  android: RequestPurchaseAndroidProps
+}
+
+input RequestSubscriptionPropsByPlatforms {
+  """
+  iOS-specific subscription parameters
+  """
+  ios: RequestSubscriptionIosProps
+  """
+  Android-specific subscription parameters
+  """
+  android: RequestSubscriptionAndroidProps
+}
+
+# Receipt validation inputs and results
+input ReceiptValidationProps {
+  """
+  Product SKU to validate
+  """
+  sku: String!
+  """
+  Android-specific validation options
+  """
+  androidOptions: ReceiptValidationAndroidOptions
+}
+
+union ReceiptValidationResult =
+    ReceiptValidationResultAndroid
+  | ReceiptValidationResultIOS
+
+# Aggregated active subscription data across platforms
+type ActiveSubscription {
+  productId: String!
+  isActive: Boolean!
+  expirationDateIOS: Float
+  autoRenewingAndroid: Boolean
+  environmentIOS: String
+  willExpireSoon: Boolean
+  daysUntilExpirationIOS: Float
+  transactionId: String!
+  purchaseToken: String
+  transactionDate: Float!
+  basePlanIdAndroid: String
+  """
+  Required for subscription upgrade/downgrade on Android
+  """
+  purchaseTokenAndroid: String
+  """
+  The current plan identifier. This is:
+  - On Android: the basePlanId (e.g., "premium", "premium-year")
+  - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly")
+  This provides a unified way to identify which specific plan/tier the user is subscribed to.
+  """
+  currentPlanId: String
+  """
+  Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,
+  pending upgrades/downgrades, and auto-renewal preferences.
+  """
+  renewalInfoIOS: RenewalInfoIOS
+}
+
+# Initialization configuration
+"""
+Connection initialization configuration
+"""
+input InitConnectionConfig {
+  """
+  Alternative billing mode for Android
+  If not specified, defaults to NONE (standard Google Play billing)
+  """
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid
+}

@@ -1,0 +1,72 @@
+# openiap.dev GraphQL API operations (common)
+
+# Product management
+extend type Query {
+  """
+  Retrieve products or subscriptions from the store
+  """
+  # Future
+  fetchProducts(params: ProductRequest!): FetchProductsResult!
+  """
+  Get all available purchases for the current user
+  """
+  # Future
+  getAvailablePurchases(options: PurchaseOptions): [Purchase!]!
+  """
+  Get active subscriptions (filters by subscriptionIds when provided)
+  """
+  # Future
+  getActiveSubscriptions(subscriptionIds: [String!]): [ActiveSubscription!]!
+  """
+  Check whether the user has active subscriptions
+  """
+  # Future
+  hasActiveSubscriptions(subscriptionIds: [String!]): Boolean!
+  """
+  Get the current storefront country code
+  """
+  # Future
+  getStorefront: String!
+}
+
+# Request APIs (event driven)
+extend type Mutation {
+  """
+  Establish the platform billing connection
+  """
+  # Future
+  initConnection(config: InitConnectionConfig): Boolean!
+  """
+  Close the platform billing connection
+  """
+  # Future
+  endConnection: Boolean!
+  """
+  Initiate a purchase flow; rely on events for final state
+  """
+  # Future
+  requestPurchase(params: RequestPurchaseProps!): RequestPurchaseResult
+  """
+  Finish a transaction after validating receipts
+  """
+  # Future
+  finishTransaction(
+    purchase: PurchaseInput!
+    isConsumable: Boolean
+  ): VoidResult!
+  """
+  Restore completed purchases across platforms
+  """
+  # Future
+  restorePurchases: VoidResult!
+  """
+  Open the native subscription management surface
+  """
+  # Future
+  deepLinkToSubscriptions(options: DeepLinkOptions): VoidResult!
+  """
+  Validate purchase receipts with the configured providers
+  """
+  # Future
+  validateReceipt(options: ReceiptValidationProps!): ReceiptValidationResult!
+}

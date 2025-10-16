@@ -1,0 +1,32 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Verify generated types are not changed
+      run: |
+        ./scripts/generate-types.sh
+        git diff --exit-code Sources/Models/Types.swift
+
+    - name: Select Xcode
+      run: |
+        echo "Available Xcode versions:"
+        ls -la /Applications | grep Xcode
+        # Use the latest available Xcode
+        sudo xcode-select -s /Applications/Xcode.app
+      
+    - name: Build
+      run: swift build
+      
+    - name: Run tests
+      run: swift test

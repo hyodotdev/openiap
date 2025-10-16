@@ -1,0 +1,112 @@
+name: Publish to Maven Central
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g., 1.0.0)"
+        required: true
+        type: string
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          # Avoid saving caches on publish runs to prevent noisy warnings
+          cache-read-only: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Set version
+        id: set_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          # Trim leading 'v' if present (e.g., v1.2.3 -> 1.2.3)
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "ORG_GRADLE_PROJECT_openIapVersion=$VERSION" >> $GITHUB_ENV
+
+      - name: Build and test
+        run: |
+          ./gradlew :openiap:build --no-daemon --stacktrace
+          ./gradlew :openiap:test --no-daemon --stacktrace
+
+      - name: Publish to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+
+      - name: Create GitHub Release (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release artifacts (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p release-artifacts
+          cp openiap/build/outputs/aar/*.aar release-artifacts/ || true
+          cp openiap/build/libs/*.jar release-artifacts/ || true
+          (cd release-artifacts && sha256sum * || shasum -a 256 *) > checksums.txt || true
+          zip -r release-artifacts.zip release-artifacts/
+
+      - name: Upload release artifacts (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./release-artifacts.zip
+          name: ${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version in README and openiap-versions.json
+        run: |
+          # Use the update script
+          chmod +x ./scripts/update-version.sh
+          ./scripts/update-version.sh "$VERSION"
+
+      - name: Commit and push version updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md openiap-versions.json
+          git diff --staged --quiet || git commit -m "chore: update version to $VERSION [skip ci]"
+          git push origin HEAD:main

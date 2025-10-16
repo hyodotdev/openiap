@@ -1,0 +1,7 @@
+node_modules/
+.vscode/
+generators/dart/.dart_tool/
+generators/dart/build/
+generators/dart/lib/generated/
+generators/swift/Generated/
+.claude

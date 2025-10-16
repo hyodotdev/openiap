@@ -1,0 +1,27 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "openiap-apple",
+          "kind" : "fileSystem",
+          "location" : "/Users/hyo/Github/hyodotdev/openiap-apple",
+          "name" : "OpenIAP"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/hyo/Github/hyodotdev/openiap-apple"
+        },
+        "subpath" : "openiap-apple"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

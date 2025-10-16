@@ -1,0 +1,17 @@
+targets:
+  $default:
+    sources:
+      - lib/**
+      - graphql/**
+      - ../../src/**
+    builders:
+      graphql_codegen:
+        options:
+          schema:
+            - ../../src/type.graphql
+            - ../../src/type-ios.graphql
+            - ../../src/type-android.graphql
+            - ../../src/api.graphql
+            - ../../src/api-ios.graphql
+            - ../../src/api-android.graphql
+          output: lib/generated/

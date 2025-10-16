@@ -1,0 +1,400 @@
+# iOS-specific GraphQL Types
+
+# iOS detailed product types
+enum ProductTypeIOS {
+  Consumable
+  NonConsumable
+  AutoRenewableSubscription
+  NonRenewingSubscription
+}
+
+# iOS subscription period units
+enum SubscriptionPeriodIOS {
+  Day
+  Week
+  Month
+  Year
+  # Represents an unspecified/empty period
+  Empty
+}
+
+# Payment modes (EMPTY represents an unspecified/empty value)
+enum PaymentModeIOS {
+  Empty
+  FreeTrial
+  PayAsYouGo
+  PayUpFront
+}
+
+# iOS subscription offer details
+enum SubscriptionOfferTypeIOS {
+  Introductory
+  Promotional
+}
+
+# iOS subscription period (unit + value)
+type SubscriptionPeriodValueIOS {
+  unit: SubscriptionPeriodIOS!
+  value: Int!
+}
+
+type SubscriptionOfferIOS {
+  displayPrice: String!
+  id: ID!
+  paymentMode: PaymentModeIOS!
+  period: SubscriptionPeriodValueIOS!
+  periodCount: Int!
+  price: Float!
+  type: SubscriptionOfferTypeIOS!
+}
+
+type SubscriptionInfoIOS {
+  introductoryOffer: SubscriptionOfferIOS
+  promotionalOffers: [SubscriptionOfferIOS!]
+  subscriptionGroupId: String!
+  subscriptionPeriod: SubscriptionPeriodValueIOS!
+}
+
+# iOS product
+type ProductIOS implements ProductCommon {
+  # Common fields
+  id: ID!
+  title: String!
+  description: String!
+  type: ProductType!
+  displayName: String
+  displayPrice: String!
+  currency: String!
+  price: Float
+  debugDescription: String
+  platform: IapPlatform!
+
+  # iOS-specific
+  displayNameIOS: String!
+  isFamilyShareableIOS: Boolean!
+  jsonRepresentationIOS: String!
+  subscriptionInfoIOS: SubscriptionInfoIOS
+  typeIOS: ProductTypeIOS!
+}
+
+# iOS subscription product
+type ProductSubscriptionIOS implements ProductCommon {
+  # Common fields
+  id: ID!
+  title: String!
+  description: String!
+  type: ProductType!
+  displayName: String
+  displayPrice: String!
+  currency: String!
+  price: Float
+  debugDescription: String
+  platform: IapPlatform!
+
+  # iOS-specific
+  displayNameIOS: String!
+  isFamilyShareableIOS: Boolean!
+  jsonRepresentationIOS: String!
+  subscriptionInfoIOS: SubscriptionInfoIOS
+  typeIOS: ProductTypeIOS!
+
+  discountsIOS: [DiscountIOS!]
+  introductoryPriceIOS: String
+  introductoryPriceAsAmountIOS: String
+  introductoryPricePaymentModeIOS: PaymentModeIOS
+  introductoryPriceNumberOfPeriodsIOS: String
+  introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS
+  subscriptionPeriodNumberIOS: String
+  subscriptionPeriodUnitIOS: SubscriptionPeriodIOS
+}
+
+# Discount information returned from the store
+type DiscountIOS {
+  identifier: String!
+  type: String!
+  numberOfPeriods: Int!
+  price: String!
+  priceAmount: Float!
+  paymentMode: PaymentModeIOS!
+  subscriptionPeriod: String!
+  localizedPrice: String
+}
+
+# iOS purchase details
+type PurchaseIOS implements PurchaseCommon {
+  # Common fields
+  id: ID!
+  productId: String!
+  ids: [String!]
+  transactionDate: Float!
+  purchaseToken: String
+  platform: IapPlatform!
+  quantity: Int!
+  purchaseState: PurchaseState!
+  isAutoRenewing: Boolean!
+  currentPlanId: String
+
+  # iOS-specific fields
+  transactionId: String!
+  quantityIOS: Int
+  originalTransactionDateIOS: Float
+  originalTransactionIdentifierIOS: String
+  appAccountToken: String
+  expirationDateIOS: Float
+  webOrderLineItemIdIOS: String
+  environmentIOS: String
+  storefrontCountryCodeIOS: String
+  appBundleIdIOS: String
+  subscriptionGroupIdIOS: String
+  isUpgradedIOS: Boolean
+  ownershipTypeIOS: String
+  reasonIOS: String
+  reasonStringRepresentationIOS: String
+  transactionReasonIOS: String
+  revocationDateIOS: Float
+  revocationReasonIOS: String
+  offerIOS: PurchaseOfferIOS
+  currencyCodeIOS: String
+  currencySymbolIOS: String
+  countryCodeIOS: String
+  renewalInfoIOS: RenewalInfoIOS
+}
+
+type PurchaseOfferIOS {
+  id: String!
+  type: String!
+  paymentMode: String!
+}
+
+# iOS purchase/subscribe inputs
+input RequestPurchaseIosProps {
+  """
+  Product SKU
+  """
+  sku: String!
+  """
+  Auto-finish transaction (dangerous)
+  """
+  andDangerouslyFinishTransactionAutomatically: Boolean
+  """
+  App account token for user tracking
+  """
+  appAccountToken: String
+  """
+  Purchase quantity
+  """
+  quantity: Int
+  """
+  Discount offer to apply
+  """
+  withOffer: DiscountOfferInputIOS
+}
+
+# iOS uses the same props for subscriptions
+input RequestSubscriptionIosProps {
+  sku: String!
+  andDangerouslyFinishTransactionAutomatically: Boolean
+  appAccountToken: String
+  quantity: Int
+  withOffer: DiscountOfferInputIOS
+}
+
+# iOS Discount Offer (input)
+input DiscountOfferInputIOS {
+  """
+  Discount identifier
+  """
+  identifier: String!
+  """
+  Key identifier for validation
+  """
+  keyIdentifier: String!
+  """
+  Cryptographic nonce
+  """
+  nonce: String!
+  """
+  Signature for validation
+  """
+  signature: String!
+  """
+  Timestamp of discount offer
+  """
+  timestamp: Float!
+}
+
+type ReceiptValidationResultIOS {
+  """
+  Whether the receipt is valid
+  """
+  isValid: Boolean!
+  """
+  Receipt data string
+  """
+  receiptData: String!
+  """
+  JWS representation
+  """
+  jwsRepresentation: String!
+  """
+  Latest transaction if available
+  """
+  latestTransaction: Purchase
+}
+
+# StoreKit Subscription Status (iOS)
+"""
+Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
+https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
+"""
+type RenewalInfoIOS {
+  jsonRepresentation: String
+  willAutoRenew: Boolean!
+  autoRenewPreference: String
+
+  """
+  When subscription expires due to cancellation/billing issue
+  Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+  """
+  expirationReason: String
+
+  """
+  Grace period expiration date (milliseconds since epoch)
+  When set, subscription is in grace period (billing issue but still has access)
+  """
+  gracePeriodExpirationDate: Float
+
+  """
+  True if subscription failed to renew due to billing issue and is retrying
+  Note: Not directly available in RenewalInfo, available in Status
+  """
+  isInBillingRetry: Boolean
+
+  """
+  Product ID that will be used on next renewal (when user upgrades/downgrades)
+  If set and different from current productId, subscription will change on expiration
+  """
+  pendingUpgradeProductId: String
+
+  """
+  User's response to subscription price increase
+  Possible values: "AGREED", "PENDING", null (no price increase)
+  """
+  priceIncreaseStatus: String
+
+  """
+  Expected renewal date (milliseconds since epoch)
+  For active subscriptions, when the next renewal/charge will occur
+  """
+  renewalDate: Float
+
+  """
+  Offer ID applied to next renewal (promotional offer, subscription offer code, etc.)
+  """
+  renewalOfferId: String
+
+  """
+  Type of offer applied to next renewal
+  Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
+  """
+  renewalOfferType: String
+}
+
+type SubscriptionStatusIOS {
+  state: String!
+  renewalInfo: RenewalInfoIOS
+}
+
+# iOS DiscountOffer (output type)
+type DiscountOfferIOS {
+  """
+  Discount identifier
+  """
+  identifier: String!
+  """
+  Key identifier for validation
+  """
+  keyIdentifier: String!
+  """
+  Cryptographic nonce
+  """
+  nonce: String!
+  """
+  Signature for validation
+  """
+  signature: String!
+  """
+  Timestamp of discount offer
+  """
+  timestamp: Float!
+}
+
+# StoreKit entitlement (iOS 15+)
+type EntitlementIOS {
+  sku: String!
+  transactionId: String!
+  jsonRepresentation: String!
+}
+
+type RefundResultIOS {
+  status: String!
+  message: String
+}
+
+type AppTransaction {
+  bundleId: String!
+  appVersion: String!
+  originalAppVersion: String!
+  originalPurchaseDate: Float!
+  deviceVerification: String!
+  deviceVerificationNonce: String!
+  environment: String!
+  signedDate: Float!
+  appId: Float!
+  appVersionId: Float!
+  preorderDate: Float
+  appTransactionId: String
+  originalPlatform: String
+}
+
+"""
+Result of presenting external purchase notice sheet (iOS 18.2+)
+"""
+type ExternalPurchaseNoticeResultIOS {
+  """
+  Notice result indicating user action
+  """
+  result: ExternalPurchaseNoticeAction!
+  """
+  Optional error message if the presentation failed
+  """
+  error: String
+}
+
+"""
+User actions on external purchase notice sheet (iOS 18.2+)
+"""
+enum ExternalPurchaseNoticeAction {
+  """
+  User chose to continue to external purchase
+  """
+  Continue
+  """
+  User dismissed the notice sheet
+  """
+  Dismissed
+}
+
+"""
+Result of presenting an external purchase link (iOS 18.2+)
+"""
+type ExternalPurchaseLinkResultIOS {
+  """
+  Whether the user completed the external purchase flow
+  """
+  success: Boolean!
+  """
+  Optional error message if the presentation failed
+  """
+  error: String
+}

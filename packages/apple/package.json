@@ -1,0 +1,16 @@
+{
+  "name": "@hyodotdev/openiap-ios",
+  "version": "1.2.22",
+  "private": true,
+  "description": "OpenIAP iOS/Swift implementation",
+  "scripts": {
+    "generate:types": "cd ../gql && bun run generate",
+    "build": "swift build",
+    "test": "swift test",
+    "clean": "swift package clean"
+  },
+  "dependencies": {
+    "@hyodotdev/openiap-gql": "workspace:*"
+  },
+  "packageManager": "bun@1.1.0"
+}

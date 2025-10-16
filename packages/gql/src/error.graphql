@@ -1,0 +1,46 @@
+# Error handling definitions for OpenIAP
+
+# Unified error codes surfaced by the OpenIAP APIs
+enum ErrorCode {
+  Unknown
+  UserCancelled
+  UserError
+  ItemUnavailable
+  RemoteError
+  NetworkError
+  ServiceError
+  ReceiptFailed
+  ReceiptFinished
+  ReceiptFinishedFailed
+  NotPrepared
+  NotEnded
+  AlreadyOwned
+  DeveloperError
+  BillingResponseJsonParseError
+  DeferredPayment
+  Interrupted
+  IapNotAvailable
+  PurchaseError
+  SyncError
+  TransactionValidationFailed
+  ActivityUnavailable
+  AlreadyPrepared
+  Pending
+  ConnectionClosed
+  InitConnection
+  ServiceDisconnected
+  QueryProduct
+  SkuNotFound
+  SkuOfferMismatch
+  ItemNotOwned
+  BillingUnavailable
+  FeatureNotSupported
+  EmptySkuList
+}
+
+# Purchase error payload delivered through listeners and API responses
+type PurchaseError {
+  code: ErrorCode!
+  message: String!
+  productId: String
+}

@@ -1,30 +1,130 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    branches:
+      - main
+  push:
+    branches:
+      - main
 
 jobs:
-  test:
+  test-gql:
+    name: Test GQL Types
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v1
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          bun-version: 1.1.0
 
       - name: Install dependencies
         run: bun install
 
-      - name: Run TypeScript check
-        run: bun run tsc
+      - name: Generate types
+        working-directory: packages/gql
+        run: bun run generate
 
-      - name: Run linter
+      - name: Verify generated files
+        working-directory: packages/gql
+        run: |
+          test -f src/generated/types.ts || exit 1
+          test -f src/generated/Types.kt || exit 1
+          test -f src/generated/Types.swift || exit 1
+          test -f src/generated/types.dart || exit 1
+
+  test-android:
+    name: Test Android
+    runs-on: ubuntu-latest
+    needs: test-gql
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.1.0
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Generate types
+        working-directory: packages/google
+        run: bun run generate:types
+
+      - name: Grant execute permission
+        working-directory: packages/google
+        run: chmod +x gradlew
+
+      - name: Run tests
+        working-directory: packages/google
+        run: ./gradlew :openiap:test
+
+      - name: Build
+        working-directory: packages/google
+        run: ./gradlew :openiap:assembleDebug
+
+  test-ios:
+    name: Test iOS
+    runs-on: macos-latest
+    needs: test-gql
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.1.0
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Generate types
+        working-directory: packages/apple
+        run: bun run generate:types
+
+      - name: Build
+        working-directory: packages/apple
+        run: swift build
+
+      - name: Run tests
+        working-directory: packages/apple
+        run: swift test
+
+  test-docs:
+    name: Test Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.1.0
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type check
+        working-directory: packages/docs
+        run: bun run typecheck
+
+      - name: Lint
+        working-directory: packages/docs
         run: bun run lint
 
       - name: Build
+        working-directory: packages/docs
         run: bun run build

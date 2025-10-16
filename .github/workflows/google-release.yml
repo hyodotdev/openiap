@@ -1,0 +1,117 @@
+name: Google Release
+
+on:
+  push:
+    tags:
+      - 'google-v*.*.*'
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/google-v}
+        echo "VERSION=$TAG_NAME" >> $GITHUB_ENV
+        echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        cache-read-only: true
+
+    - name: Grant execute permission for gradlew
+      working-directory: packages/google
+      run: chmod +x gradlew
+
+    - name: Build and Test
+      working-directory: packages/google
+      env:
+        ORG_GRADLE_PROJECT_openIapVersion: ${{ env.VERSION }}
+      run: |
+        ./gradlew :openiap:build --no-daemon --stacktrace
+        ./gradlew :openiap:test --no-daemon --stacktrace
+
+    - name: Publish to Maven Central
+      working-directory: packages/google
+      env:
+        ORG_GRADLE_PROJECT_openIapVersion: ${{ env.VERSION }}
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+      run: |
+        if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
+          echo "⚠️ Maven Central credentials not set. Skipping publish."
+        else
+          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+          echo "✅ Published to Maven Central"
+        fi
+
+    - name: Create release artifacts
+      working-directory: packages/google
+      run: |
+        mkdir -p release-artifacts
+        cp openiap/build/outputs/aar/*.aar release-artifacts/ 2>/dev/null || echo "No AAR files found"
+        cp openiap/build/libs/*.jar release-artifacts/ 2>/dev/null || echo "No JAR files found"
+        if [ -d release-artifacts ] && [ "$(ls -A release-artifacts)" ]; then
+          (cd release-artifacts && shasum -a 256 * > ../checksums.txt) || true
+          zip -r release-artifacts.zip release-artifacts/
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: google-v${{ env.VERSION }}
+        name: Google v${{ env.VERSION }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          packages/google/release-artifacts.zip
+          packages/google/checksums.txt
+        body: |
+          ## OpenIAP Google v${{ env.VERSION }}
+
+          ### Installation
+
+          **Gradle (Kotlin DSL):**
+          ```kotlin
+          dependencies {
+              implementation("io.github.hyochan.openiap:openiap-google:${{ env.VERSION }}")
+          }
+          ```
+
+          **Gradle (Groovy):**
+          ```groovy
+          dependencies {
+              implementation 'io.github.hyochan.openiap:openiap-google:${{ env.VERSION }}'
+          }
+          ```
+
+          ### Documentation
+          - [API Documentation](https://openiap.dev)
+          - [Migration Guide](https://github.com/hyodotdev/openiap/blob/main/packages/android/README.md)
+
+          ### Maven Central
+          - [View on Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/${{ env.VERSION }})
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

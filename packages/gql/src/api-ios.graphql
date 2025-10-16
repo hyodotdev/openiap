@@ -1,0 +1,112 @@
+# iOS-specific API operations
+
+extend type Query {
+  """
+  Get the current App Store storefront country code
+  """
+  # Future
+  getStorefrontIOS: String! @deprecated(reason: "Use getStorefront")
+  """
+  Get the currently promoted product (iOS 11+)
+  """
+  # Future
+  getPromotedProductIOS: ProductIOS
+  """
+  Check if external purchase notice sheet can be presented (iOS 18.2+)
+  """
+  # Future
+  canPresentExternalPurchaseNoticeIOS: Boolean!
+  """
+  Retrieve all pending transactions in the StoreKit queue
+  """
+  # Future
+  getPendingTransactionsIOS: [PurchaseIOS!]!
+  """
+  Check introductory offer eligibility for a subscription group
+  """
+  # Future
+  isEligibleForIntroOfferIOS(groupID: String!): Boolean!
+  """
+  Get StoreKit 2 subscription status details (iOS 15+)
+  """
+  # Future
+  subscriptionStatusIOS(sku: String!): [SubscriptionStatusIOS!]!
+  """
+  Get current StoreKit 2 entitlements (iOS 15+)
+  """
+  # Future
+  currentEntitlementIOS(sku: String!): PurchaseIOS
+  """
+  Get the latest transaction for a product using StoreKit 2
+  """
+  # Future
+  latestTransactionIOS(sku: String!): PurchaseIOS
+  """
+  Verify a StoreKit 2 transaction signature
+  """
+  # Future
+  isTransactionVerifiedIOS(sku: String!): Boolean!
+  """
+  Get the transaction JWS (StoreKit 2)
+  """
+  # Future
+  getTransactionJwsIOS(sku: String!): String
+  """
+  Get base64-encoded receipt data for validation
+  """
+  # Future
+  getReceiptDataIOS: String
+  """
+  Fetch the current app transaction (iOS 16+)
+  """
+  # Future
+  getAppTransactionIOS: AppTransaction
+  """
+  Validate a receipt for a specific product
+  """
+  # Future
+  validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS!
+}
+
+extend type Mutation {
+  """
+  Clear pending transactions from the StoreKit payment queue
+  """
+  # Future
+  clearTransactionIOS: Boolean!
+  """
+  Purchase the promoted product surfaced by the App Store
+  """
+  # Future
+  requestPurchaseOnPromotedProductIOS: Boolean!
+  """
+  Open subscription management UI and return changed purchases (iOS 15+)
+  """
+  # Future
+  showManageSubscriptionsIOS: [PurchaseIOS!]!
+  """
+  Initiate a refund request for a product (iOS 15+)
+  """
+  # Future
+  beginRefundRequestIOS(sku: String!): String
+  """
+  Force a StoreKit sync for transactions (iOS 15+)
+  """
+  # Future
+  syncIOS: Boolean!
+  """
+  Present the App Store code redemption sheet
+  """
+  # Future
+  presentCodeRedemptionSheetIOS: Boolean!
+  """
+  Present external purchase notice sheet (iOS 18.2+)
+  """
+  # Future
+  presentExternalPurchaseNoticeSheetIOS: ExternalPurchaseNoticeResultIOS!
+  """
+  Present external purchase custom link with StoreKit UI (iOS 18.2+)
+  """
+  # Future
+  presentExternalPurchaseLinkIOS(url: String!): ExternalPurchaseLinkResultIOS!
+}

@@ -1,57 +1,22 @@
 {
-  "name": "openiap-dev",
+  "name": "@hyodotdev/openiap",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "description": "OpenIAP - Open In-App Purchase monorepo",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "bunx vite",
-    "build": "bun run typecheck && bunx vite build",
-    "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit --pretty false && bunx vite build",
-    "preview": "bunx vite preview",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
-    "prepare": "husky",
-    "deploy": "./deploy.sh",
-    "deploy:preview": "vercel"
-  },
-  "dependencies": {
-    "@preact/signals-react": "^3.2.1",
-    "@types/prismjs": "^1.26.5",
-    "prismjs": "^1.30.0",
-    "react": "^18.3.1",
-    "react-compiler-runtime": "^19.1.0-rc.2",
-    "react-dom": "^18.3.1",
-    "react-icons": "^5.5.0",
-    "react-router-dom": "^6.26.0",
-    "react-toastify": "^11.0.2"
+    "build": "bun run --filter '*' build",
+    "dev": "bun run --filter '*' dev",
+    "test": "bun run --filter '*' test",
+    "lint": "bun run --filter '*' lint",
+    "clean": "rm -rf packages/*/node_modules node_modules",
+    "version:sync": "bun scripts/sync-versions.mjs",
+    "version:bump": "bun scripts/bump-version.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "^9.33.0",
-    "@preact/signals-react-transform": "^0.5.2",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^7.13.1",
-    "@typescript-eslint/parser": "^7.13.1",
-    "@vitejs/plugin-react": "^4.3.1",
-    "babel-plugin-react-compiler": "^19.1.0-rc.2",
-    "eslint": "^9.21.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
-    "eslint-plugin-react-refresh": "^0.4.7",
-    "globals": "^16.3.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.1.5",
-    "lucide-react": "^0.539.0",
-    "prettier": "^3.6.2",
-    "sharp-cli": "^5.2.0",
-    "typescript": "^5.2.2",
-    "typescript-eslint": "^8.39.1",
-    "vite": "^5.3.1"
+    "typescript": "^5.9.2"
   },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx,css,json}": [
-      "prettier --write"
-    ]
-  },
-  "packageManager": "yarn@3.6.1+sha512.de524adec81a6c3d7a26d936d439d2832e351cdfc5728f9d91f3fc85dd20b04391c038e9b4ecab11cae2b0dd9f0d55fd355af766bc5c1a7f8d25d96bb2a0b2ca"
+  "packageManager": "bun@1.1.0"
 }

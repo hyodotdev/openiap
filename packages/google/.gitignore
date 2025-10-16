@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.expo/
+.expo-shared/
+.claude/
+
+# Build outputs
+build/
+dist/
+*.tgz
+
+# Android
+*.apk
+*.ap_
+*.dex
+*.class
+**/build/
+/captures
+.externalNativeBuild
+.cxx/
+local.properties
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Temporary folders
+tmp/
+temp/
+.gradle/
+gpg_key_content.gpg

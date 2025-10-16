@@ -1,0 +1,13 @@
+# Root GraphQL types
+
+type Query {
+  _placeholder: Boolean
+}
+
+type Mutation {
+  _placeholder: Boolean
+}
+
+type Subscription {
+  _placeholder: Boolean
+}

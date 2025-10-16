@@ -1,0 +1,223 @@
+# Android-specific GraphQL Types
+
+# Android pricing phases
+type PricingPhasesAndroid {
+  pricingPhaseList: [PricingPhaseAndroid!]!
+}
+
+type PricingPhaseAndroid {
+  formattedPrice: String!
+  priceCurrencyCode: String!
+  billingPeriod: String! # P1W, P1M, P1Y
+  billingCycleCount: Int!
+  priceAmountMicros: String!
+  recurrenceMode: Int!
+}
+
+type ProductAndroidOneTimePurchaseOfferDetail {
+  priceCurrencyCode: String!
+  formattedPrice: String!
+  priceAmountMicros: String!
+}
+
+type ProductSubscriptionAndroidOfferDetails {
+  basePlanId: String!
+  offerId: String
+  offerToken: String!
+  offerTags: [String!]!
+  pricingPhases: PricingPhasesAndroid!
+}
+
+type ProductAndroid implements ProductCommon {
+  # Common fields
+  id: ID!
+  title: String!
+  description: String!
+  type: ProductType!
+  displayName: String
+  displayPrice: String!
+  currency: String!
+  price: Float
+  debugDescription: String
+  platform: IapPlatform!
+
+  # Android-specific
+  nameAndroid: String!
+  oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail
+  subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]
+}
+
+type ProductSubscriptionAndroid implements ProductCommon {
+  # Common fields
+  id: ID!
+  title: String!
+  description: String!
+  type: ProductType!
+  displayName: String
+  displayPrice: String!
+  currency: String!
+  price: Float
+  debugDescription: String
+  platform: IapPlatform!
+
+  # Android-specific
+  nameAndroid: String!
+  oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail
+  subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]!
+}
+
+type PurchaseAndroid implements PurchaseCommon {
+  # Common fields
+  id: ID!
+  productId: String!
+  ids: [String!]
+  transactionId: String # Optional in Android unlike iOS
+  transactionDate: Float!
+  purchaseToken: String
+  platform: IapPlatform!
+  quantity: Int!
+  purchaseState: PurchaseState!
+  isAutoRenewing: Boolean!
+  currentPlanId: String
+
+  # Android-specific fields
+  dataAndroid: String
+  signatureAndroid: String
+  autoRenewingAndroid: Boolean
+  isAcknowledgedAndroid: Boolean
+  packageNameAndroid: String
+  developerPayloadAndroid: String
+  obfuscatedAccountIdAndroid: String
+  obfuscatedProfileIdAndroid: String
+}
+
+# Android inputs
+input RequestPurchaseAndroidProps {
+  """
+  List of product SKUs
+  """
+  skus: [String!]!
+  """
+  Obfuscated account ID
+  """
+  obfuscatedAccountIdAndroid: String
+  """
+  Obfuscated profile ID
+  """
+  obfuscatedProfileIdAndroid: String
+  """
+  Personalized offer flag
+  """
+  isOfferPersonalized: Boolean
+}
+
+input RequestSubscriptionAndroidProps {
+  """
+  List of subscription SKUs
+  """
+  skus: [String!]!
+  """
+  Obfuscated account ID
+  """
+  obfuscatedAccountIdAndroid: String
+  """
+  Obfuscated profile ID
+  """
+  obfuscatedProfileIdAndroid: String
+  """
+  Personalized offer flag
+  """
+  isOfferPersonalized: Boolean
+  """
+  Purchase token for upgrades/downgrades
+  """
+  purchaseTokenAndroid: String
+  """
+  Replacement mode for subscription changes
+  """
+  replacementModeAndroid: Int
+  """
+  Subscription offers
+  """
+  subscriptionOffers: [AndroidSubscriptionOfferInput!]
+}
+
+input AndroidSubscriptionOfferInput {
+  """
+  Product SKU
+  """
+  sku: String!
+  """
+  Offer token
+  """
+  offerToken: String!
+}
+
+input ReceiptValidationAndroidOptions {
+  packageName: String!
+  productToken: String!
+  accessToken: String!
+  isSub: Boolean
+}
+
+type ReceiptValidationResultAndroid {
+  autoRenewing: Boolean!
+  betaProduct: Boolean!
+  cancelDate: Float
+  cancelReason: String
+  deferredDate: Float
+  deferredSku: String
+  freeTrialEndDate: Float!
+  gracePeriodEndDate: Float!
+  parentProductId: String!
+  productId: String!
+  productType: String!
+  purchaseDate: Float!
+  quantity: Int!
+  receiptId: String!
+  renewalDate: Float!
+  term: String!
+  termSku: String!
+  testTransaction: Boolean!
+}
+
+# Alternative Billing
+"""
+Alternative billing mode for Android
+Controls which billing system is used
+"""
+enum AlternativeBillingModeAndroid {
+  """
+  Standard Google Play billing (default)
+  """
+  NONE
+
+  """
+  User choice billing - user can select between Google Play or alternative
+  Requires Google Play Billing Library 7.0+
+  """
+  USER_CHOICE
+
+  """
+  Alternative billing only - no Google Play billing option
+  Requires Google Play Billing Library 6.2+
+  """
+  ALTERNATIVE_ONLY
+}
+
+# User Choice Billing
+"""
+User Choice Billing event details (Android)
+Fired when a user selects alternative billing in the User Choice Billing dialog
+"""
+type UserChoiceBillingDetails {
+  """
+  Token that must be reported to Google Play within 24 hours
+  """
+  externalTransactionToken: String!
+  """
+  List of product IDs selected by the user
+  """
+  products: [String!]!
+}
+

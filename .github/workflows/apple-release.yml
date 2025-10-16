@@ -1,0 +1,93 @@
+name: Apple Release
+
+on:
+  push:
+    tags:
+      - 'apple-v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/apple-v}
+        echo "VERSION=$TAG_NAME" >> $GITHUB_ENV
+        echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+
+    - name: Select Xcode
+      run: |
+        sudo xcode-select -s /Applications/Xcode.app
+
+    - name: Build and Test
+      working-directory: packages/apple
+      run: |
+        swift build
+        swift test
+
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.0'
+        bundler-cache: false
+
+    - name: Install CocoaPods
+      run: |
+        gem install cocoapods
+
+    - name: Validate Podspec
+      working-directory: packages/apple
+      run: |
+        pod lib lint openiap.podspec --allow-warnings
+
+    - name: Deploy to CocoaPods
+      working-directory: packages/apple
+      env:
+        COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        COCOAPODS_VALIDATOR_SKIP_XCODEBUILD: 1
+      run: |
+        if [ -z "$COCOAPODS_TRUNK_TOKEN" ]; then
+          echo "⚠️ COCOAPODS_TRUNK_TOKEN is not set. Skipping CocoaPods publish."
+        else
+          pod trunk push openiap.podspec --allow-warnings
+          echo "✅ Published to CocoaPods"
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: apple-v${{ env.VERSION }}
+        name: Apple v${{ env.VERSION }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## OpenIAP Apple v${{ env.VERSION }}
+
+          ### Installation
+
+          **CocoaPods:**
+          ```ruby
+          pod 'openiap', '~> ${{ env.VERSION }}'
+          ```
+
+          **Swift Package Manager:**
+          ```swift
+          dependencies: [
+              .package(url: "https://github.com/hyodotdev/openiap.git", from: "${{ env.VERSION }}")
+          ]
+          ```
+
+          ### Documentation
+          - [API Documentation](https://openiap.dev)
+          - [Migration Guide](https://github.com/hyodotdev/openiap/blob/main/packages/ios/README.md)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

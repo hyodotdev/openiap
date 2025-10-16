@@ -1,0 +1,60 @@
+name: Release Types
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate version input
+        run: |
+          set -euo pipefail
+          VERSION="${{ inputs.version }}"
+          if [[ "$VERSION" == v* ]]; then
+            echo "Release version must not start with 'v'."
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release version must follow semantic versioning (e.g. 1.2.3)."
+            exit 1
+          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Regenerate types
+        run: npm run generate
+      - name: Package artifacts
+        run: |
+          mkdir -p artifacts
+          zip -j artifacts/openiap-typescript.zip src/generated/types.ts
+          zip -j artifacts/openiap-dart.zip src/generated/types.dart
+          zip -j artifacts/openiap-kotlin.zip src/generated/Types.kt
+          zip -j artifacts/openiap-swift.zip src/generated/Types.swift
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          files: |
+            artifacts/openiap-typescript.zip
+            artifacts/openiap-dart.zip
+            artifacts/openiap-kotlin.zip
+            artifacts/openiap-swift.zip
+          generate_release_notes: true
