@@ -7,8 +7,8 @@ plugins {
     id("com.vanniktech.maven.publish")
 }
 
-// Read version from monorepo root versions.json
-val versionsFile = File(rootDir.parentFile.parentFile, "versions.json")
+// Read version from monorepo root openiap-versions.json
+val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
 val versionsJson = JsonSlurper().parseText(versionsFile.readText()) as Map<*, *>
 val openIapVersion: String = versionsJson["google"]?.toString() ?: "1.0.0"
 

@@ -9,6 +9,10 @@ dist/
 build/
 .turbo/
 
+# Synced version files (generated from root openiap-versions.json)
+packages/*/openiap-versions.json
+packages/apple/Sources/openiap-versions.json
+
 # OS
 .DS_Store
 Thumbs.db

@@ -9,9 +9,9 @@ plugins {
 import java.io.File
 
 // Read version from monorepo root
-val versionsFile = File(rootDir.parentFile.parentFile, "versions.json")
+val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
 val jsonText = versionsFile.readText()
-val androidVersion = jsonText.substringAfter("\"android\": \"").substringBefore("\"")
+val androidVersion = jsonText.substringAfter("\"google\": \"").substringBefore("\"")
 val gqlVersion = jsonText.substringAfter("\"gql\": \"").substringBefore("\"")
 
 extra["OPENIAP_VERSION"] = androidVersion

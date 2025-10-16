@@ -101,7 +101,17 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo -e "${BLUE}📦 Step 1: Building and deploying to Vercel...${NC}"
+echo -e "${BLUE}📦 Step 1: Syncing version files...${NC}"
+
+# Sync version files from root to packages
+./scripts/sync-versions.sh
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Failed to sync version files${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "${BLUE}📦 Step 2: Building and deploying to Vercel...${NC}"
 
 # Deploy to Vercel
 cd packages/docs
@@ -132,7 +142,7 @@ echo -e "${GREEN}✅ Successfully deployed to Vercel${NC}"
 cd ../..
 
 echo ""
-echo -e "${BLUE}🏷️  Step 2: Creating GitHub release...${NC}"
+echo -e "${BLUE}🏷️  Step 3: Creating GitHub release...${NC}"
 
 # Trigger the workflow
 gh workflow run release.yml -f version=$VERSION

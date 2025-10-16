@@ -462,44 +462,49 @@ All packages use Bun as the package manager:
 
 ## 🏷️ Version Management
 
-Versions are centrally managed in `versions.json` at the monorepo root:
+Versions are centrally managed in `openiap-versions.json` at the monorepo root:
 
 ```json
 {
-  "gql": "1.2.1",      // Spec version (GraphQL schema)
-  "docs": "1.2.1",     // Docs version (always matches gql)
-  "google": "1.0.0",   // Android implementation version
-  "apple": "1.0.0"     // iOS implementation version
+  "gql": "1.2.2",      // GraphQL schema version
+  "docs": "1.2.2",     // Documentation version
+  "google": "1.2.12",  // Android library version
+  "apple": "1.2.22"    // iOS/macOS library version
 }
 ```
 
-### Version Strategy
+### Version Synchronization
 
-- **Spec versions** (`gql` + `docs`): Always the same, represents the API specification
-- **Implementation versions** (`google`, `apple`): Independent, represents platform implementations
-
-### Bumping Versions
+All package versions are managed in the root `openiap-versions.json` file. Before building or deploying, sync version files to all packages:
 
 ```bash
-# Bump spec version (gql + docs together)
-bun run version:bump spec patch   # 1.2.1 → 1.2.2
-bun run version:bump spec minor   # 1.2.1 → 1.3.0
-bun run version:bump spec major   # 1.2.1 → 2.0.0
-
-# Bump implementation versions independently
-bun run version:bump google patch  # Android
-bun run version:bump apple minor   # iOS
-
-# Set specific version
-bun run version:bump spec 2.0.0
+# Sync version files to all packages
+./scripts/sync-versions.sh
 ```
 
-### Sync Versions to Package Files
+This script copies the root version file to all packages, ensuring they have real files (not symlinks) for proper package distribution.
 
-After updating `versions.json`, sync to individual `package.json` files:
+**Important**: The synced files in packages are gitignored and automatically generated during build/deploy processes.
+
+### Version Strategy
+
+- **Spec versions** (`gql` + `docs`): Should be kept in sync, represents the API specification
+- **Implementation versions** (`google`, `apple`): Independent, represents platform implementations
+
+### Manual Version Updates
+
+To update versions, edit the root `openiap-versions.json` file directly:
 
 ```bash
-bun run version:sync
+# 1. Edit version in openiap-versions.json
+vim openiap-versions.json
+
+# 2. Sync to all packages
+./scripts/sync-versions.sh
+
+# 3. Commit changes
+git add openiap-versions.json
+git commit -m "chore: bump version to x.x.x"
 ```
 
 ### When to Bump Versions
@@ -520,69 +525,90 @@ bun run version:sync
 
 ### Release Strategy
 
-- **GQL**: Internal use only, not released separately
-- **Docs**: Manual deployment to Vercel (organization account)
-- **Android (Google)**: Automated release via GitHub Actions
-- **iOS (Apple)**: Automated release via GitHub Actions
+- **Monorepo Release**: Unified deployment for all packages
+- **Docs**: Deployed to Vercel
+- **Type Artifacts**: Published to GitHub Releases (TypeScript, Dart, Kotlin, Swift)
+- **Platform Libraries**: Android (Maven Central), iOS (Swift Package Manager)
 
-### Version Release Workflow
-
-**For iOS/Android releases:**
+### Deployment Workflow
 
 ```bash
-# 1. Bump version
-bun run version:bump apple patch  # or google
+# Deploy everything (docs + create release)
+npm run deploy <version>
 
-# 2. Review changes
-git diff
-
-# 3. Commit
-git add .
-git commit -m "chore: bump apple version to 1.0.1"
-
-# 4. Create tag (this triggers release workflow)
-git tag apple-v1.0.1  # or google-v1.0.1
-git push && git push --tags
-
-# 5. GitHub Actions will automatically:
-#    - Build and test
-#    - Create GitHub release
-#    - Publish to package registry (CocoaPods/Maven)
+# Example
+npm run deploy 1.2.3
 ```
 
-**For Spec version (gql + docs):**
+This command will:
+
+1. **Sync version files** to all packages
+2. **Build and deploy docs** to Vercel (locally)
+3. **Trigger GitHub Actions** to:
+   - Regenerate types for all platforms
+   - Create release artifacts (TypeScript, Dart, Kotlin, Swift)
+   - Create Git tag `v<version>`
+   - Create GitHub Release with artifacts
+
+### Platform-Specific Releases
+
+**For Android releases:**
 
 ```bash
-# 1. Bump version
-bun run version:bump spec minor
+# 1. Update version in openiap-versions.json
+# 2. Sync versions
+./scripts/sync-versions.sh
 
-# 2. Commit
-git add .
-git commit -m "chore: bump spec version to 1.3.0"
+# 3. Create tag (triggers Android release workflow)
+git tag google-v1.2.12
+git push && git push --tags
 
-# 3. Push (no tag needed)
-git push
+# GitHub Actions will:
+#    - Build and test
+#    - Create GitHub release
+#    - Publish to Maven Central
+```
 
-# Note: GQL is internal only, Docs are deployed manually to Vercel
+**For iOS releases:**
+
+```bash
+# 1. Update version in openiap-versions.json
+# 2. Sync versions
+./scripts/sync-versions.sh
+
+# 3. Create tag (triggers iOS release workflow)
+git tag apple-v1.2.22
+git push && git push --tags
+
+# GitHub Actions will:
+#    - Build and test
+#    - Create GitHub release
+#    - Package becomes available via Swift Package Manager
 ```
 
 ### CI/CD Workflows
+
+- **Release** (`release.yml`): Triggered by `npm run deploy <version>`
+  - Syncs version files
+  - Regenerates types for all platforms
+  - Creates release artifacts (TypeScript, Dart, Kotlin, Swift)
+  - Creates Git tag and GitHub Release
+
+- **Apple Release** (`apple-release.yml`): Triggered by `apple-v*` tags
+  - Builds and tests
+  - Creates GitHub release
+  - Package available via Swift Package Manager
+
+- **Google Release** (`google-release.yml`): Triggered by `google-v*` tags
+  - Builds and tests
+  - Creates GitHub release
+  - Publishes to Maven Central
 
 - **CI** (`ci.yml`): Runs on all PRs and pushes to main
   - Tests GQL type generation
   - Tests Android build
   - Tests iOS build
   - Tests docs build
-
-- **Apple Release** (`apple-release.yml`): Triggered by `apple-v*` tags
-  - Builds and tests
-  - Creates GitHub release
-  - Publishes to CocoaPods
-
-- **Google Release** (`google-release.yml`): Triggered by `google-v*` tags
-  - Builds and tests
-  - Creates GitHub release
-  - Publishes to Maven Central
 
 ## 📖 Additional Documentation
 

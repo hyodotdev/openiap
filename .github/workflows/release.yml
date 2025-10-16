@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Sync version files
+        run: ./scripts/sync-versions.sh
+
       - name: Regenerate types
         working-directory: packages/gql
         run: bun run generate
