@@ -13,7 +13,8 @@
     "lint": "bun run --filter '*' lint",
     "clean": "rm -rf packages/*/node_modules node_modules",
     "version:sync": "bun scripts/sync-versions.mjs",
-    "version:bump": "bun scripts/bump-version.mjs"
+    "version:bump": "bun scripts/bump-version.mjs",
+    "deploy": "./scripts/deploy.sh"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
