@@ -111,7 +111,55 @@ if [ $? -ne 0 ]; then
 fi
 
 echo ""
-echo -e "${BLUE}📦 Step 2: Building and deploying to Vercel...${NC}"
+echo -e "${BLUE}🏷️  Step 2: Creating GitHub release and tag...${NC}"
+
+# Trigger the workflow and wait for completion
+gh workflow run release.yml -f version=$VERSION
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Failed to trigger workflow${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ GitHub Actions workflow triggered${NC}"
+echo -e "${BLUE}⏳ Waiting for workflow to complete (this may take a few minutes)...${NC}"
+echo ""
+
+# Wait for the workflow to start
+sleep 5
+
+# Get the workflow run ID
+RUN_ID=$(gh run list --workflow=release.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+
+if [ -z "$RUN_ID" ]; then
+    echo -e "${YELLOW}⚠️  Could not get workflow run ID. Please check manually.${NC}"
+    echo -e "   View at: ${GREEN}https://github.com/hyodotdev/openiap/actions${NC}"
+else
+    echo -e "${BLUE}📊 Workflow Status:${NC}"
+    echo -e "   Run ID: ${GREEN}$RUN_ID${NC}"
+    echo -e "   View at: ${GREEN}https://github.com/hyodotdev/openiap/actions/runs/$RUN_ID${NC}"
+    echo ""
+
+    # Watch the workflow
+    gh run watch $RUN_ID
+
+    # Check if workflow succeeded
+    WORKFLOW_STATUS=$(gh run view $RUN_ID --json conclusion --jq '.conclusion')
+
+    if [ "$WORKFLOW_STATUS" != "success" ]; then
+        echo -e "${RED}❌ Workflow failed with status: $WORKFLOW_STATUS${NC}"
+        echo -e "${YELLOW}Please check the workflow logs and fix any issues before deploying.${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✅ Workflow completed successfully${NC}"
+    echo -e "   - Git tag ${GREEN}v$VERSION${NC} created"
+    echo -e "   - GitHub release created with artifacts"
+    echo ""
+fi
+
+echo ""
+echo -e "${BLUE}📦 Step 3: Building and deploying to Vercel...${NC}"
 
 # Deploy to Vercel
 cd packages/docs
@@ -142,33 +190,16 @@ echo -e "${GREEN}✅ Successfully deployed to Vercel${NC}"
 cd ../..
 
 echo ""
-echo -e "${BLUE}🏷️  Step 3: Creating GitHub release...${NC}"
-
-# Trigger the workflow
-gh workflow run release.yml -f version=$VERSION
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ GitHub Actions workflow triggered successfully!${NC}"
-    echo ""
-    echo -e "${BLUE}📊 Workflow Status:${NC}"
-    echo -e "   View at: ${GREEN}https://github.com/hyodotdev/openiap/actions${NC}"
-    echo ""
-    echo -e "${BLUE}ℹ️  The workflow will:${NC}"
-    echo -e "   1. Validate the version format"
-    echo -e "   2. Regenerate types for all platforms"
-    echo -e "   3. Create release artifacts (TypeScript, Dart, Kotlin, Swift)"
-    echo -e "   4. Create Git tag: ${GREEN}v$VERSION${NC}"
-    echo -e "   5. Create GitHub release with artifacts"
-    echo ""
-    echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
-    echo -e "${YELLOW}💡 Tip: Check the Actions tab on GitHub to monitor progress${NC}"
-
-    # Wait a moment and try to show the latest workflow run
-    sleep 2
-    echo ""
-    echo -e "${BLUE}📋 Recent workflow runs:${NC}"
-    gh run list --workflow=release.yml --limit=3
-else
-    echo -e "${RED}❌ Failed to trigger workflow${NC}"
-    exit 1
-fi
+echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+echo ""
+echo -e "${BLUE}📋 Summary:${NC}"
+echo -e "   ✅ Version files synced"
+echo -e "   ✅ Git tag: ${GREEN}v$VERSION${NC}"
+echo -e "   ✅ GitHub release: ${GREEN}https://github.com/hyodotdev/openiap/releases/tag/v$VERSION${NC}"
+echo -e "   ✅ Documentation deployed to Vercel"
+echo ""
+echo -e "${BLUE}ℹ️  Release artifacts available:${NC}"
+echo -e "   - openiap-typescript.zip"
+echo -e "   - openiap-dart.zip"
+echo -e "   - openiap-kotlin.zip"
+echo -e "   - openiap-swift.zip"

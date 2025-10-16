@@ -12,7 +12,7 @@ const APPLE_SWIFT_URL = 'https://github.com/hyodotdev/openiap-apple';
 const APPLE_COCOAPODS_BADGE =
   'https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods';
 const APPLE_COCOAPODS_URL = 'https://cocoapods.org/pods/openiap';
-const GQL_RELEASES_URL = 'https://github.com/hyodotdev/openiap-gql/releases';
+const GQL_RELEASES_URL = 'https://github.com/hyodotdev/openiap/releases';
 
 function Versions() {
   useScrollToHash();

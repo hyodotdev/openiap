@@ -35,10 +35,10 @@ adb shell am start -n dev.hyo.martie/.MainActivity
 
 ## Generated Types
 
-- All GraphQL models in `openiap/src/main/java/dev/hyo/openiap/Types.kt` are generated from the [`hyodotdev/openiap-gql`](https://github.com/hyodotdev/openiap-gql) repository. When you update API behavior, adjust the upstream type generator first so the Kotlin output stays in sync across platforms.
+- All GraphQL models in `openiap/src/main/java/dev/hyo/openiap/Types.kt` are generated from the [`openiap` monorepo](https://github.com/hyodotdev/openiap/tree/main/packages/gql). When you update API behavior, adjust the upstream type generator first so the Kotlin output stays in sync across platforms.
 - The canonical workflow is documented in `CONVENTION.md`. Read it before touching generated models or related helpers.
 - To refresh the generated file locally, run `./scripts/generate-types.sh`. If you need to experiment with manual edits, you can pass `--skip-download true` to reuse the current `Types.kt` while still applying the post-processing step, but remember that ad-hoc edits will not ship in published releases unless the upstream generator incorporates them.
-- For changes that require generator support, open an issue or pull request in the `openiap-gql` repository.
+- For changes that require generator support, open an issue or pull request in the [`packages/gql`](https://github.com/hyodotdev/openiap/tree/main/packages/gql) directory of the monorepo.
 
 ## Code Style
 

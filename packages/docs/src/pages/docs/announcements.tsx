@@ -60,7 +60,7 @@ function Announcements() {
             <li>
               Explore the{' '}
               <a
-                href="https://github.com/hyodotdev/openiap-gql/releases/tag/1.0.0"
+                href="https://github.com/hyodotdev/openiap/releases/tag/1.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="external-link"

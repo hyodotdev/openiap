@@ -5,9 +5,9 @@
   "main": "src/generated/types.ts",
   "exports": {
     ".": "./src/generated/types.ts",
-    "./swift": "./dist/swift/Types.swift",
-    "./kotlin": "./dist/kotlin/Types.kt",
-    "./dart": "./dist/dart/types.dart"
+    "./swift": "./src/generated/Types.swift",
+    "./kotlin": "./src/generated/Types.kt",
+    "./dart": "./src/generated/types.dart"
   },
   "scripts": {
     "generate": "bun run generate:ts && bun run generate:swift && bun run generate:kotlin && bun run generate:dart && bun run sync",
