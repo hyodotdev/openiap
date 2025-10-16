@@ -111,51 +111,74 @@ if [ $? -ne 0 ]; then
 fi
 
 echo ""
-echo -e "${BLUE}🏷️  Step 2: Creating GitHub release and tag...${NC}"
+echo -e "${BLUE}🏷️  Step 2: Checking if tag exists...${NC}"
 
-# Trigger the workflow and wait for completion
-gh workflow run release.yml -f version=$VERSION
+# Fetch tags from remote to ensure we have the latest
+git fetch --tags >/dev/null 2>&1
 
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Failed to trigger workflow${NC}"
-    exit 1
+# Check if tag already exists (with or without v prefix)
+TAG_EXISTS=false
+if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+    TAG_EXISTS=true
+    EXISTING_TAG="v$VERSION"
+elif git rev-parse "$VERSION" >/dev/null 2>&1; then
+    TAG_EXISTS=true
+    EXISTING_TAG="$VERSION"
 fi
 
-echo -e "${GREEN}✅ GitHub Actions workflow triggered${NC}"
-echo -e "${BLUE}⏳ Waiting for workflow to complete (this may take a few minutes)...${NC}"
-echo ""
-
-# Wait for the workflow to start
-sleep 5
-
-# Get the workflow run ID
-RUN_ID=$(gh run list --workflow=release.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-
-if [ -z "$RUN_ID" ]; then
-    echo -e "${YELLOW}⚠️  Could not get workflow run ID. Please check manually.${NC}"
-    echo -e "   View at: ${GREEN}https://github.com/hyodotdev/openiap/actions${NC}"
+if [ "$TAG_EXISTS" = true ]; then
+    echo -e "${YELLOW}⚠️  Tag $EXISTING_TAG already exists${NC}"
+    echo -e "${BLUE}ℹ️  Skipping GitHub release creation${NC}"
+    SKIP_RELEASE=true
 else
-    echo -e "${BLUE}📊 Workflow Status:${NC}"
-    echo -e "   Run ID: ${GREEN}$RUN_ID${NC}"
-    echo -e "   View at: ${GREEN}https://github.com/hyodotdev/openiap/actions/runs/$RUN_ID${NC}"
-    echo ""
+    echo -e "${GREEN}✅ Tag v$VERSION does not exist${NC}"
+    echo -e "${BLUE}🏷️  Creating GitHub release and tag...${NC}"
+    SKIP_RELEASE=false
 
-    # Watch the workflow
-    gh run watch $RUN_ID
+    # Trigger the workflow and wait for completion
+    gh workflow run release.yml -f version=$VERSION
 
-    # Check if workflow succeeded
-    WORKFLOW_STATUS=$(gh run view $RUN_ID --json conclusion --jq '.conclusion')
-
-    if [ "$WORKFLOW_STATUS" != "success" ]; then
-        echo -e "${RED}❌ Workflow failed with status: $WORKFLOW_STATUS${NC}"
-        echo -e "${YELLOW}Please check the workflow logs and fix any issues before deploying.${NC}"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Failed to trigger workflow${NC}"
         exit 1
     fi
 
-    echo -e "${GREEN}✅ Workflow completed successfully${NC}"
-    echo -e "   - Git tag ${GREEN}v$VERSION${NC} created"
-    echo -e "   - GitHub release created with artifacts"
+    echo -e "${GREEN}✅ GitHub Actions workflow triggered${NC}"
+    echo -e "${BLUE}⏳ Waiting for workflow to complete (this may take a few minutes)...${NC}"
     echo ""
+
+    # Wait for the workflow to start
+    sleep 5
+
+    # Get the workflow run ID
+    RUN_ID=$(gh run list --workflow=release.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+
+    if [ -z "$RUN_ID" ]; then
+        echo -e "${YELLOW}⚠️  Could not get workflow run ID. Please check manually.${NC}"
+        echo -e "   View at: ${GREEN}https://github.com/hyodotdev/openiap/actions${NC}"
+    else
+        echo -e "${BLUE}📊 Workflow Status:${NC}"
+        echo -e "   Run ID: ${GREEN}$RUN_ID${NC}"
+        echo -e "   View at: ${GREEN}https://github.com/hyodotdev/openiap/actions/runs/$RUN_ID${NC}"
+        echo ""
+
+        # Watch the workflow
+        gh run watch $RUN_ID
+
+        # Check if workflow succeeded
+        WORKFLOW_STATUS=$(gh run view $RUN_ID --json conclusion --jq '.conclusion')
+
+        if [ "$WORKFLOW_STATUS" != "success" ]; then
+            echo -e "${RED}❌ Workflow failed with status: $WORKFLOW_STATUS${NC}"
+            echo -e "${YELLOW}Please check the workflow logs and fix any issues before deploying.${NC}"
+            exit 1
+        fi
+
+        echo -e "${GREEN}✅ Workflow completed successfully${NC}"
+        echo -e "   - Git tag ${GREEN}v$VERSION${NC} created"
+        echo -e "   - GitHub release created with artifacts"
+        echo ""
+    fi
 fi
 
 echo ""
@@ -194,12 +217,20 @@ echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
 echo ""
 echo -e "${BLUE}📋 Summary:${NC}"
 echo -e "   ✅ Version files synced"
-echo -e "   ✅ Git tag: ${GREEN}v$VERSION${NC}"
-echo -e "   ✅ GitHub release: ${GREEN}https://github.com/hyodotdev/openiap/releases/tag/v$VERSION${NC}"
-echo -e "   ✅ Documentation deployed to Vercel"
+
+if [ "$SKIP_RELEASE" = true ]; then
+    echo -e "   ⏭️  Git tag: ${YELLOW}v$VERSION${NC} (already exists, skipped)"
+    echo -e "   ⏭️  GitHub release: ${YELLOW}https://github.com/hyodotdev/openiap/releases/tag/v$VERSION${NC} (already exists)"
+else
+    echo -e "   ✅ Git tag: ${GREEN}v$VERSION${NC}"
+    echo -e "   ✅ GitHub release: ${GREEN}https://github.com/hyodotdev/openiap/releases/tag/v$VERSION${NC}"
+    echo ""
+    echo -e "${BLUE}ℹ️  Release artifacts available:${NC}"
+    echo -e "   - openiap-typescript.zip"
+    echo -e "   - openiap-dart.zip"
+    echo -e "   - openiap-kotlin.zip"
+    echo -e "   - openiap-swift.zip"
+fi
+
 echo ""
-echo -e "${BLUE}ℹ️  Release artifacts available:${NC}"
-echo -e "   - openiap-typescript.zip"
-echo -e "   - openiap-dart.zip"
-echo -e "   - openiap-kotlin.zip"
-echo -e "   - openiap-swift.zip"
+echo -e "   ✅ Documentation deployed to Vercel"
