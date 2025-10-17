@@ -22,8 +22,8 @@ This monorepo contains all OpenIAP packages:
 
 - **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
 - **[gql](packages/gql)** - GraphQL schema and type generation
-- **[google](packages/google)** - Android library
-- **[apple](packages/apple)** - iOS/macOS library
+- **[google](packages/google)** - Android library [![Maven Central](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![CI](https://github.com/hyodotdev/openiap-google/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap-google/actions/workflows/ci.yml)
+- **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/github/v/tag/hyodotdev/openiap-apple?label=version&logo=swift&color=orange)](https://github.com/hyodotdev/openiap-apple) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![Tests](https://github.com/hyodotdev/openiap-apple/actions/workflows/test.yml/badge.svg)](https://github.com/hyodotdev/openiap-apple/actions/workflows/test.yml)
 
 ## Documentation
 
