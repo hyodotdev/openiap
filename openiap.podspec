@@ -1,0 +1,1 @@
+packages/apple/openiap.podspec
