@@ -88,7 +88,7 @@ mavenPublishing {
     pom {
         name.set("OpenIAP GMS")
         description.set("OpenIAP Android library using Google Play Billing v8")
-        url.set("https://github.com/hyodotdev/openiap-google")
+        url.set("https://github.com/hyodotdev/openiap")
 
         licenses {
             license {
@@ -103,9 +103,9 @@ mavenPublishing {
             }
         }
         scm {
-            connection.set("scm:git:git://github.com/hyodotdev/openiap-google.git")
-            developerConnection.set("scm:git:ssh://git@github.com/hyodotdev/openiap-google.git")
-            url.set("https://github.com/hyodotdev/openiap-google")
+            connection.set("scm:git:git://github.com/hyodotdev/openiap.git")
+            developerConnection.set("scm:git:ssh://git@github.com/hyodotdev/openiap.git")
+            url.set("https://github.com/hyodotdev/openiap/tree/main/packages/google")
         }
     }
 }
