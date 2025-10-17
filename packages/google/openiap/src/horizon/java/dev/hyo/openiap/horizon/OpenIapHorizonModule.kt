@@ -64,7 +64,6 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
 import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
-import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.toProduct
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -326,7 +325,12 @@ class OpenIapHorizonModule(
 
     override val restorePurchases: MutationRestorePurchasesHandler = {
         withContext(Dispatchers.IO) {
-            runCatching { getAvailablePurchases(null) }
+            val all = runCatching { getAvailablePurchases(null) }.getOrElse { emptyList() }
+            all.forEach { purchase ->
+                purchaseUpdateListeners.forEach { listener ->
+                    runCatching { listener.onPurchaseUpdated(purchase) }
+                }
+            }
             Unit
         }
     }
@@ -406,9 +410,11 @@ class OpenIapHorizonModule(
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<HorizonPurchase>?) {
         Log.d(TAG, "onPurchasesUpdated code=${result.responseCode} count=${purchases?.size ?: 0}")
         purchases?.forEachIndexed { index, purchase ->
+            val redactedToken = purchase.purchaseToken?.take(8)?.plus("…")
+            val redactedOrder = purchase.orderId?.take(8)?.plus("…")
             Log.d(
                 TAG,
-                "[HorizonPurchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} autoRenew=${purchase.isAutoRenewing()}"
+                "[HorizonPurchase $index] token=$redactedToken orderId=$redactedOrder autoRenew=${purchase.isAutoRenewing()}"
             )
         }
 

@@ -43,11 +43,12 @@ jobs:
 
       - name: Install required SDK packages
         run: |
+          yes | sdkmanager --licenses
           sdkmanager --install \
             "platform-tools" \
             "platforms;android-34" \
             "build-tools;34.0.0"
-          yes | sdkmanager --licenses
 
       - name: Build Horizon variants
+        working-directory: packages/google
         run: ./gradlew --stacktrace --no-daemon :openiap:assembleHorizonDebug :Example:assembleHorizonDebug

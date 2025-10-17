@@ -130,4 +130,13 @@ internal object HorizonBillingConverters {
         transactionDate = (purchaseTime ?: 0L).toDouble(),
         transactionId = orderId ?: purchaseToken
     )
+
+    fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscription(
+        autoRenewingAndroid = autoRenewingAndroid,
+        isActive = true,
+        productId = productId,
+        purchaseToken = purchaseToken.orEmpty(),
+        transactionDate = transactionDate,
+        transactionId = transactionId.orEmpty()
+    )
 }
