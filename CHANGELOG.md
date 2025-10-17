@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better Gradle build configuration
 
 - **Apple (iOS/macOS)** (`packages/apple`):
-  - Updated to version 1.2.22
+  - Updated to version 1.2.23
   - Enhanced Swift type generation
   - Improved Package.swift configuration
 
