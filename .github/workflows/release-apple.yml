@@ -89,12 +89,12 @@ jobs:
         gem install cocoapods
 
     - name: Validate Podspec
-      working-directory: packages/apple
       run: |
+        # Copy podspec to root for validation (openiap-versions.json is already at root)
+        cp packages/apple/openiap.podspec .
         pod lib lint openiap.podspec --allow-warnings
 
     - name: Deploy to CocoaPods
-      working-directory: packages/apple
       env:
         COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         COCOAPODS_VALIDATOR_SKIP_XCODEBUILD: 1

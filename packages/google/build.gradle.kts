@@ -8,11 +8,23 @@ plugins {
 
 import java.io.File
 
-// Read version from monorepo root
-val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
-val jsonText = versionsFile.readText()
-val androidVersion = jsonText.substringAfter("\"google\": \"").substringBefore("\"")
-val gqlVersion = jsonText.substringAfter("\"gql\": \"").substringBefore("\"")
+// Read version from monorepo root or environment variable
+val androidVersion = System.getenv("ORG_GRADLE_PROJECT_openIapVersion") ?: run {
+    // Fallback: read from openiap-versions.json
+    val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
+    val jsonText = versionsFile.readText()
+    jsonText.substringAfter("\"google\": \"").substringBefore("\"")
+}
+
+val gqlVersion = run {
+    val versionsFile = File(rootDir.parentFile.parentFile, "openiap-versions.json")
+    if (versionsFile.exists()) {
+        val jsonText = versionsFile.readText()
+        jsonText.substringAfter("\"gql\": \"").substringBefore("\"")
+    } else {
+        "1.2.2" // Fallback
+    }
+}
 
 extra["OPENIAP_VERSION"] = androidVersion
 extra["GQL_VERSION"] = gqlVersion

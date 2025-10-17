@@ -120,7 +120,7 @@ final class OpenIapTests: XCTestCase {
 
         // Test encoding to dictionary
         let dictionary = OpenIapSerialization.encode(purchase)
-        XCTAssertNotNil(dictionary["renewalInfoIOS"])
+        XCTAssertNotNil(dictionary["renewalInfoIOS"] as Any?)
 
         if let renewalDict = dictionary["renewalInfoIOS"] as? [String: Any] {
             XCTAssertEqual(renewalDict["willAutoRenew"] as? Bool, false)
