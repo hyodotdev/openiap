@@ -181,15 +181,43 @@ enum StoreKitTypesBridge {
         do {
             let statuses = try await StoreKit.Product.SubscriptionInfo.status(for: groupId)
 
+            // First, try to find exact product match
+            var targetStatus: StoreKit.Product.SubscriptionInfo.Status?
             for status in statuses {
                 guard case .verified(let statusTransaction) = status.transaction else { continue }
-                guard statusTransaction.productID == transaction.productID else { continue }
 
-                switch status.renewalInfo {
-                case .verified(let info):
-                    // Always return autoRenewPreference as pendingUpgradeProductId
-                    // Client can compare with current productId to detect plan changes
-                    let pendingProductId = info.autoRenewPreference
+                if statusTransaction.productID == transaction.productID {
+                    targetStatus = status
+                    break
+                }
+            }
+
+            // If no exact match, use the first status from the same group
+            // This handles cases where a subscription is cancelled but still active
+            if targetStatus == nil, let firstStatus = statuses.first {
+                targetStatus = firstStatus
+            }
+
+            guard let status = targetStatus else {
+                return nil
+            }
+
+            // Process the found status (exact match or fallback)
+            switch status.renewalInfo {
+            case .verified(let info):
+                    // Only set pendingUpgradeProductId if it's different from current product
+                    // autoRenewPreference = product that will renew next
+                    // If different from current, it means upgrade/downgrade is pending
+                    let currentProductId: String? = {
+                        guard case .verified(let txn) = status.transaction else { return nil }
+                        return txn.productID
+                    }()
+
+                    let pendingProductId: String? = {
+                        guard let current = currentProductId else { return nil }
+                        // Only return pendingUpgradeProductId if it's different from current
+                        return info.autoRenewPreference != current ? info.autoRenewPreference : nil
+                    }()
                     let offerInfo: (id: String?, type: String?)?
                     #if swift(>=6.1)
                     if #available(iOS 18.0, macOS 15.0, *) {
@@ -230,9 +258,16 @@ enum StoreKitTypesBridge {
                     )
                     return renewalInfo
                 case .unverified(let info, _):
-                    // Always return autoRenewPreference as pendingUpgradeProductId
-                    // Client can compare with current productId to detect plan changes
-                    let pendingProductId = info.autoRenewPreference
+                    // Only set pendingUpgradeProductId if it's different from current product
+                    let currentProductId: String? = {
+                        guard case .verified(let txn) = status.transaction else { return nil }
+                        return txn.productID
+                    }()
+
+                    let pendingProductId: String? = {
+                        guard let current = currentProductId else { return nil }
+                        return info.autoRenewPreference != current ? info.autoRenewPreference : nil
+                    }()
                     let offerInfo: (id: String?, type: String?)?
                     #if swift(>=6.1)
                     if #available(iOS 18.0, macOS 15.0, *) {
@@ -272,14 +307,12 @@ enum StoreKitTypesBridge {
                         willAutoRenew: info.willAutoRenew
                     )
                     return renewalInfo
-                }
             }
+
         } catch {
             OpenIapLog.debug("⚠️ Failed to fetch renewalInfo: \(error.localizedDescription)")
             return nil
         }
-
-        return nil
     }
 
     static func purchaseOptions(from props: RequestPurchaseIosProps) throws -> Set<StoreKit.Product.PurchaseOption> {
