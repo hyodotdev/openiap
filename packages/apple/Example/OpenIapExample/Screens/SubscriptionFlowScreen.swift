@@ -11,7 +11,7 @@ struct SubscriptionFlowScreen: View {
     @State private var recentPurchase: OpenIapPurchase?
     @State private var selectedPurchase: OpenIapPurchase?
     @State private var isInitialLoading = true
-    @State private var isRefreshingAfterManagement = false
+    @State private var isRefreshing = false
     
     // Product IDs for subscription testing
     // Ordered from lowest to highest tier for upgrade scenarios
@@ -56,8 +56,8 @@ struct SubscriptionFlowScreen: View {
                 
                 if isInitialLoading {
                     LoadingCard(text: "Loading subscriptions...")
-                } else if isRefreshingAfterManagement {
-                    LoadingCard(text: "Refreshing subscription status...")
+                } else if isRefreshing {
+                    LoadingCard(text: "Refreshing activeSubscriptions...")
                 } else {
                     if let purchase = recentPurchase {
                         purchaseResultCard(for: purchase)
@@ -161,13 +161,14 @@ struct SubscriptionFlowScreen: View {
         .background(AppColors.background)
         .navigationTitle("Subscriptions")
         .navigationBarTitleDisplayMode(.large)
-        .navigationBarItems(trailing: 
+        .navigationBarItems(trailing:
             Button {
-                Task { await loadProducts() }
+                Task { await restorePurchases() }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Image(systemName: isRefreshing ? "arrow.clockwise.circle.fill" : "arrow.clockwise")
+                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                    .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
             }
-            .disabled(isInitialLoading || iapStore.status.isLoading)
         )
         .sheet(isPresented: Binding(
             get: { selectedPurchase != nil },
@@ -400,9 +401,8 @@ struct SubscriptionFlowScreen: View {
         let currentTier = getSubscriptionTier(current.productId)
         let targetTier = getSubscriptionTier(targetProductId)
 
+        // If cancelled, don't allow tier changes (user should reactivate or wait for expiry)
         if isCancelled {
-            // Cancelled subscription: cannot change to different tier
-            // User must wait for expiration or reactivate current subscription
             print("🔍 [getUpgradeInfo] Cancelled subscription - blocking tier change from \(current.productId) to \(targetProductId)")
             return UpgradeInfo(
                 canUpgrade: false,
@@ -412,7 +412,7 @@ struct SubscriptionFlowScreen: View {
             )
         }
 
-        // Active subscription: show upgrade/downgrade
+        // Active subscription: allow upgrades and downgrades
         let canUpgrade = targetTier > currentTier
         let isDowngrade = targetTier < currentTier
 
@@ -435,49 +435,34 @@ struct SubscriptionFlowScreen: View {
     }
     
     private func restorePurchases() async {
+        await MainActor.run {
+            isRefreshing = true
+        }
+
         do {
-            try await iapStore.refreshPurchases(forceSync: true)
+            // Just refresh active subscriptions without full sync
+            // (syncIOS can take a very long time)
             try await iapStore.getActiveSubscriptions()
             await MainActor.run {
-                print("✅ [SubscriptionFlow] Restored \(iapStore.activeSubscriptions.count) active subscriptions")
+                isRefreshing = false
+                print("✅ [SubscriptionFlow] Refreshed \(iapStore.activeSubscriptions.count) active subscriptions")
             }
         } catch {
             await MainActor.run {
-                errorMessage = "Failed to restore purchases: \(error.localizedDescription)"
+                isRefreshing = false
+                errorMessage = "Failed to refresh subscriptions: \(error.localizedDescription)"
                 showError = true
             }
         }
     }
-    
+
     private func manageSubscriptions() async {
         do {
             print("🔧 [SubscriptionFlow] Opening subscription management...")
             _ = try await iapStore.showManageSubscriptionsIOS()
-
-            // Show loading indicator
-            await MainActor.run {
-                isRefreshingAfterManagement = true
-            }
-
-            // Wait for StoreKit cache to update after subscription management
-            // Note: In Sandbox environment, StoreKit's Product.SubscriptionInfo.status(for:)
-            // returns cached data immediately after subscription changes (cancel/reactivate/tier change).
-            // A delay is needed for the cache to refresh with the latest subscription state.
-            // Production environment typically has faster cache updates.
-            print("⏳ [SubscriptionFlow] Waiting 5 seconds for StoreKit cache to update...")
-            try await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
-
-            // Reload subscription status
-            print("🔄 [SubscriptionFlow] Reloading subscriptions after management...")
-            try await iapStore.getActiveSubscriptions()
-
-            // Hide loading indicator
-            await MainActor.run {
-                isRefreshingAfterManagement = false
-            }
+            print("✅ [SubscriptionFlow] Returned from subscription management")
         } catch {
             await MainActor.run {
-                isRefreshingAfterManagement = false
                 errorMessage = "Failed to open subscription management: \(error.localizedDescription)"
                 showError = true
             }
@@ -489,36 +474,6 @@ struct SubscriptionFlowScreen: View {
     private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
         print("✅ [SubscriptionFlow] Subscription successful: \(purchase.productId)")
         print("📦 [SubscriptionFlow] Purchase fired immediately - no need to call getActiveSubscriptions()")
-
-        // Auto-finish upgraded, expired, or old transactions
-        let isUpgraded = purchase.isUpgradedIOS == true
-        let isExpired: Bool = {
-            guard let expirationMs = purchase.expirationDateIOS else { return false }
-            let expirationDate = Date(timeIntervalSince1970: expirationMs / 1000)
-            return expirationDate < Date()
-        }()
-
-        // Check if this is an old transaction (purchased more than 1 minute ago)
-        // This helps detect stale transactions returned by StoreKit
-        let isOldTransaction: Bool = {
-            let purchaseDate = Date(timeIntervalSince1970: purchase.transactionDate / 1000)
-            let timeSincePurchase = Date().timeIntervalSince(purchaseDate)
-            return timeSincePurchase > 60 // More than 1 minute old
-        }()
-
-        if isUpgraded || isExpired || isOldTransaction {
-            let reason = isUpgraded ? "upgraded" : (isExpired ? "expired" : "old")
-            print("🔄 [SubscriptionFlow] Auto-finishing \(reason) transaction: \(purchase.id)")
-            Task {
-                do {
-                    try await iapStore.finishTransaction(purchase: purchase)
-                } catch {
-                    print("⚠️ [SubscriptionFlow] Failed to finish transaction: \(error)")
-                }
-            }
-            // Don't show this purchase in UI
-            return
-        }
 
         // Log detailed purchase info
         print("   📋 Purchase Details:")

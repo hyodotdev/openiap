@@ -144,10 +144,14 @@ public final class OpenIapStore: ObservableObject {
                         willExpireSoon: false
                     )
 
-                    // Remove all subscriptions from the same group and add the new one
-                    // Use transactionId to avoid duplicates
+                    // Remove prior entries for the current or next-renewing product to avoid duplicates
+                    let currentId = ios.productId
+                    let renewingId = activeProductId
                     activeSubscriptions = activeSubscriptions.filter { existing in
-                        existing.transactionId != ios.transactionId
+                        // Drop entries that represent the current product or the next auto-renew product
+                        let isSameProduct = (existing.productId == currentId) || (existing.productId == renewingId)
+                        let pointsToSameRenewal = existing.renewalInfoIOS?.autoRenewPreference == renewingId
+                        return !isSameProduct && !pointsToSameRenewal
                     } + [newSubscription]
                 }
             }

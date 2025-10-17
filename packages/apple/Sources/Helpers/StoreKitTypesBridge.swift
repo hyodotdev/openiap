@@ -214,6 +214,8 @@ enum StoreKitTypesBridge {
                     }()
 
                     let pendingProductId: String? = {
+                        // If subscription is cancelled, there's no pending change
+                        guard info.willAutoRenew else { return nil }
                         guard let current = currentProductId else { return nil }
                         // Only return pendingUpgradeProductId if it's different from current
                         return info.autoRenewPreference != current ? info.autoRenewPreference : nil
@@ -265,6 +267,8 @@ enum StoreKitTypesBridge {
                     }()
 
                     let pendingProductId: String? = {
+                        // If subscription is cancelled, there's no pending change
+                        guard info.willAutoRenew else { return nil }
                         guard let current = currentProductId else { return nil }
                         return info.autoRenewPreference != current ? info.autoRenewPreference : nil
                     }()
