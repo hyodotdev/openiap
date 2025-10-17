@@ -26,21 +26,6 @@ actor IapState {
     func removePending(id: String) { pendingTransactions.removeValue(forKey: id) }
     func pendingSnapshot() -> [Transaction] { Array(pendingTransactions.values) }
 
-    // MARK: - Dedup / Latest-by-Group (for SK2 upgrades)
-    // Tracks the latest transaction per subscription group to suppress older emissions.
-    private var latestByGroup: [String: (date: Date, id: String)] = [:]
-
-    func shouldEmit(_ txn: Transaction) -> Bool {
-        guard let gid = txn.subscriptionGroupID else { return true }
-        let latest = latestByGroup[gid]
-        return latest == nil || txn.purchaseDate > latest!.date
-    }
-
-    func markEmitted(_ txn: Transaction) {
-        guard let gid = txn.subscriptionGroupID else { return }
-        latestByGroup[gid] = (txn.purchaseDate, String(txn.id))
-    }
-
     // MARK: - Promoted Products
     func setPromotedProductId(_ id: String?) { promotedProductId = id }
     func promotedProductIdentifier() -> String? { promotedProductId }
