@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Load local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
 android {
@@ -18,22 +27,34 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        buildConfigField("String", "OPENIAP_STORE", "\"play\"")
-        buildConfigField("String", "HORIZON_APP_ID", "\"\"")
+        val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
+            ?: localProperties.getProperty("EXAMPLE_OPENIAP_APP_ID")
+            ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
+            ?: (project.findProperty("EXAMPLE_OPENIAP_APP_ID") as String?)
+            ?: ""
+        buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
     }
 
     flavorDimensions += "store"
 
     productFlavors {
+        val storeOverride = (project.findProperty("EXAMPLE_OPENIAP_STORE") as String?)
+
         create("play") {
             dimension = "store"
-            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
-            buildConfigField("String", "HORIZON_APP_ID", "\"\"")
+            val value = storeOverride ?: "play"
+            buildConfigField("String", "OPENIAP_STORE", "\"${value}\"")
         }
         create("horizon") {
             dimension = "store"
-            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
-            buildConfigField("String", "HORIZON_APP_ID", "\"\"")
+            val value = storeOverride ?: "horizon"
+            buildConfigField("String", "OPENIAP_STORE", "\"${value}\"")
+
+            // Dynamically inject OCULUS_APP_ID into AndroidManifest
+            val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
+                ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
+                ?: ""
+            manifestPlaceholders["OCULUS_APP_ID"] = appId
         }
     }
 

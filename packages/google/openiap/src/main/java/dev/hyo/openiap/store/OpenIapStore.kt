@@ -35,6 +35,7 @@ import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.BillingClient
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
@@ -511,14 +512,20 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     val selected = (store ?: defaultStore).lowercase()
     val resolvedAppId = appId ?: ""
 
+    OpenIapLog.d("buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore", "OpenIapStore")
+
     return when (selected) {
         "horizon", "meta", "quest" -> {
             try {
+                OpenIapLog.d("Loading OpenIapHorizonModule with appId=$resolvedAppId", "OpenIapStore")
                 val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
                 val constructor = clazz.getConstructor(Context::class.java, String::class.java)
-                constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
+                val instance = constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
+                OpenIapLog.d("Successfully loaded OpenIapHorizonModule", "OpenIapStore")
+                instance
             } catch (e: Throwable) {
                 // Fallback to Play Store implementation
+                OpenIapLog.e("Failed to load OpenIapHorizonModule, falling back to Play", e, "OpenIapStore")
                 OpenIapModule(context) as OpenIapProtocol
             }
         }
