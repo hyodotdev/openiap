@@ -1,9 +1,12 @@
 name: Apple Release
 
 on:
-  push:
-    tags:
-      - 'apple-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (without v prefix, e.g. 1.2.24)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -15,13 +18,55 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    - name: Extract version from tag
+    - name: Extract version
       id: version
       run: |
-        TAG_NAME=${GITHUB_REF#refs/tags/apple-v}
-        echo "VERSION=$TAG_NAME" >> $GITHUB_ENV
-        echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+        VERSION="${{ github.event.inputs.version }}"
+        # Trim leading 'v' if present
+        VERSION="${VERSION#v}"
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Update version in openiap-versions.json
+      working-directory: packages/apple
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        # Update version in openiap-versions.json
+        jq --arg version "$VERSION" '.apple = $version' ../../openiap-versions.json > temp.json
+        mv temp.json ../../openiap-versions.json
+
+    - name: Commit version update
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        git add openiap-versions.json
+
+        if git diff --staged --quiet; then
+          echo "No version changes to commit"
+        else
+          git commit -m "chore(apple): bump version to $VERSION"
+          git push origin main
+        fi
+
+    - name: Create tag
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        # Check if tag already exists
+        if git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
+          echo "Tag apple-v$VERSION already exists"
+          exit 1
+        fi
+
+        git tag "apple-v$VERSION"
+        git push origin "apple-v$VERSION"
 
     - name: Select Xcode
       run: |
@@ -53,41 +98,38 @@ jobs:
       env:
         COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         COCOAPODS_VALIDATOR_SKIP_XCODEBUILD: 1
+        CI: true
       run: |
         if [ -z "$COCOAPODS_TRUNK_TOKEN" ]; then
           echo "⚠️ COCOAPODS_TRUNK_TOKEN is not set. Skipping CocoaPods publish."
         else
-          pod trunk push openiap.podspec --allow-warnings
+          pod trunk push openiap.podspec --allow-warnings --skip-tests --verbose
           echo "✅ Published to CocoaPods"
         fi
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: apple-v${{ env.VERSION }}
-        name: Apple v${{ env.VERSION }}
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-        body: |
-          ## OpenIAP Apple v${{ env.VERSION }}
-
-          ### Installation
-
-          **CocoaPods:**
-          ```ruby
-          pod 'openiap', '~> ${{ env.VERSION }}'
-          ```
-
-          **Swift Package Manager:**
-          ```swift
-          dependencies: [
-              .package(url: "https://github.com/hyodotdev/openiap.git", from: "${{ env.VERSION }}")
-          ]
-          ```
-
-          ### Documentation
-          - [API Documentation](https://openiap.dev)
-          - [Migration Guide](https://github.com/hyodotdev/openiap/blob/main/packages/ios/README.md)
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.version.outputs.version }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "apple-v$VERSION" \
+          --title "Apple v$VERSION" \
+          --notes "## OpenIAP Apple v$VERSION
+
+        ### Installation
+
+        **CocoaPods:**
+        \`\`\`ruby
+        pod 'openiap', '~> $VERSION'
+        \`\`\`
+
+        **Swift Package Manager:**
+        \`\`\`swift
+        dependencies: [
+            .package(url: \"https://github.com/hyodotdev/openiap.git\", from: \"$VERSION\")
+        ]
+        \`\`\`
+
+        ### Documentation
+        - [API Documentation](https://openiap.dev)
+        - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/apple)"

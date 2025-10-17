@@ -1,9 +1,12 @@
 name: Google Release
 
 on:
-  push:
-    tags:
-      - 'google-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (without v prefix, e.g. 1.2.14)'
+        required: true
+        type: string
 
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
@@ -18,13 +21,55 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    - name: Extract version from tag
+    - name: Extract version
       id: version
       run: |
-        TAG_NAME=${GITHUB_REF#refs/tags/google-v}
-        echo "VERSION=$TAG_NAME" >> $GITHUB_ENV
-        echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+        VERSION="${{ github.event.inputs.version }}"
+        # Trim leading 'v' if present
+        VERSION="${VERSION#v}"
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Update version in openiap-versions.json
+      working-directory: packages/google
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        # Update version in openiap-versions.json
+        jq --arg version "$VERSION" '.google = $version' ../../openiap-versions.json > temp.json
+        mv temp.json ../../openiap-versions.json
+
+    - name: Commit version update
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        git add openiap-versions.json
+
+        if git diff --staged --quiet; then
+          echo "No version changes to commit"
+        else
+          git commit -m "chore(google): bump version to $VERSION"
+          git push origin main
+        fi
+
+    - name: Create tag
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        # Check if tag already exists
+        if git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
+          echo "Tag google-v$VERSION already exists"
+          exit 1
+        fi
+
+        git tag "google-v$VERSION"
+        git push origin "google-v$VERSION"
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -44,7 +89,7 @@ jobs:
     - name: Build and Test
       working-directory: packages/google
       env:
-        ORG_GRADLE_PROJECT_openIapVersion: ${{ env.VERSION }}
+        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
       run: |
         ./gradlew :openiap:build --no-daemon --stacktrace
         ./gradlew :openiap:test --no-daemon --stacktrace
@@ -52,7 +97,7 @@ jobs:
     - name: Publish to Maven Central
       working-directory: packages/google
       env:
-        ORG_GRADLE_PROJECT_openIapVersion: ${{ env.VERSION }}
+        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
         ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
         ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
@@ -78,40 +123,44 @@ jobs:
         fi
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: google-v${{ env.VERSION }}
-        name: Google v${{ env.VERSION }}
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-        files: |
-          packages/google/release-artifacts.zip
-          packages/google/checksums.txt
-        body: |
-          ## OpenIAP Google v${{ env.VERSION }}
-
-          ### Installation
-
-          **Gradle (Kotlin DSL):**
-          ```kotlin
-          dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google:${{ env.VERSION }}")
-          }
-          ```
-
-          **Gradle (Groovy):**
-          ```groovy
-          dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google:${{ env.VERSION }}'
-          }
-          ```
-
-          ### Documentation
-          - [API Documentation](https://openiap.dev)
-          - [Migration Guide](https://github.com/hyodotdev/openiap/blob/main/packages/android/README.md)
-
-          ### Maven Central
-          - [View on Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/${{ env.VERSION }})
+      working-directory: packages/google
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.version.outputs.version }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Upload artifacts if they exist
+        ARTIFACTS=""
+        if [ -f release-artifacts.zip ]; then
+          ARTIFACTS="$ARTIFACTS release-artifacts.zip"
+        fi
+        if [ -f checksums.txt ]; then
+          ARTIFACTS="$ARTIFACTS checksums.txt"
+        fi
+
+        gh release create "google-v$VERSION" \
+          $ARTIFACTS \
+          --title "Google v$VERSION" \
+          --notes "## OpenIAP Google v$VERSION
+
+        ### Installation
+
+        **Gradle (Kotlin DSL):**
+        \`\`\`kotlin
+        dependencies {
+            implementation(\"io.github.hyochan.openiap:openiap-google:$VERSION\")
+        }
+        \`\`\`
+
+        **Gradle (Groovy):**
+        \`\`\`groovy
+        dependencies {
+            implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
+        }
+        \`\`\`
+
+        ### Documentation
+        - [API Documentation](https://openiap.dev)
+        - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/google)
+
+        ### Maven Central
+        - [View on Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)"
