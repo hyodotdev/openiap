@@ -217,6 +217,20 @@ struct SubscriptionCard: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
+                        } else if let message = upgradeInfo.message, message.contains("Reactivate current subscription") {
+                            // Cancelled subscription - cannot switch to different tier
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text(message)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(6)
                         } else {
                             // Show regular upgrade/switch option
                             HStack {

@@ -11,6 +11,7 @@ struct SubscriptionFlowScreen: View {
     @State private var recentPurchase: OpenIapPurchase?
     @State private var selectedPurchase: OpenIapPurchase?
     @State private var isInitialLoading = true
+    @State private var isRefreshing = false
     
     // Product IDs for subscription testing
     // Ordered from lowest to highest tier for upgrade scenarios
@@ -55,6 +56,8 @@ struct SubscriptionFlowScreen: View {
                 
                 if isInitialLoading {
                     LoadingCard(text: "Loading subscriptions...")
+                } else if isRefreshing {
+                    LoadingCard(text: "Refreshing activeSubscriptions...")
                 } else {
                     if let purchase = recentPurchase {
                         purchaseResultCard(for: purchase)
@@ -89,8 +92,9 @@ struct SubscriptionFlowScreen: View {
                                         Task {
                                             await manageSubscriptions()
                                         }
-                                    } else if upgradeInfo.canUpgrade {
-                                        // Handle upgrade scenario
+                                    } else if upgradeInfo.canUpgrade || upgradeInfo.isDowngrade {
+                                        // Both upgrades and downgrades can be done via product.purchase()
+                                        // StoreKit 2 automatically handles subscription tier changes within same group
                                         if let product = product {
                                             Task {
                                                 await upgradeSubscription(from: currentSubscription, to: product)
@@ -157,13 +161,14 @@ struct SubscriptionFlowScreen: View {
         .background(AppColors.background)
         .navigationTitle("Subscriptions")
         .navigationBarTitleDisplayMode(.large)
-        .navigationBarItems(trailing: 
+        .navigationBarItems(trailing:
             Button {
-                Task { await loadProducts() }
+                Task { await restorePurchases() }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Image(systemName: isRefreshing ? "arrow.clockwise.circle.fill" : "arrow.clockwise")
+                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                    .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
             }
-            .disabled(isInitialLoading || iapStore.status.isLoading)
         )
         .sheet(isPresented: Binding(
             get: { selectedPurchase != nil },
@@ -260,6 +265,26 @@ struct SubscriptionFlowScreen: View {
         do {
             // Only use activeSubscriptions - demonstrates it contains all necessary info
             try await iapStore.getActiveSubscriptions()
+
+            // Debug: Log active subscriptions and their renewal status
+            await MainActor.run {
+                print("🔍 [SubscriptionFlow] Active subscriptions loaded: \(iapStore.activeSubscriptions.count)")
+                for sub in iapStore.activeSubscriptions {
+                    print("   📋 \(sub.productId):")
+                    print("      • isActive: \(sub.isActive)")
+                    if let renewalInfo = sub.renewalInfoIOS {
+                        print("      • willAutoRenew: \(renewalInfo.willAutoRenew)")
+                        print("      • autoRenewPreference: \(renewalInfo.autoRenewPreference ?? "nil")")
+                        print("      • pendingUpgradeProductId: \(renewalInfo.pendingUpgradeProductId ?? "nil")")
+
+                        // Check cancellation status
+                        let isCancelled = sub.isActive && !renewalInfo.willAutoRenew
+                        print("      • Status: \(isCancelled ? "❌ CANCELLED (active until expiry)" : "✅ Active & Renewing")")
+                    } else {
+                        print("      ⚠️ renewalInfoIOS is nil!")
+                    }
+                }
+            }
         } catch {
             await MainActor.run {
                 errorMessage = "Failed to load purchases: \(error.localizedDescription)"
@@ -274,7 +299,11 @@ struct SubscriptionFlowScreen: View {
         print("🔄 [SubscriptionFlow] Starting subscription purchase for: \(product.id)")
         Task {
             do {
+                // Ignore return value - purchase events are emitted via onPurchaseSuccess listener
                 _ = try await iapStore.requestPurchase(sku: product.id, type: .subs, autoFinish: true)
+
+                print("✅ [SubscriptionFlow] Purchase request completed")
+                print("📦 [SubscriptionFlow] onPurchaseSuccess callback will fire")
             } catch {
                 // Error is already handled by OpenIapStore internally
                 print("❌ [SubscriptionFlow] Purchase failed: \(error.localizedDescription)")
@@ -285,23 +314,33 @@ struct SubscriptionFlowScreen: View {
     // MARK: - Subscription Upgrade Flow
 
     private func upgradeSubscription(from currentSubscription: ActiveSubscription?, to product: OpenIapProduct) async {
-        print("⬆️ [SubscriptionFlow] Starting subscription upgrade")
+        let isUpgrade = getSubscriptionTier(product.id) > getSubscriptionTier(currentSubscription?.productId ?? "")
+        let changeType = isUpgrade ? "upgrade" : "downgrade"
+
+        print("🔄 [SubscriptionFlow] Starting subscription \(changeType)")
         print("  From: \(currentSubscription?.productId ?? "none")")
         print("  To: \(product.id)")
-        print("  iOS will automatically prorate the subscription")
+        print("  Type: \(changeType.uppercased())")
+        if isUpgrade {
+            print("  Note: Upgrade applies immediately with pro-rated refund")
+        } else {
+            print("  Note: Downgrade applies at next renewal date")
+        }
 
         do {
-            // Request the upgrade purchase
-            // iOS handles proration automatically when upgrading within the same subscription group
+            // Ignore return value - purchase events are emitted via onPurchaseSuccess listener
+            // For upgrades/downgrades, we reload subscriptions to ensure correct state
             _ = try await iapStore.requestPurchase(
                 sku: product.id,
                 type: .subs,
                 autoFinish: true
             )
 
-            print("✅ [SubscriptionFlow] Upgrade successful to: \(product.id)")
+            print("✅ [SubscriptionFlow] \(changeType.capitalized) request completed for: \(product.id)")
 
-            // Reload purchases to update UI
+            // Reload subscription state after upgrade/downgrade
+            // (onPurchaseSuccess may fire with old subscription for upgrades)
+            print("🔄 [SubscriptionFlow] Reloading subscriptions to get updated state...")
             await loadPurchases()
 
         } catch {
@@ -316,6 +355,7 @@ struct SubscriptionFlowScreen: View {
     // Get current active subscription
     private func getCurrentSubscription() -> ActiveSubscription? {
         // Use activeSubscriptions from store (includes renewalInfo)
+        // Include ALL active subscriptions, even cancelled ones (active until expiry)
         let activeSubs = iapStore.activeSubscriptions.filter { $0.isActive }
 
         // Return the subscription with the highest tier (yearly over monthly)
@@ -325,32 +365,54 @@ struct SubscriptionFlowScreen: View {
     // Determine upgrade possibilities
     private func getUpgradeInfo(from currentSubscription: ActiveSubscription?, to targetProductId: String) -> UpgradeInfo {
         guard let current = currentSubscription else {
+            // No active subscription = no upgrade
             return UpgradeInfo(canUpgrade: false, isDowngrade: false, currentTier: nil)
         }
 
-        // Check renewalInfo for pending upgrade
-        if let renewalInfo = current.renewalInfoIOS,
-           let pendingUpgrade = renewalInfo.pendingUpgradeProductId {
-            if pendingUpgrade == targetProductId {
-                return UpgradeInfo(
-                    canUpgrade: false,
-                    isDowngrade: false,
-                    currentTier: current.productId,
-                    message: "This upgrade will activate on your next renewal date",
-                    isPending: true
-                )
+        // Check if current subscription is cancelled
+        let isCancelled = current.renewalInfoIOS?.willAutoRenew == false
+
+        // If trying to subscribe to the same product that's cancelled, it's a reactivation
+        if current.productId == targetProductId {
+            if isCancelled {
+                // Same product, cancelled = show reactivate option
+                return UpgradeInfo(canUpgrade: false, isDowngrade: false, currentTier: current.productId)
+            } else {
+                // Same product, active = already subscribed
+                return UpgradeInfo(canUpgrade: false, isDowngrade: false, currentTier: current.productId)
             }
         }
 
-        // Don't show upgrade for the same product
-        if current.productId == targetProductId {
-            return UpgradeInfo(canUpgrade: false, isDowngrade: false, currentTier: current.productId)
+        // Check renewalInfo for pending upgrade (only for active, non-cancelled subscriptions)
+        if !isCancelled,
+           let renewalInfo = current.renewalInfoIOS,
+           let pendingUpgrade = renewalInfo.pendingUpgradeProductId,
+           pendingUpgrade == targetProductId {
+            return UpgradeInfo(
+                canUpgrade: false,
+                isDowngrade: false,
+                currentTier: current.productId,
+                message: "This upgrade will activate on your next renewal date",
+                isPending: true
+            )
         }
 
-        // Determine tier based on product ID
+        // Different product = upgrade or downgrade
         let currentTier = getSubscriptionTier(current.productId)
         let targetTier = getSubscriptionTier(targetProductId)
 
+        // If cancelled, don't allow tier changes (user should reactivate or wait for expiry)
+        if isCancelled {
+            print("🔍 [getUpgradeInfo] Cancelled subscription - blocking tier change from \(current.productId) to \(targetProductId)")
+            return UpgradeInfo(
+                canUpgrade: false,
+                isDowngrade: false,
+                currentTier: current.productId,
+                message: "Reactivate current subscription or wait until it expires"
+            )
+        }
+
+        // Active subscription: allow upgrades and downgrades
         let canUpgrade = targetTier > currentTier
         let isDowngrade = targetTier < currentTier
 
@@ -373,23 +435,32 @@ struct SubscriptionFlowScreen: View {
     }
     
     private func restorePurchases() async {
+        await MainActor.run {
+            isRefreshing = true
+        }
+
         do {
-            try await iapStore.refreshPurchases(forceSync: true)
+            // Just refresh active subscriptions without full sync
+            // (syncIOS can take a very long time)
             try await iapStore.getActiveSubscriptions()
             await MainActor.run {
-                print("✅ [SubscriptionFlow] Restored \(iapStore.activeSubscriptions.count) active subscriptions")
+                isRefreshing = false
+                print("✅ [SubscriptionFlow] Refreshed \(iapStore.activeSubscriptions.count) active subscriptions")
             }
         } catch {
             await MainActor.run {
-                errorMessage = "Failed to restore purchases: \(error.localizedDescription)"
+                isRefreshing = false
+                errorMessage = "Failed to refresh subscriptions: \(error.localizedDescription)"
                 showError = true
             }
         }
     }
-    
+
     private func manageSubscriptions() async {
         do {
+            print("🔧 [SubscriptionFlow] Opening subscription management...")
             _ = try await iapStore.showManageSubscriptionsIOS()
+            print("✅ [SubscriptionFlow] Returned from subscription management")
         } catch {
             await MainActor.run {
                 errorMessage = "Failed to open subscription management: \(error.localizedDescription)"
@@ -399,15 +470,82 @@ struct SubscriptionFlowScreen: View {
     }
     
     // MARK: - Event Handlers
-    
+
     private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
         print("✅ [SubscriptionFlow] Subscription successful: \(purchase.productId)")
-        
-        // Reload purchases to update UI
-        Task {
-            await loadPurchases()
+        print("📦 [SubscriptionFlow] Purchase fired immediately - no need to call getActiveSubscriptions()")
+
+        // Log detailed purchase info
+        print("   📋 Purchase Details:")
+        print("      • Transaction ID: \(purchase.id)")
+        print("      • Product ID: \(purchase.productId)")
+        print("      • Platform: \(purchase.platform)")
+        print("      • Purchase State: \(purchase.purchaseState)")
+        print("      • Is Auto-Renewing: \(purchase.isAutoRenewing)")
+
+        // Log iOS-specific info (purchase is already PurchaseIOS type)
+        print("   📱 iOS-specific Details:")
+        print("      • Subscription Group ID: \(purchase.subscriptionGroupIdIOS ?? "nil")")
+        print("      • Environment: \(purchase.environmentIOS ?? "nil")")
+        print("      • Transaction Reason: \(purchase.transactionReasonIOS ?? "nil")")
+        print("      • Is Upgraded: \(purchase.isUpgradedIOS ?? false)")
+
+        if let expirationDate = purchase.expirationDateIOS {
+            let date = Date(timeIntervalSince1970: expirationDate / 1000)
+            print("      • Expiration Date: \(date)")
         }
+
+        // Log renewalInfo details (KEY INFO FOR UPGRADES!)
+        if let renewalInfo = purchase.renewalInfoIOS {
+            print("   🔄 RenewalInfo (CRITICAL FOR UPGRADE DETECTION):")
+            print("      • willAutoRenew: \(renewalInfo.willAutoRenew)")
+            print("      • autoRenewPreference: \(renewalInfo.autoRenewPreference ?? "nil")")
+
+            if let pendingUpgrade = renewalInfo.pendingUpgradeProductId {
+                print("      • pendingUpgradeProductId: \(pendingUpgrade)")
+
+                // Detect upgrade vs current subscription
+                if pendingUpgrade != purchase.productId {
+                    print("      ⚠️ UPGRADE SCHEDULED: \(purchase.productId) → \(pendingUpgrade)")
+                } else {
+                    print("      ✅ Current subscription (no upgrade)")
+                }
+            } else {
+                print("      • pendingUpgradeProductId: nil")
+            }
+
+            if let renewalDate = renewalInfo.renewalDate {
+                let date = Date(timeIntervalSince1970: renewalDate / 1000)
+                print("      • renewalDate: \(date)")
+            }
+
+            if let expirationReason = renewalInfo.expirationReason {
+                print("      • expirationReason: \(expirationReason)")
+            }
+
+            if let gracePeriod = renewalInfo.gracePeriodExpirationDate {
+                let date = Date(timeIntervalSince1970: gracePeriod / 1000)
+                print("      • gracePeriodExpirationDate: \(date)")
+            }
+
+            if let isInBillingRetry = renewalInfo.isInBillingRetry {
+                print("      • isInBillingRetry: \(isInBillingRetry)")
+            }
+
+            if let priceIncreaseStatus = renewalInfo.priceIncreaseStatus {
+                print("      • priceIncreaseStatus: \(priceIncreaseStatus)")
+            }
+        } else {
+            print("   ⚠️ RenewalInfo: nil (not a subscription or not available)")
+        }
+
+        print("   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Show the recent purchase
         recentPurchase = purchase
+
+        // DO NOT call getActiveSubscriptions() here - it causes infinite rendering
+        // The store's handlePurchaseUpdate already updates activeSubscriptions directly from purchase data
     }
     
     private func handlePurchaseError(_ error: OpenIapError) {
@@ -450,8 +588,9 @@ private extension SubscriptionFlowScreen {
 
     func isCancelled(productId: String) -> Bool {
         // Check if subscription is active but won't auto-renew (cancelled)
-        if let subscription = iapStore.activeSubscriptions.first(where: { $0.productId == productId }) {
-            return subscription.isActive && subscription.renewalInfoIOS?.willAutoRenew == false
+        if let subscription = iapStore.activeSubscriptions.first(where: { $0.productId == productId }),
+           let renewalInfo = subscription.renewalInfoIOS {
+            return subscription.isActive && !renewalInfo.willAutoRenew
         }
         return false
     }
@@ -480,18 +619,26 @@ private extension SubscriptionFlowScreen {
     func purchaseResultCard(for purchase: OpenIapPurchase) -> some View {
         let transactionDate = Date(timeIntervalSince1970: purchase.transactionDate / 1000)
         let formattedDate = DateFormatter.localizedString(from: transactionDate, dateStyle: .short, timeStyle: .short)
+
+        // Check if this is an upgrade by looking at renewalInfo
+        let isUpgrade = purchase.renewalInfoIOS?.pendingUpgradeProductId != nil &&
+                       purchase.renewalInfoIOS?.pendingUpgradeProductId != purchase.productId
+
         let message = """
-        ✅ Subscription successful
+        ✅ \(isUpgrade ? "Upgrade" : "Subscription") successful
         Product: \(purchase.productId)
         Transaction ID: \(purchase.id)
         Date: \(formattedDate)
+
+        🔥 Fired immediately via onPurchaseSuccess
+        (No getActiveSubscriptions() call needed)
         """
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: isUpgrade ? "arrow.up.circle.fill" : "checkmark.circle.fill")
                     .foregroundColor(AppColors.success)
-                Text("Latest Subscription")
+                Text(isUpgrade ? "Upgrade Completed" : "Purchase Completed")
                     .font(.headline)
 
                 Spacer()

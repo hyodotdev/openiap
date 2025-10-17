@@ -469,7 +469,7 @@ Versions are centrally managed in `openiap-versions.json` at the monorepo root:
   "gql": "1.2.2",      // GraphQL schema version
   "docs": "1.2.2",     // Documentation version
   "google": "1.2.12",  // Android library version
-  "apple": "1.2.22"    // iOS/macOS library version
+  "apple": "1.2.23"    // iOS/macOS library version
 }
 ```
 
@@ -577,7 +577,7 @@ git push && git push --tags
 ./scripts/sync-versions.sh
 
 # 3. Create tag (triggers iOS release workflow)
-git tag apple-v1.2.22
+git tag apple-v1.2.23
 git push && git push --tags
 
 # GitHub Actions will:

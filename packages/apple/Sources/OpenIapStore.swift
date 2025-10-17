@@ -117,7 +117,34 @@ public final class OpenIapStore: ObservableObject {
                 || ios.isAutoRenewing
                 || (ios.subscriptionGroupIdIOS?.isEmpty == false)
             if shouldRefresh {
-                Task { await refreshPurchases() }
+                Task {
+                    await refreshPurchases()
+                }
+
+                // Update activeSubscriptions directly from purchase data (avoid calling getActiveSubscriptions)
+                // Skip if this transaction is upgraded - it means it's been replaced by a new subscription
+                if let expirationDate = ios.expirationDateIOS, ios.isUpgradedIOS != true {
+                    let isActive = Date(timeIntervalSince1970: expirationDate / 1000) > Date()
+
+                    let newSubscription = ActiveSubscription(
+                        autoRenewingAndroid: nil,
+                        daysUntilExpirationIOS: nil,
+                        environmentIOS: ios.environmentIOS,
+                        expirationDateIOS: expirationDate,
+                        isActive: isActive,
+                        productId: ios.productId,  // Keep current productId, not autoRenewPreference
+                        purchaseToken: ios.purchaseToken,
+                        renewalInfoIOS: ios.renewalInfoIOS,  // Future changes reflected here
+                        transactionDate: ios.transactionDate,
+                        transactionId: ios.transactionId,
+                        willExpireSoon: false
+                    )
+
+                    // Remove duplicates by transactionId
+                    activeSubscriptions = activeSubscriptions.filter { existing in
+                        existing.transactionId != ios.transactionId
+                    } + [newSubscription]
+                }
             }
         }
     }
@@ -288,7 +315,10 @@ public final class OpenIapStore: ObservableObject {
     }
 
     public func getActiveSubscriptions(subscriptionIds: [String]? = nil) async throws {
-        activeSubscriptions = try await module.getActiveSubscriptions(subscriptionIds)
+        let subs = try await module.getActiveSubscriptions(subscriptionIds)
+        await MainActor.run {
+            activeSubscriptions = subs
+        }
         OpenIapLog.debug("📊 activeSubscriptions: \(activeSubscriptions.count) subscriptions")
 
         // Show renewal info details

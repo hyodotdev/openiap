@@ -223,16 +223,29 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let transactionId = String(transaction.id)
             let shouldAutoFinish = iosProps.andDangerouslyFinishTransactionAutomatically == true
 
-            if await state.isProcessed(transactionId) == false {
-                await state.markProcessed(transactionId)
-                emitPurchaseUpdate(purchase)
-            }
+            let isSubscription = product.type == .autoRenewable
+
+            OpenIapLog.debug("""
+                🎯 [requestPurchase] Purchase successful:
+                - Requested SKU: \(sku)
+                - Returned Product: \(transaction.productID)
+                - Transaction ID: \(transactionId)
+                - Purchase Date: \(transaction.purchaseDate)
+                - Product Type: \(product.type == .autoRenewable ? "subscription" : "non-subscription")
+                - SKU matches: \(transaction.productID == sku)
+                - Note: \(isSubscription ? "Subscription transactions will be emitted via Transaction.updates" : "Emitting directly")
+                """)
 
             if shouldAutoFinish {
                 await transaction.finish()
             } else {
                 await state.storePending(id: transactionId, transaction: transaction)
             }
+
+            // Emit purchase update
+            // Note: Transaction.updates will NOT fire for purchases initiated via product.purchase()
+            // It only fires for background events (renewals, restores, external purchases)
+            emitPurchaseUpdate(purchase)
 
             return .purchase(purchase)
 
@@ -445,11 +458,17 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - Subscription Management
 
     public func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription] {
-        var subscriptions: [ActiveSubscription] = []
+        var allSubscriptions: [ActiveSubscription] = []
         for await verification in Transaction.currentEntitlements {
             do {
                 let transaction = try checkVerified(verification)
                 guard transaction.productType == .autoRenewable else { continue }
+
+                // Skip upgraded subscriptions - they've been replaced
+                if transaction.isUpgraded {
+                    continue
+                }
+
                 if let ids = subscriptionIds, ids.contains(transaction.productID) == false {
                     continue
                 }
@@ -468,7 +487,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 // Fetch renewal info for subscription
                 let renewalInfo = await StoreKitTypesBridge.subscriptionRenewalInfoIOS(for: transaction)
 
-                subscriptions.append(
+                allSubscriptions.append(
                     ActiveSubscription(
                         autoRenewingAndroid: nil,
                         daysUntilExpirationIOS: daysUntilExpiration,
@@ -487,7 +506,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 continue
             }
         }
-        return subscriptions
+
+        OpenIapLog.debug("📊 Returning \(allSubscriptions.count) active subscriptions")
+
+        // Upgraded subscriptions are already filtered out by transaction.isUpgraded check
+        // Return all remaining subscriptions (active, downgraded, and cancelled)
+        return allSubscriptions
     }
 
     public func hasActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> Bool {
@@ -832,8 +856,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func startTransactionListener() {
+        OpenIapLog.debug("🎧 [TransactionListener] Starting Transaction.updates listener...")
         updateListenerTask = Task { [weak self] in
-            guard let self else { return }
+            guard let self else {
+                OpenIapLog.debug("⚠️ [TransactionListener] Self is nil, exiting listener")
+                return
+            }
+            OpenIapLog.debug("✅ [TransactionListener] Listener task started, waiting for transactions...")
             for await verification in Transaction.updates {
                 do {
                     guard await self.state.isInitialized else { continue }
@@ -856,29 +885,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                         continue
                     }
 
-                    // For subscriptions, skip if we've already seen a newer transaction in the same group
-                    // This handles subscription upgrades where isUpgraded is not reliably set
-                    if await self.state.shouldProcessSubscriptionTransaction(transaction) == false {
-                        OpenIapLog.debug("⏭️ Skipping older subscription transaction: \(transactionId) (superseded by newer transaction in same group)")
-                        continue
-                    }
-
-                    if await self.state.isProcessed(transactionId) {
-                        OpenIapLog.debug("⏭️ Skipping already processed transaction: \(transactionId)")
-                        // Remove from processed set for future updates (e.g., subscription renewals)
-                        await self.state.unmarkProcessed(transactionId)
-                        continue
-                    }
-
-                    await self.state.markProcessed(transactionId)
+                    // Store pending and emit
                     await self.state.storePending(id: transactionId, transaction: transaction)
                     let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
-                    self.emitPurchaseUpdate(purchase)
 
-                    Task {
-                        try? await Task.sleep(nanoseconds: 5_000_000_000)
-                        await self.state.unmarkProcessed(transactionId)
-                    }
+                    OpenIapLog.debug("✅ [TransactionListener] Emitting transaction: \(transactionId) for product: \(transaction.productID)")
+                    self.emitPurchaseUpdate(purchase)
                 } catch {
                     let purchaseError: PurchaseError
                     if let existing = error as? PurchaseError {

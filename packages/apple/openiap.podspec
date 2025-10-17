@@ -1,7 +1,7 @@
 require 'json'
 
 # Read version from monorepo root
-version_file = File.join(__dir__, '../../versions.json')
+version_file = File.join(__dir__, '../../openiap-versions.json')
 versions = JSON.parse(File.read(version_file))
 
 Pod::Spec.new do |s|
