@@ -36,8 +36,10 @@ import android.content.Context
 import com.android.billingclient.api.BillingClient
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.utils.toProduct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,14 +50,16 @@ import kotlinx.coroutines.launch
 
 /**
  * OpenIapStore (Android)
- * Convenience store that wraps OpenIapModule and provides spec-aligned, suspend APIs
- * with observable StateFlows for UI layers (Compose/XML) to consume.
- *
- * @param module OpenIapModule instance
+ * Convenience store that wraps an [OpenIapProtocol] implementation (Play Store or Horizon)
+ * and exposes suspend APIs with observable StateFlows for UI layers to consume.
  */
-class OpenIapStore(private val module: OpenIapModule) {
+class OpenIapStore(private val module: OpenIapProtocol) {
+    constructor(context: Context) : this(buildModule(context, null, null))
+    constructor(context: Context, store: String?) : this(buildModule(context, store, null))
+    constructor(context: Context, store: String?, appId: String?) : this(buildModule(context, store, appId))
+
     /**
-     * Convenience constructor that creates OpenIapModule
+     * Convenience constructor that creates OpenIapModule with alternative billing support
      *
      * @param context Android context
      * @param alternativeBillingMode Alternative billing mode (default: NONE)
@@ -65,7 +69,7 @@ class OpenIapStore(private val module: OpenIapModule) {
         context: Context,
         alternativeBillingMode: dev.hyo.openiap.AlternativeBillingMode = dev.hyo.openiap.AlternativeBillingMode.NONE,
         userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null
-    ) : this(OpenIapModule(context, alternativeBillingMode, userChoiceBillingListener))
+    ) : this(OpenIapModule(context, alternativeBillingMode, userChoiceBillingListener) as OpenIapProtocol)
 
     /**
      * Convenience constructor for backward compatibility
@@ -77,7 +81,7 @@ class OpenIapStore(private val module: OpenIapModule) {
     constructor(
         context: Context,
         enableAlternativeBilling: Boolean
-    ) : this(OpenIapModule(context, enableAlternativeBilling))
+    ) : this(OpenIapModule(context, enableAlternativeBilling) as OpenIapProtocol)
 
     // Public state
     private val _isConnected = MutableStateFlow(false)
@@ -291,7 +295,8 @@ class OpenIapStore(private val module: OpenIapModule) {
         }
 
         try {
-            module.requestPurchase(props)
+            module.mutationHandlers.requestPurchase?.invoke(props)
+                ?: throw OpenIapError.NotSupported
         } finally {
             if (skuForStatus != null) removePurchasing(skuForStatus)
         }
@@ -304,7 +309,7 @@ class OpenIapStore(private val module: OpenIapModule) {
         // Check if already processed - but we can't check isAcknowledgedAndroid on PurchaseInput
         if (token == null || !processedPurchaseTokens.contains(token)) {
             try {
-                module.finishTransaction(purchaseInput, isConsumable)
+                module.mutationHandlers.finishTransaction?.invoke(purchaseInput, isConsumable)
                 if (token != null) processedPurchaseTokens.add(token)
             } catch (e: Exception) {
                 setError(e.message)
@@ -318,12 +323,12 @@ class OpenIapStore(private val module: OpenIapModule) {
     // Subscriptions
     // -------------------------------------------------------------------------
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription> =
-        module.getActiveSubscriptions(subscriptionIds)
+        module.queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds) ?: emptyList()
 
     suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean =
-        module.hasActiveSubscriptions(subscriptionIds)
+        module.queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
 
-    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.deepLinkToSubscriptions(options)
+    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.mutationHandlers.deepLinkToSubscriptions?.invoke(options)
 
     // -------------------------------------------------------------------------
     // Alternative Billing (Step-by-Step API)
@@ -492,4 +497,59 @@ sealed class IapOperationResult {
     object Success : IapOperationResult()
     data class Failure(val message: String) : IapOperationResult()
     object Cancelled : IapOperationResult()
+}
+
+private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
+    // Get default store from BuildConfig if available
+    val defaultStore = try {
+        val buildConfig = Class.forName("io.github.hyochan.openiap.BuildConfig")
+        buildConfig.getField("OPENIAP_STORE").get(null) as? String ?: "play"
+    } catch (e: Throwable) {
+        "play"
+    }
+
+    val selected = (store ?: defaultStore).lowercase()
+    val resolvedAppId = appId ?: ""
+
+    return when (selected) {
+        "horizon", "meta", "quest" -> {
+            try {
+                val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
+                val constructor = clazz.getConstructor(Context::class.java, String::class.java)
+                constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
+            } catch (e: Throwable) {
+                // Fallback to Play Store implementation
+                OpenIapModule(context) as OpenIapProtocol
+            }
+        }
+        "auto" -> {
+            // Auto-detect environment
+            if (isHorizonEnvironment(context)) {
+                try {
+                    val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
+                    val constructor = clazz.getConstructor(Context::class.java, String::class.java)
+                    constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
+                } catch (e: Throwable) {
+                    OpenIapModule(context) as OpenIapProtocol
+                }
+            } else {
+                OpenIapModule(context) as OpenIapProtocol
+            }
+        }
+        else -> {
+            // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
+            OpenIapModule(context) as OpenIapProtocol
+        }
+    }
+}
+
+private fun isHorizonEnvironment(context: Context): Boolean {
+    val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+    if (manufacturer.contains("meta") || manufacturer.contains("oculus")) return true
+    return try {
+        context.packageManager.getPackageInfo("com.oculus.vrshell", 0)
+        true
+    } catch (_: Throwable) {
+        false
+    }
 }

@@ -17,6 +17,24 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+
+        buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+        buildConfigField("String", "HORIZON_APP_ID", "\"\"")
+    }
+
+    flavorDimensions += "store"
+
+    productFlavors {
+        create("play") {
+            dimension = "store"
+            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+            buildConfigField("String", "HORIZON_APP_ID", "\"\"")
+        }
+        create("horizon") {
+            dimension = "store"
+            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
+            buildConfigField("String", "HORIZON_APP_ID", "\"\"")
+        }
     }
 
     buildTypes {
@@ -44,6 +62,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

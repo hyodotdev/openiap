@@ -33,6 +33,18 @@ android {
         }
     }
 
+    flavorDimensions += "store"
+    productFlavors {
+        create("play") {
+            dimension = "store"
+            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+        }
+        create("horizon") {
+            dimension = "store"
+            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -45,6 +57,7 @@ android {
     // Enable Compose for composables in this library (IapContext)
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -54,7 +67,10 @@ dependencies {
     
     // Google Play Billing Library (align with app/lib v8)
     api("com.android.billingclient:billing-ktx:8.0.0")
-    
+
+    // Horizon Billing Compatibility Library (for horizon flavor only)
+    add("horizonImplementation", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:1.1.1")
+
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
@@ -80,6 +96,13 @@ dependencies {
 mavenPublishing {
     val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"
     coordinates(groupId, "openiap-google", openIapVersion)
+
+    // Publish the Play flavor (default for Google Play Store)
+    configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+        variant = "playRelease",
+        sourcesJar = true,
+        publishJavadocJar = true
+    ))
 
     // Use the new Central Portal publishing which avoids Nexus staging profile lookups.
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)

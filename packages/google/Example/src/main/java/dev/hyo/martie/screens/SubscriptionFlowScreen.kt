@@ -84,7 +84,9 @@ fun SubscriptionFlowScreen(
 
     // SharedPreferences to track current offer (necessary since Google doesn't provide offer info)
     val prefs = remember { context.getSharedPreferences(SUBSCRIPTION_PREFS_NAME, Context.MODE_PRIVATE) }
-    val iapStore = storeParam ?: remember(appContext) { OpenIapStore(appContext) }
+    val iapStore = storeParam ?: remember(appContext) {
+        OpenIapStore(appContext)
+    }
     val products by iapStore.products.collectAsState()
     val subscriptions by iapStore.subscriptions.collectAsState()
     val purchases by iapStore.availablePurchases.collectAsState()
