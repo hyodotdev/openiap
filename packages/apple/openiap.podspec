@@ -13,17 +13,17 @@ Pod::Spec.new do |s|
     Supports iOS and macOS with a simple and intuitive API.
   DESC
 
-  s.homepage         = 'https://github.com/hyodotdev/openiap-apple'
-  s.license          = { :type => 'MIT', :file => 'LICENSE' }
+  s.homepage         = 'https://github.com/hyodotdev/openiap'
+  s.license          = { :type => 'MIT', :file => 'packages/apple/LICENSE' }
   s.author           = { 'hyodotdev' => 'hyo@hyo.dev' }
-  s.source           = { :git => 'https://github.com/hyodotdev/openiap-apple.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => "apple-v#{s.version}" }
 
   s.ios.deployment_target = '15.0'
   s.osx.deployment_target = '14.0'
 
   s.swift_version = '5.9'
-  s.source_files = 'Sources/**/*.swift'
-  
+  s.source_files = 'packages/apple/Sources/**/*.swift'
+
   s.frameworks = 'StoreKit'
   s.requires_arc = true
   s.module_name = 'OpenIAP'
