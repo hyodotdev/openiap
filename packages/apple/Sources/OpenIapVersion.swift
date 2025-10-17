@@ -4,7 +4,7 @@ import Foundation
 public struct OpenIapVersion {
     /// Current OpenIAP Apple SDK version
     /// This version is managed in monorepo root versions.json
-    public static let current: String = "1.2.22"
+    public static let current: String = "1.2.23"
 
     /// OpenIAP GraphQL version for reference
     /// This version is managed in monorepo root versions.json

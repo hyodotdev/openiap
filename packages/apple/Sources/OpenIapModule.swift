@@ -463,6 +463,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             do {
                 let transaction = try checkVerified(verification)
                 guard transaction.productType == .autoRenewable else { continue }
+
+                // Skip upgraded subscriptions - they've been replaced
+                if transaction.isUpgraded {
+                    continue
+                }
+
                 if let ids = subscriptionIds, ids.contains(transaction.productID) == false {
                     continue
                 }
@@ -501,51 +507,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
         }
 
-        OpenIapLog.debug("🔍 [getActiveSubscriptions] Found \(allSubscriptions.count) subscriptions")
+        OpenIapLog.debug("📊 Returning \(allSubscriptions.count) active subscriptions")
 
-        // Filter out upgraded subscriptions only
-        // Keep current active subscriptions even if they have a pending downgrade
-        var filteredSubscriptions: [ActiveSubscription] = []
-
-        // Group by subscription group to detect upgrades
-        var subscriptionsByGroup: [String: [ActiveSubscription]] = [:]
-        for subscription in allSubscriptions {
-            // For cancelled subscriptions (willAutoRenew = false), always keep them
-            guard let renewalInfo = subscription.renewalInfoIOS,
-                  renewalInfo.willAutoRenew else {
-                filteredSubscriptions.append(subscription)
-                continue
-            }
-
-            // Group active subscriptions by their renewal preference
-            let nextRenewalProductId = renewalInfo.autoRenewPreference ?? subscription.productId
-            if subscriptionsByGroup[nextRenewalProductId] == nil {
-                subscriptionsByGroup[nextRenewalProductId] = []
-            }
-            subscriptionsByGroup[nextRenewalProductId]?.append(subscription)
-        }
-
-        // For each group, keep only the subscription that matches the renewal preference
-        // or the current active one if different (downgrade scenario)
-        for (nextRenewalProductId, subs) in subscriptionsByGroup {
-            // Find the subscription that matches the next renewal product
-            if let matchingSub = subs.first(where: { $0.productId == nextRenewalProductId }) {
-                filteredSubscriptions.append(matchingSub)
-            } else if let currentSub = subs.first {
-                // Downgrade scenario: keep current subscription even though it will change
-                // Example: premium_year (current) will renew as premium (next)
-                filteredSubscriptions.append(currentSub)
-            }
-        }
-
-        let filteredCount = allSubscriptions.count - filteredSubscriptions.count
-        if filteredCount > 0 {
-            OpenIapLog.debug("📊 Returning \(filteredSubscriptions.count) active subscriptions (filtered out \(filteredCount) upgraded)")
-        } else {
-            OpenIapLog.debug("📊 Returning \(filteredSubscriptions.count) active subscriptions")
-        }
-
-        return filteredSubscriptions
+        // Upgraded subscriptions are already filtered out by transaction.isUpgraded check
+        // Return all remaining subscriptions (active, downgraded, and cancelled)
+        return allSubscriptions
     }
 
     public func hasActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> Bool {

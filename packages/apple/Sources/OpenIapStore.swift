@@ -126,32 +126,23 @@ public final class OpenIapStore: ObservableObject {
                 if let expirationDate = ios.expirationDateIOS, ios.isUpgradedIOS != true {
                     let isActive = Date(timeIntervalSince1970: expirationDate / 1000) > Date()
 
-                    // Use autoRenewPreference as the productId for active subscription
-                    // This ensures we show the subscription that will actually renew
-                    let activeProductId = ios.renewalInfoIOS?.autoRenewPreference ?? ios.productId
-
                     let newSubscription = ActiveSubscription(
                         autoRenewingAndroid: nil,
                         daysUntilExpirationIOS: nil,
                         environmentIOS: ios.environmentIOS,
                         expirationDateIOS: expirationDate,
                         isActive: isActive,
-                        productId: activeProductId,
+                        productId: ios.productId,  // Keep current productId, not autoRenewPreference
                         purchaseToken: ios.purchaseToken,
-                        renewalInfoIOS: ios.renewalInfoIOS,
+                        renewalInfoIOS: ios.renewalInfoIOS,  // Future changes reflected here
                         transactionDate: ios.transactionDate,
                         transactionId: ios.transactionId,
                         willExpireSoon: false
                     )
 
-                    // Remove prior entries for the current or next-renewing product to avoid duplicates
-                    let currentId = ios.productId
-                    let renewingId = activeProductId
+                    // Remove duplicates by transactionId
                     activeSubscriptions = activeSubscriptions.filter { existing in
-                        // Drop entries that represent the current product or the next auto-renew product
-                        let isSameProduct = (existing.productId == currentId) || (existing.productId == renewingId)
-                        let pointsToSameRenewal = existing.renewalInfoIOS?.autoRenewPreference == renewingId
-                        return !isSameProduct && !pointsToSameRenewal
+                        existing.transactionId != ios.transactionId
                     } + [newSubscription]
                 }
             }
