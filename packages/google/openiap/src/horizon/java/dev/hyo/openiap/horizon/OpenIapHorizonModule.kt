@@ -92,7 +92,11 @@ class OpenIapHorizonModule(
     companion object {
         // CRITICAL FIX: Shared purchase cache across all OpenIapHorizonModule instances
         // This ensures purchases are available even when connection is closed and reopened
-        private val sharedPurchaseCache = mutableMapOf<String, Purchase>() // productId -> Purchase
+        // Using ConcurrentHashMap for thread-safety across coroutines
+        private val sharedPurchaseCache = java.util.concurrent.ConcurrentHashMap<String, Purchase>()
+
+        // Delay before proactively querying purchases after billing flow
+        private const val PURCHASE_QUERY_DELAY_MS = 500L
     }
 
     private var billingClient: BillingClient? = null
@@ -466,7 +470,7 @@ class OpenIapHorizonModule(
                             // Horizon SDK may not always trigger the callback, so we query after a delay
                             OpenIapLog.i("launchBillingFlow started successfully, will query purchases proactively", TAG)
                             scope.launch {
-                                delay(500) // Wait for purchase to complete
+                                delay(PURCHASE_QUERY_DELAY_MS) // Wait for purchase to complete
                                 try {
                                     val queried = restorePurchasesHorizon(billingClient)
                                     val filtered = if (androidArgs.skus.isEmpty()) {

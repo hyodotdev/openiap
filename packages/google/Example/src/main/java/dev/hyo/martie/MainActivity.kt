@@ -16,7 +16,6 @@ import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.*
 import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.store.OpenIapStore
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     // CRITICAL FIX: Create OpenIapStore at Activity level to persist across navigation
