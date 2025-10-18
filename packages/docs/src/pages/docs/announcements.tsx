@@ -30,6 +30,105 @@ function Announcements() {
               flexWrap: 'wrap',
             }}
           >
+            <img
+              src="/meta.svg"
+              alt="Meta Horizon"
+              style={{ width: '48px', height: '48px' }}
+            />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              Meta Horizon OS Support is Here!
+            </h2>
+          </div>
+          <p
+            style={{
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '1rem',
+            }}
+          >
+            October 2025
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            OpenIAP now officially supports{' '}
+            <a
+              href="https://developers.meta.com/horizon"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              Meta Horizon OS
+            </a>
+            ! Build immersive VR experiences with Quest devices while using the
+            same unified API you know and love.
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Auto-detection</strong>: Automatically switches between
+              Google Play and Horizon billing based on device
+            </li>
+            <li>
+              <strong>Unified API</strong>: Same code works on Android phones,
+              tablets, and Quest headsets
+            </li>
+            <li>
+              <strong>Full feature support</strong>: Subscriptions, consumables,
+              non-consumables, and alternative billing
+            </li>
+            <li>
+              <strong>Production ready</strong>: Thread-safe implementation with
+              comprehensive error handling
+            </li>
+          </ul>
+          <div
+            style={{
+              marginTop: '1.5rem',
+              padding: '1rem',
+              background: 'var(--bg-secondary)',
+              borderRadius: '0.5rem',
+              borderLeft: '4px solid var(--primary-color)',
+            }}
+          >
+            <strong>Getting Started:</strong> Available in{' '}
+            <code>openiap-google@1.3.0</code> and later. Check out the{' '}
+            <a
+              href="/docs/horizon-setup"
+              className="external-link"
+            >
+              Horizon OS guide
+            </a>{' '}
+            for details.
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '2px solid var(--border-color)',
+            borderRadius: '1rem',
+            padding: '2rem',
+            marginBottom: '2rem',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden',
+            overflowWrap: 'break-word',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
             <span style={{ fontSize: '2rem' }}>📰</span>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               openiap-gql v1.0.0 is live
