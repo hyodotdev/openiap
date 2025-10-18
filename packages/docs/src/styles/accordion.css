@@ -1,0 +1,122 @@
+/* Accordion Component */
+.accordion {
+  margin: 1.5rem 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.accordion-header {
+  width: 100%;
+  padding: 1rem;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-align: left;
+}
+
+.accordion-header:hover {
+  opacity: 0.9;
+}
+
+.accordion-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.accordion-icon {
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.accordion-icon.open {
+  transform: rotate(180deg);
+}
+
+.accordion-content-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  transition:
+    max-height 0.3s ease-out,
+    opacity 0.2s ease-out;
+  opacity: 0;
+}
+
+.accordion-content-wrapper.open {
+  max-height: 2000px; /* Large enough to accommodate content */
+  opacity: 1;
+  transition:
+    max-height 0.4s ease-in,
+    opacity 0.3s ease-in;
+}
+
+.accordion-content {
+  padding: 0 1rem 1rem 1rem;
+}
+
+.accordion-content p,
+.accordion-content ul,
+.accordion-content ol,
+.accordion-content li {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.accordion-content ul,
+.accordion-content ol {
+  margin-bottom: 0;
+  padding-left: 1.5rem;
+}
+
+/* Info variant (blue) */
+.accordion-info {
+  border-left: 4px solid #0c7cd5;
+  background-color: rgba(12, 124, 213, 0.08);
+}
+
+.accordion-info .accordion-header {
+  background-color: transparent;
+}
+
+:root.dark .accordion-info {
+  background-color: rgba(12, 124, 213, 0.15);
+  border-left-color: #3b9eff;
+}
+
+/* Tip variant (green) */
+.accordion-tip {
+  border-left: 4px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.08);
+}
+
+.accordion-tip .accordion-header {
+  background-color: transparent;
+}
+
+:root.dark .accordion-tip {
+  background-color: rgba(16, 185, 129, 0.15);
+  border-left-color: #34d399;
+}
+
+/* Warning variant (yellow) */
+.accordion-warning {
+  border-left: 4px solid #f59e0b;
+  background-color: rgba(245, 158, 11, 0.08);
+}
+
+.accordion-warning .accordion-header {
+  background-color: transparent;
+}
+
+:root.dark .accordion-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-left-color: #fbbf24;
+}
