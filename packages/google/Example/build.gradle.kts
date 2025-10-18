@@ -35,20 +35,32 @@ android {
         buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
     }
 
-    flavorDimensions += "store"
+    flavorDimensions += "platform"
 
     productFlavors {
-        val storeOverride = (project.findProperty("EXAMPLE_OPENIAP_STORE") as String?)
+        // Auto flavor (default) - includes both libraries, detects platform at runtime
+        create("auto") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"auto\"")
+            isDefault = true
 
-        create("play") {
-            dimension = "store"
-            val value = storeOverride ?: "play"
-            buildConfigField("String", "OPENIAP_STORE", "\"${value}\"")
+            // Dynamically inject OCULUS_APP_ID into AndroidManifest (needed for Horizon)
+            val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
+                ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
+                ?: ""
+            manifestPlaceholders["OCULUS_APP_ID"] = appId
         }
+
+        // Play flavor - Google Play Billing only
+        create("play") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+        }
+
+        // Horizon flavor - Meta Horizon Billing only
         create("horizon") {
-            dimension = "store"
-            val value = storeOverride ?: "horizon"
-            buildConfigField("String", "OPENIAP_STORE", "\"${value}\"")
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
 
             // Dynamically inject OCULUS_APP_ID into AndroidManifest
             val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
