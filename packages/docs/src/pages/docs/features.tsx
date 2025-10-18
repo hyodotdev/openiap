@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
 import PlatformTabs from '../../components/PlatformTabs';
