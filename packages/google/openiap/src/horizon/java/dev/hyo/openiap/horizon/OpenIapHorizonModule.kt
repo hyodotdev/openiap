@@ -60,6 +60,10 @@ import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
+import dev.hyo.openiap.helpers.restorePurchasesHorizon
+import dev.hyo.openiap.helpers.queryPurchasesHorizon
+import dev.hyo.openiap.helpers.HorizonProductManager
+import dev.hyo.openiap.helpers.queryProductDetailsHorizon
 import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
 import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
@@ -78,9 +82,17 @@ class OpenIapHorizonModule(
     private val appId: String? = null
 ) : OpenIapProtocol, PurchasesUpdatedListener {
 
+    companion object {
+        // CRITICAL FIX: Shared purchase cache across all OpenIapHorizonModule instances
+        // This ensures purchases are available even when connection is closed and reopened
+        private val sharedPurchaseCache = mutableMapOf<String, Purchase>() // productId -> Purchase
+    }
+
     private var billingClient: BillingClient? = null
     private var currentActivityRef: WeakReference<Activity>? = null
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
+    private val productManager = HorizonProductManager()
+    private val fallbackActivity: Activity? = if (context is Activity) context else null
 
     private val purchaseUpdateListeners = mutableSetOf<OpenIapPurchaseUpdateListener>()
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
@@ -132,19 +144,41 @@ class OpenIapHorizonModule(
             val client = billingClient ?: throw OpenIapError.NotPrepared
             if (params.skus.isEmpty()) throw OpenIapError.EmptySkuList
 
+            OpenIapLog.i("=== HORIZON fetchProducts ===", TAG)
+            OpenIapLog.i("Requested SKUs: ${params.skus}", TAG)
+            OpenIapLog.i("Query type: ${params.type}", TAG)
+
             val queryType = params.type ?: ProductQueryType.All
             val includeInApp = queryType == ProductQueryType.InApp || queryType == ProductQueryType.All
             val includeSubs = queryType == ProductQueryType.Subs || queryType == ProductQueryType.All
 
             val inAppProducts = if (includeInApp) {
-                queryProductDetails(client, params.skus, BillingClient.ProductType.INAPP)
-                    .map { it.toInAppProduct() }
+                try {
+                    val details = queryProductDetailsHorizon(client, productManager, params.skus, BillingClient.ProductType.INAPP)
+                    OpenIapLog.i("Successfully fetched ${details.size} INAPP products", TAG)
+                    details.map { it.toInAppProduct() }
+                } catch (e: Exception) {
+                    OpenIapLog.w("Failed to fetch INAPP products: ${e.message}", TAG)
+                    emptyList()
+                }
             } else emptyList()
 
             val subscriptionProducts = if (includeSubs) {
-                queryProductDetails(client, params.skus, BillingClient.ProductType.SUBS)
-                    .map { it.toSubscriptionProduct() }
+                try {
+                    val details = queryProductDetailsHorizon(client, productManager, params.skus, BillingClient.ProductType.SUBS)
+                    OpenIapLog.i("Successfully fetched ${details.size} SUBS products", TAG)
+                    details.forEach { product ->
+                        OpenIapLog.d("  - SUBS: ${product.productId}", TAG)
+                    }
+                    details.map { it.toSubscriptionProduct() }
+                } catch (e: Exception) {
+                    OpenIapLog.w("Failed to fetch SUBS products: ${e.message}", TAG)
+                    emptyList()
+                }
             } else emptyList()
+
+            OpenIapLog.i("Total products: INAPP=${inAppProducts.size}, SUBS=${subscriptionProducts.size}", TAG)
+            OpenIapLog.i("=== END fetchProducts ===", TAG)
 
             when (queryType) {
                 ProductQueryType.InApp -> FetchProductsResultProducts(inAppProducts)
@@ -161,27 +195,93 @@ class OpenIapHorizonModule(
     }
 
     override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { _ ->
+        android.util.Log.i("HORIZON_QUERY", "getAvailablePurchases BEFORE withContext")
         withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            val purchases = queryPurchases(client, BillingClient.ProductType.INAPP) +
-                queryPurchases(client, BillingClient.ProductType.SUBS)
-            purchases
+            android.util.Log.i("HORIZON_QUERY", "=== getAvailablePurchases INSIDE withContext ===")
+            OpenIapLog.i("=== HORIZON getAvailablePurchases ===", TAG)
+
+            val purchases = restorePurchasesHorizon(billingClient)
+            android.util.Log.i("HORIZON_QUERY", "Retrieved ${purchases.size} purchases from query")
+            OpenIapLog.i("Retrieved ${purchases.size} total purchases (INAPP + SUBS)", TAG)
+
+            // CRITICAL FIX: Merge with cached purchases
+            val cachedPurchases = sharedPurchaseCache.values.toList()
+            android.util.Log.i("HORIZON_QUERY", "Cached purchases: ${cachedPurchases.size}")
+
+            // Combine query results with cache, preferring query results
+            val purchaseMap = mutableMapOf<String, Purchase>()
+            cachedPurchases.forEach { purchaseMap[it.productId] = it }
+            purchases.forEach { purchaseMap[it.productId] = it } // Override with fresh data
+
+            val allPurchases = purchaseMap.values.toList()
+            android.util.Log.i("HORIZON_QUERY", "Total purchases (query + cache): ${allPurchases.size}")
+
+            allPurchases.forEachIndexed { index, purchase ->
+                val txnId = when (purchase) {
+                    is dev.hyo.openiap.PurchaseAndroid -> purchase.transactionId
+                    else -> "N/A"
+                }
+                android.util.Log.i("HORIZON_QUERY", "Purchase[$index] productId=${purchase.productId} txnId=$txnId")
+                OpenIapLog.i(
+                    "  [$index] productId=${purchase.productId} " +
+                    "transactionId=$txnId " +
+                    "platform=${purchase.platform}",
+                    TAG
+                )
+            }
+            android.util.Log.i("HORIZON_QUERY", "=== getAvailablePurchases END ===")
+            OpenIapLog.i("=== END getAvailablePurchases ===", TAG)
+            allPurchases
         }
     }
 
     override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->
         withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            val subs = queryPurchases(client, BillingClient.ProductType.SUBS)
-            val filtered = if (subscriptionIds.isNullOrEmpty()) {
-                subs
-            } else {
-                subs.filter { purchase ->
-                    val id = (purchase as? PurchaseAndroid)?.productId
-                    subscriptionIds.contains(id)
-                }
+            android.util.Log.i("HORIZON_QUERY", "=== getActiveSubscriptions START ===")
+            android.util.Log.i("HORIZON_QUERY", "Requested IDs: $subscriptionIds")
+            OpenIapLog.i("=== HORIZON getActiveSubscriptions ===", TAG)
+            OpenIapLog.i("Requested subscriptionIds: $subscriptionIds", TAG)
+
+            val allPurchases = queryPurchasesHorizon(billingClient, BillingClient.ProductType.SUBS)
+            android.util.Log.i("HORIZON_QUERY", "Raw query returned ${allPurchases.size} SUBS purchases")
+            OpenIapLog.i("Total SUBS purchases from query: ${allPurchases.size}", TAG)
+
+            allPurchases.forEachIndexed { index, purchase ->
+                android.util.Log.i("HORIZON_QUERY", "RawPurchase[$index] productId=${purchase.productId} type=${purchase.javaClass.simpleName}")
             }
-            filtered.mapNotNull { (it as? PurchaseAndroid)?.toActiveSubscription() }
+
+            val androidPurchases = allPurchases.filterIsInstance<PurchaseAndroid>()
+            android.util.Log.i("HORIZON_QUERY", "Filtered to ${androidPurchases.size} PurchaseAndroid instances")
+            OpenIapLog.i("PurchaseAndroid instances: ${androidPurchases.size}", TAG)
+
+            val ids = subscriptionIds.orEmpty()
+            val filtered = if (ids.isEmpty()) {
+                android.util.Log.i("HORIZON_QUERY", "No filter - returning all")
+                OpenIapLog.i("No filter - returning all subscriptions", TAG)
+                androidPurchases
+            } else {
+                android.util.Log.i("HORIZON_QUERY", "Filtering by IDs: $ids")
+                OpenIapLog.i("Filtering by IDs: $ids", TAG)
+                androidPurchases.filter { it.productId in ids }
+            }
+
+            android.util.Log.i("HORIZON_QUERY", "After filtering: ${filtered.size} subscriptions")
+            OpenIapLog.i("Filtered subscriptions count: ${filtered.size}", TAG)
+            val activeSubscriptions = filtered.map { it.toActiveSubscription() }
+
+            activeSubscriptions.forEachIndexed { index, sub ->
+                android.util.Log.i("HORIZON_QUERY", "ActiveSub[$index] productId=${sub.productId} active=${sub.isActive}")
+                OpenIapLog.i(
+                    "  [$index] productId=${sub.productId} " +
+                    "isActive=${sub.isActive} " +
+                    "autoRenewing=${sub.autoRenewingAndroid}",
+                    TAG
+                )
+            }
+
+            android.util.Log.i("HORIZON_QUERY", "=== getActiveSubscriptions END - returning ${activeSubscriptions.size} ===")
+            OpenIapLog.i("=== END getActiveSubscriptions ===", TAG)
+            activeSubscriptions
         }
     }
 
@@ -191,33 +291,24 @@ class OpenIapHorizonModule(
 
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
             val androidArgs = props.toAndroidPurchaseArgs()
-            if (androidArgs.skus.isEmpty()) throw OpenIapError.EmptySkuList
+            val activity = currentActivityRef?.get() ?: fallbackActivity
 
-            val activity = currentActivityRef?.get() ?: (context as? Activity)
             if (activity == null) {
                 val err = OpenIapError.MissingCurrentActivity
                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
                 return@withContext emptyList()
             }
 
-            val desiredType = if (androidArgs.type == ProductQueryType.Subs) {
-                BillingClient.ProductType.SUBS
-            } else BillingClient.ProductType.INAPP
-
-            val details = queryProductDetails(client, androidArgs.skus, desiredType)
-            if (details.isEmpty()) {
-                val err = OpenIapError.SkuNotFound(androidArgs.skus.firstOrNull().orEmpty())
+            val client = billingClient
+            if (client == null) {
+                val err = OpenIapError.NotPrepared
                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
                 return@withContext emptyList()
             }
 
-            val detailsBySku = details.associateBy { it.productId }
-            val orderedDetails = androidArgs.skus.mapNotNull { detailsBySku[it] }
-            if (orderedDetails.size != androidArgs.skus.size) {
-                val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
-                val err = OpenIapError.SkuNotFound(missingSku ?: "")
+            if (androidArgs.skus.isEmpty()) {
+                val err = OpenIapError.EmptySkuList
                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
                 return@withContext emptyList()
             }
@@ -227,33 +318,178 @@ class OpenIapHorizonModule(
                     if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
                 }
 
-                val paramsList = orderedDetails.mapIndexed { index, detail ->
-                    val builder = BillingFlowParams.ProductDetailsParams.newBuilder()
-                        .setProductDetails(detail)
-                    if (desiredType == BillingClient.ProductType.SUBS) {
-                        val fromOffers = androidArgs.subscriptionOffers
-                            ?.firstOrNull { it.sku == detail.productId }
-                            ?.offerToken
-                        val resolvedToken = fromOffers
-                            ?: detail.subscriptionOfferDetails?.firstOrNull()?.offerToken
-                        resolvedToken?.let { builder.setOfferToken(it) }
-                    }
-                    builder.build()
+                val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
+
+                val detailsBySku = mutableMapOf<String, HorizonProductDetails>()
+                androidArgs.skus.forEach { sku ->
+                    productManager.get(sku)?.takeIf { it.productType == desiredType }?.let { detailsBySku[sku] = it }
                 }
 
-                val flowBuilder = BillingFlowParams.newBuilder()
-                    .setProductDetailsParamsList(paramsList)
-                    .setIsOfferPersonalized(androidArgs.isOfferPersonalized == true)
+                val missing = androidArgs.skus.filter { !detailsBySku.containsKey(it) }
 
-                androidArgs.obfuscatedAccountId?.let { flowBuilder.setObfuscatedAccountId(it) }
-                androidArgs.obfuscatedProfileId?.let { flowBuilder.setObfuscatedProfileId(it) }
+                fun buildAndLaunch(details: List<HorizonProductDetails>) {
+                    val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
+                    val requestedOffersBySku = mutableMapOf<String, MutableList<String>>()
 
-                val result = client.launchBillingFlow(activity, flowBuilder.build())
-                if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                    val error = OpenIapError.fromBillingResponseCode(result.responseCode, result.debugMessage)
-                    purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(error) } }
-                    if (continuation.isActive) continuation.resume(emptyList())
-                    currentPurchaseCallback = null
+                    if (androidArgs.type == ProductQueryType.Subs) {
+                        androidArgs.subscriptionOffers.orEmpty().forEach { offer ->
+                            if (offer.offerToken.isNotEmpty()) {
+                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}: ${offer.offerToken}", TAG)
+                                val queue = requestedOffersBySku.getOrPut(offer.sku) { mutableListOf() }
+                                queue.add(offer.offerToken)
+                            }
+                        }
+                    }
+
+                    details.forEachIndexed { index, productDetails ->
+                        val builder = BillingFlowParams.ProductDetailsParams.newBuilder()
+                            .setProductDetails(productDetails)
+
+                        if (androidArgs.type == ProductQueryType.Subs) {
+                            val availableOffers = productDetails.subscriptionOfferDetails?.map {
+                                "${it.basePlanId}:${it.offerToken}"
+                            } ?: emptyList()
+                            OpenIapLog.d("Available offers for ${productDetails.productId}: $availableOffers", TAG)
+
+                            val availableTokens = productDetails.subscriptionOfferDetails?.map { it.offerToken } ?: emptyList()
+                            val fromQueue = requestedOffersBySku[productDetails.productId]?.let { queue ->
+                                if (queue.isNotEmpty()) queue.removeAt(0) else null
+                            }
+                            val fromIndex = androidArgs.subscriptionOffers?.getOrNull(index)?.takeIf { it.sku == productDetails.productId }?.offerToken
+                            val resolved = fromQueue ?: fromIndex ?: productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+
+                            OpenIapLog.d("Resolved offer token for ${productDetails.productId}: $resolved", TAG)
+                            android.util.Log.i(TAG, "BILLING_FLOW_PARAM: SKU=${productDetails.productId}, resolvedOfferToken=$resolved")
+
+                            if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
+                                OpenIapLog.w("Invalid offer token: $resolved not in $availableTokens", TAG)
+                                val err = OpenIapError.SkuOfferMismatch
+                                purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                return
+                            }
+
+                            builder.setOfferToken(resolved)
+                        }
+
+                        paramsList += builder.build()
+                    }
+
+                    val flowBuilder = BillingFlowParams.newBuilder()
+                        .setProductDetailsParamsList(paramsList)
+                        .setIsOfferPersonalized(androidArgs.isOfferPersonalized == true)
+
+                    androidArgs.obfuscatedAccountId?.let { flowBuilder.setObfuscatedAccountId(it) }
+
+                    // For subscription upgrades/downgrades, purchaseToken and obfuscatedProfileId are mutually exclusive
+                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseTokenAndroid.isNullOrBlank()) {
+                        // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
+                        OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseTokenAndroid.take(10)}...", TAG)
+                        OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
+                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementModeAndroid}", TAG)
+                        OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
+                        paramsList.forEachIndexed { idx, params ->
+                            OpenIapLog.d("  - Product[$idx]: SKU=${details[idx].productId}, offerToken=...", TAG)
+                        }
+
+                        val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+                            .setOldPurchaseToken(androidArgs.purchaseTokenAndroid)
+
+                        // Set replacement mode - this is critical for upgrades
+                        val replacementMode = androidArgs.replacementModeAndroid ?: 5 // Default to CHARGE_FULL_PRICE
+                        updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
+                        OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)
+
+                        val updateParams = updateParamsBuilder.build()
+                        flowBuilder.setSubscriptionUpdateParams(updateParams)
+                        OpenIapLog.d("=== Subscription Update Params Set ===", TAG)
+                    } else {
+                        // Only set obfuscatedProfileId for new purchases, not upgrades
+                        androidArgs.obfuscatedProfileId?.let {
+                            OpenIapLog.d("Setting obfuscatedProfileId for new purchase", TAG)
+                            flowBuilder.setObfuscatedProfileId(it)
+                        }
+                    }
+
+                    val billingFlowParams = flowBuilder.build()
+                    android.util.Log.i(TAG, "=== LAUNCHING BILLING FLOW ===")
+                    android.util.Log.i(TAG, "  - Is subscription? ${androidArgs.type == ProductQueryType.Subs}")
+                    android.util.Log.i(TAG, "  - Has purchaseToken? ${!androidArgs.purchaseTokenAndroid.isNullOrBlank()}")
+
+                    val result = client.launchBillingFlow(activity, billingFlowParams)
+                    android.util.Log.i(TAG, "=== BILLING FLOW LAUNCHED ===")
+                    android.util.Log.i(TAG, "  - Response code: ${result.responseCode}")
+                    android.util.Log.i(TAG, "  - Debug message: ${result.debugMessage}")
+                    OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
+                    if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                        val err = when (result.responseCode) {
+                            BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
+                                OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
+                                OpenIapError.PurchaseFailed
+                            }
+                            BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
+                            else -> OpenIapError.PurchaseFailed
+                        }
+                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                    } else {
+                        // CRITICAL FIX: Horizon doesn't automatically call onPurchasesUpdated after purchase
+                        // We need to manually query purchases after the billing flow completes
+                        OpenIapLog.i("launchBillingFlow started successfully, will query purchases after completion", TAG)
+                    }
+                }
+
+                if (missing.isEmpty()) {
+                    val ordered = androidArgs.skus.mapNotNull { detailsBySku[it] }
+                    if (ordered.size != androidArgs.skus.size) {
+                        val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
+                        val err = OpenIapError.SkuNotFound(missingSku ?: "")
+                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        return@suspendCancellableCoroutine
+                    }
+                    buildAndLaunch(ordered)
+                } else {
+                    // Need to query missing products
+                    val productList = missing.map { sku ->
+                        QueryProductDetailsParams.Product.newBuilder()
+                            .setProductId(sku)
+                            .setProductType(desiredType)
+                            .build()
+                    }
+                    val params = QueryProductDetailsParams.newBuilder()
+                        .setProductList(productList)
+                        .build()
+
+                    client.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+                        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                            val err = OpenIapError.QueryProduct
+                            purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                            return@queryProductDetailsAsync
+                        }
+
+                        val list = productDetailsList ?: emptyList()
+                        productManager.putAll(list)
+
+                        // Now build the full ordered list
+                        val ordered = androidArgs.skus.mapNotNull { sku ->
+                            productManager.get(sku)?.takeIf { it.productType == desiredType }
+                        }
+
+                        if (ordered.size != androidArgs.skus.size) {
+                            val missingSku = androidArgs.skus.firstOrNull { sku ->
+                                productManager.get(sku)?.takeIf { it.productType == desiredType } == null
+                            }
+                            val err = OpenIapError.SkuNotFound(missingSku ?: "")
+                            purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                            return@queryProductDetailsAsync
+                        }
+
+                        buildAndLaunch(ordered)
+                    }
                 }
             }
         }
@@ -325,12 +561,25 @@ class OpenIapHorizonModule(
 
     override val restorePurchases: MutationRestorePurchasesHandler = {
         withContext(Dispatchers.IO) {
-            val all = runCatching { getAvailablePurchases(null) }.getOrElse { emptyList() }
-            all.forEach { purchase ->
+            OpenIapLog.i("=== HORIZON restorePurchases ===", TAG)
+            OpenIapLog.i("Number of purchase update listeners: ${purchaseUpdateListeners.size}", TAG)
+
+            val all = restorePurchasesHorizon(billingClient)
+            OpenIapLog.i("Total restored purchases: ${all.size}", TAG)
+
+            all.forEachIndexed { index, purchase ->
+                OpenIapLog.i("  Restoring [$index] productId=${purchase.productId}", TAG)
                 purchaseUpdateListeners.forEach { listener ->
-                    runCatching { listener.onPurchaseUpdated(purchase) }
+                    runCatching {
+                        listener.onPurchaseUpdated(purchase)
+                        OpenIapLog.d("  - Listener notified", TAG)
+                    }.onFailure { e ->
+                        OpenIapLog.e("  - Listener failed", e, TAG)
+                    }
                 }
             }
+
+            OpenIapLog.i("=== END restorePurchases ===", TAG)
             Unit
         }
     }
@@ -408,35 +657,89 @@ class OpenIapHorizonModule(
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<HorizonPurchase>?) {
-        Log.d(TAG, "onPurchasesUpdated code=${result.responseCode} count=${purchases?.size ?: 0}")
-        purchases?.forEachIndexed { index, purchase ->
-            val redactedToken = purchase.purchaseToken?.take(8)?.plus("…")
-            val redactedOrder = purchase.orderId?.take(8)?.plus("…")
-            Log.d(
-                TAG,
-                "[HorizonPurchase $index] token=$redactedToken orderId=$redactedOrder autoRenew=${purchase.isAutoRenewing()}"
-            )
-        }
+        // Log with Android Log to ensure it appears even if OpenIapLog fails
+        android.util.Log.wtf("HORIZON_CALLBACK", "onPurchasesUpdated START - responseCode=${result.responseCode}, count=${purchases?.size ?: 0}")
 
-        if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            val mapped = purchases.map { purchase ->
-                val type = if (purchase.products?.any { it.contains("subs", ignoreCase = true) } == true) {
-                    BillingClient.ProductType.SUBS
-                } else BillingClient.ProductType.INAPP
-                purchase.toPurchase(type)
+        try {
+            OpenIapLog.i("=== HORIZON onPurchasesUpdated ===", TAG)
+            OpenIapLog.i("Response code: ${result.responseCode}", TAG)
+            OpenIapLog.i("Debug message: ${result.debugMessage}", TAG)
+            OpenIapLog.i("Purchases count: ${purchases?.size ?: 0}", TAG)
+
+            purchases?.forEachIndexed { index, purchase ->
+                val redactedToken = purchase.purchaseToken?.take(8)?.plus("…")
+                val redactedOrder = purchase.orderId?.take(8)?.plus("…")
+                android.util.Log.i("HORIZON_CALLBACK", "Purchase[$index] products=${purchase.products} token=$redactedToken")
+                OpenIapLog.i(
+                    "[HorizonPurchase $index] productIds=${purchase.products} token=$redactedToken orderId=$redactedOrder " +
+                    "acknowledged=${purchase.isAcknowledged()} autoRenew=${purchase.isAutoRenewing()}",
+                    TAG
+                )
             }
-            mapped.forEach { converted ->
-                purchaseUpdateListeners.forEach { listener ->
-                    runCatching { listener.onPurchaseUpdated(converted) }
+
+            if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                android.util.Log.i("HORIZON_CALLBACK", "Processing ${purchases.size} purchases")
+                OpenIapLog.i("Processing ${purchases.size} successful purchases", TAG)
+
+                val mapped = purchases.map { purchase ->
+                    // CRITICAL FIX: Determine product type from ProductManager cache, not from product ID string
+                    val firstProductId = purchase.products?.firstOrNull()
+                    val cachedProduct = firstProductId?.let { productManager.get(it) }
+                    val type = cachedProduct?.productType ?: run {
+                        // Fallback: if not in cache, check if product ID contains "subs"
+                        if (purchase.products?.any { it.contains("subs", ignoreCase = true) } == true) {
+                            BillingClient.ProductType.SUBS
+                        } else {
+                            BillingClient.ProductType.INAPP
+                        }
+                    }
+                    android.util.Log.i("HORIZON_CALLBACK", "Mapping purchase products=${purchase.products} to type=$type (cached=${cachedProduct != null})")
+                    OpenIapLog.d("Mapped purchase productIds=${purchase.products} to type=$type (from cache: ${cachedProduct != null})", TAG)
+
+                    val converted = purchase.toPurchase(type)
+                    android.util.Log.i("HORIZON_CALLBACK", "Converted purchase: productId=${converted.productId}, acknowledged=${purchase.isAcknowledged()}")
+                    converted
                 }
+
+                android.util.Log.i("HORIZON_CALLBACK", "Mapped ${mapped.size} purchases, notifying ${purchaseUpdateListeners.size} listeners")
+                OpenIapLog.i("Notifying ${purchaseUpdateListeners.size} purchase update listeners", TAG)
+
+                mapped.forEach { converted ->
+                    // CRITICAL FIX: Cache the purchase locally
+                    sharedPurchaseCache[converted.productId] = converted
+                    android.util.Log.i("HORIZON_CALLBACK", "Cached purchase: productId=${converted.productId}, cache size=${sharedPurchaseCache.size}")
+
+                    android.util.Log.i("HORIZON_CALLBACK", "Notifying about purchase: productId=${converted.productId}")
+                    OpenIapLog.d("Notifying listeners about purchase: productId=${converted.productId}", TAG)
+                    purchaseUpdateListeners.forEach { listener ->
+                        runCatching {
+                            android.util.Log.i("HORIZON_CALLBACK", "Calling listener.onPurchaseUpdated")
+                            listener.onPurchaseUpdated(converted)
+                            android.util.Log.i("HORIZON_CALLBACK", "Listener notified successfully")
+                            OpenIapLog.d("Listener notified successfully", TAG)
+                        }.onFailure { e ->
+                            android.util.Log.e("HORIZON_CALLBACK", "Listener notification failed", e)
+                            OpenIapLog.e("Listener notification failed", e, TAG)
+                        }
+                    }
+                }
+
+                android.util.Log.i("HORIZON_CALLBACK", "Invoking currentPurchaseCallback with ${mapped.size} purchases")
+                currentPurchaseCallback?.invoke(Result.success(mapped))
+                OpenIapLog.i("Purchase callback invoked with ${mapped.size} purchases", TAG)
+            } else {
+                android.util.Log.w("HORIZON_CALLBACK", "Purchase failed: code=${result.responseCode}")
+                OpenIapLog.w("Purchase failed or cancelled: code=${result.responseCode}", TAG)
+                val error = OpenIapError.fromBillingResponseCode(result.responseCode, result.debugMessage)
+                purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(error) } }
+                currentPurchaseCallback?.invoke(Result.success(emptyList()))
             }
-            currentPurchaseCallback?.invoke(Result.success(mapped))
-        } else {
-            val error = OpenIapError.fromBillingResponseCode(result.responseCode, result.debugMessage)
-            purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(error) } }
-            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+            currentPurchaseCallback = null
+            android.util.Log.i("HORIZON_CALLBACK", "onPurchasesUpdated END")
+            OpenIapLog.i("=== END onPurchasesUpdated ===", TAG)
+        } catch (e: Exception) {
+            android.util.Log.e("HORIZON_CALLBACK", "Exception in onPurchasesUpdated", e)
         }
-        currentPurchaseCallback = null
     }
 
     private suspend fun queryProductDetails(
@@ -456,21 +759,6 @@ class OpenIapHorizonModule(
                 if (continuation.isActive) continuation.resume(details ?: emptyList())
             } else {
                 OpenIapLog.w("Horizon queryProductDetails failed: ${result.debugMessage}", TAG)
-                if (continuation.isActive) continuation.resume(emptyList())
-            }
-        }
-    }
-
-    private suspend fun queryPurchases(
-        client: BillingClient,
-        productType: String
-    ): List<Purchase> = suspendCancellableCoroutine { continuation ->
-        val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
-        client.queryPurchasesAsync(params) { result, list ->
-            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                val mapped = (list ?: emptyList()).map { it.toPurchase(productType) }
-                if (continuation.isActive) continuation.resume(mapped)
-            } else {
                 if (continuation.isActive) continuation.resume(emptyList())
             }
         }

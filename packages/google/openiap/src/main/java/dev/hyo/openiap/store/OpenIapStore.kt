@@ -53,6 +53,10 @@ import kotlinx.coroutines.launch
  * and exposes suspend APIs with observable StateFlows for UI layers to consume.
  */
 class OpenIapStore(private val module: OpenIapProtocol) {
+    init {
+        android.util.Log.i("OpenIapStore", "Initialized with module: ${module.javaClass.simpleName}")
+    }
+
     constructor(context: Context) : this(buildModule(context, null, null))
     constructor(context: Context, store: String?) : this(buildModule(context, store, null))
     constructor(context: Context, store: String?, appId: String?) : this(buildModule(context, store, appId))
@@ -119,6 +123,37 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         )
         _status.value = _status.value.copy(lastError = null)
         pendingRequestProductId = null
+
+        // CRITICAL FIX: Refresh available purchases to update UI
+        // This ensures the purchase list reflects the new purchase immediately
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                android.util.Log.i("OpenIapStore", "Purchase update received, refreshing available purchases")
+
+                // Wait a bit for the purchase to be fully processed by Horizon
+                kotlinx.coroutines.delay(500)
+
+                // Ensure connection is ready
+                if (!isConnected.value) {
+                    android.util.Log.w("OpenIapStore", "Not connected, skipping purchase refresh (connection will be restored on next app start)")
+                    // Don't attempt to reconnect here as it may cause issues
+                    // The purchase will be available on next app launch
+                    return@launch
+                }
+
+                android.util.Log.i("OpenIapStore", "About to call module.getAvailablePurchases(null)")
+                val result = module.getAvailablePurchases(null)
+                android.util.Log.i("OpenIapStore", "module.getAvailablePurchases returned: ${result.size} purchases")
+                result.forEachIndexed { index, purchase ->
+                    android.util.Log.i("OpenIapStore", "  Purchase[$index]: ${purchase.productId}")
+                }
+                _availablePurchases.value = result
+                android.util.Log.i("OpenIapStore", "Available purchases updated: ${result.size} purchases")
+            } catch (e: Exception) {
+                android.util.Log.e("OpenIapStore", "Failed to refresh purchases after update", e)
+                e.printStackTrace()
+            }
+        }
     }
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
         if (error is OpenIapError.UserCancelled || error is OpenIapError.PurchaseCancelled) {
@@ -223,9 +258,12 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Product Management - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
     val fetchProducts: QueryFetchProductsHandler = { request ->
+        android.util.Log.i("OpenIapStore", "fetchProducts called with SKUs: ${request.skus}, type: ${request.type}")
         setLoading { it.fetchProducts = true }
         try {
+            android.util.Log.i("OpenIapStore", "Calling module.fetchProducts")
             val result = module.fetchProducts(request)
+            android.util.Log.i("OpenIapStore", "module.fetchProducts returned: $result")
             when (result) {
                 is FetchProductsResultProducts -> {
                     // Merge new products with existing ones
@@ -264,12 +302,16 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Purchases / Restore - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
+        android.util.Log.i("OpenIapStore", "getAvailablePurchases called, module type: ${module.javaClass.simpleName}")
         setLoading { it.restorePurchases = true }
         try {
+            android.util.Log.i("OpenIapStore", "Calling module.getAvailablePurchases(options)")
             val result = module.getAvailablePurchases(options)
+            android.util.Log.i("OpenIapStore", "module.getAvailablePurchases returned ${result.size} purchases")
             _availablePurchases.value = result
             result
         } catch (e: Exception) {
+            android.util.Log.e("OpenIapStore", "getAvailablePurchases exception: ${e.message}", e)
             setError(e.message)
             throw e
         } finally {
@@ -502,14 +544,18 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     // Get default store from BuildConfig if available
     val defaultStore = try {
         val buildConfig = Class.forName("io.github.hyochan.openiap.BuildConfig")
-        buildConfig.getField("OPENIAP_STORE").get(null) as? String ?: "play"
+        val storeValue = buildConfig.getField("OPENIAP_STORE").get(null) as? String ?: "play"
+        android.util.Log.i("OpenIapStore", "BuildConfig.OPENIAP_STORE = $storeValue")
+        storeValue
     } catch (e: Throwable) {
+        android.util.Log.w("OpenIapStore", "Failed to read BuildConfig.OPENIAP_STORE: ${e.message}")
         "play"
     }
 
     val selected = (store ?: defaultStore).lowercase()
     val resolvedAppId = appId ?: ""
 
+    android.util.Log.i("OpenIapStore", "buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore")
     OpenIapLog.d("buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore", "OpenIapStore")
 
     return when (selected) {
