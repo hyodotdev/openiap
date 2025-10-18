@@ -5,21 +5,31 @@
   margin: 0 auto;
   padding: 2rem;
   gap: 3rem;
-  height: calc(100vh - 80px); /* Viewport height minus header */
-  overflow: hidden; /* Prevent container scroll */
+  min-height: calc(100vh - 80px); /* Minimum height */
 }
 
 .docs-sidebar {
   width: 250px;
   flex-shrink: 0;
-  overflow-y: auto; /* Independent sidebar scroll */
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
   overflow-x: hidden;
-  height: 100%;
   padding-right: 1rem; /* Scrollbar spacing */
 }
 
+@media (min-width: 769px) {
+  .docs-sidebar {
+    position: sticky;
+    top: 100px;
+    height: fit-content;
+    max-height: calc(100vh - 120px);
+  }
+}
+
 .docs-nav {
-  /* Remove sticky, use normal positioning */
   position: relative;
 }
 
@@ -64,9 +74,6 @@
 .docs-content {
   flex: 1;
   min-width: 0;
-  overflow-y: auto; /* Independent content scroll */
-  overflow-x: hidden;
-  height: 100%;
   padding: 0 1rem 2rem 0; /* Add bottom padding to extend scroll range */
 }
 
@@ -473,6 +480,127 @@
 .docs-content {
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) transparent;
+}
+
+/* Docs Sidebar Toggle - Mobile Only */
+.docs-sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 100px;
+  left: 1.5rem;
+  z-index: 1001;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  gap: 0.5rem;
+  align-items: center;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.docs-sidebar-toggle.scrolled {
+  top: 1rem;
+}
+
+.docs-sidebar-toggle svg {
+  color: white;
+}
+
+.docs-sidebar-toggle:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.docs-sidebar-toggle:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.docs-sidebar-toggle.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Sidebar Overlay (mobile only) */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .docs-container {
+    padding: 1rem;
+    height: calc(100vh - 60px);
+  }
+
+  .docs-sidebar-toggle {
+    display: flex;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    backdrop-filter: blur(2px);
+  }
+
+  .docs-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    background: var(--bg-primary);
+    z-index: 1000;
+    transition:
+      opacity 0.3s ease,
+      visibility 0.3s ease;
+    border-right: 1px solid var(--border-color);
+    padding: 2rem 1.5rem 2rem 1.5rem;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    visibility: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .docs-sidebar.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .docs-content {
+    width: 100%;
+    padding: 4rem 0.5rem 2rem 0.5rem;
+  }
+
+  .doc-page h1 {
+    font-size: 2rem;
+  }
+
+  .doc-page h2 {
+    font-size: 1.5rem;
+  }
+
+  .doc-page h3 {
+    font-size: 1.15rem;
+  }
 }
 
 /* Info and Warning Boxes */
