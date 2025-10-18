@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Route, Routes, Navigate, NavLink } from 'react-router-dom';
+import { MenuDropdown } from '../components/MenuDropdown';
 import LifeCycle from './docs/lifecycle';
 import Types from './docs/types';
 import APIs from './docs/apis';
@@ -9,6 +10,7 @@ import ExternalPurchase from './docs/external-purchase';
 import Features from './docs/features';
 import IOSSetup from './docs/ios-setup';
 import AndroidSetup from './docs/android-setup';
+import HorizonSetup from './docs/horizon-setup';
 import Updates from './docs/updates';
 import Versions from './docs/versions';
 import Announcements from './docs/announcements';
@@ -118,15 +120,12 @@ function Docs() {
                 iOS Setup
               </NavLink>
             </li>
-            <li>
-              <NavLink
-                to="/docs/android-setup"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Android Setup
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="Android Setup"
+              titleTo="/docs/android-setup"
+              items={[{ to: '/docs/horizon-setup', label: 'Horizon OS' }]}
+              onItemClick={closeSidebar}
+            />
           </ul>
           <h3 style={{ marginTop: '2rem' }}>Features</h3>
           <ul>
@@ -193,6 +192,7 @@ function Docs() {
           <Route path="subscription-upgrade-downgrade" element={<Features />} />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
+          <Route path="horizon-setup" element={<HorizonSetup />} />
           <Route path="updates" element={<Updates />} />
           <Route path="versions" element={<Versions />} />
           <Route path="announcements" element={<Announcements />} />

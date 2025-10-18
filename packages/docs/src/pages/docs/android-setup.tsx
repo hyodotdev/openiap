@@ -7,6 +7,22 @@ function AndroidSetup() {
         Play Console and your Android project.
       </p>
 
+      <div
+        style={{
+          padding: '1rem',
+          background: 'rgba(33, 150, 243, 0.1)',
+          borderLeft: '4px solid #2196F3',
+          borderRadius: '0.5rem',
+          margin: '1rem 0',
+        }}
+      >
+        <strong>📱 Building for Meta Quest?</strong> Also see the{' '}
+        <a href="/docs/horizon-setup" className="external-link">
+          Horizon OS Setup Guide
+        </a>{' '}
+        for Quest-specific configuration using the same Android SDK.
+      </div>
+
       <section>
         <h2 id="prerequisites" className="anchor-heading">
           Prerequisites
