@@ -1,7 +1,7 @@
 # OpenIAP
 
 <p align="center">
-  <img src="packages/docs/public/logo.png" alt="OpenIAP Logo" width="160" height="160">
+  <img src="packages/docs/public/logo.webp" alt="OpenIAP Logo" width="160" height="160">
 </p>
 
 <p align="center">

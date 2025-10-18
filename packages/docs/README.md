@@ -1,7 +1,7 @@
 # OpenIAP Specification
 
 <p align="center">
-  <img src="public/logo.png" alt="OpenIAP Logo" width="120" height="120">
+  <img src="public/logo.webp" alt="OpenIAP Logo" width="120" height="120">
 </p>
 
 OpenIAP is a unified specification for in-app purchases across platforms, frameworks, and emerging technologies.

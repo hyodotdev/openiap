@@ -5,7 +5,7 @@
 <!-- markdownlint-disable MD033 -->
 <p align="center">
   <img src="https://github.com/user-attachments/assets/f40873ee-dcf4-449e-93b2-203e6453da66" alt="OpenIAP GraphQL logo" width="320" />
-  <img src="./logo.png" alt="OpenIAP GraphQL logo" width="320" />
+  <img src="./logo.webp" alt="OpenIAP GraphQL logo" width="320" />
   <br />
   <strong>OpenIAP meets GraphQL</strong>
 </p>

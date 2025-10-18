@@ -1,7 +1,7 @@
 # OpenIAP Apple
 
 <div align="center">
-  <img src="./logo.png" alt="OpenIAP Apple Logo" width="120" height="120">
+  <img src="./logo.webp" alt="OpenIAP Apple Logo" width="120" height="120">
 </div>
 
 <div align="center">

@@ -7,7 +7,7 @@ function Home() {
       <section className="hero">
         <div className="hero-container">
           <img
-            src="/logo.png"
+            src="/logo.webp"
             alt="OpenIAP"
             className="hero-logo"
             style={{ width: '120px', height: '120px', marginBottom: '2rem' }}

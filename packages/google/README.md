@@ -1,7 +1,7 @@
 # OpenIAP Android
 
 <div align="center">
-  <img src="./logo.png" alt="OpenIAP Google Logo" width="120" height="120">
+  <img src="./logo.webp" alt="OpenIAP Google Logo" width="120" height="120">
   
   <p><strong>Android implementation of the <a href="https://www.openiap.dev/">OpenIAP</a> specification using Google Play Billing.</strong></p>
 </div>

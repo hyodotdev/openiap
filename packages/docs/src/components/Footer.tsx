@@ -4,7 +4,7 @@ function Footer() {
       <div className="footer-container">
         <div className="footer-top">
           <div className="footer-brand">
-            <img src="/logo.png" alt="OpenIAP" className="footer-logo" />
+            <img src="/logo.webp" alt="OpenIAP" className="footer-logo" />
             <div>
               <h3>OpenIAP</h3>
               <p>Unified specification for in-app purchases</p>
