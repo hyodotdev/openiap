@@ -71,7 +71,11 @@ import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.toProduct
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
@@ -96,6 +100,7 @@ class OpenIapHorizonModule(
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
     private val productManager = HorizonProductManager()
     private val fallbackActivity: Activity? = if (context is Activity) context else null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val purchaseUpdateListeners = mutableSetOf<OpenIapPurchaseUpdateListener>()
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
@@ -437,26 +442,53 @@ class OpenIapHorizonModule(
                     android.util.Log.i(TAG, "  - Is subscription? ${androidArgs.type == ProductQueryType.Subs}")
                     android.util.Log.i(TAG, "  - Has purchaseToken? ${!androidArgs.purchaseTokenAndroid.isNullOrBlank()}")
 
-                    val result = client.launchBillingFlow(activity, billingFlowParams)
-                    android.util.Log.i(TAG, "=== BILLING FLOW LAUNCHED ===")
-                    android.util.Log.i(TAG, "  - Response code: ${result.responseCode}")
-                    android.util.Log.i(TAG, "  - Debug message: ${result.debugMessage}")
-                    OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
-                    if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                        val err = when (result.responseCode) {
-                            BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                                OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
-                                OpenIapError.PurchaseFailed
+                    // Run on UI thread as required by Android Billing API
+                    activity.runOnUiThread {
+                        val result = client.launchBillingFlow(activity, billingFlowParams)
+                        android.util.Log.i(TAG, "=== BILLING FLOW LAUNCHED ===")
+                        android.util.Log.i(TAG, "  - Response code: ${result.responseCode}")
+                        android.util.Log.i(TAG, "  - Debug message: ${result.debugMessage}")
+                        OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
+
+                        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                            val err = when (result.responseCode) {
+                                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
+                                    OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
+                                    OpenIapError.PurchaseFailed
+                                }
+                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
+                                else -> OpenIapError.PurchaseFailed
                             }
-                            BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
-                            else -> OpenIapError.PurchaseFailed
+                            purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        } else {
+                            // CRITICAL FIX: Proactively query purchases in case onPurchasesUpdated doesn't fire
+                            // Horizon SDK may not always trigger the callback, so we query after a delay
+                            OpenIapLog.i("launchBillingFlow started successfully, will query purchases proactively", TAG)
+                            scope.launch {
+                                delay(500) // Wait for purchase to complete
+                                try {
+                                    val queried = restorePurchasesHorizon(billingClient)
+                                    val filtered = if (androidArgs.skus.isEmpty()) {
+                                        queried
+                                    } else {
+                                        queried.filter { it.productId in androidArgs.skus }
+                                    }
+
+                                    if (filtered.isNotEmpty()) {
+                                        android.util.Log.i(TAG, "Proactive query found ${filtered.size} purchases")
+                                        filtered.forEach { purchase ->
+                                            purchaseUpdateListeners.forEach { listener ->
+                                                runCatching { listener.onPurchaseUpdated(purchase) }
+                                            }
+                                        }
+                                        currentPurchaseCallback?.invoke(Result.success(filtered))
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e(TAG, "Error in proactive purchase query: ${e.message}")
+                                }
+                            }
                         }
-                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
-                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
-                    } else {
-                        // CRITICAL FIX: Horizon doesn't automatically call onPurchasesUpdated after purchase
-                        // We need to manually query purchases after the billing flow completes
-                        OpenIapLog.i("launchBillingFlow started successfully, will query purchases after completion", TAG)
                     }
                 }
 
