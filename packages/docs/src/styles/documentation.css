@@ -5,21 +5,21 @@
   margin: 0 auto;
   padding: 2rem;
   gap: 3rem;
-  height: calc(100vh - 80px); /* Header height를 뺀 높이 */
-  overflow: hidden; /* 컨테이너 자체는 스크롤 방지 */
+  height: calc(100vh - 80px); /* Viewport height minus header */
+  overflow: hidden; /* Prevent container scroll */
 }
 
 .docs-sidebar {
   width: 250px;
   flex-shrink: 0;
-  overflow-y: auto; /* 사이드바 독립 스크롤 */
+  overflow-y: auto; /* Independent sidebar scroll */
   overflow-x: hidden;
   height: 100%;
-  padding-right: 1rem; /* 스크롤바 여백 */
+  padding-right: 1rem; /* Scrollbar spacing */
 }
 
 .docs-nav {
-  /* sticky 제거하고 일반 position으로 변경 */
+  /* Remove sticky, use normal positioning */
   position: relative;
 }
 
@@ -64,10 +64,10 @@
 .docs-content {
   flex: 1;
   min-width: 0;
-  overflow-y: auto; /* 콘텐츠 독립 스크롤 */
+  overflow-y: auto; /* Independent content scroll */
   overflow-x: hidden;
   height: 100%;
-  padding-right: 1rem; /* 스크롤바 여백 */
+  padding: 0 1rem 2rem 0; /* Add bottom padding to extend scroll range */
 }
 
 .doc-page h1 {
@@ -473,4 +473,103 @@
 .docs-content {
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) transparent;
+}
+
+/* Info and Warning Boxes */
+.info-box {
+  padding: 1rem;
+  margin: 1.5rem 0;
+  border-left: 4px solid #0c7cd5;
+  background-color: rgba(12, 124, 213, 0.08);
+  border-radius: 0 4px 4px 0;
+}
+
+.info-box strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.info-box p,
+.info-box ul,
+.info-box li {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.info-box ul {
+  margin-bottom: 0;
+  padding-left: 1.5rem;
+}
+
+.warning-box {
+  padding: 1rem;
+  margin: 1.5rem 0;
+  border-left: 4px solid #f59e0b;
+  background-color: rgba(245, 158, 11, 0.08);
+  border-radius: 0 4px 4px 0;
+}
+
+.warning-box strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.warning-box p,
+.warning-box ul,
+.warning-box ol,
+.warning-box li {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.warning-box ul,
+.warning-box ol {
+  margin-bottom: 0;
+  padding-left: 1.5rem;
+}
+
+:root.dark .info-box {
+  background-color: rgba(12, 124, 213, 0.15);
+  border-left-color: #3b9eff;
+}
+
+:root.dark .warning-box {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-left-color: #fbbf24;
+}
+
+/* Tip Box - for helpful tips and best practices */
+.tip-box {
+  padding: 1rem;
+  margin: 1.5rem 0;
+  border-left: 4px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.08);
+  border-radius: 0 4px 4px 0;
+}
+
+.tip-box strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.tip-box p,
+.tip-box ul,
+.tip-box ol,
+.tip-box li {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.tip-box ul,
+.tip-box ol {
+  margin-bottom: 0;
+  padding-left: 1.5rem;
+}
+
+:root.dark .tip-box {
+  background-color: rgba(16, 185, 129, 0.15);
+  border-left-color: #34d399;
 }

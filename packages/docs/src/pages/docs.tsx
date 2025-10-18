@@ -1,10 +1,11 @@
-import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate, NavLink } from 'react-router-dom';
 import LifeCycle from './docs/lifecycle';
 import Types from './docs/types';
 import APIs from './docs/apis';
 import Events from './docs/events';
 import Errors from './docs/errors';
 import ExternalPurchase from './docs/external-purchase';
+import Features from './docs/features';
 import IOSSetup from './docs/ios-setup';
 import AndroidSetup from './docs/android-setup';
 import Updates from './docs/updates';
@@ -59,16 +60,7 @@ function Docs() {
                 Errors
               </NavLink>
             </li>
-            <li>
-              <NavLink
-                to="/docs/external-purchase"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-              >
-                External Purchase
-              </NavLink>
-            </li>
           </ul>
-
           <h3 style={{ marginTop: '2rem' }}>Setup Guide</h3>
           <ul>
             <li>
@@ -88,7 +80,25 @@ function Docs() {
               </NavLink>
             </li>
           </ul>
-
+          <h3 style={{ marginTop: '2rem' }}>Features</h3>
+          <ul>
+            <li>
+              <NavLink
+                to="/docs/external-purchase"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                External Purchase
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/subscription-upgrade-downgrade"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                Subscription Upgrade/Downgrade
+              </NavLink>
+            </li>
+          </ul>
           <h3 style={{ marginTop: '2rem' }}>Updates</h3>
           <ul>
             <li>
@@ -118,7 +128,6 @@ function Docs() {
           </ul>
         </nav>
       </aside>
-
       <main className="docs-content">
         <Routes>
           <Route index element={<Navigate to="/docs/lifecycle" replace />} />
@@ -128,6 +137,7 @@ function Docs() {
           <Route path="events" element={<Events />} />
           <Route path="errors" element={<Errors />} />
           <Route path="external-purchase" element={<ExternalPurchase />} />
+          <Route path="subscription-upgrade-downgrade" element={<Features />} />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="updates" element={<Updates />} />
