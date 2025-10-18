@@ -223,10 +223,13 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     val initConnection: MutationInitConnectionHandler = { config ->
         setLoading { it.initConnection = true }
         try {
+            OpenIapLog.i("OpenIapStore.initConnection: Calling module.initConnection...", "OpenIapStore")
             val ok = module.initConnection(config)
+            OpenIapLog.i("OpenIapStore.initConnection: module.initConnection returned: $ok", "OpenIapStore")
             _isConnected.value = ok
             ok
         } catch (e: Exception) {
+            OpenIapLog.e("OpenIapStore.initConnection: Exception", e, "OpenIapStore")
             setError(e.message)
             throw e
         } finally {
@@ -237,7 +240,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Convenience overload that calls initConnection with null config
      */
-    suspend fun initConnection(): Boolean = initConnection(null)
+    suspend fun initConnection(): Boolean {
+        OpenIapLog.i("OpenIapStore.initConnection(): Calling initConnection(null)...", "OpenIapStore")
+        return initConnection(null)
+    }
 
     val endConnection: MutationEndConnectionHandler = {
         removePurchaseUpdateListener(purchaseUpdateListener)
@@ -553,7 +559,24 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     }
 
     val selected = (store ?: defaultStore).lowercase()
-    val resolvedAppId = appId ?: ""
+
+    // For Horizon flavors, try to get app ID from manifest if not provided
+    val resolvedAppId = if ((selected == "horizon" || selected == "meta" || selected == "quest" || selected == "auto") && appId.isNullOrEmpty()) {
+        try {
+            val applicationInfo = context.packageManager.getApplicationInfo(
+                context.packageName,
+                android.content.pm.PackageManager.GET_META_DATA
+            )
+            val metaAppId = applicationInfo.metaData?.getString("com.meta.horizon.platform.ovr.OCULUS_APP_ID")
+            android.util.Log.i("OpenIapStore", "Read OCULUS_APP_ID from manifest: $metaAppId")
+            metaAppId ?: ""
+        } catch (e: Throwable) {
+            android.util.Log.w("OpenIapStore", "Failed to read OCULUS_APP_ID from manifest: ${e.message}")
+            ""
+        }
+    } else {
+        appId ?: ""
+    }
 
     android.util.Log.i("OpenIapStore", "buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore")
     OpenIapLog.d("buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore", "OpenIapStore")

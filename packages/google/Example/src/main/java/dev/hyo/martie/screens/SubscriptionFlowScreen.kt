@@ -114,19 +114,13 @@ fun SubscriptionFlowScreen(
     var subStatus by remember { mutableStateOf<Map<String, SubscriptionUiInfo>>(emptyMap()) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
 
-    // Platform detection: Horizon vs Play Store
-    val isHorizon = remember { BuildConfig.FLAVOR == "horizon" }
+    // Platform detection: Horizon vs Play Store (runtime detection)
+    val isHorizon = remember { IapConstants.isHorizonOS() }
 
     // Load subscription SKUs based on platform
     val subscriptionSkus = remember {
-        if (isHorizon) {
-            // HORIZON: Load both SKUs explicitly
-            // Both must be at Level 1 in Developer Console to prevent auto-upgrade
-            listOf("dev.hyo.martie.premium", "dev.hyo.martie.premium_year")
-        } else {
-            // PLAY STORE: Use platform-aware detection from Constants
-            IapConstants.getSubscriptionSkus()
-        }
+        // Use runtime platform detection from Constants
+        IapConstants.getSubscriptionSkus()
     }
 
     // Load subscription data on screen entry
@@ -250,7 +244,9 @@ fun SubscriptionFlowScreen(
     DisposableEffect(Unit) {
         startupScope.launch {
             try {
+                println("SubscriptionFlow: Calling initConnection...")
                 val connected = iapStore.initConnection()
+                println("SubscriptionFlow: initConnection returned: $connected")
                 if (connected) {
                     iapStore.setActivity(activity)
                     println("SubscriptionFlow: Loading subscription products: $subscriptionSkus")
@@ -260,8 +256,13 @@ fun SubscriptionFlowScreen(
                     )
                     iapStore.fetchProducts(request)
                     iapStore.getAvailablePurchases(null)
+                } else {
+                    println("SubscriptionFlow: Failed to connect to billing service")
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                println("SubscriptionFlow: Exception during initConnection: ${e.message}")
+                e.printStackTrace()
+            }
         }
         
         onDispose {

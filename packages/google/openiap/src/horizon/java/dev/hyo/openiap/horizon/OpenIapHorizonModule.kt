@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import com.meta.horizon.billingclient.api.AcknowledgePurchaseParams
+import com.meta.horizon.billingclient.api.AlternativeBillingOnlyInformationDialogListener
+import com.meta.horizon.billingclient.api.AlternativeBillingOnlyReportingDetails
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.BillingClientStateListener
 import com.meta.horizon.billingclient.api.BillingFlowParams
@@ -60,20 +62,21 @@ import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
-import dev.hyo.openiap.helpers.restorePurchasesHorizon
-import dev.hyo.openiap.helpers.queryPurchasesHorizon
-import dev.hyo.openiap.helpers.HorizonProductManager
-import dev.hyo.openiap.helpers.queryProductDetailsHorizon
-import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
-import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
-import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
-import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
+import dev.hyo.openiap.horizon.helpers.restorePurchasesHorizon
+import dev.hyo.openiap.horizon.helpers.queryPurchasesHorizon
+import dev.hyo.openiap.horizon.helpers.HorizonProductManager
+import dev.hyo.openiap.horizon.helpers.queryProductDetailsHorizon
+import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toActiveSubscription
+import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toInAppProduct
+import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toPurchase
+import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.toProduct
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 private const val TAG = "OpenIapHorizonModule"
 
@@ -98,6 +101,7 @@ class OpenIapHorizonModule(
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
 
     init {
+        android.util.Log.i(TAG, "=== OpenIapHorizonModule INIT (Modified version with fix) ===")
         buildBillingClient()
     }
 
@@ -108,21 +112,37 @@ class OpenIapHorizonModule(
     override val initConnection: MutationInitConnectionHandler = {
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine<Boolean> { continuation ->
+                android.util.Log.i(TAG, "=== INIT CONNECTION CALLED ===")
+
+                // CRITICAL FIX: Rebuild BillingClient if it was destroyed by endConnection
+                if (billingClient == null) {
+                    android.util.Log.i(TAG, "BillingClient is null, rebuilding...")
+                    buildBillingClient()
+                } else {
+                    android.util.Log.i(TAG, "BillingClient already exists, using existing instance")
+                }
+
                 val client = billingClient ?: run {
+                    android.util.Log.w(TAG, "Failed to build BillingClient")
                     if (continuation.isActive) continuation.resume(false)
                     return@suspendCancellableCoroutine
                 }
+
+                android.util.Log.i(TAG, "Starting BillingClient connection...")
                 client.startConnection(object : BillingClientStateListener {
                     override fun onBillingSetupFinished(result: BillingResult) {
+                        android.util.Log.i(TAG, "onBillingSetupFinished: code=${result.responseCode}, message=${result.debugMessage}")
                         val ok = result.responseCode == BillingClient.BillingResponseCode.OK
                         if (!ok) {
-                            OpenIapLog.w("Horizon setup failed: ${result.debugMessage}", TAG)
+                            android.util.Log.w(TAG, "Horizon setup failed: code=${result.responseCode}, ${result.debugMessage}")
+                        } else {
+                            android.util.Log.i(TAG, "Horizon billing connected successfully!")
                         }
                         if (continuation.isActive) continuation.resume(ok)
                     }
 
                     override fun onBillingServiceDisconnected() {
-                        OpenIapLog.i("Horizon service disconnected", TAG)
+                        android.util.Log.i(TAG, "Horizon service disconnected")
                     }
                 })
             }
@@ -779,17 +799,102 @@ class OpenIapHorizonModule(
         billingClient = builder.build()
     }
 
-    // Alternative Billing (Google Play only - not supported on Horizon)
-    override suspend fun checkAlternativeBillingAvailability(): Boolean {
-        throw OpenIapError.FeatureNotSupported
+    // Alternative Billing - Testing if supported by Horizon Billing Compatibility Library
+    override suspend fun checkAlternativeBillingAvailability(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val client = billingClient ?: throw Exception("Not connected")
+
+            // Try to call the alternative billing method
+            val result = suspendCancellableCoroutine<BillingResult> { cont ->
+                try {
+                    client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
+                        cont.resume(billingResult)
+                    }
+                } catch (e: NoSuchMethodError) {
+                    // Method doesn't exist in Horizon library
+                    OpenIapLog.w("Alternative Billing not supported by Horizon library", TAG)
+                    cont.resumeWithException(Exception("Feature not supported"))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking alternative billing: ${e.message}")
+                    cont.resumeWithException(e)
+                }
+            }
+
+            OpenIapLog.d("Alternative Billing availability: ${result.responseCode}", TAG)
+            result.responseCode == BillingClient.BillingResponseCode.OK
+        } catch (e: OpenIapError) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in checkAlternativeBillingAvailability: ${e.message}")
+            false
+        }
     }
 
-    override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean {
-        throw OpenIapError.FeatureNotSupported
+    override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val client = billingClient ?: throw Exception("Not connected")
+
+            val activityRef = WeakReference(activity)
+            val currentActivity = activityRef.get() ?: throw Exception("Activity not available")
+
+            val result = suspendCancellableCoroutine<BillingResult> { cont ->
+                try {
+                    val listener = AlternativeBillingOnlyInformationDialogListener { billingResult ->
+                        cont.resume(billingResult)
+                    }
+                    client.showAlternativeBillingOnlyInformationDialog(
+                        currentActivity,
+                        listener
+                    )
+                } catch (e: NoSuchMethodError) {
+                    OpenIapLog.w("showAlternativeBillingOnlyInformationDialog not supported", TAG)
+                    cont.resumeWithException(Exception("Feature not supported"))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error showing alternative billing dialog: ${e.message}")
+                    cont.resumeWithException(e)
+                }
+            }
+
+            OpenIapLog.d("Alternative Billing dialog result: ${result.responseCode}", TAG)
+            result.responseCode == BillingClient.BillingResponseCode.OK
+        } catch (e: OpenIapError) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in showAlternativeBillingInformationDialog: ${e.message}")
+            false
+        }
     }
 
-    override suspend fun createAlternativeBillingReportingToken(): String? {
-        throw OpenIapError.FeatureNotSupported
+    override suspend fun createAlternativeBillingReportingToken(): String? = withContext(Dispatchers.IO) {
+        try {
+            val client = billingClient ?: throw Exception("Not connected")
+
+            val result = suspendCancellableCoroutine<Pair<BillingResult, AlternativeBillingOnlyReportingDetails?>> { cont ->
+                try {
+                    client.createAlternativeBillingOnlyReportingDetailsAsync { billingResult, details ->
+                        cont.resume(Pair(billingResult, details))
+                    }
+                } catch (e: NoSuchMethodError) {
+                    OpenIapLog.w("createAlternativeBillingOnlyReportingDetails not supported", TAG)
+                    cont.resumeWithException(Exception("Feature not supported"))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error creating alternative billing token: ${e.message}")
+                    cont.resumeWithException(e)
+                }
+            }
+
+            OpenIapLog.d("Alternative Billing token result: ${result.first.responseCode}", TAG)
+            if (result.first.responseCode == BillingClient.BillingResponseCode.OK) {
+                result.second?.externalTransactionToken
+            } else {
+                null
+            }
+        } catch (e: OpenIapError) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in createAlternativeBillingReportingToken: ${e.message}")
+            null
+        }
     }
 
     override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {

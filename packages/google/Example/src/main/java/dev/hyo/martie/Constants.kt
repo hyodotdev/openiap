@@ -26,8 +26,8 @@ object IapConstants {
         "dev.hyo.martie.premium_year"  // Separate yearly-only subscription
     )
 
-    // Detect if running on Horizon OS
-    private fun isHorizonOS(): Boolean {
+    // Detect if running on Horizon OS at runtime
+    fun isHorizonOS(): Boolean {
         return Build.MANUFACTURER.equals("Meta", ignoreCase = true) ||
                Build.BRAND.equals("Meta", ignoreCase = true) ||
                Build.MODEL.contains("Quest", ignoreCase = true)

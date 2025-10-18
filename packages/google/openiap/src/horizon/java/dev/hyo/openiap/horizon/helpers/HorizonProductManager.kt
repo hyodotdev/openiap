@@ -1,4 +1,4 @@
-package dev.hyo.openiap.helpers
+package dev.hyo.openiap.horizon.helpers
 
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams

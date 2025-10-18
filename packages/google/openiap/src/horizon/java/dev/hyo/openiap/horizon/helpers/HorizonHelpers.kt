@@ -1,4 +1,4 @@
-package dev.hyo.openiap.helpers
+package dev.hyo.openiap.horizon.helpers
 
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.QueryPurchasesParams
@@ -7,7 +7,7 @@ import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.Purchase
-import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
+import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toPurchase
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 

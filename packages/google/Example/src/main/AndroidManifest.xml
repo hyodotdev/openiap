@@ -6,6 +6,11 @@
         android:label="OpenIAP Example"
         android:supportsRtl="true">
 
+        <!-- Horizon OS App ID (set via gradle manifestPlaceholders) -->
+        <meta-data
+            android:name="com.meta.horizon.platform.ovr.OCULUS_APP_ID"
+            android:value="${OCULUS_APP_ID}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
