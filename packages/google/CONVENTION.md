@@ -2,6 +2,28 @@
 
 ## Naming Conventions
 
+### Android-Specific Functions
+
+**IMPORTANT**: Since this is an Android-only package, **DO NOT add `Android` suffix** to function names, even for Android-specific APIs.
+
+**✅ Correct**:
+```kotlin
+fun acknowledgePurchase()
+fun consumePurchase()
+fun getPackageName()
+fun buildModule(context: Context)
+fun isHorizonEnvironment(context: Context)
+```
+
+**❌ Incorrect**:
+```kotlin
+fun acknowledgePurchaseAndroid()  // Don't add Android suffix
+fun consumePurchaseAndroid()      // Don't add Android suffix
+fun buildModuleAndroid()          // Don't add Android suffix
+```
+
+**Exception**: Only add `Android` suffix when the function is part of a cross-platform API that has platform-specific variants (e.g., `ProductAndroid`, `PurchaseAndroid` types that contrast with iOS types).
+
 ### Enum Values
 - Enum values in this codebase must use **kebab-case** (e.g., `non-consumable`, `in-app`, `user-cancelled`)
 - This matches the convention used in the auto-generated Types.kt from GraphQL schemas

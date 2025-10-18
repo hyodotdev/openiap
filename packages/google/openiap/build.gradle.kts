@@ -118,7 +118,9 @@ dependencies {
     // Testing dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    
+    // Add Google Play Billing for tests (all flavors need it for OpenIapErrorTest)
+    testImplementation("com.android.billingclient:billing-ktx:8.0.0")
+
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

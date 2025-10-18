@@ -30,7 +30,7 @@ object IapConstants {
     fun isHorizonOS(): Boolean {
         return Build.MANUFACTURER.equals("Meta", ignoreCase = true) ||
                Build.BRAND.equals("Meta", ignoreCase = true) ||
-               Build.MODEL.contains("Quest", ignoreCase = true)
+               (Build.MODEL?.contains("Quest", ignoreCase = true) == true)
     }
 
     // Get subscription SKUs based on current device

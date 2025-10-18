@@ -80,7 +80,7 @@ internal suspend fun queryPurchasesHorizon(
             val mapped = purchaseList?.map {
                 android.util.Log.d("HORIZON_QUERY", "  - Purchase: productIds=${it.products}")
                 OpenIapLog.d("  - Purchase: productIds=${it.products}", TAG)
-                it.toPurchase(productType)
+                it.toPurchase()
             } ?: emptyList()
             android.util.Log.i("HORIZON_QUERY", "queryPurchasesHorizon: Returning ${mapped.size} mapped purchases")
             continuation.resume(mapped)

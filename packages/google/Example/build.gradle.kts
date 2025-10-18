@@ -33,6 +33,8 @@ android {
             ?: (project.findProperty("EXAMPLE_OPENIAP_APP_ID") as String?)
             ?: ""
         buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
+        // Ensure placeholder exists for all variants (play included)
+        manifestPlaceholders["OCULUS_APP_ID"] = appId
     }
 
     flavorDimensions += "platform"

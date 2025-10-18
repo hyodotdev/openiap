@@ -342,7 +342,7 @@ class OpenIapHorizonModule(
 
                 val detailsBySku = mutableMapOf<String, HorizonProductDetails>()
                 androidArgs.skus.forEach { sku ->
-                    productManager.get(sku)?.takeIf { it.productType == desiredType }?.let { detailsBySku[sku] = it }
+                    productManager.get(sku, desiredType)?.takeIf { it.productType == desiredType }?.let { detailsBySku[sku] = it }
                 }
 
                 val missing = androidArgs.skus.filter { !detailsBySku.containsKey(it) }
@@ -491,16 +491,16 @@ class OpenIapHorizonModule(
                         }
 
                         val list = productDetailsList ?: emptyList()
-                        productManager.putAll(list)
+                        productManager.putAll(list, desiredType)
 
                         // Now build the full ordered list
                         val ordered = androidArgs.skus.mapNotNull { sku ->
-                            productManager.get(sku)?.takeIf { it.productType == desiredType }
+                            productManager.get(sku, desiredType)?.takeIf { it.productType == desiredType }
                         }
 
                         if (ordered.size != androidArgs.skus.size) {
                             val missingSku = androidArgs.skus.firstOrNull { sku ->
-                                productManager.get(sku)?.takeIf { it.productType == desiredType } == null
+                                productManager.get(sku, desiredType)?.takeIf { it.productType == desiredType } == null
                             }
                             val err = OpenIapError.SkuNotFound(missingSku ?: "")
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
@@ -704,7 +704,11 @@ class OpenIapHorizonModule(
                 val mapped = purchases.map { purchase ->
                     // CRITICAL FIX: Determine product type from ProductManager cache, not from product ID string
                     val firstProductId = purchase.products?.firstOrNull()
-                    val cachedProduct = firstProductId?.let { productManager.get(it) }
+                    // Try both types since we don't know which one was used
+                    val cachedProduct = firstProductId?.let {
+                        productManager.get(it, BillingClient.ProductType.SUBS)
+                            ?: productManager.get(it, BillingClient.ProductType.INAPP)
+                    }
                     val type = cachedProduct?.productType ?: run {
                         // Fallback: if not in cache, check if product ID contains "subs"
                         if (purchase.products?.any { it.contains("subs", ignoreCase = true) } == true) {
@@ -716,7 +720,7 @@ class OpenIapHorizonModule(
                     android.util.Log.i("HORIZON_CALLBACK", "Mapping purchase products=${purchase.products} to type=$type (cached=${cachedProduct != null})")
                     OpenIapLog.d("Mapped purchase productIds=${purchase.products} to type=$type (from cache: ${cachedProduct != null})", TAG)
 
-                    val converted = purchase.toPurchase(type)
+                    val converted = purchase.toPurchase()
                     android.util.Log.i("HORIZON_CALLBACK", "Converted purchase: productId=${converted.productId}, acknowledged=${purchase.isAcknowledged()}")
                     converted
                 }
@@ -842,10 +846,12 @@ class OpenIapHorizonModule(
                     val listener = AlternativeBillingOnlyInformationDialogListener { billingResult ->
                         cont.resume(billingResult)
                     }
-                    client.showAlternativeBillingOnlyInformationDialog(
-                        currentActivity,
-                        listener
-                    )
+                    currentActivity.runOnUiThread {
+                        client.showAlternativeBillingOnlyInformationDialog(
+                            currentActivity,
+                            listener
+                        )
+                    }
                 } catch (e: NoSuchMethodError) {
                     OpenIapLog.w("showAlternativeBillingOnlyInformationDialog not supported", TAG)
                     cont.resumeWithException(Exception("Feature not supported"))

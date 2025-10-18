@@ -17,8 +17,14 @@ openiap/
 
 ## Required Pre-Work
 
-- Before writing or editing anything, load and review the relevant `CONVENTION.md` file in the specific package directory
-- For cross-package changes, review conventions for all affected packages
+**CRITICAL**: Before writing or editing anything in a package, **ALWAYS** load and review the relevant `CONVENTION.md` file:
+
+- **GraphQL Types** (`packages/gql`): See [`packages/gql/CONVENTION.md`](packages/gql/CONVENTION.md)
+- **Android Library** (`packages/google`): See [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)
+- **Apple Library** (`packages/apple`): See [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
+- **Documentation** (`packages/docs`): Follow conventions in this file (below)
+
+For cross-package changes, review conventions for all affected packages.
 
 ---
 
@@ -289,20 +295,20 @@ Before committing any changes:
 
 ### Android Function Naming Conventions
 
-- **Android-specific functions MUST have `Android` suffix**
-- **Cross-platform functions have NO suffix**
+**IMPORTANT**: See [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md) for detailed Android naming conventions.
 
-#### Android Examples
+**Key Rule**: Since `packages/google` is Android-only, **DO NOT add `Android` suffix** to function names, even for Android-specific APIs.
 
 **✅ Correct**:
 
 ```kotlin
-// Android-specific
-fun acknowledgePurchaseAndroid()
-fun consumePurchaseAndroid()
-fun getPackageNameAndroid()
+// Android-specific functions (no suffix needed)
+fun acknowledgePurchase()
+fun consumePurchase()
+fun getPackageName()
+fun buildModule(context: Context)
 
-// Cross-platform
+// Cross-platform API functions
 fun initConnection()
 fun fetchProducts()
 fun requestPurchase()
@@ -311,9 +317,12 @@ fun requestPurchase()
 **❌ Incorrect**:
 
 ```kotlin
-// Missing Android suffix
-fun acknowledgePurchase()  // Should be acknowledgePurchaseAndroid()
+// Don't add Android suffix in Android-only package
+fun acknowledgePurchaseAndroid()  // Wrong!
+fun buildModuleAndroid()          // Wrong!
 ```
+
+**Exception**: Only use `Android` suffix for types that are part of a cross-platform API (e.g., `ProductAndroid`, `PurchaseAndroid` that contrast with iOS types).
 
 ---
 

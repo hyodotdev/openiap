@@ -95,10 +95,10 @@ internal object HorizonBillingConverters {
         )
     }
 
-    fun HorizonPurchase.toPurchase(productType: String): PurchaseAndroid {
+    fun HorizonPurchase.toPurchase(): PurchaseAndroid {
         val token = purchaseToken
         val productsList = products ?: emptyList()
-        val purchaseState = PurchaseState.Purchased
+        val state = PurchaseState.fromHorizonState(getPurchaseState())
 
         return PurchaseAndroid(
             autoRenewingAndroid = isAutoRenewing(),
@@ -113,7 +113,7 @@ internal object HorizonBillingConverters {
             packageNameAndroid = packageName,
             platform = IapPlatform.Android,
             productId = productsList.firstOrNull().orEmpty(),
-            purchaseState = purchaseState,
+            purchaseState = state,
             purchaseToken = token,
             quantity = quantity ?: 1,
             signatureAndroid = signature,
@@ -139,4 +139,16 @@ internal object HorizonBillingConverters {
         transactionDate = transactionDate,
         transactionId = transactionId.orEmpty()
     )
+}
+
+/**
+ * Maps Horizon Purchase state to internal PurchaseState enum.
+ * Horizon SDK implements Google Play Billing compatibility layer,
+ * so states match the Play Billing Library states.
+ */
+fun PurchaseState.Companion.fromHorizonState(state: Int): PurchaseState = when (state) {
+    com.meta.horizon.billingclient.api.Purchase.PurchaseState.PURCHASED -> PurchaseState.Purchased
+    com.meta.horizon.billingclient.api.Purchase.PurchaseState.PENDING -> PurchaseState.Pending
+    com.meta.horizon.billingclient.api.Purchase.PurchaseState.UNSPECIFIED_STATE -> PurchaseState.Unknown
+    else -> PurchaseState.Unknown
 }

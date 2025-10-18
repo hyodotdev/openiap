@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -39,11 +38,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        // Clean up the store when activity is destroyed
-        lifecycleScope.launch {
-            runCatching { iapStore.endConnection() }
+        // Clean up the store before lifecycleScope is cancelled
+        runCatching {
+            kotlinx.coroutines.runBlocking {
+                iapStore.endConnection()
+            }
         }
+        super.onDestroy()
     }
 }
 

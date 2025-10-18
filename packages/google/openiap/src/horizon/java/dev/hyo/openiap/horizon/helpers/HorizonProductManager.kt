@@ -3,9 +3,9 @@ package dev.hyo.openiap.horizon.helpers
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams
 import com.meta.horizon.billingclient.api.ProductDetails as HorizonProductDetails
-import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 
 private const val TAG = "HorizonProductManager"
@@ -14,12 +14,14 @@ private const val TAG = "HorizonProductManager"
  * Manages ProductDetails caching and queries for Horizon.
  */
 internal class HorizonProductManager {
-    private val cache = mutableMapOf<String, HorizonProductDetails>()
+    private data class CacheKey(val productId: String, val productType: String)
+    private val cache = ConcurrentHashMap<CacheKey, HorizonProductDetails>()
 
-    fun get(productId: String): HorizonProductDetails? = cache[productId]
+    fun get(productId: String, productType: String): HorizonProductDetails? =
+        cache[CacheKey(productId, productType)]
 
-    fun putAll(details: Collection<HorizonProductDetails>) {
-        details.forEach { cache[it.productId] = it }
+    fun putAll(details: Collection<HorizonProductDetails>, productType: String) {
+        details.forEach { cache[CacheKey(it.productId, productType)] = it }
     }
 
     fun clear() = cache.clear()
@@ -42,11 +44,11 @@ internal class HorizonProductManager {
             return emptyList()
         }
 
-        val missing = productIds.filter { cache[it] == null }.distinct()
+        val missing = productIds.filter { cache[CacheKey(it, productType)] == null }.distinct()
         OpenIapLog.d("getOrQuery: missing=$missing, cached=${productIds.size - missing.size}", TAG)
 
         if (missing.isEmpty()) {
-            val cached = productIds.mapNotNull { cache[it] }
+            val cached = productIds.mapNotNull { cache[CacheKey(it, productType)] }
             OpenIapLog.d("getOrQuery: Returning ${cached.size} cached products", TAG)
             return cached
         }
@@ -64,6 +66,7 @@ internal class HorizonProductManager {
         OpenIapLog.d("getOrQuery: Querying ${missing.size} products from Horizon API", TAG)
 
         return suspendCancellableCoroutine { cont ->
+            cont.invokeOnCancellation { OpenIapLog.d("getOrQuery: cancelled", TAG) }
             client.queryProductDetailsAsync(params) { billingResult, result ->
                 OpenIapLog.d(
                     "getOrQuery: Response code=${billingResult.responseCode}, " +
@@ -79,8 +82,8 @@ internal class HorizonProductManager {
                         TAG
                     )
                     // Return whatever we have in cache instead of crashing
-                    val cached = productIds.mapNotNull { cache[it] }
-                    cont.resume(cached)
+                    val cached = productIds.mapNotNull { cache[CacheKey(it, productType)] }
+                    if (cont.isActive) cont.resume(cached)
                     return@queryProductDetailsAsync
                 }
 
@@ -109,12 +112,12 @@ internal class HorizonProductManager {
                     }
                 }
 
-                putAll(list)
+                putAll(list, productType)
 
                 // Preserve requested order and include cached + newly-fetched
-                val finalList = productIds.mapNotNull { cache[it] }
+                val finalList = productIds.mapNotNull { cache[CacheKey(it, productType)] }
                 OpenIapLog.d("getOrQuery: Returning ${finalList.size} total products", TAG)
-                cont.resume(finalList)
+                if (cont.isActive) cont.resume(finalList)
             }
         }
     }
