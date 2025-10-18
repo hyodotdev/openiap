@@ -33,6 +33,58 @@ cd openiap-google
 adb shell am start -n dev.hyo.martie/.MainActivity
 ```
 
+## Horizon OS Development (Meta Quest)
+
+This library supports both Google Play Store and Meta Horizon OS (Quest devices) using product flavors.
+
+### Setting Up Horizon App ID
+
+1. **Create `local.properties`** in the project root (if it doesn't exist):
+
+```properties
+# local.properties (DO NOT commit this file)
+sdk.dir=/path/to/Android/sdk
+
+# Horizon OS App ID (Meta Quest)
+EXAMPLE_HORIZON_APP_ID=your_horizon_app_id_here
+```
+
+1. **Alternative: Pass via command line**:
+
+```bash
+# Build with App ID
+./gradlew :Example:assembleHorizonDebug -PEXAMPLE_HORIZON_APP_ID=your_app_id
+
+# Install with App ID
+./gradlew :Example:installHorizonDebug -PEXAMPLE_HORIZON_APP_ID=your_app_id
+```
+
+1. **Using Android Studio**:
+   - Open **View > Tool Windows > Build Variants**
+   - Set **Example** module to **horizonDebug**
+   - Set **openiap** module to **horizonDebug**
+   - Run the app (App ID will be read from `local.properties`)
+
+### Build Variants
+
+- **playDebug** / **playRelease** - Google Play Store billing
+- **horizonDebug** / **horizonRelease** - Meta Horizon OS billing
+
+### Testing on Quest Devices
+
+```bash
+# Connect Quest via ADB
+adb devices
+
+# Install Horizon variant
+./gradlew :Example:installHorizonDebug
+
+# View logs
+adb logcat | grep -E "OpenIap|Horizon"
+```
+
+**Note**: The Horizon App ID is required for Horizon Billing to work. Without it, the billing client will fail to connect.
+
 ## Generated Types
 
 - All GraphQL models in `openiap/src/main/java/dev/hyo/openiap/Types.kt` are generated from the [`openiap` monorepo](https://github.com/hyodotdev/openiap/tree/main/packages/gql). When you update API behavior, adjust the upstream type generator first so the Kotlin output stays in sync across platforms.

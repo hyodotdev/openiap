@@ -36,6 +36,7 @@ import dev.hyo.openiap.AlternativeBillingMode
 import dev.hyo.openiap.AlternativeBillingModeAndroid
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.martie.util.findActivity
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,26 +45,33 @@ fun AlternativeBillingScreen(navController: NavController) {
     val activity = remember(context) { context.findActivity() }
     val appContext = remember(context) { context.applicationContext }
 
+    // Platform detection (runtime detection)
+    val isHorizon = remember { dev.hyo.martie.IapConstants.isHorizonOS() }
+
     var selectedMode by remember { mutableStateOf<AlternativeBillingMode>(AlternativeBillingMode.ALTERNATIVE_ONLY) }
     var isModeDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Initialize store - recreate when mode changes
-    val iapStore = remember(selectedMode) {
-        android.util.Log.d("AlternativeBillingScreen", "Creating new OpenIapStore with mode: $selectedMode")
+    // Initialize store - use default constructor for auto-detection (compatible with both Play and Horizon)
+    val iapStore = remember {
+        android.util.Log.d("AlternativeBillingScreen", "Creating OpenIapStore with auto-detection")
         dev.hyo.openiap.OpenIapLog.isEnabled = true
 
-        val store = OpenIapStore(appContext, alternativeBillingMode = selectedMode)
+        // Use default constructor which auto-detects platform (Play or Horizon)
+        // Alternative billing mode will be set via initConnection config
+        OpenIapStore(appContext)
+    }
 
-        // Add event-based listener for User Choice Billing
+    // Set up User Choice Billing listener when mode changes
+    LaunchedEffect(selectedMode) {
         if (selectedMode == AlternativeBillingMode.USER_CHOICE) {
-            store.addUserChoiceBillingListener { details ->
+            iapStore.addUserChoiceBillingListener { details ->
                 android.util.Log.d("UserChoiceEvent", "=== User Choice Billing Event ===")
                 android.util.Log.d("UserChoiceEvent", "External Token: ${details.externalTransactionToken}")
                 android.util.Log.d("UserChoiceEvent", "Products: ${details.products}")
                 android.util.Log.d("UserChoiceEvent", "==============================")
 
                 // Show result in UI
-                store.postStatusMessage(
+                iapStore.postStatusMessage(
                     message = "User selected alternative billing\nToken: ${details.externalTransactionToken.take(20)}...\nProducts: ${details.products.joinToString()}",
                     status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
                     productId = details.products.firstOrNull()
@@ -72,9 +80,10 @@ fun AlternativeBillingScreen(navController: NavController) {
                 // TODO: Process payment with your payment system
                 // Then create token and report to backend
             }
+        } else {
+            // Remove listener when not in USER_CHOICE mode
+            iapStore.setUserChoiceBillingListener(null)
         }
-
-        store
     }
 
     val products by iapStore.products.collectAsState()
@@ -105,6 +114,17 @@ fun AlternativeBillingScreen(navController: NavController) {
     // Initialize connection when mode changes
     LaunchedEffect(selectedMode) {
         try {
+            android.util.Log.d("AlternativeBillingScreen", "Initializing with mode: $selectedMode")
+
+            // IMPORTANT: End existing connection first before creating new one
+            android.util.Log.d("AlternativeBillingScreen", "Ending existing connection...")
+            iapStore.endConnection()
+            delay(500) // Give it time to fully disconnect
+
+            // Set activity
+            iapStore.setActivity(activity)
+
+            // Create config based on selected mode
             val config = when (selectedMode) {
                 AlternativeBillingMode.USER_CHOICE -> InitConnectionConfig(
                     alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
@@ -115,16 +135,23 @@ fun AlternativeBillingScreen(navController: NavController) {
                 else -> null
             }
 
+            android.util.Log.d("AlternativeBillingScreen", "Reconnecting with config: $config")
             val connected = iapStore.initConnection(config)
+            android.util.Log.d("AlternativeBillingScreen", "Connection result: $connected")
+
             if (connected) {
-                iapStore.setActivity(activity)
+                android.util.Log.d("AlternativeBillingScreen", "Fetching products...")
                 val request = ProductRequest(
                     skus = IapConstants.INAPP_SKUS,
                     type = ProductQueryType.InApp
                 )
                 iapStore.fetchProducts(request)
+            } else {
+                android.util.Log.e("AlternativeBillingScreen", "Failed to connect to billing service")
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            android.util.Log.e("AlternativeBillingScreen", "Connection error: ${e.message}", e)
+        }
     }
 
     DisposableEffect(Unit) {
@@ -161,6 +188,46 @@ fun AlternativeBillingScreen(navController: NavController) {
             contentPadding = PaddingValues(vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // Horizon Info Banner (Alternative Billing is now supported!)
+            if (isHorizon) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.primary.copy(alpha = 0.1f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = AppColors.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Testing Meta Horizon Alternative Billing",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppColors.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "Alternative Billing APIs are available through Horizon Billing Compatibility Library. Testing if they work correctly.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppColors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Mode Selection Dropdown
             item {
                 Card(
@@ -182,7 +249,9 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                         ExposedDropdownMenuBox(
                             expanded = isModeDropdownExpanded,
-                            onExpandedChange = { isModeDropdownExpanded = it }
+                            onExpandedChange = {
+                                isModeDropdownExpanded = it
+                            }
                         ) {
                             OutlinedTextField(
                                 value = when (selectedMode) {

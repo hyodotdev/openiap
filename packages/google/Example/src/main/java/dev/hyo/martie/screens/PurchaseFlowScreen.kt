@@ -54,7 +54,9 @@ fun PurchaseFlowScreen(
     val activity = remember(context) { context.findActivity() }
     val uiScope = rememberCoroutineScope()
     val appContext = remember(context) { context.applicationContext }
-    val iapStore = storeParam ?: remember(appContext) { OpenIapStore(appContext) }
+    val iapStore = storeParam ?: remember(appContext) {
+        OpenIapStore(appContext)
+    }
     val products by iapStore.products.collectAsState()
     val purchases by iapStore.availablePurchases.collectAsState()
     val androidProducts = remember(products) { products.filterIsInstance<ProductAndroid>() }

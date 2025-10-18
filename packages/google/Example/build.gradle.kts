@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Load local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
 android {
@@ -17,6 +26,50 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+
+        val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
+            ?: localProperties.getProperty("EXAMPLE_OPENIAP_APP_ID")
+            ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
+            ?: (project.findProperty("EXAMPLE_OPENIAP_APP_ID") as String?)
+            ?: ""
+        buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
+        // Ensure placeholder exists for all variants (play included)
+        manifestPlaceholders["OCULUS_APP_ID"] = appId
+    }
+
+    flavorDimensions += "platform"
+
+    productFlavors {
+        // Auto flavor (default) - includes both libraries, detects platform at runtime
+        create("auto") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"auto\"")
+            isDefault = true
+
+            // Dynamically inject OCULUS_APP_ID into AndroidManifest (needed for Horizon)
+            val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
+                ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
+                ?: ""
+            manifestPlaceholders["OCULUS_APP_ID"] = appId
+        }
+
+        // Play flavor - Google Play Billing only
+        create("play") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+        }
+
+        // Horizon flavor - Meta Horizon Billing only
+        create("horizon") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
+
+            // Dynamically inject OCULUS_APP_ID into AndroidManifest
+            val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
+                ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
+                ?: ""
+            manifestPlaceholders["OCULUS_APP_ID"] = appId
+        }
     }
 
     buildTypes {
@@ -44,6 +97,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

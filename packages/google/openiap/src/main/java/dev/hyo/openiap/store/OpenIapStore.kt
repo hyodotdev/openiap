@@ -33,9 +33,10 @@ import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationEndConnectionHandler
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.BillingClient
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
@@ -48,14 +49,20 @@ import kotlinx.coroutines.launch
 
 /**
  * OpenIapStore (Android)
- * Convenience store that wraps OpenIapModule and provides spec-aligned, suspend APIs
- * with observable StateFlows for UI layers (Compose/XML) to consume.
- *
- * @param module OpenIapModule instance
+ * Convenience store that wraps an [OpenIapProtocol] implementation (Play Store or Horizon)
+ * and exposes suspend APIs with observable StateFlows for UI layers to consume.
  */
-class OpenIapStore(private val module: OpenIapModule) {
+class OpenIapStore(private val module: OpenIapProtocol) {
+    init {
+        android.util.Log.i("OpenIapStore", "Initialized with module: ${module.javaClass.simpleName}")
+    }
+
+    constructor(context: Context) : this(buildModule(context, null, null))
+    constructor(context: Context, store: String?) : this(buildModule(context, store, null))
+    constructor(context: Context, store: String?, appId: String?) : this(buildModule(context, store, appId))
+
     /**
-     * Convenience constructor that creates OpenIapModule
+     * Convenience constructor that creates OpenIapModule with alternative billing support
      *
      * @param context Android context
      * @param alternativeBillingMode Alternative billing mode (default: NONE)
@@ -65,7 +72,7 @@ class OpenIapStore(private val module: OpenIapModule) {
         context: Context,
         alternativeBillingMode: dev.hyo.openiap.AlternativeBillingMode = dev.hyo.openiap.AlternativeBillingMode.NONE,
         userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null
-    ) : this(OpenIapModule(context, alternativeBillingMode, userChoiceBillingListener))
+    ) : this(OpenIapModule(context, alternativeBillingMode, userChoiceBillingListener) as OpenIapProtocol)
 
     /**
      * Convenience constructor for backward compatibility
@@ -77,7 +84,7 @@ class OpenIapStore(private val module: OpenIapModule) {
     constructor(
         context: Context,
         enableAlternativeBilling: Boolean
-    ) : this(OpenIapModule(context, enableAlternativeBilling))
+    ) : this(OpenIapModule(context, enableAlternativeBilling) as OpenIapProtocol)
 
     // Public state
     private val _isConnected = MutableStateFlow(false)
@@ -116,6 +123,37 @@ class OpenIapStore(private val module: OpenIapModule) {
         )
         _status.value = _status.value.copy(lastError = null)
         pendingRequestProductId = null
+
+        // CRITICAL FIX: Refresh available purchases to update UI
+        // This ensures the purchase list reflects the new purchase immediately
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                android.util.Log.i("OpenIapStore", "Purchase update received, refreshing available purchases")
+
+                // Wait a bit for the purchase to be fully processed by Horizon
+                kotlinx.coroutines.delay(500)
+
+                // Ensure connection is ready
+                if (!isConnected.value) {
+                    android.util.Log.w("OpenIapStore", "Not connected, skipping purchase refresh (connection will be restored on next app start)")
+                    // Don't attempt to reconnect here as it may cause issues
+                    // The purchase will be available on next app launch
+                    return@launch
+                }
+
+                android.util.Log.i("OpenIapStore", "About to call module.getAvailablePurchases(null)")
+                val result = module.getAvailablePurchases(null)
+                android.util.Log.i("OpenIapStore", "module.getAvailablePurchases returned: ${result.size} purchases")
+                result.forEachIndexed { index, purchase ->
+                    android.util.Log.i("OpenIapStore", "  Purchase[$index]: ${purchase.productId}")
+                }
+                _availablePurchases.value = result
+                android.util.Log.i("OpenIapStore", "Available purchases updated: ${result.size} purchases")
+            } catch (e: Exception) {
+                android.util.Log.e("OpenIapStore", "Failed to refresh purchases after update", e)
+                e.printStackTrace()
+            }
+        }
     }
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
         if (error is OpenIapError.UserCancelled || error is OpenIapError.PurchaseCancelled) {
@@ -185,10 +223,13 @@ class OpenIapStore(private val module: OpenIapModule) {
     val initConnection: MutationInitConnectionHandler = { config ->
         setLoading { it.initConnection = true }
         try {
+            OpenIapLog.i("OpenIapStore.initConnection: Calling module.initConnection...", "OpenIapStore")
             val ok = module.initConnection(config)
+            OpenIapLog.i("OpenIapStore.initConnection: module.initConnection returned: $ok", "OpenIapStore")
             _isConnected.value = ok
             ok
         } catch (e: Exception) {
+            OpenIapLog.e("OpenIapStore.initConnection: Exception", e, "OpenIapStore")
             setError(e.message)
             throw e
         } finally {
@@ -199,7 +240,10 @@ class OpenIapStore(private val module: OpenIapModule) {
     /**
      * Convenience overload that calls initConnection with null config
      */
-    suspend fun initConnection(): Boolean = initConnection(null)
+    suspend fun initConnection(): Boolean {
+        OpenIapLog.i("OpenIapStore.initConnection(): Calling initConnection(null)...", "OpenIapStore")
+        return initConnection(null)
+    }
 
     val endConnection: MutationEndConnectionHandler = {
         removePurchaseUpdateListener(purchaseUpdateListener)
@@ -220,9 +264,12 @@ class OpenIapStore(private val module: OpenIapModule) {
     // Product Management - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
     val fetchProducts: QueryFetchProductsHandler = { request ->
+        android.util.Log.i("OpenIapStore", "fetchProducts called with SKUs: ${request.skus}, type: ${request.type}")
         setLoading { it.fetchProducts = true }
         try {
+            android.util.Log.i("OpenIapStore", "Calling module.fetchProducts")
             val result = module.fetchProducts(request)
+            android.util.Log.i("OpenIapStore", "module.fetchProducts returned: $result")
             when (result) {
                 is FetchProductsResultProducts -> {
                     // Merge new products with existing ones
@@ -261,12 +308,16 @@ class OpenIapStore(private val module: OpenIapModule) {
     // Purchases / Restore - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
+        android.util.Log.i("OpenIapStore", "getAvailablePurchases called, module type: ${module.javaClass.simpleName}")
         setLoading { it.restorePurchases = true }
         try {
+            android.util.Log.i("OpenIapStore", "Calling module.getAvailablePurchases(options)")
             val result = module.getAvailablePurchases(options)
+            android.util.Log.i("OpenIapStore", "module.getAvailablePurchases returned ${result.size} purchases")
             _availablePurchases.value = result
             result
         } catch (e: Exception) {
+            android.util.Log.e("OpenIapStore", "getAvailablePurchases exception: ${e.message}", e)
             setError(e.message)
             throw e
         } finally {
@@ -291,7 +342,8 @@ class OpenIapStore(private val module: OpenIapModule) {
         }
 
         try {
-            module.requestPurchase(props)
+            module.mutationHandlers.requestPurchase?.invoke(props)
+                ?: throw OpenIapError.NotSupported
         } finally {
             if (skuForStatus != null) removePurchasing(skuForStatus)
         }
@@ -304,7 +356,7 @@ class OpenIapStore(private val module: OpenIapModule) {
         // Check if already processed - but we can't check isAcknowledgedAndroid on PurchaseInput
         if (token == null || !processedPurchaseTokens.contains(token)) {
             try {
-                module.finishTransaction(purchaseInput, isConsumable)
+                module.mutationHandlers.finishTransaction?.invoke(purchaseInput, isConsumable)
                 if (token != null) processedPurchaseTokens.add(token)
             } catch (e: Exception) {
                 setError(e.message)
@@ -318,12 +370,12 @@ class OpenIapStore(private val module: OpenIapModule) {
     // Subscriptions
     // -------------------------------------------------------------------------
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription> =
-        module.getActiveSubscriptions(subscriptionIds)
+        module.queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds) ?: emptyList()
 
     suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean =
-        module.hasActiveSubscriptions(subscriptionIds)
+        module.queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
 
-    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.deepLinkToSubscriptions(options)
+    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.mutationHandlers.deepLinkToSubscriptions?.invoke(options)
 
     // -------------------------------------------------------------------------
     // Alternative Billing (Step-by-Step API)
@@ -492,4 +544,86 @@ sealed class IapOperationResult {
     object Success : IapOperationResult()
     data class Failure(val message: String) : IapOperationResult()
     object Cancelled : IapOperationResult()
+}
+
+private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
+    // Get default store from BuildConfig if available
+    val defaultStore = try {
+        val buildConfig = Class.forName("io.github.hyochan.openiap.BuildConfig")
+        val storeValue = buildConfig.getField("OPENIAP_STORE").get(null) as? String ?: "play"
+        android.util.Log.i("OpenIapStore", "BuildConfig.OPENIAP_STORE = $storeValue")
+        storeValue
+    } catch (e: Throwable) {
+        android.util.Log.w("OpenIapStore", "Failed to read BuildConfig.OPENIAP_STORE: ${e.message}")
+        "play"
+    }
+
+    val selected = (store ?: defaultStore).lowercase()
+
+    // For Horizon flavors, try to get app ID from manifest if not provided
+    val resolvedAppId = if ((selected == "horizon" || selected == "meta" || selected == "quest" || selected == "auto") && appId.isNullOrEmpty()) {
+        try {
+            val applicationInfo = context.packageManager.getApplicationInfo(
+                context.packageName,
+                android.content.pm.PackageManager.GET_META_DATA
+            )
+            val metaAppId = applicationInfo.metaData?.getString("com.meta.horizon.platform.ovr.OCULUS_APP_ID")
+            android.util.Log.i("OpenIapStore", "Read OCULUS_APP_ID from manifest: $metaAppId")
+            metaAppId ?: ""
+        } catch (e: Throwable) {
+            android.util.Log.w("OpenIapStore", "Failed to read OCULUS_APP_ID from manifest: ${e.message}")
+            ""
+        }
+    } else {
+        appId ?: ""
+    }
+
+    android.util.Log.i("OpenIapStore", "buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore")
+    OpenIapLog.d("buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore", "OpenIapStore")
+
+    return when (selected) {
+        "horizon", "meta", "quest" -> {
+            try {
+                OpenIapLog.d("Loading OpenIapHorizonModule with appId=$resolvedAppId", "OpenIapStore")
+                val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
+                val constructor = clazz.getConstructor(Context::class.java, String::class.java)
+                val instance = constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
+                OpenIapLog.d("Successfully loaded OpenIapHorizonModule", "OpenIapStore")
+                instance
+            } catch (e: Throwable) {
+                // Fallback to Play Store implementation
+                OpenIapLog.e("Failed to load OpenIapHorizonModule, falling back to Play", e, "OpenIapStore")
+                OpenIapModule(context) as OpenIapProtocol
+            }
+        }
+        "auto" -> {
+            // Auto-detect environment
+            if (isHorizonEnvironment(context)) {
+                try {
+                    val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
+                    val constructor = clazz.getConstructor(Context::class.java, String::class.java)
+                    constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
+                } catch (e: Throwable) {
+                    OpenIapModule(context) as OpenIapProtocol
+                }
+            } else {
+                OpenIapModule(context) as OpenIapProtocol
+            }
+        }
+        else -> {
+            // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
+            OpenIapModule(context) as OpenIapProtocol
+        }
+    }
+}
+
+private fun isHorizonEnvironment(context: Context): Boolean {
+    val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+    if (manufacturer.contains("meta") || manufacturer.contains("oculus")) return true
+    return try {
+        context.packageManager.getPackageInfo("com.oculus.vrshell", 0)
+        true
+    } catch (_: Throwable) {
+        false
+    }
 }

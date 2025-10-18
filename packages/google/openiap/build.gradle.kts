@@ -33,6 +33,26 @@ android {
         }
     }
 
+    flavorDimensions += "platform"
+    productFlavors {
+        // Auto flavor (default) - includes both libraries, detects platform at runtime
+        create("auto") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"auto\"")
+            isDefault = true
+        }
+        // Play flavor - Google Play Billing only
+        create("play") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+        }
+        // Horizon flavor - Meta Horizon Billing only
+        create("horizon") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -45,16 +65,43 @@ android {
     // Enable Compose for composables in this library (IapContext)
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    // Configure source sets for flavors
+    // Auto flavor includes horizon implementation only
+    sourceSets {
+        getByName("auto") {
+            java.srcDir("src/horizon/java")
+        }
     }
 }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    
-    // Google Play Billing Library (align with app/lib v8)
-    api("com.android.billingclient:billing-ktx:8.0.0")
-    
+
+    // Billing libraries strategy:
+    // - All flavors need Play Billing API for compilation (main/ source uses it)
+    // - Auto & Horizon use Horizon Compatibility Library at runtime
+    // - Play uses Google Play Billing at runtime
+
+    // Compile-time dependency for main/ source set
+    compileOnly("com.android.billingclient:billing-ktx:8.0.0")
+
+    // Runtime dependencies per flavor:
+    // Play flavor: Google Play Billing only
+    add("playApi", "com.android.billingclient:billing-ktx:8.0.0")
+
+    // Auto flavor: BOTH libraries for true cross-platform support
+    // - Google Play Billing for Android phones
+    // - Horizon Compatibility Library for Horizon OS (includes duplicate classes, but runtime selects correct one)
+    add("autoApi", "com.android.billingclient:billing-ktx:8.0.0")
+    add("autoApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:1.1.1")
+
+    // Horizon flavor: Horizon Compatibility Library only
+    add("horizonApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:1.1.1")
+
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
@@ -71,7 +118,9 @@ dependencies {
     // Testing dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    
+    // Add Google Play Billing for tests (all flavors need it for OpenIapErrorTest)
+    testImplementation("com.android.billingclient:billing-ktx:8.0.0")
+
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
@@ -80,6 +129,13 @@ dependencies {
 mavenPublishing {
     val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"
     coordinates(groupId, "openiap-google", openIapVersion)
+
+    // Publish the Auto flavor (supports both Play and Horizon)
+    configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+        variant = "autoRelease",
+        sourcesJar = true,
+        publishJavadocJar = true
+    ))
 
     // Use the new Central Portal publishing which avoids Nexus staging profile lookups.
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
