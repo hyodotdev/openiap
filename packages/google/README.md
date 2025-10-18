@@ -10,8 +10,8 @@
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google)
 [![API](https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=21)
-[![Publish to Maven Central](https://github.com/hyodotdev/openiap-google/actions/workflows/publish.yml/badge.svg)](https://github.com/hyodotdev/openiap-google/actions/workflows/publish.yml)
-[![CI](https://github.com/hyodotdev/openiap-google/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap-google/actions/workflows/ci.yml)
+[![Publish to Maven Central](https://github.com/hyodotdev/openiap/actions/workflows/google-release.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/google-release.yml)
+[![CI](https://github.com/hyodotdev/openiap/actions/workflows/google-test.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/google-test.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 Modern Android Kotlin library for in-app purchases using Google Play Billing Library v8.
@@ -307,9 +307,9 @@ sealed class OpenIapError : Exception {
 The library includes a comprehensive sample app demonstrating all features:
 
 ```bash
-git clone https://github.com/hyodotdev/openiap-google.git
-cd openiap-google
-./gradlew :sample:installDebug
+git clone https://github.com/hyodotdev/openiap.git
+cd openiap/packages/google
+./gradlew :Example:installDebug
 ```
 
 ### Test Products
@@ -324,7 +324,7 @@ For production testing, configure products in Google Play Console and use intern
 
 ## 📱 Sample App
 
-The included sample app demonstrates:
+The included sample app (`Example/` directory) demonstrates:
 
 - ✅ Connection management with retry logic
 - ✅ Product listing and purchase flow
@@ -449,8 +449,8 @@ Contributions are welcome! Please read our contributing guidelines and submit pu
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/hyodotdev/openiap-google/issues)
-- **Discussions**: [OpenIAP Discussions](https://github.com/hyodotdev/openiap.dev/discussions)
+- **Issues**: [GitHub Issues](https://github.com/hyodotdev/openiap/issues)
+- **Discussions**: [OpenIAP Discussions](https://github.com/hyodotdev/openiap/discussions)
 
 ---
 

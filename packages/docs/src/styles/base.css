@@ -9,6 +9,8 @@
 
 html {
   scroll-behavior: smooth;
+  background-color: #fefefe;
+  background-color: var(--bg-primary);
 }
 
 body {
@@ -26,7 +28,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #fefefe;
   background-color: var(--bg-primary);
+  color: #1a1a1a;
   color: var(--text-primary);
   line-height: 1.6;
   transition:

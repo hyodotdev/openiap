@@ -9,14 +9,14 @@
 </div>
 
 <div align="center">
-  <a href="https://github.com/hyodotdev/openiap-apple">
-    <img src="https://img.shields.io/github/v/tag/hyodotdev/openiap-apple?label=Swift%20Package&logo=swift&color=orange" alt="Swift Package" />
+  <a href="https://github.com/hyodotdev/openiap/tree/main/packages/apple">
+    <img src="https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=apple-v*&label=Swift%20Package&logo=swift&color=orange" alt="Swift Package" />
   </a>
   <a href="https://cocoapods.org/pods/openiap">
     <img src="https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods" alt="CocoaPods" />
   </a>
-  <a href="https://github.com/hyodotdev/openiap-apple/actions/workflows/test.yml">
-    <img src="https://github.com/hyodotdev/openiap-apple/actions/workflows/test.yml/badge.svg" alt="Tests" />
+  <a href="https://github.com/hyodotdev/openiap/actions/workflows/apple-test.yml">
+    <img src="https://github.com/hyodotdev/openiap/actions/workflows/apple-test.yml/badge.svg" alt="Tests" />
   </a>
 </div>
 
@@ -65,14 +65,14 @@ Add OpenIAP to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/hyodotdev/openiap-apple.git", from: "1.2.23")
+    .package(url: "https://github.com/hyodotdev/openiap.git", from: "1.2.23")
 ]
 ```
 
 Or through Xcode:
 
 1. **File** → **Add Package Dependencies**
-2. Enter: `https://github.com/hyodotdev/openiap-apple.git`
+2. Enter: `https://github.com/hyodotdev/openiap.git`
 3. Select version and add to your target
 
 ### CocoaPods
@@ -399,8 +399,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 💬 Support
 
 - 📖 **Documentation**: [openiap.dev](https://openiap.dev)
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/hyodotdev/openiap-apple/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/hyodotdev/openiap-apple/discussions)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/hyodotdev/openiap/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/hyodotdev/openiap/discussions)
 - 💬 **Community**: [Discord](https://discord.gg/openiap) (Coming Soon)
 
 ---

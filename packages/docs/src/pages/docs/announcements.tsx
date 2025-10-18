@@ -160,12 +160,12 @@ function Announcements() {
               <div>
                 <div style={{ fontWeight: 600 }}>openiap-apple</div>
                 <a
-                  href="https://github.com/hyodotdev/openiap-apple"
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="external-link"
                 >
-                  github.com/hyodotdev/openiap-apple
+                  github.com/hyodotdev/openiap/tree/main/packages/apple
                 </a>
               </div>
             </div>
@@ -180,12 +180,12 @@ function Announcements() {
               <div>
                 <div style={{ fontWeight: 600 }}>openiap-google</div>
                 <a
-                  href="https://github.com/hyodotdev/openiap-google"
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="external-link"
                 >
-                  github.com/hyodotdev/openiap-google
+                  github.com/hyodotdev/openiap/tree/main/packages/google
                 </a>
               </div>
             </div>

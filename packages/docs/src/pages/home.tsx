@@ -55,7 +55,7 @@ function Home() {
           <div className="hero-caption">Our Core Libraries</div>
           <div className="hero-modules hero-modules-grid">
             <a
-              href="https://github.com/hyodotdev/openiap-apple"
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
               target="_blank"
               rel="noopener noreferrer"
               className="module-card"
@@ -70,7 +70,7 @@ function Home() {
               </div>
             </a>
             <a
-              href="https://github.com/hyodotdev/openiap-google"
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
               target="_blank"
               rel="noopener noreferrer"
               className="module-card"

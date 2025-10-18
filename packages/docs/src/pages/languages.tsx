@@ -23,7 +23,7 @@ function Languages() {
             <p>Official OpenIAP module for Apple platforms (StoreKit 2)</p>
             <div className="language-links">
               <a
-                href="https://github.com/hyodotdev/openiap-apple"
+                href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -44,7 +44,7 @@ function Languages() {
             <p>Official OpenIAP module for Google Play Billing</p>
             <div className="language-links">
               <a
-                href="https://github.com/hyodotdev/openiap-google"
+                href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"

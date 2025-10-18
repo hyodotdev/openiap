@@ -48,7 +48,7 @@ function Sponsors() {
               }}
             >
               <a
-                href="https://github.com/hyodotdev/openiap-apple"
+                href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -72,7 +72,7 @@ function Sponsors() {
                 <span>openiap-apple</span>
               </a>
               <a
-                href="https://github.com/hyodotdev/openiap-google"
+                href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{

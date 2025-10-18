@@ -567,6 +567,7 @@ git push && git push --tags
 #    - Build and test
 #    - Create GitHub release
 #    - Publish to Maven Central
+# Available at: https://github.com/hyodotdev/openiap/tree/main/packages/google
 ```
 
 **For iOS releases:**
@@ -584,6 +585,7 @@ git push && git push --tags
 #    - Build and test
 #    - Create GitHub release
 #    - Package becomes available via Swift Package Manager
+# Available at: https://github.com/hyodotdev/openiap/tree/main/packages/apple
 ```
 
 ### CI/CD Workflows

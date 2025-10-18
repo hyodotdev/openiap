@@ -2,9 +2,9 @@
 .hero {
   background: linear-gradient(
     180deg,
-    #fdfbf7 0%,
-    rgba(164, 116, 101, 0.08) 50%,
-    rgba(164, 116, 101, 0.15) 100%
+    #ffffff 0%,
+    rgba(164, 116, 101, 0.06) 50%,
+    rgba(164, 116, 101, 0.12) 100%
   );
   color: var(--text-primary);
   padding: 8rem 2rem 6rem;

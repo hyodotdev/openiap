@@ -7,8 +7,9 @@ const GOOGLE_MAVEN_BADGE =
 const GOOGLE_MAVEN_ARTIFACT =
   'https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google';
 const APPLE_SWIFT_BADGE =
-  'https://img.shields.io/github/v/tag/hyodotdev/openiap-apple?label=Swift%20Package&logo=swift&color=orange';
-const APPLE_SWIFT_URL = 'https://github.com/hyodotdev/openiap-apple';
+  'https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=apple-v*&label=Swift%20Package&logo=swift&color=orange';
+const APPLE_SWIFT_URL =
+  'https://github.com/hyodotdev/openiap/tree/main/packages/apple';
 const APPLE_COCOAPODS_BADGE =
   'https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods';
 const APPLE_COCOAPODS_URL = 'https://cocoapods.org/pods/openiap';
