@@ -1,7 +1,5 @@
 package dev.hyo.openiap
 
-import com.android.billingclient.api.BillingClient
-
 /**
  * OpenIAP specific exceptions
  */
@@ -293,24 +291,6 @@ sealed class OpenIapError : Exception() {
 
         fun defaultMessage(code: String): String =
             defaultMessages[code] ?: "Unknown error occurred"
-
-        @Suppress("DEPRECATION")
-        fun fromBillingResponseCode(responseCode: Int, debugMessage: String? = null): OpenIapError {
-            return when (responseCode) {
-                BillingClient.BillingResponseCode.USER_CANCELED -> UserCancelled
-                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> ServiceUnavailable
-                BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> BillingUnavailable
-                BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> ItemUnavailable
-                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> DeveloperError
-                BillingClient.BillingResponseCode.ERROR -> BillingError
-                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> ItemAlreadyOwned
-                BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> ItemNotOwned
-                BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> ServiceDisconnected
-                BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> FeatureNotSupported
-                BillingClient.BillingResponseCode.SERVICE_TIMEOUT -> ServiceTimeout
-                else -> UnknownError
-            }
-        }
 
         fun getAllErrorCodes(): Map<String, String> = defaultMessages
     }

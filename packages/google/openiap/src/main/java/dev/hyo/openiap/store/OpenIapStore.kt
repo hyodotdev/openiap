@@ -544,7 +544,7 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     val selected = (store ?: defaultStore).lowercase()
 
     // For Horizon flavors, try to get app ID from manifest if not provided
-    val resolvedAppId = if ((selected == "horizon" || selected == "meta" || selected == "quest" || selected == "auto") && appId.isNullOrEmpty()) {
+    val resolvedAppId = if ((selected == "horizon" || selected == "meta" || selected == "quest") && appId.isNullOrEmpty()) {
         try {
             val applicationInfo = context.packageManager.getApplicationInfo(
                 context.packageName,
@@ -569,32 +569,11 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
             OpenIapLog.d("Loading OpenIapModule (Horizon flavor)", "OpenIapStore")
             loadHorizonModule(context, resolvedAppId)
         }
-        "auto" -> {
-            // Auto-detect environment based on BuildConfig or runtime detection
-            if (defaultStore == "horizon" || isHorizonEnvironment(context)) {
-                OpenIapLog.d("Auto-detected Horizon environment, loading Horizon flavor", "OpenIapStore")
-                loadHorizonModule(context, resolvedAppId)
-            } else {
-                OpenIapLog.d("Auto-detected Play environment, loading Play flavor", "OpenIapStore")
-                loadPlayModule(context)
-            }
-        }
         else -> {
             // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
             OpenIapLog.d("Loading OpenIapModule (Play flavor)", "OpenIapStore")
             loadPlayModule(context)
         }
-    }
-}
-
-private fun isHorizonEnvironment(context: Context): Boolean {
-    val manufacturer = android.os.Build.MANUFACTURER.lowercase()
-    if (manufacturer.contains("meta") || manufacturer.contains("oculus")) return true
-    return try {
-        context.packageManager.getPackageInfo("com.oculus.vrshell", 0)
-        true
-    } catch (_: Throwable) {
-        false
     }
 }
 
