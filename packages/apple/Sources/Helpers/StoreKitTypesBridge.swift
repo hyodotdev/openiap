@@ -47,6 +47,13 @@ enum StoreKitTypesBridge {
             return discounts?.first(where: { $0.type == "introductory" })?.paymentMode
         }()
 
+        // Get normalized introductory period unit (e.g., 14 days -> week)
+        let introPeriodUnit: SubscriptionPeriodIOS? = {
+            guard let period = subscription.introductoryOffer?.period else { return nil }
+            let normalized = normalizePeriod(period)
+            return normalized.unit.subscriptionPeriodIOS
+        }()
+
         return ProductSubscriptionIOS(
             currency: product.priceFormatStyle.currencyCode,
             debugDescription: product.description,
@@ -60,7 +67,7 @@ enum StoreKitTypesBridge {
             introductoryPriceIOS: subscription.introductoryOffer?.displayPrice,
             introductoryPriceNumberOfPeriodsIOS: introductoryPeriods(from: subscription.introductoryOffer),
             introductoryPricePaymentModeIOS: introPaymentMode,
-            introductoryPriceSubscriptionPeriodIOS: subscription.introductoryOffer?.period.unit.subscriptionPeriodIOS,
+            introductoryPriceSubscriptionPeriodIOS: introPeriodUnit,
             isFamilyShareableIOS: product.isFamilyShareable,
             jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
             platform: .ios,
@@ -419,8 +426,44 @@ private extension StoreKitTypesBridge {
     }
 
     static func introductoryPeriods(from offer: StoreKit.Product.SubscriptionOffer?) -> String? {
-        guard let periodCount = offer?.periodCount else { return nil }
-        return String(periodCount)
+        guard let period = offer?.period else { return nil }
+        let normalized = normalizePeriod(period)
+        return String(normalized.value)
+    }
+
+    /// Normalize a subscription period to the largest possible unit
+    /// e.g., 14 days -> 2 weeks, 7 days -> 1 week, 365 days -> 1 year
+    static func normalizePeriod(_ period: StoreKit.Product.SubscriptionPeriod) -> (value: Int, unit: StoreKit.Product.SubscriptionPeriod.Unit) {
+        let value = period.value
+        let unit = period.unit
+
+        switch unit {
+        case .day:
+            // Try to convert to larger units
+            if value % 365 == 0 {
+                return (value / 365, .year)
+            } else if value % 30 == 0 {
+                return (value / 30, .month)
+            } else if value % 7 == 0 {
+                return (value / 7, .week)
+            }
+            return (value, .day)
+        case .week:
+            // Try to convert weeks to months/years if possible
+            if value % 52 == 0 {
+                return (value / 52, .year)
+            } else if value % 4 == 0 {
+                return (value / 4, .month)
+            }
+            return (value, .week)
+        case .month:
+            if value % 12 == 0 {
+                return (value / 12, .year)
+            }
+            return (value, .month)
+        default:
+            return (value, unit)
+        }
     }
 
     static func productType(from type: StoreKit.Product.ProductType) -> ProductType {

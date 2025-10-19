@@ -164,6 +164,45 @@ final class OpenIapTests: XCTestCase {
             "JSON should not contain 'freeTrial' (case name)")
     }
 
+    func testProductSubscriptionIOSPeriodNormalization() throws {
+        // Test 14-day trial should be normalized to 2 weeks
+        let product14Days = ProductSubscriptionIOS(
+            currency: "USD",
+            debugDescription: "Test",
+            description: "Test subscription with 14-day trial",
+            discountsIOS: nil,
+            displayName: "Test",
+            displayNameIOS: "Test",
+            displayPrice: "$9.99",
+            id: "test.14days",
+            introductoryPriceAsAmountIOS: "0",
+            introductoryPriceIOS: "$0.00",
+            introductoryPriceNumberOfPeriodsIOS: "2",  // Should be 2 (weeks)
+            introductoryPricePaymentModeIOS: .freeTrial,
+            introductoryPriceSubscriptionPeriodIOS: .week,  // Should be week
+            isFamilyShareableIOS: false,
+            jsonRepresentationIOS: "{}",
+            platform: .ios,
+            price: 9.99,
+            subscriptionInfoIOS: nil,
+            subscriptionPeriodNumberIOS: "1",
+            subscriptionPeriodUnitIOS: .month,
+            title: "Test",
+            type: .subs,
+            typeIOS: .autoRenewableSubscription
+        )
+
+        XCTAssertEqual(product14Days.introductoryPriceNumberOfPeriodsIOS, "2",
+            "14 days should be normalized to 2 weeks")
+        XCTAssertEqual(product14Days.introductoryPriceSubscriptionPeriodIOS, .week,
+            "14 days should use 'week' as the unit")
+
+        // Test encoding
+        let dictionary = OpenIapSerialization.encode(product14Days)
+        XCTAssertEqual(dictionary["introductoryPriceNumberOfPeriodsIOS"] as? String, "2")
+        XCTAssertEqual(dictionary["introductoryPriceSubscriptionPeriodIOS"] as? String, "week")
+    }
+
     // MARK: - Helpers
 
     private func makeSampleProduct() -> ProductIOS {
