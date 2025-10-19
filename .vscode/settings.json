@@ -1,0 +1,44 @@
+{
+  "cSpell.words": [
+    "hyodotdev",
+    "openiap"
+  ],
+  "files.associations": {
+    "*.podspec": "ruby"
+  },
+  "files.exclude": {
+    "**/.build": true,
+    "**/.gradle": true,
+    "**/build": true,
+    "**/node_modules": true,
+    "**/.DS_Store": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.build": true,
+    "**/.gradle": true,
+    "**/build": true,
+    "**/dist": true
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[swift]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true
+  },
+  "[kotlin]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true
+  },
+  "java.configuration.updateBuildConfiguration": "automatic"
+}

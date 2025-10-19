@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "🍎 Open Apple (iOS) in Xcode",
+            "command": "open Example/Martie.xcodeproj",
+            "cwd": "${workspaceFolder}/packages/apple"
+        },
+        {
+            "name": "🤖 Open Google (Android) in Android Studio",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "./scripts/open-android-studio.sh"
+            ],
+            "cwd": "${workspaceFolder}/packages/google",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "📝 GQL: Generate Types",
+            "command": "bun run generate",
+            "cwd": "${workspaceFolder}/packages/gql"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "📚 Docs: Dev Server",
+            "command": "bun run dev",
+            "cwd": "${workspaceFolder}/packages/docs"
+        }
+    ]
+}

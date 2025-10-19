@@ -139,20 +139,4 @@ fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscript
     transactionId = id
 )
 
-fun ProductSubscriptionAndroid.toProduct(): Product = ProductAndroid(
-    currency = currency,
-    debugDescription = debugDescription,
-    description = description,
-    displayName = displayName,
-    displayPrice = displayPrice,
-    id = id,
-    nameAndroid = nameAndroid,
-    oneTimePurchaseOfferDetailsAndroid = oneTimePurchaseOfferDetailsAndroid,
-    platform = platform,
-    price = price,
-    subscriptionOfferDetailsAndroid = subscriptionOfferDetailsAndroid,
-    title = title,
-    type = type
-)
-
 fun Purchase.toPurchaseInput(): PurchaseInput = this

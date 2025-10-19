@@ -1,0 +1,54 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "🍎 Open Example in Xcode",
+            "command": "open Martie.xcodeproj",
+            "cwd": "${workspaceFolder}/Example"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "📱 Build & Run Example (iOS Simulator)",
+            "command": "xcodebuild -project Martie.xcodeproj -scheme OpenIapExample -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' build",
+            "cwd": "${workspaceFolder}/Example"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "📦 Swift Package Build",
+            "command": "swift build",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch", 
+            "name": "🧪 Swift Package Test",
+            "command": "swift test",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "☕ CocoaPods Build",
+            "command": "pod install",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "🔍 CocoaPods Lint",
+            "command": "pod lib lint --allow-warnings",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "🚀 Swift Test (Watch Mode)",
+            "command": "swift test --parallel",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

@@ -35,7 +35,7 @@ import android.app.Activity
 import android.content.Context
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-import dev.hyo.openiap.OpenIapModule
+// OpenIapModule is loaded via reflection to support both Play and Horizon flavors
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -61,30 +61,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     constructor(context: Context, store: String?) : this(buildModule(context, store, null))
     constructor(context: Context, store: String?, appId: String?) : this(buildModule(context, store, appId))
 
-    /**
-     * Convenience constructor that creates OpenIapModule with alternative billing support
-     *
-     * @param context Android context
-     * @param alternativeBillingMode Alternative billing mode (default: NONE)
-     * @param userChoiceBillingListener Listener for user choice billing selection (optional)
-     */
-    constructor(
-        context: Context,
-        alternativeBillingMode: dev.hyo.openiap.AlternativeBillingMode = dev.hyo.openiap.AlternativeBillingMode.NONE,
-        userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null
-    ) : this(OpenIapModule(context, alternativeBillingMode, userChoiceBillingListener) as OpenIapProtocol)
-
-    /**
-     * Convenience constructor for backward compatibility
-     *
-     * @param context Android context
-     * @param enableAlternativeBilling Enable alternative billing mode (uses ALTERNATIVE_ONLY mode)
-     */
-    @Deprecated("Use constructor with AlternativeBillingMode instead", ReplaceWith("OpenIapStore(context, if (enableAlternativeBilling) AlternativeBillingMode.ALTERNATIVE_ONLY else AlternativeBillingMode.NONE)"))
-    constructor(
-        context: Context,
-        enableAlternativeBilling: Boolean
-    ) : this(OpenIapModule(context, enableAlternativeBilling) as OpenIapProtocol)
+    // Play-specific alternative billing constructors moved to play/store/OpenIapStoreExtensions.kt
 
     // Public state
     private val _isConnected = MutableStateFlow(false)
@@ -593,7 +570,7 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
             } catch (e: Throwable) {
                 // Fallback to Play Store implementation
                 OpenIapLog.e("Failed to load OpenIapHorizonModule, falling back to Play", e, "OpenIapStore")
-                OpenIapModule(context) as OpenIapProtocol
+                loadPlayModule(context)
             }
         }
         "auto" -> {
@@ -604,15 +581,15 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
                     val constructor = clazz.getConstructor(Context::class.java, String::class.java)
                     constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
                 } catch (e: Throwable) {
-                    OpenIapModule(context) as OpenIapProtocol
+                    loadPlayModule(context)
                 }
             } else {
-                OpenIapModule(context) as OpenIapProtocol
+                loadPlayModule(context)
             }
         }
         else -> {
             // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
-            OpenIapModule(context) as OpenIapProtocol
+            loadPlayModule(context)
         }
     }
 }
@@ -625,5 +602,32 @@ private fun isHorizonEnvironment(context: Context): Boolean {
         true
     } catch (_: Throwable) {
         false
+    }
+}
+
+/**
+ * Load OpenIapModule (Play flavor) via reflection
+ */
+private fun loadPlayModule(context: Context): OpenIapProtocol {
+    return try {
+        // Try to load OpenIapModule with default parameters (Context, NONE mode, null listener)
+        val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
+        val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
+        val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
+
+        val constructor = clazz.getConstructor(
+            Context::class.java,
+            alternativeBillingModeClass,
+            userChoiceBillingListenerClass
+        )
+
+        // Get NONE enum value
+        val noneMode = alternativeBillingModeClass.enumConstants?.first {
+            (it as Enum<*>).name == "NONE"
+        }
+
+        constructor.newInstance(context, noneMode, null) as OpenIapProtocol
+    } catch (e: Throwable) {
+        throw IllegalStateException("Failed to load OpenIapModule. Make sure you're using the Play flavor.", e)
     }
 }
