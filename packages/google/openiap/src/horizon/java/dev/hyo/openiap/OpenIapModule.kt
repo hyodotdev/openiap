@@ -628,7 +628,7 @@ class OpenIapModule(
         }
     }
 
-    override val validateReceipt: MutationValidateReceiptHandler = { throw OpenIapError.NotSupported }
+    override val validateReceipt: MutationValidateReceiptHandler = { throw OpenIapError.FeatureNotSupported }
 
     private val purchaseError: SubscriptionPurchaseErrorHandler = {
         onPurchaseError(this::addPurchaseErrorListener, this::removePurchaseErrorListener)

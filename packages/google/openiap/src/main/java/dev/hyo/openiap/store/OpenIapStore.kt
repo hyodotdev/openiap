@@ -326,7 +326,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
         try {
             module.mutationHandlers.requestPurchase?.invoke(props)
-                ?: throw OpenIapError.NotSupported
+                ?: throw OpenIapError.FeatureNotSupported
         } finally {
             if (skuForStatus != null) removePurchasing(skuForStatus)
         }
@@ -543,31 +543,13 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
 
     val selected = (store ?: defaultStore).lowercase()
 
-    // For Horizon flavors, try to get app ID from manifest if not provided
-    val resolvedAppId = if ((selected == "horizon" || selected == "meta" || selected == "quest") && appId.isNullOrEmpty()) {
-        try {
-            val applicationInfo = context.packageManager.getApplicationInfo(
-                context.packageName,
-                android.content.pm.PackageManager.GET_META_DATA
-            )
-            val metaAppId = applicationInfo.metaData?.getString("com.meta.horizon.platform.ovr.OCULUS_APP_ID")
-            android.util.Log.i("OpenIapStore", "Read OCULUS_APP_ID from manifest: $metaAppId")
-            metaAppId ?: ""
-        } catch (e: Throwable) {
-            android.util.Log.w("OpenIapStore", "Failed to read OCULUS_APP_ID from manifest: ${e.message}")
-            ""
-        }
-    } else {
-        appId ?: ""
-    }
-
-    android.util.Log.i("OpenIapStore", "buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore")
-    OpenIapLog.d("buildModule: selected=$selected, appId=$resolvedAppId, defaultStore=$defaultStore", "OpenIapStore")
+    android.util.Log.i("OpenIapStore", "buildModule: selected=$selected, defaultStore=$defaultStore")
+    OpenIapLog.d("buildModule: selected=$selected, defaultStore=$defaultStore", "OpenIapStore")
 
     return when (selected) {
         "horizon", "meta", "quest" -> {
             OpenIapLog.d("Loading OpenIapModule (Horizon flavor)", "OpenIapStore")
-            loadHorizonModule(context, resolvedAppId)
+            loadHorizonModule(context)
         }
         else -> {
             // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
@@ -580,8 +562,9 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
 /**
  * Load OpenIapModule (Horizon flavor) via reflection
  * Note: Horizon flavor now uses the same package and class name as Play flavor
+ * App ID is read from AndroidManifest.xml by the Horizon module
  */
-private fun loadHorizonModule(context: Context, appId: String): OpenIapProtocol {
+private fun loadHorizonModule(context: Context): OpenIapProtocol {
     return try {
         // Both Play and Horizon flavors now use the same class name: dev.hyo.openiap.OpenIapModule
         val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")

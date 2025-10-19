@@ -84,12 +84,6 @@ class OpenIapErrorTest {
         assertEquals("Unknown error", error.message)
     }
 
-    @Test
-    fun `NotSupported has correct code and message`() {
-        val error = OpenIapError.NotSupported
-        assertEquals(ErrorCode.FeatureNotSupported.rawValue, error.code)
-        assertEquals("Operation not supported", error.message)
-    }
 
     @Test
     fun `NotPrepared has correct code and message`() {
@@ -206,8 +200,8 @@ class OpenIapErrorTest {
     @Test
     fun `ServiceTimeout has correct code and message`() {
         val error = OpenIapError.ServiceTimeout
-        assertEquals(ErrorCode.ServiceDisconnected.rawValue, error.code)
-        assertEquals("The request has reached the maximum timeout before Google Play responds", error.message)
+        assertEquals("service-timeout", error.code)
+        assertEquals("The request has reached the maximum timeout before billing service responds", error.message)
     }
 
     @Test
@@ -224,7 +218,6 @@ class OpenIapErrorTest {
             OpenIapError.VerificationFailed,
             OpenIapError.RestoreFailed,
             OpenIapError.UnknownError,
-            OpenIapError.NotSupported,
             OpenIapError.NotPrepared,
             OpenIapError.InitConnection,
             OpenIapError.QueryProduct,
@@ -328,7 +321,6 @@ class OpenIapErrorTest {
             OpenIapError.VerificationFailed to ErrorCode.TransactionValidationFailed.rawValue,
             OpenIapError.RestoreFailed to ErrorCode.SyncError.rawValue,
             OpenIapError.UnknownError to ErrorCode.Unknown.rawValue,
-            OpenIapError.NotSupported to ErrorCode.FeatureNotSupported.rawValue,
             OpenIapError.NotPrepared to ErrorCode.NotPrepared.rawValue,
             OpenIapError.InitConnection to ErrorCode.InitConnection.rawValue,
             OpenIapError.QueryProduct to ErrorCode.QueryProduct.rawValue,
@@ -345,7 +337,7 @@ class OpenIapErrorTest {
             OpenIapError.DeveloperError to ErrorCode.DeveloperError.rawValue,
             OpenIapError.FeatureNotSupported to ErrorCode.FeatureNotSupported.rawValue,
             OpenIapError.ServiceDisconnected to ErrorCode.ServiceDisconnected.rawValue,
-            OpenIapError.ServiceTimeout to ErrorCode.ServiceDisconnected.rawValue
+            OpenIapError.ServiceTimeout to "service-timeout"
         )
 
         errors.forEach { (error, expectedCode) ->
