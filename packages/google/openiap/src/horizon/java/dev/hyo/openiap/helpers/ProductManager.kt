@@ -1,4 +1,4 @@
-package dev.hyo.openiap.horizon.helpers
+package dev.hyo.openiap.helpers
 
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams
@@ -8,12 +8,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 
-private const val TAG = "HorizonProductManager"
+private const val TAG = "ProductManager"
 
 /**
  * Manages ProductDetails caching and queries for Horizon.
  */
-internal class HorizonProductManager {
+internal class ProductManager {
     private data class CacheKey(val productId: String, val productType: String)
     private val cache = ConcurrentHashMap<CacheKey, HorizonProductDetails>()
 

@@ -1,4 +1,4 @@
-package dev.hyo.openiap.horizon.helpers
+package dev.hyo.openiap.helpers
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.ErrorCode

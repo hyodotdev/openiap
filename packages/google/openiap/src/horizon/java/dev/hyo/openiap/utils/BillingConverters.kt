@@ -1,4 +1,4 @@
-package dev.hyo.openiap.horizon.utils
+package dev.hyo.openiap.utils
 
 import com.meta.horizon.billingclient.api.ProductDetails as HorizonProductDetails
 import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
