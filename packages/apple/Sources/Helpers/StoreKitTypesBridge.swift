@@ -35,17 +35,11 @@ enum StoreKitTypesBridge {
     static func productSubscriptionIOS(from product: StoreKit.Product) async -> ProductSubscriptionIOS? {
         guard let subscription = product.subscription else { return nil }
 
+        // Compute discounts once for reuse
+        let discountsIOS = makeDiscounts(from: subscription)
+
         // Get introductory offer payment mode
-        // If introductoryOffer is nil but there are discounts, use the first introductory discount's payment mode
-        let introPaymentMode: PaymentModeIOS? = {
-            if let offer = subscription.introductoryOffer {
-                return offer.paymentMode.paymentModeIOS
-            }
-            // Fallback: check if there's an introductory discount in the discounts array
-            // This handles edge cases where introductoryOffer might be nil but discounts exist
-            let discounts = makeDiscounts(from: subscription)
-            return discounts?.first(where: { $0.type == "introductory" })?.paymentMode
-        }()
+        let introPaymentMode: PaymentModeIOS? = subscription.introductoryOffer?.paymentMode.paymentModeIOS
 
         // Get normalized introductory period unit (e.g., 14 days -> week)
         let introPeriodUnit: SubscriptionPeriodIOS? = {
@@ -58,7 +52,7 @@ enum StoreKitTypesBridge {
             currency: product.priceFormatStyle.currencyCode,
             debugDescription: product.description,
             description: product.description,
-            discountsIOS: makeDiscounts(from: subscription),
+            discountsIOS: discountsIOS,
             displayName: product.displayName,
             displayNameIOS: product.displayName,
             displayPrice: product.displayPrice,
