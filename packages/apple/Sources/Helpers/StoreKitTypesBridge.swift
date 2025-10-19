@@ -432,28 +432,25 @@ private extension StoreKitTypesBridge {
     }
 
     /// Normalize a subscription period to the largest possible unit
-    /// e.g., 14 days -> 2 weeks, 7 days -> 1 week, 365 days -> 1 year
+    /// e.g., 14 days -> 2 weeks, 7 days -> 1 week
+    /// Note: Does not convert to months due to calendar month variance (28-31 days)
     static func normalizePeriod(_ period: StoreKit.Product.SubscriptionPeriod) -> (value: Int, unit: StoreKit.Product.SubscriptionPeriod.Unit) {
         let value = period.value
         let unit = period.unit
 
         switch unit {
         case .day:
-            // Try to convert to larger units
+            // Only convert to weeks or years (avoid month due to variable days)
             if value % 365 == 0 {
                 return (value / 365, .year)
-            } else if value % 30 == 0 {
-                return (value / 30, .month)
             } else if value % 7 == 0 {
                 return (value / 7, .week)
             }
             return (value, .day)
         case .week:
-            // Try to convert weeks to months/years if possible
+            // Only convert to years (avoid month due to variable weeks per month)
             if value % 52 == 0 {
                 return (value / 52, .year)
-            } else if value % 4 == 0 {
-                return (value / 4, .month)
             }
             return (value, .week)
         case .month:
