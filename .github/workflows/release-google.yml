@@ -141,6 +141,7 @@ jobs:
         gh release create "google-v$VERSION" \
           $ARTIFACTS \
           --title "Google v$VERSION" \
+          --latest \
           --generate-notes \
           --notes "## OpenIAP Google v$VERSION
 
