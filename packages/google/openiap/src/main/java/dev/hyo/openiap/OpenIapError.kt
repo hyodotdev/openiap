@@ -1,7 +1,5 @@
 package dev.hyo.openiap
 
-import com.android.billingclient.api.BillingClient
-
 /**
  * OpenIAP specific exceptions
  */
@@ -105,14 +103,6 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Unknown error"
     }
 
-    object NotSupported : OpenIapError() {
-        val CODE = ErrorCode.FeatureNotSupported.rawValue
-        override val code: String = CODE
-        override val message: String = MESSAGE
-
-        const val MESSAGE = "Operation not supported"
-    }
-
     object NotPrepared : OpenIapError() {
         const val CODE = "not-prepared"
         const val MESSAGE = "Billing client not ready"
@@ -196,7 +186,7 @@ sealed class OpenIapError : Exception() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Google Play service is unavailable"
+        const val MESSAGE = "Billing service is unavailable"
     }
 
     object BillingUnavailable : OpenIapError() {
@@ -240,11 +230,11 @@ sealed class OpenIapError : Exception() {
     }
 
     object ServiceTimeout : OpenIapError() {
-        val CODE = ErrorCode.ServiceDisconnected.rawValue
+        const val CODE = "service-timeout"
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "The request has reached the maximum timeout before Google Play responds"
+        const val MESSAGE = "The request has reached the maximum timeout before billing service responds"
     }
 
     class AlternativeBillingUnavailable(val details: String) : OpenIapError() {
@@ -260,32 +250,34 @@ sealed class OpenIapError : Exception() {
     companion object {
         private val defaultMessages: Map<String, String> by lazy {
             mapOf(
-                ErrorCode.SkuNotFound.rawValue to ProductNotFound.MESSAGE,
-                ErrorCode.PurchaseError.rawValue to PurchaseFailed.MESSAGE,
-                ErrorCode.UserCancelled.rawValue to PurchaseCancelled.MESSAGE,
-                ErrorCode.DeferredPayment.rawValue to PurchaseDeferred.MESSAGE,
-                ErrorCode.NetworkError.rawValue to NetworkError.MESSAGE,
-                ErrorCode.Unknown.rawValue to UnknownError.MESSAGE,
-                ErrorCode.NotPrepared.rawValue to NotPrepared.MESSAGE,
-                ErrorCode.InitConnection.rawValue to InitConnection.MESSAGE,
-                ErrorCode.QueryProduct.rawValue to QueryProduct.MESSAGE,
-                ErrorCode.EmptySkuList.rawValue to EmptySkuList.MESSAGE,
-                ErrorCode.SkuNotFound.rawValue to SkuNotFound.MESSAGE,
-                ErrorCode.SkuOfferMismatch.rawValue to SkuOfferMismatch.MESSAGE,
-                ErrorCode.UserCancelled.rawValue to UserCancelled.MESSAGE,
-                ErrorCode.AlreadyOwned.rawValue to ItemAlreadyOwned.MESSAGE,
-                ErrorCode.ItemNotOwned.rawValue to ItemNotOwned.MESSAGE,
-                ErrorCode.BillingUnavailable.rawValue to BillingUnavailable.MESSAGE,
-                ErrorCode.ItemUnavailable.rawValue to ItemUnavailable.MESSAGE,
-                ErrorCode.DeveloperError.rawValue to DeveloperError.MESSAGE,
-                ErrorCode.FeatureNotSupported.rawValue to FeatureNotSupported.MESSAGE,
-                ErrorCode.ServiceDisconnected.rawValue to ServiceDisconnected.MESSAGE,
-                ErrorCode.UserError.rawValue to PaymentNotAllowed.MESSAGE,
-                ErrorCode.ServiceError.rawValue to BillingError.MESSAGE,
-                ErrorCode.ReceiptFailed.rawValue to InvalidReceipt.MESSAGE,
-                ErrorCode.TransactionValidationFailed.rawValue to VerificationFailed.MESSAGE,
-                ErrorCode.SyncError.rawValue to RestoreFailed.MESSAGE,
-                ErrorCode.ActivityUnavailable.rawValue to MissingCurrentActivity.MESSAGE
+                ProductNotFound.CODE to ProductNotFound.MESSAGE,
+                PurchaseFailed.CODE to PurchaseFailed.MESSAGE,
+                PurchaseCancelled.CODE to PurchaseCancelled.MESSAGE,
+                PurchaseDeferred.CODE to PurchaseDeferred.MESSAGE,
+                NetworkError.CODE to NetworkError.MESSAGE,
+                UnknownError.CODE to UnknownError.MESSAGE,
+                NotPrepared.CODE to NotPrepared.MESSAGE,
+                InitConnection.CODE to InitConnection.MESSAGE,
+                QueryProduct.CODE to QueryProduct.MESSAGE,
+                EmptySkuList.CODE to EmptySkuList.MESSAGE,
+                SkuNotFound.CODE to SkuNotFound.MESSAGE,
+                SkuOfferMismatch.CODE to SkuOfferMismatch.MESSAGE,
+                UserCancelled.CODE to UserCancelled.MESSAGE,
+                ItemAlreadyOwned.CODE to ItemAlreadyOwned.MESSAGE,
+                ItemNotOwned.CODE to ItemNotOwned.MESSAGE,
+                ServiceUnavailable.CODE to ServiceUnavailable.MESSAGE,
+                BillingUnavailable.CODE to BillingUnavailable.MESSAGE,
+                ItemUnavailable.CODE to ItemUnavailable.MESSAGE,
+                DeveloperError.CODE to DeveloperError.MESSAGE,
+                FeatureNotSupported.CODE to FeatureNotSupported.MESSAGE,
+                ServiceDisconnected.CODE to ServiceDisconnected.MESSAGE,
+                ServiceTimeout.CODE to ServiceTimeout.MESSAGE,
+                PaymentNotAllowed.CODE to PaymentNotAllowed.MESSAGE,
+                BillingError.CODE to BillingError.MESSAGE,
+                InvalidReceipt.CODE to InvalidReceipt.MESSAGE,
+                VerificationFailed.CODE to VerificationFailed.MESSAGE,
+                RestoreFailed.CODE to RestoreFailed.MESSAGE,
+                MissingCurrentActivity.CODE to MissingCurrentActivity.MESSAGE
             )
         }
 
@@ -293,24 +285,6 @@ sealed class OpenIapError : Exception() {
 
         fun defaultMessage(code: String): String =
             defaultMessages[code] ?: "Unknown error occurred"
-
-        @Suppress("DEPRECATION")
-        fun fromBillingResponseCode(responseCode: Int, debugMessage: String? = null): OpenIapError {
-            return when (responseCode) {
-                BillingClient.BillingResponseCode.USER_CANCELED -> UserCancelled
-                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> ServiceUnavailable
-                BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> BillingUnavailable
-                BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> ItemUnavailable
-                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> DeveloperError
-                BillingClient.BillingResponseCode.ERROR -> BillingError
-                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> ItemAlreadyOwned
-                BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> ItemNotOwned
-                BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> ServiceDisconnected
-                BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> FeatureNotSupported
-                BillingClient.BillingResponseCode.SERVICE_TIMEOUT -> ServiceTimeout
-                else -> UnknownError
-            }
-        }
 
         fun getAllErrorCodes(): Map<String, String> = defaultMessages
     }

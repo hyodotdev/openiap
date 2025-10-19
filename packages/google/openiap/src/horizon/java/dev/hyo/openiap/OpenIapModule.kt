@@ -1,4 +1,4 @@
-package dev.hyo.openiap.horizon
+package dev.hyo.openiap
 
 import android.app.Activity
 import android.content.Context
@@ -18,58 +18,20 @@ import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
 import com.meta.horizon.billingclient.api.PurchasesUpdatedListener
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams
 import com.meta.horizon.billingclient.api.QueryPurchasesParams
-import dev.hyo.openiap.ActiveSubscription
-import dev.hyo.openiap.FetchProductsResult
-import dev.hyo.openiap.FetchProductsResultProducts
-import dev.hyo.openiap.FetchProductsResultSubscriptions
-import dev.hyo.openiap.IapPlatform
-import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
-import dev.hyo.openiap.MutationConsumePurchaseAndroidHandler
-import dev.hyo.openiap.MutationDeepLinkToSubscriptionsHandler
-import dev.hyo.openiap.MutationEndConnectionHandler
-import dev.hyo.openiap.MutationFinishTransactionHandler
-import dev.hyo.openiap.MutationHandlers
-import dev.hyo.openiap.MutationInitConnectionHandler
-import dev.hyo.openiap.MutationRequestPurchaseHandler
-import dev.hyo.openiap.MutationRestorePurchasesHandler
-import dev.hyo.openiap.MutationValidateReceiptHandler
-import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapLog
-import dev.hyo.openiap.OpenIapProtocol
-import dev.hyo.openiap.Product
-import dev.hyo.openiap.ProductAndroid
-import dev.hyo.openiap.ProductQueryType
-import dev.hyo.openiap.ProductSubscriptionAndroid
-import dev.hyo.openiap.ProductType
-import dev.hyo.openiap.Purchase
-import dev.hyo.openiap.PurchaseAndroid
-import dev.hyo.openiap.PurchaseInput
-import dev.hyo.openiap.QueryFetchProductsHandler
-import dev.hyo.openiap.QueryGetActiveSubscriptionsHandler
-import dev.hyo.openiap.QueryGetAvailablePurchasesHandler
-import dev.hyo.openiap.QueryHandlers
-import dev.hyo.openiap.QueryHasActiveSubscriptionsHandler
-import dev.hyo.openiap.ReceiptValidationProps
-import dev.hyo.openiap.RequestPurchaseResultPurchase
-import dev.hyo.openiap.RequestPurchaseResultPurchases
-import dev.hyo.openiap.RequestPurchaseProps
-import dev.hyo.openiap.SubscriptionHandlers
-import dev.hyo.openiap.SubscriptionPurchaseErrorHandler
-import dev.hyo.openiap.SubscriptionPurchaseUpdatedHandler
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
-import dev.hyo.openiap.horizon.helpers.restorePurchasesHorizon
-import dev.hyo.openiap.horizon.helpers.queryPurchasesHorizon
-import dev.hyo.openiap.horizon.helpers.HorizonProductManager
-import dev.hyo.openiap.horizon.helpers.queryProductDetailsHorizon
-import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toActiveSubscription
-import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toInAppProduct
-import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toPurchase
-import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toSubscriptionProduct
+import dev.hyo.openiap.helpers.restorePurchasesHorizon
+import dev.hyo.openiap.helpers.queryPurchasesHorizon
+import dev.hyo.openiap.helpers.ProductManager
+import dev.hyo.openiap.helpers.queryProductDetailsHorizon
+import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
+import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
+import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
+import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.toProduct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,15 +44,25 @@ import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-private const val TAG = "OpenIapHorizonModule"
+private const val TAG = "OpenIapModule"
 
-class OpenIapHorizonModule(
+/**
+ * OpenIapModule for Meta Horizon Billing
+ *
+ * @param context Android context
+ * @param alternativeBillingMode Alternative billing mode (default: NONE)
+ * @param userChoiceBillingListener Listener for user choice billing selection (optional)
+ *
+ * Note: Oculus App ID is read from AndroidManifest.xml meta-data with key "com.oculus.vr.APP_ID"
+ */
+class OpenIapModule(
     private val context: Context,
-    private val appId: String? = null
+    private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
+    private var userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null
 ) : OpenIapProtocol, PurchasesUpdatedListener {
 
     companion object {
-        // CRITICAL FIX: Shared purchase cache across all OpenIapHorizonModule instances
+        // CRITICAL FIX: Shared purchase cache across all OpenIapModule instances
         // This ensures purchases are available even when connection is closed and reopened
         // Using ConcurrentHashMap for thread-safety across coroutines
         private val sharedPurchaseCache = java.util.concurrent.ConcurrentHashMap<String, Purchase>()
@@ -99,10 +71,26 @@ class OpenIapHorizonModule(
         private const val PURCHASE_QUERY_DELAY_MS = 500L
     }
 
+    // Read Oculus App ID from AndroidManifest.xml
+    private val appId: String? by lazy {
+        try {
+            val appInfo = context.packageManager.getApplicationInfo(
+                context.packageName,
+                android.content.pm.PackageManager.GET_META_DATA
+            )
+            val id = appInfo.metaData?.getString("com.oculus.vr.APP_ID")
+            android.util.Log.i(TAG, "Read Oculus App ID from manifest: $id")
+            id
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to read com.oculus.vr.APP_ID from AndroidManifest.xml: ${e.message}")
+            null
+        }
+    }
+
     private var billingClient: BillingClient? = null
     private var currentActivityRef: WeakReference<Activity>? = null
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
-    private val productManager = HorizonProductManager()
+    private val productManager = ProductManager()
     private val fallbackActivity: Activity? = if (context is Activity) context else null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -110,7 +98,7 @@ class OpenIapHorizonModule(
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
 
     init {
-        android.util.Log.i(TAG, "=== OpenIapHorizonModule INIT (Modified version with fix) ===")
+        android.util.Log.i(TAG, "=== OpenIapModule INIT (Horizon flavor) ===")
         buildBillingClient()
     }
 
@@ -640,7 +628,7 @@ class OpenIapHorizonModule(
         }
     }
 
-    override val validateReceipt: MutationValidateReceiptHandler = { throw OpenIapError.NotSupported }
+    override val validateReceipt: MutationValidateReceiptHandler = { throw OpenIapError.FeatureNotSupported }
 
     private val purchaseError: SubscriptionPurchaseErrorHandler = {
         onPurchaseError(this::addPurchaseErrorListener, this::removePurchaseErrorListener)
@@ -675,7 +663,7 @@ class OpenIapHorizonModule(
         purchaseUpdated = purchaseUpdated
     )
 
-    private suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         val client = billingClient ?: return@withContext ""
         suspendCancellableCoroutine { continuation ->
             runCatching {
@@ -833,9 +821,14 @@ class OpenIapHorizonModule(
             .newBuilder(context)
             .setListener(this)
             .enablePendingPurchases(pendingPurchasesParams)
-        if (!appId.isNullOrEmpty()) {
-            builder.setAppId(appId)
+
+        // Set app ID if available from manifest
+        appId?.let { id ->
+            if (id.isNotEmpty()) {
+                builder.setAppId(id)
+            }
         }
+
         billingClient = builder.build()
     }
 

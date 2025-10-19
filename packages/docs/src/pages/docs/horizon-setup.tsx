@@ -58,8 +58,9 @@ function HorizonSetup() {
           }}
         >
           <strong>ℹ️ Note:</strong> OpenIAP uses the same Android SDK for both
-          Google Play and Horizon OS. The SDK automatically detects the platform
-          and uses the appropriate billing implementation.
+          Google Play and Horizon OS. The build flavor determines which billing
+          implementation is compiled into your APK. If no flavor is specified,
+          it defaults to Play (Google Play Billing).
         </div>
       </section>
 
@@ -191,24 +192,25 @@ function HorizonSetup() {
           </a>
         </h2>
 
-        <h3 id="auto-detection" className="anchor-heading">
-          Option 1: Automatic Platform Detection (Recommended)
-          <a href="#auto-detection" className="anchor-link">
+        <h3 id="default-detection" className="anchor-heading">
+          Option 1: Default Constructor (Recommended)
+          <a href="#default-detection" className="anchor-link">
             #
           </a>
         </h3>
         <p>
-          The simplest approach - OpenIAP automatically detects whether you're on
-          Google Play or Horizon OS:
+          The simplest approach - the build flavor you select determines which billing SDK is compiled into your APK:
         </p>
         <CodeBlock language="kotlin">
-{`// Kotlin
-val store = OpenIapStore(context, store = "auto")
+{`// Kotlin - Default constructor
+val store = OpenIapStore(context)
 
-// The SDK will automatically:
-// - Use Horizon Billing on Quest devices
-// - Use Google Play Billing on phones/tablets
-// - Read OCULUS_APP_ID from AndroidManifest`}
+// Build with horizonDebug/horizonRelease:
+// - APK includes Horizon Billing SDK
+// - Reads OCULUS_APP_ID from AndroidManifest
+
+// Build with playDebug/playRelease (default):
+// - APK includes Google Play Billing SDK`}
         </CodeBlock>
 
         <h3 id="explicit-horizon" className="anchor-heading">
@@ -236,8 +238,8 @@ val store = OpenIapStore(
           </a>
         </h3>
         <CodeBlock language="kotlin">
-{`// Initialize with auto-detection
-val store = OpenIapStore(context, store = "auto")
+{`// Initialize store (uses build flavor)
+val store = OpenIapStore(context)
 
 // Connect to billing
 lifecycleScope.launch {
@@ -383,14 +385,6 @@ android {
             buildConfigField("String", "HORIZON_APP_ID", "\\"$horizonAppId\\"")
             manifestPlaceholders["OCULUS_APP_ID"] = horizonAppId
         }
-
-        create("auto") {
-            dimension = "platform"
-            isDefault = true
-            // Supports both platforms (auto-detection)
-            buildConfigField("String", "HORIZON_APP_ID", "\\"$horizonAppId\\"")
-            manifestPlaceholders["OCULUS_APP_ID"] = horizonAppId
-        }
     }
 }`}
         </CodeBlock>
@@ -406,15 +400,16 @@ android {
         </p>
         <ul>
           <li>
-            <strong>autoDebug</strong> - Auto-detects platform (Google Play or Horizon OS)
+            <strong>horizonDebug</strong> - Horizon OS billing (for Quest devices)
           </li>
           <li>
-            <strong>horizonDebug</strong> - Forces Horizon OS billing (for Quest devices)
-          </li>
-          <li>
-            <strong>playDebug</strong> - Forces Google Play billing (for phones/tablets)
+            <strong>playDebug</strong> - Google Play billing (for phones/tablets)
           </li>
         </ul>
+        <p>
+          Build separate APKs for each platform: horizonDebug/horizonRelease for Quest devices,
+          playDebug/playRelease for Android phones/tablets.
+        </p>
 
         <div
           style={{
@@ -428,7 +423,7 @@ android {
           <strong>💡 Tip:</strong> To change build variant in Android Studio:
           <ol style={{ marginTop: '0.5rem', marginBottom: 0 }}>
             <li>Open "Build Variants" panel (View → Tool Windows → Build Variants)</li>
-            <li>Select your desired variant (e.g., "autoDebug", "horizonDebug", "playDebug")</li>
+            <li>Select your desired variant (e.g., "horizonDebug" or "playDebug")</li>
             <li>Click the "Run" button to build and install</li>
           </ol>
         </div>
@@ -441,17 +436,15 @@ android {
         </h3>
         <p>Alternatively, build from command line:</p>
         <CodeBlock language="javascript">
-{`# Build for Horizon OS only
+{`# Build for Horizon OS (Meta Quest devices)
 ./gradlew assembleHorizonDebug
 
-# Build for Google Play only
+# Build for Google Play (Android phones/tablets)
 ./gradlew assemblePlayDebug
 
-# Build auto-detecting version (recommended)
-./gradlew assembleAutoDebug
-
 # Install directly to connected device
-./gradlew installAutoDebug`}
+./gradlew installHorizonDebug
+./gradlew installPlayDebug`}
         </CodeBlock>
       </section>
 

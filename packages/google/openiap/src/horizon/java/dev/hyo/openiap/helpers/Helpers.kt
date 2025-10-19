@@ -1,4 +1,4 @@
-package dev.hyo.openiap.horizon.helpers
+package dev.hyo.openiap.helpers
 
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.QueryPurchasesParams
@@ -7,11 +7,11 @@ import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.Purchase
-import dev.hyo.openiap.horizon.utils.HorizonBillingConverters.toPurchase
+import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-private const val TAG = "HorizonHelpers"
+private const val TAG = "Helpers"
 
 /**
  * Query and restore all purchases (both INAPP and SUBS) for Horizon
@@ -97,7 +97,7 @@ internal suspend fun queryPurchasesHorizon(
  */
 internal suspend fun queryProductDetailsHorizon(
     client: BillingClient?,
-    productManager: HorizonProductManager,
+    productManager: ProductManager,
     skus: List<String>,
     productType: String
 ): List<HorizonProductDetails> {

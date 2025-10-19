@@ -1,0 +1,248 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "🍎 Open Apple (iOS) in Xcode",
+            "type": "shell",
+            "command": "open",
+            "args": ["Example/Martie.xcodeproj"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/apple"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📱 Apple: Build Swift Package",
+            "type": "shell",
+            "command": "swift",
+            "args": ["build"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/apple"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🧪 Apple: Run Tests",
+            "type": "shell",
+            "command": "swift",
+            "args": ["test"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/apple"
+            },
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🤖 Open Google (Android) in Android Studio",
+            "type": "shell",
+            "command": "./scripts/open-android-studio.sh",
+            "options": {
+                "cwd": "${workspaceFolder}/packages/google"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🚀 Google: Build & Run Example",
+            "type": "shell",
+            "command": "sh",
+            "args": ["-c", "./gradlew :Example:installDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/google"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🧱 Google: Build Example Debug APK",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [":Example:assembleDebug"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/google"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📦 Google: Build Library",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [":openiap:build"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/google"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🧪 Google: Run Unit Tests",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [":openiap:testDebugUnitTest", "--no-daemon"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/google"
+            },
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📜 Google: View Logcat",
+            "type": "shell",
+            "command": "adb",
+            "args": [
+                "logcat",
+                "-s",
+                "OpenIAP:V",
+                "MainActivity:V",
+                "System.err:V"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/google"
+            },
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "🧹 Google: Clean Build",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": ["clean"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/google"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📝 GQL: Generate All Types",
+            "type": "shell",
+            "command": "bun",
+            "args": ["run", "generate"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/gql"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📚 Docs: Dev Server",
+            "type": "shell",
+            "command": "bun",
+            "args": ["run", "dev"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/docs"
+            },
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🔨 Docs: Build",
+            "type": "shell",
+            "command": "bun",
+            "args": ["run", "build"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/docs"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🔄 Sync Versions",
+            "type": "shell",
+            "command": "bun",
+            "args": ["run", "version:sync"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

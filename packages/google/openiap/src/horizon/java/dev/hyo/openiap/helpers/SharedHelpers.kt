@@ -1,8 +1,5 @@
 package dev.hyo.openiap.helpers
 
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.QueryPurchasesParams
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.OpenIapError
@@ -12,10 +9,12 @@ import dev.hyo.openiap.PurchaseError
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
-import dev.hyo.openiap.utils.BillingConverters.toPurchase
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
+/**
+ * Suspend function to wait for purchase update (Horizon)
+ */
 internal suspend fun onPurchaseUpdated(
     addListener: (OpenIapPurchaseUpdateListener) -> Unit,
     removeListener: (OpenIapPurchaseUpdateListener) -> Unit
@@ -30,6 +29,9 @@ internal suspend fun onPurchaseUpdated(
     continuation.invokeOnCancellation { removeListener(listener) }
 }
 
+/**
+ * Suspend function to wait for purchase error (Horizon)
+ */
 internal suspend fun onPurchaseError(
     addListener: (OpenIapPurchaseErrorListener) -> Unit,
     removeListener: (OpenIapPurchaseErrorListener) -> Unit
@@ -44,44 +46,9 @@ internal suspend fun onPurchaseError(
     continuation.invokeOnCancellation { removeListener(listener) }
 }
 
-internal suspend fun restorePurchases(client: BillingClient?): List<Purchase> {
-    if (client == null) return emptyList()
-    val purchases = mutableListOf<Purchase>()
-    purchases += queryPurchases(client, BillingClient.ProductType.INAPP)
-    purchases += queryPurchases(client, BillingClient.ProductType.SUBS)
-    return purchases
-}
-
-internal suspend fun queryPurchases(
-    client: BillingClient?,
-    productType: String
-): List<Purchase> = suspendCancellableCoroutine { continuation ->
-    val billingClient = client ?: run {
-        continuation.resume(emptyList())
-        return@suspendCancellableCoroutine
-    }
-    val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
-    billingClient.queryPurchasesAsync(params) { result, purchaseList ->
-        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-            val mapped = purchaseList.map { it.toPurchase(productType) }
-            continuation.resume(mapped)
-        } else {
-            continuation.resume(emptyList())
-        }
-    }
-}
-
-internal suspend fun queryProductDetails(
-    client: BillingClient?,
-    productManager: ProductManager,
-    skus: List<String>,
-    productType: String
-): List<ProductDetails> {
-    val billingClient = client ?: throw OpenIapError.NotPrepared
-    if (!billingClient.isReady) throw OpenIapError.NotPrepared
-    return productManager.getOrQuery(billingClient, skus, productType)
-}
-
+/**
+ * Data class for Android purchase arguments (Horizon)
+ */
 internal data class AndroidPurchaseArgs(
     val skus: List<String>,
     val isOfferPersonalized: Boolean?,
@@ -94,6 +61,9 @@ internal data class AndroidPurchaseArgs(
     val useAlternativeBilling: Boolean?
 )
 
+/**
+ * Extension function to convert RequestPurchaseProps to AndroidPurchaseArgs (Horizon)
+ */
 internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
     return when (val payload = request) {
         is RequestPurchaseProps.Request.Purchase -> {
@@ -115,17 +85,15 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
             val android = payload.value.android
                 ?: throw IllegalArgumentException("Android subscription parameters are required")
 
-            // For subscription upgrades/downgrades, obfuscatedProfileIdAndroid and purchaseTokenAndroid
-            // are mutually exclusive. If purchaseTokenAndroid is provided (upgrade scenario),
-            // we should not send obfuscatedProfileIdAndroid to avoid "Invalid arguments" error
-            val isUpgrade = !android.purchaseTokenAndroid.isNullOrEmpty()
-            val effectiveObfuscatedProfileId = if (isUpgrade) null else android.obfuscatedProfileIdAndroid
-
+            // For subscription upgrades/downgrades:
+            // - purchaseTokenAndroid: Identifies which existing subscription to upgrade/downgrade
+            // - obfuscatedProfileId: Optional user identifier for fraud prevention and attribution
+            // Both can be provided together - they serve different purposes and are not mutually exclusive
             AndroidPurchaseArgs(
                 skus = android.skus,
                 isOfferPersonalized = android.isOfferPersonalized,
                 obfuscatedAccountId = android.obfuscatedAccountIdAndroid,
-                obfuscatedProfileId = effectiveObfuscatedProfileId,
+                obfuscatedProfileId = android.obfuscatedProfileIdAndroid,
                 purchaseTokenAndroid = android.purchaseTokenAndroid,
                 replacementModeAndroid = android.replacementModeAndroid,
                 subscriptionOffers = android.subscriptionOffers,
@@ -136,6 +104,9 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
     }
 }
 
+/**
+ * Extension function to convert OpenIapError to PurchaseError (Horizon)
+ */
 internal fun OpenIapError.toPurchaseError(): PurchaseError {
     val code = runCatching { ErrorCode.fromJson(this.code) }.getOrElse { ErrorCode.Unknown }
     val productId = when (this) {

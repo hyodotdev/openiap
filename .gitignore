@@ -18,7 +18,6 @@ packages/apple/Sources/openiap-versions.json
 Thumbs.db
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo

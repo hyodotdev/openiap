@@ -84,12 +84,6 @@ class OpenIapErrorTest {
         assertEquals("Unknown error", error.message)
     }
 
-    @Test
-    fun `NotSupported has correct code and message`() {
-        val error = OpenIapError.NotSupported
-        assertEquals(ErrorCode.FeatureNotSupported.rawValue, error.code)
-        assertEquals("Operation not supported", error.message)
-    }
 
     @Test
     fun `NotPrepared has correct code and message`() {
@@ -165,7 +159,7 @@ class OpenIapErrorTest {
     fun `ServiceUnavailable has correct code and message`() {
         val error = OpenIapError.ServiceUnavailable
         assertEquals(ErrorCode.ServiceError.rawValue, error.code)
-        assertEquals("Google Play service is unavailable", error.message)
+        assertEquals("Billing service is unavailable", error.message)
     }
 
     @Test
@@ -206,8 +200,8 @@ class OpenIapErrorTest {
     @Test
     fun `ServiceTimeout has correct code and message`() {
         val error = OpenIapError.ServiceTimeout
-        assertEquals(ErrorCode.ServiceDisconnected.rawValue, error.code)
-        assertEquals("The request has reached the maximum timeout before Google Play responds", error.message)
+        assertEquals("service-timeout", error.code)
+        assertEquals("The request has reached the maximum timeout before billing service responds", error.message)
     }
 
     @Test
@@ -224,7 +218,6 @@ class OpenIapErrorTest {
             OpenIapError.VerificationFailed,
             OpenIapError.RestoreFailed,
             OpenIapError.UnknownError,
-            OpenIapError.NotSupported,
             OpenIapError.NotPrepared,
             OpenIapError.InitConnection,
             OpenIapError.QueryProduct,
@@ -277,34 +270,36 @@ class OpenIapErrorTest {
     fun `getAllErrorCodes returns all error codes and messages`() {
         val allCodes = OpenIapError.getAllErrorCodes()
 
-        // Check that all expected codes are present
+        // Check that all expected codes are present (using actual object CODEs)
         val expectedCodes = setOf(
-            ErrorCode.SkuNotFound.rawValue,
-            ErrorCode.PurchaseError.rawValue,
-            ErrorCode.UserCancelled.rawValue,
-            ErrorCode.DeferredPayment.rawValue,
-            ErrorCode.NetworkError.rawValue,
-            ErrorCode.Unknown.rawValue,
-            ErrorCode.NotPrepared.rawValue,
-            ErrorCode.InitConnection.rawValue,
-            ErrorCode.QueryProduct.rawValue,
-            ErrorCode.EmptySkuList.rawValue,
-            ErrorCode.SkuNotFound.rawValue,
-            ErrorCode.SkuOfferMismatch.rawValue,
-            ErrorCode.UserCancelled.rawValue,
-            ErrorCode.AlreadyOwned.rawValue,
-            ErrorCode.ItemNotOwned.rawValue,
-            ErrorCode.BillingUnavailable.rawValue,
-            ErrorCode.ItemUnavailable.rawValue,
-            ErrorCode.DeveloperError.rawValue,
-            ErrorCode.FeatureNotSupported.rawValue,
-            ErrorCode.ServiceDisconnected.rawValue,
-            ErrorCode.UserError.rawValue,
-            ErrorCode.ServiceError.rawValue,
-            ErrorCode.ReceiptFailed.rawValue,
-            ErrorCode.TransactionValidationFailed.rawValue,
-            ErrorCode.SyncError.rawValue,
-            ErrorCode.ActivityUnavailable.rawValue
+            OpenIapError.ProductNotFound.CODE,
+            OpenIapError.PurchaseFailed.CODE,
+            OpenIapError.PurchaseCancelled.CODE,
+            OpenIapError.PurchaseDeferred.CODE,
+            OpenIapError.NetworkError.CODE,
+            OpenIapError.UnknownError.CODE,
+            OpenIapError.NotPrepared.CODE,
+            OpenIapError.InitConnection.CODE,
+            OpenIapError.QueryProduct.CODE,
+            OpenIapError.EmptySkuList.CODE,
+            OpenIapError.SkuNotFound.CODE,
+            OpenIapError.SkuOfferMismatch.CODE,
+            OpenIapError.UserCancelled.CODE,
+            OpenIapError.ItemAlreadyOwned.CODE,
+            OpenIapError.ItemNotOwned.CODE,
+            OpenIapError.ServiceUnavailable.CODE,
+            OpenIapError.BillingUnavailable.CODE,
+            OpenIapError.ItemUnavailable.CODE,
+            OpenIapError.DeveloperError.CODE,
+            OpenIapError.FeatureNotSupported.CODE,
+            OpenIapError.ServiceDisconnected.CODE,
+            OpenIapError.ServiceTimeout.CODE,
+            OpenIapError.PaymentNotAllowed.CODE,
+            OpenIapError.BillingError.CODE,
+            OpenIapError.InvalidReceipt.CODE,
+            OpenIapError.VerificationFailed.CODE,
+            OpenIapError.RestoreFailed.CODE,
+            OpenIapError.MissingCurrentActivity.CODE
         )
 
         assertEquals(expectedCodes.size, allCodes.size)
@@ -328,7 +323,6 @@ class OpenIapErrorTest {
             OpenIapError.VerificationFailed to ErrorCode.TransactionValidationFailed.rawValue,
             OpenIapError.RestoreFailed to ErrorCode.SyncError.rawValue,
             OpenIapError.UnknownError to ErrorCode.Unknown.rawValue,
-            OpenIapError.NotSupported to ErrorCode.FeatureNotSupported.rawValue,
             OpenIapError.NotPrepared to ErrorCode.NotPrepared.rawValue,
             OpenIapError.InitConnection to ErrorCode.InitConnection.rawValue,
             OpenIapError.QueryProduct to ErrorCode.QueryProduct.rawValue,
@@ -345,7 +339,7 @@ class OpenIapErrorTest {
             OpenIapError.DeveloperError to ErrorCode.DeveloperError.rawValue,
             OpenIapError.FeatureNotSupported to ErrorCode.FeatureNotSupported.rawValue,
             OpenIapError.ServiceDisconnected to ErrorCode.ServiceDisconnected.rawValue,
-            OpenIapError.ServiceTimeout to ErrorCode.ServiceDisconnected.rawValue
+            OpenIapError.ServiceTimeout to "service-timeout"
         )
 
         errors.forEach { (error, expectedCode) ->
