@@ -426,9 +426,12 @@ private extension StoreKitTypesBridge {
     }
 
     static func introductoryPeriods(from offer: StoreKit.Product.SubscriptionOffer?) -> String? {
-        guard let period = offer?.period else { return nil }
-        let normalized = normalizePeriod(period)
-        return String(normalized.value)
+        guard let offer = offer else { return nil }
+        let normalized = normalizePeriod(offer.period)
+        // Multiply by periodCount to get total periods
+        // e.g., "$0.99/month for 3 months" = 3 periods (not 1)
+        let totalPeriods = normalized.value * offer.periodCount
+        return String(totalPeriods)
     }
 
     /// Normalize a subscription period to the largest possible unit
