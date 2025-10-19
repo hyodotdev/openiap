@@ -22,7 +22,7 @@ Pod::Spec.new do |s|
   DESC
 
   s.homepage         = 'https://github.com/hyodotdev/openiap'
-  s.license          = { :type => 'MIT', :file => 'packages/apple/LICENSE' }
+  s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'hyodotdev' => 'hyo@hyo.dev' }
   s.source           = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => "apple-v#{s.version}" }
 

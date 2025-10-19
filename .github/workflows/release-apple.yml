@@ -90,7 +90,8 @@ jobs:
 
     - name: Validate Podspec
       run: |
-        # Copy podspec to root for validation (openiap-versions.json is already at root)
+        # Remove symlink if exists and copy podspec to root for validation
+        rm -f openiap.podspec
         cp packages/apple/openiap.podspec .
         pod lib lint openiap.podspec --allow-warnings
 
