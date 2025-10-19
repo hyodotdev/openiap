@@ -42,6 +42,8 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,6 +64,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     constructor(context: Context, store: String?, appId: String?) : this(buildModule(context, store, appId))
 
     // Play-specific alternative billing constructors moved to play/store/OpenIapStoreExtensions.kt
+
+    // Coroutine scope for background operations
+    private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Public state
     private val _isConnected = MutableStateFlow(false)
@@ -103,7 +108,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
         // CRITICAL FIX: Refresh available purchases to update UI
         // This ensures the purchase list reflects the new purchase immediately
-        kotlinx.coroutines.GlobalScope.launch {
+        storeScope.launch {
             try {
                 android.util.Log.i("OpenIapStore", "Purchase update received, refreshing available purchases")
 
@@ -191,6 +196,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         module.removePurchaseErrorListener(purchaseErrorListener)
         processedPurchaseTokens.clear()
         pendingRequestProductId = null
+        storeScope.cancel()
     }
 
     // -------------------------------------------------------------------------
@@ -560,29 +566,22 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
 
     return when (selected) {
         "horizon", "meta", "quest" -> {
-            try {
-                OpenIapLog.d("Loading OpenIapHorizonModule with appId=$resolvedAppId", "OpenIapStore")
-                loadHorizonModule(context, resolvedAppId)
-            } catch (e: Throwable) {
-                // Fallback to Play Store implementation
-                OpenIapLog.e("Failed to load OpenIapHorizonModule, falling back to Play", e, "OpenIapStore")
-                loadPlayModule(context)
-            }
+            OpenIapLog.d("Loading OpenIapModule (Horizon flavor)", "OpenIapStore")
+            loadHorizonModule(context, resolvedAppId)
         }
         "auto" -> {
-            // Auto-detect environment
-            if (isHorizonEnvironment(context)) {
-                try {
-                    loadHorizonModule(context, resolvedAppId)
-                } catch (e: Throwable) {
-                    loadPlayModule(context)
-                }
+            // Auto-detect environment based on BuildConfig or runtime detection
+            if (defaultStore == "horizon" || isHorizonEnvironment(context)) {
+                OpenIapLog.d("Auto-detected Horizon environment, loading Horizon flavor", "OpenIapStore")
+                loadHorizonModule(context, resolvedAppId)
             } else {
+                OpenIapLog.d("Auto-detected Play environment, loading Play flavor", "OpenIapStore")
                 loadPlayModule(context)
             }
         }
         else -> {
             // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
+            OpenIapLog.d("Loading OpenIapModule (Play flavor)", "OpenIapStore")
             loadPlayModule(context)
         }
     }
@@ -600,17 +599,18 @@ private fun isHorizonEnvironment(context: Context): Boolean {
 }
 
 /**
- * Load OpenIapHorizonModule (Horizon flavor) via reflection
+ * Load OpenIapModule (Horizon flavor) via reflection
+ * Note: Horizon flavor now uses the same package and class name as Play flavor
  */
 private fun loadHorizonModule(context: Context, appId: String): OpenIapProtocol {
     return try {
-        val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
+        // Both Play and Horizon flavors now use the same class name: dev.hyo.openiap.OpenIapModule
+        val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
         val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
         val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
 
         val constructor = clazz.getConstructor(
             Context::class.java,
-            String::class.java,
             alternativeBillingModeClass,
             userChoiceBillingListenerClass
         )
@@ -620,11 +620,11 @@ private fun loadHorizonModule(context: Context, appId: String): OpenIapProtocol 
             (it as Enum<*>).name == "NONE"
         }
 
-        val instance = constructor.newInstance(context, appId, noneMode, null) as OpenIapProtocol
-        OpenIapLog.d("Successfully loaded OpenIapHorizonModule", "OpenIapStore")
+        val instance = constructor.newInstance(context, noneMode, null) as OpenIapProtocol
+        OpenIapLog.d("Successfully loaded OpenIapModule (Horizon flavor)", "OpenIapStore")
         instance
     } catch (e: Throwable) {
-        throw IllegalStateException("Failed to load OpenIapHorizonModule. Make sure you're using the Horizon flavor.", e)
+        throw IllegalStateException("Failed to load OpenIapModule (Horizon flavor). Make sure you're using the Horizon flavor.", e)
     }
 }
 

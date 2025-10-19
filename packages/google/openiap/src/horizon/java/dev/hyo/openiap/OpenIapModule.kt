@@ -663,7 +663,7 @@ class OpenIapModule(
         purchaseUpdated = purchaseUpdated
     )
 
-    private suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         val client = billingClient ?: return@withContext ""
         suspendCancellableCoroutine { continuation ->
             runCatching {

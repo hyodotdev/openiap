@@ -79,7 +79,9 @@ dependencies {
     add("playCompileOnly", "com.android.billingclient:billing-ktx:8.0.0")
     add("playApi", "com.android.billingclient:billing-ktx:8.0.0")
 
-    // Horizon flavor: Meta Horizon Billing Compatibility Library (compile + runtime)
+    // Horizon flavor: Meta Horizon Platform SDK and Billing Compatibility Library (compile + runtime)
+    add("horizonCompileOnly", "com.meta.horizon.platform.ovr:android-platform-sdk:72")
+    add("horizonApi", "com.meta.horizon.platform.ovr:android-platform-sdk:72")
     add("horizonCompileOnly", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:1.1.1")
     add("horizonApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:1.1.1")
 
