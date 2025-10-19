@@ -40,7 +40,7 @@ android {
     flavorDimensions += "platform"
 
     productFlavors {
-        // Play flavor - Google Play Billing only (default)
+        // Play flavor - Google Play Billing (default)
         create("play") {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"play\"")
