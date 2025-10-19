@@ -25,10 +25,10 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break || {
-              echo "Attempt $i failed. Retrying..."
-              sleep 5
-            }
+            bun install && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
           done
 
       - name: Generate types
@@ -66,10 +66,10 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break || {
-              echo "Attempt $i failed. Retrying..."
-              sleep 5
-            }
+            bun install && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
           done
 
       - name: Generate types
@@ -105,10 +105,10 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break || {
-              echo "Attempt $i failed. Retrying..."
-              sleep 5
-            }
+            bun install && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
           done
 
       - name: Generate types
@@ -139,10 +139,10 @@ jobs:
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
           for i in 1 2 3; do
-            bun install && break || {
-              echo "Attempt $i failed. Retrying..."
-              sleep 5
-            }
+            bun install && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
           done
 
       - name: Type check
