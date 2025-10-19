@@ -139,4 +139,4 @@ fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscript
     transactionId = id
 )
 
-fun Purchase.toPurchaseInput(): PurchaseInput = this
+// toProduct() and toPurchaseInput() moved to main/utils/ProductExtensions.kt to be shared across flavors

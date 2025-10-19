@@ -19,6 +19,7 @@ import com.meta.horizon.billingclient.api.PurchasesUpdatedListener
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams
 import com.meta.horizon.billingclient.api.QueryPurchasesParams
 import dev.hyo.openiap.ActiveSubscription
+import dev.hyo.openiap.AlternativeBillingMode
 import dev.hyo.openiap.FetchProductsResult
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
@@ -84,9 +85,19 @@ import kotlin.coroutines.resumeWithException
 
 private const val TAG = "OpenIapHorizonModule"
 
+/**
+ * OpenIapHorizonModule for Meta Horizon Billing
+ *
+ * @param context Android context
+ * @param appId Oculus App ID (optional, will be read from manifest if not provided)
+ * @param alternativeBillingMode Alternative billing mode (default: NONE)
+ * @param userChoiceBillingListener Listener for user choice billing selection (optional)
+ */
 class OpenIapHorizonModule(
     private val context: Context,
-    private val appId: String? = null
+    private val appId: String? = null,
+    private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
+    private var userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null
 ) : OpenIapProtocol, PurchasesUpdatedListener {
 
     companion object {

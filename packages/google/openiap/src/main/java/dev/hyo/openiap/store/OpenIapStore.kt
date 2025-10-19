@@ -562,11 +562,7 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
         "horizon", "meta", "quest" -> {
             try {
                 OpenIapLog.d("Loading OpenIapHorizonModule with appId=$resolvedAppId", "OpenIapStore")
-                val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
-                val constructor = clazz.getConstructor(Context::class.java, String::class.java)
-                val instance = constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
-                OpenIapLog.d("Successfully loaded OpenIapHorizonModule", "OpenIapStore")
-                instance
+                loadHorizonModule(context, resolvedAppId)
             } catch (e: Throwable) {
                 // Fallback to Play Store implementation
                 OpenIapLog.e("Failed to load OpenIapHorizonModule, falling back to Play", e, "OpenIapStore")
@@ -577,9 +573,7 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
             // Auto-detect environment
             if (isHorizonEnvironment(context)) {
                 try {
-                    val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
-                    val constructor = clazz.getConstructor(Context::class.java, String::class.java)
-                    constructor.newInstance(context, resolvedAppId) as OpenIapProtocol
+                    loadHorizonModule(context, resolvedAppId)
                 } catch (e: Throwable) {
                     loadPlayModule(context)
                 }
@@ -602,6 +596,35 @@ private fun isHorizonEnvironment(context: Context): Boolean {
         true
     } catch (_: Throwable) {
         false
+    }
+}
+
+/**
+ * Load OpenIapHorizonModule (Horizon flavor) via reflection
+ */
+private fun loadHorizonModule(context: Context, appId: String): OpenIapProtocol {
+    return try {
+        val clazz = Class.forName("dev.hyo.openiap.horizon.OpenIapHorizonModule")
+        val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
+        val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
+
+        val constructor = clazz.getConstructor(
+            Context::class.java,
+            String::class.java,
+            alternativeBillingModeClass,
+            userChoiceBillingListenerClass
+        )
+
+        // Get NONE enum value
+        val noneMode = alternativeBillingModeClass.enumConstants?.first {
+            (it as Enum<*>).name == "NONE"
+        }
+
+        val instance = constructor.newInstance(context, appId, noneMode, null) as OpenIapProtocol
+        OpenIapLog.d("Successfully loaded OpenIapHorizonModule", "OpenIapStore")
+        instance
+    } catch (e: Throwable) {
+        throw IllegalStateException("Failed to load OpenIapHorizonModule. Make sure you're using the Horizon flavor.", e)
     }
 }
 

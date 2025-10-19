@@ -66,17 +66,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import java.lang.ref.WeakReference
 
-/**
- * Alternative billing mode
- */
-enum class AlternativeBillingMode {
-    /** Standard Google Play billing (default) */
-    NONE,
-    /** Alternative billing with user choice (user selects between Google Play or alternative) */
-    USER_CHOICE,
-    /** Alternative billing only (no Google Play option) */
-    ALTERNATIVE_ONLY
-}
+// AlternativeBillingMode moved to main source set (shared between Play and Horizon)
 
 /**
  * Main OpenIapModule implementation for Android

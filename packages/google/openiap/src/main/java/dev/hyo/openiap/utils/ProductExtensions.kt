@@ -3,6 +3,8 @@ package dev.hyo.openiap.utils
 import dev.hyo.openiap.Product
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroid
+import dev.hyo.openiap.Purchase
+import dev.hyo.openiap.PurchaseInput
 
 /**
  * Convert ProductSubscriptionAndroid to Product
@@ -23,3 +25,9 @@ fun ProductSubscriptionAndroid.toProduct(): Product = ProductAndroid(
     title = title,
     type = type
 )
+
+/**
+ * Convert Purchase to PurchaseInput
+ * Both types are compatible in the GraphQL schema
+ */
+fun Purchase.toPurchaseInput(): PurchaseInput = this
