@@ -137,9 +137,11 @@ jobs:
           ARTIFACTS="$ARTIFACTS checksums.txt"
         fi
 
+        # Generate release notes with changelog
         gh release create "google-v$VERSION" \
           $ARTIFACTS \
           --title "Google v$VERSION" \
+          --generate-notes \
           --notes "## OpenIAP Google v$VERSION
 
         ### Installation

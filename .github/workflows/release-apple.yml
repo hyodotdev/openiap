@@ -114,6 +114,7 @@ jobs:
       run: |
         gh release create "apple-v$VERSION" \
           --title "Apple v$VERSION" \
+          --generate-notes \
           --notes "## OpenIAP Apple v$VERSION
 
         ### Installation
