@@ -139,6 +139,31 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(decoded.renewalInfoIOS?.pendingUpgradeProductId, "dev.hyo.premium_year")
     }
 
+    func testProductSubscriptionIOSPaymentModeSerialization() throws {
+        let product = makeSampleSubscription()
+
+        // Test encoding to dictionary
+        let dictionary = OpenIapSerialization.encode(product)
+
+        // Verify introductoryPricePaymentModeIOS is encoded as raw value string
+        XCTAssertNotNil(dictionary["introductoryPricePaymentModeIOS"])
+        XCTAssertEqual(dictionary["introductoryPricePaymentModeIOS"] as? String, "free-trial",
+            "introductoryPricePaymentModeIOS should be encoded as 'free-trial' (raw value), not 'freeTrial' (enum case name)")
+
+        // Test round-trip encoding/decoding
+        let data = try JSONEncoder().encode(product)
+        let decoded = try JSONDecoder().decode(ProductSubscriptionIOS.self, from: data)
+
+        XCTAssertEqual(decoded.introductoryPricePaymentModeIOS, .freeTrial)
+
+        // Verify JSON string contains the raw value
+        let jsonString = String(data: data, encoding: .utf8)!
+        XCTAssertTrue(jsonString.contains("\"free-trial\""),
+            "JSON should contain 'free-trial' (raw value), not 'freeTrial' (case name)")
+        XCTAssertFalse(jsonString.contains("\"freeTrial\""),
+            "JSON should not contain 'freeTrial' (case name)")
+    }
+
     // MARK: - Helpers
 
     private func makeSampleProduct() -> ProductIOS {

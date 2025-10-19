@@ -34,6 +34,19 @@ enum StoreKitTypesBridge {
 
     static func productSubscriptionIOS(from product: StoreKit.Product) async -> ProductSubscriptionIOS? {
         guard let subscription = product.subscription else { return nil }
+
+        // Get introductory offer payment mode
+        // If introductoryOffer is nil but there are discounts, use the first introductory discount's payment mode
+        let introPaymentMode: PaymentModeIOS? = {
+            if let offer = subscription.introductoryOffer {
+                return offer.paymentMode.paymentModeIOS
+            }
+            // Fallback: check if there's an introductory discount in the discounts array
+            // This handles edge cases where introductoryOffer might be nil but discounts exist
+            let discounts = makeDiscounts(from: subscription)
+            return discounts?.first(where: { $0.type == "introductory" })?.paymentMode
+        }()
+
         return ProductSubscriptionIOS(
             currency: product.priceFormatStyle.currencyCode,
             debugDescription: product.description,
@@ -46,7 +59,7 @@ enum StoreKitTypesBridge {
             introductoryPriceAsAmountIOS: introductoryPriceAmount(from: subscription.introductoryOffer),
             introductoryPriceIOS: subscription.introductoryOffer?.displayPrice,
             introductoryPriceNumberOfPeriodsIOS: introductoryPeriods(from: subscription.introductoryOffer),
-            introductoryPricePaymentModeIOS: subscription.introductoryOffer?.paymentMode.paymentModeIOS,
+            introductoryPricePaymentModeIOS: introPaymentMode,
             introductoryPriceSubscriptionPeriodIOS: subscription.introductoryOffer?.period.unit.subscriptionPeriodIOS,
             isFamilyShareableIOS: product.isFamilyShareable,
             jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
