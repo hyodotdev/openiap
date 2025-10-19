@@ -139,6 +139,106 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(decoded.renewalInfoIOS?.pendingUpgradeProductId, "dev.hyo.premium_year")
     }
 
+    func testProductSubscriptionIOSPaymentModeSerialization() throws {
+        let product = makeSampleSubscription()
+
+        // Test encoding to dictionary
+        let dictionary = OpenIapSerialization.encode(product)
+
+        // Verify introductoryPricePaymentModeIOS is encoded as raw value string
+        XCTAssertNotNil(dictionary["introductoryPricePaymentModeIOS"])
+        XCTAssertEqual(dictionary["introductoryPricePaymentModeIOS"] as? String, "free-trial",
+            "introductoryPricePaymentModeIOS should be encoded as 'free-trial' (raw value), not 'freeTrial' (enum case name)")
+
+        // Test round-trip encoding/decoding
+        let data = try JSONEncoder().encode(product)
+        let decoded = try JSONDecoder().decode(ProductSubscriptionIOS.self, from: data)
+
+        XCTAssertEqual(decoded.introductoryPricePaymentModeIOS, .freeTrial)
+
+        // Verify JSON string contains the raw value
+        let jsonString = String(data: data, encoding: .utf8)!
+        XCTAssertTrue(jsonString.contains("\"free-trial\""),
+            "JSON should contain 'free-trial' (raw value), not 'freeTrial' (case name)")
+        XCTAssertFalse(jsonString.contains("\"freeTrial\""),
+            "JSON should not contain 'freeTrial' (case name)")
+    }
+
+    func testProductSubscriptionIOSPeriodNormalization() throws {
+        // Test 1: 14-day trial (periodCount = 1) should be normalized to 2 weeks
+        let product14Days = ProductSubscriptionIOS(
+            currency: "USD",
+            debugDescription: "Test",
+            description: "Test subscription with 14-day trial",
+            discountsIOS: nil,
+            displayName: "Test",
+            displayNameIOS: "Test",
+            displayPrice: "$9.99",
+            id: "test.14days",
+            introductoryPriceAsAmountIOS: "0",
+            introductoryPriceIOS: "$0.00",
+            introductoryPriceNumberOfPeriodsIOS: "2",  // 14 days / 7 = 2 weeks, * 1 periodCount = 2
+            introductoryPricePaymentModeIOS: .freeTrial,
+            introductoryPriceSubscriptionPeriodIOS: .week,  // Should be week
+            isFamilyShareableIOS: false,
+            jsonRepresentationIOS: "{}",
+            platform: .ios,
+            price: 9.99,
+            subscriptionInfoIOS: nil,
+            subscriptionPeriodNumberIOS: "1",
+            subscriptionPeriodUnitIOS: .month,
+            title: "Test",
+            type: .subs,
+            typeIOS: .autoRenewableSubscription
+        )
+
+        XCTAssertEqual(product14Days.introductoryPriceNumberOfPeriodsIOS, "2",
+            "14 days (periodCount=1) should be normalized to 2 weeks")
+        XCTAssertEqual(product14Days.introductoryPriceSubscriptionPeriodIOS, .week,
+            "14 days should use 'week' as the unit")
+
+        // Test 2: Pay-as-you-go: $0.99/month for 3 months (periodCount = 3)
+        let productPayAsYouGo = ProductSubscriptionIOS(
+            currency: "USD",
+            debugDescription: "Test",
+            description: "Test subscription with pay-as-you-go",
+            discountsIOS: nil,
+            displayName: "Test",
+            displayNameIOS: "Test",
+            displayPrice: "$9.99",
+            id: "test.payasyougo",
+            introductoryPriceAsAmountIOS: "0.99",
+            introductoryPriceIOS: "$0.99",
+            introductoryPriceNumberOfPeriodsIOS: "3",  // 1 month * 3 periodCount = 3
+            introductoryPricePaymentModeIOS: .payAsYouGo,
+            introductoryPriceSubscriptionPeriodIOS: .month,
+            isFamilyShareableIOS: false,
+            jsonRepresentationIOS: "{}",
+            platform: .ios,
+            price: 9.99,
+            subscriptionInfoIOS: nil,
+            subscriptionPeriodNumberIOS: "1",
+            subscriptionPeriodUnitIOS: .month,
+            title: "Test",
+            type: .subs,
+            typeIOS: .autoRenewableSubscription
+        )
+
+        XCTAssertEqual(productPayAsYouGo.introductoryPriceNumberOfPeriodsIOS, "3",
+            "Pay-as-you-go: 1 month * 3 periodCount should equal 3 total periods")
+        XCTAssertEqual(productPayAsYouGo.introductoryPriceSubscriptionPeriodIOS, .month,
+            "Pay-as-you-go should preserve month unit")
+
+        // Test encoding
+        let dictionary14Days = OpenIapSerialization.encode(product14Days)
+        XCTAssertEqual(dictionary14Days["introductoryPriceNumberOfPeriodsIOS"] as? String, "2")
+        XCTAssertEqual(dictionary14Days["introductoryPriceSubscriptionPeriodIOS"] as? String, "week")
+
+        let dictionaryPayAsYouGo = OpenIapSerialization.encode(productPayAsYouGo)
+        XCTAssertEqual(dictionaryPayAsYouGo["introductoryPriceNumberOfPeriodsIOS"] as? String, "3")
+        XCTAssertEqual(dictionaryPayAsYouGo["introductoryPriceSubscriptionPeriodIOS"] as? String, "month")
+    }
+
     // MARK: - Helpers
 
     private func makeSampleProduct() -> ProductIOS {

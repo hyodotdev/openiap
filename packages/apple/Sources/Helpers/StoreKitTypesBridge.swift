@@ -34,11 +34,25 @@ enum StoreKitTypesBridge {
 
     static func productSubscriptionIOS(from product: StoreKit.Product) async -> ProductSubscriptionIOS? {
         guard let subscription = product.subscription else { return nil }
+
+        // Compute discounts once for reuse
+        let discountsIOS = makeDiscounts(from: subscription)
+
+        // Get introductory offer payment mode
+        let introPaymentMode: PaymentModeIOS? = subscription.introductoryOffer?.paymentMode.paymentModeIOS
+
+        // Get normalized introductory period unit (e.g., 14 days -> week)
+        let introPeriodUnit: SubscriptionPeriodIOS? = {
+            guard let period = subscription.introductoryOffer?.period else { return nil }
+            let normalized = normalizePeriod(period)
+            return normalized.unit.subscriptionPeriodIOS
+        }()
+
         return ProductSubscriptionIOS(
             currency: product.priceFormatStyle.currencyCode,
             debugDescription: product.description,
             description: product.description,
-            discountsIOS: makeDiscounts(from: subscription),
+            discountsIOS: discountsIOS,
             displayName: product.displayName,
             displayNameIOS: product.displayName,
             displayPrice: product.displayPrice,
@@ -46,8 +60,8 @@ enum StoreKitTypesBridge {
             introductoryPriceAsAmountIOS: introductoryPriceAmount(from: subscription.introductoryOffer),
             introductoryPriceIOS: subscription.introductoryOffer?.displayPrice,
             introductoryPriceNumberOfPeriodsIOS: introductoryPeriods(from: subscription.introductoryOffer),
-            introductoryPricePaymentModeIOS: subscription.introductoryOffer?.paymentMode.paymentModeIOS,
-            introductoryPriceSubscriptionPeriodIOS: subscription.introductoryOffer?.period.unit.subscriptionPeriodIOS,
+            introductoryPricePaymentModeIOS: introPaymentMode,
+            introductoryPriceSubscriptionPeriodIOS: introPeriodUnit,
             isFamilyShareableIOS: product.isFamilyShareable,
             jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
             platform: .ios,
@@ -406,8 +420,44 @@ private extension StoreKitTypesBridge {
     }
 
     static func introductoryPeriods(from offer: StoreKit.Product.SubscriptionOffer?) -> String? {
-        guard let periodCount = offer?.periodCount else { return nil }
-        return String(periodCount)
+        guard let offer = offer else { return nil }
+        let normalized = normalizePeriod(offer.period)
+        // Multiply by periodCount to get total periods
+        // e.g., "$0.99/month for 3 months" = 3 periods (not 1)
+        let totalPeriods = normalized.value * offer.periodCount
+        return String(totalPeriods)
+    }
+
+    /// Normalize a subscription period to the largest possible unit
+    /// e.g., 14 days -> 2 weeks, 7 days -> 1 week
+    /// Note: Does not convert to months due to calendar month variance (28-31 days)
+    static func normalizePeriod(_ period: StoreKit.Product.SubscriptionPeriod) -> (value: Int, unit: StoreKit.Product.SubscriptionPeriod.Unit) {
+        let value = period.value
+        let unit = period.unit
+
+        switch unit {
+        case .day:
+            // Only convert to weeks or years (avoid month due to variable days)
+            if value % 365 == 0 {
+                return (value / 365, .year)
+            } else if value % 7 == 0 {
+                return (value / 7, .week)
+            }
+            return (value, .day)
+        case .week:
+            // Only convert to years (avoid month due to variable weeks per month)
+            if value % 52 == 0 {
+                return (value / 52, .year)
+            }
+            return (value, .week)
+        case .month:
+            if value % 12 == 0 {
+                return (value / 12, .year)
+            }
+            return (value, .month)
+        default:
+            return (value, unit)
+        }
     }
 
     static func productType(from type: StoreKit.Product.ProductType) -> ProductType {
