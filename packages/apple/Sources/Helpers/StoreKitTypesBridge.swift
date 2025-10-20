@@ -36,10 +36,18 @@ enum StoreKitTypesBridge {
         guard let subscription = product.subscription else { return nil }
 
         // Compute discounts once for reuse
-        let discountsIOS = makeDiscounts(from: subscription)
+        let discountsIOS = makeDiscounts(from: subscription, product: product)
 
         // Get introductory offer payment mode
-        let introPaymentMode: PaymentModeIOS? = subscription.introductoryOffer?.paymentMode.paymentModeIOS
+        // If StoreKit's introductoryOffer is nil, extract from discountsIOS array (fallback for StoreKit bug)
+        // https://developer.apple.com/forums/thread/707319
+        let introPaymentMode: PaymentModeIOS? = {
+            if let paymentMode = subscription.introductoryOffer?.paymentMode.paymentModeIOS {
+                return paymentMode
+            }
+            // Fallback: Extract payment mode from discountsIOS array
+            return discountsIOS?.first(where: { $0.type == "introductory" })?.paymentMode
+        }()
 
         // Get normalized introductory period unit (e.g., 14 days -> week)
         let introPeriodUnit: SubscriptionPeriodIOS? = {
@@ -391,14 +399,69 @@ private extension StoreKitTypesBridge {
         )
     }
 
-    static func makeDiscounts(from subscription: StoreKit.Product.SubscriptionInfo) -> [DiscountIOS]? {
+    static func makeDiscounts(from subscription: StoreKit.Product.SubscriptionInfo, product: StoreKit.Product) -> [DiscountIOS]? {
         var discounts: [DiscountIOS] = []
+
+        // First try to use StoreKit's introductoryOffer
         if let intro = subscription.introductoryOffer {
             discounts.append(makeDiscount(from: intro, type: "introductory"))
+        } else {
+            // Fallback: Parse jsonRepresentation for introductory offer
+            // StoreKit 2 sometimes returns nil for introductoryOffer even when an offer exists
+            // See: https://developer.apple.com/forums/thread/707319
+            // This appears to be related to eligibility checking or sandbox caching
+            if let introFromJSON = parseIntroductoryOfferFromJSON(product) {
+                discounts.append(introFromJSON)
+            }
         }
+
         let promotional = subscription.promotionalOffers.map { makeDiscount(from: $0, type: "promotional") }
         discounts.append(contentsOf: promotional)
         return discounts.isEmpty ? nil : discounts
+    }
+
+    /// Parse introductory offer from product.jsonRepresentation
+    /// Fallback for cases where StoreKit 2's introductoryOffer is nil but offer data exists in JSON
+    private static func parseIntroductoryOfferFromJSON(_ product: StoreKit.Product) -> DiscountIOS? {
+        guard let jsonData = try? JSONSerialization.jsonObject(with: product.jsonRepresentation) as? [String: Any],
+              let attributes = jsonData["attributes"] as? [String: Any],
+              let offers = attributes["offers"] as? [[String: Any]],
+              let firstOffer = offers.first,
+              let discounts = firstOffer["discounts"] as? [[String: Any]],
+              let introOffer = discounts.first(where: { ($0["type"] as? String) == "IntroOffer" }) else {
+            return nil
+        }
+
+        // Extract introductory offer details from JSON
+        let modeType = introOffer["modeType"] as? String ?? ""
+        let numOfPeriods = introOffer["numOfPeriods"] as? Int ?? 1
+        let price = introOffer["price"] as? Double ?? 0.0
+        let priceFormatted = introOffer["priceFormatted"] as? String ?? ""
+        let recurringPeriod = introOffer["recurringSubscriptionPeriod"] as? String ?? ""
+
+        // Map modeType to PaymentModeIOS
+        let paymentMode: PaymentModeIOS
+        switch modeType {
+        case "FreeTrial":
+            paymentMode = .freeTrial
+        case "PayAsYouGo":
+            paymentMode = .payAsYouGo
+        case "PayUpFront":
+            paymentMode = .payUpFront
+        default:
+            paymentMode = .freeTrial
+        }
+
+        return DiscountIOS(
+            identifier: "",
+            localizedPrice: priceFormatted,
+            numberOfPeriods: numOfPeriods,
+            paymentMode: paymentMode,
+            price: priceFormatted,
+            priceAmount: price,
+            subscriptionPeriod: recurringPeriod,
+            type: "introductory"
+        )
     }
 
     static func makeDiscount(from offer: StoreKit.Product.SubscriptionOffer, type: String) -> DiscountIOS {
