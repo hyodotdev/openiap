@@ -43,7 +43,7 @@ function HorizonSetup() {
             </a>
           </li>
           <li>
-            <code>openiap-google@1.3.0</code> or later installed
+            <code>openiap-google@1.3.2</code> or later installed (Horizon flavor support added in 1.3.2)
           </li>
           <li>A Meta Quest device for testing (Quest 2, Quest 3, Quest Pro)</li>
         </ul>

@@ -109,26 +109,52 @@ dependencies {
 }
 
 // Configure Vanniktech Maven Publish
+// Determine which variant to publish based on gradle.properties or default to play
+val publishVariant = project.findProperty("OPENIAP_PUBLISH_VARIANT")?.toString() ?: "play"
+
 mavenPublishing {
     val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"
-    coordinates(groupId, "openiap-google", openIapVersion)
 
-    // Publish the Play flavor (Google Play Billing)
-    configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
-        variant = "playRelease",
-        sourcesJar = true,
-        publishJavadocJar = true
-    ))
+    when (publishVariant) {
+        "horizon" -> {
+            coordinates(groupId, "openiap-google-horizon", openIapVersion)
+
+            // Publish the Horizon flavor (Meta Horizon Billing)
+            configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+                variant = "horizonRelease",
+                sourcesJar = true,
+                publishJavadocJar = true
+            ))
+
+            pom {
+                name.set("OpenIAP Horizon")
+                description.set("OpenIAP Android library using Meta Horizon Billing Compatibility Library")
+                url.set("https://github.com/hyodotdev/openiap")
+            }
+        }
+        else -> { // "play" is default
+            coordinates(groupId, "openiap-google", openIapVersion)
+
+            // Publish the Play flavor (Google Play Billing)
+            configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+                variant = "playRelease",
+                sourcesJar = true,
+                publishJavadocJar = true
+            ))
+
+            pom {
+                name.set("OpenIAP GMS")
+                description.set("OpenIAP Android library using Google Play Billing v8")
+                url.set("https://github.com/hyodotdev/openiap")
+            }
+        }
+    }
 
     // Use the new Central Portal publishing which avoids Nexus staging profile lookups.
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
     pom {
-        name.set("OpenIAP GMS")
-        description.set("OpenIAP Android library using Google Play Billing v8")
-        url.set("https://github.com/hyodotdev/openiap")
-
         licenses {
             license {
                 name.set("MIT License")

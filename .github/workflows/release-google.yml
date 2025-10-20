@@ -94,10 +94,25 @@ jobs:
         ./gradlew :openiap:build --no-daemon --stacktrace
         ./gradlew :openiap:test --no-daemon --stacktrace
 
-    - name: Publish to Maven Central
+    - name: Check if Horizon flavor already published
+      id: check_horizon
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        if curl -s "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/" | grep -q "$VERSION"; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "⚠️ openiap-google-horizon $VERSION already exists on Maven Central"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✓ openiap-google-horizon $VERSION does not exist, will publish"
+        fi
+
+    - name: Publish Horizon flavor to Maven Central
+      if: steps.check_horizon.outputs.exists == 'false'
       working-directory: packages/google
       env:
         ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+        ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: horizon
         ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
         ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
@@ -108,7 +123,39 @@ jobs:
           echo "⚠️ Maven Central credentials not set. Skipping publish."
         else
           ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-          echo "✅ Published to Maven Central"
+          echo "✅ Published openiap-google-horizon (Horizon flavor) to Maven Central"
+        fi
+
+    - name: Check if Play flavor already published
+      id: check_play
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        if curl -s "https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/" | grep -q "$VERSION"; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "⚠️ openiap-google $VERSION already exists on Maven Central"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✓ openiap-google $VERSION does not exist, will publish"
+        fi
+
+    - name: Publish Play flavor to Maven Central
+      if: steps.check_play.outputs.exists == 'false'
+      working-directory: packages/google
+      env:
+        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+        ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: play
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+      run: |
+        if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
+          echo "⚠️ Maven Central credentials not set. Skipping publish."
+        else
+          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+          echo "✅ Published openiap-google (Play flavor) to Maven Central"
         fi
 
     - name: Create release artifacts
@@ -147,6 +194,8 @@ jobs:
 
         ### Installation
 
+        #### For Google Play Store (Play flavor)
+
         **Gradle (Kotlin DSL):**
         \`\`\`kotlin
         dependencies {
@@ -161,9 +210,26 @@ jobs:
         }
         \`\`\`
 
+        #### For Meta Quest/Horizon Store (Horizon flavor)
+
+        **Gradle (Kotlin DSL):**
+        \`\`\`kotlin
+        dependencies {
+            implementation(\"io.github.hyochan.openiap:openiap-google-horizon:$VERSION\")
+        }
+        \`\`\`
+
+        **Gradle (Groovy):**
+        \`\`\`groovy
+        dependencies {
+            implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
+        }
+        \`\`\`
+
         ### Documentation
         - [API Documentation](https://openiap.dev)
         - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/google)
 
         ### Maven Central
-        - [View on Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)"
+        - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
+        - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)"
