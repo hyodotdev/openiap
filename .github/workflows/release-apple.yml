@@ -30,6 +30,20 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+    - name: Check if tag already exists
+      id: check_tag
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        if git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "❌ Tag apple-v$VERSION already exists. Skipping release."
+          exit 1
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✓ Tag apple-v$VERSION does not exist, proceeding with release"
+        fi
+
     - name: Update version in openiap-versions.json
       working-directory: packages/apple
       env:
@@ -54,19 +68,6 @@ jobs:
           git commit -m "chore(apple): bump version to $VERSION"
           git push origin main
         fi
-
-    - name: Create tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        # Check if tag already exists
-        if git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
-          echo "Tag apple-v$VERSION already exists"
-          exit 1
-        fi
-
-        git tag "apple-v$VERSION"
-        git push origin "apple-v$VERSION"
 
     - name: Select Xcode
       run: |
@@ -136,3 +137,19 @@ jobs:
         ### Documentation
         - [API Documentation](https://openiap.dev)
         - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/apple)"
+
+    - name: Create and push tag
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Check if tag already exists
+        if git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
+          echo "Tag apple-v$VERSION already exists"
+        else
+          git tag "apple-v$VERSION"
+          git push origin "apple-v$VERSION"
+          echo "✅ Created and pushed tag apple-v$VERSION"
+        fi
