@@ -53,6 +53,9 @@ jobs:
         jq --arg version "$VERSION" '.apple = $version' ../../openiap-versions.json > temp.json
         mv temp.json ../../openiap-versions.json
 
+    - name: Sync version files
+      run: ./scripts/sync-versions.sh
+
     - name: Commit version update
       env:
         VERSION: ${{ steps.version.outputs.version }}
@@ -60,7 +63,7 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        git add openiap-versions.json
+        git add openiap-versions.json packages/*/openiap-versions.json
 
         if git diff --staged --quiet; then
           echo "No version changes to commit"
@@ -109,6 +112,22 @@ jobs:
           echo "✅ Published to CocoaPods"
         fi
 
+    - name: Create and push tag
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Check if tag already exists
+        if git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
+          echo "Tag apple-v$VERSION already exists"
+        else
+          git tag "apple-v$VERSION"
+          git push origin "apple-v$VERSION"
+          echo "✅ Created and pushed tag apple-v$VERSION"
+        fi
+
     - name: Create GitHub Release
       env:
         VERSION: ${{ steps.version.outputs.version }}
@@ -137,19 +156,3 @@ jobs:
         ### Documentation
         - [API Documentation](https://openiap.dev)
         - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/apple)"
-
-    - name: Create and push tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-        # Check if tag already exists
-        if git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
-          echo "Tag apple-v$VERSION already exists"
-        else
-          git tag "apple-v$VERSION"
-          git push origin "apple-v$VERSION"
-          echo "✅ Created and pushed tag apple-v$VERSION"
-        fi

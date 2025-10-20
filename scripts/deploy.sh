@@ -114,7 +114,8 @@ echo ""
 echo -e "${BLUE}🏷️  Step 2: Checking if tag exists...${NC}"
 
 # Fetch tags from remote to ensure we have the latest
-git fetch --tags >/dev/null 2>&1
+# Use --force to overwrite any conflicting local tags
+git fetch --tags --force >/dev/null 2>&1 || true
 
 # Check if tag already exists (with or without v prefix)
 TAG_EXISTS=false

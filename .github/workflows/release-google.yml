@@ -56,6 +56,9 @@ jobs:
         jq --arg version "$VERSION" '.google = $version' ../../openiap-versions.json > temp.json
         mv temp.json ../../openiap-versions.json
 
+    - name: Sync version files
+      run: ./scripts/sync-versions.sh
+
     - name: Commit version update
       env:
         VERSION: ${{ steps.version.outputs.version }}
@@ -63,7 +66,7 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        git add openiap-versions.json
+        git add openiap-versions.json packages/*/openiap-versions.json
 
         if git diff --staged --quiet; then
           echo "No version changes to commit"
@@ -170,6 +173,22 @@ jobs:
           zip -r release-artifacts.zip release-artifacts/
         fi
 
+    - name: Create and push tag
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Check if tag already exists
+        if git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
+          echo "Tag google-v$VERSION already exists"
+        else
+          git tag "google-v$VERSION"
+          git push origin "google-v$VERSION"
+          echo "✅ Created and pushed tag google-v$VERSION"
+        fi
+
     - name: Create GitHub Release
       working-directory: packages/google
       env:
@@ -234,19 +253,3 @@ jobs:
         ### Maven Central
         - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
         - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)"
-
-    - name: Create and push tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-        # Check if tag already exists
-        if git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
-          echo "Tag google-v$VERSION already exists"
-        else
-          git tag "google-v$VERSION"
-          git push origin "google-v$VERSION"
-          echo "✅ Created and pushed tag google-v$VERSION"
-        fi
