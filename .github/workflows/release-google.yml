@@ -189,6 +189,80 @@ jobs:
           echo "✅ Created and pushed tag google-v$VERSION"
         fi
 
+    - name: Generate release notes
+      id: release_notes
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Get the previous google tag
+        PREV_TAG=$(git tag -l 'google-v*' --sort=-v:refname | head -n 1)
+
+        if [ -z "$PREV_TAG" ]; then
+          echo "No previous google tag found"
+          CHANGELOG="Initial release"
+        else
+          echo "Generating changelog from $PREV_TAG to HEAD"
+          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" -- packages/google/)
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="No changes in packages/google/"
+          fi
+        fi
+
+        # Save changelog to file for multiline handling
+        echo "$CHANGELOG" > /tmp/changelog.txt
+
+        # Create release notes
+        cat > /tmp/release-notes.md <<EOF
+        ## OpenIAP Google v$VERSION
+
+        ### What's Changed
+        $CHANGELOG
+
+        ### Installation
+
+        #### For Google Play Store (Play flavor)
+
+        **Gradle (Kotlin DSL):**
+        \`\`\`kotlin
+        dependencies {
+            implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
+        }
+        \`\`\`
+
+        **Gradle (Groovy):**
+        \`\`\`groovy
+        dependencies {
+            implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
+        }
+        \`\`\`
+
+        #### For Meta Quest/Horizon Store (Horizon flavor)
+
+        **Gradle (Kotlin DSL):**
+        \`\`\`kotlin
+        dependencies {
+            implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION")
+        }
+        \`\`\`
+
+        **Gradle (Groovy):**
+        \`\`\`groovy
+        dependencies {
+            implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
+        }
+        \`\`\`
+
+        ### Documentation
+        - [API Documentation](https://openiap.dev)
+        - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/google)
+
+        ### Maven Central
+        - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
+        - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
+        EOF
+
     - name: Create GitHub Release
       working-directory: packages/google
       env:
@@ -209,47 +283,4 @@ jobs:
           $ARTIFACTS \
           --title "Google v$VERSION" \
           --latest \
-          --generate-notes \
-          --notes "## OpenIAP Google v$VERSION
-
-        ### Installation
-
-        #### For Google Play Store (Play flavor)
-
-        **Gradle (Kotlin DSL):**
-        \`\`\`kotlin
-        dependencies {
-            implementation(\"io.github.hyochan.openiap:openiap-google:$VERSION\")
-        }
-        \`\`\`
-
-        **Gradle (Groovy):**
-        \`\`\`groovy
-        dependencies {
-            implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
-        }
-        \`\`\`
-
-        #### For Meta Quest/Horizon Store (Horizon flavor)
-
-        **Gradle (Kotlin DSL):**
-        \`\`\`kotlin
-        dependencies {
-            implementation(\"io.github.hyochan.openiap:openiap-google-horizon:$VERSION\")
-        }
-        \`\`\`
-
-        **Gradle (Groovy):**
-        \`\`\`groovy
-        dependencies {
-            implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
-        }
-        \`\`\`
-
-        ### Documentation
-        - [API Documentation](https://openiap.dev)
-        - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/google)
-
-        ### Maven Central
-        - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
-        - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)"
+          --notes-file /tmp/release-notes.md
