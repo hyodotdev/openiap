@@ -7,7 +7,7 @@ import APIs from './docs/apis';
 import Events from './docs/events';
 import Errors from './docs/errors';
 import ExternalPurchase from './docs/external-purchase';
-import Features from './docs/features';
+import SubscriptionUpgradeDowngrade from './docs/subscription-upgrade-downgrade';
 import IOSSetup from './docs/ios-setup';
 import AndroidSetup from './docs/android-setup';
 import HorizonSetup from './docs/horizon-setup';
@@ -189,7 +189,10 @@ function Docs() {
           <Route path="events" element={<Events />} />
           <Route path="errors" element={<Errors />} />
           <Route path="external-purchase" element={<ExternalPurchase />} />
-          <Route path="subscription-upgrade-downgrade" element={<Features />} />
+          <Route
+            path="subscription-upgrade-downgrade"
+            element={<SubscriptionUpgradeDowngrade />}
+          />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
