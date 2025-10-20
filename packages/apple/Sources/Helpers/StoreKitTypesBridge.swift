@@ -404,18 +404,25 @@ private extension StoreKitTypesBridge {
 
         // First try to use StoreKit's introductoryOffer
         if let intro = subscription.introductoryOffer {
-            discounts.append(makeDiscount(from: intro, type: "introductory"))
-        } else {
-            // Fallback: Parse jsonRepresentation for introductory offer
-            // StoreKit 2 sometimes returns nil for introductoryOffer even when an offer exists
-            // See: https://developer.apple.com/forums/thread/707319
-            // This appears to be related to eligibility checking or sandbox caching
-            if let introFromJSON = parseIntroductoryOfferFromJSON(product) {
-                discounts.append(introFromJSON)
+            let discount = makeDiscount(from: intro, type: SubscriptionOfferTypeIOS.introductory.rawValue)
+
+            // Check if StoreKit data is complete (paymentMode is valid)
+            // If paymentMode is .empty, it means StoreKit returned incomplete data
+            if discount.paymentMode != .empty {
+                discounts.append(discount)
             }
         }
 
-        let promotional = subscription.promotionalOffers.map { makeDiscount(from: $0, type: "promotional") }
+        // Try to parse from JSON as fallback when:
+        // 1. StoreKit's introductoryOffer is nil, OR
+        // 2. StoreKit returned incomplete data (paymentMode was .empty)
+        // See: https://developer.apple.com/forums/thread/707319
+        // This ensures we capture intro offer data even when StoreKit has bugs
+        if discounts.isEmpty, let introFromJSON = parseIntroductoryOfferFromJSON(product) {
+            discounts.append(introFromJSON)
+        }
+
+        let promotional = subscription.promotionalOffers.map { makeDiscount(from: $0, type: SubscriptionOfferTypeIOS.promotional.rawValue) }
         discounts.append(contentsOf: promotional)
         return discounts.isEmpty ? nil : discounts
     }
@@ -449,7 +456,7 @@ private extension StoreKitTypesBridge {
         case "PayUpFront":
             paymentMode = .payUpFront
         default:
-            paymentMode = .freeTrial
+            paymentMode = .empty
         }
 
         return DiscountIOS(
@@ -460,7 +467,7 @@ private extension StoreKitTypesBridge {
             price: priceFormatted,
             priceAmount: price,
             subscriptionPeriod: recurringPeriod,
-            type: "introductory"
+            type: SubscriptionOfferTypeIOS.introductory.rawValue
         )
     }
 
@@ -575,10 +582,39 @@ private extension StoreKitTypesBridge {
     @available(iOS 17.2, macOS 14.2, *)
     static func makePurchaseOffer(from offer: StoreKit.Transaction.Offer?) -> PurchaseOfferIOS? {
         guard let offer else { return nil }
+
+        // Map StoreKit paymentMode to our PaymentModeIOS enum
+        let paymentModeString: String
+        if let mode = offer.paymentMode {
+            switch mode {
+            case .freeTrial:
+                paymentModeString = PaymentModeIOS.freeTrial.rawValue
+            case .payAsYouGo:
+                paymentModeString = PaymentModeIOS.payAsYouGo.rawValue
+            case .payUpFront:
+                paymentModeString = PaymentModeIOS.payUpFront.rawValue
+            default:
+                paymentModeString = PaymentModeIOS.empty.rawValue
+            }
+        } else {
+            paymentModeString = PaymentModeIOS.empty.rawValue
+        }
+
+        // Map offer type to SubscriptionOfferTypeIOS enum
+        let typeString: String
+        switch offer.type {
+        case .introductory:
+            typeString = SubscriptionOfferTypeIOS.introductory.rawValue
+        case .promotional:
+            typeString = SubscriptionOfferTypeIOS.promotional.rawValue
+        default:
+            typeString = String(describing: offer.type)
+        }
+
         return PurchaseOfferIOS(
             id: offer.id ?? "",
-            paymentMode: offer.paymentMode?.rawValue ?? "",
-            type: String(describing: offer.type)
+            paymentMode: paymentModeString,
+            type: typeString
         )
     }
 
