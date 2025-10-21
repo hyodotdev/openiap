@@ -1,1 +1,6 @@
-../../openiap-versions.json
+{
+  "gql": "1.2.3",
+  "docs": "1.2.3",
+  "google": "1.3.2",
+  "apple": "1.2.27"
+}
