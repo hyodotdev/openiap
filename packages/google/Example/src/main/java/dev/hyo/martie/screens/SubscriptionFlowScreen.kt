@@ -130,8 +130,18 @@ fun SubscriptionFlowScreen(
             println("SubscriptionFlow: Subscription SKUs = $subscriptionSkus")
             iapStore.setActivity(activity)
 
-            // Get fresh purchases first
-            iapStore.getAvailablePurchases(null)
+            // TEST: Use getActiveSubscriptions instead of getAvailablePurchases for example usage
+            println("SubscriptionFlow: Testing getActiveSubscriptions...")
+            try {
+                val activeSubscriptions = iapStore.getActiveSubscriptions(subscriptionSkus)
+                println("SubscriptionFlow: getActiveSubscriptions returned ${activeSubscriptions.size} subscriptions")
+                activeSubscriptions.forEach { sub ->
+                    println("  - ${sub.productId}: active=${sub.isActive}, autoRenew=${sub.autoRenewingAndroid}")
+                }
+            } catch (e: Exception) {
+                println("SubscriptionFlow: getActiveSubscriptions FAILED: ${e.message}")
+                e.printStackTrace()
+            }
             delay(500)
 
             // Fetch products
