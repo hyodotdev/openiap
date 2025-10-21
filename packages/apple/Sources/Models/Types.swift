@@ -339,7 +339,7 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var introductoryPriceAsAmountIOS: String?
     public var introductoryPriceIOS: String?
     public var introductoryPriceNumberOfPeriodsIOS: String?
-    public var introductoryPricePaymentModeIOS: PaymentModeIOS?
+    public var introductoryPricePaymentModeIOS: PaymentModeIOS
     public var introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS?
     public var isFamilyShareableIOS: Bool
     public var jsonRepresentationIOS: String

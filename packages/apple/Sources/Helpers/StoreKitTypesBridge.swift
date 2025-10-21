@@ -41,12 +41,16 @@ enum StoreKitTypesBridge {
         // Get introductory offer payment mode
         // If StoreKit's introductoryOffer is nil, extract from discountsIOS array (fallback for StoreKit bug)
         // https://developer.apple.com/forums/thread/707319
-        let introPaymentMode: PaymentModeIOS? = {
+        let introPaymentMode: PaymentModeIOS = {
             if let paymentMode = subscription.introductoryOffer?.paymentMode.paymentModeIOS {
                 return paymentMode
             }
             // Fallback: Extract payment mode from discountsIOS array
-            return discountsIOS?.first(where: { $0.type == "introductory" })?.paymentMode
+            if let paymentMode = discountsIOS?.first(where: { $0.type == "introductory" })?.paymentMode {
+                return paymentMode
+            }
+            // Default to .empty if no introductory offer exists
+            return .empty
         }()
 
         // Get normalized introductory period unit (e.g., 14 days -> week)
