@@ -362,9 +362,19 @@ const buildFromJsonExpression = (metadata, sourceExpression) => {
     }
   }
   if (metadata.kind === 'enum') {
-    return metadata.nullable
-      ? `(${sourceExpression} as String?)?.let { ${metadata.name}.fromJson(it) }`
-      : `${metadata.name}.fromJson(${sourceExpression} as String)`;
+    if (metadata.nullable) {
+      return `(${sourceExpression} as String?)?.let { ${metadata.name}.fromJson(it) }`;
+    }
+    // For non-nullable enums, use safe cast and fallback to .Empty if the enum has it
+    // This handles cases where the JSON might not have the value but the schema requires it
+    const enumType = typeMap[metadata.name];
+    const hasEmptyValue = enumType && isEnumType(enumType) &&
+      enumType.getValues().some(v => v.name.toLowerCase() === 'empty');
+
+    if (hasEmptyValue) {
+      return `(${sourceExpression} as String?)?.let { ${metadata.name}.fromJson(it) } ?: ${metadata.name}.Empty`;
+    }
+    return `${metadata.name}.fromJson(${sourceExpression} as String)`;
   }
   if (['object', 'input', 'interface', 'union'].includes(metadata.kind)) {
     const cast = metadata.nullable
