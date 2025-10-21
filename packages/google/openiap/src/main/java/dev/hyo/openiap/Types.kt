@@ -561,7 +561,7 @@ public data class DiscountIOS(
                 identifier = json["identifier"] as String,
                 localizedPrice = json["localizedPrice"] as String?,
                 numberOfPeriods = (json["numberOfPeriods"] as Number).toInt(),
-                paymentMode = PaymentModeIOS.fromJson(json["paymentMode"] as String),
+                paymentMode = (json["paymentMode"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
                 price = json["price"] as String,
                 priceAmount = (json["priceAmount"] as Number).toDouble(),
                 subscriptionPeriod = json["subscriptionPeriod"] as String,
@@ -1003,7 +1003,7 @@ public data class ProductSubscriptionIOS(
     val introductoryPriceAsAmountIOS: String? = null,
     val introductoryPriceIOS: String? = null,
     val introductoryPriceNumberOfPeriodsIOS: String? = null,
-    val introductoryPricePaymentModeIOS: PaymentModeIOS? = null,
+    val introductoryPricePaymentModeIOS: PaymentModeIOS,
     val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
@@ -1031,7 +1031,7 @@ public data class ProductSubscriptionIOS(
                 introductoryPriceAsAmountIOS = json["introductoryPriceAsAmountIOS"] as String?,
                 introductoryPriceIOS = json["introductoryPriceIOS"] as String?,
                 introductoryPriceNumberOfPeriodsIOS = json["introductoryPriceNumberOfPeriodsIOS"] as String?,
-                introductoryPricePaymentModeIOS = (json["introductoryPricePaymentModeIOS"] as String?)?.let { PaymentModeIOS.fromJson(it) },
+                introductoryPricePaymentModeIOS = (json["introductoryPricePaymentModeIOS"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
                 introductoryPriceSubscriptionPeriodIOS = (json["introductoryPriceSubscriptionPeriodIOS"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) },
                 isFamilyShareableIOS = json["isFamilyShareableIOS"] as Boolean,
                 jsonRepresentationIOS = json["jsonRepresentationIOS"] as String,
@@ -1060,7 +1060,7 @@ public data class ProductSubscriptionIOS(
         "introductoryPriceAsAmountIOS" to introductoryPriceAsAmountIOS,
         "introductoryPriceIOS" to introductoryPriceIOS,
         "introductoryPriceNumberOfPeriodsIOS" to introductoryPriceNumberOfPeriodsIOS,
-        "introductoryPricePaymentModeIOS" to introductoryPricePaymentModeIOS?.toJson(),
+        "introductoryPricePaymentModeIOS" to introductoryPricePaymentModeIOS.toJson(),
         "introductoryPriceSubscriptionPeriodIOS" to introductoryPriceSubscriptionPeriodIOS?.toJson(),
         "isFamilyShareableIOS" to isFamilyShareableIOS,
         "jsonRepresentationIOS" to jsonRepresentationIOS,
@@ -1569,7 +1569,7 @@ public data class SubscriptionOfferIOS(
             return SubscriptionOfferIOS(
                 displayPrice = json["displayPrice"] as String,
                 id = json["id"] as String,
-                paymentMode = PaymentModeIOS.fromJson(json["paymentMode"] as String),
+                paymentMode = (json["paymentMode"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
                 period = SubscriptionPeriodValueIOS.fromJson((json["period"] as Map<String, Any?>)),
                 periodCount = (json["periodCount"] as Number).toInt(),
                 price = (json["price"] as Number).toDouble(),
@@ -1598,7 +1598,7 @@ public data class SubscriptionPeriodValueIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionPeriodValueIOS {
             return SubscriptionPeriodValueIOS(
-                unit = SubscriptionPeriodIOS.fromJson(json["unit"] as String),
+                unit = (json["unit"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) } ?: SubscriptionPeriodIOS.Empty,
                 value = (json["value"] as Number).toInt(),
             )
         }

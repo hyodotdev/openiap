@@ -539,7 +539,7 @@ type SubscriptionProductIOS = ProductIOS & {
   discountsIOS?: Discount[];
   introductoryPriceIOS?: string;
   introductoryPriceAsAmountIOS?: string;
-  introductoryPricePaymentModeIOS?: PaymentMode;
+  introductoryPricePaymentModeIOS: PaymentMode;
   introductoryPriceNumberOfPeriodsIOS?: string;
   introductoryPriceSubscriptionPeriodIOS?: SubscriptionPeriodIOS;
   platform: "ios";

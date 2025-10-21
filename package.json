@@ -12,6 +12,7 @@
     "test": "bun run --filter '*' test",
     "lint": "bun run --filter '*' lint",
     "clean": "rm -rf packages/*/node_modules node_modules",
+    "generate": "cd packages/gql && bun run generate && cd ../apple && ./scripts/generate-types.sh && cd ../google && ./scripts/generate-types.sh",
     "version:sync": "bun scripts/sync-versions.mjs",
     "version:bump": "bun scripts/bump-version.mjs",
     "deploy": "./scripts/deploy.sh"

@@ -101,7 +101,7 @@ type ProductSubscriptionIOS implements ProductCommon {
   discountsIOS: [DiscountIOS!]
   introductoryPriceIOS: String
   introductoryPriceAsAmountIOS: String
-  introductoryPricePaymentModeIOS: PaymentModeIOS
+  introductoryPricePaymentModeIOS: PaymentModeIOS!
   introductoryPriceNumberOfPeriodsIOS: String
   introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS
   subscriptionPeriodNumberIOS: String
