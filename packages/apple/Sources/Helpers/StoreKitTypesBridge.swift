@@ -39,10 +39,11 @@ enum StoreKitTypesBridge {
         let discountsIOS = makeDiscounts(from: subscription, product: product)
 
         // Get introductory offer payment mode
-        // If StoreKit's introductoryOffer is nil, extract from discountsIOS array (fallback for StoreKit bug)
+        // If StoreKit's introductoryOffer is nil or returns .empty, extract from discountsIOS array (fallback for StoreKit bug)
         // https://developer.apple.com/forums/thread/707319
         let introPaymentMode: PaymentModeIOS = {
-            if let paymentMode = subscription.introductoryOffer?.paymentMode.paymentModeIOS {
+            if let paymentMode = subscription.introductoryOffer?.paymentMode.paymentModeIOS,
+               paymentMode != .empty {
                 return paymentMode
             }
             // Fallback: Extract payment mode from discountsIOS array
