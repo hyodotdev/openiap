@@ -38,6 +38,14 @@ enum StoreKitTypesBridge {
         // Compute discounts once for reuse
         let discountsIOS = makeDiscounts(from: subscription, product: product)
 
+        // 🔍 DEBUG LOG: Check discountsIOS data
+        OpenIapLog.debug("🔍 [OpenIAP] Product: \(product.id)")
+        if let discounts = discountsIOS, !discounts.isEmpty {
+            OpenIapLog.debug("🔍 [OpenIAP] discountsIOS: \(discounts.map { "[\($0.type): \($0.paymentMode)]" }.joined(separator: ", "))")
+        } else {
+            OpenIapLog.debug("🔍 [OpenIAP] discountsIOS: empty or nil")
+        }
+
         // Get introductory offer payment mode
         // If StoreKit's introductoryOffer is nil or returns .empty, extract from discountsIOS array (fallback for StoreKit bug)
         // https://developer.apple.com/forums/thread/707319
@@ -407,15 +415,24 @@ private extension StoreKitTypesBridge {
     static func makeDiscounts(from subscription: StoreKit.Product.SubscriptionInfo, product: StoreKit.Product) -> [DiscountIOS]? {
         var discounts: [DiscountIOS] = []
 
+        OpenIapLog.debug("   🔍 [makeDiscounts] Checking introductoryOffer for: \(product.id)")
+
         // First try to use StoreKit's introductoryOffer
         if let intro = subscription.introductoryOffer {
+            OpenIapLog.debug("   ✅ [makeDiscounts] Found introductoryOffer")
             let discount = makeDiscount(from: intro, type: SubscriptionOfferTypeIOS.introductory.rawValue)
+            OpenIapLog.debug("      • paymentMode: \(discount.paymentMode)")
 
             // Check if StoreKit data is complete (paymentMode is valid)
             // If paymentMode is .empty, it means StoreKit returned incomplete data
             if discount.paymentMode != .empty {
+                OpenIapLog.debug("      ✅ Adding introductory discount")
                 discounts.append(discount)
+            } else {
+                OpenIapLog.debug("      ⚠️ Skipping - paymentMode is .empty")
             }
+        } else {
+            OpenIapLog.debug("   ❌ [makeDiscounts] introductoryOffer is nil")
         }
 
         // Try to parse from JSON as fallback when:
@@ -423,12 +440,23 @@ private extension StoreKitTypesBridge {
         // 2. StoreKit returned incomplete data (paymentMode was .empty)
         // See: https://developer.apple.com/forums/thread/707319
         // This ensures we capture intro offer data even when StoreKit has bugs
-        if discounts.isEmpty, let introFromJSON = parseIntroductoryOfferFromJSON(product) {
-            discounts.append(introFromJSON)
+        if discounts.isEmpty {
+            OpenIapLog.debug("   🔍 [makeDiscounts] Trying JSON fallback...")
+            if let introFromJSON = parseIntroductoryOfferFromJSON(product) {
+                OpenIapLog.debug("      ✅ Found intro offer in JSON")
+                discounts.append(introFromJSON)
+            } else {
+                OpenIapLog.debug("      ❌ No intro offer in JSON")
+            }
         }
 
         let promotional = subscription.promotionalOffers.map { makeDiscount(from: $0, type: SubscriptionOfferTypeIOS.promotional.rawValue) }
+        if !promotional.isEmpty {
+            OpenIapLog.debug("   ✅ [makeDiscounts] Found \(promotional.count) promotional offers")
+        }
         discounts.append(contentsOf: promotional)
+
+        OpenIapLog.debug("   📊 [makeDiscounts] Total discounts: \(discounts.count)")
         return discounts.isEmpty ? nil : discounts
     }
 

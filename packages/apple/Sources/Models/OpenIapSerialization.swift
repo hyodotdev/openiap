@@ -18,15 +18,19 @@ public enum OpenIapSerialization {
 
     // MARK: - Encoding Helpers
 
-    /// Encodes any encodable value into a `[String: Any?]` dictionary.
-    public static func encode<T: Encodable>(_ value: T) -> [String: Any?] {
-        guard let data = try? encoder.encode(value),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+    /// Encodes any encodable value into a `[String: Any]` dictionary (non-nullable).
+    /// Filters out nil values to ensure compatibility with JSONSerialization.
+    public static func encode<T: Encodable>(_ value: T) -> [String: Any] {
+        do {
+            let data = try encoder.encode(value)
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                OpenIapLog.warn("⚠️ [OpenIapSerialization] Failed to deserialize JSON to dictionary for type: \(T.self)")
+                return [:]
+            }
+            return json
+        } catch {
+            OpenIapLog.error("⚠️ [OpenIapSerialization] Encoding failed for type \(T.self): \(error)")
             return [:]
-        }
-
-        return json.reduce(into: [String: Any?]()) { result, entry in
-            result[entry.key] = entry.value
         }
     }
 
@@ -169,7 +173,7 @@ public enum OpenIapSerialization {
     public static func products(
         _ result: FetchProductsResult,
         logger: ((String) -> Void)? = nil
-    ) -> [[String: Any?]] {
+    ) -> [[String: Any]] {
         switch result {
         case .products(let maybeProducts):
             let iosProducts = (maybeProducts ?? []).compactMap { product -> ProductIOS? in
@@ -189,15 +193,24 @@ public enum OpenIapSerialization {
             iosSubscriptions.forEach {
                 logger?("Subscription: \($0.id) - \($0.title) - \($0.displayPrice)")
             }
-            return iosSubscriptions.map { encode($0) }
+
+            // 🔍 DEBUG: Check encoded dictionaries
+            let encoded = iosSubscriptions.map { encode($0) }
+            encoded.forEach { dict in
+                if dict["id"] != nil {
+                    OpenIapLog.debug("OpenIapSerialization: discounts.isEmpty = \((dict["discountsIOS"] as? [[String: Any]])?.isEmpty ?? true)")
+                }
+            }
+
+            return encoded
         }
     }
 
-    public static func purchases(_ items: [Purchase]) -> [[String: Any?]] {
+    public static func purchases(_ items: [Purchase]) -> [[String: Any]] {
         items.map { purchase($0) }
     }
 
-    public static func purchase(_ purchase: Purchase) -> [String: Any?] {
+    public static func purchase(_ purchase: Purchase) -> [String: Any] {
         switch purchase {
         case let .purchaseIos(value):
             return encode(value)

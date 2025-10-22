@@ -252,6 +252,35 @@ struct SubscriptionFlowScreen: View {
                     showError = true
                 }
                 print("✅ [SubscriptionFlow] Loaded subscriptions: \(ids.joined(separator: ", "))")
+
+                // 🔍 LOG discountsIOS DATA
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print("🔍 [SubscriptionFlow] DISCOUNT DATA CHECK:")
+
+                // Use iosSubscriptionProducts which returns [ProductSubscriptionIOS]
+                for subscription in iapStore.iosSubscriptionProducts {
+                    print("   📦 Subscription: \(subscription.id)")
+                    print("      • Type: \(subscription.type)")
+                    print("      • Price: \(subscription.displayPrice)")
+
+                    if let introPrice = subscription.introductoryPriceIOS {
+                        print("      • introductoryPriceIOS: \(introPrice)")
+                    }
+
+                    print("      • introductoryPricePaymentModeIOS: \(subscription.introductoryPricePaymentModeIOS)")
+
+                    if let discounts = subscription.discountsIOS, !discounts.isEmpty {
+                        print("      • discountsIOS: \(discounts.count) discount(s)")
+                        for (idx, discount) in discounts.enumerated() {
+                            print("         [\(idx)] id: \(discount.identifier), type: \(discount.type), paymentMode: \(discount.paymentMode), price: \(discount.price)")
+                        }
+                    } else {
+                        print("      • discountsIOS: nil or empty ⚠️")
+                    }
+
+                    print("")
+                }
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             }
         } catch {
             await MainActor.run {
