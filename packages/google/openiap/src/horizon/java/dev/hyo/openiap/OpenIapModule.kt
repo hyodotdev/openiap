@@ -744,45 +744,44 @@ class OpenIapModule(
                             BillingClient.ProductType.INAPP
                         }
                     }
-                    android.util.Log.i("HORIZON_CALLBACK", "Mapping purchase products=${purchase.products} to type=$type (cached=${cachedProduct != null})")
-                    OpenIapLog.d("Mapped purchase productIds=${purchase.products} to type=$type (from cache: ${cachedProduct != null})", TAG)
+                    OpnIapLog.d("Mapping purchase products=${purchase.products} to type=$type (cached=${cachedProduct != null})", TAG)
 
                     val converted = purchase.toPurchase()
-                    android.util.Log.i("HORIZON_CALLBACK", "Converted purchase: productId=${converted.productId}, acknowledged=${purchase.isAcknowledged()}")
+                    OpnIapLog.d("Converted purchase: productId=${converted.productId}, acknowledged=${purchase.isAcknowledged()}", TAG)
                     converted
                 }
 
-                android.util.Log.i("HORIZON_CALLBACK", "Mapped ${mapped.size} purchases, notifying ${purchaseUpdateListeners.size} listeners")
-                OpenIapLog.i("Notifying ${purchaseUpdateListeners.size} purchase update listeners", TAG)
+                OpnIapLog.i("Mapped ${mapped.size} purchases, notifying ${purchaseUpdateListeners.size} listeners", TAG)
 
                 mapped.forEach { converted ->
                     // CRITICAL FIX: Cache the purchase locally
                     sharedPurchaseCache[converted.productId] = converted
-                    android.util.Log.i("HORIZON_CALLBACK", "Cached purchase: productId=${converted.productId}, cache size=${sharedPurchaseCache.size}")
-
-                    android.util.Log.i("HORIZON_CALLBACK", "Notifying about purchase: productId=${converted.productId}")
-                    OpenIapLog.d("Notifying listeners about purchase: productId=${converted.productId}", TAG)
+                    OpnIapLog.d("Cached purchase: productId=${converted.productId}, cache size=${sharedPurchaseCache.size}", TAG)
+                    OpnIapLog.d("Notifying ${purchaseUpdateListeners.size} listeners about purchase: productId=${converted.productId}", TAG)
                     purchaseUpdateListeners.forEach { listener ->
                         runCatching {
-                            android.util.Log.i("HORIZON_CALLBACK", "Calling listener.onPurchaseUpdated")
                             listener.onPurchaseUpdated(converted)
-                            android.util.Log.i("HORIZON_CALLBACK", "Listener notified successfully")
-                            OpenIapLog.d("Listener notified successfully", TAG)
+                            OpnIapLog.d("Listener notified successfully", TAG)
                         }.onFailure { e ->
-                            android.util.Log.e("HORIZON_CALLBACK", "Listener notification failed", e)
-                            OpenIapLog.e("Listener notification failed", e, TAG)
+                            OpnIapLog.e("Listener notification failed", e, TAG)
                         }
                     }
                 }
 
-                    android.util.Log.i("HORIZON_CALLBACK", "Invoking currentPurchaseCallback with ${mapped.size} purchases")
-                    currentPurchaseCallback?.invoke(Result.success(mapped))
-                    OpenIapLog.i("Purchase callback invoked with ${mapped.size} purchases", TAG)
+                OpnIapLog.d("Invoking currentPurchaseCallback with ${mapped.size} purchases (single-shot)", TAG)
+                    currentPurchaseCallback?.let { cb ->
+                        currentPurchaseCallback = null
+                        cb.invoke(Result.success(mapped))
+                    }
+                    OpenIapLog.i("Purchase callback invoked", TAG)
                 } else {
                     // Purchases is null - likely DEFERRED mode
                     android.util.Log.d("HORIZON_CALLBACK", "Purchase successful but purchases list is null (DEFERRED mode)")
                     OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
-                    currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                    currentPurchaseCallback?.let { cb ->
+                        currentPurchaseCallback = null
+                        cb.invoke(Result.success(emptyList()))
+                    }
                 }
             } else {
                 android.util.Log.w("HORIZON_CALLBACK", "Purchase failed: code=${result.responseCode}")
