@@ -15,8 +15,8 @@
   <a href="https://cocoapods.org/pods/openiap">
     <img src="https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods" alt="CocoaPods" />
   </a>
-  <a href="https://github.com/hyodotdev/openiap/actions/workflows/apple-test.yml">
-    <img src="https://github.com/hyodotdev/openiap/actions/workflows/apple-test.yml/badge.svg" alt="Tests" />
+  <a href="https://github.com/hyodotdev/openiap/actions/workflows/ci.yml">
+    <img src="https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg" alt="CI" />
   </a>
 </div>
 
