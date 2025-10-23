@@ -219,12 +219,16 @@ fun SubscriptionFlowScreen(
     val statusMessage = status.lastPurchaseResult
 
     // Auto-refresh purchases after successful purchase (like React Native implementation)
-    LaunchedEffect(statusMessage) {
+    LaunchedEffect(statusMessage?.productId, statusMessage?.status) {
         if (statusMessage?.status == PurchaseResultStatus.Success) {
             println("SubscriptionFlow: Purchase success detected, refreshing purchases...")
             println("SubscriptionFlow: Success message productId: ${statusMessage.productId}")
             delay(1000) // Wait 1 second for server to process
-            iapStore.getAvailablePurchases(null)
+            try {
+                iapStore.getAvailablePurchases(null)
+            } catch (e: Exception) {
+                println("SubscriptionFlow: Error refreshing purchases: ${e.message}")
+            }
         }
     }
 

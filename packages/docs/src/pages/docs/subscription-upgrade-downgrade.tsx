@@ -612,21 +612,29 @@ function SubscriptionStatus() {
                   </p>
                   <ul>
                     <li>
-                      <code>WITH_TIME_PRORATION</code> - Immediate change with
+                      <code>1 (WITH_TIME_PRORATION)</code> - Immediate change with
                       prorated credit
                     </li>
                     <li>
-                      <code>CHARGE_PRORATED_PRICE</code> - Immediate change,
-                      charge difference
+                      <code>2 (CHARGE_PRORATED_PRICE)</code> - Immediate change,
+                      charge difference (upgrade only)
                     </li>
                     <li>
-                      <code>WITHOUT_PRORATION</code> - Immediate change, no
-                      credit
+                      <code>3 (WITHOUT_PRORATION)</code> - Immediate change, no
+                      proration
                     </li>
                     <li>
-                      <code>DEFERRED</code> - Change at next billing cycle
+                      <code>5 (CHARGE_FULL_PRICE)</code> - Immediate change, charge full price
+                    </li>
+                    <li>
+                      <code>6 (DEFERRED)</code> - Change at next billing cycle
                     </li>
                   </ul>
+
+                  <p>
+                    <strong>Note:</strong> If you don't specify a replacement mode, the system uses
+                    the default configured in your Google Play Console subscription settings.
+                  </p>
                 </Accordion>
               </section>
 
@@ -694,7 +702,7 @@ if (currentSub) {
   await requestPurchase({
     sku: 'premium_monthly',
     purchaseTokenAndroid: currentSub.purchaseToken,
-    prorationModeAndroid: 'WITH_TIME_PRORATION',
+    replacementModeAndroid: 1, // WITH_TIME_PRORATION
   });
 
   console.log('✅ Upgrade initiated');
@@ -714,7 +722,7 @@ if (currentSub) {
 
                 <ol>
                   <li>
-                    <strong>Use DEFERRED replacement mode</strong>
+                    <strong>Use DEFERRED replacement mode (value: 6)</strong>
                   </li>
                   <li>No immediate charge to the user</li>
                   <li>User keeps premium access until current period ends</li>
@@ -725,6 +733,40 @@ if (currentSub) {
                   The DEFERRED mode ensures users retain their premium features
                   until the end of their paid period.
                 </p>
+
+                <Accordion
+                  title={<>⚠️ Important: DEFERRED Mode Behavior</>}
+                  variant="warning"
+                >
+                  <p>
+                    <strong>
+                      When using DEFERRED replacement mode (6), the purchase callback
+                      completes successfully with an empty purchase list.
+                    </strong>{' '}
+                    This is expected behavior, not an error:
+                  </p>
+
+                  <ul>
+                    <li>
+                      The subscription change request succeeds immediately (status: OK)
+                    </li>
+                    <li>
+                      But <code>onPurchaseUpdated</code> receives an empty/null purchases list
+                    </li>
+                    <li>
+                      The actual subscription change won't take effect until the next renewal period
+                    </li>
+                    <li>
+                      Your app should treat this as a successful operation, not an error
+                    </li>
+                  </ul>
+
+                  <p>
+                    <strong>Why this happens:</strong> Since the subscription change is deferred to the future,
+                    Google Play Billing doesn't create a new purchase transaction immediately. The change will
+                    be reflected when the subscription renews.
+                  </p>
+                </Accordion>
 
                 <Accordion
                   title={<>📝 Code Example: Downgrading Subscription</>}
@@ -741,10 +783,11 @@ if (premiumPurchase) {
   await requestPurchase({
     sku: 'basic_monthly',
     purchaseTokenAndroid: premiumPurchase.purchaseToken,
-    prorationModeAndroid: 'DEFERRED', // Change at renewal
+    replacementModeAndroid: 6, // DEFERRED - Change at renewal
   });
 
   console.log('✅ Downgrade scheduled for next billing cycle');
+  // Note: Purchase callback will complete with empty list - this is expected!
 }`}</CodeBlock>
                 </Accordion>
               </section>
@@ -820,21 +863,25 @@ for (const purchase of purchases) {
 
                 <ol>
                   <li>
-                    <strong>Always specify the replacement mode</strong> when
-                    calling <code>requestPurchase</code> with an existing
-                    subscription
+                    <strong>Specify replacement mode when needed</strong>: Pass{' '}
+                    <code>replacementModeAndroid</code> when you want to override
+                    the default configured in Google Play Console
                   </li>
                   <li>
-                    <strong>Use WITH_TIME_PRORATION for upgrades</strong> to
+                    <strong>Use WITH_TIME_PRORATION (1) for upgrades</strong> to
                     give users credit for unused time
                   </li>
                   <li>
-                    <strong>Use DEFERRED for downgrades</strong> to let users
+                    <strong>Use DEFERRED (6) for downgrades</strong> to let users
                     keep premium features until period ends
                   </li>
                   <li>
+                    <strong>Handle DEFERRED mode correctly</strong>: When using
+                    DEFERRED, expect an empty purchase list - this is success, not an error
+                  </li>
+                  <li>
                     <strong>Track pending changes in your backend</strong> since
-                    Android doesn't expose this in the API
+                    Android doesn't expose deferred changes in the API
                   </li>
                   <li>
                     <strong>Implement RTDN webhooks</strong> to receive
@@ -868,14 +915,14 @@ async function changeSubscription(
 
   // Choose appropriate replacement mode
   const replacementMode = isUpgrade
-    ? 'WITH_TIME_PRORATION'  // Upgrade: give credit
-    : 'DEFERRED';             // Downgrade: change at renewal
+    ? 1  // WITH_TIME_PRORATION - Upgrade: give credit
+    : 6; // DEFERRED - Downgrade: change at renewal
 
   try {
     await requestPurchase({
       sku: newSku,
       purchaseTokenAndroid: currentSub.purchaseToken,
-      prorationModeAndroid: replacementMode,
+      replacementModeAndroid: replacementMode,
     });
 
     // If DEFERRED, store pending change in your backend

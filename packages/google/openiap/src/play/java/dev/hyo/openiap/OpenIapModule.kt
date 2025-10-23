@@ -849,18 +849,37 @@ class OpenIapModule(
             )
         }
 
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            val mapped = purchases.map { purchase ->
-                val productType = if (purchase.products.any { it.contains("subs") }) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
-                purchase.toPurchase(productType)
-            }
-            Log.d(TAG, "Mapped purchases=${gson.toJson(mapped)}")
-            mapped.forEach { converted ->
-                purchaseUpdateListeners.forEach { listener ->
-                    runCatching { listener.onPurchaseUpdated(converted) }
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            // When using DEFERRED replacement mode, purchases will be null
+            // This is expected behavior - the change will take effect at next renewal
+            if (purchases != null) {
+                val mapped = purchases.map { purchase ->
+                    // CRITICAL FIX: Use ProductManager cache to determine product type, not substring matching
+                    val firstProductId = purchase.products.firstOrNull()
+                    val cached = firstProductId?.let { productManager.get(it) }
+                    val productType = cached?.productType ?: run {
+                        // Fallback: if not in cache, check if product ID contains "subs"
+                        if (purchase.products.any { it.contains("subs", ignoreCase = true) }) {
+                            BillingClient.ProductType.SUBS
+                        } else {
+                            BillingClient.ProductType.INAPP
+                        }
+                    }
+                    Log.d(TAG, "Mapping purchase products=${purchase.products} to type=$productType (cached=${cached != null})")
+                    purchase.toPurchase(productType)
                 }
+                Log.d(TAG, "Mapped purchases=${gson.toJson(mapped)}")
+                mapped.forEach { converted ->
+                    purchaseUpdateListeners.forEach { listener ->
+                        runCatching { listener.onPurchaseUpdated(converted) }
+                    }
+                }
+                currentPurchaseCallback?.invoke(Result.success(mapped))
+            } else {
+                // Purchases is null - likely DEFERRED mode
+                Log.d(TAG, "Purchase successful but purchases list is null (DEFERRED mode)")
+                currentPurchaseCallback?.invoke(Result.success(emptyList()))
             }
-            currentPurchaseCallback?.invoke(Result.success(mapped))
         } else {
             when (billingResult.responseCode) {
                 BillingClient.BillingResponseCode.USER_CANCELED -> {
