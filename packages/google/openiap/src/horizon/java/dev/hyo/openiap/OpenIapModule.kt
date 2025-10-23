@@ -721,11 +721,14 @@ class OpenIapModule(
                 )
             }
 
-            if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-                android.util.Log.i("HORIZON_CALLBACK", "Processing ${purchases.size} purchases")
-                OpenIapLog.i("Processing ${purchases.size} successful purchases", TAG)
+            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                // When using DEFERRED replacement mode, purchases will be null
+                // This is expected behavior - the change will take effect at next renewal
+                if (purchases != null) {
+                    android.util.Log.i("HORIZON_CALLBACK", "Processing ${purchases.size} purchases")
+                    OpenIapLog.i("Processing ${purchases.size} successful purchases", TAG)
 
-                val mapped = purchases.map { purchase ->
+                    val mapped = purchases.map { purchase ->
                     // CRITICAL FIX: Determine product type from ProductManager cache, not from product ID string
                     val firstProductId = purchase.products?.firstOrNull()
                     // Try both types since we don't know which one was used
@@ -772,9 +775,15 @@ class OpenIapModule(
                     }
                 }
 
-                android.util.Log.i("HORIZON_CALLBACK", "Invoking currentPurchaseCallback with ${mapped.size} purchases")
-                currentPurchaseCallback?.invoke(Result.success(mapped))
-                OpenIapLog.i("Purchase callback invoked with ${mapped.size} purchases", TAG)
+                    android.util.Log.i("HORIZON_CALLBACK", "Invoking currentPurchaseCallback with ${mapped.size} purchases")
+                    currentPurchaseCallback?.invoke(Result.success(mapped))
+                    OpenIapLog.i("Purchase callback invoked with ${mapped.size} purchases", TAG)
+                } else {
+                    // Purchases is null - likely DEFERRED mode
+                    android.util.Log.d("HORIZON_CALLBACK", "Purchase successful but purchases list is null (DEFERRED mode)")
+                    OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
+                    currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                }
             } else {
                 android.util.Log.w("HORIZON_CALLBACK", "Purchase failed: code=${result.responseCode}")
                 OpenIapLog.w("Purchase failed or cancelled: code=${result.responseCode}", TAG)
