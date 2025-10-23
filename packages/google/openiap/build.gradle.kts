@@ -63,8 +63,18 @@ android {
         buildConfig = true
     }
 
-    // Source sets are automatically configured per flavor
-    // play/ and horizon/ directories are used by their respective flavors
+    // Explicit source set configuration for shared code
+    sourceSets {
+        named("main") {
+            java.srcDirs("src/main/java")
+        }
+        named("play") {
+            java.srcDirs("src/play/java")
+        }
+        named("horizon") {
+            java.srcDirs("src/horizon/java")
+        }
+    }
 }
 
 dependencies {

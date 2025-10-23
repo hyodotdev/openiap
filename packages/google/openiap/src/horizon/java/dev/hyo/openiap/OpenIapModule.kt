@@ -744,31 +744,31 @@ class OpenIapModule(
                             BillingClient.ProductType.INAPP
                         }
                     }
-                    OpnIapLog.d("Mapping purchase products=${purchase.products} to type=$type (cached=${cachedProduct != null})", TAG)
+                    OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$type (cached=${cachedProduct != null})", TAG)
 
                     val converted = purchase.toPurchase()
-                    OpnIapLog.d("Converted purchase: productId=${converted.productId}, acknowledged=${purchase.isAcknowledged()}", TAG)
+                    OpenIapLog.d("Converted purchase: productId=${converted.productId}, acknowledged=${purchase.isAcknowledged()}", TAG)
                     converted
                 }
 
-                OpnIapLog.i("Mapped ${mapped.size} purchases, notifying ${purchaseUpdateListeners.size} listeners", TAG)
+                OpenIapLog.i("Mapped ${mapped.size} purchases, notifying ${purchaseUpdateListeners.size} listeners", TAG)
 
                 mapped.forEach { converted ->
                     // CRITICAL FIX: Cache the purchase locally
                     sharedPurchaseCache[converted.productId] = converted
-                    OpnIapLog.d("Cached purchase: productId=${converted.productId}, cache size=${sharedPurchaseCache.size}", TAG)
-                    OpnIapLog.d("Notifying ${purchaseUpdateListeners.size} listeners about purchase: productId=${converted.productId}", TAG)
+                    OpenIapLog.d("Cached purchase: productId=${converted.productId}, cache size=${sharedPurchaseCache.size}", TAG)
+                    OpenIapLog.d("Notifying ${purchaseUpdateListeners.size} listeners about purchase: productId=${converted.productId}", TAG)
                     purchaseUpdateListeners.forEach { listener ->
                         runCatching {
                             listener.onPurchaseUpdated(converted)
-                            OpnIapLog.d("Listener notified successfully", TAG)
+                            OpenIapLog.d("Listener notified successfully", TAG)
                         }.onFailure { e ->
-                            OpnIapLog.e("Listener notification failed", e, TAG)
+                            OpenIapLog.e("Listener notification failed", e, TAG)
                         }
                     }
                 }
 
-                OpnIapLog.d("Invoking currentPurchaseCallback with ${mapped.size} purchases (single-shot)", TAG)
+                OpenIapLog.d("Invoking currentPurchaseCallback with ${mapped.size} purchases (single-shot)", TAG)
                     currentPurchaseCallback?.let { cb ->
                         currentPurchaseCallback = null
                         cb.invoke(Result.success(mapped))
