@@ -109,13 +109,13 @@ enum StoreKitTypesBridge {
         // Default to false if renewalInfo unavailable - safer to underreport than falsely claim auto-renewal
         let autoRenewing = renewalInfoIOS?.willAutoRenew ?? false
         let environment: String?
-        if #available(iOS 16.0, *) {
+        if #available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *) {
             environment = transaction.environment.rawValue
         } else {
             environment = nil
         }
         let offerInfo: PurchaseOfferIOS?
-        if #available(iOS 17.2, macOS 14.2, *) {
+        if #available(iOS 17.2, macOS 14.2, tvOS 17.2, watchOS 10.2, *) {
             offerInfo = makePurchaseOffer(from: transaction.offer)
         } else {
             offerInfo = nil
@@ -128,7 +128,7 @@ enum StoreKitTypesBridge {
             appAccountToken: transaction.appAccountToken?.uuidString,
             appBundleIdIOS: transaction.appBundleID,
             countryCodeIOS: {
-                if #available(iOS 17.0, *) {
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                     transaction.storefront.countryCode
                 } else {
                     transaction.storefrontCountryCode
@@ -158,7 +158,7 @@ enum StoreKitTypesBridge {
             revocationDateIOS: revocationDate,
             revocationReasonIOS: transaction.revocationReason?.rawValue.description,
             storefrontCountryCodeIOS: {
-                if #available(iOS 17.0, *) {
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                     transaction.storefront.countryCode
                 } else {
                     transaction.storefrontCountryCode
@@ -612,7 +612,7 @@ private extension StoreKitTypesBridge {
         )
     }
 
-    @available(iOS 17.2, macOS 14.2, *)
+    @available(iOS 17.2, macOS 14.2, tvOS 17.2, watchOS 10.2, *)
     static func makePurchaseOffer(from offer: StoreKit.Transaction.Offer?) -> PurchaseOfferIOS? {
         guard let offer else { return nil }
 

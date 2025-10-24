@@ -1,7 +1,12 @@
 import Foundation
 import StoreKit
+// UIKit: Required for UIApplication, UIWindowScene on iOS/tvOS/visionOS
 #if canImport(UIKit)
 import UIKit
+#endif
+// AppKit: Required for NSApplication, NSWindow on macOS
+#if canImport(AppKit)
+import AppKit
 #endif
 
 @available(iOS 15.0, macOS 14.0, *)
@@ -12,6 +17,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private var productManager: ProductManager?
     private let state = IapState()
     private var initTask: Task<Bool, Error>?
+    // iOS-only: SKPaymentQueue observer for promoted in-app purchases
+    // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
     #if os(iOS)
     private var didRegisterPaymentQueueObserver = false
     #endif
@@ -35,6 +42,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             await self.cleanupExistingState()
             self.productManager = ProductManager()
 
+            // iOS-only: Register SKPaymentQueue observer for promoted in-app purchases
+            // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
             #if os(iOS)
             if !self.didRegisterPaymentQueueObserver {
                 await MainActor.run {
@@ -42,7 +51,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 }
                 self.didRegisterPaymentQueueObserver = true
             }
-            #endif
+            #endif // os(iOS)
 
             guard AppStore.canMakePayments else {
                 self.emitPurchaseError(self.makePurchaseError(code: .iapNotAvailable))
@@ -134,6 +143,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func getPromotedProductIOS() async throws -> ProductIOS? {
+        // iOS-only: Promoted in-app purchases (App Store promotional purchases) only available on iOS
+        // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
         #if os(iOS)
         let sku = await state.promotedProductIdentifier()
         guard let sku else { return nil }
@@ -160,7 +171,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
         #else
         return nil
-        #endif
+        #endif // os(iOS)
     }
 
     // MARK: - Purchase Management
@@ -174,8 +185,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         let result: StoreKit.Product.PurchaseResult
         do {
+            // iOS 17.0+, tvOS 17.0+, macOS 15.2+: Use purchase(confirmIn:options:) for better purchase confirmation UI
+            // Reference: https://developer.apple.com/documentation/storekit/product/purchase(confirmin:options:)-6dj6y
             #if canImport(UIKit)
-            if #available(iOS 17.0, *) {
+            // iOS/tvOS: Use UIWindowScene
+            if #available(iOS 17.0, tvOS 17.0, *) {
                 let scene: UIWindowScene? = await MainActor.run {
                     UIApplication.shared.connectedScenes.first as? UIWindowScene
                 }
@@ -185,6 +199,21 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     throw error
                 }
                 result = try await product.purchase(confirmIn: scene, options: options)
+            } else {
+                result = try await product.purchase(options: options)
+            }
+            #elseif canImport(AppKit)
+            // macOS: Use NSWindow (macOS 15.2+)
+            if #available(macOS 15.2, *) {
+                let window: NSWindow? = await MainActor.run {
+                    NSApplication.shared.windows.first
+                }
+                guard let window else {
+                    let error = makePurchaseError(code: .purchaseError, message: "Could not find window")
+                    emitPurchaseError(error)
+                    throw error
+                }
+                result = try await product.purchase(confirmIn: window, options: options)
             } else {
                 result = try await product.purchase(options: options)
             }
@@ -444,7 +473,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return storefront.countryCode
     }
 
-    @available(iOS 16.0, macOS 14.0, *)
+    /// Get the app transaction that represents the user's purchase of the app
+    /// - Note: Available on iOS 16.0+, macOS 14.0+, tvOS 16.0+, watchOS 9.0+
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/apptransaction
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     public func getAppTransactionIOS() async throws -> AppTransaction? {
         let verification = try await StoreKit.AppTransaction.shared
         switch verification {
@@ -478,7 +510,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 let daysUntilExpiration = dayDelta.map { Double($0) }
                 let willExpireSoon = dayDelta.map { $0 < 7 } ?? false
                 let environment: String?
-                if #available(iOS 16.0, *) {
+                if #available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *) {
                     environment = transaction.environment.rawValue
                 } else {
                     environment = nil
@@ -519,18 +551,29 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return subscriptions.contains { $0.isActive }
     }
 
+    /// Show the subscription management interface
+    /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 14.0+, visionOS 1.0+. Not available on tvOS (subscriptions are managed in Settings > Accounts) or watchOS.
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)
     public func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {
-        #if canImport(UIKit)
-        let scene: UIWindowScene? = await MainActor.run {
-            UIApplication.shared.connectedScenes.first as? UIWindowScene
-        }
-        guard let scene else {
-            throw makePurchaseError(code: .unknown)
-        }
-        try await AppStore.showManageSubscriptions(in: scene)
+        // tvOS: AppStore.showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
+        // watchOS: No window scene UI for showManageSubscriptions
+        #if !os(tvOS) && !os(watchOS)
+            #if canImport(UIKit)
+            let scene: UIWindowScene? = await MainActor.run {
+                UIApplication.shared.connectedScenes.first as? UIWindowScene
+            }
+            guard let scene else {
+                throw makePurchaseError(code: .unknown)
+            }
+            try await AppStore.showManageSubscriptions(in: scene)
+            #elseif canImport(AppKit)
+            // macOS: Needs NSWindow for showManageSubscriptions
+            // For now, throw unsupported - will need proper window integration
+            throw makePurchaseError(code: .featureNotSupported, message: "macOS window integration required")
+            #endif
         #else
         throw makePurchaseError(code: .featureNotSupported)
-        #endif
+        #endif // !os(tvOS) && !os(watchOS)
     }
 
     public func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS] {
@@ -596,8 +639,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     // MARK: - Refunds
 
+    /// Begin a refund request for a transaction
+    /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 12.0+, visionOS 1.0+. Not available on tvOS or watchOS.
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/transaction/3803220-beginrefundrequest
     public func beginRefundRequestIOS(sku: String) async throws -> String? {
-        #if canImport(UIKit)
+        // tvOS: Transaction.beginRefundRequest not available on tvOS
+        // watchOS: Transaction.beginRefundRequest not available on watchOS
+        #if !os(tvOS) && !os(watchOS)
         let product = try await storeProduct(for: sku)
         guard let result = await product.latestTransaction else {
             let error = makePurchaseError(code: .skuNotFound, productId: sku)
@@ -606,6 +654,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         let transaction = try checkVerified(result)
+
+        #if canImport(UIKit)
         let scene: UIWindowScene? = await MainActor.run {
             UIApplication.shared.connectedScenes.first as? UIWindowScene
         }
@@ -614,7 +664,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             emitPurchaseError(error)
             throw error
         }
-
         let status = try await transaction.beginRefundRequest(in: scene)
         switch status {
         case .success:
@@ -624,17 +673,26 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         @unknown default:
             return nil
         }
+        #elseif canImport(AppKit)
+        // macOS: Needs NSViewController for beginRefundRequest
+        // For now, throw unsupported - will need proper window integration
+        throw makePurchaseError(code: .featureNotSupported, message: "macOS window integration required")
+        #endif
         #else
         throw makePurchaseError(code: .featureNotSupported)
-        #endif
+        #endif // !os(tvOS) && !os(watchOS)
     }
 
     // MARK: - Misc
 
+    /// Check if the user is eligible for an introductory offer for a subscription group
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer(for:)
     public func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool {
         await StoreKit.Product.SubscriptionInfo.isEligibleForIntroOffer(for: groupID)
     }
 
+    /// Sync the user's in-app purchases with the App Store
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/sync()
     public func syncIOS() async throws -> Bool {
         do {
             try await AppStore.sync()
@@ -644,15 +702,19 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
+    /// Present a sheet for redeeming subscription offer codes
+    /// - Note: Only available on iOS 14.0+ and Mac Catalyst. Not available on tvOS, macOS, or watchOS
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/skpaymentqueue/3566726-presentcoderedemptionsheet
     public func presentCodeRedemptionSheetIOS() async throws -> Bool {
-        #if canImport(UIKit)
+        // tvOS: SKPaymentQueue.presentCodeRedemptionSheet explicitly unavailable on tvOS
+        #if canImport(UIKit) && !os(tvOS)
         await MainActor.run {
             SKPaymentQueue.default().presentCodeRedemptionSheet()
         }
         return true
         #else
         throw makePurchaseError(code: .featureNotSupported)
-        #endif
+        #endif // canImport(UIKit) && !os(tvOS)
     }
 
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
@@ -660,28 +722,31 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return []
     }
 
-    // MARK: - External Purchase (iOS 18.2+)
+    // MARK: - External Purchase (iOS 15.4+, macOS 14.4+, tvOS 17.4+)
 
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
-        #if os(iOS)
-        if #available(iOS 18.2, *) {
+        // iOS 17.4+, macOS 15.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.canPresent
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/canpresent
+        if #available(iOS 17.4, macOS 15.4, tvOS 17.4, watchOS 10.4, *) {
             return await ExternalPurchase.canPresent
         } else {
             return false
         }
-        #else
-        return false
-        #endif
     }
 
     public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
-        #if os(iOS)
-        if #available(iOS 18.2, *) {
-            guard await ExternalPurchase.canPresent else {
-                throw makePurchaseError(
-                    code: .featureNotSupported,
-                    message: "External purchase notice sheet is not available"
-                )
+        // iOS 15.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.presentNoticeSheet
+        // Note: canPresent is iOS 17.4+, so we check it conditionally
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
+        if #available(iOS 15.4, macOS 14.4, tvOS 17.4, watchOS 10.4, *) {
+            // canPresent requires iOS 17.4+, so only check on supported versions
+            if #available(iOS 17.4, macOS 15.4, tvOS 17.4, watchOS 10.4, *) {
+                guard await ExternalPurchase.canPresent else {
+                    throw makePurchaseError(
+                        code: .featureNotSupported,
+                        message: "External purchase notice sheet is not available"
+                    )
+                }
             }
 
             do {
@@ -714,15 +779,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         } else {
             throw makePurchaseError(
                 code: .featureNotSupported,
-                message: "External purchase notice sheet requires iOS 18.2 or later"
+                message: "External purchase notice sheet requires iOS 15.4+, macOS 14.4+, tvOS 17.4+, or watchOS 10.4+"
             )
         }
-        #else
-        throw makePurchaseError(code: .featureNotSupported)
-        #endif
     }
 
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
+        // UIKit platforms: Open external link using UIApplication.open
+        // Reference: https://developer.apple.com/documentation/uikit/uiapplication/1648685-open
         #if canImport(UIKit)
         guard let customLink = URL(string: url) else {
             return ExternalPurchaseLinkResultIOS(
@@ -746,7 +810,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
         #else
         throw makePurchaseError(code: .featureNotSupported)
-        #endif
+        #endif // canImport(UIKit)
     }
 
     // MARK: - Event Listener Registration
@@ -802,6 +866,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         updateListenerTask?.cancel()
         updateListenerTask = nil
         await state.reset()
+        // iOS-only: Remove SKPaymentQueue observer for promoted in-app purchases
+        // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
         #if os(iOS)
         if didRegisterPaymentQueueObserver {
             await MainActor.run {
@@ -809,7 +875,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
             didRegisterPaymentQueueObserver = false
         }
-        #endif
+        #endif // os(iOS)
         if let manager = productManager { await manager.removeAll() }
         productManager = nil
     }
@@ -999,7 +1065,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
-    @available(iOS 16.0, macOS 14.0, *)
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     private func mapAppTransaction(_ transaction: StoreKit.AppTransaction) -> AppTransaction {
         let appVersionId = transaction.appVersionID.map(Double.init) ?? 0
         let appVersion = transaction.appVersion
@@ -1009,13 +1075,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         // This prevents build failures on Xcode 16.3 and below
         var appTransactionId: String? = nil
         var originalPlatformValue: String? = nil
-        
+
+        // Swift 6.1+ (Xcode 16.4+): AppTransaction.appTransactionID and originalPlatform available
         #if swift(>=6.1)
         if #available(iOS 18.4, *) {
             appTransactionId = String(transaction.appTransactionID)
             originalPlatformValue = transaction.originalPlatform.rawValue
         }
-        #endif
+        #endif // swift(>=6.1)
         
         return AppTransaction(
             appId: appId,
@@ -1035,6 +1102,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 }
 
+// iOS-only: SKPaymentTransactionObserver extension for promoted in-app purchases
+// Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
 #if os(iOS)
 extension OpenIapModule: SKPaymentTransactionObserver {
     public func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
@@ -1050,4 +1119,4 @@ extension OpenIapModule: SKPaymentTransactionObserver {
         return false
     }
 }
-#endif
+#endif // os(iOS)

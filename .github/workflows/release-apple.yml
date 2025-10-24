@@ -109,11 +109,25 @@ jobs:
         gem install cocoapods
 
     - name: Validate Podspec
+      id: validate_podspec
       run: |
         # Remove symlink if exists and copy podspec to root for validation
         rm -f openiap.podspec
         cp packages/apple/openiap.podspec .
         pod lib lint openiap.podspec --allow-warnings
+
+    - name: Cleanup on validation failure
+      if: failure() && steps.validate_podspec.outcome == 'failure'
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        echo "❌ Podspec validation failed. Cleaning up tag and commit..."
+
+        # Delete the tag locally and remotely
+        git tag -d "apple-v$VERSION" || true
+        git push origin :refs/tags/"apple-v$VERSION" || true
+
+        echo "✅ Deleted tag apple-v$VERSION"
 
     - name: Deploy to CocoaPods
       env:

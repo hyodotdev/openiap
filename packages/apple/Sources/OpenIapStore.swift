@@ -396,9 +396,12 @@ public final class OpenIapStore: ObservableObject {
         try await module.latestTransactionIOS(sku: sku)
     }
 
+    // tvOS: beginRefundRequest API not available on tvOS
+    #if !os(tvOS)
     public func beginRefundRequestIOS(sku: String) async throws -> String? {
         try await module.beginRefundRequestIOS(sku: sku)
     }
+    #endif // !os(tvOS)
 
     public func isTransactionVerifiedIOS(sku: String) async throws -> Bool {
         try await module.isTransactionVerifiedIOS(sku: sku)
@@ -408,6 +411,10 @@ public final class OpenIapStore: ObservableObject {
         try await module.syncIOS()
     }
 
+    // tvOS: presentCodeRedemptionSheet explicitly unavailable on tvOS
+    // tvOS: showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
+    // tvOS: deepLinkToSubscriptions not available on tvOS (no window scene UI)
+    #if !os(tvOS)
     public func presentCodeRedemptionSheetIOS() async throws {
         _ = try await module.presentCodeRedemptionSheetIOS()
     }
@@ -419,6 +426,7 @@ public final class OpenIapStore: ObservableObject {
     public func deepLinkToSubscriptionsIOS() async throws {
         try await module.deepLinkToSubscriptions(nil)
     }
+    #endif // !os(tvOS)
 
     public func clearTransactionIOS() async throws {
         _ = try await module.clearTransactionIOS()

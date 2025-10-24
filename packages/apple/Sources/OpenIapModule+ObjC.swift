@@ -464,6 +464,9 @@ import StoreKit
 
     // MARK: - UI
 
+    // tvOS: presentCodeRedemptionSheet is unavailable on tvOS
+    // tvOS: showManageSubscriptions requires window scene UI not available on tvOS (subscriptions managed in Settings)
+    #if !os(tvOS)
     @objc func presentCodeRedemptionSheetIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
         Task {
             do {
@@ -487,6 +490,7 @@ import StoreKit
             }
         }
     }
+    #endif // !os(tvOS)
 
     @available(iOS 16.0, macOS 14.0, *)
     @objc func presentExternalPurchaseLinkIOSWithUrl(_ url: String, completion: @escaping (Any?, Error?) -> Void) {
