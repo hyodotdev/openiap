@@ -31,7 +31,12 @@ Pod::Spec.new do |s|
   s.tvos.deployment_target = '16.0'
 
   s.swift_version = '5.9'
-  s.source_files = 'packages/apple/Sources/**/*.swift'
+
+  # Support both local development (:path) and distribution (git)
+  # When podspec is in packages/apple/ (local :path), use 'Sources/**/*.swift'
+  # When podspec is in repo root (git distribution), use 'packages/apple/Sources/**/*.swift'
+  sources_dir = File.join(File.dirname(__FILE__), 'Sources')
+  s.source_files = File.directory?(sources_dir) ? 'Sources/**/*.swift' : 'packages/apple/Sources/**/*.swift'
 
   s.frameworks = 'StoreKit'
   s.requires_arc = true
