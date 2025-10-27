@@ -79,10 +79,10 @@ class OpenIapModule(
                 android.content.pm.PackageManager.GET_META_DATA
             )
             val id = appInfo.metaData?.getString("com.oculus.vr.APP_ID")
-            android.util.Log.i(TAG, "Read Oculus App ID from manifest: $id")
+            OpenIapLog.d("Read Oculus App ID from manifest: $id", TAG)
             id
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "Failed to read com.oculus.vr.APP_ID from AndroidManifest.xml: ${e.message}")
+            OpenIapLog.w("Failed to read com.oculus.vr.APP_ID from AndroidManifest.xml: ${e.message}", TAG)
             null
         }
     }
@@ -98,8 +98,9 @@ class OpenIapModule(
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
 
     init {
-        android.util.Log.i(TAG, "=== OpenIapModule INIT (Horizon flavor) ===")
-        buildBillingClient()
+        // DO NOT build BillingClient here - React Native context doesn't have Activity yet
+        // BillingClient will be built in initConnection() when Activity is guaranteed to be available
+        OpenIapLog.d("OpenIapModule initialized (Horizon flavor)", TAG)
     }
 
     override fun setActivity(activity: Activity?) {
@@ -109,37 +110,33 @@ class OpenIapModule(
     override val initConnection: MutationInitConnectionHandler = {
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine<Boolean> { continuation ->
-                android.util.Log.i(TAG, "=== INIT CONNECTION CALLED ===")
+                OpenIapLog.i("=== INIT CONNECTION ===", TAG)
 
                 // CRITICAL FIX: Rebuild BillingClient if it was destroyed by endConnection
                 if (billingClient == null) {
-                    android.util.Log.i(TAG, "BillingClient is null, rebuilding...")
+                    OpenIapLog.d("Building BillingClient...", TAG)
                     buildBillingClient()
-                } else {
-                    android.util.Log.i(TAG, "BillingClient already exists, using existing instance")
                 }
 
                 val client = billingClient ?: run {
-                    android.util.Log.w(TAG, "Failed to build BillingClient")
+                    OpenIapLog.w("Failed to build BillingClient", TAG)
                     if (continuation.isActive) continuation.resume(false)
                     return@suspendCancellableCoroutine
                 }
 
-                android.util.Log.i(TAG, "Starting BillingClient connection...")
                 client.startConnection(object : BillingClientStateListener {
                     override fun onBillingSetupFinished(result: BillingResult) {
-                        android.util.Log.i(TAG, "onBillingSetupFinished: code=${result.responseCode}, message=${result.debugMessage}")
                         val ok = result.responseCode == BillingClient.BillingResponseCode.OK
                         if (!ok) {
-                            android.util.Log.w(TAG, "Horizon setup failed: code=${result.responseCode}, ${result.debugMessage}")
+                            OpenIapLog.w("Horizon setup failed: code=${result.responseCode}, ${result.debugMessage}", TAG)
                         } else {
-                            android.util.Log.i(TAG, "Horizon billing connected successfully!")
+                            OpenIapLog.i("Horizon billing connected successfully", TAG)
                         }
                         if (continuation.isActive) continuation.resume(ok)
                     }
 
                     override fun onBillingServiceDisconnected() {
-                        android.util.Log.i(TAG, "Horizon service disconnected")
+                        OpenIapLog.i("Horizon service disconnected", TAG)
                     }
                 })
             }
@@ -212,18 +209,14 @@ class OpenIapModule(
     }
 
     override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { _ ->
-        android.util.Log.i("HORIZON_QUERY", "getAvailablePurchases BEFORE withContext")
         withContext(Dispatchers.IO) {
-            android.util.Log.i("HORIZON_QUERY", "=== getAvailablePurchases INSIDE withContext ===")
             OpenIapLog.i("=== HORIZON getAvailablePurchases ===", TAG)
 
             val purchases = restorePurchasesHorizon(billingClient)
-            android.util.Log.i("HORIZON_QUERY", "Retrieved ${purchases.size} purchases from query")
             OpenIapLog.i("Retrieved ${purchases.size} total purchases (INAPP + SUBS)", TAG)
 
             // CRITICAL FIX: Merge with cached purchases
             val cachedPurchases = sharedPurchaseCache.values.toList()
-            android.util.Log.i("HORIZON_QUERY", "Cached purchases: ${cachedPurchases.size}")
 
             // Combine query results with cache, preferring query results
             val purchaseMap = mutableMapOf<String, Purchase>()
@@ -231,14 +224,12 @@ class OpenIapModule(
             purchases.forEach { purchaseMap[it.productId] = it } // Override with fresh data
 
             val allPurchases = purchaseMap.values.toList()
-            android.util.Log.i("HORIZON_QUERY", "Total purchases (query + cache): ${allPurchases.size}")
 
             allPurchases.forEachIndexed { index, purchase ->
                 val txnId = when (purchase) {
                     is dev.hyo.openiap.PurchaseAndroid -> purchase.transactionId
                     else -> "N/A"
                 }
-                android.util.Log.i("HORIZON_QUERY", "Purchase[$index] productId=${purchase.productId} txnId=$txnId")
                 OpenIapLog.i(
                     "  [$index] productId=${purchase.productId} " +
                     "transactionId=$txnId " +
@@ -246,7 +237,6 @@ class OpenIapModule(
                     TAG
                 )
             }
-            android.util.Log.i("HORIZON_QUERY", "=== getAvailablePurchases END ===")
             OpenIapLog.i("=== END getAvailablePurchases ===", TAG)
             allPurchases
         }
@@ -254,40 +244,28 @@ class OpenIapModule(
 
     override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->
         withContext(Dispatchers.IO) {
-            android.util.Log.i("HORIZON_QUERY", "=== getActiveSubscriptions START ===")
-            android.util.Log.i("HORIZON_QUERY", "Requested IDs: $subscriptionIds")
             OpenIapLog.i("=== HORIZON getActiveSubscriptions ===", TAG)
             OpenIapLog.i("Requested subscriptionIds: $subscriptionIds", TAG)
 
             val allPurchases = queryPurchasesHorizon(billingClient, BillingClient.ProductType.SUBS)
-            android.util.Log.i("HORIZON_QUERY", "Raw query returned ${allPurchases.size} SUBS purchases")
             OpenIapLog.i("Total SUBS purchases from query: ${allPurchases.size}", TAG)
 
-            allPurchases.forEachIndexed { index, purchase ->
-                android.util.Log.i("HORIZON_QUERY", "RawPurchase[$index] productId=${purchase.productId} type=${purchase.javaClass.simpleName}")
-            }
-
             val androidPurchases = allPurchases.filterIsInstance<PurchaseAndroid>()
-            android.util.Log.i("HORIZON_QUERY", "Filtered to ${androidPurchases.size} PurchaseAndroid instances")
             OpenIapLog.i("PurchaseAndroid instances: ${androidPurchases.size}", TAG)
 
             val ids = subscriptionIds.orEmpty()
             val filtered = if (ids.isEmpty()) {
-                android.util.Log.i("HORIZON_QUERY", "No filter - returning all")
                 OpenIapLog.i("No filter - returning all subscriptions", TAG)
                 androidPurchases
             } else {
-                android.util.Log.i("HORIZON_QUERY", "Filtering by IDs: $ids")
                 OpenIapLog.i("Filtering by IDs: $ids", TAG)
                 androidPurchases.filter { it.productId in ids }
             }
 
-            android.util.Log.i("HORIZON_QUERY", "After filtering: ${filtered.size} subscriptions")
             OpenIapLog.i("Filtered subscriptions count: ${filtered.size}", TAG)
             val activeSubscriptions = filtered.map { it.toActiveSubscription() }
 
             activeSubscriptions.forEachIndexed { index, sub ->
-                android.util.Log.i("HORIZON_QUERY", "ActiveSub[$index] productId=${sub.productId} active=${sub.isActive}")
                 OpenIapLog.i(
                     "  [$index] productId=${sub.productId} " +
                     "isActive=${sub.isActive} " +
@@ -296,7 +274,6 @@ class OpenIapModule(
                 )
             }
 
-            android.util.Log.i("HORIZON_QUERY", "=== getActiveSubscriptions END - returning ${activeSubscriptions.size} ===")
             OpenIapLog.i("=== END getActiveSubscriptions ===", TAG)
             activeSubscriptions
         }
@@ -309,6 +286,8 @@ class OpenIapModule(
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.IO) {
             val androidArgs = props.toAndroidPurchaseArgs()
+            OpenIapLog.i("=== REQUEST PURCHASE: ${androidArgs.skus} ===", TAG)
+
             val activity = currentActivityRef?.get() ?: fallbackActivity
 
             if (activity == null) {
@@ -430,16 +409,10 @@ class OpenIapModule(
                     }
 
                     val billingFlowParams = flowBuilder.build()
-                    android.util.Log.i(TAG, "=== LAUNCHING BILLING FLOW ===")
-                    android.util.Log.i(TAG, "  - Is subscription? ${androidArgs.type == ProductQueryType.Subs}")
-                    android.util.Log.i(TAG, "  - Has purchaseToken? ${!androidArgs.purchaseTokenAndroid.isNullOrBlank()}")
 
                     // Run on UI thread as required by Android Billing API
                     activity.runOnUiThread {
                         val result = client.launchBillingFlow(activity, billingFlowParams)
-                        android.util.Log.i(TAG, "=== BILLING FLOW LAUNCHED ===")
-                        android.util.Log.i(TAG, "  - Response code: ${result.responseCode}")
-                        android.util.Log.i(TAG, "  - Debug message: ${result.debugMessage}")
                         OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
 
                         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -468,7 +441,7 @@ class OpenIapModule(
                                     }
 
                                     if (filtered.isNotEmpty()) {
-                                        android.util.Log.i(TAG, "Proactive query found ${filtered.size} purchases")
+                                        OpenIapLog.d("Proactive query found ${filtered.size} purchases", TAG)
                                         filtered.forEach { purchase ->
                                             purchaseUpdateListeners.forEach { listener ->
                                                 runCatching { listener.onPurchaseUpdated(purchase) }
@@ -477,7 +450,7 @@ class OpenIapModule(
                                         currentPurchaseCallback?.invoke(Result.success(filtered))
                                     }
                                 } catch (e: Exception) {
-                                    android.util.Log.e(TAG, "Error in proactive purchase query: ${e.message}")
+                                    OpenIapLog.e("Error in proactive purchase query", e, TAG)
                                 }
                             }
                         }
@@ -701,19 +674,14 @@ class OpenIapModule(
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<HorizonPurchase>?) {
-        // Log with Android Log to ensure it appears even if OpenIapLog fails
-        android.util.Log.wtf("HORIZON_CALLBACK", "onPurchasesUpdated START - responseCode=${result.responseCode}, count=${purchases?.size ?: 0}")
-
         try {
             OpenIapLog.i("=== HORIZON onPurchasesUpdated ===", TAG)
             OpenIapLog.i("Response code: ${result.responseCode}", TAG)
-            OpenIapLog.i("Debug message: ${result.debugMessage}", TAG)
             OpenIapLog.i("Purchases count: ${purchases?.size ?: 0}", TAG)
 
             purchases?.forEachIndexed { index, purchase ->
                 val redactedToken = purchase.purchaseToken?.take(8)?.plus("…")
                 val redactedOrder = purchase.orderId?.take(8)?.plus("…")
-                android.util.Log.i("HORIZON_CALLBACK", "Purchase[$index] products=${purchase.products} token=$redactedToken")
                 OpenIapLog.i(
                     "[HorizonPurchase $index] productIds=${purchase.products} token=$redactedToken orderId=$redactedOrder " +
                     "acknowledged=${purchase.isAcknowledged()} autoRenew=${purchase.isAutoRenewing()}",
@@ -725,7 +693,6 @@ class OpenIapModule(
                 // When using DEFERRED replacement mode, purchases will be null
                 // This is expected behavior - the change will take effect at next renewal
                 if (purchases != null) {
-                    android.util.Log.i("HORIZON_CALLBACK", "Processing ${purchases.size} purchases")
                     OpenIapLog.i("Processing ${purchases.size} successful purchases", TAG)
 
                     val mapped = purchases.map { purchase ->
@@ -776,7 +743,6 @@ class OpenIapModule(
                     OpenIapLog.i("Purchase callback invoked", TAG)
                 } else {
                     // Purchases is null - likely DEFERRED mode
-                    android.util.Log.d("HORIZON_CALLBACK", "Purchase successful but purchases list is null (DEFERRED mode)")
                     OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
                     currentPurchaseCallback?.let { cb ->
                         currentPurchaseCallback = null
@@ -784,17 +750,15 @@ class OpenIapModule(
                     }
                 }
             } else {
-                android.util.Log.w("HORIZON_CALLBACK", "Purchase failed: code=${result.responseCode}")
                 OpenIapLog.w("Purchase failed or cancelled: code=${result.responseCode}", TAG)
                 val error = OpenIapError.fromBillingResponseCode(result.responseCode, result.debugMessage)
                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(error) } }
                 currentPurchaseCallback?.invoke(Result.success(emptyList()))
             }
             currentPurchaseCallback = null
-            android.util.Log.i("HORIZON_CALLBACK", "onPurchasesUpdated END")
             OpenIapLog.i("=== END onPurchasesUpdated ===", TAG)
         } catch (e: Exception) {
-            android.util.Log.e("HORIZON_CALLBACK", "Exception in onPurchasesUpdated", e)
+            OpenIapLog.e("Exception in onPurchasesUpdated", e, TAG)
         }
     }
 
@@ -821,12 +785,23 @@ class OpenIapModule(
     }
 
     private fun buildBillingClient() {
+        // CRITICAL: Use Activity if available, otherwise fall back to Context
+        // Horizon SDK needs Activity to properly initialize OVRPlatform with returnComponent
+        val activity = currentActivityRef?.get() ?: fallbackActivity
+        val contextForBilling: Context = activity ?: context
+
+        if (contextForBilling is Activity) {
+            OpenIapLog.d("Building BillingClient with Activity", TAG)
+        } else {
+            OpenIapLog.w("No Activity available - Horizon SDK will initialize in limited mode", TAG)
+        }
+
         val pendingPurchasesParams = com.meta.horizon.billingclient.api.PendingPurchasesParams.newBuilder()
             .enableOneTimeProducts()
             .build()
 
         val builder = BillingClient
-            .newBuilder(context)
+            .newBuilder(contextForBilling)  // Use Activity if available
             .setListener(this)
             .enablePendingPurchases(pendingPurchasesParams)
 
@@ -834,6 +809,7 @@ class OpenIapModule(
         appId?.let { id ->
             if (id.isNotEmpty()) {
                 builder.setAppId(id)
+                OpenIapLog.d("Horizon App ID set: $id", TAG)
             }
         }
 
