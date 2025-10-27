@@ -113,9 +113,11 @@ class OpenIapModule(
                 OpenIapLog.i("=== INIT CONNECTION ===", TAG)
 
                 // CRITICAL FIX: Rebuild BillingClient if it was destroyed by endConnection
+                // Use current Activity if available, otherwise fallback to Context
                 if (billingClient == null) {
-                    OpenIapLog.d("Building BillingClient...", TAG)
-                    buildBillingClient()
+                    val contextForInit = currentActivityRef?.get() ?: fallbackActivity ?: context
+                    OpenIapLog.d("Building BillingClient with ${contextForInit.javaClass.simpleName}...", TAG)
+                    buildBillingClient(contextForInit)
                 }
 
                 val client = billingClient ?: run {
@@ -784,16 +786,20 @@ class OpenIapModule(
         }
     }
 
-    private fun buildBillingClient() {
-        // CRITICAL: Use Activity if available, otherwise fall back to Context
-        // Horizon SDK needs Activity to properly initialize OVRPlatform with returnComponent
-        val activity = currentActivityRef?.get() ?: fallbackActivity
-        val contextForBilling: Context = activity ?: context
-
+    /**
+     * Build BillingClient with the provided context.
+     *
+     * CRITICAL: Horizon SDK requires Activity to properly initialize OVRPlatform with returnComponent.
+     * If Context (non-Activity) is provided, Horizon SDK will run in limited mode and may cause
+     * NullPointerException during purchase flow.
+     *
+     * @param contextForBilling Activity (preferred) or Application Context (fallback)
+     */
+    private fun buildBillingClient(contextForBilling: Context) {
         if (contextForBilling is Activity) {
             OpenIapLog.d("Building BillingClient with Activity", TAG)
         } else {
-            OpenIapLog.w("No Activity available - Horizon SDK will initialize in limited mode", TAG)
+            OpenIapLog.w("Building BillingClient with Context (not Activity) - Horizon SDK will run in limited mode", TAG)
         }
 
         val pendingPurchasesParams = com.meta.horizon.billingclient.api.PendingPurchasesParams.newBuilder()
@@ -801,7 +807,7 @@ class OpenIapModule(
             .build()
 
         val builder = BillingClient
-            .newBuilder(contextForBilling)  // Use Activity if available
+            .newBuilder(contextForBilling)
             .setListener(this)
             .enablePendingPurchases(pendingPurchasesParams)
 
