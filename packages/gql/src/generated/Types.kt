@@ -4,7 +4,6 @@
 // ============================================================================
 
 @file:Suppress("unused", "UNCHECKED_CAST")
-package dev.hyo.openiap
 
 // MARK: - Enums
 
@@ -26,16 +25,16 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
      * Alternative billing only - no Google Play billing option
      * Requires Google Play Billing Library 6.2+
      */
-    AlternativeOnly("alternative-only");
+    AlternativeOnly("alternative-only")
 
     companion object {
         fun fromJson(value: String): AlternativeBillingModeAndroid = when (value) {
             "none" -> AlternativeBillingModeAndroid.None
-            "None" -> AlternativeBillingModeAndroid.None
+            "NONE" -> AlternativeBillingModeAndroid.None
             "user-choice" -> AlternativeBillingModeAndroid.UserChoice
-            "UserChoice" -> AlternativeBillingModeAndroid.UserChoice
+            "USER_CHOICE" -> AlternativeBillingModeAndroid.UserChoice
             "alternative-only" -> AlternativeBillingModeAndroid.AlternativeOnly
-            "AlternativeOnly" -> AlternativeBillingModeAndroid.AlternativeOnly
+            "ALTERNATIVE_ONLY" -> AlternativeBillingModeAndroid.AlternativeOnly
             else -> throw IllegalArgumentException("Unknown AlternativeBillingModeAndroid value: $value")
         }
     }
@@ -77,77 +76,111 @@ public enum class ErrorCode(val rawValue: String) {
     ItemNotOwned("item-not-owned"),
     BillingUnavailable("billing-unavailable"),
     FeatureNotSupported("feature-not-supported"),
-    EmptySkuList("empty-sku-list");
+    EmptySkuList("empty-sku-list")
 
     companion object {
         fun fromJson(value: String): ErrorCode = when (value) {
             "unknown" -> ErrorCode.Unknown
+            "UNKNOWN" -> ErrorCode.Unknown
             "Unknown" -> ErrorCode.Unknown
             "user-cancelled" -> ErrorCode.UserCancelled
+            "USER_CANCELLED" -> ErrorCode.UserCancelled
             "UserCancelled" -> ErrorCode.UserCancelled
             "user-error" -> ErrorCode.UserError
+            "USER_ERROR" -> ErrorCode.UserError
             "UserError" -> ErrorCode.UserError
             "item-unavailable" -> ErrorCode.ItemUnavailable
+            "ITEM_UNAVAILABLE" -> ErrorCode.ItemUnavailable
             "ItemUnavailable" -> ErrorCode.ItemUnavailable
             "remote-error" -> ErrorCode.RemoteError
+            "REMOTE_ERROR" -> ErrorCode.RemoteError
             "RemoteError" -> ErrorCode.RemoteError
             "network-error" -> ErrorCode.NetworkError
+            "NETWORK_ERROR" -> ErrorCode.NetworkError
             "NetworkError" -> ErrorCode.NetworkError
             "service-error" -> ErrorCode.ServiceError
+            "SERVICE_ERROR" -> ErrorCode.ServiceError
             "ServiceError" -> ErrorCode.ServiceError
             "receipt-failed" -> ErrorCode.ReceiptFailed
+            "RECEIPT_FAILED" -> ErrorCode.ReceiptFailed
             "ReceiptFailed" -> ErrorCode.ReceiptFailed
             "receipt-finished" -> ErrorCode.ReceiptFinished
+            "RECEIPT_FINISHED" -> ErrorCode.ReceiptFinished
             "ReceiptFinished" -> ErrorCode.ReceiptFinished
             "receipt-finished-failed" -> ErrorCode.ReceiptFinishedFailed
+            "RECEIPT_FINISHED_FAILED" -> ErrorCode.ReceiptFinishedFailed
             "ReceiptFinishedFailed" -> ErrorCode.ReceiptFinishedFailed
             "not-prepared" -> ErrorCode.NotPrepared
+            "NOT_PREPARED" -> ErrorCode.NotPrepared
             "NotPrepared" -> ErrorCode.NotPrepared
             "not-ended" -> ErrorCode.NotEnded
+            "NOT_ENDED" -> ErrorCode.NotEnded
             "NotEnded" -> ErrorCode.NotEnded
             "already-owned" -> ErrorCode.AlreadyOwned
+            "ALREADY_OWNED" -> ErrorCode.AlreadyOwned
             "AlreadyOwned" -> ErrorCode.AlreadyOwned
             "developer-error" -> ErrorCode.DeveloperError
+            "DEVELOPER_ERROR" -> ErrorCode.DeveloperError
             "DeveloperError" -> ErrorCode.DeveloperError
             "billing-response-json-parse-error" -> ErrorCode.BillingResponseJsonParseError
+            "BILLING_RESPONSE_JSON_PARSE_ERROR" -> ErrorCode.BillingResponseJsonParseError
             "BillingResponseJsonParseError" -> ErrorCode.BillingResponseJsonParseError
             "deferred-payment" -> ErrorCode.DeferredPayment
+            "DEFERRED_PAYMENT" -> ErrorCode.DeferredPayment
             "DeferredPayment" -> ErrorCode.DeferredPayment
             "interrupted" -> ErrorCode.Interrupted
+            "INTERRUPTED" -> ErrorCode.Interrupted
             "Interrupted" -> ErrorCode.Interrupted
             "iap-not-available" -> ErrorCode.IapNotAvailable
+            "IAP_NOT_AVAILABLE" -> ErrorCode.IapNotAvailable
             "IapNotAvailable" -> ErrorCode.IapNotAvailable
             "purchase-error" -> ErrorCode.PurchaseError
+            "PURCHASE_ERROR" -> ErrorCode.PurchaseError
             "PurchaseError" -> ErrorCode.PurchaseError
             "sync-error" -> ErrorCode.SyncError
+            "SYNC_ERROR" -> ErrorCode.SyncError
             "SyncError" -> ErrorCode.SyncError
             "transaction-validation-failed" -> ErrorCode.TransactionValidationFailed
+            "TRANSACTION_VALIDATION_FAILED" -> ErrorCode.TransactionValidationFailed
             "TransactionValidationFailed" -> ErrorCode.TransactionValidationFailed
             "activity-unavailable" -> ErrorCode.ActivityUnavailable
+            "ACTIVITY_UNAVAILABLE" -> ErrorCode.ActivityUnavailable
             "ActivityUnavailable" -> ErrorCode.ActivityUnavailable
             "already-prepared" -> ErrorCode.AlreadyPrepared
+            "ALREADY_PREPARED" -> ErrorCode.AlreadyPrepared
             "AlreadyPrepared" -> ErrorCode.AlreadyPrepared
             "pending" -> ErrorCode.Pending
+            "PENDING" -> ErrorCode.Pending
             "Pending" -> ErrorCode.Pending
             "connection-closed" -> ErrorCode.ConnectionClosed
+            "CONNECTION_CLOSED" -> ErrorCode.ConnectionClosed
             "ConnectionClosed" -> ErrorCode.ConnectionClosed
             "init-connection" -> ErrorCode.InitConnection
+            "INIT_CONNECTION" -> ErrorCode.InitConnection
             "InitConnection" -> ErrorCode.InitConnection
             "service-disconnected" -> ErrorCode.ServiceDisconnected
+            "SERVICE_DISCONNECTED" -> ErrorCode.ServiceDisconnected
             "ServiceDisconnected" -> ErrorCode.ServiceDisconnected
             "query-product" -> ErrorCode.QueryProduct
+            "QUERY_PRODUCT" -> ErrorCode.QueryProduct
             "QueryProduct" -> ErrorCode.QueryProduct
             "sku-not-found" -> ErrorCode.SkuNotFound
+            "SKU_NOT_FOUND" -> ErrorCode.SkuNotFound
             "SkuNotFound" -> ErrorCode.SkuNotFound
             "sku-offer-mismatch" -> ErrorCode.SkuOfferMismatch
+            "SKU_OFFER_MISMATCH" -> ErrorCode.SkuOfferMismatch
             "SkuOfferMismatch" -> ErrorCode.SkuOfferMismatch
             "item-not-owned" -> ErrorCode.ItemNotOwned
+            "ITEM_NOT_OWNED" -> ErrorCode.ItemNotOwned
             "ItemNotOwned" -> ErrorCode.ItemNotOwned
             "billing-unavailable" -> ErrorCode.BillingUnavailable
+            "BILLING_UNAVAILABLE" -> ErrorCode.BillingUnavailable
             "BillingUnavailable" -> ErrorCode.BillingUnavailable
             "feature-not-supported" -> ErrorCode.FeatureNotSupported
+            "FEATURE_NOT_SUPPORTED" -> ErrorCode.FeatureNotSupported
             "FeatureNotSupported" -> ErrorCode.FeatureNotSupported
             "empty-sku-list" -> ErrorCode.EmptySkuList
+            "EMPTY_SKU_LIST" -> ErrorCode.EmptySkuList
             "EmptySkuList" -> ErrorCode.EmptySkuList
             else -> throw IllegalArgumentException("Unknown ErrorCode value: $value")
         }
@@ -167,7 +200,7 @@ public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
     /**
      * User dismissed the notice sheet
      */
-    Dismissed("dismissed");
+    Dismissed("dismissed")
 
     companion object {
         fun fromJson(value: String): ExternalPurchaseNoticeAction = when (value) {
@@ -188,18 +221,21 @@ public enum class IapEvent(val rawValue: String) {
     PurchaseUpdated("purchase-updated"),
     PurchaseError("purchase-error"),
     PromotedProductIos("promoted-product-ios"),
-    UserChoiceBillingAndroid("user-choice-billing-android");
+    UserChoiceBillingAndroid("user-choice-billing-android")
 
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
             "purchase-updated" -> IapEvent.PurchaseUpdated
+            "PURCHASE_UPDATED" -> IapEvent.PurchaseUpdated
             "PurchaseUpdated" -> IapEvent.PurchaseUpdated
             "purchase-error" -> IapEvent.PurchaseError
+            "PURCHASE_ERROR" -> IapEvent.PurchaseError
             "PurchaseError" -> IapEvent.PurchaseError
             "promoted-product-ios" -> IapEvent.PromotedProductIos
-            "PromotedProductIos" -> IapEvent.PromotedProductIos
+            "PROMOTED_PRODUCT_IOS" -> IapEvent.PromotedProductIos
             "PromotedProductIOS" -> IapEvent.PromotedProductIos
             "user-choice-billing-android" -> IapEvent.UserChoiceBillingAndroid
+            "USER_CHOICE_BILLING_ANDROID" -> IapEvent.UserChoiceBillingAndroid
             "UserChoiceBillingAndroid" -> IapEvent.UserChoiceBillingAndroid
             else -> throw IllegalArgumentException("Unknown IapEvent value: $value")
         }
@@ -210,14 +246,14 @@ public enum class IapEvent(val rawValue: String) {
 
 public enum class IapPlatform(val rawValue: String) {
     Ios("ios"),
-    Android("android");
+    Android("android")
 
     companion object {
         fun fromJson(value: String): IapPlatform = when (value) {
             "ios" -> IapPlatform.Ios
-            "Ios" -> IapPlatform.Ios
             "IOS" -> IapPlatform.Ios
             "android" -> IapPlatform.Android
+            "ANDROID" -> IapPlatform.Android
             "Android" -> IapPlatform.Android
             else -> throw IllegalArgumentException("Unknown IapPlatform value: $value")
         }
@@ -230,17 +266,21 @@ public enum class PaymentModeIOS(val rawValue: String) {
     Empty("empty"),
     FreeTrial("free-trial"),
     PayAsYouGo("pay-as-you-go"),
-    PayUpFront("pay-up-front");
+    PayUpFront("pay-up-front")
 
     companion object {
         fun fromJson(value: String): PaymentModeIOS = when (value) {
             "empty" -> PaymentModeIOS.Empty
+            "EMPTY" -> PaymentModeIOS.Empty
             "Empty" -> PaymentModeIOS.Empty
             "free-trial" -> PaymentModeIOS.FreeTrial
+            "FREE_TRIAL" -> PaymentModeIOS.FreeTrial
             "FreeTrial" -> PaymentModeIOS.FreeTrial
             "pay-as-you-go" -> PaymentModeIOS.PayAsYouGo
+            "PAY_AS_YOU_GO" -> PaymentModeIOS.PayAsYouGo
             "PayAsYouGo" -> PaymentModeIOS.PayAsYouGo
             "pay-up-front" -> PaymentModeIOS.PayUpFront
+            "PAY_UP_FRONT" -> PaymentModeIOS.PayUpFront
             "PayUpFront" -> PaymentModeIOS.PayUpFront
             else -> throw IllegalArgumentException("Unknown PaymentModeIOS value: $value")
         }
@@ -252,15 +292,18 @@ public enum class PaymentModeIOS(val rawValue: String) {
 public enum class ProductQueryType(val rawValue: String) {
     InApp("in-app"),
     Subs("subs"),
-    All("all");
+    All("all")
 
     companion object {
         fun fromJson(value: String): ProductQueryType = when (value) {
             "in-app" -> ProductQueryType.InApp
+            "IN_APP" -> ProductQueryType.InApp
             "InApp" -> ProductQueryType.InApp
             "subs" -> ProductQueryType.Subs
+            "SUBS" -> ProductQueryType.Subs
             "Subs" -> ProductQueryType.Subs
             "all" -> ProductQueryType.All
+            "ALL" -> ProductQueryType.All
             "All" -> ProductQueryType.All
             else -> throw IllegalArgumentException("Unknown ProductQueryType value: $value")
         }
@@ -271,13 +314,15 @@ public enum class ProductQueryType(val rawValue: String) {
 
 public enum class ProductType(val rawValue: String) {
     InApp("in-app"),
-    Subs("subs");
+    Subs("subs")
 
     companion object {
         fun fromJson(value: String): ProductType = when (value) {
             "in-app" -> ProductType.InApp
+            "IN_APP" -> ProductType.InApp
             "InApp" -> ProductType.InApp
             "subs" -> ProductType.Subs
+            "SUBS" -> ProductType.Subs
             "Subs" -> ProductType.Subs
             else -> throw IllegalArgumentException("Unknown ProductType value: $value")
         }
@@ -290,17 +335,21 @@ public enum class ProductTypeIOS(val rawValue: String) {
     Consumable("consumable"),
     NonConsumable("non-consumable"),
     AutoRenewableSubscription("auto-renewable-subscription"),
-    NonRenewingSubscription("non-renewing-subscription");
+    NonRenewingSubscription("non-renewing-subscription")
 
     companion object {
         fun fromJson(value: String): ProductTypeIOS = when (value) {
             "consumable" -> ProductTypeIOS.Consumable
+            "CONSUMABLE" -> ProductTypeIOS.Consumable
             "Consumable" -> ProductTypeIOS.Consumable
             "non-consumable" -> ProductTypeIOS.NonConsumable
+            "NON_CONSUMABLE" -> ProductTypeIOS.NonConsumable
             "NonConsumable" -> ProductTypeIOS.NonConsumable
             "auto-renewable-subscription" -> ProductTypeIOS.AutoRenewableSubscription
+            "AUTO_RENEWABLE_SUBSCRIPTION" -> ProductTypeIOS.AutoRenewableSubscription
             "AutoRenewableSubscription" -> ProductTypeIOS.AutoRenewableSubscription
             "non-renewing-subscription" -> ProductTypeIOS.NonRenewingSubscription
+            "NON_RENEWING_SUBSCRIPTION" -> ProductTypeIOS.NonRenewingSubscription
             "NonRenewingSubscription" -> ProductTypeIOS.NonRenewingSubscription
             else -> throw IllegalArgumentException("Unknown ProductTypeIOS value: $value")
         }
@@ -317,14 +366,14 @@ public enum class ProviderIOS(val rawValue: String) {
     /**
      * Use OnsideKit for payment processing (for Onside distribution in Korea)
      */
-    Onside("onside");
+    Onside("onside")
 
     companion object {
         fun fromJson(value: String): ProviderIOS = when (value) {
             "storekit" -> ProviderIOS.Storekit
-            "Storekit" -> ProviderIOS.Storekit
+            "STOREKIT" -> ProviderIOS.Storekit
             "onside" -> ProviderIOS.Onside
-            "Onside" -> ProviderIOS.Onside
+            "ONSIDE" -> ProviderIOS.Onside
             else -> throw IllegalArgumentException("Unknown ProviderIOS value: $value")
         }
     }
@@ -338,21 +387,27 @@ public enum class PurchaseState(val rawValue: String) {
     Failed("failed"),
     Restored("restored"),
     Deferred("deferred"),
-    Unknown("unknown");
+    Unknown("unknown")
 
     companion object {
         fun fromJson(value: String): PurchaseState = when (value) {
             "pending" -> PurchaseState.Pending
+            "PENDING" -> PurchaseState.Pending
             "Pending" -> PurchaseState.Pending
             "purchased" -> PurchaseState.Purchased
+            "PURCHASED" -> PurchaseState.Purchased
             "Purchased" -> PurchaseState.Purchased
             "failed" -> PurchaseState.Failed
+            "FAILED" -> PurchaseState.Failed
             "Failed" -> PurchaseState.Failed
             "restored" -> PurchaseState.Restored
+            "RESTORED" -> PurchaseState.Restored
             "Restored" -> PurchaseState.Restored
             "deferred" -> PurchaseState.Deferred
+            "DEFERRED" -> PurchaseState.Deferred
             "Deferred" -> PurchaseState.Deferred
             "unknown" -> PurchaseState.Unknown
+            "UNKNOWN" -> PurchaseState.Unknown
             "Unknown" -> PurchaseState.Unknown
             else -> throw IllegalArgumentException("Unknown PurchaseState value: $value")
         }
@@ -363,13 +418,15 @@ public enum class PurchaseState(val rawValue: String) {
 
 public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
     Introductory("introductory"),
-    Promotional("promotional");
+    Promotional("promotional")
 
     companion object {
         fun fromJson(value: String): SubscriptionOfferTypeIOS = when (value) {
             "introductory" -> SubscriptionOfferTypeIOS.Introductory
+            "INTRODUCTORY" -> SubscriptionOfferTypeIOS.Introductory
             "Introductory" -> SubscriptionOfferTypeIOS.Introductory
             "promotional" -> SubscriptionOfferTypeIOS.Promotional
+            "PROMOTIONAL" -> SubscriptionOfferTypeIOS.Promotional
             "Promotional" -> SubscriptionOfferTypeIOS.Promotional
             else -> throw IllegalArgumentException("Unknown SubscriptionOfferTypeIOS value: $value")
         }
@@ -383,19 +440,24 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
     Week("week"),
     Month("month"),
     Year("year"),
-    Empty("empty");
+    Empty("empty")
 
     companion object {
         fun fromJson(value: String): SubscriptionPeriodIOS = when (value) {
             "day" -> SubscriptionPeriodIOS.Day
+            "DAY" -> SubscriptionPeriodIOS.Day
             "Day" -> SubscriptionPeriodIOS.Day
             "week" -> SubscriptionPeriodIOS.Week
+            "WEEK" -> SubscriptionPeriodIOS.Week
             "Week" -> SubscriptionPeriodIOS.Week
             "month" -> SubscriptionPeriodIOS.Month
+            "MONTH" -> SubscriptionPeriodIOS.Month
             "Month" -> SubscriptionPeriodIOS.Month
             "year" -> SubscriptionPeriodIOS.Year
+            "YEAR" -> SubscriptionPeriodIOS.Year
             "Year" -> SubscriptionPeriodIOS.Year
             "empty" -> SubscriptionPeriodIOS.Empty
+            "EMPTY" -> SubscriptionPeriodIOS.Empty
             "Empty" -> SubscriptionPeriodIOS.Empty
             else -> throw IllegalArgumentException("Unknown SubscriptionPeriodIOS value: $value")
         }
@@ -793,19 +855,19 @@ public data class PricingPhasesAndroid(
 }
 
 public data class ProductAndroid(
-    override val currency: String,
-    override val debugDescription: String? = null,
-    override val description: String,
-    override val displayName: String? = null,
-    override val displayPrice: String,
-    override val id: String,
+    val currency: String,
+    val debugDescription: String? = null,
+    val description: String,
+    val displayName: String? = null,
+    val displayPrice: String,
+    val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
-    override val price: Double? = null,
+    val platform: IapPlatform,
+    val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
-    override val title: String,
-    override val type: ProductType
+    val title: String,
+    val type: ProductType
 ) : ProductCommon, Product {
 
     companion object {
@@ -871,20 +933,20 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
 }
 
 public data class ProductIOS(
-    override val currency: String,
-    override val debugDescription: String? = null,
-    override val description: String,
-    override val displayName: String? = null,
+    val currency: String,
+    val debugDescription: String? = null,
+    val description: String,
+    val displayName: String? = null,
     val displayNameIOS: String,
-    override val displayPrice: String,
-    override val id: String,
+    val displayPrice: String,
+    val id: String,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
-    override val price: Double? = null,
+    val platform: IapPlatform,
+    val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
-    override val title: String,
-    override val type: ProductType,
+    val title: String,
+    val type: ProductType,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, Product {
 
@@ -931,19 +993,19 @@ public data class ProductIOS(
 }
 
 public data class ProductSubscriptionAndroid(
-    override val currency: String,
-    override val debugDescription: String? = null,
-    override val description: String,
-    override val displayName: String? = null,
-    override val displayPrice: String,
-    override val id: String,
+    val currency: String,
+    val debugDescription: String? = null,
+    val description: String,
+    val displayName: String? = null,
+    val displayPrice: String,
+    val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
-    override val price: Double? = null,
+    val platform: IapPlatform,
+    val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
-    override val title: String,
-    override val type: ProductType
+    val title: String,
+    val type: ProductType
 ) : ProductCommon, ProductSubscription {
 
     companion object {
@@ -1015,14 +1077,14 @@ public data class ProductSubscriptionAndroidOfferDetails(
 }
 
 public data class ProductSubscriptionIOS(
-    override val currency: String,
-    override val debugDescription: String? = null,
-    override val description: String,
+    val currency: String,
+    val debugDescription: String? = null,
+    val description: String,
     val discountsIOS: List<DiscountIOS>? = null,
-    override val displayName: String? = null,
+    val displayName: String? = null,
     val displayNameIOS: String,
-    override val displayPrice: String,
-    override val id: String,
+    val displayPrice: String,
+    val id: String,
     val introductoryPriceAsAmountIOS: String? = null,
     val introductoryPriceIOS: String? = null,
     val introductoryPriceNumberOfPeriodsIOS: String? = null,
@@ -1030,13 +1092,13 @@ public data class ProductSubscriptionIOS(
     val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
-    override val price: Double? = null,
+    val platform: IapPlatform,
+    val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     val subscriptionPeriodNumberIOS: String? = null,
     val subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = null,
-    override val title: String,
-    override val type: ProductType,
+    val title: String,
+    val type: ProductType,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, ProductSubscription {
 
@@ -1100,23 +1162,23 @@ public data class ProductSubscriptionIOS(
 
 public data class PurchaseAndroid(
     val autoRenewingAndroid: Boolean? = null,
-    override val currentPlanId: String? = null,
+    val currentPlanId: String? = null,
     val dataAndroid: String? = null,
     val developerPayloadAndroid: String? = null,
-    override val id: String,
-    override val ids: List<String>? = null,
+    val id: String,
+    val ids: List<String>? = null,
     val isAcknowledgedAndroid: Boolean? = null,
-    override val isAutoRenewing: Boolean,
+    val isAutoRenewing: Boolean,
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
-    override val platform: IapPlatform,
-    override val productId: String,
-    override val purchaseState: PurchaseState,
-    override val purchaseToken: String? = null,
-    override val quantity: Int,
+    val platform: IapPlatform,
+    val productId: String,
+    val purchaseState: PurchaseState,
+    val purchaseToken: String? = null,
+    val quantity: Int,
     val signatureAndroid: String? = null,
-    override val transactionDate: Double,
+    val transactionDate: Double,
     val transactionId: String? = null
 ) : PurchaseCommon, Purchase {
 
@@ -1200,22 +1262,22 @@ public data class PurchaseIOS(
     val countryCodeIOS: String? = null,
     val currencyCodeIOS: String? = null,
     val currencySymbolIOS: String? = null,
-    override val currentPlanId: String? = null,
+    val currentPlanId: String? = null,
     val environmentIOS: String? = null,
     val expirationDateIOS: Double? = null,
-    override val id: String,
-    override val ids: List<String>? = null,
-    override val isAutoRenewing: Boolean,
+    val id: String,
+    val ids: List<String>? = null,
+    val isAutoRenewing: Boolean,
     val isUpgradedIOS: Boolean? = null,
     val offerIOS: PurchaseOfferIOS? = null,
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
     val ownershipTypeIOS: String? = null,
-    override val platform: IapPlatform,
-    override val productId: String,
-    override val purchaseState: PurchaseState,
-    override val purchaseToken: String? = null,
-    override val quantity: Int,
+    val platform: IapPlatform,
+    val productId: String,
+    val purchaseState: PurchaseState,
+    val purchaseToken: String? = null,
+    val quantity: Int,
     val quantityIOS: Int? = null,
     val reasonIOS: String? = null,
     val reasonStringRepresentationIOS: String? = null,
@@ -1224,7 +1286,7 @@ public data class PurchaseIOS(
     val revocationReasonIOS: String? = null,
     val storefrontCountryCodeIOS: String? = null,
     val subscriptionGroupIdIOS: String? = null,
-    override val transactionDate: Double,
+    val transactionDate: Double,
     val transactionId: String,
     val transactionReasonIOS: String? = null,
     val webOrderLineItemIdIOS: String? = null

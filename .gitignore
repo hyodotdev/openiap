@@ -4,7 +4,6 @@ bun.lockb
 *.lock
 
 # Generated files
-packages/gql/src/generated/
 dist/
 build/
 .turbo/
