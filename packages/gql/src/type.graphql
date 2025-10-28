@@ -232,6 +232,26 @@ type ActiveSubscription {
 
 # Initialization configuration
 """
+Provider configuration for payment processing
+"""
+input ProviderConfig {
+  """
+  iOS payment provider
+  - storekit: Use StoreKit (default for App Store distribution)
+  - onside: Use OnsideKit (for Onside distribution in Korea)
+
+  When set to 'onside', the app will use OnsideKit for payment processing.
+  The Onside module must be enabled in your expo config plugin.
+
+  For dual distribution (App Store + Onside), you can dynamically switch
+  providers at runtime based on the installation source.
+
+  Defaults to 'storekit' if not specified.
+  """
+  ios: ProviderIOS = storekit
+}
+
+"""
 Connection initialization configuration
 """
 input InitConnectionConfig {
@@ -240,4 +260,9 @@ input InitConnectionConfig {
   If not specified, defaults to NONE (standard Google Play billing)
   """
   alternativeBillingModeAndroid: AlternativeBillingModeAndroid
+  """
+  Provider configuration for payment processing
+  Configure which payment provider to use for each platform.
+  """
+  provider: ProviderConfig
 }

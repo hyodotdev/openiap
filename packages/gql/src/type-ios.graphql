@@ -1,5 +1,17 @@
 # iOS-specific GraphQL Types
 
+# iOS payment provider selection
+enum ProviderIOS {
+  """
+  Use StoreKit for payment processing (default for App Store distribution)
+  """
+  storekit
+  """
+  Use OnsideKit for payment processing (for Onside distribution in Korea)
+  """
+  onside
+}
+
 # iOS detailed product types
 enum ProductTypeIOS {
   Consumable
