@@ -31,6 +31,10 @@ internal class ProductManager {
      * - Uses cache when available
      * - Queries missing ones and updates the cache
      * - Preserves input ordering in the returned list
+     *
+     * IMPORTANT: Always validates cached ProductDetails have complete data.
+     * If cached data appears incomplete (e.g., missing offer details),
+     * it will be re-queried from Horizon Billing.
      */
     suspend fun getOrQuery(
         client: BillingClient,
@@ -44,16 +48,45 @@ internal class ProductManager {
             return emptyList()
         }
 
-        val missing = productIds.filter { cache[CacheKey(it, productType)] == null }.distinct()
-        OpenIapLog.d("getOrQuery: missing=$missing, cached=${productIds.size - missing.size}", TAG)
+        // Check which products are missing or have incomplete data
+        val needsQuery = mutableListOf<String>()
+        val validCached = mutableListOf<HorizonProductDetails>()
 
-        if (missing.isEmpty()) {
+        productIds.distinct().forEach { productId ->
+            val cached = cache[CacheKey(productId, productType)]
+            if (cached == null) {
+                needsQuery.add(productId)
+            } else {
+                // Validate cached ProductDetails has complete data
+                val isComplete = when (productType) {
+                    BillingClient.ProductType.INAPP -> {
+                        cached.oneTimePurchaseOfferDetails != null
+                    }
+                    BillingClient.ProductType.SUBS -> {
+                        !cached.subscriptionOfferDetails.isNullOrEmpty()
+                    }
+                    else -> true
+                }
+
+                if (isComplete) {
+                    validCached.add(cached)
+                } else {
+                    OpenIapLog.w("Cached ProductDetails for '$productId' has incomplete data, will re-query", TAG)
+                    needsQuery.add(productId)
+                    cache.remove(CacheKey(productId, productType))
+                }
+            }
+        }
+
+        OpenIapLog.d("getOrQuery: needsQuery=$needsQuery, validCached=${validCached.size}", TAG)
+
+        if (needsQuery.isEmpty()) {
             val cached = productIds.mapNotNull { cache[CacheKey(it, productType)] }
             OpenIapLog.d("getOrQuery: Returning ${cached.size} cached products", TAG)
             return cached
         }
 
-        val productList = missing.map { sku ->
+        val productList = needsQuery.map { sku ->
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(sku)
                 .setProductType(productType)
@@ -63,7 +96,7 @@ internal class ProductManager {
             .setProductList(productList)
             .build()
 
-        OpenIapLog.d("getOrQuery: Querying ${missing.size} products from Horizon API", TAG)
+        OpenIapLog.d("getOrQuery: Querying ${needsQuery.size} products from Horizon API", TAG)
 
         return suspendCancellableCoroutine { cont ->
             cont.invokeOnCancellation { OpenIapLog.d("getOrQuery: cancelled", TAG) }
