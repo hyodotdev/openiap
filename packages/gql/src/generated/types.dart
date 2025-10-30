@@ -42,6 +42,25 @@ enum AlternativeBillingModeAndroid {
   String toJson() => value;
 }
 
+enum Android {
+  Android('android');
+
+  const Android(this.value);
+  final String value;
+
+  factory Android.fromJson(String value) {
+    switch (value) {
+      case 'android':
+      case 'ANDROID':
+      case 'Android':
+        return Android.Android;
+    }
+    throw ArgumentError('Unknown Android value: $value');
+  }
+
+  String toJson() => value;
+}
+
 enum ErrorCode {
   Unknown('unknown'),
   UserCancelled('user-cancelled'),
@@ -305,6 +324,24 @@ enum IapPlatform {
         return IapPlatform.Android;
     }
     throw ArgumentError('Unknown IapPlatform value: $value');
+  }
+
+  String toJson() => value;
+}
+
+enum IOS {
+  IOS('ios');
+
+  const IOS(this.value);
+  final String value;
+
+  factory IOS.fromJson(String value) {
+    switch (value) {
+      case 'ios':
+      case 'IOS':
+        return IOS.IOS;
+    }
+    throw ArgumentError('Unknown IOS value: $value');
   }
 
   String toJson() => value;
@@ -1015,7 +1052,7 @@ class ProductAndroid extends Product implements ProductCommon {
   final String id;
   final String nameAndroid;
   final ProductAndroidOneTimePurchaseOfferDetail? oneTimePurchaseOfferDetailsAndroid;
-  final IapPlatform platform;
+  final Android platform;
   final double? price;
   final List<ProductSubscriptionAndroidOfferDetails>? subscriptionOfferDetailsAndroid;
   final String title;
@@ -1031,7 +1068,7 @@ class ProductAndroid extends Product implements ProductCommon {
       id: json['id'] as String,
       nameAndroid: json['nameAndroid'] as String,
       oneTimePurchaseOfferDetailsAndroid: json['oneTimePurchaseOfferDetailsAndroid'] != null ? ProductAndroidOneTimePurchaseOfferDetail.fromJson(json['oneTimePurchaseOfferDetailsAndroid'] as Map<String, dynamic>) : null,
-      platform: IapPlatform.fromJson(json['platform'] as String),
+      platform: Android.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
       subscriptionOfferDetailsAndroid: (json['subscriptionOfferDetailsAndroid'] as List<dynamic>?) == null ? null : (json['subscriptionOfferDetailsAndroid'] as List<dynamic>?)!.map((e) => ProductSubscriptionAndroidOfferDetails.fromJson(e as Map<String, dynamic>)).toList(),
       title: json['title'] as String,
@@ -1117,7 +1154,7 @@ class ProductIOS extends Product implements ProductCommon {
   final String id;
   final bool isFamilyShareableIOS;
   final String jsonRepresentationIOS;
-  final IapPlatform platform;
+  final IOS platform;
   final double? price;
   final SubscriptionInfoIOS? subscriptionInfoIOS;
   final String title;
@@ -1135,7 +1172,7 @@ class ProductIOS extends Product implements ProductCommon {
       id: json['id'] as String,
       isFamilyShareableIOS: json['isFamilyShareableIOS'] as bool,
       jsonRepresentationIOS: json['jsonRepresentationIOS'] as String,
-      platform: IapPlatform.fromJson(json['platform'] as String),
+      platform: IOS.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
       subscriptionInfoIOS: json['subscriptionInfoIOS'] != null ? SubscriptionInfoIOS.fromJson(json['subscriptionInfoIOS'] as Map<String, dynamic>) : null,
       title: json['title'] as String,
@@ -1192,7 +1229,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
   final String id;
   final String nameAndroid;
   final ProductAndroidOneTimePurchaseOfferDetail? oneTimePurchaseOfferDetailsAndroid;
-  final IapPlatform platform;
+  final Android platform;
   final double? price;
   final List<ProductSubscriptionAndroidOfferDetails> subscriptionOfferDetailsAndroid;
   final String title;
@@ -1208,7 +1245,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
       id: json['id'] as String,
       nameAndroid: json['nameAndroid'] as String,
       oneTimePurchaseOfferDetailsAndroid: json['oneTimePurchaseOfferDetailsAndroid'] != null ? ProductAndroidOneTimePurchaseOfferDetail.fromJson(json['oneTimePurchaseOfferDetailsAndroid'] as Map<String, dynamic>) : null,
-      platform: IapPlatform.fromJson(json['platform'] as String),
+      platform: Android.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
       subscriptionOfferDetailsAndroid: (json['subscriptionOfferDetailsAndroid'] as List<dynamic>).map((e) => ProductSubscriptionAndroidOfferDetails.fromJson(e as Map<String, dynamic>)).toList(),
       title: json['title'] as String,
@@ -1316,7 +1353,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
   final SubscriptionPeriodIOS? introductoryPriceSubscriptionPeriodIOS;
   final bool isFamilyShareableIOS;
   final String jsonRepresentationIOS;
-  final IapPlatform platform;
+  final IOS platform;
   final double? price;
   final SubscriptionInfoIOS? subscriptionInfoIOS;
   final String? subscriptionPeriodNumberIOS;
@@ -1342,7 +1379,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
       introductoryPriceSubscriptionPeriodIOS: json['introductoryPriceSubscriptionPeriodIOS'] != null ? SubscriptionPeriodIOS.fromJson(json['introductoryPriceSubscriptionPeriodIOS'] as String) : null,
       isFamilyShareableIOS: json['isFamilyShareableIOS'] as bool,
       jsonRepresentationIOS: json['jsonRepresentationIOS'] as String,
-      platform: IapPlatform.fromJson(json['platform'] as String),
+      platform: IOS.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
       subscriptionInfoIOS: json['subscriptionInfoIOS'] != null ? SubscriptionInfoIOS.fromJson(json['subscriptionInfoIOS'] as Map<String, dynamic>) : null,
       subscriptionPeriodNumberIOS: json['subscriptionPeriodNumberIOS'] as String?,
@@ -1419,7 +1456,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String? obfuscatedAccountIdAndroid;
   final String? obfuscatedProfileIdAndroid;
   final String? packageNameAndroid;
-  final IapPlatform platform;
+  final Android platform;
   final String productId;
   final PurchaseState purchaseState;
   final String? purchaseToken;
@@ -1442,7 +1479,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       obfuscatedAccountIdAndroid: json['obfuscatedAccountIdAndroid'] as String?,
       obfuscatedProfileIdAndroid: json['obfuscatedProfileIdAndroid'] as String?,
       packageNameAndroid: json['packageNameAndroid'] as String?,
-      platform: IapPlatform.fromJson(json['platform'] as String),
+      platform: Android.fromJson(json['platform'] as String),
       productId: json['productId'] as String,
       purchaseState: PurchaseState.fromJson(json['purchaseState'] as String),
       purchaseToken: json['purchaseToken'] as String?,
@@ -1565,7 +1602,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final double? originalTransactionDateIOS;
   final String? originalTransactionIdentifierIOS;
   final String? ownershipTypeIOS;
-  final IapPlatform platform;
+  final IOS platform;
   final String productId;
   final PurchaseState purchaseState;
   final String? purchaseToken;
@@ -1602,7 +1639,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       originalTransactionDateIOS: (json['originalTransactionDateIOS'] as num?)?.toDouble(),
       originalTransactionIdentifierIOS: json['originalTransactionIdentifierIOS'] as String?,
       ownershipTypeIOS: json['ownershipTypeIOS'] as String?,
-      platform: IapPlatform.fromJson(json['platform'] as String),
+      platform: IOS.fromJson(json['platform'] as String),
       productId: json['productId'] as String,
       purchaseState: PurchaseState.fromJson(json['purchaseState'] as String),
       purchaseToken: json['purchaseToken'] as String?,

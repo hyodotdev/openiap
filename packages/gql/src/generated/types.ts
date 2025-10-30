@@ -37,6 +37,8 @@ export interface ActiveSubscription {
  */
 export type AlternativeBillingModeAndroid = 'none' | 'user-choice' | 'alternative-only';
 
+export type Android = 'android';
+
 export interface AndroidSubscriptionOfferInput {
   /** Offer token */
   offerToken: string;
@@ -167,6 +169,8 @@ export interface ExternalPurchaseNoticeResultIOS {
 }
 
 export type FetchProductsResult = Product[] | ProductSubscription[] | null;
+
+export type IOS = 'ios';
 
 export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product-ios' | 'user-choice-billing-android';
 
@@ -310,7 +314,7 @@ export interface ProductAndroid extends ProductCommon {
   id: string;
   nameAndroid: string;
   oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail | null);
-  platform: IapPlatform;
+  platform: Android;
   price?: (number | null);
   subscriptionOfferDetailsAndroid?: (ProductSubscriptionAndroidOfferDetails[] | null);
   title: string;
@@ -346,7 +350,7 @@ export interface ProductIOS extends ProductCommon {
   id: string;
   isFamilyShareableIOS: boolean;
   jsonRepresentationIOS: string;
-  platform: IapPlatform;
+  platform: IOS;
   price?: (number | null);
   subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   title: string;
@@ -372,7 +376,7 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
   id: string;
   nameAndroid: string;
   oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail | null);
-  platform: IapPlatform;
+  platform: Android;
   price?: (number | null);
   subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
   title: string;
@@ -403,7 +407,7 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   introductoryPriceSubscriptionPeriodIOS?: (SubscriptionPeriodIOS | null);
   isFamilyShareableIOS: boolean;
   jsonRepresentationIOS: string;
-  platform: IapPlatform;
+  platform: IOS;
   price?: (number | null);
   subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   subscriptionPeriodNumberIOS?: (string | null);
@@ -431,7 +435,7 @@ export interface PurchaseAndroid extends PurchaseCommon {
   obfuscatedAccountIdAndroid?: (string | null);
   obfuscatedProfileIdAndroid?: (string | null);
   packageNameAndroid?: (string | null);
-  platform: IapPlatform;
+  platform: Android;
   productId: string;
   purchaseState: PurchaseState;
   purchaseToken?: (string | null);
@@ -484,7 +488,7 @@ export interface PurchaseIOS extends PurchaseCommon {
   originalTransactionDateIOS?: (number | null);
   originalTransactionIdentifierIOS?: (string | null);
   ownershipTypeIOS?: (string | null);
-  platform: IapPlatform;
+  platform: IOS;
   productId: string;
   purchaseState: PurchaseState;
   purchaseToken?: (string | null);

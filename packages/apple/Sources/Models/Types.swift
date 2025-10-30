@@ -20,6 +20,10 @@ public enum AlternativeBillingModeAndroid: String, Codable, CaseIterable {
     case alternativeOnly = "alternative-only"
 }
 
+public enum Android: String, Codable, CaseIterable {
+    case android = "android"
+}
+
 public enum ErrorCode: String, Codable, CaseIterable {
     case unknown = "unknown"
     case userCancelled = "user-cancelled"
@@ -75,6 +79,10 @@ public enum IapEvent: String, Codable, CaseIterable {
 public enum IapPlatform: String, Codable, CaseIterable {
     case ios = "ios"
     case android = "android"
+}
+
+public enum IOS: String, Codable, CaseIterable {
+    case ios = "ios"
 }
 
 public enum PaymentModeIOS: String, Codable, CaseIterable {
@@ -272,7 +280,7 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var id: String
     public var nameAndroid: String
     public var oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail?
-    public var platform: IapPlatform
+    public var platform: Android
     public var price: Double?
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]?
     public var title: String
@@ -295,7 +303,7 @@ public struct ProductIOS: Codable, ProductCommon {
     public var id: String
     public var isFamilyShareableIOS: Bool
     public var jsonRepresentationIOS: String
-    public var platform: IapPlatform
+    public var platform: IOS
     public var price: Double?
     public var subscriptionInfoIOS: SubscriptionInfoIOS?
     public var title: String
@@ -312,7 +320,7 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var id: String
     public var nameAndroid: String
     public var oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail?
-    public var platform: IapPlatform
+    public var platform: Android
     public var price: Double?
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
     public var title: String
@@ -343,7 +351,7 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS?
     public var isFamilyShareableIOS: Bool
     public var jsonRepresentationIOS: String
-    public var platform: IapPlatform
+    public var platform: IOS
     public var price: Double?
     public var subscriptionInfoIOS: SubscriptionInfoIOS?
     public var subscriptionPeriodNumberIOS: String?
@@ -365,7 +373,7 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var obfuscatedAccountIdAndroid: String?
     public var obfuscatedProfileIdAndroid: String?
     public var packageNameAndroid: String?
-    public var platform: IapPlatform
+    public var platform: Android
     public var productId: String
     public var purchaseState: PurchaseState
     public var purchaseToken: String?
@@ -398,7 +406,7 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var originalTransactionDateIOS: Double?
     public var originalTransactionIdentifierIOS: String?
     public var ownershipTypeIOS: String?
-    public var platform: IapPlatform
+    public var platform: IOS
     public var productId: String
     public var purchaseState: PurchaseState
     public var purchaseToken: String?

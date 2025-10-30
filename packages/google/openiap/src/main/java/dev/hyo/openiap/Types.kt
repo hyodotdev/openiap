@@ -43,6 +43,20 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+public enum class Android(val rawValue: String) {
+    Android("android");
+
+    companion object {
+        fun fromJson(value: String): Android = when (value) {
+            "android" -> Android.Android
+            "Android" -> Android.Android
+            else -> throw IllegalArgumentException("Unknown Android value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class ErrorCode(val rawValue: String) {
     Unknown("unknown"),
     UserCancelled("user-cancelled"),
@@ -220,6 +234,21 @@ public enum class IapPlatform(val rawValue: String) {
             "android" -> IapPlatform.Android
             "Android" -> IapPlatform.Android
             else -> throw IllegalArgumentException("Unknown IapPlatform value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+public enum class IOS(val rawValue: String) {
+    Ios("ios");
+
+    companion object {
+        fun fromJson(value: String): IOS = when (value) {
+            "ios" -> IOS.Ios
+            "Ios" -> IOS.Ios
+            "IOS" -> IOS.Ios
+            else -> throw IllegalArgumentException("Unknown IOS value: $value")
         }
     }
 
@@ -778,7 +807,7 @@ public data class ProductAndroid(
     override val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
+    override val platform: Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
     override val title: String,
@@ -796,7 +825,7 @@ public data class ProductAndroid(
                 id = json["id"] as String,
                 nameAndroid = json["nameAndroid"] as String,
                 oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as Map<String, Any?>?)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) },
-                platform = IapPlatform.fromJson(json["platform"] as String),
+                platform = Android.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>?)?.map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
                 title = json["title"] as String,
@@ -857,7 +886,7 @@ public data class ProductIOS(
     override val id: String,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
+    override val platform: IOS,
     override val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     override val title: String,
@@ -877,7 +906,7 @@ public data class ProductIOS(
                 id = json["id"] as String,
                 isFamilyShareableIOS = json["isFamilyShareableIOS"] as Boolean,
                 jsonRepresentationIOS = json["jsonRepresentationIOS"] as String,
-                platform = IapPlatform.fromJson(json["platform"] as String),
+                platform = IOS.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionInfoIOS = (json["subscriptionInfoIOS"] as Map<String, Any?>?)?.let { SubscriptionInfoIOS.fromJson(it) },
                 title = json["title"] as String,
@@ -916,7 +945,7 @@ public data class ProductSubscriptionAndroid(
     override val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
+    override val platform: Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
     override val title: String,
@@ -934,7 +963,7 @@ public data class ProductSubscriptionAndroid(
                 id = json["id"] as String,
                 nameAndroid = json["nameAndroid"] as String,
                 oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as Map<String, Any?>?)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) },
-                platform = IapPlatform.fromJson(json["platform"] as String),
+                platform = Android.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>).map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
                 title = json["title"] as String,
@@ -1007,7 +1036,7 @@ public data class ProductSubscriptionIOS(
     val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
+    override val platform: IOS,
     override val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     val subscriptionPeriodNumberIOS: String? = null,
@@ -1035,7 +1064,7 @@ public data class ProductSubscriptionIOS(
                 introductoryPriceSubscriptionPeriodIOS = (json["introductoryPriceSubscriptionPeriodIOS"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) },
                 isFamilyShareableIOS = json["isFamilyShareableIOS"] as Boolean,
                 jsonRepresentationIOS = json["jsonRepresentationIOS"] as String,
-                platform = IapPlatform.fromJson(json["platform"] as String),
+                platform = IOS.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionInfoIOS = (json["subscriptionInfoIOS"] as Map<String, Any?>?)?.let { SubscriptionInfoIOS.fromJson(it) },
                 subscriptionPeriodNumberIOS = json["subscriptionPeriodNumberIOS"] as String?,
@@ -1087,7 +1116,7 @@ public data class PurchaseAndroid(
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
-    override val platform: IapPlatform,
+    override val platform: Android,
     override val productId: String,
     override val purchaseState: PurchaseState,
     override val purchaseToken: String? = null,
@@ -1111,7 +1140,7 @@ public data class PurchaseAndroid(
                 obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as String?,
                 obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as String?,
                 packageNameAndroid = json["packageNameAndroid"] as String?,
-                platform = IapPlatform.fromJson(json["platform"] as String),
+                platform = Android.fromJson(json["platform"] as String),
                 productId = json["productId"] as String,
                 purchaseState = PurchaseState.fromJson(json["purchaseState"] as String),
                 purchaseToken = json["purchaseToken"] as String?,
@@ -1188,7 +1217,7 @@ public data class PurchaseIOS(
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
     val ownershipTypeIOS: String? = null,
-    override val platform: IapPlatform,
+    override val platform: IOS,
     override val productId: String,
     override val purchaseState: PurchaseState,
     override val purchaseToken: String? = null,
@@ -1226,7 +1255,7 @@ public data class PurchaseIOS(
                 originalTransactionDateIOS = (json["originalTransactionDateIOS"] as Number?)?.toDouble(),
                 originalTransactionIdentifierIOS = json["originalTransactionIdentifierIOS"] as String?,
                 ownershipTypeIOS = json["ownershipTypeIOS"] as String?,
-                platform = IapPlatform.fromJson(json["platform"] as String),
+                platform = IOS.fromJson(json["platform"] as String),
                 productId = json["productId"] as String,
                 purchaseState = PurchaseState.fromJson(json["purchaseState"] as String),
                 purchaseToken = json["purchaseToken"] as String?,

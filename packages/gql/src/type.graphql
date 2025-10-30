@@ -6,6 +6,14 @@ enum IapPlatform {
   Android
 }
 
+enum IOS {
+  IOS
+}
+
+enum Android {
+  Android
+}
+
 # Common product types
 enum ProductType {
   InApp
