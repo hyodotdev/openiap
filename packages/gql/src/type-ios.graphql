@@ -67,7 +67,7 @@ type ProductIOS implements ProductCommon {
   currency: String!
   price: Float
   debugDescription: String
-  platform: IapPlatform!
+  platform: IOS!
 
   # iOS-specific
   displayNameIOS: String!
@@ -89,7 +89,7 @@ type ProductSubscriptionIOS implements ProductCommon {
   currency: String!
   price: Float
   debugDescription: String
-  platform: IapPlatform!
+  platform: IOS!
 
   # iOS-specific
   displayNameIOS: String!
@@ -128,7 +128,7 @@ type PurchaseIOS implements PurchaseCommon {
   ids: [String!]
   transactionDate: Float!
   purchaseToken: String
-  platform: IapPlatform!
+  platform: IOS!
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!

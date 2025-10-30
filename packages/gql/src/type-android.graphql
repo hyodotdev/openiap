@@ -39,7 +39,7 @@ type ProductAndroid implements ProductCommon {
   currency: String!
   price: Float
   debugDescription: String
-  platform: IapPlatform!
+  platform: Android!
 
   # Android-specific
   nameAndroid: String!
@@ -58,7 +58,7 @@ type ProductSubscriptionAndroid implements ProductCommon {
   currency: String!
   price: Float
   debugDescription: String
-  platform: IapPlatform!
+  platform: Android!
 
   # Android-specific
   nameAndroid: String!
@@ -74,7 +74,7 @@ type PurchaseAndroid implements PurchaseCommon {
   transactionId: String # Optional in Android unlike iOS
   transactionDate: Float!
   purchaseToken: String
-  platform: IapPlatform!
+  platform: Android!
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
