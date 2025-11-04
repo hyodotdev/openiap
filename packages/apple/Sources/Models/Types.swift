@@ -248,6 +248,7 @@ public struct ExternalPurchaseNoticeResultIOS: Codable {
 public enum FetchProductsResult {
     case products([Product]?)
     case subscriptions([ProductSubscription]?)
+    case all([(Product, ProductSubscription)]?)
 }
 
 public struct PricingPhaseAndroid: Codable {

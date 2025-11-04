@@ -793,9 +793,20 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
+// Post-process: Add mixed array case to FetchProductsResult sealed interface
+// Extend FetchProductsResult to support 'all' type with mixed arrays
+let output = lines.join('\n');
+const fetchProductsResultPattern = /(public data class FetchProductsResultSubscriptions\(val value: List<ProductSubscription>\?\) : FetchProductsResult)/;
+if (fetchProductsResultPattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultPattern,
+    '$1\n\npublic data class FetchProductsResultAll(val value: List<Any>?) : FetchProductsResult  // List<Product | ProductSubscription>'
+  );
+}
+
 const outputPath = resolve(__dirname, '../src/generated/Types.kt');
 mkdirSync(dirname(outputPath), { recursive: true });
-writeFileSync(outputPath, lines.join('\n'));
+writeFileSync(outputPath, output);
 
 // eslint-disable-next-line no-console
 console.log('[generate-kotlin-types] wrote', outputPath);

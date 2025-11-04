@@ -928,6 +928,11 @@ class FetchProductsResultSubscriptions extends FetchProductsResult {
   final List<ProductSubscription>? value;
 }
 
+class FetchProductsResultAll extends FetchProductsResult {
+  const FetchProductsResultAll(this.value);
+  final List<dynamic>? value;  // List<Product | ProductSubscription>
+}
+
 class PricingPhaseAndroid {
   const PricingPhaseAndroid({
     required this.billingCycleCount,
@@ -1000,11 +1005,11 @@ class ProductAndroid extends Product implements ProductCommon {
     required this.id,
     required this.nameAndroid,
     this.oneTimePurchaseOfferDetailsAndroid,
-    this.platform = IapPlatform.android,
+    this.platform = IapPlatform.Android,
     this.price,
     this.subscriptionOfferDetailsAndroid,
     required this.title,
-    this.type = ProductType.inApp,
+    this.type = ProductType.InApp,
   });
 
   final String currency;
@@ -1100,11 +1105,11 @@ class ProductIOS extends Product implements ProductCommon {
     required this.id,
     required this.isFamilyShareableIOS,
     required this.jsonRepresentationIOS,
-    this.platform = IapPlatform.ios,
+    this.platform = IapPlatform.IOS,
     this.price,
     this.subscriptionInfoIOS,
     required this.title,
-    this.type = ProductType.inApp,
+    this.type = ProductType.InApp,
     required this.typeIOS,
   });
 
@@ -1177,11 +1182,11 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
     required this.id,
     required this.nameAndroid,
     this.oneTimePurchaseOfferDetailsAndroid,
-    this.platform = IapPlatform.android,
+    this.platform = IapPlatform.Android,
     this.price,
     required this.subscriptionOfferDetailsAndroid,
     required this.title,
-    this.type = ProductType.subs,
+    this.type = ProductType.Subs,
   });
 
   final String currency;
@@ -1291,13 +1296,13 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
     this.introductoryPriceSubscriptionPeriodIOS,
     required this.isFamilyShareableIOS,
     required this.jsonRepresentationIOS,
-    this.platform = IapPlatform.ios,
+    this.platform = IapPlatform.IOS,
     this.price,
     this.subscriptionInfoIOS,
     this.subscriptionPeriodNumberIOS,
     this.subscriptionPeriodUnitIOS,
     required this.title,
-    this.type = ProductType.subs,
+    this.type = ProductType.Subs,
     required this.typeIOS,
   });
 

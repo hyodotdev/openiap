@@ -773,9 +773,20 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
+// Post-process: Add mixed array case to FetchProductsResult enum
+// Extend FetchProductsResult to support 'all' type with mixed arrays
+const fetchProductsResultPattern = /public enum FetchProductsResult \{(\n    case products\(\[Product\]\?\)\n    case subscriptions\(\[ProductSubscription\]\?\))\n\}/;
+let output = lines.join('\n');
+if (fetchProductsResultPattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultPattern,
+    'public enum FetchProductsResult {$1\n    case all([(Product, ProductSubscription)]?)\n}'
+  );
+}
+
 const outputPath = resolve(__dirname, '../src/generated/Types.swift');
 mkdirSync(dirname(outputPath), { recursive: true });
-writeFileSync(outputPath, lines.join('\n'));
+writeFileSync(outputPath, output);
 
 // eslint-disable-next-line no-console
 console.log('[generate-swift-types] wrote', outputPath);

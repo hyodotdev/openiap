@@ -489,6 +489,17 @@ for (const [name, unionType] of optionalUnionInterfaces) {
   content = content.replace(pattern, `export type ${name} = ${unionType};\n\n`);
 }
 
+// Extend FetchProductsResult to support mixed arrays for 'all' type
+// The generated union `Product[] | ProductSubscription[] | null` doesn't support mixed arrays
+// Add `(Product | ProductSubscription)[]` to the union to enable type narrowing
+const fetchProductsResultPattern = /export type FetchProductsResult = Product\[\] \| ProductSubscription\[\] \| null;/;
+if (fetchProductsResultPattern.test(content)) {
+  content = content.replace(
+    fetchProductsResultPattern,
+    'export type FetchProductsResult = Product[] | ProductSubscription[] | (Product | ProductSubscription)[] | null;'
+  );
+}
+
 const futureFields = new Set();
 for (const file of schemaFiles) {
   let previousWasMarker = false;
