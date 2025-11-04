@@ -914,6 +914,22 @@ class ExternalPurchaseNoticeResultIOS {
   }
 }
 
+
+// Union type for FetchProductsResult.all
+abstract class ProductOrSubscription {
+  const ProductOrSubscription();
+}
+
+class ProductOrSubscriptionProduct extends ProductOrSubscription {
+  const ProductOrSubscriptionProduct(this.value);
+  final Product value;
+}
+
+class ProductOrSubscriptionSubscription extends ProductOrSubscription {
+  const ProductOrSubscriptionSubscription(this.value);
+  final ProductSubscription value;
+}
+
 abstract class FetchProductsResult {
   const FetchProductsResult();
 }
@@ -930,7 +946,7 @@ class FetchProductsResultSubscriptions extends FetchProductsResult {
 
 class FetchProductsResultAll extends FetchProductsResult {
   const FetchProductsResultAll(this.value);
-  final List<ProductCommon>? value;
+  final List<ProductOrSubscription>? value;
 }
 
 class PricingPhaseAndroid {

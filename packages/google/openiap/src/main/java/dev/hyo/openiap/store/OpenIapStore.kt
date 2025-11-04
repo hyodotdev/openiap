@@ -10,6 +10,7 @@ import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.Product
 import dev.hyo.openiap.ProductAndroid
+import dev.hyo.openiap.ProductOrSubscription
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.ProductSubscription
@@ -279,12 +280,16 @@ class OpenIapStore(private val module: OpenIapProtocol) {
                 }
                 is FetchProductsResultAll -> {
                     // Handle the all case - merge both products and subscriptions
-                    // The result.value is List<ProductCommon>? containing mixed Product and ProductSubscription items
+                    // The result.value is List<ProductOrSubscription>? containing union of Product and ProductSubscription
                     val items = result.value ?: emptyList()
 
-                    // Filter and separate products and subscriptions
-                    val allProducts = items.filterIsInstance<Product>()
-                    val allSubs = items.filterIsInstance<ProductSubscription>()
+                    // Extract products and subscriptions from ProductOrSubscription union
+                    val allProducts = items.mapNotNull {
+                        (it as? ProductOrSubscription.ProductItem)?.value
+                    }
+                    val allSubs = items.mapNotNull {
+                        (it as? ProductOrSubscription.SubscriptionItem)?.value
+                    }
 
                     // Merge products
                     val existingProductIds = _products.value.map { it.id }.toSet()

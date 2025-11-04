@@ -185,9 +185,19 @@ public final class OpenIapStore: ObservableObject {
             products = []
         case .all(let items):
             let allItems = items ?? []
-            // Filter ProductCommon items into Product and ProductSubscription
-            products = allItems.compactMap { $0 as? Product }
-            subscriptions = allItems.compactMap { $0 as? ProductSubscription }
+            // Extract Product and ProductSubscription from ProductOrSubscription union
+            products = allItems.compactMap { item in
+                if case .product(let product) = item {
+                    return product
+                }
+                return nil
+            }
+            subscriptions = allItems.compactMap { item in
+                if case .subscription(let subscription) = item {
+                    return subscription
+                }
+                return nil
+            }
         }
     }
 

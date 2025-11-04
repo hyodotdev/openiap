@@ -793,15 +793,33 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// Post-process: Add mixed array case to FetchProductsResult sealed interface
-// Extend FetchProductsResult to support 'all' type with mixed arrays
-// Use List<ProductCommon>? for type safety across all platforms
+// Post-process: Add ProductOrSubscription sealed interface for union type
+// This allows FetchProductsResult.all to contain heterogeneous lists
+const productOrSubscriptionUnion = `
+// Union type for FetchProductsResult.all
+public sealed interface ProductOrSubscription {
+    data class ProductItem(val value: Product) : ProductOrSubscription
+    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription
+}
+`;
+
 let output = lines.join('\n');
+
+// Insert ProductOrSubscription before FetchProductsResult
+const fetchProductsResultInterfacePattern = /public sealed interface FetchProductsResult/;
+if (fetchProductsResultInterfacePattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultInterfacePattern,
+    productOrSubscriptionUnion + '\npublic sealed interface FetchProductsResult'
+  );
+}
+
+// Add the 'all' case to FetchProductsResult
 const fetchProductsResultPattern = /(public data class FetchProductsResultSubscriptions\(val value: List<ProductSubscription>\?\) : FetchProductsResult)/;
 if (fetchProductsResultPattern.test(output)) {
   output = output.replace(
     fetchProductsResultPattern,
-    '$1\n\npublic data class FetchProductsResultAll(val value: List<ProductCommon>?) : FetchProductsResult'
+    '$1\n\npublic data class FetchProductsResultAll(val value: List<ProductOrSubscription>?) : FetchProductsResult'
   );
 }
 

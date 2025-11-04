@@ -65,14 +65,18 @@ import StoreKit
                     completion(dictionaries, nil)
 
                 case .all(let items):
-                    // Extract both products and subscriptions from ProductCommon list
+                    // Extract both products and subscriptions from ProductOrSubscription union
                     let allItems = items ?? []
                     let productIOS = allItems.compactMap { item -> ProductIOS? in
-                        guard case let .productIos(value) = item as? Product else { return nil }
+                        guard case .product(let product) = item,
+                              case .productIos(let value) = product
+                        else { return nil }
                         return value
                     }
                     let subscriptionIOS = allItems.compactMap { item -> ProductSubscriptionIOS? in
-                        guard case let .productSubscriptionIos(value) = item as? ProductSubscription else { return nil }
+                        guard case .subscription(let subscription) = item,
+                              case .productSubscriptionIos(let value) = subscription
+                        else { return nil }
                         return value
                     }
                     print("[OpenIAP] Fetched \(productIOS.count) products and \(subscriptionIOS.count) subscriptions")

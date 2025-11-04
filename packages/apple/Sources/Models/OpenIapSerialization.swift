@@ -207,11 +207,15 @@ public enum OpenIapSerialization {
         case .all(let items):
             let allItems = items ?? []
             let iosProducts = allItems.compactMap { item -> ProductIOS? in
-                guard case let .productIos(value) = item as? Product else { return nil }
+                guard case .product(let product) = item,
+                      case .productIos(let value) = product
+                else { return nil }
                 return value
             }
             let iosSubscriptions = allItems.compactMap { item -> ProductSubscriptionIOS? in
-                guard case let .productSubscriptionIos(value) = item as? ProductSubscription else { return nil }
+                guard case .subscription(let subscription) = item,
+                      case .productSubscriptionIos(let value) = subscription
+                else { return nil }
                 return value
             }
             iosProducts.forEach {

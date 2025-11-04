@@ -773,15 +773,58 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// Post-process: Add mixed array case to FetchProductsResult enum
-// Extend FetchProductsResult to support 'all' type with mixed arrays
-// Use [ProductCommon]? for type safety across all platforms
-const fetchProductsResultPattern = /public enum FetchProductsResult \{([\s\S]*?)\n\}/;
+// Post-process: Add ProductOrSubscription union enum
+// This allows FetchProductsResult.all to contain heterogeneous arrays
+const productOrSubscriptionEnum = `
+// Union type for FetchProductsResult.all
+public enum ProductOrSubscription: Codable {
+    case product(Product)
+    case subscription(ProductSubscription)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let product = try? container.decode(Product.self) {
+            self = .product(product)
+            return
+        }
+        if let subscription = try? container.decode(ProductSubscription.self) {
+            self = .subscription(subscription)
+            return
+        }
+        throw DecodingError.dataCorruptedError(
+            in: container,
+            debugDescription: "Cannot decode ProductOrSubscription"
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .product(let product):
+            try container.encode(product)
+        case .subscription(let subscription):
+            try container.encode(subscription)
+        }
+    }
+}
+`;
+
+// Add ProductOrSubscription before FetchProductsResult
 let output = lines.join('\n');
+const fetchProductsResultPattern = /public enum FetchProductsResult \{/;
 if (fetchProductsResultPattern.test(output)) {
   output = output.replace(
     fetchProductsResultPattern,
-    'public enum FetchProductsResult {$1\n    case all([ProductCommon]?)\n}'
+    productOrSubscriptionEnum + '\npublic enum FetchProductsResult {'
+  );
+}
+
+// Add the 'all' case to FetchProductsResult
+const fetchProductsResultEnumPattern = /public enum FetchProductsResult \{([\s\S]*?)\n\}/;
+if (fetchProductsResultEnumPattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultEnumPattern,
+    'public enum FetchProductsResult {$1\n    case all([ProductOrSubscription]?)\n}'
   );
 }
 
