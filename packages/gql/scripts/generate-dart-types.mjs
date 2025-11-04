@@ -991,12 +991,13 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
 
 // Post-process: Add mixed array class to FetchProductsResult
 // Extend FetchProductsResult to support 'all' type with mixed arrays
+// Use List<ProductCommon>? for type safety across all platforms
 let output = lines.join('\n');
 const fetchProductsResultPattern = /(class FetchProductsResultSubscriptions extends FetchProductsResult \{\n  const FetchProductsResultSubscriptions\(this\.value\);\n  final List<ProductSubscription>\? value;\n\})/;
 if (fetchProductsResultPattern.test(output)) {
   output = output.replace(
     fetchProductsResultPattern,
-    '$1\n\nclass FetchProductsResultAll extends FetchProductsResult {\n  const FetchProductsResultAll(this.value);\n  final List<dynamic>? value;  // List<Product | ProductSubscription>\n}'
+    '$1\n\nclass FetchProductsResultAll extends FetchProductsResult {\n  const FetchProductsResultAll(this.value);\n  final List<ProductCommon>? value;\n}'
   );
 }
 

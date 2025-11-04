@@ -64,15 +64,15 @@ import StoreKit
                     let dictionaries = subscriptionIOS.map { OpenIapSerialization.encode($0) }
                     completion(dictionaries, nil)
 
-                case .all(let tuples):
-                    // Extract both products and subscriptions from tuples
-                    let items = tuples ?? []
-                    let productIOS = items.compactMap { tuple -> ProductIOS? in
-                        guard case let .productIos(value) = tuple.0 else { return nil }
+                case .all(let items):
+                    // Extract both products and subscriptions from ProductCommon list
+                    let allItems = items ?? []
+                    let productIOS = allItems.compactMap { item -> ProductIOS? in
+                        guard case let .productIos(value) = item as? Product else { return nil }
                         return value
                     }
-                    let subscriptionIOS = items.compactMap { tuple -> ProductSubscriptionIOS? in
-                        guard case let .productSubscriptionIos(value) = tuple.1 else { return nil }
+                    let subscriptionIOS = allItems.compactMap { item -> ProductSubscriptionIOS? in
+                        guard case let .productSubscriptionIos(value) = item as? ProductSubscription else { return nil }
                         return value
                     }
                     print("[OpenIAP] Fetched \(productIOS.count) products and \(subscriptionIOS.count) subscriptions")

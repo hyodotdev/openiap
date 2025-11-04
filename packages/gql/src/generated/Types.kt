@@ -780,7 +780,7 @@ public data class FetchProductsResultProducts(val value: List<Product>?) : Fetch
 
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
 
-public data class FetchProductsResultAll(val value: List<Any>?) : FetchProductsResult  // List<Product | ProductSubscription>
+public data class FetchProductsResultAll(val value: List<ProductCommon>?) : FetchProductsResult
 
 public data class PricingPhaseAndroid(
     val billingCycleCount: Int,

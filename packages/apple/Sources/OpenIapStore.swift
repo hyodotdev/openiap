@@ -183,10 +183,11 @@ public final class OpenIapStore: ObservableObject {
         case .subscriptions(let list):
             subscriptions = list ?? []
             products = []
-        case .all(let tuples):
-            let items = tuples ?? []
-            products = items.map { $0.0 }
-            subscriptions = items.map { $0.1 }
+        case .all(let items):
+            let allItems = items ?? []
+            // Filter ProductCommon items into Product and ProductSubscription
+            products = allItems.compactMap { $0 as? Product }
+            subscriptions = allItems.compactMap { $0 as? ProductSubscription }
         }
     }
 

@@ -930,7 +930,7 @@ class FetchProductsResultSubscriptions extends FetchProductsResult {
 
 class FetchProductsResultAll extends FetchProductsResult {
   const FetchProductsResultAll(this.value);
-  final List<dynamic>? value;  // List<Product | ProductSubscription>
+  final List<ProductCommon>? value;
 }
 
 class PricingPhaseAndroid {

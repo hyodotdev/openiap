@@ -775,12 +775,13 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
 
 // Post-process: Add mixed array case to FetchProductsResult enum
 // Extend FetchProductsResult to support 'all' type with mixed arrays
-const fetchProductsResultPattern = /public enum FetchProductsResult \{(\n    case products\(\[Product\]\?\)\n    case subscriptions\(\[ProductSubscription\]\?\))\n\}/;
+// Use [ProductCommon]? for type safety across all platforms
+const fetchProductsResultPattern = /public enum FetchProductsResult \{([\s\S]*?)\n\}/;
 let output = lines.join('\n');
 if (fetchProductsResultPattern.test(output)) {
   output = output.replace(
     fetchProductsResultPattern,
-    'public enum FetchProductsResult {$1\n    case all([(Product, ProductSubscription)]?)\n}'
+    'public enum FetchProductsResult {$1\n    case all([ProductCommon]?)\n}'
   );
 }
 

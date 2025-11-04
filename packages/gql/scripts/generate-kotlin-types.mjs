@@ -795,12 +795,13 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
 
 // Post-process: Add mixed array case to FetchProductsResult sealed interface
 // Extend FetchProductsResult to support 'all' type with mixed arrays
+// Use List<ProductCommon>? for type safety across all platforms
 let output = lines.join('\n');
 const fetchProductsResultPattern = /(public data class FetchProductsResultSubscriptions\(val value: List<ProductSubscription>\?\) : FetchProductsResult)/;
 if (fetchProductsResultPattern.test(output)) {
   output = output.replace(
     fetchProductsResultPattern,
-    '$1\n\npublic data class FetchProductsResultAll(val value: List<Any>?) : FetchProductsResult  // List<Product | ProductSubscription>'
+    '$1\n\npublic data class FetchProductsResultAll(val value: List<ProductCommon>?) : FetchProductsResult'
   );
 }
 

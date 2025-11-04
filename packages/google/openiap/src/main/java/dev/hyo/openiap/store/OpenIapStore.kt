@@ -279,7 +279,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
                 }
                 is FetchProductsResultAll -> {
                     // Handle the all case - merge both products and subscriptions
-                    // The result.value is List<Any>? containing mixed Product and ProductSubscription items
+                    // The result.value is List<ProductCommon>? containing mixed Product and ProductSubscription items
                     val items = result.value ?: emptyList()
 
                     // Filter and separate products and subscriptions
