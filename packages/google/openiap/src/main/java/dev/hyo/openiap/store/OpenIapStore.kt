@@ -4,11 +4,13 @@ import dev.hyo.openiap.ActiveSubscription
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeepLinkOptions
 import dev.hyo.openiap.FetchProductsResult
+import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.Product
 import dev.hyo.openiap.ProductAndroid
+import dev.hyo.openiap.ProductOrSubscription
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.ProductSubscription
@@ -275,6 +277,37 @@ class OpenIapStore(private val module: OpenIapProtocol) {
                     val existingProductIds = _products.value.map { it.id }.toSet()
                     val productsToAdd = subProducts.filter { it.id !in existingProductIds }
                     _products.value = _products.value + productsToAdd
+                }
+                is FetchProductsResultAll -> {
+                    // Handle the all case - merge both products and subscriptions
+                    // The result.value is List<ProductOrSubscription>? containing union of Product and ProductSubscription
+                    val items = result.value ?: emptyList()
+
+                    // Extract products and subscriptions from ProductOrSubscription union
+                    val allProducts = items.mapNotNull {
+                        (it as? ProductOrSubscription.ProductItem)?.value
+                    }
+                    val allSubs = items.mapNotNull {
+                        (it as? ProductOrSubscription.SubscriptionItem)?.value
+                    }
+
+                    // Merge products
+                    val existingProductIds = _products.value.map { it.id }.toSet()
+                    val productsToAdd = allProducts.filter { it.id !in existingProductIds }
+                    _products.value = _products.value + productsToAdd
+
+                    // Merge subscriptions
+                    val existingSubIds = _subscriptions.value.map { it.id }.toSet()
+                    val subsToAdd = allSubs.filter { it.id !in existingSubIds }
+                    _subscriptions.value = _subscriptions.value + subsToAdd
+
+                    // Also add subscription products to products list
+                    val subProducts = allSubs
+                        .filterIsInstance<ProductSubscriptionAndroid>()
+                        .map { it.toProduct() }
+                    val existingSubProductIds = _products.value.map { it.id }.toSet()
+                    val subProductsToAdd = subProducts.filter { it.id !in existingSubProductIds }
+                    _products.value = _products.value + subProductsToAdd
                 }
             }
             result

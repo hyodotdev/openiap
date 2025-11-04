@@ -63,6 +63,27 @@ import StoreKit
                     print("[OpenIAP] Fetched \(subscriptionIOS.count) subscriptions")
                     let dictionaries = subscriptionIOS.map { OpenIapSerialization.encode($0) }
                     completion(dictionaries, nil)
+
+                case .all(let items):
+                    // Extract both products and subscriptions from ProductOrSubscription union
+                    let allItems = items ?? []
+                    let productIOS = allItems.compactMap { item -> ProductIOS? in
+                        guard case .product(let product) = item,
+                              case .productIos(let value) = product
+                        else { return nil }
+                        return value
+                    }
+                    let subscriptionIOS = allItems.compactMap { item -> ProductSubscriptionIOS? in
+                        guard case .subscription(let subscription) = item,
+                              case .productSubscriptionIos(let value) = subscription
+                        else { return nil }
+                        return value
+                    }
+                    print("[OpenIAP] Fetched \(productIOS.count) products and \(subscriptionIOS.count) subscriptions")
+                    // Combine both into a single array of dictionaries
+                    let productDictionaries = productIOS.map { OpenIapSerialization.encode($0) }
+                    let subscriptionDictionaries = subscriptionIOS.map { OpenIapSerialization.encode($0) }
+                    completion(productDictionaries + subscriptionDictionaries, nil)
                 }
             } catch {
                 completion(nil, error)

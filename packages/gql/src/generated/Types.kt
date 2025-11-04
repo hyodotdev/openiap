@@ -774,11 +774,20 @@ public data class ExternalPurchaseNoticeResultIOS(
     )
 }
 
+
+// Union type for FetchProductsResult.all
+public sealed interface ProductOrSubscription {
+    data class ProductItem(val value: Product) : ProductOrSubscription
+    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription
+}
+
 public sealed interface FetchProductsResult
 
 public data class FetchProductsResultProducts(val value: List<Product>?) : FetchProductsResult
 
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
+
+public data class FetchProductsResultAll(val value: List<ProductOrSubscription>?) : FetchProductsResult
 
 public data class PricingPhaseAndroid(
     val billingCycleCount: Int,

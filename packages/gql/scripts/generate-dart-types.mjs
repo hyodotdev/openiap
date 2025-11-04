@@ -989,9 +989,54 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
+// Post-process: Add ProductOrSubscription union class
+// This allows FetchProductsResult.all to contain heterogeneous lists
+const productOrSubscriptionUnion = `
+// Union type for FetchProductsResult.all
+abstract class ProductOrSubscription {
+  const ProductOrSubscription();
+}
+
+class ProductOrSubscriptionProduct extends ProductOrSubscription {
+  const ProductOrSubscriptionProduct(this.value);
+  final Product value;
+}
+
+class ProductOrSubscriptionSubscription extends ProductOrSubscription {
+  const ProductOrSubscriptionSubscription(this.value);
+  final ProductSubscription value;
+}
+`;
+
+let output = lines.join('\n');
+
+// Insert ProductOrSubscription before FetchProductsResult
+const fetchProductsResultAbstractPattern = /abstract class FetchProductsResult \{/;
+if (fetchProductsResultAbstractPattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultAbstractPattern,
+    productOrSubscriptionUnion + '\nabstract class FetchProductsResult {'
+  );
+}
+
+// Add the 'all' case to FetchProductsResult
+const fetchProductsResultPattern = /(class FetchProductsResultSubscriptions extends FetchProductsResult \{\n  const FetchProductsResultSubscriptions\(this\.value\);\n  final List<ProductSubscription>\? value;\n\})/;
+if (fetchProductsResultPattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultPattern,
+    '$1\n\nclass FetchProductsResultAll extends FetchProductsResult {\n  const FetchProductsResultAll(this.value);\n  final List<ProductOrSubscription>? value;\n}'
+  );
+}
+
+// Fix enum default values - Dart uses PascalCase for enum values
+output = output.replace(/IapPlatform\.ios/g, 'IapPlatform.IOS');
+output = output.replace(/IapPlatform\.android/g, 'IapPlatform.Android');
+output = output.replace(/ProductType\.inApp/g, 'ProductType.InApp');
+output = output.replace(/ProductType\.subs/g, 'ProductType.Subs');
+
 const outputPath = resolve(__dirname, '../src/generated/types.dart');
 mkdirSync(dirname(outputPath), { recursive: true });
-writeFileSync(outputPath, lines.join('\n'));
+writeFileSync(outputPath, output);
 
 // eslint-disable-next-line no-console
 console.log('[generate-dart-types] wrote', outputPath);

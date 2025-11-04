@@ -183,6 +183,21 @@ public final class OpenIapStore: ObservableObject {
         case .subscriptions(let list):
             subscriptions = list ?? []
             products = []
+        case .all(let items):
+            let allItems = items ?? []
+            // Extract Product and ProductSubscription from ProductOrSubscription union
+            products = allItems.compactMap { item in
+                if case .product(let product) = item {
+                    return product
+                }
+                return nil
+            }
+            subscriptions = allItems.compactMap { item in
+                if case .subscription(let subscription) = item {
+                    return subscription
+                }
+                return nil
+            }
         }
     }
 

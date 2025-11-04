@@ -914,6 +914,22 @@ class ExternalPurchaseNoticeResultIOS {
   }
 }
 
+
+// Union type for FetchProductsResult.all
+abstract class ProductOrSubscription {
+  const ProductOrSubscription();
+}
+
+class ProductOrSubscriptionProduct extends ProductOrSubscription {
+  const ProductOrSubscriptionProduct(this.value);
+  final Product value;
+}
+
+class ProductOrSubscriptionSubscription extends ProductOrSubscription {
+  const ProductOrSubscriptionSubscription(this.value);
+  final ProductSubscription value;
+}
+
 abstract class FetchProductsResult {
   const FetchProductsResult();
 }
@@ -926,6 +942,11 @@ class FetchProductsResultProducts extends FetchProductsResult {
 class FetchProductsResultSubscriptions extends FetchProductsResult {
   const FetchProductsResultSubscriptions(this.value);
   final List<ProductSubscription>? value;
+}
+
+class FetchProductsResultAll extends FetchProductsResult {
+  const FetchProductsResultAll(this.value);
+  final List<ProductOrSubscription>? value;
 }
 
 class PricingPhaseAndroid {
@@ -1000,11 +1021,11 @@ class ProductAndroid extends Product implements ProductCommon {
     required this.id,
     required this.nameAndroid,
     this.oneTimePurchaseOfferDetailsAndroid,
-    this.platform = IapPlatform.android,
+    this.platform = IapPlatform.Android,
     this.price,
     this.subscriptionOfferDetailsAndroid,
     required this.title,
-    this.type = ProductType.inApp,
+    this.type = ProductType.InApp,
   });
 
   final String currency;
@@ -1100,11 +1121,11 @@ class ProductIOS extends Product implements ProductCommon {
     required this.id,
     required this.isFamilyShareableIOS,
     required this.jsonRepresentationIOS,
-    this.platform = IapPlatform.ios,
+    this.platform = IapPlatform.IOS,
     this.price,
     this.subscriptionInfoIOS,
     required this.title,
-    this.type = ProductType.inApp,
+    this.type = ProductType.InApp,
     required this.typeIOS,
   });
 
@@ -1177,11 +1198,11 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
     required this.id,
     required this.nameAndroid,
     this.oneTimePurchaseOfferDetailsAndroid,
-    this.platform = IapPlatform.android,
+    this.platform = IapPlatform.Android,
     this.price,
     required this.subscriptionOfferDetailsAndroid,
     required this.title,
-    this.type = ProductType.subs,
+    this.type = ProductType.Subs,
   });
 
   final String currency;
@@ -1291,13 +1312,13 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
     this.introductoryPriceSubscriptionPeriodIOS,
     required this.isFamilyShareableIOS,
     required this.jsonRepresentationIOS,
-    this.platform = IapPlatform.ios,
+    this.platform = IapPlatform.IOS,
     this.price,
     this.subscriptionInfoIOS,
     this.subscriptionPeriodNumberIOS,
     this.subscriptionPeriodUnitIOS,
     required this.title,
-    this.type = ProductType.subs,
+    this.type = ProductType.Subs,
     required this.typeIOS,
   });
 

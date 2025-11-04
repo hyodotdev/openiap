@@ -773,9 +773,64 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
+// Post-process: Add ProductOrSubscription union enum
+// This allows FetchProductsResult.all to contain heterogeneous arrays
+const productOrSubscriptionEnum = `
+// Union type for FetchProductsResult.all
+public enum ProductOrSubscription: Codable {
+    case product(Product)
+    case subscription(ProductSubscription)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let product = try? container.decode(Product.self) {
+            self = .product(product)
+            return
+        }
+        if let subscription = try? container.decode(ProductSubscription.self) {
+            self = .subscription(subscription)
+            return
+        }
+        throw DecodingError.dataCorruptedError(
+            in: container,
+            debugDescription: "Cannot decode ProductOrSubscription"
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .product(let product):
+            try container.encode(product)
+        case .subscription(let subscription):
+            try container.encode(subscription)
+        }
+    }
+}
+`;
+
+// Add ProductOrSubscription before FetchProductsResult
+let output = lines.join('\n');
+const fetchProductsResultPattern = /public enum FetchProductsResult \{/;
+if (fetchProductsResultPattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultPattern,
+    productOrSubscriptionEnum + '\npublic enum FetchProductsResult {'
+  );
+}
+
+// Add the 'all' case to FetchProductsResult
+const fetchProductsResultEnumPattern = /public enum FetchProductsResult \{([\s\S]*?)\n\}/;
+if (fetchProductsResultEnumPattern.test(output)) {
+  output = output.replace(
+    fetchProductsResultEnumPattern,
+    'public enum FetchProductsResult {$1\n    case all([ProductOrSubscription]?)\n}'
+  );
+}
+
 const outputPath = resolve(__dirname, '../src/generated/Types.swift');
 mkdirSync(dirname(outputPath), { recursive: true });
-writeFileSync(outputPath, lines.join('\n'));
+writeFileSync(outputPath, output);
 
 // eslint-disable-next-line no-console
 console.log('[generate-swift-types] wrote', outputPath);
