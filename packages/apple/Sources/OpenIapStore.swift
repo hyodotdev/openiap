@@ -183,6 +183,10 @@ public final class OpenIapStore: ObservableObject {
         case .subscriptions(let list):
             subscriptions = list ?? []
             products = []
+        case .all(let tuples):
+            let items = tuples ?? []
+            products = items.map { $0.0 }
+            subscriptions = items.map { $0.1 }
         }
     }
 
