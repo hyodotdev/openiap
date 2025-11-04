@@ -202,6 +202,30 @@ content = content.replace(/export enum [^{]+\{[\s\S]*?\}/g, (block) => {
   return block.replace(/= '([^']+)'/g, (_, value) => `= '${toConstantCase(value)}'`);
 });
 
+// Convert platform and type fields to literal types for proper discriminated unions
+// This enables TypeScript narrowing when checking platform === 'ios' && type === 'subs'
+const productTypeMapping = {
+  ProductIOS: { platform: "'ios'", type: "'in-app'" },
+  ProductAndroid: { platform: "'android'", type: "'in-app'" },
+  ProductSubscriptionIOS: { platform: "'ios'", type: "'subs'" },
+  ProductSubscriptionAndroid: { platform: "'android'", type: "'subs'" },
+};
+
+for (const [typeName, literals] of Object.entries(productTypeMapping)) {
+  // Match the interface definition and replace platform/type fields with literals
+  const interfacePattern = new RegExp(
+    `(export interface ${typeName} extends ProductCommon \\{[\\s\\S]*?)` +
+    `(platform: IapPlatform;)` +
+    `([\\s\\S]*?)` +
+    `(type: ProductType;)`,
+    'g'
+  );
+
+  content = content.replace(interfacePattern, (match, before, platformField, middle, typeField) => {
+    return `${before}platform: ${literals.platform};${middle}type: ${literals.type};`;
+  });
+}
+
 content = content.replace(
   /export interface RequestPurchaseProps \{[\s\S]*?\}\n\n/,
   [

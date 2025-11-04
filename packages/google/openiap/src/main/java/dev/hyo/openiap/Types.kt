@@ -778,11 +778,11 @@ public data class ProductAndroid(
     override val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
     override val title: String,
-    override val type: ProductType
+    override val type: ProductType = ProductType.InApp
 ) : ProductCommon, Product {
 
     companion object {
@@ -857,11 +857,11 @@ public data class ProductIOS(
     override val id: String,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.IOS,
     override val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     override val title: String,
-    override val type: ProductType,
+    override val type: ProductType = ProductType.InApp,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, Product {
 
@@ -916,11 +916,11 @@ public data class ProductSubscriptionAndroid(
     override val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
     override val title: String,
-    override val type: ProductType
+    override val type: ProductType = ProductType.Subs
 ) : ProductCommon, ProductSubscription {
 
     companion object {
@@ -1007,13 +1007,13 @@ public data class ProductSubscriptionIOS(
     val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.IOS,
     override val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     val subscriptionPeriodNumberIOS: String? = null,
     val subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = null,
     override val title: String,
-    override val type: ProductType,
+    override val type: ProductType = ProductType.Subs,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, ProductSubscription {
 

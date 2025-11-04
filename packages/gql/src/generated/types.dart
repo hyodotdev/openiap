@@ -1000,11 +1000,11 @@ class ProductAndroid extends Product implements ProductCommon {
     required this.id,
     required this.nameAndroid,
     this.oneTimePurchaseOfferDetailsAndroid,
-    required this.platform,
+    this.platform = IapPlatform.android,
     this.price,
     this.subscriptionOfferDetailsAndroid,
     required this.title,
-    required this.type,
+    this.type = ProductType.inApp,
   });
 
   final String currency;
@@ -1100,11 +1100,11 @@ class ProductIOS extends Product implements ProductCommon {
     required this.id,
     required this.isFamilyShareableIOS,
     required this.jsonRepresentationIOS,
-    required this.platform,
+    this.platform = IapPlatform.ios,
     this.price,
     this.subscriptionInfoIOS,
     required this.title,
-    required this.type,
+    this.type = ProductType.inApp,
     required this.typeIOS,
   });
 
@@ -1177,11 +1177,11 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
     required this.id,
     required this.nameAndroid,
     this.oneTimePurchaseOfferDetailsAndroid,
-    required this.platform,
+    this.platform = IapPlatform.android,
     this.price,
     required this.subscriptionOfferDetailsAndroid,
     required this.title,
-    required this.type,
+    this.type = ProductType.subs,
   });
 
   final String currency;
@@ -1291,13 +1291,13 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
     this.introductoryPriceSubscriptionPeriodIOS,
     required this.isFamilyShareableIOS,
     required this.jsonRepresentationIOS,
-    required this.platform,
+    this.platform = IapPlatform.ios,
     this.price,
     this.subscriptionInfoIOS,
     this.subscriptionPeriodNumberIOS,
     this.subscriptionPeriodUnitIOS,
     required this.title,
-    required this.type,
+    this.type = ProductType.subs,
     required this.typeIOS,
   });
 
