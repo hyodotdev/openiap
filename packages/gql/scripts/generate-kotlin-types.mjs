@@ -759,9 +759,9 @@ if (operationTypes.length) {
 // Post-process: Convert platform and type fields to fixed default values for discriminated unions
 // This enables Kotlin's when expression to properly narrow types based on platform and type
 const productTypeMapping = {
-  ProductIOS: { platform: 'IapPlatform.IOS', type: 'ProductType.InApp' },
+  ProductIOS: { platform: 'IapPlatform.Ios', type: 'ProductType.InApp' },
   ProductAndroid: { platform: 'IapPlatform.Android', type: 'ProductType.InApp' },
-  ProductSubscriptionIOS: { platform: 'IapPlatform.IOS', type: 'ProductType.Subs' },
+  ProductSubscriptionIOS: { platform: 'IapPlatform.Ios', type: 'ProductType.Subs' },
   ProductSubscriptionAndroid: { platform: 'IapPlatform.Android', type: 'ProductType.Subs' },
 };
 
