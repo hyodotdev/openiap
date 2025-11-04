@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (without v prefix, e.g. 1.2.14)'
+        description: 'Choose version bump type'
         required: true
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
 
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
@@ -24,14 +29,36 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Extract version
+    - name: Calculate new version
       id: version
       run: |
-        VERSION="${{ github.event.inputs.version }}"
-        # Trim leading 'v' if present
-        VERSION="${VERSION#v}"
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        # Read current google version from openiap-versions.json
+        CURRENT_VERSION=$(jq -r '.google' openiap-versions.json)
+        echo "Current version: $CURRENT_VERSION"
+
+        # Parse version components
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+        # Bump version based on input
+        case "${{ github.event.inputs.version }}" in
+          major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+          minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+          patch)
+            PATCH=$((PATCH + 1))
+            ;;
+        esac
+
+        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+        echo "New version: $NEW_VERSION"
+        echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
+        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
     - name: Check if tag already exists
       id: check_tag
