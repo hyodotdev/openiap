@@ -2211,8 +2211,8 @@ public data class RequestSubscriptionPropsByPlatforms(
 
 // MARK: - Unions
 
-public sealed interface Product : ProductCommon, ProductOrSubscription {
-    override fun toJson(): Map<String, Any?>
+public sealed interface Product : ProductCommon {
+    fun toJson(): Map<String, Any?>
 
     companion object {
         fun fromJson(json: Map<String, Any?>): Product {
@@ -2228,21 +2228,27 @@ public sealed interface Product : ProductCommon, ProductOrSubscription {
 public sealed interface ProductOrSubscription {
     fun toJson(): Map<String, Any?>
 
+    data class ProductItem(val value: Product) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
+    }
+
+    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
             return when (json["__typename"] as String?) {
-                "ProductAndroid" -> Product.fromJson(json)
-                "ProductIOS" -> Product.fromJson(json)
-                "ProductSubscriptionAndroid" -> ProductSubscription.fromJson(json)
-                "ProductSubscriptionIOS" -> ProductSubscription.fromJson(json)
+                "ProductAndroid", "ProductIOS" -> ProductItem(Product.fromJson(json))
+                "ProductSubscriptionAndroid", "ProductSubscriptionIOS" -> SubscriptionItem(ProductSubscription.fromJson(json))
                 else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: ${json["__typename"]}")
             }
         }
     }
 }
 
-public sealed interface ProductSubscription : ProductCommon, ProductOrSubscription {
-    override fun toJson(): Map<String, Any?>
+public sealed interface ProductSubscription : ProductCommon {
+    fun toJson(): Map<String, Any?>
 
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductSubscription {

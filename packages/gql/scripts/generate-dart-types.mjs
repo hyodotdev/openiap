@@ -1024,20 +1024,50 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// ProductOrSubscription union is now auto-generated from GraphQL schema
-// FetchProductsResultAll is also auto-generated
+// ProductOrSubscription and FetchProductsResult are auto-generated from GraphQL schema
 let output = lines.join('\n');
 
-// Fix ProductOrSubscription union - Product and ProductSubscription must implement it
-// Since they are also unions (sealed classes), we need to make them implement ProductOrSubscription
-output = output.replace(
-  /sealed class Product implements ProductCommon \{/,
-  'sealed class Product implements ProductCommon, ProductOrSubscription {'
-);
-output = output.replace(
-  /sealed class ProductSubscription implements ProductCommon \{/,
-  'sealed class ProductSubscription implements ProductCommon, ProductOrSubscription {'
-);
+// Fix ProductOrSubscription - it should be an abstract wrapper, not a direct union
+// Replace the auto-generated sealed class with proper wrapper pattern
+const productOrSubscriptionPattern = /sealed class ProductOrSubscription \{[\s\S]*?factory ProductOrSubscription\.fromJson\(Map<String, dynamic> json\) \{[\s\S]*?\n  \}\n\n  Map<String, dynamic> toJson\(\);\n\}/;
+if (productOrSubscriptionPattern.test(output)) {
+  const replacement = `sealed class ProductOrSubscription {
+  const ProductOrSubscription();
+
+  factory ProductOrSubscription.fromJson(Map<String, dynamic> json) {
+    final typeName = json['__typename'] as String?;
+    switch (typeName) {
+      case 'ProductAndroid':
+      case 'ProductIOS':
+        return ProductOrSubscriptionProduct(Product.fromJson(json));
+      case 'ProductSubscriptionAndroid':
+      case 'ProductSubscriptionIOS':
+        return ProductOrSubscriptionSubscription(ProductSubscription.fromJson(json));
+    }
+    throw ArgumentError('Unknown __typename for ProductOrSubscription: \$typeName');
+  }
+
+  Map<String, dynamic> toJson();
+}
+
+class ProductOrSubscriptionProduct extends ProductOrSubscription {
+  const ProductOrSubscriptionProduct(this.value);
+  final Product value;
+
+  @override
+  Map<String, dynamic> toJson() => value.toJson();
+}
+
+class ProductOrSubscriptionSubscription extends ProductOrSubscription {
+  const ProductOrSubscriptionSubscription(this.value);
+  final ProductSubscription value;
+
+  @override
+  Map<String, dynamic> toJson() => value.toJson();
+}`;
+
+  output = output.replace(productOrSubscriptionPattern, replacement);
+}
 
 // Fix enum default values - Dart uses PascalCase for enum values
 output = output.replace(/IapPlatform\.ios/g, 'IapPlatform.IOS');

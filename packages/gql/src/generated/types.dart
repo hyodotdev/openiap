@@ -2665,7 +2665,7 @@ class RequestSubscriptionPropsByPlatforms {
 
 // MARK: - Unions
 
-sealed class Product implements ProductCommon, ProductOrSubscription {
+sealed class Product implements ProductCommon {
   const Product();
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -2710,13 +2710,11 @@ sealed class ProductOrSubscription {
     final typeName = json['__typename'] as String?;
     switch (typeName) {
       case 'ProductAndroid':
-        return Product.fromJson(json);
       case 'ProductIOS':
-        return Product.fromJson(json);
+        return ProductOrSubscriptionProduct(Product.fromJson(json));
       case 'ProductSubscriptionAndroid':
-        return ProductSubscription.fromJson(json);
       case 'ProductSubscriptionIOS':
-        return ProductSubscription.fromJson(json);
+        return ProductOrSubscriptionSubscription(ProductSubscription.fromJson(json));
     }
     throw ArgumentError('Unknown __typename for ProductOrSubscription: $typeName');
   }
@@ -2724,7 +2722,23 @@ sealed class ProductOrSubscription {
   Map<String, dynamic> toJson();
 }
 
-sealed class ProductSubscription implements ProductCommon, ProductOrSubscription {
+class ProductOrSubscriptionProduct extends ProductOrSubscription {
+  const ProductOrSubscriptionProduct(this.value);
+  final Product value;
+
+  @override
+  Map<String, dynamic> toJson() => value.toJson();
+}
+
+class ProductOrSubscriptionSubscription extends ProductOrSubscription {
+  const ProductOrSubscriptionSubscription(this.value);
+  final ProductSubscription value;
+
+  @override
+  Map<String, dynamic> toJson() => value.toJson();
+}
+
+sealed class ProductSubscription implements ProductCommon {
   const ProductSubscription();
 
   factory ProductSubscription.fromJson(Map<String, dynamic> json) {

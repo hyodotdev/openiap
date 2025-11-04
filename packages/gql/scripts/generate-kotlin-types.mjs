@@ -832,26 +832,34 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
 // FetchProductsResultAll is also auto-generated
 let output = lines.join('\n');
 
-// Fix ProductOrSubscription union - Product and ProductSubscription must implement it
-// Since they are also unions (sealed interfaces), we need to make them implement ProductOrSubscription
-output = output.replace(
-  /public sealed interface Product : ProductCommon \{/,
-  'public sealed interface Product : ProductCommon, ProductOrSubscription {'
-);
-output = output.replace(
-  /public sealed interface ProductSubscription : ProductCommon \{/,
-  'public sealed interface ProductSubscription : ProductCommon, ProductOrSubscription {'
-);
+// Fix ProductOrSubscription - it should be a wrapper sealed interface
+// Replace the auto-generated sealed interface with proper wrapper pattern
+const productOrSubscriptionPattern = /public sealed interface ProductOrSubscription \{[\s\S]*?companion object \{[\s\S]*?fun fromJson\(json: Map<String, Any\?>\): ProductOrSubscription \{[\s\S]*?\n        \}\n    \}\n\}/;
+if (productOrSubscriptionPattern.test(output)) {
+  const replacement = `public sealed interface ProductOrSubscription {
+    fun toJson(): Map<String, Any?>
 
-// Add override modifier to toJson methods since they're defined in ProductOrSubscription
-output = output.replace(
-  /(public sealed interface Product : ProductCommon, ProductOrSubscription \{[\s\S]*?)\n    fun toJson\(\)/,
-  '$1\n    override fun toJson()'
-);
-output = output.replace(
-  /(public sealed interface ProductSubscription : ProductCommon, ProductOrSubscription \{[\s\S]*?)\n    fun toJson\(\)/,
-  '$1\n    override fun toJson()'
-);
+    data class ProductItem(val value: Product) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
+    }
+
+    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
+    }
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
+            return when (json["__typename"] as String?) {
+                "ProductAndroid", "ProductIOS" -> ProductItem(Product.fromJson(json))
+                "ProductSubscriptionAndroid", "ProductSubscriptionIOS" -> SubscriptionItem(ProductSubscription.fromJson(json))
+                else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: \${json["__typename"]}")
+            }
+        }
+    }
+}`;
+
+  output = output.replace(productOrSubscriptionPattern, replacement);
+}
 
 const outputPath = resolve(__dirname, '../src/generated/Types.kt');
 mkdirSync(dirname(outputPath), { recursive: true });
