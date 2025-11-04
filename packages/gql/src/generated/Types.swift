@@ -245,43 +245,10 @@ public struct ExternalPurchaseNoticeResultIOS: Codable {
     public var result: ExternalPurchaseNoticeAction
 }
 
-
-// Union type for FetchProductsResult.all
-public enum ProductOrSubscription: Codable {
-    case product(Product)
-    case subscription(ProductSubscription)
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let product = try? container.decode(Product.self) {
-            self = .product(product)
-            return
-        }
-        if let subscription = try? container.decode(ProductSubscription.self) {
-            self = .subscription(subscription)
-            return
-        }
-        throw DecodingError.dataCorruptedError(
-            in: container,
-            debugDescription: "Cannot decode ProductOrSubscription"
-        )
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .product(let product):
-            try container.encode(product)
-        case .subscription(let subscription):
-            try container.encode(subscription)
-        }
-    }
-}
-
 public enum FetchProductsResult {
+    case all([ProductOrSubscription]?)
     case products([Product]?)
     case subscriptions([ProductSubscription]?)
-    case all([ProductOrSubscription]?)
 }
 
 public struct PricingPhaseAndroid: Codable {
@@ -1030,6 +997,11 @@ public enum Product: Codable, ProductCommon {
             return value.type
         }
     }
+}
+
+public enum ProductOrSubscription: Codable {
+    case product(Product)
+    case productSubscription(ProductSubscription)
 }
 
 public enum ProductSubscription: Codable, ProductCommon {

@@ -77,11 +77,15 @@ type VoidResult {
   success: Boolean!
 }
 
+# Product or Subscription union for 'all' type
+union ProductOrSubscription = Product | ProductSubscription
+
 # => Union
 # Product fetch responses can return products, subscriptions, or both
 type FetchProductsResult {
   products: [Product!]
   subscriptions: [ProductSubscription!]
+  all: [ProductOrSubscription!]
 }
 
 # => Union

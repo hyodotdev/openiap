@@ -914,24 +914,13 @@ class ExternalPurchaseNoticeResultIOS {
   }
 }
 
-
-// Union type for FetchProductsResult.all
-abstract class ProductOrSubscription {
-  const ProductOrSubscription();
-}
-
-class ProductOrSubscriptionProduct extends ProductOrSubscription {
-  const ProductOrSubscriptionProduct(this.value);
-  final Product value;
-}
-
-class ProductOrSubscriptionSubscription extends ProductOrSubscription {
-  const ProductOrSubscriptionSubscription(this.value);
-  final ProductSubscription value;
-}
-
 abstract class FetchProductsResult {
   const FetchProductsResult();
+}
+
+class FetchProductsResultAll extends FetchProductsResult {
+  const FetchProductsResultAll(this.value);
+  final List<ProductOrSubscription>? value;
 }
 
 class FetchProductsResultProducts extends FetchProductsResult {
@@ -942,11 +931,6 @@ class FetchProductsResultProducts extends FetchProductsResult {
 class FetchProductsResultSubscriptions extends FetchProductsResult {
   const FetchProductsResultSubscriptions(this.value);
   final List<ProductSubscription>? value;
-}
-
-class FetchProductsResultAll extends FetchProductsResult {
-  const FetchProductsResultAll(this.value);
-  final List<ProductOrSubscription>? value;
 }
 
 class PricingPhaseAndroid {
@@ -2681,7 +2665,7 @@ class RequestSubscriptionPropsByPlatforms {
 
 // MARK: - Unions
 
-sealed class Product implements ProductCommon {
+sealed class Product implements ProductCommon, ProductOrSubscription {
   const Product();
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -2719,7 +2703,24 @@ sealed class Product implements ProductCommon {
   Map<String, dynamic> toJson();
 }
 
-sealed class ProductSubscription implements ProductCommon {
+sealed class ProductOrSubscription {
+  const ProductOrSubscription();
+
+  factory ProductOrSubscription.fromJson(Map<String, dynamic> json) {
+    final typeName = json['__typename'] as String?;
+    switch (typeName) {
+      case 'Product':
+        return Product.fromJson(json);
+      case 'ProductSubscription':
+        return ProductSubscription.fromJson(json);
+    }
+    throw ArgumentError('Unknown __typename for ProductOrSubscription: $typeName');
+  }
+
+  Map<String, dynamic> toJson();
+}
+
+sealed class ProductSubscription implements ProductCommon, ProductOrSubscription {
   const ProductSubscription();
 
   factory ProductSubscription.fromJson(Map<String, dynamic> json) {

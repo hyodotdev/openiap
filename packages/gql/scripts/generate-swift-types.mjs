@@ -541,16 +541,21 @@ const printUnion = (unionType) => {
   let sharedInterfaceNames = [];
   if (memberTypes.length > 0) {
     const [firstMember, ...otherMembers] = memberTypes;
-    const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
-    for (const member of otherMembers) {
-      const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
-      for (const ifaceName of Array.from(firstInterfaces)) {
-        if (!memberInterfaces.has(ifaceName)) {
-          firstInterfaces.delete(ifaceName);
+    // Check if member is a union (unions don't have getInterfaces)
+    if (typeof firstMember.getInterfaces === 'function') {
+      const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
+      for (const member of otherMembers) {
+        if (typeof member.getInterfaces === 'function') {
+          const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
+          for (const ifaceName of Array.from(firstInterfaces)) {
+            if (!memberInterfaces.has(ifaceName)) {
+              firstInterfaces.delete(ifaceName);
+            }
+          }
         }
       }
+      sharedInterfaceNames = Array.from(firstInterfaces).sort();
     }
-    sharedInterfaceNames = Array.from(firstInterfaces).sort();
   }
 
   const conformances = ['Codable', ...sharedInterfaceNames];
@@ -773,60 +778,9 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// Post-process: Add ProductOrSubscription union enum
-// This allows FetchProductsResult.all to contain heterogeneous arrays
-const productOrSubscriptionEnum = `
-// Union type for FetchProductsResult.all
-public enum ProductOrSubscription: Codable {
-    case product(Product)
-    case subscription(ProductSubscription)
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let product = try? container.decode(Product.self) {
-            self = .product(product)
-            return
-        }
-        if let subscription = try? container.decode(ProductSubscription.self) {
-            self = .subscription(subscription)
-            return
-        }
-        throw DecodingError.dataCorruptedError(
-            in: container,
-            debugDescription: "Cannot decode ProductOrSubscription"
-        )
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .product(let product):
-            try container.encode(product)
-        case .subscription(let subscription):
-            try container.encode(subscription)
-        }
-    }
-}
-`;
-
-// Add ProductOrSubscription before FetchProductsResult
+// ProductOrSubscription union is now auto-generated from GraphQL schema
+// FetchProductsResultAll case is also auto-generated
 let output = lines.join('\n');
-const fetchProductsResultPattern = /public enum FetchProductsResult \{/;
-if (fetchProductsResultPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultPattern,
-    productOrSubscriptionEnum + '\npublic enum FetchProductsResult {'
-  );
-}
-
-// Add the 'all' case to FetchProductsResult
-const fetchProductsResultEnumPattern = /public enum FetchProductsResult \{([\s\S]*?)\n\}/;
-if (fetchProductsResultEnumPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultEnumPattern,
-    'public enum FetchProductsResult {$1\n    case all([ProductOrSubscription]?)\n}'
-  );
-}
 
 const outputPath = resolve(__dirname, '../src/generated/Types.swift');
 mkdirSync(dirname(outputPath), { recursive: true });

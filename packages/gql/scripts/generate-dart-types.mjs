@@ -668,16 +668,21 @@ const printUnion = (unionType) => {
   let sharedInterfaceNames = [];
   if (memberTypes.length > 0) {
     const [firstMember, ...otherMembers] = memberTypes;
-    const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
-    for (const member of otherMembers) {
-      const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
-      for (const ifaceName of Array.from(firstInterfaces)) {
-        if (!memberInterfaces.has(ifaceName)) {
-          firstInterfaces.delete(ifaceName);
+    // Check if member is a union (unions don't have getInterfaces)
+    if (typeof firstMember.getInterfaces === 'function') {
+      const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
+      for (const member of otherMembers) {
+        if (typeof member.getInterfaces === 'function') {
+          const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
+          for (const ifaceName of Array.from(firstInterfaces)) {
+            if (!memberInterfaces.has(ifaceName)) {
+              firstInterfaces.delete(ifaceName);
+            }
+          }
         }
       }
+      sharedInterfaceNames = Array.from(firstInterfaces).sort();
     }
-    sharedInterfaceNames = Array.from(firstInterfaces).sort();
   }
 
   const implementsClause = sharedInterfaceNames.length ? ` implements ${sharedInterfaceNames.join(', ')}` : '';
@@ -989,44 +994,20 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// Post-process: Add ProductOrSubscription union class
-// This allows FetchProductsResult.all to contain heterogeneous lists
-const productOrSubscriptionUnion = `
-// Union type for FetchProductsResult.all
-abstract class ProductOrSubscription {
-  const ProductOrSubscription();
-}
-
-class ProductOrSubscriptionProduct extends ProductOrSubscription {
-  const ProductOrSubscriptionProduct(this.value);
-  final Product value;
-}
-
-class ProductOrSubscriptionSubscription extends ProductOrSubscription {
-  const ProductOrSubscriptionSubscription(this.value);
-  final ProductSubscription value;
-}
-`;
-
+// ProductOrSubscription union is now auto-generated from GraphQL schema
+// FetchProductsResultAll is also auto-generated
 let output = lines.join('\n');
 
-// Insert ProductOrSubscription before FetchProductsResult
-const fetchProductsResultAbstractPattern = /abstract class FetchProductsResult \{/;
-if (fetchProductsResultAbstractPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultAbstractPattern,
-    productOrSubscriptionUnion + '\nabstract class FetchProductsResult {'
-  );
-}
-
-// Add the 'all' case to FetchProductsResult
-const fetchProductsResultPattern = /(class FetchProductsResultSubscriptions extends FetchProductsResult \{\n  const FetchProductsResultSubscriptions\(this\.value\);\n  final List<ProductSubscription>\? value;\n\})/;
-if (fetchProductsResultPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultPattern,
-    '$1\n\nclass FetchProductsResultAll extends FetchProductsResult {\n  const FetchProductsResultAll(this.value);\n  final List<ProductOrSubscription>? value;\n}'
-  );
-}
+// Fix ProductOrSubscription union - Product and ProductSubscription must implement it
+// Since they are also unions (sealed classes), we need to make them implement ProductOrSubscription
+output = output.replace(
+  /sealed class Product implements ProductCommon \{/,
+  'sealed class Product implements ProductCommon, ProductOrSubscription {'
+);
+output = output.replace(
+  /sealed class ProductSubscription implements ProductCommon \{/,
+  'sealed class ProductSubscription implements ProductCommon, ProductOrSubscription {'
+);
 
 // Fix enum default values - Dart uses PascalCase for enum values
 output = output.replace(/IapPlatform\.ios/g, 'IapPlatform.IOS');

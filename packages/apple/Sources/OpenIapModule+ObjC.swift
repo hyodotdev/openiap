@@ -74,8 +74,7 @@ import StoreKit
                         return value
                     }
                     let subscriptionIOS = allItems.compactMap { item -> ProductSubscriptionIOS? in
-                        guard case .subscription(let subscription) = item,
-                              case .productSubscriptionIos(let value) = subscription
+                        guard case .productSubscription(.productSubscriptionIos(let value)) = item
                         else { return nil }
                         return value
                     }

@@ -283,12 +283,17 @@ class OpenIapStore(private val module: OpenIapProtocol) {
                     // The result.value is List<ProductOrSubscription>? containing union of Product and ProductSubscription
                     val items = result.value ?: emptyList()
 
-                    // Extract products and subscriptions from ProductOrSubscription union
+                    // Extract Android-specific products and subscriptions directly
+                    // ProductOrSubscription is a sealed interface with Product and ProductSubscription as implementations
                     val allProducts = items.mapNotNull {
-                        (it as? ProductOrSubscription.ProductItem)?.value
+                        (it as? Product)?.let { product ->
+                            if (product is ProductAndroid) product else null
+                        }
                     }
                     val allSubs = items.mapNotNull {
-                        (it as? ProductOrSubscription.SubscriptionItem)?.value
+                        (it as? ProductSubscription)?.let { subscription ->
+                            if (subscription is ProductSubscriptionAndroid) subscription else null
+                        }
                     }
 
                     // Merge products

@@ -633,16 +633,21 @@ const printUnion = (unionType) => {
   let sharedInterfaceNames = [];
   if (memberTypes.length > 0) {
     const [firstMember, ...otherMembers] = memberTypes;
-    const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
-    for (const member of otherMembers) {
-      const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
-      for (const ifaceName of Array.from(firstInterfaces)) {
-        if (!memberInterfaces.has(ifaceName)) {
-          firstInterfaces.delete(ifaceName);
+    // Check if member is a union (unions don't have getInterfaces)
+    if (typeof firstMember.getInterfaces === 'function') {
+      const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
+      for (const member of otherMembers) {
+        if (typeof member.getInterfaces === 'function') {
+          const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
+          for (const ifaceName of Array.from(firstInterfaces)) {
+            if (!memberInterfaces.has(ifaceName)) {
+              firstInterfaces.delete(ifaceName);
+            }
+          }
         }
       }
+      sharedInterfaceNames = Array.from(firstInterfaces).sort();
     }
-    sharedInterfaceNames = Array.from(firstInterfaces).sort();
   }
 
   const implementations = sharedInterfaceNames.length ? ` : ${sharedInterfaceNames.join(', ')}` : '';
@@ -793,35 +798,30 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// Post-process: Add ProductOrSubscription sealed interface for union type
-// This allows FetchProductsResult.all to contain heterogeneous lists
-const productOrSubscriptionUnion = `
-// Union type for FetchProductsResult.all
-public sealed interface ProductOrSubscription {
-    data class ProductItem(val value: Product) : ProductOrSubscription
-    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription
-}
-`;
-
+// ProductOrSubscription union is now auto-generated from GraphQL schema
+// FetchProductsResultAll is also auto-generated
 let output = lines.join('\n');
 
-// Insert ProductOrSubscription before FetchProductsResult
-const fetchProductsResultInterfacePattern = /public sealed interface FetchProductsResult/;
-if (fetchProductsResultInterfacePattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultInterfacePattern,
-    productOrSubscriptionUnion + '\npublic sealed interface FetchProductsResult'
-  );
-}
+// Fix ProductOrSubscription union - Product and ProductSubscription must implement it
+// Since they are also unions (sealed interfaces), we need to make them implement ProductOrSubscription
+output = output.replace(
+  /public sealed interface Product : ProductCommon \{/,
+  'public sealed interface Product : ProductCommon, ProductOrSubscription {'
+);
+output = output.replace(
+  /public sealed interface ProductSubscription : ProductCommon \{/,
+  'public sealed interface ProductSubscription : ProductCommon, ProductOrSubscription {'
+);
 
-// Add the 'all' case to FetchProductsResult
-const fetchProductsResultPattern = /(public data class FetchProductsResultSubscriptions\(val value: List<ProductSubscription>\?\) : FetchProductsResult)/;
-if (fetchProductsResultPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultPattern,
-    '$1\n\npublic data class FetchProductsResultAll(val value: List<ProductOrSubscription>?) : FetchProductsResult'
-  );
-}
+// Add override modifier to toJson methods since they're defined in ProductOrSubscription
+output = output.replace(
+  /(public sealed interface Product : ProductCommon, ProductOrSubscription \{[\s\S]*?)\n    fun toJson\(\)/,
+  '$1\n    override fun toJson()'
+);
+output = output.replace(
+  /(public sealed interface ProductSubscription : ProductCommon, ProductOrSubscription \{[\s\S]*?)\n    fun toJson\(\)/,
+  '$1\n    override fun toJson()'
+);
 
 const outputPath = resolve(__dirname, '../src/generated/Types.kt');
 mkdirSync(dirname(outputPath), { recursive: true });
