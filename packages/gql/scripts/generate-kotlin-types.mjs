@@ -636,6 +636,7 @@ const printUnion = (unionType) => {
     // Check if member is a union (unions don't have getInterfaces)
     if (typeof firstMember.getInterfaces === 'function') {
       const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
+      let allMembersHaveInterfaces = true;
       for (const member of otherMembers) {
         if (typeof member.getInterfaces === 'function') {
           const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
@@ -644,9 +645,15 @@ const printUnion = (unionType) => {
               firstInterfaces.delete(ifaceName);
             }
           }
+        } else {
+          // Member is a union, so no shared interfaces
+          allMembersHaveInterfaces = false;
+          break;
         }
       }
-      sharedInterfaceNames = Array.from(firstInterfaces).sort();
+      if (allMembersHaveInterfaces) {
+        sharedInterfaceNames = Array.from(firstInterfaces).sort();
+      }
     }
   }
 
