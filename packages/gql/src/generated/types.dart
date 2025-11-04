@@ -2709,9 +2709,13 @@ sealed class ProductOrSubscription {
   factory ProductOrSubscription.fromJson(Map<String, dynamic> json) {
     final typeName = json['__typename'] as String?;
     switch (typeName) {
-      case 'Product':
+      case 'ProductAndroid':
         return Product.fromJson(json);
-      case 'ProductSubscription':
+      case 'ProductIOS':
+        return Product.fromJson(json);
+      case 'ProductSubscriptionAndroid':
+        return ProductSubscription.fromJson(json);
+      case 'ProductSubscriptionIOS':
         return ProductSubscription.fromJson(json);
     }
     throw ArgumentError('Unknown __typename for ProductOrSubscription: $typeName');

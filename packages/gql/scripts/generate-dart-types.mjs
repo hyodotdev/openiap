@@ -692,9 +692,39 @@ const printUnion = (unionType) => {
   lines.push(`  factory ${unionType.name}.fromJson(Map<String, dynamic> json) {`);
   lines.push(`    final typeName = json['__typename'] as String?;`);
   lines.push('    switch (typeName) {');
-  members.forEach((member) => {
-    lines.push(`      case '${member}':`, `        return ${member}.fromJson(json);`);
+
+  // Flatten nested unions: if a member is itself a union, include its concrete members
+  const concreteMembers = new Set();
+  for (const memberType of memberTypes) {
+    if (isUnionType(memberType)) {
+      // Member is a union, get its concrete members
+      const nestedMembers = memberType.getTypes();
+      for (const nestedMember of nestedMembers) {
+        concreteMembers.add(nestedMember.name);
+      }
+    } else {
+      // Member is a concrete type
+      concreteMembers.add(memberType.name);
+    }
+  }
+
+  // Generate case for each concrete member, delegating to parent union if needed
+  const sortedConcreteMembers = Array.from(concreteMembers).sort();
+  sortedConcreteMembers.forEach((concreteMember) => {
+    // Find which direct member this concrete type belongs to
+    let delegateTo = concreteMember;
+    for (const memberType of memberTypes) {
+      if (isUnionType(memberType)) {
+        const nestedMembers = memberType.getTypes().map(t => t.name);
+        if (nestedMembers.includes(concreteMember)) {
+          delegateTo = memberType.name;
+          break;
+        }
+      }
+    }
+    lines.push(`      case '${concreteMember}':`, `        return ${delegateTo}.fromJson(json);`);
   });
+
   lines.push('    }');
   lines.push(`    throw ArgumentError('Unknown __typename for ${unionType.name}: $typeName');`);
   lines.push('  }', '');

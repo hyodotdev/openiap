@@ -2169,8 +2169,10 @@ public sealed interface ProductOrSubscription {
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
             return when (json["__typename"] as String?) {
-                "Product" -> Product.fromJson(json)
-                "ProductSubscription" -> ProductSubscription.fromJson(json)
+                "ProductAndroid" -> Product.fromJson(json)
+                "ProductIOS" -> Product.fromJson(json)
+                "ProductSubscriptionAndroid" -> ProductSubscription.fromJson(json)
+                "ProductSubscriptionIOS" -> ProductSubscription.fromJson(json)
                 else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: ${json["__typename"]}")
             }
         }
