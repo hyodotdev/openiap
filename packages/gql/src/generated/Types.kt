@@ -774,20 +774,13 @@ public data class ExternalPurchaseNoticeResultIOS(
     )
 }
 
-
-// Union type for FetchProductsResult.all
-public sealed interface ProductOrSubscription {
-    data class ProductItem(val value: Product) : ProductOrSubscription
-    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription
-}
-
 public sealed interface FetchProductsResult
+
+public data class FetchProductsResultAll(val value: List<ProductOrSubscription>?) : FetchProductsResult
 
 public data class FetchProductsResultProducts(val value: List<Product>?) : FetchProductsResult
 
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
-
-public data class FetchProductsResultAll(val value: List<ProductOrSubscription>?) : FetchProductsResult
 
 public data class PricingPhaseAndroid(
     val billingCycleCount: Int,
@@ -2229,6 +2222,30 @@ public sealed interface Product : ProductCommon {
                 else -> throw IllegalArgumentException("Unknown __typename for Product: ${json["__typename"]}")
             }
         }
+    }
+}
+
+public sealed interface ProductOrSubscription {
+    fun toJson(): Map<String, Any?>
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
+            return when (json["__typename"] as String?) {
+                "ProductAndroid" -> ProductItem(Product.fromJson(json))
+                "ProductIOS" -> ProductItem(Product.fromJson(json))
+                "ProductSubscriptionAndroid" -> ProductSubscriptionItem(ProductSubscription.fromJson(json))
+                "ProductSubscriptionIOS" -> ProductSubscriptionItem(ProductSubscription.fromJson(json))
+                else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: ${json["__typename"]}")
+            }
+        }
+    }
+
+    data class ProductItem(val value: Product) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
+    }
+
+    data class ProductSubscriptionItem(val value: ProductSubscription) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
     }
 }
 

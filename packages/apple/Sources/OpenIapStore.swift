@@ -193,8 +193,8 @@ public final class OpenIapStore: ObservableObject {
                 return nil
             }
             subscriptions = allItems.compactMap { item in
-                if case .subscription(let subscription) = item {
-                    return subscription
+                if case .productSubscription(.productSubscriptionIos(let subscription)) = item {
+                    return .productSubscriptionIos(subscription)
                 }
                 return nil
             }

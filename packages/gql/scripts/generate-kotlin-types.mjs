@@ -633,16 +633,28 @@ const printUnion = (unionType) => {
   let sharedInterfaceNames = [];
   if (memberTypes.length > 0) {
     const [firstMember, ...otherMembers] = memberTypes;
-    const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
-    for (const member of otherMembers) {
-      const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
-      for (const ifaceName of Array.from(firstInterfaces)) {
-        if (!memberInterfaces.has(ifaceName)) {
-          firstInterfaces.delete(ifaceName);
+    // Check if member is a union (unions don't have getInterfaces)
+    if (typeof firstMember.getInterfaces === 'function') {
+      const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
+      let allMembersHaveInterfaces = true;
+      for (const member of otherMembers) {
+        if (typeof member.getInterfaces === 'function') {
+          const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
+          for (const ifaceName of Array.from(firstInterfaces)) {
+            if (!memberInterfaces.has(ifaceName)) {
+              firstInterfaces.delete(ifaceName);
+            }
+          }
+        } else {
+          // Member is a union, so no shared interfaces
+          allMembersHaveInterfaces = false;
+          break;
         }
       }
+      if (allMembersHaveInterfaces) {
+        sharedInterfaceNames = Array.from(firstInterfaces).sort();
+      }
     }
-    sharedInterfaceNames = Array.from(firstInterfaces).sort();
   }
 
   const implementations = sharedInterfaceNames.length ? ` : ${sharedInterfaceNames.join(', ')}` : '';
@@ -651,13 +663,68 @@ const printUnion = (unionType) => {
   lines.push('    companion object {');
   lines.push(`        fun fromJson(json: Map<String, Any?>): ${unionType.name} {`);
   lines.push('            return when (json["__typename"] as String?) {');
-  members.forEach((member) => {
-    lines.push(`                "${member}" -> ${member}.fromJson(json)`);
+
+  // Flatten nested unions: if a member is itself a union, include its concrete members
+  const concreteMembers = new Set();
+  for (const memberType of memberTypes) {
+    if (isUnionType(memberType)) {
+      // Member is a union, get its concrete members
+      const nestedMembers = memberType.getTypes();
+      for (const nestedMember of nestedMembers) {
+        concreteMembers.add(nestedMember.name);
+      }
+    } else {
+      // Member is a concrete type
+      concreteMembers.add(memberType.name);
+    }
+  }
+
+  // Track nested unions that need wrapper classes
+  const nestedUnions = new Set();
+
+  // Generate case for each concrete member, wrapping nested unions
+  const sortedConcreteMembers = Array.from(concreteMembers).sort();
+  sortedConcreteMembers.forEach((concreteMember) => {
+    // Find which direct member this concrete type belongs to
+    let delegateTo = concreteMember;
+    let isNestedUnion = false;
+
+    for (const memberType of memberTypes) {
+      if (isUnionType(memberType)) {
+        const nestedMembers = memberType.getTypes().map(t => t.name);
+        if (nestedMembers.includes(concreteMember)) {
+          delegateTo = memberType.name;
+          isNestedUnion = true;
+          nestedUnions.add(memberType.name);
+          break;
+        }
+      }
+    }
+
+    if (isNestedUnion) {
+      // Wrap nested union in a typed wrapper class
+      const wrapperName = `${delegateTo}Item`;
+      lines.push(`                "${concreteMember}" -> ${wrapperName}(${delegateTo}.fromJson(json))`);
+    } else {
+      // Direct member, no wrapping needed
+      lines.push(`                "${concreteMember}" -> ${delegateTo}.fromJson(json)`);
+    }
   });
+
   lines.push(`                else -> throw IllegalArgumentException("Unknown __typename for ${unionType.name}: ${'$'}{json["__typename"]}")`);
   lines.push('            }');
   lines.push('        }');
   lines.push('    }');
+
+  // Generate wrapper data classes for nested unions (inside the sealed interface)
+  for (const nestedUnionName of Array.from(nestedUnions).sort()) {
+    const wrapperName = `${nestedUnionName}Item`;
+    lines.push('');
+    lines.push(`    data class ${wrapperName}(val value: ${nestedUnionName}) : ${unionType.name} {`);
+    lines.push('        override fun toJson() = value.toJson()');
+    lines.push('    }');
+  }
+
   lines.push('}', '');
 };
 
@@ -793,35 +860,9 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// Post-process: Add ProductOrSubscription sealed interface for union type
-// This allows FetchProductsResult.all to contain heterogeneous lists
-const productOrSubscriptionUnion = `
-// Union type for FetchProductsResult.all
-public sealed interface ProductOrSubscription {
-    data class ProductItem(val value: Product) : ProductOrSubscription
-    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription
-}
-`;
-
+// ProductOrSubscription union is now auto-generated from GraphQL schema
+// FetchProductsResultAll is also auto-generated
 let output = lines.join('\n');
-
-// Insert ProductOrSubscription before FetchProductsResult
-const fetchProductsResultInterfacePattern = /public sealed interface FetchProductsResult/;
-if (fetchProductsResultInterfacePattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultInterfacePattern,
-    productOrSubscriptionUnion + '\npublic sealed interface FetchProductsResult'
-  );
-}
-
-// Add the 'all' case to FetchProductsResult
-const fetchProductsResultPattern = /(public data class FetchProductsResultSubscriptions\(val value: List<ProductSubscription>\?\) : FetchProductsResult)/;
-if (fetchProductsResultPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultPattern,
-    '$1\n\npublic data class FetchProductsResultAll(val value: List<ProductOrSubscription>?) : FetchProductsResult'
-  );
-}
 
 const outputPath = resolve(__dirname, '../src/generated/Types.kt');
 mkdirSync(dirname(outputPath), { recursive: true });

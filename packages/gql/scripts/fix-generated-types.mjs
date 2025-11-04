@@ -310,6 +310,18 @@ for (const file of schemaDefinitionFiles) {
   }
 }
 
+// Extend FetchProductsResult to support mixed arrays for 'all' type
+// MUST be done BEFORE interface parsing to ensure optionalUnionInterfaces map has the correct union
+// The generated union `Product[] | ProductSubscription[] | null` doesn't support mixed arrays
+// Add `(Product | ProductSubscription)[]` to the union to enable type narrowing
+const fetchProductsResultPattern = /export type FetchProductsResult = Product\[\] \| ProductSubscription\[\] \| null;/;
+if (fetchProductsResultPattern.test(content)) {
+  content = content.replace(
+    fetchProductsResultPattern,
+    'export type FetchProductsResult = Product[] | ProductSubscription[] | (Product | ProductSubscription)[] | null;'
+  );
+}
+
 const singleFieldInterfaceTypes = new Map();
 const optionalUnionInterfaces = new Map();
 const interfacePattern = /export interface (\w+) \{\n([\s\S]*?)\n\}\n/g;
@@ -489,17 +501,6 @@ for (const [name, unionType] of optionalUnionInterfaces) {
   content = content.replace(pattern, `export type ${name} = ${unionType};\n\n`);
 }
 
-// Extend FetchProductsResult to support mixed arrays for 'all' type
-// The generated union `Product[] | ProductSubscription[] | null` doesn't support mixed arrays
-// Add `(Product | ProductSubscription)[]` to the union to enable type narrowing
-const fetchProductsResultPattern = /export type FetchProductsResult = Product\[\] \| ProductSubscription\[\] \| null;/;
-if (fetchProductsResultPattern.test(content)) {
-  content = content.replace(
-    fetchProductsResultPattern,
-    'export type FetchProductsResult = Product[] | ProductSubscription[] | (Product | ProductSubscription)[] | null;'
-  );
-}
-
 const futureFields = new Set();
 for (const file of schemaFiles) {
   let previousWasMarker = false;
@@ -547,6 +548,14 @@ for (const [name, unionType] of optionalUnionInterfaces) {
     content = content.replaceAll(nullableToken, `Promise<(${unionWithNull})>`);
   }
 }
+
+// Fix Query interface to use FetchProductsResult type alias instead of inline union
+// This ensures the Query['fetchProducts'] return type matches our implementation
+// Must be done AFTER singleFieldInterfaceTypes replacement expands the type
+content = content.replace(
+  /fetchProducts: Promise<\(Product\[\] \| ProductSubscription\[\] \| \(Product \| ProductSubscription\)\[\] \| null\)>/g,
+  'fetchProducts: Promise<FetchProductsResult>'
+);
 
 content = content.replace(/^\s*_placeholder\??: [^;]+;\n/gm, '');
 

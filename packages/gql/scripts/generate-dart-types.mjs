@@ -668,16 +668,28 @@ const printUnion = (unionType) => {
   let sharedInterfaceNames = [];
   if (memberTypes.length > 0) {
     const [firstMember, ...otherMembers] = memberTypes;
-    const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
-    for (const member of otherMembers) {
-      const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
-      for (const ifaceName of Array.from(firstInterfaces)) {
-        if (!memberInterfaces.has(ifaceName)) {
-          firstInterfaces.delete(ifaceName);
+    // Check if member is a union (unions don't have getInterfaces)
+    if (typeof firstMember.getInterfaces === 'function') {
+      const firstInterfaces = new Set(firstMember.getInterfaces().map((iface) => iface.name));
+      let allMembersHaveInterfaces = true;
+      for (const member of otherMembers) {
+        if (typeof member.getInterfaces === 'function') {
+          const memberInterfaces = new Set(member.getInterfaces().map((iface) => iface.name));
+          for (const ifaceName of Array.from(firstInterfaces)) {
+            if (!memberInterfaces.has(ifaceName)) {
+              firstInterfaces.delete(ifaceName);
+            }
+          }
+        } else {
+          // Member is a union, so no shared interfaces
+          allMembersHaveInterfaces = false;
+          break;
         }
       }
+      if (allMembersHaveInterfaces) {
+        sharedInterfaceNames = Array.from(firstInterfaces).sort();
+      }
     }
-    sharedInterfaceNames = Array.from(firstInterfaces).sort();
   }
 
   const implementsClause = sharedInterfaceNames.length ? ` implements ${sharedInterfaceNames.join(', ')}` : '';
@@ -687,9 +699,54 @@ const printUnion = (unionType) => {
   lines.push(`  factory ${unionType.name}.fromJson(Map<String, dynamic> json) {`);
   lines.push(`    final typeName = json['__typename'] as String?;`);
   lines.push('    switch (typeName) {');
-  members.forEach((member) => {
-    lines.push(`      case '${member}':`, `        return ${member}.fromJson(json);`);
+
+  // Flatten nested unions: if a member is itself a union, include its concrete members
+  const concreteMembers = new Set();
+  for (const memberType of memberTypes) {
+    if (isUnionType(memberType)) {
+      // Member is a union, get its concrete members
+      const nestedMembers = memberType.getTypes();
+      for (const nestedMember of nestedMembers) {
+        concreteMembers.add(nestedMember.name);
+      }
+    } else {
+      // Member is a concrete type
+      concreteMembers.add(memberType.name);
+    }
+  }
+
+  // Track nested unions that need wrapper classes
+  const nestedUnions = new Set();
+
+  // Generate case for each concrete member, wrapping nested unions
+  const sortedConcreteMembers = Array.from(concreteMembers).sort();
+  sortedConcreteMembers.forEach((concreteMember) => {
+    // Find which direct member this concrete type belongs to
+    let delegateTo = concreteMember;
+    let isNestedUnion = false;
+
+    for (const memberType of memberTypes) {
+      if (isUnionType(memberType)) {
+        const nestedMembers = memberType.getTypes().map(t => t.name);
+        if (nestedMembers.includes(concreteMember)) {
+          delegateTo = memberType.name;
+          isNestedUnion = true;
+          nestedUnions.add(memberType.name);
+          break;
+        }
+      }
+    }
+
+    if (isNestedUnion) {
+      // Wrap nested union in a typed wrapper class
+      const wrapperName = `${unionType.name}${delegateTo}`;
+      lines.push(`      case '${concreteMember}':`, `        return ${wrapperName}(${delegateTo}.fromJson(json));`);
+    } else {
+      // Direct member, no wrapping needed
+      lines.push(`      case '${concreteMember}':`, `        return ${delegateTo}.fromJson(json);`);
+    }
   });
+
   lines.push('    }');
   lines.push(`    throw ArgumentError('Unknown __typename for ${unionType.name}: $typeName');`);
   lines.push('  }', '');
@@ -722,6 +779,18 @@ const printUnion = (unionType) => {
 
   lines.push('  Map<String, dynamic> toJson();');
   lines.push('}', '');
+
+  // Generate wrapper classes for nested unions
+  for (const nestedUnionName of Array.from(nestedUnions).sort()) {
+    const wrapperName = `${unionType.name}${nestedUnionName}`;
+    lines.push(`class ${wrapperName} extends ${unionType.name} {`);
+    lines.push(`  const ${wrapperName}(this.value);`);
+    lines.push(`  final ${nestedUnionName} value;`);
+    lines.push('');
+    lines.push('  @override');
+    lines.push('  Map<String, dynamic> toJson() => value.toJson();');
+    lines.push('}', '');
+  }
 };
 
 const expandInputToParams = (inputTypeName) => {
@@ -989,44 +1058,8 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// Post-process: Add ProductOrSubscription union class
-// This allows FetchProductsResult.all to contain heterogeneous lists
-const productOrSubscriptionUnion = `
-// Union type for FetchProductsResult.all
-abstract class ProductOrSubscription {
-  const ProductOrSubscription();
-}
-
-class ProductOrSubscriptionProduct extends ProductOrSubscription {
-  const ProductOrSubscriptionProduct(this.value);
-  final Product value;
-}
-
-class ProductOrSubscriptionSubscription extends ProductOrSubscription {
-  const ProductOrSubscriptionSubscription(this.value);
-  final ProductSubscription value;
-}
-`;
-
+// All unions including nested ones are auto-generated with proper wrapper classes
 let output = lines.join('\n');
-
-// Insert ProductOrSubscription before FetchProductsResult
-const fetchProductsResultAbstractPattern = /abstract class FetchProductsResult \{/;
-if (fetchProductsResultAbstractPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultAbstractPattern,
-    productOrSubscriptionUnion + '\nabstract class FetchProductsResult {'
-  );
-}
-
-// Add the 'all' case to FetchProductsResult
-const fetchProductsResultPattern = /(class FetchProductsResultSubscriptions extends FetchProductsResult \{\n  const FetchProductsResultSubscriptions\(this\.value\);\n  final List<ProductSubscription>\? value;\n\})/;
-if (fetchProductsResultPattern.test(output)) {
-  output = output.replace(
-    fetchProductsResultPattern,
-    '$1\n\nclass FetchProductsResultAll extends FetchProductsResult {\n  const FetchProductsResultAll(this.value);\n  final List<ProductOrSubscription>? value;\n}'
-  );
-}
 
 // Fix enum default values - Dart uses PascalCase for enum values
 output = output.replace(/IapPlatform\.ios/g, 'IapPlatform.IOS');
