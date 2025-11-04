@@ -708,21 +708,36 @@ const printUnion = (unionType) => {
     }
   }
 
-  // Generate case for each concrete member, delegating to parent union if needed
+  // Track nested unions that need wrapper classes
+  const nestedUnions = new Set();
+
+  // Generate case for each concrete member, wrapping nested unions
   const sortedConcreteMembers = Array.from(concreteMembers).sort();
   sortedConcreteMembers.forEach((concreteMember) => {
     // Find which direct member this concrete type belongs to
     let delegateTo = concreteMember;
+    let isNestedUnion = false;
+
     for (const memberType of memberTypes) {
       if (isUnionType(memberType)) {
         const nestedMembers = memberType.getTypes().map(t => t.name);
         if (nestedMembers.includes(concreteMember)) {
           delegateTo = memberType.name;
+          isNestedUnion = true;
+          nestedUnions.add(memberType.name);
           break;
         }
       }
     }
-    lines.push(`      case '${concreteMember}':`, `        return ${delegateTo}.fromJson(json);`);
+
+    if (isNestedUnion) {
+      // Wrap nested union in a typed wrapper class
+      const wrapperName = `${unionType.name}${delegateTo}`;
+      lines.push(`      case '${concreteMember}':`, `        return ${wrapperName}(${delegateTo}.fromJson(json));`);
+    } else {
+      // Direct member, no wrapping needed
+      lines.push(`      case '${concreteMember}':`, `        return ${delegateTo}.fromJson(json);`);
+    }
   });
 
   lines.push('    }');
@@ -757,6 +772,18 @@ const printUnion = (unionType) => {
 
   lines.push('  Map<String, dynamic> toJson();');
   lines.push('}', '');
+
+  // Generate wrapper classes for nested unions
+  for (const nestedUnionName of Array.from(nestedUnions).sort()) {
+    const wrapperName = `${unionType.name}${nestedUnionName}`;
+    lines.push(`class ${wrapperName} extends ${unionType.name} {`);
+    lines.push(`  const ${wrapperName}(this.value);`);
+    lines.push(`  final ${nestedUnionName} value;`);
+    lines.push('');
+    lines.push('  @override');
+    lines.push('  Map<String, dynamic> toJson() => value.toJson();');
+    lines.push('}', '');
+  }
 };
 
 const expandInputToParams = (inputTypeName) => {
@@ -1024,50 +1051,8 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
   }
 }
 
-// ProductOrSubscription and FetchProductsResult are auto-generated from GraphQL schema
+// All unions including nested ones are auto-generated with proper wrapper classes
 let output = lines.join('\n');
-
-// Fix ProductOrSubscription - it should be an abstract wrapper, not a direct union
-// Replace the auto-generated sealed class with proper wrapper pattern
-const productOrSubscriptionPattern = /sealed class ProductOrSubscription \{[\s\S]*?factory ProductOrSubscription\.fromJson\(Map<String, dynamic> json\) \{[\s\S]*?\n  \}\n\n  Map<String, dynamic> toJson\(\);\n\}/;
-if (productOrSubscriptionPattern.test(output)) {
-  const replacement = `sealed class ProductOrSubscription {
-  const ProductOrSubscription();
-
-  factory ProductOrSubscription.fromJson(Map<String, dynamic> json) {
-    final typeName = json['__typename'] as String?;
-    switch (typeName) {
-      case 'ProductAndroid':
-      case 'ProductIOS':
-        return ProductOrSubscriptionProduct(Product.fromJson(json));
-      case 'ProductSubscriptionAndroid':
-      case 'ProductSubscriptionIOS':
-        return ProductOrSubscriptionSubscription(ProductSubscription.fromJson(json));
-    }
-    throw ArgumentError('Unknown __typename for ProductOrSubscription: \$typeName');
-  }
-
-  Map<String, dynamic> toJson();
-}
-
-class ProductOrSubscriptionProduct extends ProductOrSubscription {
-  const ProductOrSubscriptionProduct(this.value);
-  final Product value;
-
-  @override
-  Map<String, dynamic> toJson() => value.toJson();
-}
-
-class ProductOrSubscriptionSubscription extends ProductOrSubscription {
-  const ProductOrSubscriptionSubscription(this.value);
-  final ProductSubscription value;
-
-  @override
-  Map<String, dynamic> toJson() => value.toJson();
-}`;
-
-  output = output.replace(productOrSubscriptionPattern, replacement);
-}
 
 // Fix enum default values - Dart uses PascalCase for enum values
 output = output.replace(/IapPlatform\.ios/g, 'IapPlatform.IOS');

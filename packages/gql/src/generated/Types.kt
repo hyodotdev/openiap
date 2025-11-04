@@ -2228,22 +2228,24 @@ public sealed interface Product : ProductCommon {
 public sealed interface ProductOrSubscription {
     fun toJson(): Map<String, Any?>
 
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
+            return when (json["__typename"] as String?) {
+                "ProductAndroid" -> ProductItem(Product.fromJson(json))
+                "ProductIOS" -> ProductItem(Product.fromJson(json))
+                "ProductSubscriptionAndroid" -> ProductSubscriptionItem(ProductSubscription.fromJson(json))
+                "ProductSubscriptionIOS" -> ProductSubscriptionItem(ProductSubscription.fromJson(json))
+                else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: ${json["__typename"]}")
+            }
+        }
+    }
+
     data class ProductItem(val value: Product) : ProductOrSubscription {
         override fun toJson() = value.toJson()
     }
 
-    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription {
+    data class ProductSubscriptionItem(val value: ProductSubscription) : ProductOrSubscription {
         override fun toJson() = value.toJson()
-    }
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
-            return when (json["__typename"] as String?) {
-                "ProductAndroid", "ProductIOS" -> ProductItem(Product.fromJson(json))
-                "ProductSubscriptionAndroid", "ProductSubscriptionIOS" -> SubscriptionItem(ProductSubscription.fromJson(json))
-                else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: ${json["__typename"]}")
-            }
-        }
     }
 }
 

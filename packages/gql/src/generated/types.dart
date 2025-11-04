@@ -2710,11 +2710,13 @@ sealed class ProductOrSubscription {
     final typeName = json['__typename'] as String?;
     switch (typeName) {
       case 'ProductAndroid':
+        return ProductOrSubscriptionProduct(Product.fromJson(json));
       case 'ProductIOS':
         return ProductOrSubscriptionProduct(Product.fromJson(json));
       case 'ProductSubscriptionAndroid':
+        return ProductOrSubscriptionProductSubscription(ProductSubscription.fromJson(json));
       case 'ProductSubscriptionIOS':
-        return ProductOrSubscriptionSubscription(ProductSubscription.fromJson(json));
+        return ProductOrSubscriptionProductSubscription(ProductSubscription.fromJson(json));
     }
     throw ArgumentError('Unknown __typename for ProductOrSubscription: $typeName');
   }
@@ -2730,8 +2732,8 @@ class ProductOrSubscriptionProduct extends ProductOrSubscription {
   Map<String, dynamic> toJson() => value.toJson();
 }
 
-class ProductOrSubscriptionSubscription extends ProductOrSubscription {
-  const ProductOrSubscriptionSubscription(this.value);
+class ProductOrSubscriptionProductSubscription extends ProductOrSubscription {
+  const ProductOrSubscriptionProductSubscription(this.value);
   final ProductSubscription value;
 
   @override

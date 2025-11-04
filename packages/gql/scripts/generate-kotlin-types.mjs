@@ -672,27 +672,52 @@ const printUnion = (unionType) => {
     }
   }
 
-  // Generate case for each concrete member, delegating to parent union if needed
+  // Track nested unions that need wrapper classes
+  const nestedUnions = new Set();
+
+  // Generate case for each concrete member, wrapping nested unions
   const sortedConcreteMembers = Array.from(concreteMembers).sort();
   sortedConcreteMembers.forEach((concreteMember) => {
     // Find which direct member this concrete type belongs to
     let delegateTo = concreteMember;
+    let isNestedUnion = false;
+
     for (const memberType of memberTypes) {
       if (isUnionType(memberType)) {
         const nestedMembers = memberType.getTypes().map(t => t.name);
         if (nestedMembers.includes(concreteMember)) {
           delegateTo = memberType.name;
+          isNestedUnion = true;
+          nestedUnions.add(memberType.name);
           break;
         }
       }
     }
-    lines.push(`                "${concreteMember}" -> ${delegateTo}.fromJson(json)`);
+
+    if (isNestedUnion) {
+      // Wrap nested union in a typed wrapper class
+      const wrapperName = `${delegateTo}Item`;
+      lines.push(`                "${concreteMember}" -> ${wrapperName}(${delegateTo}.fromJson(json))`);
+    } else {
+      // Direct member, no wrapping needed
+      lines.push(`                "${concreteMember}" -> ${delegateTo}.fromJson(json)`);
+    }
   });
 
   lines.push(`                else -> throw IllegalArgumentException("Unknown __typename for ${unionType.name}: ${'$'}{json["__typename"]}")`);
   lines.push('            }');
   lines.push('        }');
   lines.push('    }');
+
+  // Generate wrapper data classes for nested unions (inside the sealed interface)
+  for (const nestedUnionName of Array.from(nestedUnions).sort()) {
+    const wrapperName = `${nestedUnionName}Item`;
+    lines.push('');
+    lines.push(`    data class ${wrapperName}(val value: ${nestedUnionName}) : ${unionType.name} {`);
+    lines.push('        override fun toJson() = value.toJson()');
+    lines.push('    }');
+  }
+
   lines.push('}', '');
 };
 
@@ -831,35 +856,6 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
 // ProductOrSubscription union is now auto-generated from GraphQL schema
 // FetchProductsResultAll is also auto-generated
 let output = lines.join('\n');
-
-// Fix ProductOrSubscription - it should be a wrapper sealed interface
-// Replace the auto-generated sealed interface with proper wrapper pattern
-const productOrSubscriptionPattern = /public sealed interface ProductOrSubscription \{[\s\S]*?companion object \{[\s\S]*?fun fromJson\(json: Map<String, Any\?>\): ProductOrSubscription \{[\s\S]*?\n        \}\n    \}\n\}/;
-if (productOrSubscriptionPattern.test(output)) {
-  const replacement = `public sealed interface ProductOrSubscription {
-    fun toJson(): Map<String, Any?>
-
-    data class ProductItem(val value: Product) : ProductOrSubscription {
-        override fun toJson() = value.toJson()
-    }
-
-    data class SubscriptionItem(val value: ProductSubscription) : ProductOrSubscription {
-        override fun toJson() = value.toJson()
-    }
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
-            return when (json["__typename"] as String?) {
-                "ProductAndroid", "ProductIOS" -> ProductItem(Product.fromJson(json))
-                "ProductSubscriptionAndroid", "ProductSubscriptionIOS" -> SubscriptionItem(ProductSubscription.fromJson(json))
-                else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: \${json["__typename"]}")
-            }
-        }
-    }
-}`;
-
-  output = output.replace(productOrSubscriptionPattern, replacement);
-}
 
 const outputPath = resolve(__dirname, '../src/generated/Types.kt');
 mkdirSync(dirname(outputPath), { recursive: true });
