@@ -272,11 +272,11 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var id: String
     public var nameAndroid: String
     public var oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail?
-    public var platform: IapPlatform
+    public var platform: IapPlatform = .android
     public var price: Double?
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]?
     public var title: String
-    public var type: ProductType
+    public var type: ProductType = .inApp
 }
 
 public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
@@ -295,11 +295,11 @@ public struct ProductIOS: Codable, ProductCommon {
     public var id: String
     public var isFamilyShareableIOS: Bool
     public var jsonRepresentationIOS: String
-    public var platform: IapPlatform
+    public var platform: IapPlatform = .ios
     public var price: Double?
     public var subscriptionInfoIOS: SubscriptionInfoIOS?
     public var title: String
-    public var type: ProductType
+    public var type: ProductType = .inApp
     public var typeIOS: ProductTypeIOS
 }
 
@@ -312,11 +312,11 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var id: String
     public var nameAndroid: String
     public var oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail?
-    public var platform: IapPlatform
+    public var platform: IapPlatform = .android
     public var price: Double?
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
     public var title: String
-    public var type: ProductType
+    public var type: ProductType = .subs
 }
 
 public struct ProductSubscriptionAndroidOfferDetails: Codable {
@@ -343,13 +343,13 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS?
     public var isFamilyShareableIOS: Bool
     public var jsonRepresentationIOS: String
-    public var platform: IapPlatform
+    public var platform: IapPlatform = .ios
     public var price: Double?
     public var subscriptionInfoIOS: SubscriptionInfoIOS?
     public var subscriptionPeriodNumberIOS: String?
     public var subscriptionPeriodUnitIOS: SubscriptionPeriodIOS?
     public var title: String
-    public var type: ProductType
+    public var type: ProductType = .subs
     public var typeIOS: ProductTypeIOS
 }
 

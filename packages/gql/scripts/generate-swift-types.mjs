@@ -716,6 +716,63 @@ if (operations.length) {
   operations.sort((a, b) => a.name.localeCompare(b.name)).forEach(printOperationHelpers);
 }
 
+// Post-process: Convert platform and type fields to fixed default values for discriminated unions
+// This enables Swift's switch/pattern matching to properly narrow types based on platform and type
+const productTypeMapping = {
+  ProductIOS: { platform: '.ios', type: '.inApp' },
+  ProductAndroid: { platform: '.android', type: '.inApp' },
+  ProductSubscriptionIOS: { platform: '.ios', type: '.subs' },
+  ProductSubscriptionAndroid: { platform: '.android', type: '.subs' },
+};
+
+for (const [typeName, literals] of Object.entries(productTypeMapping)) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Find struct definition
+    if (line.match(new RegExp(`public struct ${typeName}[:\\s]`))) {
+      let foundInit = false;
+
+      // Look for the init method or property declarations
+      for (let j = i; j < lines.length && !lines[j].includes('}'); j++) {
+        // Handle property declarations - add default values
+        if (lines[j].match(/^\s+public var platform: IapPlatform$/)) {
+          lines[j] = lines[j].replace(
+            /public var platform: IapPlatform$/,
+            `public var platform: IapPlatform = ${literals.platform}`
+          );
+        }
+        if (lines[j].match(/^\s+public var type: ProductType$/)) {
+          lines[j] = lines[j].replace(
+            /public var type: ProductType$/,
+            `public var type: ProductType = ${literals.type}`
+          );
+        }
+
+        // Handle init parameters - add default values
+        if (lines[j].includes('public init(')) {
+          foundInit = true;
+        }
+        if (foundInit) {
+          if (lines[j].match(/^\s+platform: IapPlatform[,)]/)) {
+            lines[j] = lines[j].replace(
+              /platform: IapPlatform([,)])/,
+              `platform: IapPlatform = ${literals.platform}$1`
+            );
+          }
+          if (lines[j].match(/^\s+type: ProductType[,)]/)) {
+            lines[j] = lines[j].replace(
+              /type: ProductType([,)])/,
+              `type: ProductType = ${literals.type}$1`
+            );
+          }
+        }
+      }
+      break;
+    }
+  }
+}
+
 const outputPath = resolve(__dirname, '../src/generated/Types.swift');
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, lines.join('\n'));

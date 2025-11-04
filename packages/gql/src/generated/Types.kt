@@ -840,11 +840,11 @@ public data class ProductAndroid(
     val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    val platform: IapPlatform,
+    val platform: IapPlatform = IapPlatform.Android,
     val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
     val title: String,
-    val type: ProductType
+    val type: ProductType = ProductType.InApp
 ) : ProductCommon, Product {
 
     companion object {
@@ -919,11 +919,11 @@ public data class ProductIOS(
     val id: String,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    val platform: IapPlatform,
+    val platform: IapPlatform = IapPlatform.Ios,
     val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     val title: String,
-    val type: ProductType,
+    val type: ProductType = ProductType.InApp,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, Product {
 
@@ -978,11 +978,11 @@ public data class ProductSubscriptionAndroid(
     val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    val platform: IapPlatform,
+    val platform: IapPlatform = IapPlatform.Android,
     val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
     val title: String,
-    val type: ProductType
+    val type: ProductType = ProductType.Subs
 ) : ProductCommon, ProductSubscription {
 
     companion object {
@@ -1069,13 +1069,13 @@ public data class ProductSubscriptionIOS(
     val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    val platform: IapPlatform,
+    val platform: IapPlatform = IapPlatform.Ios,
     val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     val subscriptionPeriodNumberIOS: String? = null,
     val subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = null,
     val title: String,
-    val type: ProductType,
+    val type: ProductType = ProductType.Subs,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, ProductSubscription {
 

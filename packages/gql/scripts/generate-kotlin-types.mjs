@@ -756,6 +756,43 @@ if (operationTypes.length) {
   operationTypes.sort((a, b) => a.name.localeCompare(b.name)).forEach(printOperationHelpers);
 }
 
+// Post-process: Convert platform and type fields to fixed default values for discriminated unions
+// This enables Kotlin's when expression to properly narrow types based on platform and type
+const productTypeMapping = {
+  ProductIOS: { platform: 'IapPlatform.Ios', type: 'ProductType.InApp' },
+  ProductAndroid: { platform: 'IapPlatform.Android', type: 'ProductType.InApp' },
+  ProductSubscriptionIOS: { platform: 'IapPlatform.Ios', type: 'ProductType.Subs' },
+  ProductSubscriptionAndroid: { platform: 'IapPlatform.Android', type: 'ProductType.Subs' },
+};
+
+for (const [typeName, literals] of Object.entries(productTypeMapping)) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Find data class definition
+    if (line.includes(`data class ${typeName}(`)) {
+      // Look for platform and type fields within this data class
+      for (let j = i; j < lines.length && !lines[j].includes(') :') && !lines[j].trim().startsWith(') {'); j++) {
+        // Replace platform field with fixed default value
+        if (lines[j].includes('val platform: IapPlatform')) {
+          lines[j] = lines[j].replace(
+            /val platform: IapPlatform(,?)/,
+            `val platform: IapPlatform = ${literals.platform}$1`
+          );
+        }
+        // Replace type field with fixed default value
+        if (lines[j].includes('val type: ProductType')) {
+          lines[j] = lines[j].replace(
+            /val type: ProductType(,?)/,
+            `val type: ProductType = ${literals.type}$1`
+          );
+        }
+      }
+      break;
+    }
+  }
+}
+
 const outputPath = resolve(__dirname, '../src/generated/Types.kt');
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, lines.join('\n'));

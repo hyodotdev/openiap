@@ -952,6 +952,43 @@ if (operationTypes.length) {
   operationTypes.sort((a, b) => a.name.localeCompare(b.name)).forEach(printOperationHelpers);
 }
 
+// Post-process: Convert platform and type fields to fixed default values for discriminated unions
+// This enables Dart's pattern matching to properly narrow types based on platform and type
+const productTypeMapping = {
+  ProductIOS: { platform: 'IapPlatform.ios', type: 'ProductType.inApp' },
+  ProductAndroid: { platform: 'IapPlatform.android', type: 'ProductType.inApp' },
+  ProductSubscriptionIOS: { platform: 'IapPlatform.ios', type: 'ProductType.subs' },
+  ProductSubscriptionAndroid: { platform: 'IapPlatform.android', type: 'ProductType.subs' },
+};
+
+for (const [typeName, literals] of Object.entries(productTypeMapping)) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Find class definition
+    if (line.includes(`class ${typeName} `)) {
+      // Look for platform and type fields within this class
+      for (let j = i; j < lines.length && !lines[j].includes(');'); j++) {
+        // Replace platform field with fixed default value (exact match only)
+        if (lines[j].match(/required this\.platform,?\s*$/)) {
+          lines[j] = lines[j].replace(
+            /required this\.platform(,?)/,
+            `this.platform = ${literals.platform}$1`
+          );
+        }
+        // Replace type field with fixed default value (exact match only, not typeIOS)
+        if (lines[j].match(/required this\.type,?\s*$/)) {
+          lines[j] = lines[j].replace(
+            /required this\.type(,?)/,
+            `this.type = ${literals.type}$1`
+          );
+        }
+      }
+      break;
+    }
+  }
+}
+
 const outputPath = resolve(__dirname, '../src/generated/types.dart');
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, lines.join('\n'));
