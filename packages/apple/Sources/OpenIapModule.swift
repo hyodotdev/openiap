@@ -183,6 +183,57 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let product = try await storeProduct(for: sku)
         let options = try StoreKitTypesBridge.purchaseOptions(from: iosProps)
 
+        // Check if subscription is already owned before attempting purchase
+        // This prevents iOS from showing "You're already subscribed" alert
+        if product.type == .autoRenewable {
+            // Check current entitlements for this product
+            if let currentEntitlement = await product.currentEntitlement {
+                do {
+                    let transaction = try checkVerified(currentEntitlement)
+
+                    // Check if the subscription is active (not expired)
+                    let isActive: Bool
+                    if let expirationDate = transaction.expirationDate {
+                        isActive = expirationDate > Date()
+                    } else {
+                        // No expiration date means it's active
+                        isActive = true
+                    }
+
+                    if isActive {
+                        OpenIapLog.debug("""
+                            ⚠️ [requestPurchase] Subscription already owned:
+                            - SKU: \(sku)
+                            - Transaction ID: \(transaction.id)
+                            - Expiration: \(transaction.expirationDate?.description ?? "none")
+                            """)
+                        let error = makePurchaseError(code: .alreadyOwned, productId: sku)
+                        emitPurchaseError(error)
+                        throw error
+                    }
+                } catch let purchaseError as PurchaseError {
+                    // Always emit error for library user to handle
+                    emitPurchaseError(purchaseError)
+
+                    // If it's an alreadyOwned error, re-throw it to stop purchase flow
+                    if purchaseError.code == .alreadyOwned {
+                        throw purchaseError
+                    }
+                    // For other errors (like transactionValidationFailed), log and continue with purchase
+                    OpenIapLog.debug("⚠️ Current entitlement verification failed: \(purchaseError.message)")
+                } catch {
+                    // For verification errors, emit error but continue with purchase
+                    let verificationError = makePurchaseError(
+                        code: .transactionValidationFailed,
+                        productId: sku,
+                        message: "Current entitlement check failed: \(error.localizedDescription)"
+                    )
+                    OpenIapLog.debug("⚠️ Current entitlement check failed: \(error.localizedDescription)")
+                    emitPurchaseError(verificationError)
+                }
+            }
+        }
+
         let result: StoreKit.Product.PurchaseResult
         do {
             // iOS 17.0+, tvOS 17.0+, macOS 15.2+: Use purchase(confirmIn:options:) for better purchase confirmation UI
