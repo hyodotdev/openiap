@@ -26,6 +26,9 @@ import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -77,6 +80,9 @@ fun PurchaseFlowScreen(
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
     var isInitializing by remember { mutableStateOf(true) }
 
+    // Use a dedicated scope for cleanup that won't be cancelled with composition
+    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
         try {
@@ -89,17 +95,26 @@ fun PurchaseFlowScreen(
                 )
                 iapStore.fetchProducts(request)
                 iapStore.getAvailablePurchases(null)
+            } else {
+                iapStore.postStatusMessage(
+                    message = "Failed to connect to billing service",
+                    status = PurchaseResultStatus.Error
+                )
             }
-        } catch (_: Exception) { }
-        finally {
+        } catch (e: Exception) {
+            iapStore.postStatusMessage(
+                message = "Failed to initialize: ${e.message}",
+                status = PurchaseResultStatus.Error
+            )
+        } finally {
             isInitializing = false
         }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            // End connection and clear listeners when this screen leaves (per-screen lifecycle)
-            uiScope.launch {
+            // Use dedicated cleanup scope to avoid cancellation race
+            cleanupScope.launch {
                 runCatching { iapStore.endConnection() }
                 runCatching { iapStore.clear() }
             }

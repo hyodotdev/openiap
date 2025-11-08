@@ -41,8 +41,11 @@ import dev.hyo.openiap.RequestPurchasePropsByPlatforms
 import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
@@ -125,6 +128,9 @@ fun SubscriptionFlowScreen(
 
     var isInitializing by remember { mutableStateOf(true) }
 
+    // Use a dedicated scope for cleanup that won't be cancelled with composition
+    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {
         try {
@@ -185,7 +191,19 @@ fun SubscriptionFlowScreen(
                         }
                     }
                 }
+            } else {
+                iapStore.postStatusMessage(
+                    message = "Failed to connect to billing service",
+                    status = PurchaseResultStatus.Error
+                )
             }
+        } catch (e: Exception) {
+            println("SubscriptionFlow: Initialization error: ${e.message}")
+            e.printStackTrace()
+            iapStore.postStatusMessage(
+                message = "Failed to initialize: ${e.message}",
+                status = PurchaseResultStatus.Error
+            )
         } finally {
             isInitializing = false
         }
@@ -193,7 +211,8 @@ fun SubscriptionFlowScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            uiScope.launch {
+            // Use dedicated cleanup scope to avoid cancellation race
+            cleanupScope.launch {
                 runCatching { iapStore.endConnection() }
                 runCatching { iapStore.clear() }
             }

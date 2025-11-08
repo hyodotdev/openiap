@@ -26,6 +26,9 @@ import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,8 +50,10 @@ fun AvailablePurchasesScreen(
     // Modal state
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
     var isInitializing by remember { mutableStateOf(true) }
+    var initError by remember { mutableStateOf<String?>(null) }
 
-    val uiScope = rememberCoroutineScope()
+    // Use a dedicated scope for cleanup that won't be cancelled with composition
+    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
 
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
@@ -56,16 +61,20 @@ fun AvailablePurchasesScreen(
             val connected = iapStore.initConnection()
             if (connected) {
                 iapStore.getAvailablePurchases(null)
+            } else {
+                initError = "Failed to connect to billing service"
             }
-        } catch (_: Exception) { }
-        finally {
+        } catch (e: Exception) {
+            initError = e.message ?: "Failed to initialize IAP connection"
+        } finally {
             isInitializing = false
         }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            uiScope.launch {
+            // Use dedicated cleanup scope to avoid cancellation race
+            cleanupScope.launch {
                 runCatching { iapStore.endConnection() }
                 runCatching { iapStore.clear() }
             }
@@ -175,7 +184,38 @@ fun AvailablePurchasesScreen(
                     LoadingCard()
                 }
             }
-            
+
+            // Initialization Error
+            initError?.let { errorMsg ->
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = AppColors.error.copy(alpha = 0.1f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                tint = AppColors.error
+                            )
+                            Text(
+                                errorMsg,
+                                color = AppColors.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+
             statusMessage?.let { result ->
                 item("status-message") {
                     PurchaseResultCard(
