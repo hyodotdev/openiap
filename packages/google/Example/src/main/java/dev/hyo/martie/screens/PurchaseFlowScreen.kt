@@ -75,27 +75,31 @@ fun PurchaseFlowScreen(
     // Modal states
     var selectedProduct by remember { mutableStateOf<ProductAndroid?>(null) }
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
-    
+    var isInitializing by remember { mutableStateOf(true) }
+
     // Initialize and connect on first composition (spec-aligned names)
-    val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch {
-            try {
-                val connected = iapStore.initConnection()
-                if (connected) {
-                    iapStore.setActivity(activity)
-                    val request = ProductRequest(
-                        skus = IapConstants.INAPP_SKUS,
-                        type = ProductQueryType.InApp
-                    )
-                    iapStore.fetchProducts(request)
-                    iapStore.getAvailablePurchases(null)
-                }
-            } catch (_: Exception) { }
+    LaunchedEffect(Unit) {
+        try {
+            val connected = iapStore.initConnection()
+            if (connected) {
+                iapStore.setActivity(activity)
+                val request = ProductRequest(
+                    skus = IapConstants.INAPP_SKUS,
+                    type = ProductQueryType.InApp
+                )
+                iapStore.fetchProducts(request)
+                iapStore.getAvailablePurchases(null)
+            }
+        } catch (_: Exception) { }
+        finally {
+            isInitializing = false
         }
+    }
+
+    DisposableEffect(Unit) {
         onDispose {
             // End connection and clear listeners when this screen leaves (per-screen lifecycle)
-            startupScope.launch {
+            uiScope.launch {
                 runCatching { iapStore.endConnection() }
                 runCatching { iapStore.clear() }
             }
@@ -126,7 +130,7 @@ fun PurchaseFlowScreen(
                                 } catch (_: Exception) { }
                             }
                         },
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
@@ -196,7 +200,7 @@ fun PurchaseFlowScreen(
             }
             
             // Loading State
-            if (status.isLoading) {
+            if (isInitializing || status.isLoading) {
                 item {
                     LoadingCard()
                 }
@@ -286,7 +290,7 @@ fun PurchaseFlowScreen(
                         }
                     )
                 }
-            } else if (!status.isLoading) {
+            } else if (!isInitializing && !status.isLoading) {
                 item {
                     EmptyStateCard(
                         message = "No products available",
@@ -326,13 +330,13 @@ fun PurchaseFlowScreen(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Restore")
                     }
-                    
+
                     Button(
                         onClick = {
                             scope.launch {
@@ -346,7 +350,7 @@ fun PurchaseFlowScreen(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))

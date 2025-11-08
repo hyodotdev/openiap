@@ -46,20 +46,29 @@ fun AvailablePurchasesScreen(
 
     // Modal state
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
-    
+    var isInitializing by remember { mutableStateOf(true) }
+
+    val uiScope = rememberCoroutineScope()
+
     // Initialize and connect on first composition (spec-aligned names)
-    val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch {
-            try {
-                val connected = iapStore.initConnection()
-                if (connected) {
-                    iapStore.getAvailablePurchases(null)
-                }
-            } catch (_: Exception) { }
+    LaunchedEffect(Unit) {
+        try {
+            val connected = iapStore.initConnection()
+            if (connected) {
+                iapStore.getAvailablePurchases(null)
+            }
+        } catch (_: Exception) { }
+        finally {
+            isInitializing = false
         }
+    }
+
+    DisposableEffect(Unit) {
         onDispose {
-            startupScope.launch { runCatching { iapStore.endConnection() } }
+            uiScope.launch {
+                runCatching { iapStore.endConnection() }
+                runCatching { iapStore.clear() }
+            }
         }
     }
     
@@ -91,7 +100,7 @@ fun AvailablePurchasesScreen(
                                 }
                             }
                         },
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = "Restore")
                     }
@@ -161,7 +170,7 @@ fun AvailablePurchasesScreen(
             }
             
             // Loading State
-            if (status.isLoading) {
+            if (isInitializing || status.isLoading) {
                 item {
                     LoadingCard()
                 }
@@ -322,7 +331,7 @@ fun AvailablePurchasesScreen(
             }
             
             // Empty State
-            if (androidPurchases.isEmpty() && !status.isLoading) {
+            if (androidPurchases.isEmpty() && !isInitializing && !status.isLoading) {
                 item {
                     EmptyStateCard(
                         message = "No purchases found. Try restoring purchases from your Google account.",
@@ -394,7 +403,7 @@ fun AvailablePurchasesScreen(
                     OutlinedButton(
                         onClick = { scope.launch { iapStore.getAvailablePurchases(null) } },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -419,7 +428,7 @@ fun AvailablePurchasesScreen(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))

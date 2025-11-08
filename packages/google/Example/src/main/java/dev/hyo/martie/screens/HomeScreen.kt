@@ -18,12 +18,34 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import dev.hyo.martie.BuildConfig
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.FeatureCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    // Use BuildConfig to determine which billing system is included in this build
+    // This ensures UI messages match the actual compiled implementation
+    val isHorizonBuild = BuildConfig.OPENIAP_STORE == "horizon"
+
+    val testText =
+        if (isHorizonBuild) "Test in-app purchases and subscription features with Meta Horizon Billing integration."
+        else "Test in-app purchases and subscription features with Google Play Billing integration."
+
+    val testingNotesText =
+        if (isHorizonBuild) {
+            "• Use test accounts configured in Meta Quest Developer Center\n" +
+            "• Products must be configured in Horizon Store\n" +
+            "• App must be uploaded to Meta Quest Developer Center\n" +
+            "• Device must be signed in with a test account"
+        } else {
+            "• Use test accounts configured in Google Play Console\n" +
+            "• Products must be configured in Play Console\n" +
+            "• App must be uploaded to Play Console (at least internal testing)\n" +
+            "• Device must be signed in with a test account"
+        }
+
     Scaffold { paddingValues ->
         Column(
             modifier = Modifier
@@ -75,7 +97,7 @@ fun HomeScreen(navController: NavController) {
                     }
                     
                     Text(
-                        "Test in-app purchases and subscription features with Google Play Billing integration.",
+                        testText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = AppColors.textSecondary
                     )
@@ -183,10 +205,7 @@ fun HomeScreen(navController: NavController) {
                     }
                     
                     Text(
-                        "• Use test accounts configured in Google Play Console\n" +
-                        "• Products must be configured in Play Console\n" +
-                        "• App must be uploaded to Play Console (at least internal testing)\n" +
-                        "• Device must be signed in with a test account",
+                        testingNotesText,
                         style = MaterialTheme.typography.bodySmall,
                         color = AppColors.textSecondary
                     )

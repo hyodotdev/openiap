@@ -123,12 +123,18 @@ fun SubscriptionFlowScreen(
         IapConstants.getSubscriptionSkus()
     }
 
+    var isInitializing by remember { mutableStateOf(true) }
+
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {
+        try {
             println("SubscriptionFlow: Loading subscription products and purchases")
             println("SubscriptionFlow: Is Horizon = $isHorizon")
             println("SubscriptionFlow: Subscription SKUs = $subscriptionSkus")
-            iapStore.setActivity(activity)
+
+            val connected = iapStore.initConnection()
+            if (connected) {
+                iapStore.setActivity(activity)
 
             // TEST: Use getActiveSubscriptions instead of getAvailablePurchases for example usage
             println("SubscriptionFlow: Testing getActiveSubscriptions...")
@@ -180,6 +186,18 @@ fun SubscriptionFlowScreen(
                     }
                 }
             }
+        } finally {
+            isInitializing = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            uiScope.launch {
+                runCatching { iapStore.endConnection() }
+                runCatching { iapStore.clear() }
+            }
+        }
     }
 
     // Tick clock to update countdown once per second
@@ -392,7 +410,7 @@ fun SubscriptionFlowScreen(
             }
             
             // Loading State
-            if (status.isLoading) {
+            if (isInitializing || status.isLoading) {
                 item {
                     LoadingCard()
                 }
@@ -1063,7 +1081,7 @@ fun SubscriptionFlowScreen(
                         }
                     )
                 }
-            } else if (!status.isLoading && androidProducts.isEmpty()) {
+            } else if (!isInitializing && !status.isLoading && androidProducts.isEmpty()) {
                 item {
                     EmptyStateCard(
                         message = "No subscription products available",
