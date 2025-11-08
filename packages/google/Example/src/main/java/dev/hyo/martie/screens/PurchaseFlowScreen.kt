@@ -26,6 +26,10 @@ import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -75,27 +79,49 @@ fun PurchaseFlowScreen(
     // Modal states
     var selectedProduct by remember { mutableStateOf<ProductAndroid?>(null) }
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
-    
-    // Initialize and connect on first composition (spec-aligned names)
-    val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch {
-            try {
-                val connected = iapStore.initConnection()
-                if (connected) {
-                    iapStore.setActivity(activity)
-                    val request = ProductRequest(
-                        skus = IapConstants.INAPP_SKUS,
-                        type = ProductQueryType.InApp
-                    )
-                    iapStore.fetchProducts(request)
-                    iapStore.getAvailablePurchases(null)
-                }
-            } catch (_: Exception) { }
-        }
+    var isInitializing by remember { mutableStateOf(true) }
+
+    // Use a dedicated scope for cleanup that won't be cancelled with composition
+    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+
+    DisposableEffect(cleanupScope) {
         onDispose {
-            // End connection and clear listeners when this screen leaves (per-screen lifecycle)
-            startupScope.launch {
+            cleanupScope.cancel()
+        }
+    }
+
+    // Initialize and connect on first composition (spec-aligned names)
+    LaunchedEffect(Unit) {
+        try {
+            val connected = iapStore.initConnection()
+            if (connected) {
+                iapStore.setActivity(activity)
+                val request = ProductRequest(
+                    skus = IapConstants.INAPP_SKUS,
+                    type = ProductQueryType.InApp
+                )
+                iapStore.fetchProducts(request)
+                iapStore.getAvailablePurchases(null)
+            } else {
+                iapStore.postStatusMessage(
+                    message = "Failed to connect to billing service",
+                    status = PurchaseResultStatus.Error
+                )
+            }
+        } catch (e: Exception) {
+            iapStore.postStatusMessage(
+                message = "Failed to initialize: ${e.message}",
+                status = PurchaseResultStatus.Error
+            )
+        } finally {
+            isInitializing = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // Use dedicated cleanup scope to avoid cancellation race
+            cleanupScope.launch {
                 runCatching { iapStore.endConnection() }
                 runCatching { iapStore.clear() }
             }
@@ -126,7 +152,7 @@ fun PurchaseFlowScreen(
                                 } catch (_: Exception) { }
                             }
                         },
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
@@ -196,7 +222,7 @@ fun PurchaseFlowScreen(
             }
             
             // Loading State
-            if (status.isLoading) {
+            if (isInitializing || status.isLoading) {
                 item {
                     LoadingCard()
                 }
@@ -286,7 +312,7 @@ fun PurchaseFlowScreen(
                         }
                     )
                 }
-            } else if (!status.isLoading) {
+            } else if (!isInitializing && !status.isLoading) {
                 item {
                     EmptyStateCard(
                         message = "No products available",
@@ -326,13 +352,13 @@ fun PurchaseFlowScreen(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Restore")
                     }
-                    
+
                     Button(
                         onClick = {
                             scope.launch {
@@ -346,7 +372,7 @@ fun PurchaseFlowScreen(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))

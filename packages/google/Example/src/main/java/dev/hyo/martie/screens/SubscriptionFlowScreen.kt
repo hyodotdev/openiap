@@ -41,8 +41,12 @@ import dev.hyo.openiap.RequestPurchasePropsByPlatforms
 import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
@@ -123,12 +127,27 @@ fun SubscriptionFlowScreen(
         IapConstants.getSubscriptionSkus()
     }
 
+    var isInitializing by remember { mutableStateOf(true) }
+
+    // Use a dedicated scope for cleanup that won't be cancelled with composition
+    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+
+    DisposableEffect(cleanupScope) {
+        onDispose {
+            cleanupScope.cancel()
+        }
+    }
+
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {
+        try {
             println("SubscriptionFlow: Loading subscription products and purchases")
             println("SubscriptionFlow: Is Horizon = $isHorizon")
             println("SubscriptionFlow: Subscription SKUs = $subscriptionSkus")
-            iapStore.setActivity(activity)
+
+            val connected = iapStore.initConnection()
+            if (connected) {
+                iapStore.setActivity(activity)
 
             // TEST: Use getActiveSubscriptions instead of getAvailablePurchases for example usage
             println("SubscriptionFlow: Testing getActiveSubscriptions...")
@@ -180,6 +199,32 @@ fun SubscriptionFlowScreen(
                     }
                 }
             }
+        } else {
+            iapStore.postStatusMessage(
+                message = "Failed to connect to billing service",
+                status = PurchaseResultStatus.Error
+            )
+        }
+        } catch (e: Exception) {
+            println("SubscriptionFlow: Initialization error: ${e.message}")
+            e.printStackTrace()
+            iapStore.postStatusMessage(
+                message = "Failed to initialize: ${e.message}",
+                status = PurchaseResultStatus.Error
+            )
+        } finally {
+            isInitializing = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // Use dedicated cleanup scope to avoid cancellation race
+            cleanupScope.launch {
+                runCatching { iapStore.endConnection() }
+                runCatching { iapStore.clear() }
+            }
+        }
     }
 
     // Tick clock to update countdown once per second
@@ -252,42 +297,7 @@ fun SubscriptionFlowScreen(
     // Modal states
     var selectedProduct by remember { mutableStateOf<ProductAndroid?>(null) }
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
-    
-    // Initialize and connect on first composition (spec-aligned names)
-    val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch {
-            try {
-                println("SubscriptionFlow: Calling initConnection...")
-                val connected = iapStore.initConnection()
-                println("SubscriptionFlow: initConnection returned: $connected")
-                if (connected) {
-                    iapStore.setActivity(activity)
-                    println("SubscriptionFlow: Loading subscription products: $subscriptionSkus")
-                    val request = ProductRequest(
-                        skus = subscriptionSkus,
-                        type = ProductQueryType.Subs
-                    )
-                    iapStore.fetchProducts(request)
-                    iapStore.getAvailablePurchases(null)
-                } else {
-                    println("SubscriptionFlow: Failed to connect to billing service")
-                }
-            } catch (e: Exception) {
-                println("SubscriptionFlow: Exception during initConnection: ${e.message}")
-                e.printStackTrace()
-            }
-        }
-        
-        onDispose {
-            // End connection and clear listeners when this screen leaves (per-screen lifecycle)
-            startupScope.launch {
-                runCatching { iapStore.endConnection() }
-                runCatching { iapStore.clear() }
-            }
-        }
-    }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -392,7 +402,7 @@ fun SubscriptionFlowScreen(
             }
             
             // Loading State
-            if (status.isLoading) {
+            if (isInitializing || status.isLoading) {
                 item {
                     LoadingCard()
                 }
@@ -1063,7 +1073,7 @@ fun SubscriptionFlowScreen(
                         }
                     )
                 }
-            } else if (!status.isLoading && androidProducts.isEmpty()) {
+            } else if (!isInitializing && !status.isLoading && androidProducts.isEmpty()) {
                 item {
                     EmptyStateCard(
                         message = "No subscription products available",

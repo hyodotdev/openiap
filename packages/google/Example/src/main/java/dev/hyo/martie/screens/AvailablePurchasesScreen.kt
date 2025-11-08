@@ -26,6 +26,10 @@ import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,20 +50,41 @@ fun AvailablePurchasesScreen(
 
     // Modal state
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
-    
-    // Initialize and connect on first composition (spec-aligned names)
-    val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch {
-            try {
-                val connected = iapStore.initConnection()
-                if (connected) {
-                    iapStore.getAvailablePurchases(null)
-                }
-            } catch (_: Exception) { }
-        }
+    var isInitializing by remember { mutableStateOf(true) }
+    var initError by remember { mutableStateOf<String?>(null) }
+
+    // Use a dedicated scope for cleanup that won't be cancelled with composition
+    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+
+    DisposableEffect(cleanupScope) {
         onDispose {
-            startupScope.launch { runCatching { iapStore.endConnection() } }
+            cleanupScope.cancel()
+        }
+    }
+
+    // Initialize and connect on first composition (spec-aligned names)
+    LaunchedEffect(Unit) {
+        try {
+            val connected = iapStore.initConnection()
+            if (connected) {
+                iapStore.getAvailablePurchases(null)
+            } else {
+                initError = "Failed to connect to billing service"
+            }
+        } catch (e: Exception) {
+            initError = e.message ?: "Failed to initialize IAP connection"
+        } finally {
+            isInitializing = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // Use dedicated cleanup scope to avoid cancellation race
+            cleanupScope.launch {
+                runCatching { iapStore.endConnection() }
+                runCatching { iapStore.clear() }
+            }
         }
     }
     
@@ -91,7 +116,7 @@ fun AvailablePurchasesScreen(
                                 }
                             }
                         },
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = "Restore")
                     }
@@ -161,12 +186,43 @@ fun AvailablePurchasesScreen(
             }
             
             // Loading State
-            if (status.isLoading) {
+            if (isInitializing || status.isLoading) {
                 item {
                     LoadingCard()
                 }
             }
-            
+
+            // Initialization Error
+            initError?.let { errorMsg ->
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = AppColors.danger.copy(alpha = 0.1f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                tint = AppColors.danger
+                            )
+                            Text(
+                                errorMsg,
+                                color = AppColors.danger,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+
             statusMessage?.let { result ->
                 item("status-message") {
                     PurchaseResultCard(
@@ -322,7 +378,7 @@ fun AvailablePurchasesScreen(
             }
             
             // Empty State
-            if (androidPurchases.isEmpty() && !status.isLoading) {
+            if (androidPurchases.isEmpty() && !isInitializing && !status.isLoading) {
                 item {
                     EmptyStateCard(
                         message = "No purchases found. Try restoring purchases from your Google account.",
@@ -394,7 +450,7 @@ fun AvailablePurchasesScreen(
                     OutlinedButton(
                         onClick = { scope.launch { iapStore.getAvailablePurchases(null) } },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -419,7 +475,7 @@ fun AvailablePurchasesScreen(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !status.isLoading
+                        enabled = !isInitializing && !status.isLoading
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
