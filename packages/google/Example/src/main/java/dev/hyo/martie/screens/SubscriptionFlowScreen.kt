@@ -129,6 +129,12 @@ fun SubscriptionFlowScreen(
 
     // Use a dedicated scope for cleanup that won't be cancelled with composition
     val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+    
+    DisposableEffect(cleanupScope) {
+        onDispose {
+            cleanupScope.coroutineContext[Job]?.cancel()
+        }
+    }
 
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {
