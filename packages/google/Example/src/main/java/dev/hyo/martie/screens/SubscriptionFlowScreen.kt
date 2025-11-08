@@ -45,6 +45,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
@@ -129,12 +130,6 @@ fun SubscriptionFlowScreen(
 
     // Use a dedicated scope for cleanup that won't be cancelled with composition
     val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
-    
-    DisposableEffect(cleanupScope) {
-        onDispose {
-            cleanupScope.coroutineContext[Job]?.cancel()
-        }
-    }
 
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {
@@ -196,12 +191,13 @@ fun SubscriptionFlowScreen(
                         }
                     }
                 }
-            } else {
-                iapStore.postStatusMessage(
-                    message = "Failed to connect to billing service",
-                    status = PurchaseResultStatus.Error
-                )
             }
+        } else {
+            iapStore.postStatusMessage(
+                message = "Failed to connect to billing service",
+                status = PurchaseResultStatus.Error
+            )
+        }
         } catch (e: Exception) {
             println("SubscriptionFlow: Initialization error: ${e.message}")
             e.printStackTrace()
@@ -294,42 +290,7 @@ fun SubscriptionFlowScreen(
     // Modal states
     var selectedProduct by remember { mutableStateOf<ProductAndroid?>(null) }
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
-    
-    // Initialize and connect on first composition (spec-aligned names)
-    val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch {
-            try {
-                println("SubscriptionFlow: Calling initConnection...")
-                val connected = iapStore.initConnection()
-                println("SubscriptionFlow: initConnection returned: $connected")
-                if (connected) {
-                    iapStore.setActivity(activity)
-                    println("SubscriptionFlow: Loading subscription products: $subscriptionSkus")
-                    val request = ProductRequest(
-                        skus = subscriptionSkus,
-                        type = ProductQueryType.Subs
-                    )
-                    iapStore.fetchProducts(request)
-                    iapStore.getAvailablePurchases(null)
-                } else {
-                    println("SubscriptionFlow: Failed to connect to billing service")
-                }
-            } catch (e: Exception) {
-                println("SubscriptionFlow: Exception during initConnection: ${e.message}")
-                e.printStackTrace()
-            }
-        }
-        
-        onDispose {
-            // End connection and clear listeners when this screen leaves (per-screen lifecycle)
-            startupScope.launch {
-                runCatching { iapStore.endConnection() }
-                runCatching { iapStore.clear() }
-            }
-        }
-    }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(

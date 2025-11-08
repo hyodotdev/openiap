@@ -193,7 +193,7 @@ fun AvailablePurchasesScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = AppColors.error.copy(alpha = 0.1f)
+                            containerColor = AppColors.danger.copy(alpha = 0.1f)
                         )
                     ) {
                         Row(
@@ -204,11 +204,11 @@ fun AvailablePurchasesScreen(
                             Icon(
                                 Icons.Default.Error,
                                 contentDescription = null,
-                                tint = AppColors.error
+                                tint = AppColors.danger
                             )
                             Text(
                                 errorMsg,
-                                color = AppColors.error,
+                                color = AppColors.danger,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
