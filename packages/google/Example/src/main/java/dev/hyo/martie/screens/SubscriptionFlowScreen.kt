@@ -44,6 +44,7 @@ import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.hyo.martie.util.findActivity
@@ -130,6 +131,12 @@ fun SubscriptionFlowScreen(
 
     // Use a dedicated scope for cleanup that won't be cancelled with composition
     val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+
+    DisposableEffect(cleanupScope) {
+        onDispose {
+            cleanupScope.cancel()
+        }
+    }
 
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {

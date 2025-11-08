@@ -29,6 +29,7 @@ import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -82,6 +83,12 @@ fun PurchaseFlowScreen(
 
     // Use a dedicated scope for cleanup that won't be cancelled with composition
     val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+
+    DisposableEffect(cleanupScope) {
+        onDispose {
+            cleanupScope.cancel()
+        }
+    }
 
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
