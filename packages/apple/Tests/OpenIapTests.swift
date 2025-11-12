@@ -239,6 +239,84 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(dictionaryPayAsYouGo["introductoryPriceSubscriptionPeriodIOS"] as? String, "month")
     }
 
+    func testErrorCodeKebabCaseInitialization() {
+        // Test kebab-case initialization (standard)
+        XCTAssertEqual(ErrorCode(rawValue: "already-owned"), .alreadyOwned)
+        XCTAssertEqual(ErrorCode(rawValue: "user-cancelled"), .userCancelled)
+        XCTAssertEqual(ErrorCode(rawValue: "item-not-owned"), .itemNotOwned)
+        XCTAssertEqual(ErrorCode(rawValue: "billing-unavailable"), .billingUnavailable)
+        XCTAssertEqual(ErrorCode(rawValue: "sku-not-found"), .skuNotFound)
+    }
+
+    func testErrorCodeCamelCaseInitialization() {
+        // Test camelCase initialization (react-native-iap compatibility)
+        XCTAssertEqual(ErrorCode(rawValue: "AlreadyOwned"), .alreadyOwned)
+        XCTAssertEqual(ErrorCode(rawValue: "UserCancelled"), .userCancelled)
+        XCTAssertEqual(ErrorCode(rawValue: "ItemNotOwned"), .itemNotOwned)
+        XCTAssertEqual(ErrorCode(rawValue: "BillingUnavailable"), .billingUnavailable)
+        XCTAssertEqual(ErrorCode(rawValue: "SkuNotFound"), .skuNotFound)
+    }
+
+    func testErrorCodeAllCasesWithBothFormats() throws {
+        // Test all error codes can be initialized with both formats
+        let testCases: [(kebab: String, camel: String, expected: ErrorCode)] = [
+            ("unknown", "Unknown", .unknown),
+            ("user-cancelled", "UserCancelled", .userCancelled),
+            ("user-error", "UserError", .userError),
+            ("item-unavailable", "ItemUnavailable", .itemUnavailable),
+            ("remote-error", "RemoteError", .remoteError),
+            ("network-error", "NetworkError", .networkError),
+            ("service-error", "ServiceError", .serviceError),
+            ("receipt-failed", "ReceiptFailed", .receiptFailed),
+            ("not-prepared", "NotPrepared", .notPrepared),
+            ("already-owned", "AlreadyOwned", .alreadyOwned),
+            ("developer-error", "DeveloperError", .developerError),
+            ("deferred-payment", "DeferredPayment", .deferredPayment),
+            ("purchase-error", "PurchaseError", .purchaseError),
+            ("sku-not-found", "SkuNotFound", .skuNotFound),
+            ("item-not-owned", "ItemNotOwned", .itemNotOwned),
+            ("billing-unavailable", "BillingUnavailable", .billingUnavailable),
+        ]
+
+        for (kebab, camel, expected) in testCases {
+            XCTAssertEqual(ErrorCode(rawValue: kebab), expected,
+                "kebab-case '\(kebab)' should map to \(expected)")
+            XCTAssertEqual(ErrorCode(rawValue: camel), expected,
+                "camelCase '\(camel)' should map to \(expected)")
+        }
+    }
+
+    func testErrorCodeInvalidValue() {
+        // Test that invalid error codes return nil
+        XCTAssertNil(ErrorCode(rawValue: "invalid-error"))
+        XCTAssertNil(ErrorCode(rawValue: "InvalidError"))
+        XCTAssertNil(ErrorCode(rawValue: "nonexistent"))
+    }
+
+    func testErrorCodeJSONDecoding() throws {
+        // Test decoding from JSON with camelCase (react-native-iap format)
+        let jsonCamel = """
+        {
+            "code": "AlreadyOwned",
+            "message": "Item is already owned"
+        }
+        """
+        let errorCamel = try JSONDecoder().decode(PurchaseError.self, from: jsonCamel.data(using: .utf8)!)
+        XCTAssertEqual(errorCamel.code, .alreadyOwned)
+        XCTAssertEqual(errorCamel.message, "Item is already owned")
+
+        // Test decoding from JSON with kebab-case (standard format)
+        let jsonKebab = """
+        {
+            "code": "already-owned",
+            "message": "Item is already owned"
+        }
+        """
+        let errorKebab = try JSONDecoder().decode(PurchaseError.self, from: jsonKebab.data(using: .utf8)!)
+        XCTAssertEqual(errorKebab.code, .alreadyOwned)
+        XCTAssertEqual(errorKebab.message, "Item is already owned")
+    }
+
     // MARK: - Helpers
 
     private func makeSampleProduct() -> ProductIOS {
