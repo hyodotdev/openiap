@@ -267,6 +267,49 @@ type RequestPurchaseProps =
           </p>
         </blockquote>
 
+        <AnchorLink id="handling-resubscription" level="h4">
+          Handling Resubscription (Cancelled Subscriptions)
+        </AnchorLink>
+        <p>
+          When a user cancels their subscription, it remains active until the
+          expiration date. During this period, the user can resubscribe.
+          Starting from openiap-apple 1.2.34, the library automatically allows
+          resubscription for cancelled subscriptions.
+        </p>
+        <CodeBlock language="typescript">{`// Check if subscription is cancelled but still active
+const subscriptions = await getActiveSubscriptions(['premium_monthly']);
+const subscription = subscriptions[0];
+
+if (subscription?.renewalInfoIOS?.willAutoRenew === false) {
+  // Subscription is cancelled - user can resubscribe
+  console.log('Subscription cancelled, showing resubscribe button');
+
+  try {
+    // This will now succeed even though subscription is still active
+    await requestPurchase({
+      params: { ios: { sku: 'premium_monthly' } },
+      type: 'subs'
+    });
+  } catch (error) {
+    if (error.code === 'already-owned') {
+      // Only thrown if subscription is active AND will auto-renew
+      console.log('Subscription is already active and will renew');
+    }
+  }
+} else if (subscription) {
+  // Subscription is active and will auto-renew
+  console.log('Subscription is active');
+}`}</CodeBlock>
+        <blockquote className="info-note">
+          <p>
+            <strong>Behavior:</strong> The <code>already-owned</code> error is
+            only thrown when a subscription is <strong>both</strong> active and
+            will auto-renew. If a user has cancelled their subscription (
+            <code>willAutoRenew = false</code>), they can resubscribe
+            immediately without waiting for expiration.
+          </p>
+        </blockquote>
+
         <AnchorLink id="android-alternative-billing" level="h4">
           Android Alternative Billing
         </AnchorLink>

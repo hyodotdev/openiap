@@ -201,15 +201,47 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     }
 
                     if isActive {
-                        OpenIapLog.debug("""
-                            ⚠️ [requestPurchase] Subscription already owned:
-                            - SKU: \(sku)
-                            - Transaction ID: \(transaction.id)
-                            - Expiration: \(transaction.expirationDate?.description ?? "none")
-                            """)
-                        let error = makePurchaseError(code: .alreadyOwned, productId: sku)
-                        emitPurchaseError(error)
-                        throw error
+                        // Check if subscription is cancelled (will not auto-renew)
+                        // If cancelled, allow repurchase even though subscription is still active
+                        var willAutoRenew = true
+                        if let subscription = product.subscription {
+                            do {
+                                let statuses = try await subscription.status
+                                if let status = statuses.first {
+                                    switch status.renewalInfo {
+                                    case .verified(let info):
+                                        willAutoRenew = info.willAutoRenew
+                                    case .unverified:
+                                        willAutoRenew = true
+                                    }
+                                }
+                            } catch {
+                                OpenIapLog.debug("⚠️ Failed to check renewal status: \(error.localizedDescription)")
+                            }
+                        }
+
+                        // Only block purchase if subscription is active AND will auto-renew
+                        // Allow purchase if user has cancelled their subscription (willAutoRenew = false)
+                        if willAutoRenew {
+                            OpenIapLog.debug("""
+                                ⚠️ [requestPurchase] Subscription already owned:
+                                - SKU: \(sku)
+                                - Transaction ID: \(transaction.id)
+                                - Expiration: \(transaction.expirationDate?.description ?? "none")
+                                - Will Auto-Renew: \(willAutoRenew)
+                                """)
+                            let error = makePurchaseError(code: .alreadyOwned, productId: sku)
+                            emitPurchaseError(error)
+                            throw error
+                        } else {
+                            OpenIapLog.debug("""
+                                ✅ [requestPurchase] Allowing repurchase of cancelled subscription:
+                                - SKU: \(sku)
+                                - Transaction ID: \(transaction.id)
+                                - Expiration: \(transaction.expirationDate?.description ?? "none")
+                                - Will Auto-Renew: \(willAutoRenew)
+                                """)
+                        }
                     }
                 } catch let purchaseError as PurchaseError {
                     // Always emit error for library user to handle
