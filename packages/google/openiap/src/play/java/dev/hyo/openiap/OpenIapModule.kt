@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -863,11 +862,11 @@ class OpenIapModule(
     }
 
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<BillingPurchase>?) {
-        Log.d(TAG, "onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}")
+        OpenIapLog.d("onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}", TAG)
         purchases?.forEachIndexed { index, purchase ->
-            Log.d(
-                TAG,
-                "[Purchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}"
+            OpenIapLog.d(
+                "[Purchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}",
+                TAG
             )
         }
 
@@ -895,10 +894,10 @@ class OpenIapModule(
                         null
                     }
 
-                    Log.d(TAG, "Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})")
+                    OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
                     purchase.toPurchase(productType, basePlanId)
                 }
-                Log.d(TAG, "Mapped purchases=${gson.toJson(mapped)}")
+                OpenIapLog.d("Mapped purchases=${gson.toJson(mapped)}", TAG)
                 mapped.forEach { converted ->
                     purchaseUpdateListeners.forEach { listener ->
                         runCatching { listener.onPurchaseUpdated(converted) }
@@ -907,7 +906,7 @@ class OpenIapModule(
                 currentPurchaseCallback?.invoke(Result.success(mapped))
             } else {
                 // Purchases is null - likely DEFERRED mode
-                Log.d(TAG, "Purchase successful but purchases list is null (DEFERRED mode)")
+                OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
                 currentPurchaseCallback?.invoke(Result.success(emptyList()))
             }
         } else {
@@ -1079,7 +1078,7 @@ class OpenIapModule(
             }
 
             override fun onBillingServiceDisconnected() {
-                Log.i(TAG, "Billing service disconnected")
+                OpenIapLog.i("Billing service disconnected", TAG)
             }
         })
     }
