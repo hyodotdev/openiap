@@ -103,6 +103,9 @@ class OpenIapModule(
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
 
+    // Cache for offerToken -> basePlanId mapping to preserve basePlanId info
+    private val offerTokenToBasePlanIdCache = mutableMapOf<String, String>()
+
     override val initConnection: MutationInitConnectionHandler = { config ->
         // Update alternativeBillingMode if provided in config
         config?.alternativeBillingModeAndroid?.let { modeAndroid ->
@@ -213,7 +216,19 @@ class OpenIapModule(
             } else {
                 androidPurchases.filter { it.productId in ids }
             }
-            filtered.map { it.toActiveSubscription() }
+
+            // Enrich purchases with basePlanId from ProductDetails cache
+            filtered.map { purchase ->
+                val productDetails = productManager.get(purchase.productId)
+                val basePlanId = productDetails?.subscriptionOfferDetails?.firstOrNull()?.basePlanId
+
+                // If basePlanId is available and not already set, update the purchase
+                if (basePlanId != null && purchase.currentPlanId == null) {
+                    purchase.copy(currentPlanId = basePlanId).toActiveSubscription()
+                } else {
+                    purchase.toActiveSubscription()
+                }
+            }
         }
     }
 
@@ -546,6 +561,13 @@ class OpenIapModule(
                                 return
                             }
 
+                            // Cache basePlanId for this offerToken
+                            val selectedOffer = productDetails.subscriptionOfferDetails?.find { it.offerToken == resolved }
+                            selectedOffer?.let { offer ->
+                                offerTokenToBasePlanIdCache[resolved] = offer.basePlanId
+                                OpenIapLog.d("Cached basePlanId '${offer.basePlanId}' for offerToken '$resolved'", TAG)
+                            }
+
                             builder.setOfferToken(resolved)
                         }
 
@@ -865,8 +887,16 @@ class OpenIapModule(
                             BillingClient.ProductType.INAPP
                         }
                     }
-                    Log.d(TAG, "Mapping purchase products=${purchase.products} to type=$productType (cached=${cached != null})")
-                    purchase.toPurchase(productType)
+
+                    // Extract basePlanId from ProductDetails for subscriptions
+                    val basePlanId = if (productType == BillingClient.ProductType.SUBS) {
+                        cached?.subscriptionOfferDetails?.firstOrNull()?.basePlanId
+                    } else {
+                        null
+                    }
+
+                    Log.d(TAG, "Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})")
+                    purchase.toPurchase(productType, basePlanId)
                 }
                 Log.d(TAG, "Mapped purchases=${gson.toJson(mapped)}")
                 mapped.forEach { converted ->

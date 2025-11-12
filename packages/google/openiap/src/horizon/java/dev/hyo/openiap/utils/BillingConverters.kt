@@ -95,13 +95,14 @@ internal object HorizonBillingConverters {
         )
     }
 
-    fun HorizonPurchase.toPurchase(): PurchaseAndroid {
+    fun HorizonPurchase.toPurchase(basePlanId: String? = null): PurchaseAndroid {
         val token = purchaseToken
         val productsList = products ?: emptyList()
         val state = PurchaseState.fromHorizonState(getPurchaseState())
 
         return PurchaseAndroid(
             autoRenewingAndroid = isAutoRenewing(),
+            currentPlanId = basePlanId,
             dataAndroid = originalJson,
             developerPayloadAndroid = developerPayload,
             id = orderId ?: token,
@@ -124,20 +125,26 @@ internal object HorizonBillingConverters {
 
     fun HorizonPurchase.toActiveSubscription(): ActiveSubscription = ActiveSubscription(
         autoRenewingAndroid = isAutoRenewing(),
+        basePlanIdAndroid = null,
+        currentPlanId = null,
         isActive = true,
         productId = products?.firstOrNull().orEmpty(),
         purchaseToken = purchaseToken,
+        purchaseTokenAndroid = purchaseToken,
         transactionDate = (purchaseTime ?: 0L).toDouble(),
         transactionId = orderId ?: purchaseToken
     )
 
     fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscription(
         autoRenewingAndroid = autoRenewingAndroid,
+        basePlanIdAndroid = currentPlanId,
+        currentPlanId = currentPlanId,
         isActive = true,
         productId = productId,
-        purchaseToken = purchaseToken.orEmpty(),
+        purchaseToken = purchaseToken,
+        purchaseTokenAndroid = purchaseToken,
         transactionDate = transactionDate,
-        transactionId = transactionId.orEmpty()
+        transactionId = id
     )
 }
 

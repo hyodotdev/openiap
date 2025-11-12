@@ -97,10 +97,11 @@ internal object BillingConverters {
         )
     }
 
-    fun BillingPurchase.toPurchase(productType: String): PurchaseAndroid {
+    fun BillingPurchase.toPurchase(productType: String, basePlanId: String? = null): PurchaseAndroid {
         val state = PurchaseState.fromBillingState(purchaseState)
         return PurchaseAndroid(
             autoRenewingAndroid = isAutoRenewing,
+            currentPlanId = basePlanId,
             dataAndroid = originalJson,
             developerPayloadAndroid = developerPayload,
             id = orderId ?: purchaseToken,
@@ -132,9 +133,12 @@ fun PurchaseState.Companion.fromBillingState(state: Int): PurchaseState = when (
 
 fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscription(
     autoRenewingAndroid = autoRenewingAndroid,
+    basePlanIdAndroid = currentPlanId,
+    currentPlanId = currentPlanId,
     isActive = true,
     productId = productId,
     purchaseToken = purchaseToken,
+    purchaseTokenAndroid = purchaseToken,
     transactionDate = transactionDate,
     transactionId = id
 )
