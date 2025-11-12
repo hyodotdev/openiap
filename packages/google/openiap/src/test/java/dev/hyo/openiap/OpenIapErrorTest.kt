@@ -353,4 +353,52 @@ class OpenIapErrorTest {
         assertEquals("Purchase failed", OpenIapError.defaultMessage(ErrorCode.PurchaseError.rawValue))
         assertEquals("Unknown error occurred", OpenIapError.defaultMessage("non-existent-code"))
     }
+
+    @Test
+    fun `ErrorCode fromJson handles kebab-case format`() {
+        // Test kebab-case (standard format)
+        assertEquals(ErrorCode.AlreadyOwned, ErrorCode.fromJson("already-owned"))
+        assertEquals(ErrorCode.UserCancelled, ErrorCode.fromJson("user-cancelled"))
+        assertEquals(ErrorCode.ItemNotOwned, ErrorCode.fromJson("item-not-owned"))
+        assertEquals(ErrorCode.BillingUnavailable, ErrorCode.fromJson("billing-unavailable"))
+        assertEquals(ErrorCode.SkuNotFound, ErrorCode.fromJson("sku-not-found"))
+    }
+
+    @Test
+    fun `ErrorCode fromJson handles camelCase format for react-native-iap compatibility`() {
+        // Test camelCase (react-native-iap format)
+        assertEquals(ErrorCode.AlreadyOwned, ErrorCode.fromJson("AlreadyOwned"))
+        assertEquals(ErrorCode.UserCancelled, ErrorCode.fromJson("UserCancelled"))
+        assertEquals(ErrorCode.ItemNotOwned, ErrorCode.fromJson("ItemNotOwned"))
+        assertEquals(ErrorCode.BillingUnavailable, ErrorCode.fromJson("BillingUnavailable"))
+        assertEquals(ErrorCode.SkuNotFound, ErrorCode.fromJson("SkuNotFound"))
+    }
+
+    @Test
+    fun `ErrorCode fromJson handles all codes with both formats`() {
+        val testCases = listOf(
+            "unknown" to "Unknown",
+            "user-cancelled" to "UserCancelled",
+            "user-error" to "UserError",
+            "item-unavailable" to "ItemUnavailable",
+            "remote-error" to "RemoteError",
+            "network-error" to "NetworkError",
+            "service-error" to "ServiceError",
+            "receipt-failed" to "ReceiptFailed",
+            "not-prepared" to "NotPrepared",
+            "already-owned" to "AlreadyOwned",
+            "developer-error" to "DeveloperError",
+            "deferred-payment" to "DeferredPayment",
+            "purchase-error" to "PurchaseError",
+            "sku-not-found" to "SkuNotFound",
+            "item-not-owned" to "ItemNotOwned",
+            "billing-unavailable" to "BillingUnavailable"
+        )
+
+        for ((kebab, camel) in testCases) {
+            val fromKebab = ErrorCode.fromJson(kebab)
+            val fromCamel = ErrorCode.fromJson(camel)
+            assertEquals("Both formats should parse to same ErrorCode", fromKebab, fromCamel)
+        }
+    }
 }

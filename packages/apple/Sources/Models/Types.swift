@@ -55,6 +55,84 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case billingUnavailable = "billing-unavailable"
     case featureNotSupported = "feature-not-supported"
     case emptySkuList = "empty-sku-list"
+
+    /// Custom initializer to handle both kebab-case and camelCase error codes
+    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase
+    public init?(rawValue: String) {
+        // Try direct match first (kebab-case)
+        switch rawValue {
+        case "unknown", "Unknown":
+            self = .unknown
+        case "user-cancelled", "UserCancelled":
+            self = .userCancelled
+        case "user-error", "UserError":
+            self = .userError
+        case "item-unavailable", "ItemUnavailable":
+            self = .itemUnavailable
+        case "remote-error", "RemoteError":
+            self = .remoteError
+        case "network-error", "NetworkError":
+            self = .networkError
+        case "service-error", "ServiceError":
+            self = .serviceError
+        case "receipt-failed", "ReceiptFailed":
+            self = .receiptFailed
+        case "receipt-finished", "ReceiptFinished":
+            self = .receiptFinished
+        case "receipt-finished-failed", "ReceiptFinishedFailed":
+            self = .receiptFinishedFailed
+        case "not-prepared", "NotPrepared":
+            self = .notPrepared
+        case "not-ended", "NotEnded":
+            self = .notEnded
+        case "already-owned", "AlreadyOwned":
+            self = .alreadyOwned
+        case "developer-error", "DeveloperError":
+            self = .developerError
+        case "billing-response-json-parse-error", "BillingResponseJsonParseError":
+            self = .billingResponseJsonParseError
+        case "deferred-payment", "DeferredPayment":
+            self = .deferredPayment
+        case "interrupted", "Interrupted":
+            self = .interrupted
+        case "iap-not-available", "IapNotAvailable":
+            self = .iapNotAvailable
+        case "purchase-error", "PurchaseError":
+            self = .purchaseError
+        case "sync-error", "SyncError":
+            self = .syncError
+        case "transaction-validation-failed", "TransactionValidationFailed":
+            self = .transactionValidationFailed
+        case "activity-unavailable", "ActivityUnavailable":
+            self = .activityUnavailable
+        case "already-prepared", "AlreadyPrepared":
+            self = .alreadyPrepared
+        case "pending", "Pending":
+            self = .pending
+        case "connection-closed", "ConnectionClosed":
+            self = .connectionClosed
+        case "init-connection", "InitConnection":
+            self = .initConnection
+        case "service-disconnected", "ServiceDisconnected":
+            self = .serviceDisconnected
+        case "query-product", "QueryProduct":
+            self = .queryProduct
+        case "sku-not-found", "SkuNotFound":
+            self = .skuNotFound
+        case "sku-offer-mismatch", "SkuOfferMismatch":
+            self = .skuOfferMismatch
+        case "item-not-owned", "ItemNotOwned":
+            self = .itemNotOwned
+        case "billing-unavailable", "BillingUnavailable":
+            self = .billingUnavailable
+        case "feature-not-supported", "FeatureNotSupported":
+            self = .featureNotSupported
+        case "empty-sku-list", "EmptySkuList":
+            self = .emptySkuList
+        default:
+            return nil
+        }
+    }
 }
 
 /// User actions on external purchase notice sheet (iOS 18.2+)

@@ -306,6 +306,28 @@ const printEnum = (enumType) => {
     lines.push(`    case ${caseName} = "${rawValue}"`);
     if (index === values.length - 1) return;
   });
+
+  // Add custom initializer for ErrorCode to handle both kebab-case and camelCase
+  if (enumType.name === 'ErrorCode') {
+    lines.push('');
+    lines.push('    /// Custom initializer to handle both kebab-case and camelCase error codes');
+    lines.push('    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase');
+    lines.push('    public init?(rawValue: String) {');
+    lines.push('        // Try direct match first (kebab-case)');
+    lines.push('        switch rawValue {');
+    values.forEach((value) => {
+      const caseName = escapeSwiftName(lowerCamelCase(value.name));
+      const rawValue = toKebabCase(value.name);
+      const camelCaseName = value.name.charAt(0).toUpperCase() + value.name.slice(1);
+      lines.push(`        case "${rawValue}", "${camelCaseName}":`);
+      lines.push(`            self = .${caseName}`);
+    });
+    lines.push('        default:');
+    lines.push('            return nil');
+    lines.push('        }');
+    lines.push('    }');
+  }
+
   lines.push('}', '');
 };
 
