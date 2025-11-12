@@ -1189,6 +1189,131 @@ if (paymentSuccess) {
           }}
         </PlatformTabs>
       </section>
+
+      <section>
+        <AnchorLink id="debugging-logging" level="h2">
+          Debugging & Logging
+        </AnchorLink>
+        <p>
+          Enable verbose logging to see internal operations, warnings, and debug
+          information. This is especially useful during development to diagnose
+          issues and understand library behavior.
+        </p>
+
+        <AnchorLink id="enable-logging" level="h3">
+          Enable Logging
+        </AnchorLink>
+        <p>
+          Logging is <strong>disabled by default</strong> in production. Enable
+          it only during development to see detailed logs.
+        </p>
+
+        <PlatformTabs>
+          {{
+            ios: (
+              <CodeBlock language="swift">{`// Enable logging for debug builds only
+#if DEBUG
+OpenIapLog.enable(true)
+#endif
+
+// Or enable unconditionally
+OpenIapLog.enable(true)
+
+// Disable logging
+OpenIapLog.enable(false)`}</CodeBlock>
+            ),
+            android: (
+              <CodeBlock language="kotlin">{`// Enable logging for debug builds only
+if (BuildConfig.DEBUG) {
+    OpenIapLog.enable(true)
+}
+
+// Or enable unconditionally
+OpenIapLog.enable(true)
+
+// Disable logging
+OpenIapLog.enable(false)`}</CodeBlock>
+            ),
+          }}
+        </PlatformTabs>
+
+        <AnchorLink id="common-warnings" level="h3">
+          Common Warnings
+        </AnchorLink>
+        <p>
+          When logging is enabled, you may see warnings about specific
+          scenarios:
+        </p>
+
+        <h4>Multiple Subscription Offers</h4>
+        <blockquote className="info-note">
+          <p>
+            <strong>Warning:</strong>{' '}
+            <code>
+              Multiple offers (3) found for premium_subscription, using first
+              basePlanId (may be inaccurate)
+            </code>
+          </p>
+        </blockquote>
+        <p>
+          This warning appears when a subscription product has multiple offers
+          (e.g., monthly, annual, promotional). Due to Google Play Billing
+          Library limitations, the <code>Purchase</code> object doesn't expose
+          which specific offer was purchased. The library uses the first offer's{' '}
+          <code>basePlanId</code> as a best-effort approach.
+        </p>
+
+        <p>
+          <strong>Impact:</strong> The <code>currentPlanId</code> field in{' '}
+          <code>PurchaseAndroid</code> and <code>basePlanIdAndroid</code> in{' '}
+          <code>ActiveSubscription</code> may be inaccurate if users purchase
+          different offers.
+        </p>
+
+        <p>
+          <strong>Solutions:</strong>
+        </p>
+        <ul>
+          <li>
+            <strong>Backend Validation</strong> (Recommended): Use Google Play
+            Developer API's{' '}
+            <code>purchases.subscriptionsv2:get</code> endpoint with the{' '}
+            <code>purchaseToken</code> to get accurate{' '}
+            <code>basePlanId</code> and <code>offerId</code>
+          </li>
+          <li>
+            <strong>Single Offer</strong>: Design your subscription products
+            with a single offer per product (most common approach)
+          </li>
+          <li>
+            <strong>Offer Tags</strong>: Use offer tags in Google Play Console
+            to help identify offers, though this doesn't solve the client-side
+            tracking issue
+          </li>
+        </ul>
+
+        <CodeBlock language="kotlin">{`// Example: Backend validation to get accurate basePlanId
+// GET https://androidpublisher.googleapis.com/androidpublisher/v3/
+//     applications/{packageName}/purchases/subscriptionsv2/tokens/{token}
+//
+// Response includes:
+// {
+//   "lineItems": [{
+//     "offerDetails": {
+//       "basePlanId": "premium-annual",  // Accurate!
+//       "offerId": "intro-offer"
+//     }
+//   }]
+// }`}</CodeBlock>
+
+        <blockquote className="info-note">
+          <p>
+            <strong>Note:</strong> This limitation only affects products with
+            multiple offers. If your subscription has a single offer (the most
+            common case), the <code>basePlanId</code> will always be accurate.
+          </p>
+        </blockquote>
+      </section>
     </div>
   );
 }
