@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -213,7 +212,23 @@ class OpenIapModule(
             } else {
                 androidPurchases.filter { it.productId in ids }
             }
-            filtered.map { it.toActiveSubscription() }
+
+            // Enrich purchases with basePlanId from ProductDetails cache
+            filtered.map { purchase ->
+                val productDetails = productManager.get(purchase.productId)
+                val offers = productDetails?.subscriptionOfferDetails.orEmpty()
+                if (offers.size > 1) {
+                    OpenIapLog.w("Multiple offers (${offers.size}) found for ${purchase.productId}, using first basePlanId (may be inaccurate)", TAG)
+                }
+                val basePlanId = offers.firstOrNull()?.basePlanId
+
+                // If basePlanId is available and not already set, update the purchase
+                if (basePlanId != null && purchase.currentPlanId == null) {
+                    purchase.copy(currentPlanId = basePlanId).toActiveSubscription()
+                } else {
+                    purchase.toActiveSubscription()
+                }
+            }
         }
     }
 
@@ -841,11 +856,11 @@ class OpenIapModule(
     }
 
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<BillingPurchase>?) {
-        Log.d(TAG, "onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}")
+        OpenIapLog.d("onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}", TAG)
         purchases?.forEachIndexed { index, purchase ->
-            Log.d(
-                TAG,
-                "[Purchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}"
+            OpenIapLog.d(
+                "[Purchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}",
+                TAG
             )
         }
 
@@ -865,10 +880,22 @@ class OpenIapModule(
                             BillingClient.ProductType.INAPP
                         }
                     }
-                    Log.d(TAG, "Mapping purchase products=${purchase.products} to type=$productType (cached=${cached != null})")
-                    purchase.toPurchase(productType)
+
+                    // Extract basePlanId from ProductDetails for subscriptions
+                    val basePlanId = if (productType == BillingClient.ProductType.SUBS) {
+                        val offers = cached?.subscriptionOfferDetails.orEmpty()
+                        if (offers.size > 1) {
+                            OpenIapLog.w("Multiple offers (${offers.size}) found for ${firstProductId}, using first basePlanId (may be inaccurate)", TAG)
+                        }
+                        offers.firstOrNull()?.basePlanId
+                    } else {
+                        null
+                    }
+
+                    OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
+                    purchase.toPurchase(productType, basePlanId)
                 }
-                Log.d(TAG, "Mapped purchases=${gson.toJson(mapped)}")
+                OpenIapLog.d("Mapped purchases=${gson.toJson(mapped)}", TAG)
                 mapped.forEach { converted ->
                     purchaseUpdateListeners.forEach { listener ->
                         runCatching { listener.onPurchaseUpdated(converted) }
@@ -877,7 +904,7 @@ class OpenIapModule(
                 currentPurchaseCallback?.invoke(Result.success(mapped))
             } else {
                 // Purchases is null - likely DEFERRED mode
-                Log.d(TAG, "Purchase successful but purchases list is null (DEFERRED mode)")
+                OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
                 currentPurchaseCallback?.invoke(Result.success(emptyList()))
             }
         } else {
@@ -1049,7 +1076,7 @@ class OpenIapModule(
             }
 
             override fun onBillingServiceDisconnected() {
-                Log.i(TAG, "Billing service disconnected")
+                OpenIapLog.i("Billing service disconnected", TAG)
             }
         })
     }

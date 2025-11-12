@@ -406,6 +406,35 @@ const apiData: ApiItem[] = [
     description: 'Error codes and error handling',
     path: '/docs/errors',
   },
+
+  // Debugging & Logging
+  {
+    id: 'debugging-logging',
+    title: 'Debugging & Logging',
+    category: 'Debugging',
+    description: 'Enable verbose logging for development',
+    parameters: '',
+    returns: '',
+    path: '/docs/apis#debugging-logging',
+  },
+  {
+    id: 'enable-logging',
+    title: 'Enable Logging',
+    category: 'Debugging',
+    description: 'Enable or disable debug logs',
+    parameters: 'Boolean',
+    returns: '',
+    path: '/docs/apis#enable-logging',
+  },
+  {
+    id: 'multiple-offers-warning',
+    title: 'Multiple Subscription Offers',
+    category: 'Debugging',
+    description: 'Understanding basePlanId limitations with multiple offers',
+    parameters: '',
+    returns: '',
+    path: '/docs/apis#common-warnings',
+  },
 ];
 
 function SearchModal({ isOpen, onClose }: SearchModalProps) {
