@@ -713,9 +713,21 @@ class OpenIapModule(
                             BillingClient.ProductType.INAPP
                         }
                     }
-                    OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$type (cached=${cachedProduct != null})", TAG)
 
-                    val converted = purchase.toPurchase()
+                    // Extract basePlanId from ProductDetails for subscriptions
+                    val basePlanId = if (type == BillingClient.ProductType.SUBS) {
+                        val offers = cachedProduct?.subscriptionOfferDetails.orEmpty()
+                        if (offers.size > 1) {
+                            OpenIapLog.w("Multiple offers (${offers.size}) found for ${firstProductId}, using first basePlanId (may be inaccurate)", TAG)
+                        }
+                        offers.firstOrNull()?.basePlanId
+                    } else {
+                        null
+                    }
+
+                    OpenIapLog.d("Mapping purchase products=${purchase.products} to type=$type basePlanId=$basePlanId (cached=${cachedProduct != null})", TAG)
+
+                    val converted = purchase.toPurchase(basePlanId)
                     OpenIapLog.d("Converted purchase: productId=${converted.productId}, acknowledged=${purchase.isAcknowledged()}", TAG)
                     converted
                 }

@@ -102,9 +102,6 @@ class OpenIapModule(
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
 
-    // Cache for offerToken -> basePlanId mapping to preserve basePlanId info
-    private val offerTokenToBasePlanIdCache = mutableMapOf<String, String>()
-
     override val initConnection: MutationInitConnectionHandler = { config ->
         // Update alternativeBillingMode if provided in config
         config?.alternativeBillingModeAndroid?.let { modeAndroid ->
@@ -219,7 +216,11 @@ class OpenIapModule(
             // Enrich purchases with basePlanId from ProductDetails cache
             filtered.map { purchase ->
                 val productDetails = productManager.get(purchase.productId)
-                val basePlanId = productDetails?.subscriptionOfferDetails?.firstOrNull()?.basePlanId
+                val offers = productDetails?.subscriptionOfferDetails.orEmpty()
+                if (offers.size > 1) {
+                    OpenIapLog.w("Multiple offers (${offers.size}) found for ${purchase.productId}, using first basePlanId (may be inaccurate)", TAG)
+                }
+                val basePlanId = offers.firstOrNull()?.basePlanId
 
                 // If basePlanId is available and not already set, update the purchase
                 if (basePlanId != null && purchase.currentPlanId == null) {
@@ -560,13 +561,6 @@ class OpenIapModule(
                                 return
                             }
 
-                            // Cache basePlanId for this offerToken
-                            val selectedOffer = productDetails.subscriptionOfferDetails?.find { it.offerToken == resolved }
-                            selectedOffer?.let { offer ->
-                                offerTokenToBasePlanIdCache[resolved] = offer.basePlanId
-                                OpenIapLog.d("Cached basePlanId '${offer.basePlanId}' for offerToken '$resolved'", TAG)
-                            }
-
                             builder.setOfferToken(resolved)
                         }
 
@@ -889,7 +883,11 @@ class OpenIapModule(
 
                     // Extract basePlanId from ProductDetails for subscriptions
                     val basePlanId = if (productType == BillingClient.ProductType.SUBS) {
-                        cached?.subscriptionOfferDetails?.firstOrNull()?.basePlanId
+                        val offers = cached?.subscriptionOfferDetails.orEmpty()
+                        if (offers.size > 1) {
+                            OpenIapLog.w("Multiple offers (${offers.size}) found for ${firstProductId}, using first basePlanId (may be inaccurate)", TAG)
+                        }
+                        offers.firstOrNull()?.basePlanId
                     } else {
                         null
                     }
