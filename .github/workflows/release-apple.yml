@@ -96,7 +96,25 @@ jobs:
           echo "No version changes to commit"
         else
           git commit -m "chore(apple): bump version to $VERSION"
-          git push origin main
+
+          # Pull latest changes before pushing
+          git pull --rebase origin main || true
+
+          # Retry push up to 3 times with exponential backoff
+          for i in 1 2 3; do
+            if git push origin main; then
+              echo "✅ Successfully pushed version update"
+              break
+            else
+              if [ $i -lt 3 ]; then
+                echo "⚠️ Push failed, retrying in $((i * 2)) seconds..."
+                sleep $((i * 2))
+              else
+                echo "❌ Failed to push after 3 attempts"
+                exit 1
+              fi
+            fi
+          done
         fi
 
     - name: Select Xcode
