@@ -63,7 +63,16 @@ internal suspend fun queryPurchases(
     val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
     billingClient.queryPurchasesAsync(params) { result, purchaseList ->
         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-            val mapped = purchaseList.map { it.toPurchase(productType) }
+            val mapped = purchaseList.map { billingPurchase ->
+                // IMPORTANT: Google Play Billing Library does not include basePlanId in the Purchase object
+                // The only way to get basePlanId is through:
+                // 1. Server-side Google Play Developer API (purchases.subscriptionsv2:get)
+                // 2. Tracking it when the purchase is made (from ProductDetails.SubscriptionOfferDetails)
+                //
+                // For now, we pass null and rely on the ProductDetails cache enrichment in getActiveSubscriptions
+                // This is a known limitation of the client-side Billing Library
+                billingPurchase.toPurchase(productType, null)
+            }
             continuation.resume(mapped)
         } else {
             continuation.resume(emptyList())

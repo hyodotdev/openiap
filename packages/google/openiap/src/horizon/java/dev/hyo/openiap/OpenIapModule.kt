@@ -265,11 +265,50 @@ class OpenIapModule(
             }
 
             OpenIapLog.i("Filtered subscriptions count: ${filtered.size}", TAG)
-            val activeSubscriptions = filtered.map { it.toActiveSubscription() }
+
+            // Enrich purchases with basePlanId from ProductDetails
+            // If not in cache, query from Horizon Billing to ensure we have the latest data
+            // First, collect all unique product IDs that need ProductDetails
+            val productIdsNeedingDetails = filtered
+                .map { it.productId }
+                .distinct()
+                .filter { productManager.get(it, BillingClient.ProductType.SUBS) == null }
+
+            // Batch query missing ProductDetails to minimize API calls
+            if (productIdsNeedingDetails.isNotEmpty()) {
+                try {
+                    queryProductDetailsHorizon(
+                        billingClient,
+                        productManager,
+                        productIdsNeedingDetails,
+                        BillingClient.ProductType.SUBS
+                    )
+                } catch (e: Exception) {
+                    OpenIapLog.w("Failed to query ProductDetails for missing products: ${e.message}", TAG)
+                }
+            }
+
+            // Now enrich purchases with cached ProductDetails
+            val activeSubscriptions = filtered.map { purchase ->
+                val productDetails = productManager.get(purchase.productId, BillingClient.ProductType.SUBS)
+                val offers = productDetails?.subscriptionOfferDetails.orEmpty()
+                if (offers.size > 1) {
+                    OpenIapLog.w("Multiple offers (${offers.size}) found for ${purchase.productId}, using first basePlanId (may be inaccurate)", TAG)
+                }
+                val basePlanId = offers.firstOrNull()?.basePlanId
+
+                // If basePlanId is available and not already set, update the purchase
+                if (basePlanId != null && purchase.currentPlanId == null) {
+                    purchase.copy(currentPlanId = basePlanId).toActiveSubscription()
+                } else {
+                    purchase.toActiveSubscription()
+                }
+            }
 
             activeSubscriptions.forEachIndexed { index, sub ->
                 OpenIapLog.i(
                     "  [$index] productId=${sub.productId} " +
+                    "basePlanId=${sub.basePlanIdAndroid} " +
                     "isActive=${sub.isActive} " +
                     "autoRenewing=${sub.autoRenewingAndroid}",
                     TAG

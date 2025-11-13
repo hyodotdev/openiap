@@ -213,7 +213,29 @@ class OpenIapModule(
                 androidPurchases.filter { it.productId in ids }
             }
 
-            // Enrich purchases with basePlanId from ProductDetails cache
+            // Enrich purchases with basePlanId from ProductDetails
+            // If not in cache, query from Google Play to ensure we have the latest data
+            // First, collect all unique product IDs that need ProductDetails
+            val productIdsNeedingDetails = filtered
+                .map { it.productId }
+                .distinct()
+                .filter { productManager.get(it) == null }
+
+            // Batch query missing ProductDetails to minimize API calls
+            if (productIdsNeedingDetails.isNotEmpty()) {
+                try {
+                    queryProductDetails(
+                        billingClient,
+                        productManager,
+                        productIdsNeedingDetails,
+                        BillingClient.ProductType.SUBS
+                    )
+                } catch (e: Exception) {
+                    OpenIapLog.w("Failed to query ProductDetails for missing products: ${e.message}", TAG)
+                }
+            }
+
+            // Now enrich purchases with cached ProductDetails
             filtered.map { purchase ->
                 val productDetails = productManager.get(purchase.productId)
                 val offers = productDetails?.subscriptionOfferDetails.orEmpty()
