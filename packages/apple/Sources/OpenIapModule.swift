@@ -588,7 +588,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     continue
                 }
                 let expiration = transaction.expirationDate
-                let isActive = expiration.map { $0 > Date() } ?? true
+                // If expiration date is nil, treat as inactive (expired or invalid)
+                // This prevents treating subscriptions without expiration dates as active
+                let isActive = expiration.map { $0 > Date() } ?? false
                 let dayDelta = expiration.map { Calendar.current.dateComponents([.day], from: Date(), to: $0).day ?? 0 }
                 let daysUntilExpiration = dayDelta.map { Double($0) }
                 let willExpireSoon = dayDelta.map { $0 < 7 } ?? false
