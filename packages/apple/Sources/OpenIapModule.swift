@@ -324,8 +324,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 emitPurchaseError(purchaseError)
                 throw purchaseError
             }
-            // Re-throw original error for non-promotional purchases
-            throw error
+
+            // Use PurchaseError.wrap to automatically map errors (including StoreKitError.userCancelled)
+            let purchaseError = PurchaseError.wrap(error, fallback: .purchaseError, productId: sku)
+            emitPurchaseError(purchaseError)
+            throw purchaseError
         }
 
         switch result {

@@ -1,4 +1,5 @@
 import Foundation
+import StoreKit
 
 public extension PurchaseError {
     // MARK: - Default Messages
@@ -88,14 +89,38 @@ public extension PurchaseError {
     }
 
     /// Wraps any error into a `PurchaseError`, preserving existing instances.
+    /// Automatically maps StoreKitError to appropriate PurchaseError codes.
     static func wrap(
         _ error: Error,
         fallback: ErrorCode = .purchaseError,
         productId: String? = nil
     ) -> PurchaseError {
+        // If already a PurchaseError, return as-is
         if let purchaseError = error as? PurchaseError {
             return purchaseError
         }
+
+        // Map StoreKitError to PurchaseError
+        if let storeKitError = error as? StoreKitError {
+            let errorCode: ErrorCode
+            switch storeKitError {
+            case .userCancelled:
+                errorCode = .userCancelled
+            case .networkError:
+                errorCode = .networkError
+            case .notAvailableInStorefront:
+                errorCode = .itemUnavailable
+            case .notEntitled:
+                errorCode = .itemNotOwned
+            case .systemError:
+                errorCode = .serviceError
+            default:
+                errorCode = fallback
+            }
+            return make(code: errorCode, productId: productId, message: error.localizedDescription)
+        }
+
+        // Fallback for other error types
         return make(code: fallback, productId: productId, message: error.localizedDescription)
     }
 }
