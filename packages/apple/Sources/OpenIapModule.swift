@@ -216,8 +216,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                             // Don't block - let StoreKit handle the subscription change
                         } else {
                             // Same product - check if subscription is cancelled (will not auto-renew)
-                            // If cancelled, allow repurchase even though subscription is still active
+                            // or if user has scheduled a different subscription for next renewal
                             var willAutoRenew = true
+                            var autoRenewPreference: String?
                             if let subscription = product.subscription {
                                 do {
                                     let statuses = try await subscription.status
@@ -225,8 +226,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                                         switch status.renewalInfo {
                                         case .verified(let info):
                                             willAutoRenew = info.willAutoRenew
+                                            autoRenewPreference = info.autoRenewPreference
                                         case .unverified:
                                             willAutoRenew = true
+                                            autoRenewPreference = nil
                                         }
                                     }
                                 } catch {
@@ -234,9 +237,24 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                                 }
                             }
 
-                            // Only block purchase if subscription is active AND will auto-renew AND same product
-                            // Allow purchase if user has cancelled their subscription (willAutoRenew = false)
-                            if willAutoRenew {
+                            // Check if user has scheduled a different subscription
+                            // autoRenewPreference is the product that will renew next (if different from current)
+                            let hasScheduledChange = autoRenewPreference != nil && autoRenewPreference != transaction.productID
+
+                            if hasScheduledChange {
+                                // User has scheduled a change to a different product
+                                // Allow them to change back or modify their scheduled change
+                                OpenIapLog.debug("""
+                                    ✅ [requestPurchase] Allowing modification of scheduled subscription change:
+                                    - Current: \(transaction.productID)
+                                    - Scheduled: \(autoRenewPreference ?? "unknown")
+                                    - Requesting: \(sku)
+                                    """)
+                            } else if willAutoRenew {
+                                // Only block if:
+                                // - Same product as current active subscription
+                                // - Will auto-renew
+                                // - No scheduled change to a different product
                                 OpenIapLog.debug("""
                                     ⚠️ [requestPurchase] Subscription already owned:
                                     - SKU: \(sku)
