@@ -74,4 +74,11 @@ extend type Mutation {
   """
   # Future
   verifyPurchase(options: ReceiptValidationProps!): ReceiptValidationResult!
+  """
+  Verify purchases with a specific provider (e.g., IAPKit)
+  """
+  # Future
+  verifyPurchaseWithProvider(
+    options: VerifyPurchaseWithProviderProps!
+  ): VerifyPurchaseWithProviderResult!
 }

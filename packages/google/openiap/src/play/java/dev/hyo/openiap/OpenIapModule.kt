@@ -33,7 +33,9 @@ import dev.hyo.openiap.MutationRequestPurchaseHandler
 import dev.hyo.openiap.MutationRestorePurchasesHandler
 import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
+import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.MutationHandlers
+import dev.hyo.openiap.PurchaseVerificationProvider
 import dev.hyo.openiap.QueryHandlers
 import dev.hyo.openiap.SubscriptionHandlers
 import dev.hyo.openiap.QueryFetchProductsHandler
@@ -61,6 +63,7 @@ import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.validateReceiptWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -805,6 +808,14 @@ class OpenIapModule(
         validateReceiptWithGooglePlay(props, TAG)
     }
 
+    override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->
+        if (props.provider != PurchaseVerificationProvider.Iapkit) {
+            throw OpenIapError.FeatureNotSupported
+        }
+        val options = props.iapkit ?: throw OpenIapError.DeveloperError
+        verifyPurchaseWithIapkit(options, TAG)
+    }
+
     private val purchaseError: SubscriptionPurchaseErrorHandler = {
         onPurchaseError(this::addPurchaseErrorListener, this::removePurchaseErrorListener)
     }
@@ -832,7 +843,8 @@ class OpenIapModule(
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         validateReceipt = validateReceipt,
-        verifyPurchase = verifyPurchase
+        verifyPurchase = verifyPurchase,
+        verifyPurchaseWithProvider = verifyPurchaseWithProvider
     )
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(

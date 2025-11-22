@@ -2,10 +2,15 @@ package dev.hyo.openiap.utils
 
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import com.google.gson.reflect.TypeToken
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.ReceiptValidationProps
 import dev.hyo.openiap.ReceiptValidationResultAndroid
+import dev.hyo.openiap.IapkitEnvironment
+import dev.hyo.openiap.IapkitStore
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -71,6 +76,98 @@ suspend fun validateReceiptWithGooglePlay(
         }
     } catch (io: IOException) {
         OpenIapLog.warn("Network error during receipt validation: ${io.message}", tag)
+        throw OpenIapError.NetworkError
+    } finally {
+        connection.disconnect()
+    }
+}
+
+suspend fun verifyPurchaseWithIapkit(
+    props: RequestVerifyPurchaseWithIapkitProps,
+    tag: String,
+    connectionFactory: (String) -> HttpURLConnection = ::openConnection
+): RequestVerifyPurchaseWithIapkitResult = withContext(Dispatchers.IO) {
+    val endpoint = props.endpoint.takeIf { it.isNotBlank() }
+        ?: throw IllegalArgumentException("IAPKit verification requires endpoint")
+
+    val payload: Map<String, Any?> = when (props.store) {
+        IapkitStore.Apple -> {
+            val apple = props.apple
+                ?: throw IllegalArgumentException("IAPKit Apple verification requires apple options")
+            val environment = apple.environment ?: IapkitEnvironment.Sandbox
+            if (apple.receipt.isBlank()) {
+                throw IllegalArgumentException("IAPKit Apple verification requires receipt")
+            }
+            if (environment == IapkitEnvironment.Production && apple.appId.isNullOrBlank()) {
+                throw IllegalArgumentException("IAPKit Apple verification requires appId in production mode")
+            }
+            mutableMapOf<String, Any?>(
+                "store" to props.store.toJson(),
+                "receipt" to apple.receipt,
+                "environment" to environment.toJson(),
+            ).apply {
+                if (!apple.appId.isNullOrBlank()) {
+                    put("appId", apple.appId)
+                }
+            }
+        }
+        IapkitStore.Google -> {
+            val google = props.google
+                ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
+            if (
+                google.packageName.isBlank() ||
+                google.purchaseId.isBlank() ||
+                google.purchaseToken.isBlank()
+            ) {
+                throw IllegalArgumentException(
+                    "IAPKit Google verification requires packageName, purchaseId, and purchaseToken"
+                )
+            }
+            mutableMapOf<String, Any?>(
+                "store" to props.store.toJson(),
+                "packageName" to google.packageName,
+                "purchaseId" to google.purchaseId,
+                "purchaseToken" to google.purchaseToken
+            )
+        }
+    }
+
+    val connection = connectionFactory(endpoint).apply {
+        requestMethod = "POST"
+        doOutput = true
+        setRequestProperty("Content-Type", "application/json")
+        props.apiKey?.takeIf { it.isNotBlank() }?.let { apiKey ->
+            setRequestProperty("Authorization", "Bearer $apiKey")
+        }
+    }
+
+    try {
+        val body = gson.toJson(payload)
+        connection.outputStream.use { stream ->
+            stream.write(body.toByteArray())
+        }
+
+        val statusCode = connection.responseCode
+        val responseBody = (if (statusCode in 200..299) connection.inputStream else connection.errorStream)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            .orElse("")
+
+        if (statusCode !in 200..299) {
+            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode): $responseBody", tag)
+            throw OpenIapError.InvalidReceipt
+        }
+
+        try {
+            val mapType = object : TypeToken<Map<String, Any?>>() {}.type
+            val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
+            RequestVerifyPurchaseWithIapkitResult.fromJson(parsed)
+        } catch (jsonError: Exception) {
+            OpenIapLog.warn("Failed to parse IAPKit verification response: ${jsonError.message}", tag)
+            throw OpenIapError.InvalidReceipt
+        }
+    } catch (io: IOException) {
+        OpenIapLog.warn("Network error during IAPKit verification: ${io.message}", tag)
         throw OpenIapError.NetworkError
     } finally {
         connection.disconnect()

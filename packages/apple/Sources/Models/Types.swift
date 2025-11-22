@@ -150,6 +150,16 @@ public enum IapEvent: String, Codable, CaseIterable {
     case userChoiceBillingAndroid = "user-choice-billing-android"
 }
 
+public enum IapkitEnvironment: String, Codable, CaseIterable {
+    case sandbox = "sandbox"
+    case production = "production"
+}
+
+public enum IapkitStore: String, Codable, CaseIterable {
+    case apple = "apple"
+    case google = "google"
+}
+
 public enum IapPlatform: String, Codable, CaseIterable {
     case ios = "ios"
     case android = "android"
@@ -187,6 +197,10 @@ public enum PurchaseState: String, Codable, CaseIterable {
     case restored = "restored"
     case deferred = "deferred"
     case unknown = "unknown"
+}
+
+public enum PurchaseVerificationProvider: String, Codable, CaseIterable {
+    case iapkit = "iapkit"
 }
 
 public enum SubscriptionOfferTypeIOS: String, Codable, CaseIterable {
@@ -578,6 +592,11 @@ public enum RequestPurchaseResult {
     case purchases([Purchase]?)
 }
 
+public struct RequestVerifyPurchaseWithIapkitResult: Codable {
+    public var store: IapkitStore
+    public var valid: Bool
+}
+
 public struct SubscriptionInfoIOS: Codable {
     public var introductoryOffer: SubscriptionOfferIOS?
     public var promotionalOffers: [SubscriptionOfferIOS]?
@@ -612,6 +631,10 @@ public struct UserChoiceBillingDetails: Codable {
     public var externalTransactionToken: String
     /// List of product IDs selected by the user
     public var products: [String]
+}
+
+public enum VerifyPurchaseWithProviderResult {
+    case iapkit(RequestVerifyPurchaseWithIapkitResult?)
 }
 
 public typealias VoidResult = Void
@@ -983,6 +1006,84 @@ public struct RequestSubscriptionPropsByPlatforms: Codable {
     }
 }
 
+public struct RequestVerifyPurchaseWithIapkitAppleProps: Codable {
+    /// Required when verifying purchases in production mode.
+    public var appId: String?
+    /// Target environment for verification.
+    public var environment: IapkitEnvironment?
+    /// The JWS token returned with the purchase response.
+    public var receipt: String
+
+    public init(
+        appId: String? = nil,
+        environment: IapkitEnvironment? = nil,
+        receipt: String
+    ) {
+        self.appId = appId
+        self.environment = environment
+        self.receipt = receipt
+    }
+}
+
+public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
+    /// The package name of the application for which this subscription was purchased.
+    public var packageName: String
+    /// The ID of the product or subscription that was purchased.
+    public var purchaseId: String
+    /// The token provided to the user's device when the subscription was purchased.
+    public var purchaseToken: String
+
+    public init(
+        packageName: String,
+        purchaseId: String,
+        purchaseToken: String
+    ) {
+        self.packageName = packageName
+        self.purchaseId = purchaseId
+        self.purchaseToken = purchaseToken
+    }
+}
+
+public struct RequestVerifyPurchaseWithIapkitProps: Codable {
+    /// API key used for the Authorization header (Bearer {apiKey}).
+    public var apiKey: String?
+    /// Apple verification parameters (required when store is Apple).
+    public var apple: RequestVerifyPurchaseWithIapkitAppleProps?
+    /// Absolute endpoint for the IAPKit verify API (POST /purchase/verify).
+    public var endpoint: String
+    /// Google verification parameters (required when store is Google).
+    public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
+    /// Target store for this verification request.
+    public var store: IapkitStore
+
+    public init(
+        apiKey: String? = nil,
+        apple: RequestVerifyPurchaseWithIapkitAppleProps? = nil,
+        endpoint: String,
+        google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil,
+        store: IapkitStore
+    ) {
+        self.apiKey = apiKey
+        self.apple = apple
+        self.endpoint = endpoint
+        self.google = google
+        self.store = store
+    }
+}
+
+public struct VerifyPurchaseWithProviderProps: Codable {
+    public var iapkit: RequestVerifyPurchaseWithIapkitProps?
+    public var provider: PurchaseVerificationProvider
+
+    public init(
+        iapkit: RequestVerifyPurchaseWithIapkitProps? = nil,
+        provider: PurchaseVerificationProvider
+    ) {
+        self.iapkit = iapkit
+        self.provider = provider
+    }
+}
+
 // MARK: - Unions
 
 public enum Product: Codable, ProductCommon {
@@ -1346,6 +1447,8 @@ public protocol MutationResolver {
     func validateReceipt(_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
     /// Verify purchases with the configured providers
     func verifyPurchase(_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
+    /// Verify purchases with a specific provider (e.g., IAPKit)
+    func verifyPurchaseWithProvider(_ options: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 }
 
 /// GraphQL root query operations.
@@ -1426,6 +1529,7 @@ public typealias MutationShowManageSubscriptionsIOSHandler = () async throws -> 
 public typealias MutationSyncIOSHandler = () async throws -> Bool
 public typealias MutationValidateReceiptHandler = (_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
 public typealias MutationVerifyPurchaseHandler = (_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
+public typealias MutationVerifyPurchaseWithProviderHandler = (_ options: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 
 public struct MutationHandlers {
     public var acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler?
@@ -1449,6 +1553,7 @@ public struct MutationHandlers {
     public var syncIOS: MutationSyncIOSHandler?
     public var validateReceipt: MutationValidateReceiptHandler?
     public var verifyPurchase: MutationVerifyPurchaseHandler?
+    public var verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler?
 
     public init(
         acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = nil,
@@ -1471,7 +1576,8 @@ public struct MutationHandlers {
         showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = nil,
         syncIOS: MutationSyncIOSHandler? = nil,
         validateReceipt: MutationValidateReceiptHandler? = nil,
-        verifyPurchase: MutationVerifyPurchaseHandler? = nil
+        verifyPurchase: MutationVerifyPurchaseHandler? = nil,
+        verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler? = nil
     ) {
         self.acknowledgePurchaseAndroid = acknowledgePurchaseAndroid
         self.beginRefundRequestIOS = beginRefundRequestIOS
@@ -1494,6 +1600,7 @@ public struct MutationHandlers {
         self.syncIOS = syncIOS
         self.validateReceipt = validateReceipt
         self.verifyPurchase = verifyPurchase
+        self.verifyPurchaseWithProvider = verifyPurchaseWithProvider
     }
 }
 

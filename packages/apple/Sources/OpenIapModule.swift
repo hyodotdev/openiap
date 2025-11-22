@@ -591,6 +591,101 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return .receiptValidationResultIos(iosResult)
     }
 
+    public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
+        guard props.provider == .iapkit else {
+            throw makePurchaseError(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")
+        }
+        guard let iapkit = props.iapkit else {
+            throw makePurchaseError(code: .developerError, message: "Missing IAPKit verification parameters")
+        }
+        let result = try await verifyPurchaseWithIapkit(props: iapkit)
+        return .iapkit(result)
+    }
+
+    private func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
+        let endpoint = props.endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !endpoint.isEmpty, let url = URL(string: endpoint) else {
+            throw makePurchaseError(code: .developerError, message: "IAPKit endpoint is required")
+        }
+
+        let payload: [String: Any]
+        switch props.store {
+        case .apple:
+            guard let apple = props.apple else {
+                throw makePurchaseError(code: .developerError, message: "Apple verification parameters are required")
+            }
+            let environment = apple.environment ?? .sandbox
+            guard apple.receipt.isEmpty == false else {
+                throw makePurchaseError(code: .developerError, message: "Receipt is required")
+            }
+            if environment == .production && (apple.appId?.isEmpty ?? true) {
+                throw makePurchaseError(code: .developerError, message: "appId is required for production validation")
+            }
+            var applePayload: [String: Any] = [
+                "store": props.store.rawValue,
+                "receipt": apple.receipt,
+                "environment": environment.rawValue
+            ]
+            if let appId = apple.appId, appId.isEmpty == false {
+                applePayload["appId"] = appId
+            }
+            payload = applePayload
+        case .google:
+            guard let google = props.google else {
+                throw makePurchaseError(code: .developerError, message: "Google verification parameters are required")
+            }
+            guard google.packageName.isEmpty == false,
+                  google.purchaseId.isEmpty == false,
+                  google.purchaseToken.isEmpty == false else {
+                throw makePurchaseError(code: .developerError, message: "packageName, purchaseId, and purchaseToken are required")
+            }
+            payload = [
+                "store": props.store.rawValue,
+                "packageName": google.packageName,
+                "purchaseId": google.purchaseId,
+                "purchaseToken": google.purchaseToken
+            ]
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let apiKey = props.apiKey, apiKey.isEmpty == false {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        } catch {
+            throw makePurchaseError(code: .developerError, message: "Failed to serialize IAPKit request")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw makePurchaseError(code: .networkError, message: "Invalid response")
+            }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let body = String(data: data, encoding: .utf8) ?? ""
+                OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP \(httpResponse.statusCode)): \(body)")
+                throw makePurchaseError(code: .receiptFailed, message: "Verification failed with status \(httpResponse.statusCode)")
+            }
+
+            do {
+                return try JSONDecoder().decode(RequestVerifyPurchaseWithIapkitResult.self, from: data)
+            } catch {
+                OpenIapLog.warn("Failed to parse IAPKit verification response: \(error.localizedDescription)")
+                throw makePurchaseError(code: .receiptFailed, message: "Unable to parse verification response")
+            }
+        } catch let urlError as URLError {
+            throw makePurchaseError(code: .networkError, message: urlError.localizedDescription)
+        } catch let purchaseError as PurchaseError {
+            throw purchaseError
+        } catch {
+            throw makePurchaseError(code: .receiptFailed, message: error.localizedDescription)
+        }
+    }
+
     // MARK: - Store Information
 
     public func getStorefrontIOS() async throws -> String {

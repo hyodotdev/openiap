@@ -244,6 +244,44 @@ public enum class IapEvent(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+public enum class IapkitEnvironment(val rawValue: String) {
+    Sandbox("sandbox"),
+    Production("production")
+
+    companion object {
+        fun fromJson(value: String): IapkitEnvironment = when (value) {
+            "sandbox" -> IapkitEnvironment.Sandbox
+            "SANDBOX" -> IapkitEnvironment.Sandbox
+            "Sandbox" -> IapkitEnvironment.Sandbox
+            "production" -> IapkitEnvironment.Production
+            "PRODUCTION" -> IapkitEnvironment.Production
+            "Production" -> IapkitEnvironment.Production
+            else -> throw IllegalArgumentException("Unknown IapkitEnvironment value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+public enum class IapkitStore(val rawValue: String) {
+    Apple("apple"),
+    Google("google")
+
+    companion object {
+        fun fromJson(value: String): IapkitStore = when (value) {
+            "apple" -> IapkitStore.Apple
+            "APPLE" -> IapkitStore.Apple
+            "Apple" -> IapkitStore.Apple
+            "google" -> IapkitStore.Google
+            "GOOGLE" -> IapkitStore.Google
+            "Google" -> IapkitStore.Google
+            else -> throw IllegalArgumentException("Unknown IapkitStore value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class IapPlatform(val rawValue: String) {
     Ios("ios"),
     Android("android")
@@ -387,6 +425,21 @@ public enum class PurchaseState(val rawValue: String) {
             "UNKNOWN" -> PurchaseState.Unknown
             "Unknown" -> PurchaseState.Unknown
             else -> throw IllegalArgumentException("Unknown PurchaseState value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+public enum class PurchaseVerificationProvider(val rawValue: String) {
+    Iapkit("iapkit")
+
+    companion object {
+        fun fromJson(value: String): PurchaseVerificationProvider = when (value) {
+            "iapkit" -> PurchaseVerificationProvider.Iapkit
+            "IAPKIT" -> PurchaseVerificationProvider.Iapkit
+            "Iapkit" -> PurchaseVerificationProvider.Iapkit
+            else -> throw IllegalArgumentException("Unknown PurchaseVerificationProvider value: $value")
         }
     }
 
@@ -1596,6 +1649,27 @@ public data class RequestPurchaseResultPurchase(val value: Purchase?) : RequestP
 
 public data class RequestPurchaseResultPurchases(val value: List<Purchase>?) : RequestPurchaseResult
 
+public data class RequestVerifyPurchaseWithIapkitResult(
+    val store: IapkitStore,
+    val valid: Boolean
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
+            return RequestVerifyPurchaseWithIapkitResult(
+                store = IapkitStore.fromJson(json["store"] as String),
+                valid = json["valid"] as Boolean,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "RequestVerifyPurchaseWithIapkitResult",
+        "store" to store.toJson(),
+        "valid" to valid,
+    )
+}
+
 public data class SubscriptionInfoIOS(
     val introductoryOffer: SubscriptionOfferIOS? = null,
     val promotionalOffers: List<SubscriptionOfferIOS>? = null,
@@ -1731,6 +1805,10 @@ public data class UserChoiceBillingDetails(
         "products" to products.map { it },
     )
 }
+
+public sealed interface VerifyPurchaseWithProviderResult
+
+public data class VerifyPurchaseWithProviderResultIapkit(val value: RequestVerifyPurchaseWithIapkitResult?) : VerifyPurchaseWithProviderResult
 
 public typealias VoidResult = Unit
 
@@ -2214,6 +2292,130 @@ public data class RequestSubscriptionPropsByPlatforms(
     )
 }
 
+public data class RequestVerifyPurchaseWithIapkitAppleProps(
+    /**
+     * Required when verifying purchases in production mode.
+     */
+    val appId: String? = null,
+    /**
+     * Target environment for verification.
+     */
+    val environment: IapkitEnvironment? = null,
+    /**
+     * The JWS token returned with the purchase response.
+     */
+    val receipt: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAppleProps {
+            return RequestVerifyPurchaseWithIapkitAppleProps(
+                appId = json["appId"] as String?,
+                environment = (json["environment"] as String?)?.let { IapkitEnvironment.fromJson(it) },
+                receipt = json["receipt"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "appId" to appId,
+        "environment" to environment?.toJson(),
+        "receipt" to receipt,
+    )
+}
+
+public data class RequestVerifyPurchaseWithIapkitGoogleProps(
+    /**
+     * The package name of the application for which this subscription was purchased.
+     */
+    val packageName: String,
+    /**
+     * The ID of the product or subscription that was purchased.
+     */
+    val purchaseId: String,
+    /**
+     * The token provided to the user's device when the subscription was purchased.
+     */
+    val purchaseToken: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitGoogleProps {
+            return RequestVerifyPurchaseWithIapkitGoogleProps(
+                packageName = json["packageName"] as String,
+                purchaseId = json["purchaseId"] as String,
+                purchaseToken = json["purchaseToken"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "packageName" to packageName,
+        "purchaseId" to purchaseId,
+        "purchaseToken" to purchaseToken,
+    )
+}
+
+public data class RequestVerifyPurchaseWithIapkitProps(
+    /**
+     * API key used for the Authorization header (Bearer {apiKey}).
+     */
+    val apiKey: String? = null,
+    /**
+     * Apple verification parameters (required when store is Apple).
+     */
+    val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
+    /**
+     * Absolute endpoint for the IAPKit verify API (POST /purchase/verify).
+     */
+    val endpoint: String,
+    /**
+     * Google verification parameters (required when store is Google).
+     */
+    val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null,
+    /**
+     * Target store for this verification request.
+     */
+    val store: IapkitStore
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
+            return RequestVerifyPurchaseWithIapkitProps(
+                apiKey = json["apiKey"] as String?,
+                apple = (json["apple"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
+                endpoint = json["endpoint"] as String,
+                google = (json["google"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
+                store = IapkitStore.fromJson(json["store"] as String),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "apiKey" to apiKey,
+        "apple" to apple?.toJson(),
+        "endpoint" to endpoint,
+        "google" to google?.toJson(),
+        "store" to store.toJson(),
+    )
+}
+
+public data class VerifyPurchaseWithProviderProps(
+    val iapkit: RequestVerifyPurchaseWithIapkitProps? = null,
+    val provider: PurchaseVerificationProvider
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderProps {
+            return VerifyPurchaseWithProviderProps(
+                iapkit = (json["iapkit"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) },
+                provider = PurchaseVerificationProvider.fromJson(json["provider"] as String),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "iapkit" to iapkit?.toJson(),
+        "provider" to provider.toJson(),
+    )
+}
+
 // MARK: - Unions
 
 public sealed interface Product : ProductCommon {
@@ -2401,6 +2603,10 @@ public interface MutationResolver {
      * Verify purchases with the configured providers
      */
     suspend fun verifyPurchase(options: ReceiptValidationProps): ReceiptValidationResult
+    /**
+     * Verify purchases with a specific provider (e.g., IAPKit)
+     */
+    suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult
 }
 
 /**
@@ -2529,6 +2735,7 @@ public typealias MutationShowManageSubscriptionsIOSHandler = suspend () -> List<
 public typealias MutationSyncIOSHandler = suspend () -> Boolean
 public typealias MutationValidateReceiptHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResult
 public typealias MutationVerifyPurchaseHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResult
+public typealias MutationVerifyPurchaseWithProviderHandler = suspend (options: VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult
 
 public data class MutationHandlers(
     val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = null,
@@ -2551,7 +2758,8 @@ public data class MutationHandlers(
     val showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = null,
     val syncIOS: MutationSyncIOSHandler? = null,
     val validateReceipt: MutationValidateReceiptHandler? = null,
-    val verifyPurchase: MutationVerifyPurchaseHandler? = null
+    val verifyPurchase: MutationVerifyPurchaseHandler? = null,
+    val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler? = null
 )
 
 // MARK: - Query Helpers

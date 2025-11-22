@@ -178,6 +178,10 @@ export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product
 
 export type IapPlatform = 'ios' | 'android';
 
+export type IapkitEnvironment = 'sandbox' | 'production';
+
+export type IapkitStore = 'apple' | 'google';
+
 /** Connection initialization configuration */
 export interface InitConnectionConfig {
   /**
@@ -254,6 +258,8 @@ export interface Mutation {
   validateReceipt: Promise<ReceiptValidationResult>;
   /** Verify purchases with the configured providers */
   verifyPurchase: Promise<ReceiptValidationResult>;
+  /** Verify purchases with a specific provider (e.g., IAPKit) */
+  verifyPurchaseWithProvider: Promise<VerifyPurchaseWithProviderResult>;
 }
 
 
@@ -296,6 +302,8 @@ export type MutationRequestPurchaseArgs =
 export type MutationValidateReceiptArgs = ReceiptValidationProps;
 
 export type MutationVerifyPurchaseArgs = ReceiptValidationProps;
+
+export type MutationVerifyPurchaseWithProviderArgs = VerifyPurchaseWithProviderProps;
 
 export type PaymentModeIOS = 'empty' | 'free-trial' | 'pay-as-you-go' | 'pay-up-front';
 
@@ -534,6 +542,8 @@ export interface PurchaseOptions {
 }
 
 export type PurchaseState = 'pending' | 'purchased' | 'failed' | 'restored' | 'deferred' | 'unknown';
+
+export type PurchaseVerificationProvider = 'iapkit';
 
 export interface Query {
   /** Check if external purchase notice sheet can be presented (iOS 18.2+) */
@@ -785,6 +795,42 @@ export interface RequestSubscriptionPropsByPlatforms {
   ios?: (RequestSubscriptionIosProps | null);
 }
 
+export interface RequestVerifyPurchaseWithIapkitAppleProps {
+  /** Required when verifying purchases in production mode. */
+  appId?: (string | null);
+  /** Target environment for verification. */
+  environment?: (IapkitEnvironment | null);
+  /** The JWS token returned with the purchase response. */
+  receipt: string;
+}
+
+export interface RequestVerifyPurchaseWithIapkitGoogleProps {
+  /** The package name of the application for which this subscription was purchased. */
+  packageName: string;
+  /** The ID of the product or subscription that was purchased. */
+  purchaseId: string;
+  /** The token provided to the user's device when the subscription was purchased. */
+  purchaseToken: string;
+}
+
+export interface RequestVerifyPurchaseWithIapkitProps {
+  /** API key used for the Authorization header (Bearer {apiKey}). */
+  apiKey?: (string | null);
+  /** Apple verification parameters (required when store is Apple). */
+  apple?: (RequestVerifyPurchaseWithIapkitAppleProps | null);
+  /** Absolute endpoint for the IAPKit verify API (POST /purchase/verify). */
+  endpoint: string;
+  /** Google verification parameters (required when store is Google). */
+  google?: (RequestVerifyPurchaseWithIapkitGoogleProps | null);
+  /** Target store for this verification request. */
+  store: IapkitStore;
+}
+
+export interface RequestVerifyPurchaseWithIapkitResult {
+  store: IapkitStore;
+  valid: boolean;
+}
+
 export interface Subscription {
   /** Fires when the App Store surfaces a promoted product (iOS only) */
   promotedProductIOS: string;
@@ -840,6 +886,15 @@ export interface UserChoiceBillingDetails {
   externalTransactionToken: string;
   /** List of product IDs selected by the user */
   products: string[];
+}
+
+export interface VerifyPurchaseWithProviderProps {
+  iapkit?: (RequestVerifyPurchaseWithIapkitProps | null);
+  provider: PurchaseVerificationProvider;
+}
+
+export interface VerifyPurchaseWithProviderResult {
+  iapkit?: (RequestVerifyPurchaseWithIapkitResult | null);
 }
 
 export type VoidResult = void;
@@ -901,6 +956,7 @@ export type MutationArgsMap = {
   syncIOS: never;
   validateReceipt: MutationValidateReceiptArgs;
   verifyPurchase: MutationVerifyPurchaseArgs;
+  verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderArgs;
 };
 
 export type MutationField<K extends keyof Mutation> =

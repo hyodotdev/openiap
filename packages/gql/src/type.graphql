@@ -30,6 +30,21 @@ enum IapEvent {
   UserChoiceBillingAndroid
 }
 
+# Purchase verification providers
+enum PurchaseVerificationProvider {
+  Iapkit
+}
+
+enum IapkitStore {
+  Apple
+  Google
+}
+
+enum IapkitEnvironment {
+  Sandbox
+  Production
+}
+
 # Common product fields
 interface ProductCommon {
   id: ID!
@@ -202,6 +217,74 @@ input ReceiptValidationProps {
 union ReceiptValidationResult =
     ReceiptValidationResultAndroid
   | ReceiptValidationResultIOS
+
+input RequestVerifyPurchaseWithIapkitAppleProps {
+  """
+  The JWS token returned with the purchase response.
+  """
+  receipt: String!
+  """
+  Target environment for verification.
+  """
+  environment: IapkitEnvironment = Sandbox
+  """
+  Required when verifying purchases in production mode.
+  """
+  appId: String
+}
+
+input RequestVerifyPurchaseWithIapkitGoogleProps {
+  """
+  The package name of the application for which this subscription was purchased.
+  """
+  packageName: String!
+  """
+  The ID of the product or subscription that was purchased.
+  """
+  purchaseId: String!
+  """
+  The token provided to the user's device when the subscription was purchased.
+  """
+  purchaseToken: String!
+}
+
+input RequestVerifyPurchaseWithIapkitProps {
+  """
+  API key used for the Authorization header (Bearer {apiKey}).
+  """
+  apiKey: String
+  """
+  Absolute endpoint for the IAPKit verify API (POST /purchase/verify).
+  """
+  endpoint: String!
+  """
+  Target store for this verification request.
+  """
+  store: IapkitStore!
+  """
+  Apple verification parameters (required when store is Apple).
+  """
+  apple: RequestVerifyPurchaseWithIapkitAppleProps
+  """
+  Google verification parameters (required when store is Google).
+  """
+  google: RequestVerifyPurchaseWithIapkitGoogleProps
+}
+
+type RequestVerifyPurchaseWithIapkitResult {
+  store: IapkitStore!
+  valid: Boolean!
+}
+
+input VerifyPurchaseWithProviderProps {
+  provider: PurchaseVerificationProvider!
+  iapkit: RequestVerifyPurchaseWithIapkitProps
+}
+
+# => Union
+type VerifyPurchaseWithProviderResult {
+  iapkit: RequestVerifyPurchaseWithIapkitResult
+}
 
 # Aggregated active subscription data across platforms
 type ActiveSubscription {
