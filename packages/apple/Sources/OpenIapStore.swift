@@ -29,7 +29,7 @@ public final class OpenIapStore: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let module = OpenIapModule.shared
+    private let module: OpenIapModuleProtocol
     private var listenerTokens: [Subscription] = []
 
     // MARK: - Callbacks
@@ -43,11 +43,13 @@ public final class OpenIapStore: ObservableObject {
     public init(
         onPurchaseSuccess: ((OpenIAP.Purchase) -> Void)? = nil,
         onPurchaseError: ((PurchaseError) -> Void)? = nil,
-        onPromotedProduct: ((String) -> Void)? = nil
+        onPromotedProduct: ((String) -> Void)? = nil,
+        module: OpenIapModuleProtocol = OpenIapModule.shared
     ) {
         self.onPurchaseSuccess = onPurchaseSuccess
         self.onPurchaseError = onPurchaseError
         self.onPromotedProduct = onPromotedProduct
+        self.module = module
         setupListeners()
     }
 

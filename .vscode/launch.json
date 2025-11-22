@@ -33,6 +33,20 @@
             "name": "📚 Docs: Dev Server",
             "command": "bun run dev",
             "cwd": "${workspaceFolder}/packages/docs"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "🧪 Test: Apple (Swift)",
+            "command": "swift test",
+            "cwd": "${workspaceFolder}/packages/apple"
+        },
+        {
+            "type": "node-terminal",
+            "request": "launch",
+            "name": "🧪 Test: Google (Android)",
+            "command": "./gradlew :openiap:test",
+            "cwd": "${workspaceFolder}/packages/google"
         }
     ]
 }

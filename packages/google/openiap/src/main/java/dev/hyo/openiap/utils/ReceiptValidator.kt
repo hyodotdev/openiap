@@ -16,9 +16,14 @@ private const val VALIDATION_BASE_URL =
     "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
 private val gson = Gson()
 
+private fun openConnection(url: String): HttpURLConnection {
+    return URL(url).openConnection() as HttpURLConnection
+}
+
 suspend fun validateReceiptWithGooglePlay(
     props: ReceiptValidationProps,
-    tag: String
+    tag: String,
+    connectionFactory: (String) -> HttpURLConnection = ::openConnection
 ): ReceiptValidationResultAndroid = withContext(Dispatchers.IO) {
     val options = props.androidOptions
         ?: throw IllegalArgumentException(
@@ -39,7 +44,7 @@ suspend fun validateReceiptWithGooglePlay(
     val url =
         "$VALIDATION_BASE_URL/${options.packageName}/purchases/$typeSegment/${props.sku}/tokens/${options.productToken}"
 
-    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+    val connection = connectionFactory(url).apply {
         requestMethod = "GET"
         setRequestProperty("Content-Type", "application/json")
         setRequestProperty("Authorization", "Bearer ${options.accessToken}")
