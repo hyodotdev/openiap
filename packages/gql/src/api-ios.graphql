@@ -61,11 +61,11 @@ extend type Query {
   """
   # Future
   getAppTransactionIOS: AppTransaction
-  """
-  Validate a receipt for a specific product
-  """
-  # Future
-  validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS!
+"""
+Validate a receipt for a specific product
+"""
+# Future
+validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS! @deprecated(reason: "Use verifyPurchase")
 }
 
 extend type Mutation {

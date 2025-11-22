@@ -68,5 +68,10 @@ extend type Mutation {
   Validate purchase receipts with the configured providers
   """
   # Future
-  validateReceipt(options: ReceiptValidationProps!): ReceiptValidationResult!
+  validateReceipt(options: ReceiptValidationProps!): ReceiptValidationResult! @deprecated(reason: "Use verifyPurchase")
+  """
+  Verify purchases with the configured providers
+  """
+  # Future
+  verifyPurchase(options: ReceiptValidationProps!): ReceiptValidationResult!
 }

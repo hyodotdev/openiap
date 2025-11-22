@@ -32,6 +32,7 @@ import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationRequestPurchaseHandler
 import dev.hyo.openiap.MutationRestorePurchasesHandler
 import dev.hyo.openiap.MutationValidateReceiptHandler
+import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationHandlers
 import dev.hyo.openiap.QueryHandlers
 import dev.hyo.openiap.SubscriptionHandlers
@@ -59,6 +60,7 @@ import dev.hyo.openiap.utils.BillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.toProduct
+import dev.hyo.openiap.utils.validateReceiptWithGooglePlay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -794,7 +796,14 @@ class OpenIapModule(
         }
     }
 
-    override val validateReceipt: MutationValidateReceiptHandler = { throw OpenIapError.FeatureNotSupported }
+    @Deprecated("Use verifyPurchase")
+    override val validateReceipt: MutationValidateReceiptHandler = { props ->
+        verifyPurchase(props)
+    }
+
+    override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
+        validateReceiptWithGooglePlay(props, TAG)
+    }
 
     private val purchaseError: SubscriptionPurchaseErrorHandler = {
         onPurchaseError(this::addPurchaseErrorListener, this::removePurchaseErrorListener)
@@ -812,6 +821,7 @@ class OpenIapModule(
         hasActiveSubscriptions = hasActiveSubscriptions
     )
 
+    @Suppress("DEPRECATION")
     override val mutationHandlers: MutationHandlers = MutationHandlers(
         acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
         consumePurchaseAndroid = consumePurchaseAndroid,
@@ -821,7 +831,8 @@ class OpenIapModule(
         initConnection = initConnection,
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
-        validateReceipt = validateReceipt
+        validateReceipt = validateReceipt,
+        verifyPurchase = verifyPurchase
     )
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(

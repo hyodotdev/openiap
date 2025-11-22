@@ -29,7 +29,7 @@ public final class OpenIapStore: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let module = OpenIapModule.shared
+    private let module: OpenIapModuleProtocol
     private var listenerTokens: [Subscription] = []
 
     // MARK: - Callbacks
@@ -43,11 +43,13 @@ public final class OpenIapStore: ObservableObject {
     public init(
         onPurchaseSuccess: ((OpenIAP.Purchase) -> Void)? = nil,
         onPurchaseError: ((PurchaseError) -> Void)? = nil,
-        onPromotedProduct: ((String) -> Void)? = nil
+        onPromotedProduct: ((String) -> Void)? = nil,
+        module: OpenIapModuleProtocol = OpenIapModule.shared
     ) {
         self.onPurchaseSuccess = onPurchaseSuccess
         self.onPurchaseError = onPurchaseError
         self.onPromotedProduct = onPromotedProduct
+        self.module = module
         setupListeners()
     }
 
@@ -366,8 +368,21 @@ public final class OpenIapStore: ObservableObject {
 
     // MARK: - Validation & Metadata
 
+    @available(*, deprecated, message: "Use verifyPurchase")
     public func validateReceipt(sku: String) async throws -> ReceiptValidationResultIOS {
-        try await module.validateReceiptIOS(ReceiptValidationProps(sku: sku))
+        try await verifyPurchase(sku: sku)
+    }
+
+    public func verifyPurchase(sku: String) async throws -> ReceiptValidationResultIOS {
+        let result = try await module.verifyPurchase(ReceiptValidationProps(sku: sku))
+        if case let .receiptValidationResultIos(iosResult) = result {
+            return iosResult
+        }
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "Android receipt validation is not available on Apple platforms",
+            productId: sku
+        )
     }
 
     public func getPromotedProductIOS() async throws -> ProductIOS? {
@@ -689,7 +704,7 @@ public extension OpenIapStore {
         case restorePurchases
         case requestPurchase
         case finishTransaction
-        case validateReceipt
+        case verifyPurchase
         case custom
     }
 }

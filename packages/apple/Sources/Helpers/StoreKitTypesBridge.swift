@@ -109,7 +109,7 @@ enum StoreKitTypesBridge {
         // Default to false if renewalInfo unavailable - safer to underreport than falsely claim auto-renewal
         let autoRenewing = renewalInfoIOS?.willAutoRenew ?? false
         let environment: String?
-        if #available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *) {
+        if #available(iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
             environment = transaction.environment.rawValue
         } else {
             environment = nil
@@ -128,7 +128,7 @@ enum StoreKitTypesBridge {
             appAccountToken: transaction.appAccountToken?.uuidString,
             appBundleIdIOS: transaction.appBundleID,
             countryCodeIOS: {
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+                if #available(iOS 17.0, tvOS 17.0, watchOS 10.0, *) {
                     transaction.storefront.countryCode
                 } else {
                     transaction.storefrontCountryCode
@@ -158,7 +158,7 @@ enum StoreKitTypesBridge {
             revocationDateIOS: revocationDate,
             revocationReasonIOS: transaction.revocationReason?.rawValue.description,
             storefrontCountryCodeIOS: {
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+                if #available(iOS 17.0, tvOS 17.0, watchOS 10.0, *) {
                     transaction.storefront.countryCode
                 } else {
                     transaction.storefrontCountryCode

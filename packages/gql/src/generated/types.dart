@@ -2908,6 +2908,11 @@ abstract class MutationResolver {
     ReceiptValidationAndroidOptions? androidOptions,
     required String sku,
   });
+  /// Verify purchases with the configured providers
+  Future<ReceiptValidationResult> verifyPurchase({
+    ReceiptValidationAndroidOptions? androidOptions,
+    required String sku,
+  });
 }
 
 /// GraphQL root query operations.
@@ -3007,6 +3012,10 @@ typedef MutationValidateReceiptHandler = Future<ReceiptValidationResult> Functio
   ReceiptValidationAndroidOptions? androidOptions,
   required String sku,
 });
+typedef MutationVerifyPurchaseHandler = Future<ReceiptValidationResult> Function({
+  ReceiptValidationAndroidOptions? androidOptions,
+  required String sku,
+});
 
 class MutationHandlers {
   const MutationHandlers({
@@ -3030,6 +3039,7 @@ class MutationHandlers {
     this.showManageSubscriptionsIOS,
     this.syncIOS,
     this.validateReceipt,
+    this.verifyPurchase,
   });
 
   final MutationAcknowledgePurchaseAndroidHandler? acknowledgePurchaseAndroid;
@@ -3052,6 +3062,7 @@ class MutationHandlers {
   final MutationShowManageSubscriptionsIOSHandler? showManageSubscriptionsIOS;
   final MutationSyncIOSHandler? syncIOS;
   final MutationValidateReceiptHandler? validateReceipt;
+  final MutationVerifyPurchaseHandler? verifyPurchase;
 }
 
 // MARK: - Query Helpers

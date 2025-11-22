@@ -33,6 +33,9 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.toProduct
+import dev.hyo.openiap.utils.validateReceiptWithGooglePlay
+import dev.hyo.openiap.MutationVerifyPurchaseHandler
+import dev.hyo.openiap.MutationValidateReceiptHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -642,7 +645,14 @@ class OpenIapModule(
         }
     }
 
-    override val validateReceipt: MutationValidateReceiptHandler = { throw OpenIapError.FeatureNotSupported }
+    @Deprecated("Use verifyPurchase")
+    override val validateReceipt: MutationValidateReceiptHandler = { props ->
+        verifyPurchase(props)
+    }
+
+    override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
+        validateReceiptWithGooglePlay(props, TAG)
+    }
 
     private val purchaseError: SubscriptionPurchaseErrorHandler = {
         onPurchaseError(this::addPurchaseErrorListener, this::removePurchaseErrorListener)
@@ -660,6 +670,7 @@ class OpenIapModule(
         hasActiveSubscriptions = hasActiveSubscriptions
     )
 
+    @Suppress("DEPRECATION")
     override val mutationHandlers: MutationHandlers = MutationHandlers(
         acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
         consumePurchaseAndroid = consumePurchaseAndroid,
@@ -669,7 +680,8 @@ class OpenIapModule(
         initConnection = initConnection,
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
-        validateReceipt = validateReceipt
+        validateReceipt = validateReceipt,
+        verifyPurchase = verifyPurchase
     )
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(

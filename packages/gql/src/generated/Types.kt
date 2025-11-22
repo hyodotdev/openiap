@@ -2392,6 +2392,10 @@ public interface MutationResolver {
      * Validate purchase receipts with the configured providers
      */
     suspend fun validateReceipt(options: ReceiptValidationProps): ReceiptValidationResult
+    /**
+     * Verify purchases with the configured providers
+     */
+    suspend fun verifyPurchase(options: ReceiptValidationProps): ReceiptValidationResult
 }
 
 /**
@@ -2519,6 +2523,7 @@ public typealias MutationShowAlternativeBillingDialogAndroidHandler = suspend ()
 public typealias MutationShowManageSubscriptionsIOSHandler = suspend () -> List<PurchaseIOS>
 public typealias MutationSyncIOSHandler = suspend () -> Boolean
 public typealias MutationValidateReceiptHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResult
+public typealias MutationVerifyPurchaseHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResult
 
 public data class MutationHandlers(
     val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = null,
@@ -2540,7 +2545,8 @@ public data class MutationHandlers(
     val showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler? = null,
     val showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = null,
     val syncIOS: MutationSyncIOSHandler? = null,
-    val validateReceipt: MutationValidateReceiptHandler? = null
+    val validateReceipt: MutationValidateReceiptHandler? = null,
+    val verifyPurchase: MutationVerifyPurchaseHandler? = null
 )
 
 // MARK: - Query Helpers
