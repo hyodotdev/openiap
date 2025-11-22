@@ -65,7 +65,7 @@ extend type Query {
   Validate a receipt for a specific product
   """
   # Future
-  validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS!
+  validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS! @deprecated(reason: "Use validateReceipt")
 }
 
 extend type Mutation {

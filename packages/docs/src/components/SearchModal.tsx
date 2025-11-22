@@ -313,7 +313,7 @@ const apiData: ApiItem[] = [
     id: 'validate-receipt-ios',
     title: 'validateReceiptIOS',
     category: 'iOS APIs',
-    description: 'Validate a receipt for a specific product',
+    description: 'Deprecated: use validateReceipt for receipt validation',
     parameters: 'options: ReceiptValidationProps!',
     returns: 'ReceiptValidationResultIOS!',
     path: '/docs/apis#validate-receipt-ios',

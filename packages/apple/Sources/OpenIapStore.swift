@@ -367,7 +367,15 @@ public final class OpenIapStore: ObservableObject {
     // MARK: - Validation & Metadata
 
     public func validateReceipt(sku: String) async throws -> ReceiptValidationResultIOS {
-        try await module.validateReceiptIOS(ReceiptValidationProps(sku: sku))
+        let result = try await module.validateReceipt(ReceiptValidationProps(sku: sku))
+        if case let .receiptValidationResultIos(iosResult) = result {
+            return iosResult
+        }
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "Android receipt validation is not available on Apple platforms",
+            productId: sku
+        )
     }
 
     public func getPromotedProductIOS() async throws -> ProductIOS? {

@@ -41,6 +41,7 @@ public protocol OpenIapModuleProtocol {
 
     // Validation
     func getReceiptDataIOS() async throws -> String?
+    @available(*, deprecated, message: "Use validateReceipt")
     func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS
     func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult
 

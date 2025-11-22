@@ -595,6 +595,14 @@ validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
         <p>
           Validates purchase receipts with the appropriate validation service.
         </p>
+        <p>
+          On iOS this routes through the StoreKit-backed validation flow (the
+          legacy <code>validateReceiptIOS</code> endpoint is now deprecated). On
+          Android, pass <code>androidOptions</code> with{' '}
+          <code>packageName</code>, <code>productToken</code>,{' '}
+          <code>accessToken</code>, and optional <code>isSub</code> so the SDK
+          can validate against the Google Play developer API.
+        </p>
 
         <AnchorLink id="purchase-identifier-usage" level="h3">
           Purchase Identifier Usage
@@ -1002,12 +1010,15 @@ getAppTransactionIOS: AppTransaction`}</CodeBlock>
                 <AnchorLink id="validate-receipt-ios" level="h4">
                   validateReceiptIOS
                 </AnchorLink>
-                <p>Validate a receipt for a specific product.</p>
+                <p>
+                  <strong>Deprecated:</strong> Use <code>validateReceipt</code>{' '}
+                  instead for both platforms.
+                </p>
                 <CodeBlock language="graphql">{`"""
 Validate a receipt for a specific product
 """
 # Future
-validateReceiptIOS(sku: String!): ReceiptValidationResultIOS!`}</CodeBlock>
+validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS! @deprecated(reason: "Use validateReceipt")`}</CodeBlock>
                 <p>
                   Validates a receipt payload against the App Store using the
                   provided validation options. Returns the parsed validation
