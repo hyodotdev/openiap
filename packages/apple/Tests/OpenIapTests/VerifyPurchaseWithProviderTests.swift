@@ -8,15 +8,18 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
     func testStoreReturnsIapkitResult() async throws {
         let iapkitResult = RequestVerifyPurchaseWithIapkitResult(store: .apple, valid: true)
         let module = FakeVerifyPurchaseModule(
-            validateResult: ReceiptValidationResult.receiptValidationResultIos(
-                ReceiptValidationResultIOS(
+            validateResult: VerifyPurchaseResult.verifyPurchaseResultIos(
+                VerifyPurchaseResultIOS(
                     isValid: true,
                     jwsRepresentation: "",
                     latestTransaction: nil,
                     receiptData: ""
                 )
             ),
-            providerResult: VerifyPurchaseWithProviderResult.iapkit(iapkitResult)
+            providerResult: VerifyPurchaseWithProviderResult(
+                iapkit: [iapkitResult],
+                provider: .iapkit
+            )
         )
         let store = OpenIapStore(module: module)
         let props = VerifyPurchaseWithProviderProps(
@@ -27,32 +30,34 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
                     environment: .production,
                     receipt: "receipt-token"
                 ),
-                endpoint: "https://iapkit.test/purchase/verify",
                 google: nil,
                 store: .apple
             ),
             provider: .iapkit
         )
 
-        let result = try await store.verifyPurchaseWithProvider(props)
+        let results = try await store.verifyPurchaseWithProvider(props)
 
-        XCTAssertNotNil(result)
-        XCTAssertEqual(IapkitStore.apple, result?.store)
-        XCTAssertEqual(true, result?.valid)
+        XCTAssertEqual(1, results.count)
+        XCTAssertEqual(IapkitStore.apple, results.first?.store)
+        XCTAssertEqual(true, results.first?.valid)
     }
 
     @MainActor
     func testStoreReturnsNilWhenProviderResultIsNil() async throws {
         let module = FakeVerifyPurchaseModule(
-            validateResult: ReceiptValidationResult.receiptValidationResultIos(
-                ReceiptValidationResultIOS(
+            validateResult: VerifyPurchaseResult.verifyPurchaseResultIos(
+                VerifyPurchaseResultIOS(
                     isValid: false,
                     jwsRepresentation: "",
                     latestTransaction: nil,
                     receiptData: ""
                 )
             ),
-            providerResult: VerifyPurchaseWithProviderResult.iapkit(nil)
+            providerResult: VerifyPurchaseWithProviderResult(
+                iapkit: [],
+                provider: .iapkit
+            )
         )
         let store = OpenIapStore(module: module)
         let props = VerifyPurchaseWithProviderProps(
@@ -63,7 +68,6 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
                     environment: .sandbox,
                     receipt: "receipt-token"
                 ),
-                endpoint: "https://iapkit.test/purchase/verify",
                 google: nil,
                 store: .apple
             ),
@@ -72,16 +76,16 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
 
         let result = try await store.verifyPurchaseWithProvider(props)
 
-        XCTAssertNil(result)
+        XCTAssertEqual(0, result.count)
     }
 }
 
 @available(iOS 15.0, macOS 14.0, *)
 private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
-    private let validateResult: ReceiptValidationResult
+    private let validateResult: VerifyPurchaseResult
     private let providerResult: VerifyPurchaseWithProviderResult
 
-    init(validateResult: ReceiptValidationResult, providerResult: VerifyPurchaseWithProviderResult) {
+    init(validateResult: VerifyPurchaseResult, providerResult: VerifyPurchaseWithProviderResult) {
         self.validateResult = validateResult
         self.providerResult = providerResult
     }
@@ -111,18 +115,18 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
 
     // MARK: - Validation
     func getReceiptDataIOS() async throws -> String? { "receipt" }
-    func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS {
-        guard case let .receiptValidationResultIos(ios) = validateResult else {
+    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
+        guard case let .verifyPurchaseResultIos(ios) = validateResult else {
             throw PurchaseError(code: .featureNotSupported, message: "Android validation not supported", productId: props.sku)
         }
         return ios
     }
 
-    func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         validateResult
     }
 
-    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+    func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         validateResult
     }
 

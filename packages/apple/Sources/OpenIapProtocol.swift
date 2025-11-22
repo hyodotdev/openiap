@@ -42,10 +42,10 @@ public protocol OpenIapModuleProtocol {
     // Validation
     func getReceiptDataIOS() async throws -> String?
     @available(*, deprecated, message: "Use verifyPurchase")
-    func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS
+    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
     @available(*, deprecated, message: "Use verifyPurchase")
-    func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult
-    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult
+    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
+    func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 
     // Store Information

@@ -153,14 +153,14 @@ input AndroidSubscriptionOfferInput {
   offerToken: String!
 }
 
-input ReceiptValidationAndroidOptions {
+input VerifyPurchaseAndroidOptions {
   packageName: String!
   productToken: String!
   accessToken: String!
   isSub: Boolean
 }
 
-type ReceiptValidationResultAndroid {
+type VerifyPurchaseResultAndroid {
   autoRenewing: Boolean!
   betaProduct: Boolean!
   cancelDate: Float
@@ -220,4 +220,3 @@ type UserChoiceBillingDetails {
   """
   products: [String!]!
 }
-

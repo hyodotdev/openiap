@@ -1364,114 +1364,6 @@ public data class PurchaseOfferIOS(
     )
 }
 
-public data class ReceiptValidationResultAndroid(
-    val autoRenewing: Boolean,
-    val betaProduct: Boolean,
-    val cancelDate: Double? = null,
-    val cancelReason: String? = null,
-    val deferredDate: Double? = null,
-    val deferredSku: String? = null,
-    val freeTrialEndDate: Double,
-    val gracePeriodEndDate: Double,
-    val parentProductId: String,
-    val productId: String,
-    val productType: String,
-    val purchaseDate: Double,
-    val quantity: Int,
-    val receiptId: String,
-    val renewalDate: Double,
-    val term: String,
-    val termSku: String,
-    val testTransaction: Boolean
-) : ReceiptValidationResult {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ReceiptValidationResultAndroid {
-            return ReceiptValidationResultAndroid(
-                autoRenewing = json["autoRenewing"] as Boolean,
-                betaProduct = json["betaProduct"] as Boolean,
-                cancelDate = (json["cancelDate"] as Number?)?.toDouble(),
-                cancelReason = json["cancelReason"] as String?,
-                deferredDate = (json["deferredDate"] as Number?)?.toDouble(),
-                deferredSku = json["deferredSku"] as String?,
-                freeTrialEndDate = (json["freeTrialEndDate"] as Number).toDouble(),
-                gracePeriodEndDate = (json["gracePeriodEndDate"] as Number).toDouble(),
-                parentProductId = json["parentProductId"] as String,
-                productId = json["productId"] as String,
-                productType = json["productType"] as String,
-                purchaseDate = (json["purchaseDate"] as Number).toDouble(),
-                quantity = (json["quantity"] as Number).toInt(),
-                receiptId = json["receiptId"] as String,
-                renewalDate = (json["renewalDate"] as Number).toDouble(),
-                term = json["term"] as String,
-                termSku = json["termSku"] as String,
-                testTransaction = json["testTransaction"] as Boolean,
-            )
-        }
-    }
-
-    override fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "ReceiptValidationResultAndroid",
-        "autoRenewing" to autoRenewing,
-        "betaProduct" to betaProduct,
-        "cancelDate" to cancelDate,
-        "cancelReason" to cancelReason,
-        "deferredDate" to deferredDate,
-        "deferredSku" to deferredSku,
-        "freeTrialEndDate" to freeTrialEndDate,
-        "gracePeriodEndDate" to gracePeriodEndDate,
-        "parentProductId" to parentProductId,
-        "productId" to productId,
-        "productType" to productType,
-        "purchaseDate" to purchaseDate,
-        "quantity" to quantity,
-        "receiptId" to receiptId,
-        "renewalDate" to renewalDate,
-        "term" to term,
-        "termSku" to termSku,
-        "testTransaction" to testTransaction,
-    )
-}
-
-public data class ReceiptValidationResultIOS(
-    /**
-     * Whether the receipt is valid
-     */
-    val isValid: Boolean,
-    /**
-     * JWS representation
-     */
-    val jwsRepresentation: String,
-    /**
-     * Latest transaction if available
-     */
-    val latestTransaction: Purchase? = null,
-    /**
-     * Receipt data string
-     */
-    val receiptData: String
-) : ReceiptValidationResult {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ReceiptValidationResultIOS {
-            return ReceiptValidationResultIOS(
-                isValid = json["isValid"] as Boolean,
-                jwsRepresentation = json["jwsRepresentation"] as String,
-                latestTransaction = (json["latestTransaction"] as Map<String, Any?>?)?.let { Purchase.fromJson(it) },
-                receiptData = json["receiptData"] as String,
-            )
-        }
-    }
-
-    override fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "ReceiptValidationResultIOS",
-        "isValid" to isValid,
-        "jwsRepresentation" to jwsRepresentation,
-        "latestTransaction" to latestTransaction?.toJson(),
-        "receiptData" to receiptData,
-    )
-}
-
 public data class RefundResultIOS(
     val message: String? = null,
     val status: String
@@ -1739,9 +1631,137 @@ public data class UserChoiceBillingDetails(
     )
 }
 
-public sealed interface VerifyPurchaseWithProviderResult
+public data class VerifyPurchaseResultAndroid(
+    val autoRenewing: Boolean,
+    val betaProduct: Boolean,
+    val cancelDate: Double? = null,
+    val cancelReason: String? = null,
+    val deferredDate: Double? = null,
+    val deferredSku: String? = null,
+    val freeTrialEndDate: Double,
+    val gracePeriodEndDate: Double,
+    val parentProductId: String,
+    val productId: String,
+    val productType: String,
+    val purchaseDate: Double,
+    val quantity: Int,
+    val receiptId: String,
+    val renewalDate: Double,
+    val term: String,
+    val termSku: String,
+    val testTransaction: Boolean
+) : VerifyPurchaseResult {
 
-public data class VerifyPurchaseWithProviderResultIapkit(val value: RequestVerifyPurchaseWithIapkitResult?) : VerifyPurchaseWithProviderResult
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultAndroid {
+            return VerifyPurchaseResultAndroid(
+                autoRenewing = json["autoRenewing"] as Boolean,
+                betaProduct = json["betaProduct"] as Boolean,
+                cancelDate = (json["cancelDate"] as Number?)?.toDouble(),
+                cancelReason = json["cancelReason"] as String?,
+                deferredDate = (json["deferredDate"] as Number?)?.toDouble(),
+                deferredSku = json["deferredSku"] as String?,
+                freeTrialEndDate = (json["freeTrialEndDate"] as Number).toDouble(),
+                gracePeriodEndDate = (json["gracePeriodEndDate"] as Number).toDouble(),
+                parentProductId = json["parentProductId"] as String,
+                productId = json["productId"] as String,
+                productType = json["productType"] as String,
+                purchaseDate = (json["purchaseDate"] as Number).toDouble(),
+                quantity = (json["quantity"] as Number).toInt(),
+                receiptId = json["receiptId"] as String,
+                renewalDate = (json["renewalDate"] as Number).toDouble(),
+                term = json["term"] as String,
+                termSku = json["termSku"] as String,
+                testTransaction = json["testTransaction"] as Boolean,
+            )
+        }
+    }
+
+    override fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "VerifyPurchaseResultAndroid",
+        "autoRenewing" to autoRenewing,
+        "betaProduct" to betaProduct,
+        "cancelDate" to cancelDate,
+        "cancelReason" to cancelReason,
+        "deferredDate" to deferredDate,
+        "deferredSku" to deferredSku,
+        "freeTrialEndDate" to freeTrialEndDate,
+        "gracePeriodEndDate" to gracePeriodEndDate,
+        "parentProductId" to parentProductId,
+        "productId" to productId,
+        "productType" to productType,
+        "purchaseDate" to purchaseDate,
+        "quantity" to quantity,
+        "receiptId" to receiptId,
+        "renewalDate" to renewalDate,
+        "term" to term,
+        "termSku" to termSku,
+        "testTransaction" to testTransaction,
+    )
+}
+
+public data class VerifyPurchaseResultIOS(
+    /**
+     * Whether the receipt is valid
+     */
+    val isValid: Boolean,
+    /**
+     * JWS representation
+     */
+    val jwsRepresentation: String,
+    /**
+     * Latest transaction if available
+     */
+    val latestTransaction: Purchase? = null,
+    /**
+     * Receipt data string
+     */
+    val receiptData: String
+) : VerifyPurchaseResult {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultIOS {
+            return VerifyPurchaseResultIOS(
+                isValid = json["isValid"] as Boolean,
+                jwsRepresentation = json["jwsRepresentation"] as String,
+                latestTransaction = (json["latestTransaction"] as Map<String, Any?>?)?.let { Purchase.fromJson(it) },
+                receiptData = json["receiptData"] as String,
+            )
+        }
+    }
+
+    override fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "VerifyPurchaseResultIOS",
+        "isValid" to isValid,
+        "jwsRepresentation" to jwsRepresentation,
+        "latestTransaction" to latestTransaction?.toJson(),
+        "receiptData" to receiptData,
+    )
+}
+
+public data class VerifyPurchaseWithProviderResult(
+    /**
+     * IAPKit verification results (can include Apple and Google entries)
+     */
+    val iapkit: List<RequestVerifyPurchaseWithIapkitResult>,
+    val provider: PurchaseVerificationProvider
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderResult {
+            return VerifyPurchaseWithProviderResult(
+                iapkit = (json["iapkit"] as List<*>).map { RequestVerifyPurchaseWithIapkitResult.fromJson((it as Map<String, Any?>)) },
+                provider = PurchaseVerificationProvider.fromJson(json["provider"] as String),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "VerifyPurchaseWithProviderResult",
+        "iapkit" to iapkit.map { it.toJson() },
+        "provider" to provider.toJson(),
+    )
+}
 
 public typealias VoidResult = Unit
 
@@ -1906,56 +1926,6 @@ public data class PurchaseOptions(
     fun toJson(): Map<String, Any?> = mapOf(
         "alsoPublishToEventListenerIOS" to alsoPublishToEventListenerIOS,
         "onlyIncludeActiveItemsIOS" to onlyIncludeActiveItemsIOS,
-    )
-}
-
-public data class ReceiptValidationAndroidOptions(
-    val accessToken: String,
-    val isSub: Boolean? = null,
-    val packageName: String,
-    val productToken: String
-) {
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ReceiptValidationAndroidOptions {
-            return ReceiptValidationAndroidOptions(
-                accessToken = json["accessToken"] as String,
-                isSub = json["isSub"] as Boolean?,
-                packageName = json["packageName"] as String,
-                productToken = json["productToken"] as String,
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "accessToken" to accessToken,
-        "isSub" to isSub,
-        "packageName" to packageName,
-        "productToken" to productToken,
-    )
-}
-
-public data class ReceiptValidationProps(
-    /**
-     * Android-specific validation options
-     */
-    val androidOptions: ReceiptValidationAndroidOptions? = null,
-    /**
-     * Product SKU to validate
-     */
-    val sku: String
-) {
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ReceiptValidationProps {
-            return ReceiptValidationProps(
-                androidOptions = (json["androidOptions"] as Map<String, Any?>?)?.let { ReceiptValidationAndroidOptions.fromJson(it) },
-                sku = json["sku"] as String,
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "androidOptions" to androidOptions?.toJson(),
-        "sku" to sku,
     )
 }
 
@@ -2297,26 +2267,21 @@ public data class RequestVerifyPurchaseWithIapkitProps(
      */
     val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
     /**
-     * Absolute endpoint for the IAPKit verify API (POST /purchase/verify).
-     */
-    val endpoint: String,
-    /**
      * Google verification parameters (required when store is Google).
      */
     val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null,
     /**
-     * Target store for this verification request.
+     * Target store for this verification request. Optional when sending both Apple and Google payloads together.
      */
-    val store: IapkitStore
+    val store: IapkitStore? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
             return RequestVerifyPurchaseWithIapkitProps(
                 apiKey = json["apiKey"] as String?,
                 apple = (json["apple"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
-                endpoint = json["endpoint"] as String,
                 google = (json["google"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
-                store = IapkitStore.fromJson(json["store"] as String),
+                store = (json["store"] as String?)?.let { IapkitStore.fromJson(it) },
             )
         }
     }
@@ -2324,9 +2289,58 @@ public data class RequestVerifyPurchaseWithIapkitProps(
     fun toJson(): Map<String, Any?> = mapOf(
         "apiKey" to apiKey,
         "apple" to apple?.toJson(),
-        "endpoint" to endpoint,
         "google" to google?.toJson(),
-        "store" to store.toJson(),
+        "store" to store?.toJson(),
+    )
+}
+
+public data class VerifyPurchaseAndroidOptions(
+    val accessToken: String,
+    val isSub: Boolean? = null,
+    val packageName: String,
+    val productToken: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAndroidOptions {
+            return VerifyPurchaseAndroidOptions(
+                accessToken = json["accessToken"] as String,
+                isSub = json["isSub"] as Boolean?,
+                packageName = json["packageName"] as String,
+                productToken = json["productToken"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "accessToken" to accessToken,
+        "isSub" to isSub,
+        "packageName" to packageName,
+        "productToken" to productToken,
+    )
+}
+
+public data class VerifyPurchaseProps(
+    /**
+     * Android-specific validation options
+     */
+    val androidOptions: VerifyPurchaseAndroidOptions? = null,
+    /**
+     * Product SKU to validate
+     */
+    val sku: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
+            return VerifyPurchaseProps(
+                androidOptions = (json["androidOptions"] as Map<String, Any?>?)?.let { VerifyPurchaseAndroidOptions.fromJson(it) },
+                sku = json["sku"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "androidOptions" to androidOptions?.toJson(),
+        "sku" to sku,
     )
 }
 
@@ -2417,15 +2431,15 @@ public sealed interface Purchase : PurchaseCommon {
     }
 }
 
-public sealed interface ReceiptValidationResult {
+public sealed interface VerifyPurchaseResult {
     fun toJson(): Map<String, Any?>
 
     companion object {
-        fun fromJson(json: Map<String, Any?>): ReceiptValidationResult {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseResult {
             return when (json["__typename"] as String?) {
-                "ReceiptValidationResultAndroid" -> ReceiptValidationResultAndroid.fromJson(json)
-                "ReceiptValidationResultIOS" -> ReceiptValidationResultIOS.fromJson(json)
-                else -> throw IllegalArgumentException("Unknown __typename for ReceiptValidationResult: ${json["__typename"]}")
+                "VerifyPurchaseResultAndroid" -> VerifyPurchaseResultAndroid.fromJson(json)
+                "VerifyPurchaseResultIOS" -> VerifyPurchaseResultIOS.fromJson(json)
+                else -> throw IllegalArgumentException("Unknown __typename for VerifyPurchaseResult: ${json["__typename"]}")
             }
         }
     }
@@ -2531,11 +2545,11 @@ public interface MutationResolver {
     /**
      * Validate purchase receipts with the configured providers
      */
-    suspend fun validateReceipt(options: ReceiptValidationProps): ReceiptValidationResult
+    suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
      * Verify purchases with the configured providers
      */
-    suspend fun verifyPurchase(options: ReceiptValidationProps): ReceiptValidationResult
+    suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
      * Verify purchases with a specific provider (e.g., IAPKit)
      */
@@ -2617,7 +2631,7 @@ public interface QueryResolver {
     /**
      * Validate a receipt for a specific product
      */
-    suspend fun validateReceiptIOS(options: ReceiptValidationProps): ReceiptValidationResultIOS
+    suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
 }
 
 /**
@@ -2666,8 +2680,8 @@ public typealias MutationRestorePurchasesHandler = suspend () -> Unit
 public typealias MutationShowAlternativeBillingDialogAndroidHandler = suspend () -> Boolean
 public typealias MutationShowManageSubscriptionsIOSHandler = suspend () -> List<PurchaseIOS>
 public typealias MutationSyncIOSHandler = suspend () -> Boolean
-public typealias MutationValidateReceiptHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResult
-public typealias MutationVerifyPurchaseHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResult
+public typealias MutationValidateReceiptHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResult
+public typealias MutationVerifyPurchaseHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResult
 public typealias MutationVerifyPurchaseWithProviderHandler = suspend (options: VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult
 
 public data class MutationHandlers(
@@ -2714,7 +2728,7 @@ public typealias QueryIsEligibleForIntroOfferIOSHandler = suspend (groupID: Stri
 public typealias QueryIsTransactionVerifiedIOSHandler = suspend (sku: String) -> Boolean
 public typealias QueryLatestTransactionIOSHandler = suspend (sku: String) -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = suspend (sku: String) -> List<SubscriptionStatusIOS>
-public typealias QueryValidateReceiptIOSHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResultIOS
+public typealias QueryValidateReceiptIOSHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResultIOS
 
 public data class QueryHandlers(
     val canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = null,

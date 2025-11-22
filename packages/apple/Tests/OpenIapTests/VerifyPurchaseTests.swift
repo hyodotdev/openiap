@@ -6,13 +6,13 @@ final class VerifyPurchaseTests: XCTestCase {
 
     @MainActor
     func testVerifyPurchaseReturnsIOSResult() async throws {
-        let iosResult = ReceiptValidationResultIOS(
+        let iosResult = VerifyPurchaseResultIOS(
             isValid: true,
             jwsRepresentation: "jws-token",
             latestTransaction: nil,
             receiptData: "base64-receipt"
         )
-        let module = FakeOpenIapModule(validateResult: .receiptValidationResultIos(iosResult))
+        let module = FakeOpenIapModule(validateResult: .verifyPurchaseResultIos(iosResult))
         let store = OpenIapStore(module: module)
 
         let result = try await store.verifyPurchase(sku: "test.sku")
@@ -24,7 +24,7 @@ final class VerifyPurchaseTests: XCTestCase {
 
     @MainActor
     func testVerifyPurchaseThrowsForAndroidVariant() async {
-        let androidPayload = ReceiptValidationResultAndroid(
+        let androidPayload = VerifyPurchaseResultAndroid(
             autoRenewing: false,
             betaProduct: false,
             cancelDate: nil,
@@ -44,7 +44,7 @@ final class VerifyPurchaseTests: XCTestCase {
             termSku: "plan-monthly",
             testTransaction: false
         )
-        let module = FakeOpenIapModule(validateResult: .receiptValidationResultAndroid(androidPayload))
+        let module = FakeOpenIapModule(validateResult: .verifyPurchaseResultAndroid(androidPayload))
         let store = OpenIapStore(module: module)
 
         do {
@@ -60,12 +60,15 @@ final class VerifyPurchaseTests: XCTestCase {
 
 @available(iOS 15.0, macOS 14.0, *)
 private final class FakeOpenIapModule: OpenIapModuleProtocol {
-    private let validateResult: ReceiptValidationResult
+    private let validateResult: VerifyPurchaseResult
     private let providerResult: VerifyPurchaseWithProviderResult
 
     init(
-        validateResult: ReceiptValidationResult,
-        providerResult: VerifyPurchaseWithProviderResult = .iapkit(nil)
+        validateResult: VerifyPurchaseResult,
+        providerResult: VerifyPurchaseWithProviderResult = VerifyPurchaseWithProviderResult(
+            iapkit: [],
+            provider: .iapkit
+        )
     ) {
         self.validateResult = validateResult
         self.providerResult = providerResult
@@ -96,18 +99,18 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
 
     // MARK: - Validation
     func getReceiptDataIOS() async throws -> String? { "receipt" }
-    func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS {
-        guard case let .receiptValidationResultIos(ios) = validateResult else {
+    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
+        guard case let .verifyPurchaseResultIos(ios) = validateResult else {
             throw PurchaseError(code: .featureNotSupported, message: "Android validation not supported", productId: props.sku)
         }
         return ios
     }
 
-    func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         validateResult
     }
 
-    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+    func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         validateResult
     }
 

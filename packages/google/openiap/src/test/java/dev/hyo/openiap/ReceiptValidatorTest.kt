@@ -8,6 +8,8 @@ import dev.hyo.openiap.IapkitStore
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.VerifyPurchaseAndroidOptions
+import dev.hyo.openiap.VerifyPurchaseProps
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -23,7 +25,7 @@ class ReceiptValidatorTest {
 
     @Test
     fun `validateReceiptWithGooglePlay throws without androidOptions`() = runTest {
-        val props = ReceiptValidationProps(androidOptions = null, sku = "product.sku")
+        val props = VerifyPurchaseProps(androidOptions = null, sku = "product.sku")
 
         try {
             validateReceiptWithGooglePlay(props, "TEST_TAG") { _ ->
@@ -37,13 +39,13 @@ class ReceiptValidatorTest {
 
     @Test
     fun `validateReceiptWithGooglePlay parses successful response`() = runTest {
-        val options = ReceiptValidationAndroidOptions(
+        val options = VerifyPurchaseAndroidOptions(
             accessToken = "token",
             isSub = true,
             packageName = "dev.hyo.app",
             productToken = "purchaseToken"
         )
-        val props = ReceiptValidationProps(androidOptions = options, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(androidOptions = options, sku = "premium_monthly")
         val body = """
             {
               "autoRenewing": true,
@@ -81,13 +83,13 @@ class ReceiptValidatorTest {
 
     @Test
     fun `validateReceiptWithGooglePlay wraps non-2xx as InvalidReceipt`() = runTest {
-        val options = ReceiptValidationAndroidOptions(
+        val options = VerifyPurchaseAndroidOptions(
             accessToken = "token",
             isSub = false,
             packageName = "dev.hyo.app",
             productToken = "purchaseToken"
         )
-        val props = ReceiptValidationProps(androidOptions = options, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(androidOptions = options, sku = "premium_monthly")
 
         try {
             validateReceiptWithGooglePlay(
@@ -105,7 +107,6 @@ class ReceiptValidatorTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = null,
             apple = null,
-            endpoint = "https://iapkit.test/purchase/verify",
             google = null,
             store = IapkitStore.Apple
         )
@@ -121,79 +122,70 @@ class ReceiptValidatorTest {
     }
 
     @Test
-    fun `verifyPurchaseWithIapkit throws without endpoint`() = runTest {
+    fun `verifyPurchaseWithIapkit uses default endpoint when missing`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = null,
-            apple = RequestVerifyPurchaseWithIapkitAppleProps(
-                appId = null,
-                environment = IapkitEnvironment.Sandbox,
-                receipt = "receipt-token"
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                packageName = "dev.hyo.app",
+                purchaseId = "premium_monthly",
+                purchaseToken = "token-abc"
             ),
-            endpoint = "   ",
-            google = null,
-            store = IapkitStore.Apple
+            store = IapkitStore.Google
+        )
+
+        verifyPurchaseWithIapkit(props, "TEST") { _ -> FakeHttpURLConnection(200, """{"store":"google","valid":true}""") }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit throws when google payload missing fields`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                packageName = "",
+                purchaseId = "premium_monthly",
+                purchaseToken = ""
+            ),
+            store = IapkitStore.Google
         )
 
         try {
             verifyPurchaseWithIapkit(props, "TEST") { _ ->
-                throw AssertionError("Connection should not be created when endpoint is missing")
+                throw AssertionError("Connection should not be created when google payload is invalid")
             }
-            throw AssertionError("Expected IllegalArgumentException for missing endpoint")
+            throw AssertionError("Expected IllegalArgumentException for invalid google payload")
         } catch (expected: IllegalArgumentException) {
             // Expected path
         }
     }
 
     @Test
-    fun `verifyPurchaseWithIapkit requires appId for production`() = runTest {
-        val props = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = null,
-            apple = RequestVerifyPurchaseWithIapkitAppleProps(
-                appId = null,
-                environment = IapkitEnvironment.Production,
-                receipt = "receipt-token"
-            ),
-            endpoint = "https://iapkit.test/purchase/verify",
-            google = null,
-            store = IapkitStore.Apple
-        )
-
-        try {
-            verifyPurchaseWithIapkit(props, "TEST") { _ ->
-                throw AssertionError("Connection should not be created when appId is missing")
-            }
-            throw AssertionError("Expected IllegalArgumentException for missing appId in production")
-        } catch (expected: IllegalArgumentException) {
-            // Expected path
-        }
-    }
-
-    @Test
-    fun `verifyPurchaseWithIapkit posts apple receipt with api key`() = runTest {
+    fun `verifyPurchaseWithIapkit posts google receipt with api key`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "secret",
-            apple = RequestVerifyPurchaseWithIapkitAppleProps(
-                appId = "com.example.app",
-                environment = IapkitEnvironment.Production,
-                receipt = "receipt-token"
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                packageName = "dev.hyo.app",
+                purchaseId = "premium_monthly",
+                purchaseToken = "token-123"
             ),
-            endpoint = "https://iapkit.test/purchase/verify",
-            google = null,
-            store = IapkitStore.Apple
+            store = IapkitStore.Google
         )
 
-        val connection = FakeHttpURLConnection(200, """{"store":"apple","valid":true}""")
+        val connection = FakeHttpURLConnection(200, """{"store":"google","valid":true}""")
         val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
 
-        assertEquals(IapkitStore.Apple, result.store)
-        assertTrue(result.valid)
+        assertEquals(1, result.size)
+        assertEquals(IapkitStore.Google, result.first().store)
+        assertTrue(result.first().valid)
         assertEquals("Bearer secret", connection.headers["Authorization"])
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
-        assertEquals("apple", bodyMap["store"])
-        assertEquals("receipt-token", bodyMap["receipt"])
-        assertEquals("production", bodyMap["environment"])
-        assertEquals("com.example.app", bodyMap["appId"])
+        assertEquals("google", bodyMap["store"])
+        assertEquals("dev.hyo.app", bodyMap["packageName"])
+        assertEquals("premium_monthly", bodyMap["purchaseId"])
+        assertEquals("token-123", bodyMap["purchaseToken"])
     }
 
     @Test
@@ -201,7 +193,6 @@ class ReceiptValidatorTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = null,
             apple = null,
-            endpoint = "https://iapkit.test/purchase/verify",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 packageName = "dev.hyo.app",
                 purchaseId = "premium_monthly",
@@ -213,8 +204,9 @@ class ReceiptValidatorTest {
         val connection = FakeHttpURLConnection(200, """{"store":"google","valid":false}""")
         val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
 
-        assertEquals(IapkitStore.Google, result.store)
-        assertEquals(false, result.valid)
+        assertEquals(1, result.size)
+        assertEquals(IapkitStore.Google, result.first().store)
+        assertEquals(false, result.first().valid)
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
         assertEquals("google", bodyMap["store"])
@@ -227,14 +219,13 @@ class ReceiptValidatorTest {
     fun `verifyPurchaseWithIapkit wraps non-2xx as InvalidReceipt`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = null,
-            apple = RequestVerifyPurchaseWithIapkitAppleProps(
-                appId = null,
-                environment = null,
-                receipt = "receipt-token"
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                packageName = "dev.hyo.app",
+                purchaseId = "premium_monthly",
+                purchaseToken = "token-123"
             ),
-            endpoint = "https://iapkit.test/purchase/verify",
-            google = null,
-            store = IapkitStore.Apple
+            store = IapkitStore.Google
         )
 
         try {

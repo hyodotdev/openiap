@@ -203,7 +203,7 @@ input RequestSubscriptionPropsByPlatforms {
 }
 
 # Receipt validation inputs and results
-input ReceiptValidationProps {
+input VerifyPurchaseProps {
   """
   Product SKU to validate
   """
@@ -211,12 +211,12 @@ input ReceiptValidationProps {
   """
   Android-specific validation options
   """
-  androidOptions: ReceiptValidationAndroidOptions
+  androidOptions: VerifyPurchaseAndroidOptions
 }
 
-union ReceiptValidationResult =
-    ReceiptValidationResultAndroid
-  | ReceiptValidationResultIOS
+union VerifyPurchaseResult =
+    VerifyPurchaseResultAndroid
+  | VerifyPurchaseResultIOS
 
 input RequestVerifyPurchaseWithIapkitAppleProps {
   """
@@ -254,13 +254,9 @@ input RequestVerifyPurchaseWithIapkitProps {
   """
   apiKey: String
   """
-  Absolute endpoint for the IAPKit verify API (POST /purchase/verify).
+  Target store for this verification request. Optional when sending both Apple and Google payloads together.
   """
-  endpoint: String!
-  """
-  Target store for this verification request.
-  """
-  store: IapkitStore!
+  store: IapkitStore
   """
   Apple verification parameters (required when store is Apple).
   """
@@ -281,9 +277,12 @@ input VerifyPurchaseWithProviderProps {
   iapkit: RequestVerifyPurchaseWithIapkitProps
 }
 
-# => Union
 type VerifyPurchaseWithProviderResult {
-  iapkit: RequestVerifyPurchaseWithIapkitResult
+  provider: PurchaseVerificationProvider!
+  """
+  IAPKit verification results (can include Apple and Google entries)
+  """
+  iapkit: [RequestVerifyPurchaseWithIapkitResult!]!
 }
 
 # Aggregated active subscription data across platforms

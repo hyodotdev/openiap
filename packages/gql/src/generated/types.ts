@@ -255,9 +255,9 @@ export interface Mutation {
    * Validate purchase receipts with the configured providers
    * @deprecated Use verifyPurchase
    */
-  validateReceipt: Promise<ReceiptValidationResult>;
+  validateReceipt: Promise<VerifyPurchaseResult>;
   /** Verify purchases with the configured providers */
-  verifyPurchase: Promise<ReceiptValidationResult>;
+  verifyPurchase: Promise<VerifyPurchaseResult>;
   /** Verify purchases with a specific provider (e.g., IAPKit) */
   verifyPurchaseWithProvider: Promise<VerifyPurchaseWithProviderResult>;
 }
@@ -299,9 +299,9 @@ export type MutationRequestPurchaseArgs =
     };
 
 
-export type MutationValidateReceiptArgs = ReceiptValidationProps;
+export type MutationValidateReceiptArgs = VerifyPurchaseProps;
 
-export type MutationVerifyPurchaseArgs = ReceiptValidationProps;
+export type MutationVerifyPurchaseArgs = VerifyPurchaseProps;
 
 export type MutationVerifyPurchaseWithProviderArgs = VerifyPurchaseWithProviderProps;
 
@@ -587,7 +587,7 @@ export interface Query {
    * Validate a receipt for a specific product
    * @deprecated Use verifyPurchase
    */
-  validateReceiptIOS: Promise<ReceiptValidationResultIOS>;
+  validateReceiptIOS: Promise<VerifyPurchaseResultIOS>;
 }
 
 
@@ -612,55 +612,7 @@ export type QueryLatestTransactionIosArgs = string;
 
 export type QuerySubscriptionStatusIosArgs = string;
 
-export type QueryValidateReceiptIosArgs = ReceiptValidationProps;
-
-export interface ReceiptValidationAndroidOptions {
-  accessToken: string;
-  isSub?: (boolean | null);
-  packageName: string;
-  productToken: string;
-}
-
-export interface ReceiptValidationProps {
-  /** Android-specific validation options */
-  androidOptions?: (ReceiptValidationAndroidOptions | null);
-  /** Product SKU to validate */
-  sku: string;
-}
-
-export type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidationResultIOS;
-
-export interface ReceiptValidationResultAndroid {
-  autoRenewing: boolean;
-  betaProduct: boolean;
-  cancelDate?: (number | null);
-  cancelReason?: (string | null);
-  deferredDate?: (number | null);
-  deferredSku?: (string | null);
-  freeTrialEndDate: number;
-  gracePeriodEndDate: number;
-  parentProductId: string;
-  productId: string;
-  productType: string;
-  purchaseDate: number;
-  quantity: number;
-  receiptId: string;
-  renewalDate: number;
-  term: string;
-  termSku: string;
-  testTransaction: boolean;
-}
-
-export interface ReceiptValidationResultIOS {
-  /** Whether the receipt is valid */
-  isValid: boolean;
-  /** JWS representation */
-  jwsRepresentation: string;
-  /** Latest transaction if available */
-  latestTransaction?: (Purchase | null);
-  /** Receipt data string */
-  receiptData: string;
-}
+export type QueryValidateReceiptIosArgs = VerifyPurchaseProps;
 
 export interface RefundResultIOS {
   message?: (string | null);
@@ -818,12 +770,10 @@ export interface RequestVerifyPurchaseWithIapkitProps {
   apiKey?: (string | null);
   /** Apple verification parameters (required when store is Apple). */
   apple?: (RequestVerifyPurchaseWithIapkitAppleProps | null);
-  /** Absolute endpoint for the IAPKit verify API (POST /purchase/verify). */
-  endpoint: string;
   /** Google verification parameters (required when store is Google). */
   google?: (RequestVerifyPurchaseWithIapkitGoogleProps | null);
-  /** Target store for this verification request. */
-  store: IapkitStore;
+  /** Target store for this verification request. Optional when sending both Apple and Google payloads together. */
+  store?: (IapkitStore | null);
 }
 
 export interface RequestVerifyPurchaseWithIapkitResult {
@@ -888,13 +838,63 @@ export interface UserChoiceBillingDetails {
   products: string[];
 }
 
+export interface VerifyPurchaseAndroidOptions {
+  accessToken: string;
+  isSub?: (boolean | null);
+  packageName: string;
+  productToken: string;
+}
+
+export interface VerifyPurchaseProps {
+  /** Android-specific validation options */
+  androidOptions?: (VerifyPurchaseAndroidOptions | null);
+  /** Product SKU to validate */
+  sku: string;
+}
+
+export type VerifyPurchaseResult = VerifyPurchaseResultAndroid | VerifyPurchaseResultIOS;
+
+export interface VerifyPurchaseResultAndroid {
+  autoRenewing: boolean;
+  betaProduct: boolean;
+  cancelDate?: (number | null);
+  cancelReason?: (string | null);
+  deferredDate?: (number | null);
+  deferredSku?: (string | null);
+  freeTrialEndDate: number;
+  gracePeriodEndDate: number;
+  parentProductId: string;
+  productId: string;
+  productType: string;
+  purchaseDate: number;
+  quantity: number;
+  receiptId: string;
+  renewalDate: number;
+  term: string;
+  termSku: string;
+  testTransaction: boolean;
+}
+
+export interface VerifyPurchaseResultIOS {
+  /** Whether the receipt is valid */
+  isValid: boolean;
+  /** JWS representation */
+  jwsRepresentation: string;
+  /** Latest transaction if available */
+  latestTransaction?: (Purchase | null);
+  /** Receipt data string */
+  receiptData: string;
+}
+
 export interface VerifyPurchaseWithProviderProps {
   iapkit?: (RequestVerifyPurchaseWithIapkitProps | null);
   provider: PurchaseVerificationProvider;
 }
 
 export interface VerifyPurchaseWithProviderResult {
-  iapkit?: (RequestVerifyPurchaseWithIapkitResult | null);
+  /** IAPKit verification results (can include Apple and Google entries) */
+  iapkit: RequestVerifyPurchaseWithIapkitResult[];
+  provider: PurchaseVerificationProvider;
 }
 
 export type VoidResult = void;
