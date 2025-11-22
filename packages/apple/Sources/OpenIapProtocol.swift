@@ -79,7 +79,7 @@ public protocol OpenIapModuleProtocol {
 // Backward compatibility for legacy receipt validation APIs
 public extension OpenIapModuleProtocol {
     @available(*, deprecated, message: "Use verifyPurchaseWithProvider instead")
-    func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps?) async throws -> VerifyPurchaseWithProviderResult {
+    func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         throw PurchaseError(code: .featureNotSupported, message: "verifyPurchaseWithProvider not supported")
     }
 
