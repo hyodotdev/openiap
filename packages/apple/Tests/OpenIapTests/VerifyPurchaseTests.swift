@@ -2,7 +2,7 @@ import XCTest
 @testable import OpenIAP
 
 @available(iOS 15.0, macOS 14.0, *)
-final class ValidateReceiptTests: XCTestCase {
+final class VerifyPurchaseTests: XCTestCase {
 
     @MainActor
     func testVerifyPurchaseReturnsIOSResult() async throws {
@@ -61,9 +61,14 @@ final class ValidateReceiptTests: XCTestCase {
 @available(iOS 15.0, macOS 14.0, *)
 private final class FakeOpenIapModule: OpenIapModuleProtocol {
     private let validateResult: ReceiptValidationResult
+    private let providerResult: VerifyPurchaseWithProviderResult
 
-    init(validateResult: ReceiptValidationResult) {
+    init(
+        validateResult: ReceiptValidationResult,
+        providerResult: VerifyPurchaseWithProviderResult = .iapkit(nil)
+    ) {
         self.validateResult = validateResult
+        self.providerResult = providerResult
     }
 
     // MARK: - Connection Management
@@ -104,6 +109,10 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
 
     func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
         validateResult
+    }
+
+    func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
+        providerResult
     }
 
     // MARK: - Store Information

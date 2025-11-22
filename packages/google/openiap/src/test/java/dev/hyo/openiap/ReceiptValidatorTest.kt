@@ -121,6 +121,54 @@ class ReceiptValidatorTest {
     }
 
     @Test
+    fun `verifyPurchaseWithIapkit throws without endpoint`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                appId = null,
+                environment = IapkitEnvironment.Sandbox,
+                receipt = "receipt-token"
+            ),
+            endpoint = "   ",
+            google = null,
+            store = IapkitStore.Apple
+        )
+
+        try {
+            verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                throw AssertionError("Connection should not be created when endpoint is missing")
+            }
+            throw AssertionError("Expected IllegalArgumentException for missing endpoint")
+        } catch (expected: IllegalArgumentException) {
+            // Expected path
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit requires appId for production`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = null,
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                appId = null,
+                environment = IapkitEnvironment.Production,
+                receipt = "receipt-token"
+            ),
+            endpoint = "https://iapkit.test/purchase/verify",
+            google = null,
+            store = IapkitStore.Apple
+        )
+
+        try {
+            verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                throw AssertionError("Connection should not be created when appId is missing")
+            }
+            throw AssertionError("Expected IllegalArgumentException for missing appId in production")
+        } catch (expected: IllegalArgumentException) {
+            // Expected path
+        }
+    }
+
+    @Test
     fun `verifyPurchaseWithIapkit posts apple receipt with api key`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "secret",

@@ -64,6 +64,7 @@ import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.validateReceiptWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
+import dev.hyo.openiap.VerifyPurchaseWithProviderResultIapkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -813,7 +814,7 @@ class OpenIapModule(
             throw OpenIapError.FeatureNotSupported
         }
         val options = props.iapkit ?: throw OpenIapError.DeveloperError
-        verifyPurchaseWithIapkit(options, TAG)
+        VerifyPurchaseWithProviderResultIapkit(verifyPurchaseWithIapkit(options, TAG))
     }
 
     private val purchaseError: SubscriptionPurchaseErrorHandler = {

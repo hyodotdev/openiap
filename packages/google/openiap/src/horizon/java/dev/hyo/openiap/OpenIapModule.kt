@@ -39,6 +39,7 @@ import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.PurchaseVerificationProvider
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
+import dev.hyo.openiap.VerifyPurchaseWithProviderResultIapkit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -662,7 +663,7 @@ class OpenIapModule(
             throw OpenIapError.FeatureNotSupported
         }
         val options = props.iapkit ?: throw OpenIapError.DeveloperError
-        verifyPurchaseWithIapkit(options, TAG)
+        VerifyPurchaseWithProviderResultIapkit(verifyPurchaseWithIapkit(options, TAG))
     }
 
     private val purchaseError: SubscriptionPurchaseErrorHandler = {
