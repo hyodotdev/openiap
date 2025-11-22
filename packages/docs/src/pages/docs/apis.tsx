@@ -403,8 +403,7 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
             Listen for purchase updates via <code>purchaseUpdatedListener</code>
           </li>
           <li>
-            Validate the receipt with <code>validateReceipt</code> (for ALL
-            types)
+            Verify the purchase with <code>verifyPurchase</code> (for ALL types)
           </li>
           <li>Grant entitlements to the user</li>
           <li>
@@ -568,11 +567,11 @@ type DeepLinkOptions {
           Validation
         </AnchorLink>
 
-        <AnchorLink id="validate-receipt" level="h3">
-          validateReceipt
+        <AnchorLink id="verify-purchase" level="h3">
+          verifyPurchase
         </AnchorLink>
         <p>
-          Validate a receipt with your server or platform servers.
+          Verify a purchase with your server or platform providers.
           <strong>
             All purchase types (consumables, non-consumables, and subscriptions)
             should be validated before granting entitlements.
@@ -581,7 +580,7 @@ type DeepLinkOptions {
         <CodeBlock language="graphql">{`"""
 Returns: ReceiptValidationResult!
 """
-validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
+verifyPurchase(options: ReceiptValidationProps!): Future`}</CodeBlock>
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#receipt-validation-types">
@@ -593,11 +592,17 @@ validateReceipt(options: ReceiptValidationProps!): Future`}</CodeBlock>
           </Link>
         </p>
         <p>
-          Validates purchase receipts with the appropriate validation service.
+          Verifies purchases with the appropriate validation service.
+        </p>
+        <p>
+          The legacy <code>validateReceipt</code> mutation remains available but
+          is deprecated; migrate to <code>verifyPurchase</code> for future
+          updates.
         </p>
         <p>
           On iOS this routes through the StoreKit-backed validation flow (the
-          legacy <code>validateReceiptIOS</code> endpoint is now deprecated). On
+          legacy <code>validateReceipt</code> and{' '}
+          <code>validateReceiptIOS</code> endpoints are now deprecated). On
           Android, pass <code>androidOptions</code> with{' '}
           <code>packageName</code>, <code>productToken</code>,{' '}
           <code>accessToken</code>, and optional <code>isSub</code> so the SDK
@@ -1011,14 +1016,14 @@ getAppTransactionIOS: AppTransaction`}</CodeBlock>
                   validateReceiptIOS
                 </AnchorLink>
                 <p>
-                  <strong>Deprecated:</strong> Use <code>validateReceipt</code>{' '}
+                  <strong>Deprecated:</strong> Use <code>verifyPurchase</code>{' '}
                   instead for both platforms.
                 </p>
                 <CodeBlock language="graphql">{`"""
 Validate a receipt for a specific product
 """
 # Future
-validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS! @deprecated(reason: "Use validateReceipt")`}</CodeBlock>
+validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS! @deprecated(reason: "Use verifyPurchase")`}</CodeBlock>
                 <p>
                   Validates a receipt payload against the App Store using the
                   provided validation options. Returns the parsed validation

@@ -58,7 +58,7 @@ suspend fun validateReceiptWithGooglePlay(
             .orElse("")
 
         if (statusCode !in 200..299) {
-            OpenIapLog.warn("validateReceipt failed (HTTP $statusCode): $responseBody", tag)
+            OpenIapLog.warn("verifyPurchase failed (HTTP $statusCode): $responseBody", tag)
             throw OpenIapError.InvalidReceipt
         }
 

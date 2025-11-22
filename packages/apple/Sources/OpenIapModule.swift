@@ -550,14 +550,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return data.base64EncodedString()
     }
 
-    @available(*, deprecated, message: "Use validateReceipt")
+    @available(*, deprecated, message: "Use verifyPurchase")
     public func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS {
         try await performValidateReceiptIOS(props)
-    }
-
-    public func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
-        let iosResult = try await performValidateReceiptIOS(props)
-        return .receiptValidationResultIos(iosResult)
     }
 
     private func performValidateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS {
@@ -584,6 +579,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             latestTransaction: latestPurchase,
             receiptData: receiptData
         )
+    }
+
+    @available(*, deprecated, message: "Use verifyPurchase")
+    public func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+        try await verifyPurchase(props)
+    }
+
+    public func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+        let iosResult = try await performValidateReceiptIOS(props)
+        return .receiptValidationResultIos(iosResult)
     }
 
     // MARK: - Store Information
@@ -636,7 +641,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 let daysUntilExpiration = dayDelta.map { Double($0) }
                 let willExpireSoon = dayDelta.map { $0 < 7 } ?? false
                 let environment: String?
-                if #available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *) {
+                if #available(iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
                     environment = transaction.environment.rawValue
                 } else {
                     environment = nil

@@ -1341,6 +1341,8 @@ public protocol MutationResolver {
     func syncIOS() async throws -> Bool
     /// Validate purchase receipts with the configured providers
     func validateReceipt(_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
+    /// Verify purchases with the configured providers
+    func verifyPurchase(_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
 }
 
 /// GraphQL root query operations.
@@ -1420,6 +1422,7 @@ public typealias MutationShowAlternativeBillingDialogAndroidHandler = () async t
 public typealias MutationShowManageSubscriptionsIOSHandler = () async throws -> [PurchaseIOS]
 public typealias MutationSyncIOSHandler = () async throws -> Bool
 public typealias MutationValidateReceiptHandler = (_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
+public typealias MutationVerifyPurchaseHandler = (_ options: ReceiptValidationProps) async throws -> ReceiptValidationResult
 
 public struct MutationHandlers {
     public var acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler?
@@ -1442,6 +1445,7 @@ public struct MutationHandlers {
     public var showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler?
     public var syncIOS: MutationSyncIOSHandler?
     public var validateReceipt: MutationValidateReceiptHandler?
+    public var verifyPurchase: MutationVerifyPurchaseHandler?
 
     public init(
         acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = nil,
@@ -1463,7 +1467,8 @@ public struct MutationHandlers {
         showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler? = nil,
         showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = nil,
         syncIOS: MutationSyncIOSHandler? = nil,
-        validateReceipt: MutationValidateReceiptHandler? = nil
+        validateReceipt: MutationValidateReceiptHandler? = nil,
+        verifyPurchase: MutationVerifyPurchaseHandler? = nil
     ) {
         self.acknowledgePurchaseAndroid = acknowledgePurchaseAndroid
         self.beginRefundRequestIOS = beginRefundRequestIOS
@@ -1485,6 +1490,7 @@ public struct MutationHandlers {
         self.showManageSubscriptionsIOS = showManageSubscriptionsIOS
         self.syncIOS = syncIOS
         self.validateReceipt = validateReceipt
+        self.verifyPurchase = verifyPurchase
     }
 }
 

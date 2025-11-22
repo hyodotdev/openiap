@@ -32,6 +32,7 @@ import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationRequestPurchaseHandler
 import dev.hyo.openiap.MutationRestorePurchasesHandler
 import dev.hyo.openiap.MutationValidateReceiptHandler
+import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationHandlers
 import dev.hyo.openiap.QueryHandlers
 import dev.hyo.openiap.SubscriptionHandlers
@@ -795,7 +796,12 @@ class OpenIapModule(
         }
     }
 
+    @Deprecated("Use verifyPurchase")
     override val validateReceipt: MutationValidateReceiptHandler = { props ->
+        verifyPurchase(props)
+    }
+
+    override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
         validateReceiptWithGooglePlay(props, TAG)
     }
 
@@ -815,6 +821,7 @@ class OpenIapModule(
         hasActiveSubscriptions = hasActiveSubscriptions
     )
 
+    @Suppress("DEPRECATION")
     override val mutationHandlers: MutationHandlers = MutationHandlers(
         acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
         consumePurchaseAndroid = consumePurchaseAndroid,
@@ -824,7 +831,8 @@ class OpenIapModule(
         initConnection = initConnection,
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
-        validateReceipt = validateReceipt
+        validateReceipt = validateReceipt,
+        verifyPurchase = verifyPurchase
     )
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(

@@ -128,13 +128,13 @@ const apiData: ApiItem[] = [
 
   // Validation
   {
-    id: 'validate-receipt',
-    title: 'validateReceipt',
+    id: 'verify-purchase',
+    title: 'verifyPurchase',
     category: 'Receipt Validation',
-    description: 'Validate a receipt with your server or platform servers',
+    description: 'Verify purchases with your server or platform providers',
     parameters: 'ReceiptValidationProps!',
     returns: 'ReceiptValidationResult!',
-    path: '/docs/apis#validate-receipt',
+    path: '/docs/apis#verify-purchase',
   },
   // iOS APIs
   {
@@ -313,7 +313,7 @@ const apiData: ApiItem[] = [
     id: 'validate-receipt-ios',
     title: 'validateReceiptIOS',
     category: 'iOS APIs',
-    description: 'Deprecated: use validateReceipt for receipt validation',
+    description: 'Deprecated: use verifyPurchase for receipt validation',
     parameters: 'options: ReceiptValidationProps!',
     returns: 'ReceiptValidationResultIOS!',
     path: '/docs/apis#validate-receipt-ios',

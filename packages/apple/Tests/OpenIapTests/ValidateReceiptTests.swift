@@ -5,7 +5,7 @@ import XCTest
 final class ValidateReceiptTests: XCTestCase {
 
     @MainActor
-    func testValidateReceiptReturnsIOSResult() async throws {
+    func testVerifyPurchaseReturnsIOSResult() async throws {
         let iosResult = ReceiptValidationResultIOS(
             isValid: true,
             jwsRepresentation: "jws-token",
@@ -15,7 +15,7 @@ final class ValidateReceiptTests: XCTestCase {
         let module = FakeOpenIapModule(validateResult: .receiptValidationResultIos(iosResult))
         let store = OpenIapStore(module: module)
 
-        let result = try await store.validateReceipt(sku: "test.sku")
+        let result = try await store.verifyPurchase(sku: "test.sku")
 
         XCTAssertTrue(result.isValid)
         XCTAssertEqual("jws-token", result.jwsRepresentation)
@@ -23,7 +23,7 @@ final class ValidateReceiptTests: XCTestCase {
     }
 
     @MainActor
-    func testValidateReceiptThrowsForAndroidVariant() async {
+    func testVerifyPurchaseThrowsForAndroidVariant() async {
         let androidPayload = ReceiptValidationResultAndroid(
             autoRenewing: false,
             betaProduct: false,
@@ -48,7 +48,7 @@ final class ValidateReceiptTests: XCTestCase {
         let store = OpenIapStore(module: module)
 
         do {
-            _ = try await store.validateReceipt(sku: "android.sku")
+            _ = try await store.verifyPurchase(sku: "android.sku")
             XCTFail("Expected featureNotSupported when Android result is returned on Apple platform")
         } catch let error as PurchaseError {
             XCTAssertEqual(.featureNotSupported, error.code)
@@ -99,6 +99,10 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     }
 
     func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+        validateResult
+    }
+
+    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
         validateResult
     }
 

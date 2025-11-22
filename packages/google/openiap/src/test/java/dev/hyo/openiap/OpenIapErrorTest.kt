@@ -246,6 +246,7 @@ class OpenIapErrorTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun `fromBillingResponseCode returns correct error for known response codes`() {
         assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.USER_CANCELED) is OpenIapError.UserCancelled)
         assertTrue(OpenIapError.fromBillingResponseCode(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE) is OpenIapError.ServiceUnavailable)

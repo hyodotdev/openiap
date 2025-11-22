@@ -368,8 +368,13 @@ public final class OpenIapStore: ObservableObject {
 
     // MARK: - Validation & Metadata
 
+    @available(*, deprecated, message: "Use verifyPurchase")
     public func validateReceipt(sku: String) async throws -> ReceiptValidationResultIOS {
-        let result = try await module.validateReceipt(ReceiptValidationProps(sku: sku))
+        try await verifyPurchase(sku: sku)
+    }
+
+    public func verifyPurchase(sku: String) async throws -> ReceiptValidationResultIOS {
+        let result = try await module.verifyPurchase(ReceiptValidationProps(sku: sku))
         if case let .receiptValidationResultIos(iosResult) = result {
             return iosResult
         }
@@ -699,7 +704,7 @@ public extension OpenIapStore {
         case restorePurchases
         case requestPurchase
         case finishTransaction
-        case validateReceipt
+        case verifyPurchase
         case custom
     }
 }

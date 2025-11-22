@@ -241,8 +241,13 @@ export interface Mutation {
   showManageSubscriptionsIOS: Promise<PurchaseIOS[]>;
   /** Force a StoreKit sync for transactions (iOS 15+) */
   syncIOS: Promise<boolean>;
-  /** Validate purchase receipts with the configured providers */
+  /**
+   * Validate purchase receipts with the configured providers
+   * @deprecated Use verifyPurchase
+   */
   validateReceipt: Promise<ReceiptValidationResult>;
+  /** Verify purchases with the configured providers */
+  verifyPurchase: Promise<ReceiptValidationResult>;
 }
 
 
@@ -283,6 +288,8 @@ export type MutationRequestPurchaseArgs =
 
 
 export type MutationValidateReceiptArgs = ReceiptValidationProps;
+
+export type MutationVerifyPurchaseArgs = ReceiptValidationProps;
 
 export type PaymentModeIOS = 'empty' | 'free-trial' | 'pay-as-you-go' | 'pay-up-front';
 
@@ -330,11 +337,11 @@ export interface ProductCommon {
   displayName?: (string | null);
   displayPrice: string;
   id: string;
-  platform: IapPlatform;
+  platform: 'android' | 'ios';
   price?: (number | null);
   title: string;
-  type: ProductType;
-}
+  type: 'in-app' | 'subs';
+} 
 
 export interface ProductIOS extends ProductCommon {
   currency: string;
@@ -560,7 +567,10 @@ export interface Query {
   latestTransactionIOS?: Promise<(PurchaseIOS | null)>;
   /** Get StoreKit 2 subscription status details (iOS 15+) */
   subscriptionStatusIOS: Promise<SubscriptionStatusIOS[]>;
-  /** Validate a receipt for a specific product */
+  /**
+   * Validate a receipt for a specific product
+   * @deprecated Use verifyPurchase
+   */
   validateReceiptIOS: Promise<ReceiptValidationResultIOS>;
 }
 
@@ -884,6 +894,7 @@ export type MutationArgsMap = {
   showManageSubscriptionsIOS: never;
   syncIOS: never;
   validateReceipt: MutationValidateReceiptArgs;
+  verifyPurchase: MutationVerifyPurchaseArgs;
 };
 
 export type MutationField<K extends keyof Mutation> =

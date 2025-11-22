@@ -24,7 +24,9 @@ interface OpenIapProtocol {
     val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler
     val restorePurchases: MutationRestorePurchasesHandler
     val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler
+    @Deprecated("Use verifyPurchase")
     val validateReceipt: MutationValidateReceiptHandler
+    val verifyPurchase: MutationVerifyPurchaseHandler
 
     val queryHandlers: QueryHandlers
     val mutationHandlers: MutationHandlers

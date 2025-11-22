@@ -202,8 +202,8 @@ content = content.replace(/export enum [^{]+\{[\s\S]*?\}/g, (block) => {
   return block.replace(/= '([^']+)'/g, (_, value) => `= '${toConstantCase(value)}'`);
 });
 
-// Convert platform and type fields to literal types for proper discriminated unions
-// This enables TypeScript narrowing when checking platform === 'ios' && type === 'subs'
+// Convert platform/type fields to literals and introduce a shared base for products
+// This keeps ProductCommon android-focused while reusing field definitions
 const productTypeMapping = {
   ProductIOS: { platform: "'ios'", type: "'in-app'" },
   ProductAndroid: { platform: "'android'", type: "'in-app'" },
@@ -212,12 +212,11 @@ const productTypeMapping = {
 };
 
 for (const [typeName, literals] of Object.entries(productTypeMapping)) {
-  // Match the interface definition and replace platform/type fields with literals
   const interfacePattern = new RegExp(
     `(export interface ${typeName} extends ProductCommon \\{[\\s\\S]*?)` +
-    `(platform: IapPlatform;)` +
+    `(platform: [^;]+;)` +
     `([\\s\\S]*?)` +
-    `(type: ProductType;)`,
+    `(type: [^;]+;)`,
     'g'
   );
 
@@ -225,6 +224,60 @@ for (const [typeName, literals] of Object.entries(productTypeMapping)) {
     return `${before}platform: ${literals.platform};${middle}type: ${literals.type};`;
   });
 }
+
+// Normalize ProductCommon to a single definition with literal union platform/type
+const productCommonMatch = content.match(/export interface ProductCommon \{([\s\S]*?)\}\n/);
+if (productCommonMatch) {
+  const body = productCommonMatch[1]
+    .replace(/platform: 'android';/, "platform: 'android' | 'ios';")
+    .replace(/platform: IapPlatform;/, "platform: 'android' | 'ios';")
+    .replace(/type: 'in-app' \| 'subs';/, "type: 'in-app' | 'subs';")
+    .replace(/type: ProductType;/, "type: 'in-app' | 'subs';");
+  content = content.replace(productCommonMatch[0], `export interface ProductCommon {${body}} \n`);
+}
+
+// Collapse ProductCommonBase/ProductCommon into a single ProductCommon interface
+const productCommonTypePattern = /export type ProductCommon = ProductCommonBase & \{[\s\S]*?platform: 'android';[\s\S]*?type: 'in-app' \| 'subs';[\s\S]*?\};\s*\n/;
+const productCommonBasePattern = /export type ProductCommonBase = \{([\s\S]*?)\};\s*\n/;
+const productCommonBaseMatch = content.match(productCommonBasePattern);
+if (productCommonTypePattern.test(content)) {
+  const baseBody = (productCommonBaseMatch ? productCommonBaseMatch[1] : `
+  currency: string;
+  debugDescription?: (string | null);
+  description: string;
+  displayName?: (string | null);
+  displayPrice: string;
+  id: string;
+  price?: (number | null);
+  title: string;
+`).trimEnd();
+  const merged = [
+    'export interface ProductCommon {',
+    baseBody,
+    "  platform: 'android' | 'ios';",
+    "  type: 'in-app' | 'subs';",
+    '}',
+    '',
+  ].join('\n');
+  content = content.replace(productCommonTypePattern, merged);
+  if (productCommonBaseMatch) {
+    content = content.replace(productCommonBasePattern, '');
+  }
+}
+
+// Drop any generated ProductCommonIOS types
+content = content.replace(/export type ProductCommonIOS = [\s\S]*?\};\s*\n/g, '');
+content = content.replace(/export interface ProductCommonIOS \{[\s\S]*?\}\s*\n/g, '');
+
+// Ensure product interfaces extend ProductCommon directly
+content = content.replace(
+  /export interface ProductIOS extends ProductCommonIOS \{/g,
+  'export interface ProductIOS extends ProductCommon {'
+);
+content = content.replace(
+  /export interface ProductSubscriptionIOS extends ProductCommonIOS \{/g,
+  'export interface ProductSubscriptionIOS extends ProductCommon {'
+);
 
 content = content.replace(
   /export interface RequestPurchaseProps \{[\s\S]*?\}\n\n/,
