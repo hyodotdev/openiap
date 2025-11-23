@@ -19,7 +19,7 @@ import java.net.URL
 
 private const val VALIDATION_BASE_URL =
     "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
-private const val DEFAULT_IAPKIT_ENDPOINT = "https://iapkit.com/purchase/verify"
+private const val DEFAULT_IAPKIT_ENDPOINT = "https://api.iapkit.com/v1/purchase/verify"
 private val gson = Gson()
 
 private fun openConnection(url: String): HttpURLConnection {

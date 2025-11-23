@@ -606,7 +606,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> [RequestVerifyPurchaseWithIapkitResult] {
-        guard let url = URL(string: "https://iapkit.com/purchase/verify") else {
+        guard let url = URL(string: "https://api.iapkit.com/v1/purchase/verify") else {
             throw makePurchaseError(code: .developerError, message: "IAPKit endpoint is required")
         }
 
@@ -646,9 +646,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     }
 
                     do {
+                        // Log raw response for debugging
+                        if let jsonString = String(data: data, encoding: .utf8) {
+                            OpenIapLog.debug("IAPKit raw response: \(jsonString)")
+                        }
                         return try JSONDecoder().decode(RequestVerifyPurchaseWithIapkitResult.self, from: data)
                     } catch {
                         OpenIapLog.warn("Failed to parse IAPKit verification response: \(error.localizedDescription)")
+                        if let jsonString = String(data: data, encoding: .utf8) {
+                            OpenIapLog.warn("Raw response data: \(jsonString)")
+                        }
                         throw self.makePurchaseError(code: .receiptFailed, message: "Unable to parse verification response")
                     }
                 }
