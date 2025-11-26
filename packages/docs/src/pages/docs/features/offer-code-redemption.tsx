@@ -148,7 +148,7 @@ Future<void> redeemCode() async {
       // Listen for purchase updates via purchaseUpdatedStream
     }
   } catch (e) {
-    print('Failed to present code redemption sheet: \$e');
+    print('Failed to present code redemption sheet: $e');
   }
 }`}</CodeBlock>
                     ),
@@ -303,7 +303,7 @@ class RedemptionManager {
     try {
       await _iap.presentCodeRedemptionSheetIOS();
     } catch (e) {
-      print('Error: \$e');
+      print('Error: $e');
     }
   }
 

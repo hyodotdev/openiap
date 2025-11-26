@@ -485,7 +485,7 @@ OpenIapModule.shared.promotedProductPublisher
 
 // iOS only - will not fire on Android
 final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) async {
-  print('Promoted product tapped: \$productId');
+  print('Promoted product tapped: $productId');
 
   // Fetch product details
   final products = await FlutterInappPurchase.instance.fetchProducts(

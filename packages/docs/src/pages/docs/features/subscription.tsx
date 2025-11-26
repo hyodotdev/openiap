@@ -1178,7 +1178,9 @@ Future<void> purchaseWithOffer(
           </li>
           <li>
             <strong>On restore</strong> - Check current status
-            (active/cancelled/refunded/expired)
+            (active/cancelled/refunded/expired). See{' '}
+            <a href="#check-subscription-status">Check Subscription Status</a>{' '}
+            for platform-specific implementation details.
           </li>
           <li>
             <strong>Periodically</strong> - Detect refunds and cancellations for
@@ -1378,6 +1380,665 @@ for (final subscription in activeSubscriptions) {
             ),
           }}
         </LanguageTabs>
+
+        <AnchorLink id="check-subscription-status" level="h3">
+          Check Subscription Status (Active/Cancelled/Refunded/Expired)
+        </AnchorLink>
+        <p>
+          After restoring purchases or checking subscriptions, you need to
+          determine the current status. Each platform handles this differently.
+        </p>
+
+        <PlatformTabs>
+          {{
+            ios: (
+              <>
+                <h4>
+                  iOS: Using{' '}
+                  <Link to="/docs/types#subscription-status-ios">
+                    subscriptionStatusIOS
+                  </Link>
+                </h4>
+                <p>
+                  iOS provides detailed subscription status through{' '}
+                  <code>subscriptionStatusIOS()</code> which returns the
+                  StoreKit 2 subscription state.
+                </p>
+
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>State</th>
+                      <th>Description</th>
+                      <th>User Access</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>subscribed</code>
+                      </td>
+                      <td>Active subscription</td>
+                      <td>✅ Grant access</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>expired</code>
+                      </td>
+                      <td>Subscription has expired</td>
+                      <td>❌ Deny access</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>revoked</code>
+                      </td>
+                      <td>Refunded by Apple</td>
+                      <td>❌ Deny access</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>inGracePeriod</code>
+                      </td>
+                      <td>Billing failed but grace period active</td>
+                      <td>✅ Grant access (temporary)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>inBillingRetryPeriod</code>
+                      </td>
+                      <td>Billing retry in progress</td>
+                      <td>⚠️ Consider granting access</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import { subscriptionStatusIOS, getActiveSubscriptions } from 'expo-iap';
+
+// Method 1: Using subscriptionStatusIOS for detailed state
+const checkSubscriptionStatus = async (sku: string) => {
+  const statuses = await subscriptionStatusIOS(sku);
+
+  for (const status of statuses) {
+    switch (status.state) {
+      case 'subscribed':
+        console.log('✅ Active subscription');
+        return { hasAccess: true, status: 'active' };
+
+      case 'expired':
+        console.log('❌ Subscription expired');
+        return { hasAccess: false, status: 'expired' };
+
+      case 'revoked':
+        console.log('💰 Subscription was refunded');
+        return { hasAccess: false, status: 'refunded' };
+
+      case 'inGracePeriod':
+        console.log('⚠️ Billing issue - grace period active');
+        return { hasAccess: true, status: 'grace_period' };
+
+      case 'inBillingRetryPeriod':
+        console.log('🔄 Billing retry in progress');
+        return { hasAccess: true, status: 'billing_retry' };
+    }
+  }
+
+  return { hasAccess: false, status: 'unknown' };
+};
+
+// Method 2: Using ActiveSubscription for quick checks
+const checkFromActiveSubscriptions = async () => {
+  const subs = await getActiveSubscriptions();
+
+  for (const sub of subs) {
+    const renewalInfo = sub.renewalInfoIOS;
+
+    // Check if cancelled (will not auto-renew)
+    const isCancelled = renewalInfo?.willAutoRenew === false;
+
+    // Check expiration reason
+    // Values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE"
+    const expirationReason = renewalInfo?.expirationReason;
+
+    // Check if expired
+    const isExpired = sub.expirationDateIOS
+      ? sub.expirationDateIOS < Date.now()
+      : false;
+
+    console.log(\`Product: \${sub.productId}\`);
+    console.log(\`  Active: \${sub.isActive}\`);
+    console.log(\`  Cancelled: \${isCancelled}\`);
+    console.log(\`  Expired: \${isExpired}\`);
+    if (expirationReason) {
+      console.log(\`  Expiration Reason: \${expirationReason}\`);
+    }
+  }
+};`}</CodeBlock>
+                    ),
+                    swift: (
+                      <CodeBlock language="swift">{`import OpenIap
+
+let iapStore = OpenIapStore.shared
+
+// Method 1: Using subscriptionStatusIOS for detailed state
+func checkSubscriptionStatus(sku: String) async throws -> (hasAccess: Bool, status: String) {
+    let statuses = try await iapStore.subscriptionStatusIOS(sku: sku)
+
+    for status in statuses {
+        switch status.state {
+        case "subscribed":
+            print("✅ Active subscription")
+            return (true, "active")
+
+        case "expired":
+            print("❌ Subscription expired")
+            return (false, "expired")
+
+        case "revoked":
+            print("💰 Subscription was refunded")
+            return (false, "refunded")
+
+        case "inGracePeriod":
+            print("⚠️ Billing issue - grace period active")
+            return (true, "grace_period")
+
+        case "inBillingRetryPeriod":
+            print("🔄 Billing retry in progress")
+            return (true, "billing_retry")
+
+        default:
+            continue
+        }
+    }
+
+    return (false, "unknown")
+}
+
+// Method 2: Using ActiveSubscription for quick checks
+func checkFromActiveSubscriptions() async throws {
+    let subs = try await iapStore.getActiveSubscriptions()
+
+    for sub in subs {
+        let renewalInfo = sub.renewalInfoIOS
+
+        // Check if cancelled (will not auto-renew)
+        let isCancelled = renewalInfo?.willAutoRenew == false
+
+        // Check expiration reason
+        let expirationReason = renewalInfo?.expirationReason
+
+        // Check if expired
+        let isExpired: Bool
+        if let expiry = sub.expirationDateIOS {
+            isExpired = expiry < Double(Date().timeIntervalSince1970 * 1000)
+        } else {
+            isExpired = false
+        }
+
+        print("Product: \\(sub.productId)")
+        print("  Active: \\(sub.isActive)")
+        print("  Cancelled: \\(isCancelled)")
+        print("  Expired: \\(isExpired)")
+        if let reason = expirationReason {
+            print("  Expiration Reason: \\(reason)")
+        }
+    }
+}`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+
+// Note: subscriptionStatusIOS is iOS-only
+// For KMP iOS target:
+suspend fun checkSubscriptionStatus(sku: String): Pair<Boolean, String> {
+    val statuses = iapStore.subscriptionStatusIOS(sku = sku)
+
+    for (status in statuses) {
+        return when (status.state) {
+            "subscribed" -> {
+                println("✅ Active subscription")
+                true to "active"
+            }
+            "expired" -> {
+                println("❌ Subscription expired")
+                false to "expired"
+            }
+            "revoked" -> {
+                println("💰 Subscription was refunded")
+                false to "refunded"
+            }
+            "inGracePeriod" -> {
+                println("⚠️ Billing issue - grace period active")
+                true to "grace_period"
+            }
+            "inBillingRetryPeriod" -> {
+                println("🔄 Billing retry in progress")
+                true to "billing_retry"
+            }
+            else -> continue
+        }
+    }
+
+    return false to "unknown"
+}
+
+// Using ActiveSubscription for quick checks (works on iOS)
+suspend fun checkFromActiveSubscriptions() {
+    val subs = iapStore.getActiveSubscriptions()
+
+    for (sub in subs) {
+        val renewalInfo = sub.renewalInfoIOS
+
+        // Check if cancelled
+        val isCancelled = renewalInfo?.willAutoRenew == false
+
+        // Check expiration reason
+        val expirationReason = renewalInfo?.expirationReason
+
+        // Check if expired
+        val isExpired = sub.expirationDateIOS?.let {
+            it < System.currentTimeMillis()
+        } ?: false
+
+        println("Product: \${sub.productId}")
+        println("  Active: \${sub.isActive}")
+        println("  Cancelled: $isCancelled")
+        println("  Expired: $isExpired")
+        expirationReason?.let { println("  Expiration Reason: $it") }
+    }
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final iap = FlutterInappPurchase.instance;
+
+// Method 1: Using subscriptionStatusIOS for detailed state
+Future<Map<String, dynamic>> checkSubscriptionStatus(String sku) async {
+  final statuses = await iap.subscriptionStatusIOS(sku);
+
+  for (final status in statuses) {
+    switch (status.state) {
+      case 'subscribed':
+        print('✅ Active subscription');
+        return {'hasAccess': true, 'status': 'active'};
+
+      case 'expired':
+        print('❌ Subscription expired');
+        return {'hasAccess': false, 'status': 'expired'};
+
+      case 'revoked':
+        print('💰 Subscription was refunded');
+        return {'hasAccess': false, 'status': 'refunded'};
+
+      case 'inGracePeriod':
+        print('⚠️ Billing issue - grace period active');
+        return {'hasAccess': true, 'status': 'grace_period'};
+
+      case 'inBillingRetryPeriod':
+        print('🔄 Billing retry in progress');
+        return {'hasAccess': true, 'status': 'billing_retry'};
+    }
+  }
+
+  return {'hasAccess': false, 'status': 'unknown'};
+}
+
+// Method 2: Using ActiveSubscription for quick checks
+Future<void> checkFromActiveSubscriptions() async {
+  final subs = await iap.getActiveSubscriptions();
+
+  for (final sub in subs) {
+    final renewalInfo = sub.renewalInfoIOS;
+
+    // Check if cancelled
+    final isCancelled = renewalInfo?.willAutoRenew == false;
+
+    // Check expiration reason
+    final expirationReason = renewalInfo?.expirationReason;
+
+    // Check if expired
+    final isExpired = sub.expirationDateIOS != null
+        ? sub.expirationDateIOS! < DateTime.now().millisecondsSinceEpoch
+        : false;
+
+    print('Product: \${sub.productId}');
+    print('  Active: \${sub.isActive}');
+    print('  Cancelled: $isCancelled');
+    print('  Expired: $isExpired');
+    if (expirationReason != null) {
+      print('  Expiration Reason: $expirationReason');
+    }
+  }
+}`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
+
+                <p>
+                  For the complete list of subscription state values and
+                  expiration reasons, see{' '}
+                  <Link to="/docs/types#subscription-status-ios">
+                    SubscriptionStatusIOS
+                  </Link>{' '}
+                  in the Types reference.
+                </p>
+              </>
+            ),
+            android: (
+              <>
+                <h4>Android: Limited Client-Side Information</h4>
+                <div className="alert-card alert-card--warning">
+                  <p>
+                    <strong>⚠️ Important:</strong> Android's Play Billing
+                    Library does not expose subscription status details (expiry,
+                    cancellation, refund) to the client. You must use
+                    server-side validation.
+                  </p>
+                </div>
+
+                <p>
+                  On Android, client-side checks are limited to verifying if a
+                  purchase exists. For full subscription status, use:
+                </p>
+
+                <ul>
+                  <li>
+                    <strong>Google Play Developer API</strong> - Server-side API
+                    to check expiry, cancellation, refund status
+                  </li>
+                  <li>
+                    <strong>RTDN (Real-time Developer Notifications)</strong> -
+                    Webhooks for instant subscription event updates
+                  </li>
+                </ul>
+
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import { getAvailablePurchases } from 'expo-iap';
+
+// Client-side: Can only check if purchase exists
+const checkAndroidSubscription = async () => {
+  const purchases = await getAvailablePurchases();
+
+  const subscriptionPurchases = purchases.filter(
+    (p) => p.productId.includes('subscription')
+  );
+
+  if (subscriptionPurchases.length === 0) {
+    console.log('No subscription purchases found');
+    return { hasAccess: false };
+  }
+
+  // ⚠️ Purchase exists, but we can't determine:
+  // - If it's expired
+  // - If it's been refunded
+  // - If it's cancelled
+  // Must verify on server for accurate status
+
+  const purchase = subscriptionPurchases[0];
+  console.log('Purchase found:', purchase.productId);
+  console.log('Purchase token:', purchase.purchaseToken);
+
+  // Send to server for verification
+  const serverResult = await fetch('https://your-server.com/api/verify-android', {
+    method: 'POST',
+    body: JSON.stringify({
+      purchaseToken: purchase.purchaseToken,
+      productId: purchase.productId,
+      packageName: purchase.packageNameAndroid,
+    }),
+  }).then(res => res.json());
+
+  // Server response should include:
+  // - expiryTimeMillis
+  // - cancelReason (0=user, 1=system, 2=replaced, 3=developer)
+  // - paymentState
+  // - acknowledgementState
+
+  return {
+    hasAccess: serverResult.isActive,
+    status: serverResult.status,
+    expiresAt: serverResult.expiryTimeMillis,
+  };
+};`}</CodeBlock>
+                    ),
+                    swift: (
+                      <CodeBlock language="swift">{`// Android-only - see Kotlin implementation`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+// Client-side: Can only check if purchase exists
+suspend fun checkAndroidSubscription(): Map<String, Any> {
+    val purchases = iapStore.getAvailablePurchases()
+
+    val subscriptionPurchases = purchases.filter {
+        it.productId.contains("subscription")
+    }
+
+    if (subscriptionPurchases.isEmpty()) {
+        println("No subscription purchases found")
+        return mapOf("hasAccess" to false)
+    }
+
+    // ⚠️ Purchase exists, but client cannot determine:
+    // - If it's expired
+    // - If it's been refunded
+    // - If it's cancelled
+    // Must verify on server for accurate status
+
+    val purchase = subscriptionPurchases.first()
+    println("Purchase found: \${purchase.productId}")
+    println("Purchase token: \${purchase.purchaseToken}")
+
+    // Send to server for verification
+    val serverResult = withContext(Dispatchers.IO) {
+        verifyOnServer(
+            purchaseToken = purchase.purchaseToken ?: "",
+            productId = purchase.productId,
+            packageName = purchase.packageNameAndroid ?: ""
+        )
+    }
+
+    // Server uses Google Play Developer API to get:
+    // - expiryTimeMillis
+    // - cancelReason (0=user, 1=system, 2=replaced, 3=developer)
+    // - paymentState
+    // - acknowledgementState
+
+    return mapOf(
+        "hasAccess" to serverResult.isActive,
+        "status" to serverResult.status,
+        "expiresAt" to serverResult.expiryTimeMillis
+    )
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final iap = FlutterInappPurchase.instance;
+
+// Client-side: Can only check if purchase exists
+Future<Map<String, dynamic>> checkAndroidSubscription() async {
+  final purchases = await iap.getAvailablePurchases();
+
+  final subscriptionPurchases = purchases
+      .where((p) => p.productId.contains('subscription'))
+      .toList();
+
+  if (subscriptionPurchases.isEmpty) {
+    print('No subscription purchases found');
+    return {'hasAccess': false};
+  }
+
+  // ⚠️ Purchase exists, but client cannot determine:
+  // - If it's expired
+  // - If it's been refunded
+  // - If it's cancelled
+  // Must verify on server for accurate status
+
+  final purchase = subscriptionPurchases.first;
+  print('Purchase found: \${purchase.productId}');
+  print('Purchase token: \${purchase.purchaseToken}');
+
+  // Send to server for verification
+  final response = await http.post(
+    Uri.parse('https://your-server.com/api/verify-android'),
+    body: jsonEncode({
+      'purchaseToken': purchase.purchaseToken,
+      'productId': purchase.productId,
+      'packageName': purchase.packageNameAndroid,
+    }),
+  );
+  final serverResult = jsonDecode(response.body);
+
+  // Server uses Google Play Developer API to get:
+  // - expiryTimeMillis
+  // - cancelReason (0=user, 1=system, 2=replaced, 3=developer)
+  // - paymentState
+  // - acknowledgementState
+
+  return {
+    'hasAccess': serverResult['isActive'],
+    'status': serverResult['status'],
+    'expiresAt': serverResult['expiryTimeMillis'],
+  };
+}`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
+
+                <h4>Android Cancel Reasons (Server-side)</h4>
+                <p>
+                  When verifying on server using Google Play Developer API, the{' '}
+                  <code>cancelReason</code> field indicates why the subscription
+                  ended:
+                </p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Reason</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>0</code>
+                      </td>
+                      <td>User cancelled</td>
+                      <td>User voluntarily cancelled</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>1</code>
+                      </td>
+                      <td>System cancelled</td>
+                      <td>Billing error (payment failed)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>2</code>
+                      </td>
+                      <td>Replaced</td>
+                      <td>Subscription replaced by a new one</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>3</code>
+                      </td>
+                      <td>Developer cancelled</td>
+                      <td>Cancelled by the developer</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            ),
+          }}
+        </PlatformTabs>
+
+        <h4>Summary: Status Check Comparison</h4>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>iOS (Client)</th>
+              <th>Android (Client)</th>
+              <th>Android (Server)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>Active</strong>
+              </td>
+              <td>
+                <code>state == "subscribed"</code>
+              </td>
+              <td>Purchase exists ⚠️</td>
+              <td>
+                <code>expiryTimeMillis {'>'} now</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Cancelled</strong>
+              </td>
+              <td>
+                <code>willAutoRenew == false</code>
+              </td>
+              <td>Not available ❌</td>
+              <td>
+                <code>cancelReason</code> is set
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Expired</strong>
+              </td>
+              <td>
+                <code>state == "expired"</code>
+              </td>
+              <td>Purchase not returned</td>
+              <td>
+                <code>expiryTimeMillis {'<'} now</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Refunded</strong>
+              </td>
+              <td>
+                <code>state == "revoked"</code>
+              </td>
+              <td>Not available ❌</td>
+              <td>Check refund endpoint</td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Grace Period</strong>
+              </td>
+              <td>
+                <code>state == "inGracePeriod"</code>
+              </td>
+              <td>Not available ❌</td>
+              <td>
+                <code>expiryTimeMillis</code> extended
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         <AnchorLink id="manage-subscriptions" level="h3">
           Manage Subscriptions

@@ -30,8 +30,8 @@ function SubscriptionUpgradeDowngrade() {
 
         <ul>
           <li>
-            <strong>Upgrades</strong>: Moving to a higher-tier or longer-duration
-            subscription
+            <strong>Upgrades</strong>: Moving to a higher-tier or
+            longer-duration subscription
           </li>
           <li>
             <strong>Downgrades</strong>: Moving to a lower-tier or
@@ -306,7 +306,7 @@ for (sub in subscriptions) {
     if (pendingUpgrade != null && pendingUpgrade != sub.productId) {
         println("⚠️ UPGRADE IN PROGRESS")
         println("  Current: \${sub.productId}")
-        println("  Upgrading to: \$pendingUpgrade")
+        println("  Upgrading to: $pendingUpgrade")
 
         // Show UI: "Upgrade processing..."
     }
@@ -323,7 +323,7 @@ for (final sub in subscriptions) {
   if (pendingUpgrade != null && pendingUpgrade != sub.productId) {
     print('⚠️ UPGRADE IN PROGRESS');
     print('  Current: \${sub.productId}');
-    print('  Upgrading to: \$pendingUpgrade');
+    print('  Upgrading to: $pendingUpgrade');
 
     // Show UI: "Upgrade processing..."
   }
@@ -425,7 +425,7 @@ for (sub in subscriptions) {
     if (autoRenewPref != null && autoRenewPref != sub.productId && renewalInfo?.willAutoRenew == true) {
         println("⚠️ DOWNGRADE SCHEDULED")
         println("  Current (until \${sub.expirationDateIOS}): \${sub.productId}")
-        println("  Next: \$autoRenewPref")
+        println("  Next: $autoRenewPref")
 
         // Show UI: "Your plan will change to [tier] on [date]"
     }
@@ -442,7 +442,7 @@ for (final sub in subscriptions) {
   if (autoRenewPref != null && autoRenewPref != sub.productId && renewalInfo?.willAutoRenew == true) {
     print('⚠️ DOWNGRADE SCHEDULED');
     print('  Current (until \${sub.expirationDateIOS}): \${sub.productId}');
-    print('  Next: \$autoRenewPref');
+    print('  Next: $autoRenewPref');
 
     // Show UI: "Your plan will change to [tier] on [date]"
   }
@@ -532,7 +532,7 @@ for (sub in subscriptions) {
     sub.renewalInfoIOS?.pendingUpgradeProductId?.let { pending ->
         val current = sub.productId
 
-        println("Upgrading from \$current to \$pending")
+        println("Upgrading from $current to $pending")
 
         // Show upgrade-in-progress UI
         showUpgradeInProgressUI(current, pending)
@@ -549,7 +549,7 @@ for (final sub in subscriptions) {
   if (pending != null) {
     final current = sub.productId;
 
-    print('Upgrading from \$current to \$pending');
+    print('Upgrading from $current to $pending');
 
     // Show upgrade-in-progress UI
     showUpgradeInProgressUI(current, pending);
@@ -656,7 +656,9 @@ final currentTier = subscription.productId;`}</CodeBlock>
                 </p>
 
                 <Accordion
-                  title={<>📝 Complete Example: Subscription Status Component</>}
+                  title={
+                    <>📝 Complete Example: Subscription Status Component</>
+                  }
                 >
                   <LanguageTabs>
                     {{
@@ -790,7 +792,7 @@ fun SubscriptionStatus() {
             pending != null && pending != sub.productId -> {
                 // Upgrade in progress
                 Column {
-                    Text("⏳ Upgrading to \$pending...")
+                    Text("⏳ Upgrading to $pending...")
                     Text("Current: \${sub.productId}")
                 }
             }
@@ -845,7 +847,7 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
     // Upgrade in progress
     if (pending != null && pending != sub.productId) {
       return Column(children: [
-        Text('⏳ Upgrading to \$pending...'),
+        Text('⏳ Upgrading to $pending...'),
         Text('Current: \${sub.productId}'),
       ]);
     }
@@ -966,8 +968,8 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                   </p>
                   <ul>
                     <li>
-                      <code>1 (WITH_TIME_PRORATION)</code> - Immediate change with
-                      prorated credit
+                      <code>1 (WITH_TIME_PRORATION)</code> - Immediate change
+                      with prorated credit
                     </li>
                     <li>
                       <code>2 (CHARGE_PRORATED_PRICE)</code> - Immediate change,
@@ -978,7 +980,8 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                       proration
                     </li>
                     <li>
-                      <code>5 (CHARGE_FULL_PRICE)</code> - Immediate change, charge full price
+                      <code>5 (CHARGE_FULL_PRICE)</code> - Immediate change,
+                      charge full price
                     </li>
                     <li>
                       <code>6 (DEFERRED)</code> - Change at next billing cycle
@@ -986,8 +989,9 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                   </ul>
 
                   <p>
-                    <strong>Note:</strong> If you don't specify a replacement mode, the system uses
-                    the default configured in your Google Play Console subscription settings.
+                    <strong>Note:</strong> If you don't specify a replacement
+                    mode, the system uses the default configured in your Google
+                    Play Console subscription settings.
                   </p>
                 </Accordion>
               </section>
@@ -1041,9 +1045,7 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                   behavior.
                 </p>
 
-                <Accordion
-                  title={<>📝 Code Example: Upgrading Subscription</>}
-                >
+                <Accordion title={<>📝 Code Example: Upgrading Subscription</>}>
                   <LanguageTabs>
                     {{
                       typescript: (
@@ -1146,31 +1148,37 @@ if (currentSub != null) {
                 >
                   <p>
                     <strong>
-                      When using DEFERRED replacement mode (6), the purchase callback
-                      completes successfully with an empty purchase list.
+                      When using DEFERRED replacement mode (6), the purchase
+                      callback completes successfully with an empty purchase
+                      list.
                     </strong>{' '}
                     This is expected behavior, not an error:
                   </p>
 
                   <ul>
                     <li>
-                      The subscription change request succeeds immediately (status: OK)
+                      The subscription change request succeeds immediately
+                      (status: OK)
                     </li>
                     <li>
-                      But <code>onPurchaseUpdated</code> receives an empty/null purchases list
+                      But <code>onPurchaseUpdated</code> receives an empty/null
+                      purchases list
                     </li>
                     <li>
-                      The actual subscription change won't take effect until the next renewal period
+                      The actual subscription change won't take effect until the
+                      next renewal period
                     </li>
                     <li>
-                      Your app should treat this as a successful operation, not an error
+                      Your app should treat this as a successful operation, not
+                      an error
                     </li>
                   </ul>
 
                   <p>
-                    <strong>Why this happens:</strong> Since the subscription change is deferred to the future,
-                    Google Play Billing doesn't create a new purchase transaction immediately. The change will
-                    be reflected when the subscription renews.
+                    <strong>Why this happens:</strong> Since the subscription
+                    change is deferred to the future, Google Play Billing
+                    doesn't create a new purchase transaction immediately. The
+                    change will be reflected when the subscription renews.
                   </p>
                 </Accordion>
 
@@ -1259,13 +1267,15 @@ if (premiumPurchase != null) {
 
                 <p>
                   On Android, detecting subscription changes is more
-                  straightforward since the Play Billing API immediately reflects
-                  the current active subscription.
+                  straightforward since the Play Billing API immediately
+                  reflects the current active subscription.
                 </p>
 
                 <h3>Checking for pending changes</h3>
 
-                <Accordion title={<>📝 Code Example: Checking Active Subscription</>}>
+                <Accordion
+                  title={<>📝 Code Example: Checking Active Subscription</>}
+                >
                   <LanguageTabs>
                     {{
                       typescript: (
@@ -1358,20 +1368,21 @@ for (final purchase in purchases) {
                 <ol>
                   <li>
                     <strong>Specify replacement mode when needed</strong>: Pass{' '}
-                    <code>replacementModeAndroid</code> when you want to override
-                    the default configured in Google Play Console
+                    <code>replacementModeAndroid</code> when you want to
+                    override the default configured in Google Play Console
                   </li>
                   <li>
                     <strong>Use WITH_TIME_PRORATION (1) for upgrades</strong> to
                     give users credit for unused time
                   </li>
                   <li>
-                    <strong>Use DEFERRED (6) for downgrades</strong> to let users
-                    keep premium features until period ends
+                    <strong>Use DEFERRED (6) for downgrades</strong> to let
+                    users keep premium features until period ends
                   </li>
                   <li>
                     <strong>Handle DEFERRED mode correctly</strong>: When using
-                    DEFERRED, expect an empty purchase list - this is success, not an error
+                    DEFERRED, expect an empty purchase list - this is success,
+                    not an error
                   </li>
                   <li>
                     <strong>Track pending changes in your backend</strong> since
@@ -1540,7 +1551,7 @@ Future<void> changeSubscription(
       );
     }
   } catch (e) {
-    print('Subscription change failed: \$e');
+    print('Subscription change failed: $e');
   }
 }`}</CodeBlock>
                       ),
