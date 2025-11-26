@@ -1,8 +1,15 @@
 import CodeBlock from '../../components/CodeBlock';
+import SEO from '../../components/SEO';
 
 function HorizonSetup() {
   return (
     <div className="doc-page">
+      <SEO
+        title="Horizon OS Setup"
+        description="Setting up in-app purchases for Meta Horizon OS (Quest devices) using OpenIAP's unified Android SDK."
+        path="/docs/horizon-setup"
+        keywords="Meta Quest IAP, Horizon OS, VR in-app purchase"
+      />
       <h1>Horizon OS Setup Guide</h1>
       <p>
         Setting up in-app purchases for Meta Horizon OS (Quest devices) using

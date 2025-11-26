@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import Accordion from '../../../components/Accordion';
 import PlatformTabs from '../../../components/PlatformTabs';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function Subscription() {
@@ -9,6 +10,12 @@ function Subscription() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Subscription Lifecycle"
+        description="Understanding subscription lifecycle on iOS and Android - renewal info, expiration, grace periods, and platform differences."
+        path="/docs/lifecycle/subscription"
+        keywords="subscription lifecycle, renewal, expiration, grace period"
+      />
       <h1>Subscription</h1>
       <p>
         Understanding how subscriptions work on each platform is crucial for

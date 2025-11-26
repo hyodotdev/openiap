@@ -1,6 +1,13 @@
+import SEO from '../components/SEO';
+
 function Sponsors() {
   return (
     <div className="page-container">
+      <SEO
+        title="Sponsors"
+        description="Support OpenIAP development and help standardize in-app purchases across platforms."
+        path="/sponsors"
+      />
       <div className="content-wrapper" style={{ textAlign: 'center' }}>
         <h1>Support OpenIAP</h1>
         <p className="page-subtitle">

@@ -3,6 +3,7 @@ import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
 import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
+import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function APIs() {
@@ -10,6 +11,12 @@ function APIs() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="APIs"
+        description="OpenIAP API reference - initConnection, fetchProducts, requestPurchase, verifyPurchase, finishTransaction, and more for cross-platform in-app purchases."
+        path="/docs/apis"
+        keywords="IAP API, initConnection, fetchProducts, requestPurchase, finishTransaction, verifyPurchase, validateReceipt, receipt validation"
+      />
       <h1>APIs</h1>
 
       <section>

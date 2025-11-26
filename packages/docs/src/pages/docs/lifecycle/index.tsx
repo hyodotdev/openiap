@@ -2,12 +2,19 @@ import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import AnchorLink from '../../../components/AnchorLink';
 import HighlightText from '../../../components/HighlightText';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 function LifeCycle() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Life Cycle"
+        description="Understanding the complete lifecycle of in-app purchases - initialization, product discovery, purchase flow, purchase verification (receipt validation), and transaction completion."
+        path="/docs/lifecycle"
+        keywords="IAP lifecycle, purchase flow, transaction management, purchase verification, receipt validation"
+      />
       <h1>Life Cycle</h1>
       <p>
         Understanding the complete lifecycle of in-app purchases is essential

@@ -1,6 +1,13 @@
+import SEO from '../components/SEO';
+
 function Introduction() {
   return (
     <div className="page-container">
+      <SEO
+        title="Introduction"
+        description="Learn about OpenIAP - an open specification that standardizes in-app purchase implementations across diverse platforms and frameworks."
+        path="/introduction"
+      />
       <div className="content-wrapper">
         <h1>Introduction to OpenIAP</h1>
 

@@ -3,6 +3,7 @@ import Accordion from '../../../components/Accordion';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function SubscriptionUpgradeDowngrade() {
@@ -10,6 +11,12 @@ function SubscriptionUpgradeDowngrade() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Subscription Upgrade & Downgrade"
+        description="Handle subscription tier changes on iOS and Android - upgrade, downgrade, proration, and replacement modes."
+        path="/docs/features/subscription-upgrade-downgrade"
+        keywords="subscription upgrade, downgrade, proration, tier change"
+      />
       <h1>Subscription Upgrade & Downgrade</h1>
       <p>
         Understanding how each platform handles subscription tier changes is

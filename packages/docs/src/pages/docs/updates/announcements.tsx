@@ -1,3 +1,4 @@
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function Announcements() {
@@ -5,6 +6,11 @@ function Announcements() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Announcements"
+        description="Important news and updates about OpenIAP - new features, deprecations, and ecosystem changes."
+        path="/docs/updates/announcements"
+      />
       <h1>📢 Announcements</h1>
       <p>Important news and updates about OpenIAP</p>
 

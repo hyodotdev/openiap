@@ -1,6 +1,14 @@
+import SEO from '../components/SEO';
+
 function Languages() {
   return (
     <div className="page-container">
+      <SEO
+        title="Implementations"
+        description="Libraries that implement the OpenIAP specification for React Native, Flutter, Kotlin Multiplatform, and more."
+        path="/languages"
+        keywords="react-native-iap, expo-iap, flutter_inapp_purchase, kmp-iap, IAP libraries"
+      />
       <div className="content-wrapper">
         <h1>OpenIAP Implementations</h1>
         <p className="page-subtitle">

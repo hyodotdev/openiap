@@ -1,4 +1,5 @@
 import AnchorLink from '../../../components/AnchorLink';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { GQL_RELEASE } from '../../../lib/versioning';
 
@@ -24,6 +25,11 @@ function Versions() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Versions"
+        description="OpenIAP ecosystem versions - latest releases for openiap-apple, openiap-google, and openiap-gql packages."
+        path="/docs/updates/versions"
+      />
       <h1>Versions &amp; Release Channels</h1>
       <p className="lead">
         Quickly scan the latest OpenIAP ecosystem versions using the badges and

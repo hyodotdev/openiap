@@ -6,6 +6,7 @@ import CodeBlock from '../../components/CodeBlock';
 import HighlightText from '../../components/HighlightText';
 import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
+import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 import { GQL_RELEASE } from '../../lib/versioning';
 
@@ -109,6 +110,12 @@ function Types() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Types"
+        description="OpenIAP type definitions - Product, Purchase, PurchaseError, SubscriptionPeriod, purchase verification types, and more for TypeScript, Swift, Kotlin."
+        path="/docs/types"
+        keywords="IAP types, Product, Purchase, PurchaseError, TypeScript, Swift, Kotlin, purchase verification, receipt validation"
+      />
       <div
         style={{
           display: 'flex',

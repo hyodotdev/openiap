@@ -1,6 +1,14 @@
+import SEO from '../../components/SEO';
+
 function AndroidSetup() {
   return (
     <div className="doc-page">
+      <SEO
+        title="Android Setup"
+        description="Complete guide to setting up in-app purchases for Android - Google Play Console, Billing Library, and testing."
+        path="/docs/android-setup"
+        keywords="Android IAP setup, Google Play Billing, Play Console"
+      />
       <h1>Android Setup Guide</h1>
       <p>
         Setting up in-app purchases for Android requires configuration in Google

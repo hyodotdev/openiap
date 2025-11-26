@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function Subscription() {
@@ -10,6 +11,12 @@ function Subscription() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Subscription"
+        description="Subscription purchasing, offers, base plans, and ongoing subscription management in your app."
+        path="/docs/features/subscription"
+        keywords="subscription offers, base plan, introductory pricing"
+      />
       <h1>Subscription</h1>
       <p>
         This guide covers subscription purchasing, offers, and ongoing

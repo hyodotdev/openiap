@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function Ecosystem() {
@@ -7,6 +8,11 @@ function Ecosystem() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Ecosystem"
+        description="Explore the OpenIAP ecosystem - a unified in-app purchase specification across iOS, Android, React Native, Flutter, and Kotlin Multiplatform."
+        path="/docs/ecosystem"
+      />
       <h1>Ecosystem</h1>
       <p>
         Here is the big picture of OpenIAP ecosystem. If you are interested in

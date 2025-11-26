@@ -1,4 +1,5 @@
 import AnchorLink from '../components/AnchorLink';
+import SEO from '../components/SEO';
 import { useScrollToHash } from '../hooks/useScrollToHash';
 
 function Tutorials() {
@@ -6,6 +7,12 @@ function Tutorials() {
 
   return (
     <div className="page-container">
+      <SEO
+        title="Tutorials"
+        description="Comprehensive guides for iOS and Android in-app purchase setup, purchase verification (receipt validation), and platform-specific implementation."
+        path="/tutorials"
+        keywords="IAP tutorial, StoreKit 2, Google Play Billing, purchase verification, receipt validation"
+      />
       <div className="content-wrapper">
         <h1>Tutorials</h1>
         <p

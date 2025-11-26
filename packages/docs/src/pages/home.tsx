@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
+import SEO from '../components/SEO';
 
 function Home() {
   return (
     <div className="home">
+      <SEO path="/" />
       <section className="hero">
         <div className="hero-container">
           <img

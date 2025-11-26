@@ -1,8 +1,15 @@
 import HighlightText from '../../components/HighlightText';
+import SEO from '../../components/SEO';
 
 function IOSSetup() {
   return (
     <div className="doc-page">
+      <SEO
+        title="iOS Setup"
+        description="Complete guide to setting up in-app purchases for iOS - Xcode configuration, App Store Connect, StoreKit 2, purchase verification, and testing."
+        path="/docs/ios-setup"
+        keywords="iOS IAP setup, StoreKit 2, App Store Connect, Xcode, purchase verification, receipt validation"
+      />
       <h1>iOS Setup Guide</h1>
       <p>
         Setting up in-app purchases for iOS requires configuration in both Xcode

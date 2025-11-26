@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
 import LanguageTabs from '../../components/LanguageTabs';
+import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function Events() {
@@ -9,6 +10,12 @@ function Events() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Events"
+        description="OpenIAP event system - purchaseUpdatedListener, purchaseErrorListener, and event-driven architecture for in-app purchases."
+        path="/docs/events"
+        keywords="IAP events, purchaseUpdatedListener, purchaseErrorListener"
+      />
       <h1>Events</h1>
 
       <section>

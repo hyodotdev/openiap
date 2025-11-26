@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function OfferCodeRedemption() {
@@ -10,6 +11,12 @@ function OfferCodeRedemption() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Offer Code Redemption"
+        description="Implement offer code and promo code redemption for iOS and Android in-app purchases and subscriptions."
+        path="/docs/features/offer-code-redemption"
+        keywords="offer code, promo code, redemption, iOS, Android"
+      />
       <h1>Offer Code Redemption</h1>
       <p>
         Offer codes (also known as promo codes or redemption codes) allow users

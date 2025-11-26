@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function ExternalPurchase() {
@@ -10,6 +11,12 @@ function ExternalPurchase() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="External Purchase"
+        description="Implement external purchase and alternative billing for iOS and Android - bypass platform billing with your own payment system."
+        path="/docs/features/external-purchase"
+        keywords="external purchase, alternative billing, third-party payment"
+      />
       <h1>External Purchase</h1>
 
       <section>

@@ -1,6 +1,7 @@
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
+import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function Purchase() {
@@ -8,6 +9,12 @@ function Purchase() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Purchase"
+        description="Handle in-app purchases with proper transaction management - setup, purchase flow, validation, and completion."
+        path="/docs/features/purchase"
+        keywords="purchase flow, in-app purchase, transaction management"
+      />
       <h1>Purchase</h1>
       <p>
         Handle in-app purchases with proper transaction management. This guide

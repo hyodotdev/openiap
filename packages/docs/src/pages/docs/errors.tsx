@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import CodeBlock from '../../components/CodeBlock';
 import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
+import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function Errors() {
@@ -9,6 +10,12 @@ function Errors() {
 
   return (
     <div className="doc-page">
+      <SEO
+        title="Error Codes"
+        description="OpenIAP error codes and handling - PurchaseError structure, error constants, and troubleshooting guide."
+        path="/docs/errors"
+        keywords="IAP errors, PurchaseError, error handling"
+      />
       <h1>Error Codes</h1>
 
       <section>
