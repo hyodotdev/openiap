@@ -116,15 +116,22 @@ func redeemCode() async {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// iOS-only feature
-// For KMP iOS target:
-try {
-    val result = kmpIapInstance.presentCodeRedemptionSheetIOS()
-    if (result) {
-        println("Code redemption sheet presented successfully")
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+
+// KMP iOS target
+val iapStore = OpenIapStore.shared
+
+suspend fun redeemCode() {
+    try {
+        val result = iapStore.presentCodeRedemptionSheetIOS()
+        if (result) {
+            println("Code redemption sheet presented successfully")
+            // The system handles the redemption process
+            // Listen for purchase updates via purchaseFlow
+        }
+    } catch (e: Exception) {
+        println("Failed to present code redemption sheet: \${e.message}")
     }
-} catch (e: Exception) {
-    println("Failed: \${e.message}")
 }`}</CodeBlock>
                     ),
                     dart: (
@@ -228,7 +235,43 @@ class RedemptionManager: ObservableObject {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// iOS-only - use in KMP iOS target`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+import kotlinx.coroutines.*
+
+// KMP iOS target
+class RedemptionManager {
+    private val iapStore = OpenIapStore.shared
+    private var purchaseJob: Job? = null
+
+    fun initialize(scope: CoroutineScope) {
+        // Listen for purchases from code redemption
+        purchaseJob = scope.launch {
+            iapStore.purchaseFlow.collect { purchase ->
+                println("Purchase from code redemption: \${purchase.productId}")
+
+                // Verify and finish the transaction
+                val isValid = verifyPurchaseOnServer(purchase)
+                if (isValid) {
+                    iapStore.finishTransaction(purchase, isConsumable = false)
+                    println("Redemption completed successfully")
+                }
+            }
+        }
+    }
+
+    suspend fun redeemCode() {
+        try {
+            iapStore.presentCodeRedemptionSheetIOS()
+        } catch (e: Exception) {
+            println("Error: \${e.message}")
+        }
+    }
+
+    fun dispose() {
+        purchaseJob?.cancel()
+    }
+}`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`import 'dart:async';

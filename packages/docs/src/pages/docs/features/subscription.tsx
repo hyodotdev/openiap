@@ -1,37 +1,46 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-function SubscriptionOffers() {
+function Subscription() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
-      <h1>Subscription Offers</h1>
+      <h1>Subscription</h1>
       <p>
-        Subscription offers represent different pricing plans for the same
-        subscription product:
+        This guide covers subscription purchasing, offers, and ongoing
+        subscription management in your app.
       </p>
-      <ul>
-        <li>
-          <strong>Base Plan:</strong> The standard pricing for a subscription
-        </li>
-        <li>
-          <strong>Introductory Offers:</strong> Special pricing for new
-          subscribers (free trial, discounted period)
-        </li>
-        <li>
-          <strong>Promotional Offers:</strong> Limited-time discounts
-          configured in the app stores
-        </li>
-      </ul>
 
       <section>
-        <AnchorLink id="platform-differences" level="h2">
-          Platform Differences
+        <AnchorLink id="subscription-offers" level="h2">
+          Subscription Offers
         </AnchorLink>
+        <p>
+          Subscription offers represent different pricing plans for the same
+          subscription product:
+        </p>
+        <ul>
+          <li>
+            <strong>Base Plan:</strong> The standard pricing for a subscription
+          </li>
+          <li>
+            <strong>Introductory Offers:</strong> Special pricing for new
+            subscribers (free trial, discounted period)
+          </li>
+          <li>
+            <strong>Promotional Offers:</strong> Limited-time discounts
+            configured in the app stores
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Platform Differences</h3>
         <table className="doc-table">
           <thead>
             <tr>
@@ -68,9 +77,7 @@ function SubscriptionOffers() {
       </section>
 
       <section>
-        <AnchorLink id="platform-implementation" level="h2">
-          Platform Implementation
-        </AnchorLink>
+        <h3>Platform Implementation</h3>
 
         <PlatformTabs>
           {{
@@ -150,8 +157,33 @@ if let discounts = subscription?.discountsIOS {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// iOS-only - use in KMP iOS target
-// For Android, see the Android tab`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+
+// KMP iOS target
+val iapStore = OpenIapStore.shared
+
+// Fetch subscription products
+iapStore.fetchProducts(
+    skus = listOf("premium_monthly"),
+    type = ProductQueryType.Subs
+)
+
+val subscription = iapStore.iosProducts
+    .filterIsInstance<ProductIOS>()
+    .find { it.id == "premium_monthly" }
+
+// Check for introductory offer
+subscription?.subscriptionInfoIOS?.introductoryOffer?.let { introOffer ->
+    println("Intro offer: \${introOffer.displayPrice}")
+    println("Payment mode: \${introOffer.paymentMode}")
+    println("Period: \${introOffer.period.unit} x \${introOffer.periodCount}")
+}
+
+// Check for promotional offers
+subscription?.discountsIOS?.forEach { discount ->
+    println("Promo: \${discount.identifier} - \${discount.localizedPrice}")
+}`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -239,7 +271,27 @@ if isEligible, let offerText = displayIntroOffer(subscription) {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// iOS-only feature`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+
+// KMP iOS target
+fun displayIntroOffer(subscription: ProductIOS): String? {
+    val offer = subscription.subscriptionInfoIOS?.introductoryOffer
+        ?: return null
+
+    return when (offer.paymentMode) {
+        "free-trial" -> "\${offer.periodCount} \${offer.period.unit.lowercase()}(s) free trial"
+        "pay-as-you-go" -> "\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
+        "pay-up-front" -> "\${offer.displayPrice} for first \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
+        else -> null
+    }
+}
+
+// Check eligibility
+val isEligible = iapStore.isEligibleForIntroOfferIOS(sku = "premium_monthly")
+if (isEligible) {
+    subscription?.let { displayIntroOffer(it)?.let(::println) }
+}`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`String? displayIntroOffer(IAPItem subscription) {
@@ -346,8 +398,39 @@ func purchaseWithPromoOffer(
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// iOS-only feature - promotional offers with signatures
-// For Android, use offer tokens instead`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+
+// KMP iOS target
+suspend fun purchaseWithPromoOffer(
+    subscriptionId: String,
+    offerId: String
+) {
+    // 1. Generate signature on your backend
+    val nonce = java.util.UUID.randomUUID().toString()
+    val timestamp = System.currentTimeMillis()
+
+    val signatureResponse = generateSignatureOnServer(
+        productId = subscriptionId,
+        offerId = offerId,
+        nonce = nonce,
+        timestamp = timestamp
+    )
+
+    // 2. Purchase with the promotional offer
+    iapStore.requestPurchase(
+        sku = subscriptionId,
+        type = ProductQueryType.Subs,
+        withOffer = DiscountOfferInputIOS(
+            identifier = offerId,
+            keyIdentifier = signatureResponse.keyIdentifier,
+            nonce = nonce,
+            signature = signatureResponse.signature,
+            timestamp = timestamp
+        ),
+        autoFinish = false
+    )
+}`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`Future<void> purchaseWithPromoOffer(
@@ -422,7 +505,19 @@ func purchaseSubscription(subscriptionId: String) async throws {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// iOS-only - use in KMP iOS target`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+
+// KMP iOS target
+suspend fun purchaseSubscription(subscriptionId: String) {
+    // Simply request purchase
+    // Intro offer is applied automatically when eligible
+    iapStore.requestPurchase(
+        sku = subscriptionId,
+        type = ProductQueryType.Subs,
+        autoFinish = false
+    )
+}`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`Future<void> purchaseSubscription(String subscriptionId) async {
@@ -933,8 +1028,433 @@ Future<void> purchaseWithOffer(
           }}
         </PlatformTabs>
       </section>
+
+      <section>
+        <AnchorLink id="handling-subscription" level="h2">
+          Handling Subscription
+        </AnchorLink>
+        <p>
+          After a successful subscription purchase, you need to handle the
+          subscription lifecycle including verification, status checking, and
+          renewal management.
+        </p>
+
+        <AnchorLink id="ios-vs-android" level="h3">
+          iOS vs Android
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>iOS</th>
+              <th>Android</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Purchase Data</td>
+              <td>
+                Can get purchase data from <code>Transaction.all</code>{' '}
+                (including expired). Client can check expiry/renewal info.
+              </td>
+              <td>
+                Client cannot access expiry time. Must use Google Play Developer
+                API for subscription status.
+              </td>
+            </tr>
+            <tr>
+              <td>Cancellation Status</td>
+              <td>
+                <code>renewalInfo.willAutoRenew</code> available client-side
+              </td>
+              <td>
+                No client-side API. Must use Google Play Developer API to detect
+                cancellation.
+              </td>
+            </tr>
+            <tr>
+              <td>Server Validation</td>
+              <td>Recommended for security</td>
+              <td>
+                <strong>Mandatory</strong> for proper subscription management
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="subscription-scenarios" level="h3">
+          Subscription Scenarios
+        </AnchorLink>
+        <p>
+          Understanding how subscriptions behave in different scenarios is
+          crucial for proper implementation:
+        </p>
+
+        <h4>Cancellation Scenario</h4>
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            marginBottom: '1rem',
+          }}
+        >
+          <ol style={{ margin: 0, paddingLeft: '1.5rem' }}>
+            <li>User cancels subscription on Day 1</li>
+            <li>
+              Subscription remains valid until Day 30 (end of billing period)
+            </li>
+            <li>
+              <code>getAvailablePurchases()</code> still returns this purchase
+            </li>
+            <li>
+              iOS: <code>renewalInfo.willAutoRenew = false</code> (client-side)
+              <br />
+              Android: Must check via Google Play Developer API (server-side
+              only)
+            </li>
+          </ol>
+        </div>
+
+        <h4>Restore Purchase Scenarios</h4>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>Day 15</strong> (still valid)
+              </td>
+              <td>Purchase returned, access granted until Day 30 ✓</td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Day 35</strong> (expired)
+              </td>
+              <td>
+                iOS: <code>currentEntitlements</code> returns empty
+                <br />
+                Android: <code>queryPurchases</code> returns empty
+                <br />
+                No access granted ✓
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>Refund Scenario (Tricky Case)</h4>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>⚠️ Important:</strong> When a user requests and receives a
+            refund:
+          </p>
+          <ol style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+            <li>User purchases subscription</li>
+            <li>User requests refund from Apple/Google</li>
+            <li>Refund is approved</li>
+            <li>
+              <code>getAvailablePurchases()</code> may still return the purchase
+              temporarily
+            </li>
+          </ol>
+          <p style={{ marginTop: '0.5rem' }}>
+            <strong>Without server validation:</strong> App grants access ✗
+            (incorrect - refunded!)
+            <br />
+            <strong>With server validation:</strong> Server detects refund →
+            denies access ✓
+          </p>
+        </div>
+
+        <AnchorLink id="when-to-validate" level="h3">
+          When to Validate
+        </AnchorLink>
+        <p>Server-side validation is needed:</p>
+        <ul>
+          <li>
+            <strong>After purchase</strong> - Verify purchase is legitimate
+          </li>
+          <li>
+            <strong>On restore</strong> - Check current status
+            (active/cancelled/refunded/expired)
+          </li>
+          <li>
+            <strong>Periodically</strong> - Detect refunds and cancellations for
+            active subscriptions
+          </li>
+        </ul>
+
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>ℹ️ Android Limitation:</strong> While{' '}
+            <code>getAvailablePurchases()</code> can retrieve purchase history,
+            Android clients cannot access expiry time, cancellation status, or
+            refund information. For complete subscription management, consider:
+          </p>
+          <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+            <li>
+              Google Play Developer API - Get expiry, renewal dates, grace
+              periods
+            </li>
+            <li>
+              RTDN (Real-time Developer Notifications) - Instant updates on
+              renewals, cancellations, refunds
+            </li>
+            <li>
+              Server-side purchase records - Track subscription state history
+            </li>
+          </ul>
+        </div>
+
+        <AnchorLink id="verify-subscription" level="h3">
+          Verify Subscription
+        </AnchorLink>
+        <p>
+          Always verify subscription purchases on your server before granting
+          access to premium content.
+        </p>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { verifyPurchase, type Purchase } from 'expo-iap';
+import { Platform } from 'react-native';
+
+const verifySubscription = async (purchase: Purchase) => {
+  const result = await verifyPurchase({
+    purchase,
+    serverUrl: Platform.select({
+      ios: 'https://your-server.com/api/verify-ios',
+      android: 'https://your-server.com/api/verify-android',
+    })!,
+  });
+
+  if (result.isValid) {
+    // Grant premium access
+    return true;
+  }
+  return false;
+};`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+func verifySubscription(_ purchase: PurchaseIOS) async -> Bool {
+    let iapStore = OpenIapStore.shared
+
+    do {
+        let result = try await iapStore.verifyPurchase(
+            purchase: purchase,
+            serverUrl: "https://your-server.com/api/verify-ios"
+        )
+        return result.isValid
+    } catch {
+        print("Verification error: \\(error.localizedDescription)")
+        return false
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+
+suspend fun verifySubscription(purchase: PurchaseAndroid): Boolean {
+    return try {
+        val result = iapStore.verifyPurchase(
+            purchase = purchase,
+            serverUrl = "https://your-server.com/api/verify-android"
+        )
+        result.isValid
+    } catch (e: Exception) {
+        println("Verification error: \${e.message}")
+        false
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'dart:io';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+Future<bool> verifySubscription(ProductPurchase purchase) async {
+  final iap = FlutterInappPurchase.instance;
+
+  try {
+    final result = await iap.verifyPurchase(
+      purchase: purchase,
+      serverUrl: Platform.isIOS
+          ? 'https://your-server.com/api/verify-ios'
+          : 'https://your-server.com/api/verify-android',
+    );
+    return result.isValid;
+  } catch (e) {
+    print('Verification error: $e');
+    return false;
+  }
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <AnchorLink id="check-active-subscriptions" level="h3">
+          Check Active Subscriptions
+        </AnchorLink>
+        <p>Check if the user has an active subscription to determine access.</p>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { getActiveSubscriptions, hasActiveSubscriptions } from 'expo-iap';
+
+// Check if user has any active subscription
+const hasActive = await hasActiveSubscriptions();
+if (hasActive) {
+  console.log('User has premium access');
+}
+
+// Get all active subscriptions
+const activeSubscriptions = await getActiveSubscriptions();
+activeSubscriptions.forEach((sub) => {
+  console.log('Active subscription:', sub.productId);
+  console.log('Expires:', sub.expirationDate);
+});`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+let iapStore = OpenIapStore.shared
+
+// Check if user has any active subscription
+let hasActive = try await iapStore.hasActiveSubscriptions()
+if hasActive {
+    print("User has premium access")
+}
+
+// Get all active subscriptions
+let activeSubscriptions = try await iapStore.getActiveSubscriptions()
+for subscription in activeSubscriptions {
+    print("Active subscription: \\(subscription.productId)")
+    if let expiration = subscription.expirationDate {
+        print("Expires: \\(expiration)")
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+
+// Check if user has any active subscription
+val hasActive = iapStore.hasActiveSubscriptions()
+if (hasActive) {
+    println("User has premium access")
+}
+
+// Get all active subscriptions
+val activeSubscriptions = iapStore.getActiveSubscriptions()
+activeSubscriptions.forEach { subscription ->
+    println("Active subscription: \${subscription.productId}")
+    subscription.expirationDate?.let { expiration ->
+        println("Expires: $expiration")
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final iap = FlutterInappPurchase.instance;
+
+// Check if user has any active subscription
+final hasActive = await iap.hasActiveSubscriptions();
+if (hasActive) {
+  print('User has premium access');
+}
+
+// Get all active subscriptions
+final activeSubscriptions = await iap.getActiveSubscriptions();
+for (final subscription in activeSubscriptions) {
+  print('Active subscription: \${subscription.productId}');
+  if (subscription.expirationDate != null) {
+    print('Expires: \${subscription.expirationDate}');
+  }
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <AnchorLink id="manage-subscriptions" level="h3">
+          Manage Subscriptions
+        </AnchorLink>
+        <p>
+          Allow users to manage their subscriptions through the platform's
+          native UI.
+        </p>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { deepLinkToSubscriptions } from 'expo-iap';
+
+// Open subscription management page
+const manageSubscriptions = async () => {
+  await deepLinkToSubscriptions();
+};`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+let iapStore = OpenIapStore.shared
+
+// Open subscription management page
+func manageSubscriptions() async {
+    try await iapStore.deepLinkToSubscriptionsIOS()
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+
+// Open subscription management page
+fun manageSubscriptions() {
+    iapStore.deepLinkToSubscriptions()
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final iap = FlutterInappPurchase.instance;
+
+// Open subscription management page
+Future<void> manageSubscriptions() async {
+  await iap.deepLinkToSubscriptions();
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+      </section>
+
+      <section>
+        <AnchorLink id="see-also" level="h2">
+          See Also
+        </AnchorLink>
+        <ul>
+          <li>
+            <Link to="/docs/features/subscription-upgrade-downgrade">
+              Subscription Upgrade/Downgrade
+            </Link>{' '}
+            - Change subscription plans
+          </li>
+          <li>
+            <Link to="/docs/lifecycle/subscription">
+              Subscription Lifecycle
+            </Link>{' '}
+            - Understand subscription states and transitions
+          </li>
+          <li>
+            <Link to="/tutorials#verify-purchase">Verify Purchase</Link> -
+            Server-side verification guides
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
 
-export default SubscriptionOffers;
+export default Subscription;

@@ -9,7 +9,7 @@ import APIs from './docs/apis';
 import Events from './docs/events';
 import Errors from './docs/errors';
 import Purchase from './docs/features/purchase';
-import SubscriptionOffers from './docs/features/subscription-offers';
+import SubscriptionFeature from './docs/features/subscription';
 import OfferCodeRedemption from './docs/features/offer-code-redemption';
 import ExternalPurchase from './docs/features/external-purchase';
 import SubscriptionUpgradeDowngrade from './docs/features/subscription-upgrade-downgrade';
@@ -153,11 +153,11 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/features/subscription-offers"
+                to="/docs/features/subscription"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Subscription Offers
+                Subscription
               </NavLink>
             </li>
             <li>
@@ -232,8 +232,8 @@ function Docs() {
           <Route path="errors" element={<Errors />} />
           <Route path="features/purchase" element={<Purchase />} />
           <Route
-            path="features/subscription-offers"
-            element={<SubscriptionOffers />}
+            path="features/subscription"
+            element={<SubscriptionFeature />}
           />
           <Route
             path="features/offer-code-redemption"
