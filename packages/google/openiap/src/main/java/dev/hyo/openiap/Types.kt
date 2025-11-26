@@ -447,6 +447,11 @@ public data class ActiveSubscription(
     val renewalInfoIOS: RenewalInfoIOS? = null,
     val transactionDate: Double,
     val transactionId: String,
+    /**
+     * @deprecated iOS only - returns null on Android.
+     * Whether the subscription will expire soon (within 7 days).
+     * Consider using daysUntilExpirationIOS for more precise control.
+     */
     val willExpireSoon: Boolean? = null
 ) {
 

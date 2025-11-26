@@ -69,14 +69,12 @@ function Subscription() {
         </table>
 
         <div className="alert-card alert-card--info">
-          <p>
+          <p style={{ margin: 0 }}>
             <strong>ℹ️ Tip:</strong> Always fetch products first; offers only
             exist after <code>{"fetchProducts({ type: 'subs' })"}</code>.
           </p>
         </div>
-      </section>
 
-      <section>
         <h3>Platform Implementation</h3>
 
         <PlatformTabs>

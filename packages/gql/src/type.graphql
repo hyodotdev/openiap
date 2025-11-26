@@ -210,7 +210,12 @@ type ActiveSubscription {
   expirationDateIOS: Float
   autoRenewingAndroid: Boolean
   environmentIOS: String
-  willExpireSoon: Boolean
+  """
+  @deprecated iOS only - returns null on Android.
+  Whether the subscription will expire soon (within 7 days).
+  Consider using daysUntilExpirationIOS for more precise control.
+  """
+  willExpireSoon: Boolean @deprecated(reason: "iOS only - use daysUntilExpirationIOS instead")
   daysUntilExpirationIOS: Float
   transactionId: String!
   purchaseToken: String

@@ -595,6 +595,9 @@ class ActiveSubscription {
     this.renewalInfoIOS,
     required this.transactionDate,
     required this.transactionId,
+    /// @deprecated iOS only - returns null on Android.
+    /// Whether the subscription will expire soon (within 7 days).
+    /// Consider using daysUntilExpirationIOS for more precise control.
     this.willExpireSoon,
   });
 
@@ -618,6 +621,9 @@ class ActiveSubscription {
   final RenewalInfoIOS? renewalInfoIOS;
   final double transactionDate;
   final String transactionId;
+  /// @deprecated iOS only - returns null on Android.
+  /// Whether the subscription will expire soon (within 7 days).
+  /// Consider using daysUntilExpirationIOS for more precise control.
   final bool? willExpireSoon;
 
   factory ActiveSubscription.fromJson(Map<String, dynamic> json) {

@@ -885,8 +885,8 @@ function Types() {
               <td>Whether the subscription is currently active</td>
             </tr>
             <tr>
-              <td><code>willExpireSoon</code></td>
-              <td>True if expiring within 7 days</td>
+              <td><code>willExpireSoon</code> <span className="deprecated">deprecated</span></td>
+              <td>iOS only - returns null on Android. Use <code>daysUntilExpirationIOS</code> for more precise control.</td>
             </tr>
             <tr>
               <td><code>transactionId</code></td>
