@@ -145,3 +145,22 @@
 :root.dark img[src*='meta-txt.svg'] {
   filter: invert(1) brightness(1.5) contrast(1.1);
 }
+
+/* Alert Cards - Dark Mode */
+:root.dark .alert-card--info {
+  background: rgba(59, 130, 246, 0.25);
+  border: 2px solid rgba(59, 130, 246, 0.7);
+  color: var(--text-primary);
+}
+
+:root.dark .alert-card--warning {
+  background: rgba(255, 180, 0, 0.2);
+  border: 2px solid rgba(255, 180, 0, 0.7);
+  color: var(--text-primary);
+}
+
+:root.dark .alert-card--success {
+  background: rgba(16, 185, 129, 0.25);
+  border: 2px solid rgba(16, 185, 129, 0.7);
+  color: var(--text-primary);
+}

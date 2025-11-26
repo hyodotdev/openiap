@@ -1,7 +1,9 @@
 import { useState, type ChangeEvent } from 'react';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
+import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 import { GQL_RELEASE } from '../../lib/versioning';
@@ -189,307 +191,120 @@ function Types() {
         <AnchorLink id="product" level="h2">
           Product
         </AnchorLink>
-        <p className="type-definition">
-          Product = (ProductAndroid & AndroidPlatform) | (ProductIOS &
-          IosPlatform)
+        <p>
+          Represents a product available for purchase in the store. The type is
+          a union of <code>ProductIOS</code> and <code>ProductAndroid</code>,
+          discriminated by the <code>platform</code> field.
         </p>
 
-        <h3>Common Fields</h3>
-        <CodeBlock language="typescript">{`type ProductCommon = {
-  id: string;
-  title: string;
-  description: string;
-  type: "in-app" | "subs";
-  displayName?: string;
-  displayPrice: string;
-  currency: string;
-  price?: number;
-  debugDescription?: string;
-  platform?: string;
-};`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>id</code> — Unique product identifier
-            </li>
-            <li>
-              <code>title</code> — Product title
-            </li>
-            <li>
-              <code>description</code> — Product description
-            </li>
-            <li>
-              <code>type</code> — Product type
-            </li>
-            <li>
-              <code>displayName</code> — Display name
-            </li>
-            <li>
-              <code>displayPrice</code> — Formatted price with currency symbol
-            </li>
-            <li>
-              <code>currency</code> — ISO 4217 currency code
-            </li>
-            <li>
-              <code>price</code> — Numeric price
-            </li>
-            <li>
-              <code>debugDescription</code> — Debug description
-            </li>
-            <li>
-              <code>platform</code> — Platform discriminator (e.g., ios,
-              android)
-            </li>
-          </ul>
-        </div>
+        <AnchorLink id="product-common" level="h3">
+          Common Fields
+        </AnchorLink>
+        <p>These fields are available on both iOS and Android:</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>id</code></td>
+              <td>Unique product identifier configured in App Store Connect or Google Play Console</td>
+            </tr>
+            <tr>
+              <td><code>title</code></td>
+              <td>Localized product title</td>
+            </tr>
+            <tr>
+              <td><code>description</code></td>
+              <td>Localized product description</td>
+            </tr>
+            <tr>
+              <td><code>type</code></td>
+              <td>Product type: <code>"in-app"</code> for consumables/non-consumables, <code>"subs"</code> for subscriptions</td>
+            </tr>
+            <tr>
+              <td><code>displayPrice</code></td>
+              <td>Formatted price with currency symbol (e.g., "$9.99", "₩12,000")</td>
+            </tr>
+            <tr>
+              <td><code>currency</code></td>
+              <td>ISO 4217 currency code (e.g., "USD", "KRW")</td>
+            </tr>
+            <tr>
+              <td><code>price</code></td>
+              <td>Numeric price value (e.g., 9.99)</td>
+            </tr>
+            <tr>
+              <td><code>platform</code></td>
+              <td>Platform discriminator: <code>"ios"</code> or <code>"android"</code></td>
+            </tr>
+          </tbody>
+        </table>
 
-        <h3>Platform-Specific Fields</h3>
+        <AnchorLink id="product-platform" level="h3">
+          Platform-Specific Fields
+        </AnchorLink>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>ProductIOS</h4>
-                <CodeBlock language="typescript">{`enum ProductTypeIOS {
-  Consumable = "Consumable",
-  NonConsumable = "NonConsumable", 
-  AutoRenewableSubscription = "AutoRenewableSubscription",
-  NonRenewingSubscription = "NonRenewingSubscription"
-}
-
-type ProductIOS = ProductCommon & {
-  displayNameIOS: string;
-  isFamilyShareableIOS: boolean;
-  jsonRepresentationIOS: string;
-  platform: "ios";
-  subscriptionInfoIOS?: SubscriptionInfo;
-  typeIOS: ProductTypeIOS;
-};
-
-type SubscriptionInfo = {
-  introductoryOffer?: SubscriptionOffer;
-  promotionalOffers?: SubscriptionOffer[];
-  subscriptionGroupId: string;
-  subscriptionPeriod: {
-    unit: SubscriptionPeriodIOS;
-    value: number;
-  };
-};
-
-type SubscriptionOffer = {
-  displayPrice: string;
-  id: string;
-  paymentMode: PaymentMode;
-  period: {
-    unit: SubscriptionPeriodIOS;
-    value: number;
-  };
-  periodCount: number;
-  price: number;
-  type: 'introductory' | 'promotional';
-};
-
-type PaymentMode = '' | 'FreeTrial' | 'PayAsYouGo' | 'PayUpFront';
-type SubscriptionPeriodIOS = 'Day' | 'Week' | 'Month' | 'Year' | '';`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>displayNameIOS</code> — iOS display name
-                    </li>
-                    <li>
-                      <code>isFamilyShareableIOS</code> — Family Sharing support
-                    </li>
-                    <li>
-                      <code>jsonRepresentationIOS</code> — Raw JSON string
-                    </li>
-                    <li>
-                      <code>platform</code> — Platform discriminator
-                    </li>
-                    <li>
-                      <code>subscriptionInfoIOS</code> — Subscription metadata
-                    </li>
-                    <li>
-                      <code>typeIOS</code> — Detailed iOS product type
-                    </li>
-                  </ul>
-                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
-                    SubscriptionInfo
-                  </h5>
-                  <ul>
-                    <li>
-                      <code>introductoryOffer</code> — Introductory offer
-                    </li>
-                    <li>
-                      <code>promotionalOffers</code> — Promotional offers
-                    </li>
-                    <li>
-                      <code>subscriptionGroupId</code> — Subscription group ID
-                    </li>
-                    <li>
-                      <code>subscriptionPeriod</code> — Subscription period
-                      <ul>
-                        <li>
-                          <code>unit</code> — Period unit
-                        </li>
-                        <li>
-                          <code>value</code> — Period length
-                        </li>
-                      </ul>
-                    </li>
-                  </ul>
-                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
-                    SubscriptionOffer
-                  </h5>
-                  <ul>
-                    <li>
-                      <code>displayPrice</code> — Formatted price
-                    </li>
-                    <li>
-                      <code>id</code> — Offer ID
-                    </li>
-                    <li>
-                      <code>paymentMode</code> — Payment mode
-                    </li>
-                    <li>
-                      <code>period</code> — Offer period
-                      <ul>
-                        <li>
-                          <code>unit</code> — Period unit
-                        </li>
-                        <li>
-                          <code>value</code> — Period length
-                        </li>
-                      </ul>
-                    </li>
-                    <li>
-                      <code>periodCount</code> — Billing cycles
-                    </li>
-                    <li>
-                      <code>price</code> — Numeric price
-                    </li>
-                    <li>
-                      <code>type</code> — Offer type
-                    </li>
-                  </ul>
-                </div>
+                <p>Additional fields available on iOS:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>typeIOS</code></td>
+                      <td>Detailed product type: <code>Consumable</code>, <code>NonConsumable</code>, <code>AutoRenewableSubscription</code>, or <code>NonRenewingSubscription</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>isFamilyShareableIOS</code></td>
+                      <td>Whether the product supports Family Sharing</td>
+                    </tr>
+                    <tr>
+                      <td><code>displayNameIOS</code></td>
+                      <td>iOS-specific display name</td>
+                    </tr>
+                    <tr>
+                      <td><code>subscriptionInfoIOS</code></td>
+                      <td>Subscription metadata (only for subscriptions). Contains: <code>subscriptionGroupId</code>, <code>subscriptionPeriod</code> (unit and value), <code>introductoryOffer</code>, <code>promotionalOffers</code></td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
             android: (
               <>
-                <h4>ProductAndroid</h4>
-                <CodeBlock language="typescript">{`type ProductAndroid = ProductCommon & {
-  nameAndroid: string;
-  oneTimePurchaseOfferDetailsAndroid?: ProductAndroidOneTimePurchaseOfferDetail;
-  platform: "android";
-  subscriptionOfferDetailsAndroid?: SubscriptionProductAndroidOfferDetail[];
-};
-
-type ProductAndroidOneTimePurchaseOfferDetail = {
-  priceCurrencyCode: string;
-  formattedPrice: string;
-  priceAmountMicros: string;
-};
-
-type SubscriptionProductAndroidOfferDetail = {
-  basePlanId: string;
-  offerId: string;
-  offerToken: string;
-  offerTags: string[];
-  pricingPhases: PricingPhasesAndroid;
-};
-
-type PricingPhasesAndroid = {
-  pricingPhaseList: PricingPhaseAndroid[];
-};
-
-type PricingPhaseAndroid = {
-  formattedPrice: string;
-  priceCurrencyCode: string;
-  billingPeriod: string;
-  billingCycleCount: number;
-  priceAmountMicros: string;
-  recurrenceMode: number;
-};`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>nameAndroid</code> — Android product name
-                    </li>
-                    <li>
-                      <code>oneTimePurchaseOfferDetailsAndroid</code> — One-time
-                      purchase offer details
-                    </li>
-                    <li>
-                      <code>platform</code> — Platform discriminator
-                    </li>
-                    <li>
-                      <code>subscriptionOfferDetailsAndroid</code> —
-                      Subscription offer details
-                    </li>
-                  </ul>
-                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
-                    ProductAndroidOneTimePurchaseOfferDetail
-                  </h5>
-                  <ul>
-                    <li>
-                      <code>priceCurrencyCode</code> — Currency code
-                    </li>
-                    <li>
-                      <code>formattedPrice</code> — Formatted price
-                    </li>
-                    <li>
-                      <code>priceAmountMicros</code> — Price in micros
-                    </li>
-                  </ul>
-                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
-                    SubscriptionProductAndroidOfferDetail
-                  </h5>
-                  <ul>
-                    <li>
-                      <code>basePlanId</code> — Base plan ID
-                    </li>
-                    <li>
-                      <code>offerId</code> — Offer ID
-                    </li>
-                    <li>
-                      <code>offerToken</code> — Offer token
-                    </li>
-                    <li>
-                      <code>offerTags</code> — Offer tags
-                    </li>
-                    <li>
-                      <code>pricingPhases</code> — Pricing phases
-                    </li>
-                  </ul>
-                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
-                    PricingPhasesAndroid / PricingPhaseAndroid
-                  </h5>
-                  <ul>
-                    <li>
-                      <code>pricingPhaseList</code> — Pricing phase list
-                    </li>
-                    <li>
-                      <code>formattedPrice</code> — Phase formatted price
-                    </li>
-                    <li>
-                      <code>priceCurrencyCode</code> — Currency code
-                    </li>
-                    <li>
-                      <code>billingPeriod</code> — Billing period (P1W/P1M/P1Y)
-                    </li>
-                    <li>
-                      <code>billingCycleCount</code> — Billing cycles
-                    </li>
-                    <li>
-                      <code>priceAmountMicros</code> — Price in micros
-                    </li>
-                    <li>
-                      <code>recurrenceMode</code> — Recurrence mode
-                    </li>
-                  </ul>
-                </div>
+                <p>Additional fields available on Android:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>nameAndroid</code></td>
+                      <td>Android-specific product name</td>
+                    </tr>
+                    <tr>
+                      <td><code>oneTimePurchaseOfferDetailsAndroid</code></td>
+                      <td>For one-time purchases. Contains: <code>formattedPrice</code>, <code>priceAmountMicros</code> (divide by 1,000,000), <code>priceCurrencyCode</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>subscriptionOfferDetailsAndroid</code></td>
+                      <td>For subscriptions, array of offer details. Contains: <code>basePlanId</code>, <code>offerId</code>, <code>offerToken</code>, <code>pricingPhases</code></td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
           }}
@@ -500,141 +315,104 @@ type PricingPhaseAndroid = {
         <AnchorLink id="product-subscription" level="h2">
           SubscriptionProduct
         </AnchorLink>
-        <p className="type-definition">
-          SubscriptionProduct = (SubscriptionProductAndroid & AndroidPlatform) |
-          (SubscriptionProductIOS & IosPlatform)
+        <p>
+          Represents a subscription product available for purchase. Extends the
+          base Product type with subscription-specific fields like pricing
+          phases, introductory offers, and billing periods.
         </p>
 
-        <h3>Common Fields</h3>
-        <CodeBlock language="typescript">{`type SubscriptionProductCommon = ProductCommon & {
-  type: 'subs';
-};`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>type</code> — Discriminator indicating a subscription
-              product
-            </li>
-          </ul>
-        </div>
+        <AnchorLink id="subscription-product-common" level="h3">
+          Common Fields
+        </AnchorLink>
+        <p>
+          In addition to all{' '}
+          <a href="#product-common">Product common fields</a>, subscription
+          products include:
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>type</code></td>
+              <td>Always <code>"subs"</code> for subscription products</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <h3>Platform-Specific Fields</h3>
+        <AnchorLink id="subscription-product-platform" level="h3">
+          Platform-Specific Fields
+        </AnchorLink>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>SubscriptionProductIOS</h4>
-                <CodeBlock language="typescript">{`type Discount = {
-  identifier: string;
-  type: string;
-  numberOfPeriods: string;
-  price: string;
-  localizedPrice: string;
-  paymentMode: PaymentMode;
-  subscriptionPeriod: string;
-};
-
-type SubscriptionProductIOS = ProductIOS & {
-  discountsIOS?: Discount[];
-  introductoryPriceIOS?: string;
-  introductoryPriceAsAmountIOS?: string;
-  introductoryPricePaymentModeIOS: PaymentMode;
-  introductoryPriceNumberOfPeriodsIOS?: string;
-  introductoryPriceSubscriptionPeriodIOS?: SubscriptionPeriodIOS;
-  platform: "ios";
-  subscriptionPeriodNumberIOS?: string;
-  subscriptionPeriodUnitIOS?: SubscriptionPeriodIOS;
-};`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>discountsIOS</code> — iOS discount list
-                    </li>
-                    <li>
-                      <code>introductoryPrice</code> — Introductory price
-                      details
-                      <ul>
-                        <li>
-                          <code>introductoryPriceIOS</code> — Formatted price
-                        </li>
-                        <li>
-                          <code>introductoryPriceAsAmountIOS</code> — Numeric
-                          price
-                        </li>
-                        <li>
-                          <code>introductoryPricePaymentModeIOS</code> — Payment
-                          mode
-                        </li>
-                        <li>
-                          <code>introductoryPriceNumberOfPeriodsIOS</code> —
-                          Number of periods
-                        </li>
-                        <li>
-                          <code>introductoryPriceSubscriptionPeriodIOS</code> —
-                          Period unit
-                        </li>
-                      </ul>
-                    </li>
-                    <li>
-                      <code>platform</code> — Platform discriminator
-                    </li>
-                    <li>
-                      <code>subscriptionPeriodNumberIOS</code> — Subscription
-                      period length
-                    </li>
-                    <li>
-                      <code>subscriptionPeriodUnitIOS</code> — Subscription
-                      period unit
-                    </li>
-                  </ul>
-                </div>
+                <p>Additional fields available on iOS subscriptions:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>discountsIOS</code></td>
+                      <td>Array of available discounts. Each contains: <code>identifier</code>, <code>type</code>, <code>numberOfPeriods</code>, <code>price</code>, <code>localizedPrice</code>, <code>paymentMode</code>, <code>subscriptionPeriod</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>introductoryPriceIOS</code></td>
+                      <td>Formatted introductory price (e.g., "$0.99")</td>
+                    </tr>
+                    <tr>
+                      <td><code>introductoryPriceAsAmountIOS</code></td>
+                      <td>Numeric introductory price value</td>
+                    </tr>
+                    <tr>
+                      <td><code>introductoryPricePaymentModeIOS</code></td>
+                      <td>Payment mode for intro offer (FreeTrial, PayAsYouGo, PayUpFront)</td>
+                    </tr>
+                    <tr>
+                      <td><code>introductoryPriceNumberOfPeriodsIOS</code></td>
+                      <td>Number of periods for intro pricing</td>
+                    </tr>
+                    <tr>
+                      <td><code>introductoryPriceSubscriptionPeriodIOS</code></td>
+                      <td>Period unit for intro pricing (Day, Week, Month, Year)</td>
+                    </tr>
+                    <tr>
+                      <td><code>subscriptionPeriodNumberIOS</code></td>
+                      <td>Number of units in a subscription period</td>
+                    </tr>
+                    <tr>
+                      <td><code>subscriptionPeriodUnitIOS</code></td>
+                      <td>Period unit (Day, Week, Month, Year)</td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
             android: (
               <>
-                <h4>SubscriptionProductAndroid</h4>
-                <CodeBlock language="typescript">{`type SubscriptionProductAndroidOfferDetails = {
-  basePlanId: string;
-  offerId: string | null;
-  offerToken: string;
-  pricingPhases: PricingPhasesAndroid;
-  offerTags: string[];
-};
-
-type SubscriptionProductAndroid = ProductAndroid & {
-  subscriptionOfferDetailsAndroid: SubscriptionProductAndroidOfferDetails[];
-};`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>subscriptionOfferDetailsAndroid</code> — Android
-                      subscription offers
-                    </li>
-                  </ul>
-                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
-                    SubscriptionProductAndroidOfferDetails
-                  </h5>
-                  <ul>
-                    <li>
-                      <code>basePlanId</code> — Base plan ID
-                    </li>
-                    <li>
-                      <code>offerId</code> — Offer ID
-                    </li>
-                    <li>
-                      <code>offerToken</code> — Offer token
-                    </li>
-                    <li>
-                      <code>pricingPhases</code> — Pricing phases
-                    </li>
-                    <li>
-                      <code>offerTags</code> — Offer tags
-                    </li>
-                  </ul>
-                </div>
+                <p>Additional fields available on Android subscriptions:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>subscriptionOfferDetailsAndroid</code></td>
+                      <td>Array of subscription offers. Each contains: <code>basePlanId</code>, <code>offerId</code>, <code>offerToken</code>, <code>pricingPhases</code>, <code>offerTags</code></td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
           }}
@@ -646,28 +424,67 @@ type SubscriptionProductAndroid = ProductAndroid & {
           Unified Platform Types
         </AnchorLink>
         <p>
-          These types combine platform-specific types with discriminators for
-          type safety.
+          These types combine platform-specific types with a{' '}
+          <code>platform</code> discriminator for type-safe handling across iOS
+          and Android.
         </p>
 
-        <h3>Platform Discriminators</h3>
-        <CodeBlock language="typescript">{`type IosPlatform = { platform: 'ios' };
-type AndroidPlatform = { platform: 'android' };`}</CodeBlock>
+        <AnchorLink id="platform-discriminators" level="h3">
+          Platform Discriminators
+        </AnchorLink>
+        <p>
+          Each unified type includes a <code>platform</code> field that
+          identifies the source platform:
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>IosPlatform</code></td>
+              <td>Contains <code>platform: 'ios'</code></td>
+            </tr>
+            <tr>
+              <td><code>AndroidPlatform</code></td>
+              <td>Contains <code>platform: 'android'</code></td>
+            </tr>
+          </tbody>
+        </table>
 
-        <h3>Unified Types</h3>
-        <CodeBlock language="typescript">{`// Product Union Types
-type Product = 
-  | (ProductAndroid & AndroidPlatform)
-  | (ProductIOS & IosPlatform);
-
-type SubscriptionProduct =
-  | (SubscriptionProductAndroid & AndroidPlatform)
-  | (SubscriptionProductIOS & IosPlatform);
-
-// Purchase Union Types  
-type Purchase =
-  | (PurchaseAndroid & AndroidPlatform)
-  | (PurchaseIOS & IosPlatform);`}</CodeBlock>
+        <AnchorLink id="union-types" level="h3">
+          Union Types
+        </AnchorLink>
+        <p>The SDK provides these unified types for cross-platform code:</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Product</code></td>
+              <td>Union of <code>ProductIOS</code> and <code>ProductAndroid</code></td>
+            </tr>
+            <tr>
+              <td><code>SubscriptionProduct</code></td>
+              <td>Union of <code>SubscriptionProductIOS</code> and <code>SubscriptionProductAndroid</code></td>
+            </tr>
+            <tr>
+              <td><code>Purchase</code></td>
+              <td>Union of <code>PurchaseIOS</code> and <code>PurchaseAndroid</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Use the <code>platform</code> field to narrow the type and access
+          platform-specific fields safely.
+        </p>
       </section>
 
       <section>
@@ -675,23 +492,28 @@ type Purchase =
           Storefront
         </AnchorLink>
         <p>
-          ISO 3166-1 alpha-2 storefront code returned by{' '}
-          <code>getStorefront</code>.
+          Represents the user&apos;s App Store or Play Store region, returned by{' '}
+          <code>getStorefront()</code>.
         </p>
-        <CodeBlock language="typescript">{`type StorefrontCode = string;`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Usage Notes</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              Example values: <code>"US"</code>, <code>"KR"</code>,
-              <code>"JP"</code>
-            </li>
-            <li>
-              May return an empty string when the storefront cannot be
-              determined.
-            </li>
-          </ul>
-        </div>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>StorefrontCode</code></td>
+              <td>ISO 3166-1 alpha-2 country code (string)</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Example values: <code>"US"</code>, <code>"KR"</code>,{' '}
+          <code>"JP"</code>. May return an empty string when the storefront
+          cannot be determined.
+        </p>
         <blockquote className="info-note">
           <p>
             iOS sources the value from the active StoreKit storefront. Android
@@ -705,238 +527,213 @@ type Purchase =
         <AnchorLink id="purchase" level="h2">
           Purchase
         </AnchorLink>
-        <p className="type-definition">
-          Purchase = (PurchaseAndroid & AndroidPlatform) | (PurchaseIOS &
-          IosPlatform)
+        <p>
+          Represents a completed or pending purchase transaction. The type is a
+          union of <code>PurchaseIOS</code> and <code>PurchaseAndroid</code>,
+          discriminated by the <code>platform</code> field.
         </p>
 
-        <h3>Common Fields</h3>
-        <CodeBlock language="typescript">{`enum PurchaseState {
-  Pending = "Pending",
-  Purchased = "Purchased", 
-  Failed = "Failed",
-  Restored = "Restored",
-  Deferred = "Deferred",
-  Unknown = "Unknown"
-}
+        <AnchorLink id="purchase-state" level="h3">
+          PurchaseState
+        </AnchorLink>
+        <p>Enum representing the current state of a purchase:</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Pending</code></td>
+              <td>Purchase initiated, awaiting completion</td>
+            </tr>
+            <tr>
+              <td><code>Purchased</code></td>
+              <td>Payment successful, needs validation</td>
+            </tr>
+            <tr>
+              <td><code>Failed</code></td>
+              <td>Purchase failed or was cancelled</td>
+            </tr>
+            <tr>
+              <td><code>Restored</code></td>
+              <td>Previous purchase restored</td>
+            </tr>
+            <tr>
+              <td><code>Deferred</code></td>
+              <td>Awaiting approval (e.g., parental consent)</td>
+            </tr>
+            <tr>
+              <td><code>Unknown</code></td>
+              <td>State could not be determined</td>
+            </tr>
+          </tbody>
+        </table>
 
-type PurchaseCommon = {
-  id: string;
-  productId: string;
-  ids?: string[];
-  transactionDate: number;
-  purchaseToken?: string;
-  platform?: string;
-  quantity: number;
-  purchaseState: PurchaseState;
-  isAutoRenewing: boolean;
-  currentPlanId?: string;
-};`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>id</code> — Purchase identifier (primary key)
-            </li>
-            <li>
-              <code>productId</code> — Purchased product ID
-            </li>
-            <li>
-              <code>ids</code> — Included SKUs for bundled purchases
-            </li>
-            <li>
-              <code>transactionDate</code> — Epoch ms timestamp
-            </li>
-            <li>
-              <code>purchaseToken</code> — Unified token (JWS/Play token)
-            </li>
-            <li>
-              <code>platform</code> — Platform discriminator
-            </li>
-            <li>
-              <code>quantity</code> — Purchase quantity
-            </li>
-            <li>
-              <code>purchaseState</code> — Purchase state
-            </li>
-            <li>
-              <code>isAutoRenewing</code> — Auto-renew flag
-            </li>
-            <li>
-              <code>currentPlanId</code> — The current plan identifier. This
-              provides a unified way to identify which specific plan/tier the
-              user is subscribed to:
-              <ul>
-                <li>
-                  On Android: the basePlanId (e.g., "premium", "premium-year")
-                </li>
-                <li>
-                  On iOS: the productId (e.g., "com.example.premium_monthly",
-                  "com.example.premium_yearly")
-                </li>
-              </ul>
-            </li>
-          </ul>
-        </div>
-
+        <AnchorLink id="purchase-common" level="h3">
+          Common Fields
+        </AnchorLink>
+        <p>These fields are available on both iOS and Android:</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>id</code></td>
+              <td>Purchase identifier (primary key). Maps to orderId on Android, transactionId on iOS</td>
+            </tr>
+            <tr>
+              <td><code>productId</code></td>
+              <td>Product identifier that was purchased</td>
+            </tr>
+            <tr>
+              <td><code>ids</code></td>
+              <td>Array of SKUs for bundled purchases (optional)</td>
+            </tr>
+            <tr>
+              <td><code>transactionDate</code></td>
+              <td>Transaction timestamp (epoch ms)</td>
+            </tr>
+            <tr>
+              <td><code>purchaseToken</code></td>
+              <td>JWS token (iOS) or Play purchase token (Android) for server validation</td>
+            </tr>
+            <tr>
+              <td><code>platform</code></td>
+              <td>Platform discriminator: <code>"ios"</code> or <code>"android"</code></td>
+            </tr>
+            <tr>
+              <td><code>quantity</code></td>
+              <td>Number of items purchased</td>
+            </tr>
+            <tr>
+              <td><code>purchaseState</code></td>
+              <td>Current purchase state (see PurchaseState above)</td>
+            </tr>
+            <tr>
+              <td><code>isAutoRenewing</code></td>
+              <td>Whether subscription will auto-renew</td>
+            </tr>
+            <tr>
+              <td><code>currentPlanId</code></td>
+              <td>Unified plan identifier. On Android: basePlanId (e.g., "premium"). On iOS: productId (e.g., "com.example.premium_monthly")</td>
+            </tr>
+          </tbody>
+        </table>
         <p>
-          The shared <code>id</code> field maps to Google Play's{' '}
+          The shared <code>id</code> field maps to Google Play&apos;s{' '}
           <code>orderId</code>. When Play omits it—common for consumables—the
           SDK falls back to the long <code>purchaseToken</code> so you retain a
-          stable primary key. The token length makes the fallback easy to spot.
-        </p>
-        <p>
-          <code>transactionId</code> also mirrors the same <code>orderId</code>
-          value for consistency. On iOS, <code>id</code> and{' '}
-          <code>transactionId</code> are always identical; on Android they match
-          unless the <code>id</code> field needs to fall back to the token.
+          stable primary key.
         </p>
 
-        <h3>Platform-Specific Fields</h3>
+        <AnchorLink id="purchase-platform" level="h3">
+          Platform-Specific Fields
+        </AnchorLink>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>PurchaseIOS</h4>
-                <CodeBlock language="typescript">{`type PurchaseIOS = PurchaseCommon & {
-  platform: "ios";
-  quantityIOS?: number;
-  originalTransactionDateIOS?: number;
-  originalTransactionIdentifierIOS?: string;
-  appAccountToken?: string;
-  expirationDateIOS?: number;
-  webOrderLineItemIdIOS?: number;
-  environmentIOS?: string;
-  storefrontCountryCodeIOS?: string;
-  appBundleIdIOS?: string;
-  subscriptionGroupIdIOS?: string;
-  isUpgradedIOS?: boolean;
-  ownershipTypeIOS?: string;
-  reasonIOS?: string;
-  reasonStringRepresentationIOS?: string;
-  transactionReasonIOS?: 'PURCHASE' | 'RENEWAL' | string;
-  revocationDateIOS?: number;
-  revocationReasonIOS?: string;
-  offerIOS?: {
-    id: string;
-    type: string;
-    paymentMode: string;
-  };
-  currencyCodeIOS?: string;
-  currencySymbolIOS?: string;
-  countryCodeIOS?: string;
-  currentPlanId?: string;
-  renewalInfoIOS?: RenewalInfoIOS;
-};
+                <p>Additional fields available on iOS:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>quantityIOS</code></td>
+                      <td>Purchase quantity (iOS-specific)</td>
+                    </tr>
+                    <tr>
+                      <td><code>originalTransactionDateIOS</code></td>
+                      <td>Original purchase timestamp (for renewals/restores)</td>
+                    </tr>
+                    <tr>
+                      <td><code>originalTransactionIdentifierIOS</code></td>
+                      <td>Original transaction ID (links renewal chain)</td>
+                    </tr>
+                    <tr>
+                      <td><code>appAccountToken</code></td>
+                      <td>Your server's user identifier (UUID you provided at purchase)</td>
+                    </tr>
+                    <tr>
+                      <td><code>expirationDateIOS</code></td>
+                      <td>Subscription expiration timestamp</td>
+                    </tr>
+                    <tr>
+                      <td><code>webOrderLineItemIdIOS</code></td>
+                      <td>Web order line item ID</td>
+                    </tr>
+                    <tr>
+                      <td><code>environmentIOS</code></td>
+                      <td>Environment: "Sandbox" or "Production"</td>
+                    </tr>
+                    <tr>
+                      <td><code>storefrontCountryCodeIOS</code></td>
+                      <td>Storefront country code</td>
+                    </tr>
+                    <tr>
+                      <td><code>appBundleIdIOS</code></td>
+                      <td>App bundle identifier</td>
+                    </tr>
+                    <tr>
+                      <td><code>subscriptionGroupIdIOS</code></td>
+                      <td>Subscription group identifier</td>
+                    </tr>
+                    <tr>
+                      <td><code>isUpgradedIOS</code></td>
+                      <td>True if this transaction was upgraded</td>
+                    </tr>
+                    <tr>
+                      <td><code>ownershipTypeIOS</code></td>
+                      <td>Ownership type (purchased, family shared)</td>
+                    </tr>
+                    <tr>
+                      <td><code>transactionReasonIOS</code></td>
+                      <td>Reason: "PURCHASE" or "RENEWAL"</td>
+                    </tr>
+                    <tr>
+                      <td><code>revocationDateIOS</code></td>
+                      <td>Revocation timestamp (if refunded)</td>
+                    </tr>
+                    <tr>
+                      <td><code>revocationReasonIOS</code></td>
+                      <td>Revocation reason</td>
+                    </tr>
+                    <tr>
+                      <td><code>offerIOS</code></td>
+                      <td>Applied offer details. Contains: <code>id</code>, <code>type</code>, <code>paymentMode</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>currencyCodeIOS</code></td>
+                      <td>ISO 4217 currency code</td>
+                    </tr>
+                    <tr>
+                      <td><code>currencySymbolIOS</code></td>
+                      <td>Currency symbol</td>
+                    </tr>
+                    <tr>
+                      <td><code>countryCodeIOS</code></td>
+                      <td>Country code</td>
+                    </tr>
+                    <tr>
+                      <td><code>renewalInfoIOS</code></td>
+                      <td>Subscription renewal information (see RenewalInfoIOS below)</td>
+                    </tr>
+                  </tbody>
+                </table>
 
-// RenewalInfoIOS - from Product.SubscriptionInfo.RenewalInfo
-// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
-type RenewalInfoIOS = {
-  willAutoRenew: boolean;
-  autoRenewPreference?: string;
-  jsonRepresentation?: string;
-  expirationReason?: string;
-  gracePeriodExpirationDate?: number;
-  isInBillingRetry?: boolean;
-  pendingUpgradeProductId?: string;
-  priceIncreaseStatus?: string;
-  renewalDate?: number;
-  renewalOfferId?: string;
-  renewalOfferType?: string;
-};`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>quantityIOS</code> — Quantity (iOS)
-                    </li>
-                    <li>
-                      <code>originalTransactionDateIOS</code> — Original
-                      purchase timestamp
-                    </li>
-                    <li>
-                      <code>originalTransactionIdentifierIOS</code> — Original
-                      transaction ID
-                    </li>
-                    <li>
-                      <code>appAccountToken</code> — App account token
-                    </li>
-                    <li>
-                      <code>expirationDateIOS</code> — Expiration timestamp
-                    </li>
-                    <li>
-                      <code>webOrderLineItemIdIOS</code> — Web order line item
-                      ID
-                    </li>
-                    <li>
-                      <code>environmentIOS</code> — Environment
-                      (Sandbox/Production)
-                    </li>
-                    <li>
-                      <code>storefrontCountryCodeIOS</code> — Storefront country
-                      code
-                    </li>
-                    <li>
-                      <code>appBundleIdIOS</code> — App bundle ID
-                    </li>
-                    <li>
-                      <code>subscriptionGroupIdIOS</code> — Subscription group
-                      ID
-                    </li>
-                    <li>
-                      <code>isUpgradedIOS</code> — Upgraded flag
-                    </li>
-                    <li>
-                      <code>ownershipTypeIOS</code> — Ownership type
-                    </li>
-                    <li>
-                      <code>transactionReasonIOS</code> — Transaction reason
-                    </li>
-                    <li>
-                      <code>revocationDateIOS</code> — Revocation timestamp
-                    </li>
-                    <li>
-                      <code>revocationReasonIOS</code> — Revocation reason
-                    </li>
-                    <li>
-                      <code>offerIOS</code> — Offer metadata
-                      <ul>
-                        <li>
-                          <code>id</code> — Offer ID
-                        </li>
-                        <li>
-                          <code>type</code> — Offer type
-                        </li>
-                        <li>
-                          <code>paymentMode</code> — Payment mode
-                        </li>
-                      </ul>
-                    </li>
-                    <li>
-                      <code>currencyCodeIOS</code> — Currency code
-                    </li>
-                    <li>
-                      <code>currencySymbolIOS</code> — Currency symbol
-                    </li>
-                    <li>
-                      <code>countryCodeIOS</code> — Country code
-                    </li>
-                    <li>
-                      <code>currentPlanId</code> — The current plan identifier.
-                      On iOS, this is the productId (e.g.,
-                      "com.example.premium_monthly",
-                      "com.example.premium_yearly"). This provides a unified way
-                      to identify which specific plan/tier the user is
-                      subscribed to across platforms.
-                    </li>
-                    <li>
-                      <code>renewalInfoIOS</code> — Subscription renewal
-                      information object (see RenewalInfoIOS type below)
-                    </li>
-                  </ul>
-                </div>
                 <div style={{ marginTop: '1rem' }}>
-                  <h4 style={{ margin: 0 }}>
+                  <AnchorLink id="renewal-info-ios" level="h4">
                     RenewalInfoIOS{' '}
                     <span style={{ fontSize: '0.85rem', fontWeight: 'normal' }}>
                       (from{' '}
@@ -949,154 +746,113 @@ type RenewalInfoIOS = {
                       </a>
                       )
                     </span>
-                  </h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>willAutoRenew</code> — Whether the subscription will
-                      automatically renew
-                    </li>
-                    <li>
-                      <code>autoRenewPreference</code> — Product ID the
-                      subscription will renew to (may differ from current if
-                      upgrade/downgrade pending)
-                    </li>
-                    <li>
-                      <code>jsonRepresentation</code> — JSON representation of
-                      renewal info
-                    </li>
-                    <li>
-                      <code>expirationReason</code> — Why the subscription
-                      expired. Possible values: "VOLUNTARY", "BILLING_ERROR",
-                      "DID_NOT_AGREE_TO_PRICE_INCREASE",
-                      "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
-                    </li>
-                    <li>
-                      <code>gracePeriodExpirationDate</code> — Grace period
-                      expiration timestamp (milliseconds since epoch). When set,
-                      subscription is in grace period
-                    </li>
-                    <li>
-                      <code>isInBillingRetry</code> — True if subscription
-                      failed to renew due to billing issue and is retrying
-                    </li>
-                    <li>
-                      <code>pendingUpgradeProductId</code> — Product ID that
-                      will be used on next renewal (when user
-                      upgrades/downgrades). If set and different from current
-                      productId, subscription will change on expiration
-                    </li>
-                    <li>
-                      <code>priceIncreaseStatus</code> — User's response to
-                      subscription price increase. Possible values: "AGREED",
-                      "PENDING", null
-                    </li>
-                    <li>
-                      <code>renewalDate</code> — Expected renewal timestamp
-                      (milliseconds since epoch)
-                    </li>
-                    <li>
-                      <code>renewalOfferId</code> — Offer ID applied to next
-                      renewal
-                    </li>
-                    <li>
-                      <code>renewalOfferType</code> — Type of offer applied to
-                      next renewal: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE",
-                      "WIN_BACK", etc.
-                    </li>
-                  </ul>
+                  </AnchorLink>
+                  <table className="doc-table" style={{ marginTop: '0.5rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Summary</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><code>willAutoRenew</code></td>
+                        <td>Whether subscription will automatically renew</td>
+                      </tr>
+                      <tr>
+                        <td><code>autoRenewPreference</code></td>
+                        <td>Product ID the subscription will renew to (may differ if upgrade/downgrade pending)</td>
+                      </tr>
+                      <tr>
+                        <td><code>expirationReason</code></td>
+                        <td>Why subscription expired: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"</td>
+                      </tr>
+                      <tr>
+                        <td><code>gracePeriodExpirationDate</code></td>
+                        <td>Grace period end timestamp (epoch ms)</td>
+                      </tr>
+                      <tr>
+                        <td><code>isInBillingRetry</code></td>
+                        <td>True if retrying after billing failure</td>
+                      </tr>
+                      <tr>
+                        <td><code>pendingUpgradeProductId</code></td>
+                        <td>Product ID for pending upgrade/downgrade</td>
+                      </tr>
+                      <tr>
+                        <td><code>priceIncreaseStatus</code></td>
+                        <td>Price increase response: "AGREED", "PENDING", or null</td>
+                      </tr>
+                      <tr>
+                        <td><code>renewalDate</code></td>
+                        <td>Expected renewal timestamp (epoch ms)</td>
+                      </tr>
+                      <tr>
+                        <td><code>renewalOfferId</code></td>
+                        <td>Offer ID for next renewal</td>
+                      </tr>
+                      <tr>
+                        <td><code>renewalOfferType</code></td>
+                        <td>Offer type: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK"</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </>
             ),
             android: (
               <>
-                <h4>PurchaseAndroid</h4>
-                <CodeBlock language="typescript">{`type PurchaseAndroid = PurchaseCommon & {
-  platform: "android";
-  dataAndroid?: string;
-  transactionId?: string;
-  signatureAndroid?: string;
-  autoRenewingAndroid?: boolean;
-  isAcknowledgedAndroid?: boolean;
-  packageNameAndroid?: string;
-  developerPayloadAndroid?: string;
-  obfuscatedAccountIdAndroid?: string;
-  obfuscatedProfileIdAndroid?: string;
-  currentPlanId?: string;
-};`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>dataAndroid</code> — Raw receipt data
-                    </li>
-                    <li>
-                      <code>transactionId</code> — Transaction ID
-                    </li>
-                    <li>
-                      <code>signatureAndroid</code> — Signature
-                    </li>
-                    <li>
-                      <code>autoRenewingAndroid</code> — Auto-renewing flag
-                    </li>
-                    <li>
-                      <code>isAcknowledgedAndroid</code> — Acknowledged flag
-                    </li>
-                    <li>
-                      <code>packageNameAndroid</code> — Package name
-                    </li>
-                    <li>
-                      <code>developerPayloadAndroid</code> — Developer payload
-                    </li>
-                    <li>
-                      <code>obfuscatedAccountIdAndroid</code> — Obfuscated
-                      account ID
-                    </li>
-                    <li>
-                      <code>obfuscatedProfileIdAndroid</code> — Obfuscated
-                      profile ID
-                    </li>
-                    <li>
-                      <code>currentPlanId</code> — The current plan identifier.
-                      On Android, this is the basePlanId (e.g., "premium",
-                      "premium-year"). This provides a unified way to identify
-                      which specific plan/tier the user is subscribed to across
-                      platforms.
-                    </li>
-                  </ul>
-                </div>
+                <p>Additional fields available on Android:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>dataAndroid</code></td>
+                      <td>Raw JSON purchase data for server validation</td>
+                    </tr>
+                    <tr>
+                      <td><code>transactionId</code></td>
+                      <td>Transaction ID (orderId)</td>
+                    </tr>
+                    <tr>
+                      <td><code>signatureAndroid</code></td>
+                      <td>INAPP_DATA_SIGNATURE for verification</td>
+                    </tr>
+                    <tr>
+                      <td><code>autoRenewingAndroid</code></td>
+                      <td>Whether subscription will auto-renew</td>
+                    </tr>
+                    <tr>
+                      <td><code>isAcknowledgedAndroid</code></td>
+                      <td>Whether purchase has been acknowledged (must be done within 3 days)</td>
+                    </tr>
+                    <tr>
+                      <td><code>packageNameAndroid</code></td>
+                      <td>Application package name</td>
+                    </tr>
+                    <tr>
+                      <td><code>developerPayloadAndroid</code></td>
+                      <td>Developer-specified payload string</td>
+                    </tr>
+                    <tr>
+                      <td><code>obfuscatedAccountIdAndroid</code></td>
+                      <td>Obfuscated account ID you provided</td>
+                    </tr>
+                    <tr>
+                      <td><code>obfuscatedProfileIdAndroid</code></td>
+                      <td>Obfuscated profile ID you provided</td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
           }}
         </PlatformTabs>
-      </section>
-
-      <section>
-        <AnchorLink id="unified-platform-types" level="h2">
-          Unified Platform Types
-        </AnchorLink>
-        <p className="type-definition">
-          These types combine platform-specific types with discriminators for
-          type safety.
-        </p>
-
-        <h3>Platform Discriminators</h3>
-        <CodeBlock language="typescript">{`type IosPlatform = { platform: 'ios' };
-type AndroidPlatform = { platform: 'android' };`}</CodeBlock>
-
-        <h3>Unified Types</h3>
-        <CodeBlock language="typescript">{`// Product Union Types
-type Product = 
-  | (ProductAndroid & AndroidPlatform)
-  | (ProductIOS & IosPlatform);
-
-type SubscriptionProduct =
-  | (SubscriptionProductAndroid & AndroidPlatform)
-  | (SubscriptionProductIOS & IosPlatform);
-
-// Purchase Union Types  
-type Purchase =
-  | (PurchaseAndroid & AndroidPlatform)
-  | (PurchaseIOS & IosPlatform);`}</CodeBlock>
       </section>
 
       <section>
@@ -1105,108 +861,119 @@ type Purchase =
         </AnchorLink>
         <p>
           Represents an active subscription returned by{' '}
-          <code>getActiveSubscriptions()</code>.
+          <code>getActiveSubscriptions()</code>. Provides a unified view of
+          subscription status across platforms.
         </p>
 
-        <CodeBlock language="typescript">{`type ActiveSubscription = {
-  productId: string;
-  isActive: boolean;
-  expirationDateIOS?: number;        // iOS only
-  autoRenewingAndroid?: boolean;     // Android only
-  environmentIOS?: string;           // iOS only: "Sandbox" | "Production"
-  willExpireSoon?: boolean;          // True if expiring within 7 days
-  daysUntilExpirationIOS?: number;   // iOS only
-  transactionId: string;             // Transaction identifier for backend validation
-  purchaseToken?: string;            // JWT token (iOS) or purchase token (Android) for backend validation
-  transactionDate: number;           // Transaction timestamp
-  basePlanIdAndroid?: string;        // Android only: base plan identifier
-  currentPlanId?: string;            // Unified plan/tier identifier
-  purchaseTokenAndroid?: string;     // Android only: purchase token for subscription upgrade/downgrade
-  renewalInfoIOS?: RenewalInfoIOS;   // iOS only: subscription renewal information from StoreKit 2
-};`}</CodeBlock>
+        <AnchorLink id="active-subscription-common" level="h3">
+          Common Fields
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>productId</code></td>
+              <td>Subscription product identifier</td>
+            </tr>
+            <tr>
+              <td><code>isActive</code></td>
+              <td>Whether the subscription is currently active</td>
+            </tr>
+            <tr>
+              <td><code>willExpireSoon</code></td>
+              <td>True if expiring within 7 days</td>
+            </tr>
+            <tr>
+              <td><code>transactionId</code></td>
+              <td>Transaction identifier for backend validation</td>
+            </tr>
+            <tr>
+              <td><code>purchaseToken</code></td>
+              <td>JWS token (iOS) or purchase token (Android) for server validation</td>
+            </tr>
+            <tr>
+              <td><code>transactionDate</code></td>
+              <td>Transaction timestamp (epoch ms)</td>
+            </tr>
+            <tr>
+              <td><code>currentPlanId</code></td>
+              <td>Unified plan identifier. On Android: basePlanId (e.g., "premium"). On iOS: productId (e.g., "com.example.premium_monthly")</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>productId</code> — Subscription product identifier
-            </li>
-            <li>
-              <code>isActive</code> — Whether the subscription is currently
-              active
-            </li>
-            <li>
-              <code>expirationDateIOS</code> — iOS expiration timestamp (epoch
-              ms)
-            </li>
-            <li>
-              <code>autoRenewingAndroid</code> — Android auto-renewal status
-            </li>
-            <li>
-              <code>environmentIOS</code> — iOS environment ("Sandbox" |
-              "Production")
-            </li>
-            <li>
-              <code>willExpireSoon</code> — True if expiring within 7 days
-            </li>
-            <li>
-              <code>daysUntilExpirationIOS</code> — iOS days until expiration
-            </li>
-            <li>
-              <code>transactionId</code> — Transaction identifier for backend
-              validation
-            </li>
-            <li>
-              <code>purchaseToken</code> — JWT token (iOS) or purchase token
-              (Android)
-            </li>
-            <li>
-              <code>transactionDate</code> — Transaction timestamp (epoch ms)
-            </li>
-            <li>
-              <code>basePlanIdAndroid</code> — Android-specific base plan
-              identifier (e.g., "premium", "premium-year")
-            </li>
-            <li>
-              <code>currentPlanId</code> — The current plan identifier. This
-              provides a unified way to identify which specific plan/tier the
-              user is subscribed to:
-              <ul>
-                <li>
-                  On Android: the basePlanId (e.g., "premium", "premium-year")
-                </li>
-                <li>
-                  On iOS: the productId (e.g., "com.example.premium_monthly",
-                  "com.example.premium_yearly")
-                </li>
-              </ul>
-            </li>
-            <li>
-              <code>purchaseTokenAndroid</code> — Android-specific purchase
-              token required for subscription upgrade/downgrade operations
-            </li>
-            <li>
-              <code>renewalInfoIOS</code> — iOS-specific subscription renewal
-              information from StoreKit 2. Contains details about subscription
-              renewal status, pending upgrades/downgrades, and auto-renewal
-              preferences. See <a href="#renewal-info-ios">RenewalInfoIOS</a>{' '}
-              for details.
-            </li>
-          </ul>
-        </div>
-
-        <div
-          style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            backgroundColor: '#f0f9ff',
-            borderLeft: '4px solid #3b82f6',
-            borderRadius: '0.25rem',
+        <AnchorLink id="active-subscription-platform" level="h3">
+          Platform-Specific Fields
+        </AnchorLink>
+        <PlatformTabs>
+          {{
+            ios: (
+              <table className="doc-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Summary</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>expirationDateIOS</code></td>
+                    <td>Expiration timestamp (epoch ms)</td>
+                  </tr>
+                  <tr>
+                    <td><code>environmentIOS</code></td>
+                    <td>Environment: "Sandbox" or "Production"</td>
+                  </tr>
+                  <tr>
+                    <td><code>daysUntilExpirationIOS</code></td>
+                    <td>Days until expiration</td>
+                  </tr>
+                  <tr>
+                    <td><code>renewalInfoIOS</code></td>
+                    <td>Subscription renewal details (see <a href="#renewal-info-ios">RenewalInfoIOS</a>)</td>
+                  </tr>
+                </tbody>
+              </table>
+            ),
+            android: (
+              <table className="doc-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Summary</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>autoRenewingAndroid</code></td>
+                    <td>Whether subscription will auto-renew</td>
+                  </tr>
+                  <tr>
+                    <td><code>basePlanIdAndroid</code></td>
+                    <td>Base plan identifier</td>
+                  </tr>
+                  <tr>
+                    <td><code>purchaseTokenAndroid</code></td>
+                    <td>Purchase token for upgrade/downgrade operations</td>
+                  </tr>
+                </tbody>
+              </table>
+            ),
           }}
-        >
-          <strong>💡 Tip:</strong> Use <code>renewalInfoIOS</code> to detect
-          subscription upgrades/downgrades:
-          <CodeBlock language="typescript">{`// Check for pending upgrades
+        </PlatformTabs>
+
+        <AnchorLink id="active-subscription-example" level="h3">
+          Usage Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Check for pending upgrades
 if (subscription.renewalInfoIOS?.pendingUpgradeProductId) {
   console.log('Upgrade pending to:', subscription.renewalInfoIOS.pendingUpgradeProductId);
 }
@@ -1215,42 +982,83 @@ if (subscription.renewalInfoIOS?.pendingUpgradeProductId) {
 if (subscription.renewalInfoIOS?.willAutoRenew === false) {
   console.log('Subscription will not auto-renew');
 }`}</CodeBlock>
-        </div>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Check for pending upgrades
+if let pendingProductId = subscription.renewalInfoIOS?.pendingUpgradeProductId {
+    print("Upgrade pending to: \\(pendingProductId)")
+}
+
+// Check if subscription is cancelled
+if subscription.renewalInfoIOS?.willAutoRenew == false {
+    print("Subscription will not auto-renew")
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Check for pending upgrades
+subscription.renewalInfoIOS?.pendingUpgradeProductId?.let { pendingProductId ->
+    println("Upgrade pending to: $pendingProductId")
+}
+
+// Check if subscription is cancelled
+if (subscription.renewalInfoIOS?.willAutoRenew == false) {
+    println("Subscription will not auto-renew")
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Check for pending upgrades
+if (subscription.renewalInfoIOS?.pendingUpgradeProductId != null) {
+  print('Upgrade pending to: \${subscription.renewalInfoIOS!.pendingUpgradeProductId}');
+}
+
+// Check if subscription is cancelled
+if (subscription.renewalInfoIOS?.willAutoRenew == false) {
+  print('Subscription will not auto-renew');
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
       </section>
 
       <section>
         <AnchorLink id="product-request" level="h2">
-          Product Request
+          ProductRequest
         </AnchorLink>
-        <p>Product request parameters for fetching products from the store.</p>
+        <p>
+          Parameters for fetching products from the store via{' '}
+          <code>fetchProducts()</code>.
+        </p>
 
-        <h3>ProductRequest</h3>
-        <CodeBlock language="typescript">{`type ProductRequest = {
-  skus: string[];
-  type?: "in-app" | "subs" | "all";
-};`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>skus</code> — Product identifiers to fetch
-            </li>
-            <li>
-              <code>type</code> — Result filter: in-app (IAPs), subs
-              (subscriptions), all (both)
-            </li>
-          </ul>
-        </div>
+        <AnchorLink id="product-request-fields" level="h3">
+          Fields
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>skus</code></td>
+              <td>Array of product identifiers to fetch</td>
+            </tr>
+            <tr>
+              <td><code>type</code></td>
+              <td>Product type filter (optional): <code>"in-app"</code> (default), <code>"subs"</code>, or <code>"all"</code></td>
+            </tr>
+          </tbody>
+        </table>
 
-        <h3>Usage Example</h3>
-        <CodeBlock language="typescript">{`// Fetch in-app purchases (default)
+        <AnchorLink id="product-request-example" level="h3">
+          Usage Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Fetch in-app purchases (default)
 const inappProducts = await fetchProducts({ skus: ["product1", "product2"] });
-
-// Explicitly fetch in-app purchases
-const inappProducts = await fetchProducts({
-  skus: ["product1", "product2"],
-  type: "in-app"
-});
 
 // Fetch only subscriptions
 const subscriptions = await fetchProducts({
@@ -1263,50 +1071,102 @@ const allProducts = await fetchProducts({
   skus: ["product1", "sub1"],
   type: "all"
 });`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Fetch in-app purchases (default)
+let inappProducts = try await OpenIapModule.shared.fetchProducts(
+    ProductRequest(skus: ["product1", "product2"])
+)
+
+// Fetch only subscriptions
+let subscriptions = try await OpenIapModule.shared.fetchProducts(
+    ProductRequest(skus: ["sub1", "sub2"], type: .subs)
+)
+
+// Fetch all products (both in-app and subscriptions)
+let allProducts = try await OpenIapModule.shared.fetchProducts(
+    ProductRequest(skus: ["product1", "sub1"], type: .all)
+)`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Fetch in-app purchases (default)
+val inappProducts = openIapStore.fetchProducts(
+    ProductRequest(skus = listOf("product1", "product2"))
+)
+
+// Fetch only subscriptions
+val subscriptions = openIapStore.fetchProducts(
+    ProductRequest(skus = listOf("sub1", "sub2"), type = ProductQueryType.Subs)
+)
+
+// Fetch all products (both in-app and subscriptions)
+val allProducts = openIapStore.fetchProducts(
+    ProductRequest(skus = listOf("product1", "sub1"), type = ProductQueryType.All)
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Fetch in-app purchases (default)
+final inappProducts = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['product1', 'product2'],
+);
+
+// Fetch only subscriptions
+final subscriptions = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['sub1', 'sub2'],
+  type: ProductQueryType.subs,
+);
+
+// Fetch all products (both in-app and subscriptions)
+final allProducts = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['product1', 'sub1'],
+  type: ProductQueryType.all,
+);`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
       </section>
 
       <section>
         <AnchorLink id="request-types" level="h2">
           Request Types
         </AnchorLink>
+        <p>
+          Types used when initiating purchases via <code>requestPurchase()</code>.
+        </p>
 
         <AnchorLink id="request-purchase-props" level="h3">
           RequestPurchaseProps
         </AnchorLink>
         <p>
-          Top-level arguments for <code>requestPurchase</code>. Wraps
-          platform-specific props and requires an explicit purchase type that
-          matches the provided params.
+          Top-level arguments for <code>requestPurchase()</code>. Wraps
+          platform-specific props with a type discriminator.
         </p>
-        <CodeBlock language="graphql">{`type RequestPurchaseProps =
-  | {
-      params: RequestPurchasePropsByPlatforms
-      type: 'in-app'
-    }
-  | {
-      params: RequestSubscriptionPropsByPlatforms
-      type: 'subs'
-    }`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul>
-            <li>
-              <code>params</code> — Platform-specific purchase parameters
-            </li>
-            <li>
-              <code>type</code> — Purchase type discriminator (
-              <code>'in-app'</code> or <code>'subs'</code>)
-            </li>
-          </ul>
-        </div>
-        <p>
-          Use the <code>'in-app'</code> variant when purchasing regular items
-          and <code>'subs'</code> when purchasing subscriptions. This keeps the
-          payloads aligned with their platform-specific structures.
-        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>params</code></td>
+              <td>Platform-specific purchase parameters (see below)</td>
+            </tr>
+            <tr>
+              <td><code>type</code></td>
+              <td>Purchase type: <code>"in-app"</code> or <code>"subs"</code></td>
+            </tr>
+          </tbody>
+        </table>
 
-        <h4>Basic Usage Example</h4>
-        <CodeBlock language="typescript">{`// Standard in-app purchase
+        <AnchorLink id="request-purchase-example" level="h4">
+          Usage Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Standard in-app purchase
 await requestPurchase({
   params: {
     ios: { sku: 'premium' },
@@ -1323,78 +1183,122 @@ await requestPurchase({
   },
   type: 'subs'
 });`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Standard in-app purchase
+try await OpenIapModule.shared.requestPurchase(
+    RequestPurchaseProps(
+        request: RequestPurchasePropsByPlatforms(
+            ios: RequestPurchaseIosProps(sku: "premium")
+        ),
+        type: .inApp
+    )
+)
 
-        <AnchorLink id="ios-external-purchase-links" level="h4">
-          iOS External Purchase Links
-        </AnchorLink>
-        <p>
-          Starting from openiap-gql 1.0.10, iOS supports external purchase links
-          via the <code>externalPurchaseUrlOnIOS</code> parameter.
-        </p>
-        <blockquote className="info-note">
-          <p>
-            <strong>Important:</strong> External purchase links redirect users
-            to an external website. No StoreKit transaction is created, and{' '}
-            <code>purchaseUpdatedListener</code> will not be triggered. You must
-            implement your own flow to handle purchase completion (deep links,
-            server verification, offer codes).
-          </p>
-        </blockquote>
+// Subscription purchase
+try await OpenIapModule.shared.requestPurchase(
+    RequestPurchaseProps(
+        request: RequestPurchasePropsByPlatforms(
+            ios: RequestPurchaseIosProps(sku: "monthly_sub")
+        ),
+        type: .subs
+    )
+)`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Standard in-app purchase
+openIapStore.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            android = RequestPurchaseAndroidProps(skus = listOf("premium"))
+        ),
+        type = ProductType.InApp
+    )
+)
 
-        <h5>iOS External Purchase Example</h5>
-        <CodeBlock language="typescript">{`// iOS external purchase link
-await requestPurchase({
-  params: {
-    ios: {
-      sku: 'premium',
-      externalPurchaseUrlOnIOS: 'https://your-payment-site.com/checkout'
-    }
-  },
-  type: 'in-app'
-});`}</CodeBlock>
+// Subscription purchase
+openIapStore.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            android = RequestPurchaseAndroidProps(skus = listOf("monthly_sub"))
+        ),
+        type = ProductType.Subs
+    )
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Standard in-app purchase
+await FlutterInappPurchase.instance.requestPurchase(
+  RequestPurchaseProps(
+    request: RequestPurchasePropsByPlatforms(
+      ios: RequestPurchaseIosProps(sku: 'premium'),
+      android: RequestPurchaseAndroidProps(skus: ['premium']),
+    ),
+    type: ProductType.inApp,
+  ),
+);
+
+// Subscription purchase
+await FlutterInappPurchase.instance.requestPurchase(
+  RequestPurchaseProps(
+    request: RequestPurchasePropsByPlatforms(
+      ios: RequestPurchaseIosProps(sku: 'monthly_sub'),
+      android: RequestPurchaseAndroidProps(skus: ['monthly_sub']),
+    ),
+    type: ProductType.subs,
+  ),
+);`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
 
         <AnchorLink id="request-purchase-props-by-platforms" level="h3">
           RequestPurchasePropsByPlatforms
         </AnchorLink>
         <p>
-          Platform-specific request structure for regular purchases. Allows
-          clear separation of iOS and Android props.
+          Platform-specific request structure for regular purchases (in-app).
         </p>
-        <CodeBlock language="graphql">{`input RequestPurchasePropsByPlatforms {
-  ios: RequestPurchaseIosProps
-  android: RequestPurchaseAndroidProps
-}`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>ios</code> — iOS in‑app purchase parameters
-            </li>
-            <li>
-              <code>android</code> — Android in‑app purchase parameters
-            </li>
-          </ul>
-        </div>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ios</code></td>
+              <td>iOS purchase parameters (RequestPurchaseIosProps)</td>
+            </tr>
+            <tr>
+              <td><code>android</code></td>
+              <td>Android purchase parameters (RequestPurchaseAndroidProps)</td>
+            </tr>
+          </tbody>
+        </table>
 
         <AnchorLink id="request-subscription-props-by-platforms" level="h3">
           RequestSubscriptionPropsByPlatforms
         </AnchorLink>
-        <p>Platform-specific subscription request structure.</p>
-        <CodeBlock language="graphql">{`input RequestSubscriptionPropsByPlatforms {
-  ios: RequestSubscriptionIosProps
-  android: RequestSubscriptionAndroidProps
-}`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>ios</code> — iOS subscription parameters
-            </li>
-            <li>
-              <code>android</code> — Android subscription parameters
-            </li>
-          </ul>
-        </div>
+        <p>Platform-specific request structure for subscriptions.</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ios</code></td>
+              <td>iOS subscription parameters (RequestSubscriptionIosProps)</td>
+            </tr>
+            <tr>
+              <td><code>android</code></td>
+              <td>Android subscription parameters (RequestSubscriptionAndroidProps)</td>
+            </tr>
+          </tbody>
+        </table>
 
         <AnchorLink id="platform-specific-request-props" level="h3">
           Platform-Specific Request Props
@@ -1404,74 +1308,71 @@ await requestPurchase({
             ios: (
               <>
                 <h4>RequestPurchaseIosProps</h4>
-                <p>iOS-specific purchase request props.</p>
-                <CodeBlock language="graphql">{`input RequestPurchaseIosProps {
-  sku: String!
-  andDangerouslyFinishTransactionAutomatically: Boolean
-  appAccountToken: String
-  quantity: Int
-  withOffer: DiscountOffer
-  externalPurchaseUrlOnIOS: String
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>sku</code> — Product identifier to purchase
-                    </li>
-                    <li>
-                      <code>andDangerouslyFinishTransactionAutomatically</code>{' '}
-                      — Auto‑finish transaction (advanced)
-                    </li>
-                    <li>
-                      <code>appAccountToken</code> — App server account token
-                    </li>
-                    <li>
-                      <code>quantity</code> — Quantity to purchase
-                    </li>
-                    <li>
-                      <code>withOffer</code> — Promotional/discount offer to
-                      apply
-                    </li>
-                    <li>
-                      <code>externalPurchaseUrlOnIOS</code> — URL for external
-                      purchase link (requires{' '}
-                      <code>useAlternativeBilling: true</code>)
-                    </li>
-                  </ul>
-                </div>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>sku</code></td>
+                      <td>Product identifier to purchase (required)</td>
+                    </tr>
+                    <tr>
+                      <td><code>andDangerouslyFinishTransactionAutomatically</code></td>
+                      <td>Auto-finish transaction without validation (use with caution)</td>
+                    </tr>
+                    <tr>
+                      <td><code>appAccountToken</code></td>
+                      <td>UUID linking purchase to your server's user</td>
+                    </tr>
+                    <tr>
+                      <td><code>quantity</code></td>
+                      <td>Number of items to purchase</td>
+                    </tr>
+                    <tr>
+                      <td><code>withOffer</code></td>
+                      <td>Promotional/discount offer to apply (see DiscountOffer)</td>
+                    </tr>
+                    <tr>
+                      <td><code>externalPurchaseUrlOnIOS</code></td>
+                      <td>External payment URL (requires alternative billing)</td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
             android: (
               <>
                 <h4>RequestPurchaseAndroidProps</h4>
-                <p>Android-specific purchase request props.</p>
-                <CodeBlock language="graphql">{`input RequestPurchaseAndroidProps {
-  skus: [String!]!
-  obfuscatedAccountIdAndroid: String
-  obfuscatedProfileIdAndroid: String
-  isOfferPersonalized: Boolean
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>skus</code> — Product identifiers to purchase
-                    </li>
-                    <li>
-                      <code>obfuscatedAccountIdAndroid</code> — Obfuscated
-                      account ID
-                    </li>
-                    <li>
-                      <code>obfuscatedProfileIdAndroid</code> — Obfuscated
-                      profile ID
-                    </li>
-                    <li>
-                      <code>isOfferPersonalized</code> — Indicates a
-                      personalized offer
-                    </li>
-                  </ul>
-                </div>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>skus</code></td>
+                      <td>Array of product identifiers (required)</td>
+                    </tr>
+                    <tr>
+                      <td><code>obfuscatedAccountIdAndroid</code></td>
+                      <td>Obfuscated user account ID</td>
+                    </tr>
+                    <tr>
+                      <td><code>obfuscatedProfileIdAndroid</code></td>
+                      <td>Obfuscated user profile ID</td>
+                    </tr>
+                    <tr>
+                      <td><code>isOfferPersonalized</code></td>
+                      <td>True if offer is personalized (EU compliance)</td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
           }}
@@ -1486,85 +1387,40 @@ await requestPurchase({
               <>
                 <h4>RequestSubscriptionIosProps</h4>
                 <p>
-                  For iOS subscriptions, use the same props as
-                  RequestPurchaseIosProps.
+                  iOS subscriptions use the same props as regular purchases
+                  (RequestPurchaseIosProps).
                 </p>
-                <CodeBlock language="graphql">{`// iOS uses the same props as regular purchases
-type RequestSubscriptionIosProps = RequestPurchaseIosProps`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>RequestSubscriptionIosProps</code> — Alias of{' '}
-                      <code>RequestPurchaseIosProps</code>
-                    </li>
-                  </ul>
-                </div>
               </>
             ),
             android: (
               <>
                 <h4>RequestSubscriptionAndroidProps</h4>
                 <p>
-                  Android-specific subscription request props. Extends
-                  RequestPurchaseAndroidProps.
+                  Extends RequestPurchaseAndroidProps with subscription-specific
+                  fields:
                 </p>
-                <CodeBlock language="graphql">{`input RequestSubscriptionAndroidProps {
-  skus: [String!]!
-  obfuscatedAccountIdAndroid: String
-  obfuscatedProfileIdAndroid: String
-  isOfferPersonalized: Boolean
-  purchaseTokenAndroid: String
-  replacementModeAndroid: Int
-  subscriptionOffers: [SubscriptionOffer!]
-}
-
-type SubscriptionOffer {
-  sku: String!
-  offerToken: String!
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>skus</code> — Subscription identifiers to purchase
-                    </li>
-                    <li>
-                      <code>obfuscatedAccountIdAndroid</code> — Obfuscated
-                      account ID
-                    </li>
-                    <li>
-                      <code>obfuscatedProfileIdAndroid</code> — Obfuscated
-                      profile ID
-                    </li>
-                    <li>
-                      <code>isOfferPersonalized</code> — Indicates a
-                      personalized offer
-                    </li>
-                    <li>
-                      <code>purchaseTokenAndroid</code> — Existing purchase
-                      token for change (upgrade/downgrade)
-                    </li>
-                    <li>
-                      <code>replacementModeAndroid</code> — Replacement mode
-                      strategy
-                    </li>
-                    <li>
-                      <code>subscriptionOffers</code> — Offers to apply
-                    </li>
-                  </ul>
-                  <h5 style={{ margin: '0.75rem 0 0.25rem' }}>
-                    SubscriptionOffer
-                  </h5>
-                  <ul>
-                    <li>
-                      <code>sku</code> — Product identifier
-                    </li>
-                    <li>
-                      <code>offerToken</code> — Play Billing offer token
-                    </li>
-                  </ul>
-                </div>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>purchaseTokenAndroid</code></td>
+                      <td>Existing subscription token for upgrade/downgrade</td>
+                    </tr>
+                    <tr>
+                      <td><code>replacementModeAndroid</code></td>
+                      <td>How to handle subscription change (proration mode)</td>
+                    </tr>
+                    <tr>
+                      <td><code>subscriptionOffers</code></td>
+                      <td>Array of offers to apply. Each contains: <code>sku</code>, <code>offerToken</code></td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
           }}
@@ -1575,80 +1431,123 @@ type SubscriptionOffer {
         <AnchorLink id="alternative-billing-types" level="h2">
           Alternative Billing Types
         </AnchorLink>
+        <p>
+          Types for configuring alternative billing systems, primarily used for
+          Android.
+        </p>
 
         <AnchorLink id="alternative-billing-mode-android" level="h3">
           AlternativeBillingModeAndroid
         </AnchorLink>
         <p>
-          Alternative billing mode for Android. Controls which billing system is
-          used during <code>initConnection</code>.
+          Enum controlling which billing system is used during{' '}
+          <code>initConnection()</code>:
         </p>
-        <CodeBlock language="graphql">{`enum AlternativeBillingModeAndroid {
-  """
-  Standard Google Play billing (default)
-  """
-  NONE
-
-  """
-  User choice billing - user can select between Google Play or alternative
-  Requires Google Play Billing Library 7.0+
-  """
-  USER_CHOICE
-
-  """
-  Alternative billing only - no Google Play billing option
-  Requires Google Play Billing Library 6.2+
-  """
-  ALTERNATIVE_ONLY
-}`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Values</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>NONE</code> — Standard Google Play billing (default)
-            </li>
-            <li>
-              <code>USER_CHOICE</code> — User can select between Google Play or
-              alternative billing (requires Billing Library 7.0+)
-            </li>
-            <li>
-              <code>ALTERNATIVE_ONLY</code> — Alternative billing only, no
-              Google Play billing option (requires Billing Library 6.2+)
-            </li>
-          </ul>
-        </div>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>NONE</code></td>
+              <td>Standard Google Play billing (default)</td>
+            </tr>
+            <tr>
+              <td><code>USER_CHOICE</code></td>
+              <td>User can select between Google Play or alternative billing (requires Billing Library 7.0+)</td>
+            </tr>
+            <tr>
+              <td><code>ALTERNATIVE_ONLY</code></td>
+              <td>Alternative billing only, no Google Play option (requires Billing Library 6.2+)</td>
+            </tr>
+          </tbody>
+        </table>
 
         <AnchorLink id="init-connection-config" level="h3">
           InitConnectionConfig
         </AnchorLink>
-        <p>Configuration options for initializing the billing connection.</p>
-        <CodeBlock language="typescript">{`interface InitConnectionConfig {
-  alternativeBillingModeAndroid?: AlternativeBillingModeAndroid;
-}`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>alternativeBillingModeAndroid</code> — (Android only)
-              Alternative billing mode. Defaults to <code>NONE</code> if not
-              specified.
-            </li>
-          </ul>
-        </div>
+        <p>
+          Configuration options for <code>initConnection()</code>:
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>alternativeBillingModeAndroid</code></td>
+              <td>(Android only) Which billing mode to use. Defaults to <code>NONE</code>.</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <h4>Usage Example</h4>
-        <CodeBlock language="typescript">{`// Initialize with user choice billing
+        <AnchorLink id="init-connection-example" level="h4">
+          Usage Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Initialize with user choice billing
 await initConnection({
-  alternativeBillingModeAndroid: 'USER_CHOICE'
+  alternativeBillingModeAndroid: 'user-choice'
 });
 
 // Initialize with alternative billing only
 await initConnection({
-  alternativeBillingModeAndroid: 'ALTERNATIVE_ONLY'
+  alternativeBillingModeAndroid: 'alternative-only'
 });
 
 // Standard billing (default)
 await initConnection();`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// iOS uses standard StoreKit billing
+// Alternative billing is Android-only
+try await OpenIapModule.shared.initConnection()
+
+// Check connection status
+let isConnected = try await OpenIapModule.shared.initConnection()`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Initialize with user choice billing
+openIapStore.initConnection(
+    InitConnectionConfig(
+        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    )
+)
+
+// Initialize with alternative billing only
+openIapStore.initConnection(
+    InitConnectionConfig(
+        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+    )
+)
+
+// Standard billing (default)
+openIapStore.initConnection()`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Initialize with user choice billing
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.UserChoice,
+);
+
+// Initialize with alternative billing only
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.AlternativeOnly,
+);
+
+// Standard billing (default)
+await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
       </section>
 
       <section>
@@ -1656,253 +1555,472 @@ await initConnection();`}</CodeBlock>
           External Purchase Link (iOS)
         </AnchorLink>
         <p>
-          External purchase link support for iOS, available from openiap-gql
-          1.0.10+. Redirects users to an external website for payment
-          processing.
+          iOS-specific feature for redirecting users to an external website for
+          payment using Apple&apos;s StoreKit <code>ExternalPurchase</code> API.
+          Available from iOS 15.4+ (notice sheet) and iOS 18.2+ (custom links).
         </p>
 
         <blockquote className="info-note">
           <p>
-            <strong>Important:</strong> When using external purchase links, no
-            StoreKit transaction is created, and{' '}
-            <code>purchaseUpdatedListener</code> will NOT be triggered. You must
-            implement your own flow to handle purchase completion using deep
-            links, server verification, or offer codes.
+            <strong>Important:</strong> External purchase links bypass StoreKit
+            completely. No <code>purchaseUpdatedListener</code> will fire. You
+            must implement deep links and server-side verification.
           </p>
         </blockquote>
 
-        <AnchorLink id="external-purchase-url" level="h3">
-          externalPurchaseUrlOnIOS
+        <AnchorLink id="external-purchase-apis" level="h3">
+          External Purchase APIs
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>API</th>
+              <th>Description</th>
+              <th>Availability</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>canPresentExternalPurchaseNoticeIOS</code></td>
+              <td>Check if external purchase notice sheet can be presented</td>
+              <td>iOS 17.4+</td>
+            </tr>
+            <tr>
+              <td><code>presentExternalPurchaseNoticeSheetIOS</code></td>
+              <td>Present Apple&apos;s compliance notice sheet (required before external purchase)</td>
+              <td>iOS 15.4+</td>
+            </tr>
+            <tr>
+              <td><code>presentExternalPurchaseLinkIOS</code></td>
+              <td>Open external purchase URL in Safari</td>
+              <td>iOS 18.2+</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="external-purchase-types" level="h3">
+          Types
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Result from presenting external purchase link
+interface ExternalPurchaseLinkResultIOS {
+  error?: string;
+  success: boolean;
+}
+
+// Result from presenting notice sheet
+interface ExternalPurchaseNoticeResultIOS {
+  error?: string;
+  result: ExternalPurchaseNoticeAction;
+}
+
+// User action on notice sheet
+type ExternalPurchaseNoticeAction = 'continue' | 'dismissed';`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Result from presenting external purchase link
+struct ExternalPurchaseLinkResultIOS {
+    let error: String?
+    let success: Bool
+}
+
+// Result from presenting notice sheet
+struct ExternalPurchaseNoticeResultIOS {
+    let error: String?
+    let result: ExternalPurchaseNoticeAction
+}
+
+// User action on notice sheet
+enum ExternalPurchaseNoticeAction: String {
+    case \`continue\` = "continue"
+    case dismissed = "dismissed"
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Result from presenting external purchase link (iOS-only via KMP)
+data class ExternalPurchaseLinkResultIOS(
+    val error: String? = null,
+    val success: Boolean
+)
+
+// Result from presenting notice sheet
+data class ExternalPurchaseNoticeResultIOS(
+    val error: String? = null,
+    val result: ExternalPurchaseNoticeAction
+)
+
+// User action on notice sheet
+enum class ExternalPurchaseNoticeAction(val rawValue: String) {
+    Continue("continue"),
+    Dismissed("dismissed")
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Result from presenting external purchase link
+class ExternalPurchaseLinkResultIOS {
+  final String? error;
+  final bool success;
+}
+
+// Result from presenting notice sheet
+class ExternalPurchaseNoticeResultIOS {
+  final String? error;
+  final ExternalPurchaseNoticeAction result;
+}
+
+// User action on notice sheet
+enum ExternalPurchaseNoticeAction {
+  \`continue\`('continue'),
+  dismissed('dismissed');
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <AnchorLink id="external-purchase-flow" level="h3">
+          External Purchase Flow
         </AnchorLink>
         <p>
-          Optional parameter in <code>RequestPurchaseIosProps</code> that
-          redirects users to an external payment website instead of using
-          StoreKit.
+          The external purchase flow requires 3 steps for Apple compliance:
         </p>
+        <ol>
+          <li><strong>Check availability</strong> - Verify the device supports external purchase</li>
+          <li><strong>Present notice sheet</strong> - Show Apple&apos;s required disclosure</li>
+          <li><strong>Open external link</strong> - Redirect to your payment page</li>
+        </ol>
 
-        <CodeBlock language="typescript">{`interface RequestPurchaseIosProps {
-  sku: string;
-  externalPurchaseUrlOnIOS?: string;  // External purchase link
-  // ... other fields
+        <AnchorLink id="external-purchase-example" level="h3">
+          Complete Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import {
+  canPresentExternalPurchaseNoticeIOS,
+  presentExternalPurchaseNoticeSheetIOS,
+  presentExternalPurchaseLinkIOS,
+} from 'expo-iap';
+
+async function handleExternalPurchase(externalUrl: string) {
+  // Step 1: Check if external purchase is available
+  const canPresent = await canPresentExternalPurchaseNoticeIOS();
+  if (!canPresent) {
+    console.log('External purchase not available on this device');
+    return;
+  }
+
+  // Step 2: Present Apple's compliance notice sheet
+  const noticeResult = await presentExternalPurchaseNoticeSheetIOS();
+  if (noticeResult.result === 'dismissed') {
+    console.log('User dismissed the notice sheet');
+    return;
+  }
+
+  // Step 3: Open external purchase link
+  const linkResult = await presentExternalPurchaseLinkIOS(externalUrl);
+  if (linkResult.success) {
+    console.log('User redirected to external payment');
+    // Implement deep linking to handle return from payment
+  } else {
+    console.error('Failed:', linkResult.error);
+  }
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
 
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>externalPurchaseUrlOnIOS</code> — URL to redirect users for
-              external payment. Requires{' '}
-              <code>useAlternativeBilling: true</code> in requestPurchase
-              options.
-            </li>
-          </ul>
-        </div>
+@available(iOS 18.2, *)
+func handleExternalPurchase(externalUrl: String) async {
+    do {
+        // Step 1: Check if external purchase is available
+        let canPresent = try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
+        guard canPresent else {
+            print("External purchase not available on this device")
+            return
+        }
 
-        <h4>Usage Example</h4>
-        <CodeBlock language="typescript">{`// Redirect to external payment site
-await requestPurchase({
-  request: {
-    ios: {
-      sku: 'premium_product',
-      externalPurchaseUrlOnIOS: 'https://your-payment-site.com/checkout',
-      quantity: 1,
-    },
-  },
-  type: 'in-app',
-  useAlternativeBilling: true,  // Required for external links
-});
+        // Step 2: Present Apple's compliance notice sheet
+        let noticeResult = try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()
+        guard noticeResult.result == .continue else {
+            print("User dismissed the notice sheet")
+            return
+        }
 
-// User will be redirected to Safari
-// Implement deep linking to return users to your app`}</CodeBlock>
+        // Step 3: Open external purchase link
+        let linkResult = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(externalUrl)
+        if linkResult.success {
+            print("User redirected to external payment")
+            // Implement deep linking to handle return from payment
+        } else if let error = linkResult.error {
+            print("Failed: \\(error)")
+        }
+    } catch {
+        print("External purchase error: \\(error)")
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.ExternalPurchaseNoticeAction
 
-        <h4>Requirements</h4>
-        <ul>
-          <li>iOS 16.0+ required</li>
-          <li>
-            Must set <code>useAlternativeBilling: true</code>
-          </li>
-          <li>
-            No <code>onPurchaseUpdated</code> callback will fire
-          </li>
-          <li>Implement deep linking for app return flow</li>
-          <li>Handle purchase verification on your backend</li>
-        </ul>
+// External purchase is iOS-only. For iOS targets in KMP:
+suspend fun handleExternalPurchase(externalUrl: String) {
+    // Step 1: Check if external purchase is available
+    val canPresent = kmpIapInstance.canPresentExternalPurchaseNoticeIOS()
+    if (!canPresent) {
+        println("External purchase not available on this device")
+        return
+    }
+
+    // Step 2: Present Apple's compliance notice sheet
+    val noticeResult = kmpIapInstance.presentExternalPurchaseNoticeSheetIOS()
+    if (noticeResult.result == ExternalPurchaseNoticeAction.Dismissed) {
+        println("User dismissed the notice sheet")
+        return
+    }
+
+    // Step 3: Open external purchase link
+    val linkResult = kmpIapInstance.presentExternalPurchaseLinkIOS(externalUrl)
+    if (linkResult.success) {
+        println("User redirected to external payment")
+        // Implement deep linking to handle return from payment
+    } else {
+        println("Failed: \${linkResult.error}")
+    }
+}
+
+// For Android: Use alternative billing APIs instead
+// See: checkAlternativeBillingAvailability, showAlternativeBillingDialog`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+Future<void> handleExternalPurchase(String externalUrl) async {
+  final iap = FlutterInappPurchase.instance;
+
+  // Step 1: Check if external purchase is available
+  final canPresent = await iap.canPresentExternalPurchaseNoticeIOS();
+  if (!canPresent) {
+    print('External purchase not available on this device');
+    return;
+  }
+
+  // Step 2: Present Apple's compliance notice sheet
+  final noticeResult = await iap.presentExternalPurchaseNoticeSheetIOS();
+  if (noticeResult.result == ExternalPurchaseNoticeAction.dismissed) {
+    print('User dismissed the notice sheet');
+    return;
+  }
+
+  // Step 3: Open external purchase link
+  final linkResult = await iap.presentExternalPurchaseLinkIOS(externalUrl);
+  if (linkResult.success) {
+    print('User redirected to external payment');
+    // Implement deep linking to handle return from payment
+  } else {
+    print('Failed: \${linkResult.error}');
+  }
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <AnchorLink id="external-purchase-requirements" level="h3">
+          Requirements
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Platform</td>
+              <td>iOS 15.4+ (notice sheet), iOS 18.2+ (custom links)</td>
+            </tr>
+            <tr>
+              <td>Entitlement</td>
+              <td>App must have StoreKit external purchase entitlement from Apple</td>
+            </tr>
+            <tr>
+              <td>Deep Linking</td>
+              <td>Implement deep linking for app return flow after payment</td>
+            </tr>
+            <tr>
+              <td>Verification</td>
+              <td>Handle purchase verification on your backend (no StoreKit receipt)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <blockquote className="info-note">
+          <p>
+            <strong>Android alternative:</strong> For Android, use the{' '}
+            <Link to="/docs/apis#alternative-billing-android">alternative billing APIs</Link>{' '}
+            (<code>checkAlternativeBillingAvailability</code>, <code>showAlternativeBillingDialog</code>,{' '}
+            <code>createAlternativeBillingToken</code>) instead.
+          </p>
+        </blockquote>
       </section>
 
       <section>
         <AnchorLink id="receipt-validation-types" level="h2">
           ReceiptValidation Types
         </AnchorLink>
+        <p>
+          Types used with <code>verifyPurchase()</code> for server-side receipt
+          validation.
+        </p>
 
         <AnchorLink id="receipt-validation-props" level="h3">
           ReceiptValidationProps
         </AnchorLink>
-        <CodeBlock language="typescript">{`interface ReceiptValidationProps {
-  sku: string;
-  androidOptions?: {
-    packageName: string;
-    productToken: string;
-    accessToken: string;
-    isSub?: boolean;
-  };
-}`}</CodeBlock>
-        <div style={{ marginTop: '0.5rem' }}>
-          <h4 style={{ margin: 0 }}>Field Reference</h4>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>
-              <code>sku</code> — Product identifier to validate
-            </li>
-            <li>
-              <code>androidOptions</code> — Android Play Developer API options
-            </li>
-          </ul>
-          <h5 style={{ margin: '0.75rem 0 0.25rem' }}>androidOptions</h5>
-          <ul>
-            <li>
-              <code>packageName</code> — Application package name
-            </li>
-            <li>
-              <code>productToken</code> — Purchase token
-            </li>
-            <li>
-              <code>accessToken</code> — OAuth access token
-            </li>
-            <li>
-              <code>isSub</code> — Treat as subscription when true
-            </li>
-          </ul>
-        </div>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>sku</code></td>
+              <td>Product identifier to validate</td>
+            </tr>
+            <tr>
+              <td><code>androidOptions</code></td>
+              <td>Android Play Developer API options. Contains: <code>packageName</code>, <code>productToken</code>, <code>accessToken</code>, <code>isSub</code></td>
+            </tr>
+          </tbody>
+        </table>
 
         <AnchorLink id="receipt-validation-result" level="h3">
           ReceiptValidationResult
         </AnchorLink>
+        <p>
+          Union of <code>ReceiptValidationResultIOS</code> and{' '}
+          <code>ReceiptValidationResultAndroid</code>.
+        </p>
         <PlatformTabs>
           {{
             ios: (
               <>
                 <h4>ReceiptValidationResultIOS</h4>
-                <CodeBlock language="typescript">{`interface ReceiptValidationResultIOS {
-  isValid: boolean;
-  receiptData: string;
-  jwsRepresentation: string;
-  latestTransaction?: Purchase;
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>isValid</code> — Validation success flag
-                    </li>
-                    <li>
-                      <code>receiptData</code> — Raw App Store receipt
-                    </li>
-                    <li>
-                      <code>jwsRepresentation</code> — JWS-encoded receipt
-                    </li>
-                    <li>
-                      <code>latestTransaction</code> — Most recent related
-                      transaction
-                    </li>
-                  </ul>
-                </div>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>isValid</code></td>
+                      <td>Whether validation succeeded</td>
+                    </tr>
+                    <tr>
+                      <td><code>receiptData</code></td>
+                      <td>Raw App Store receipt data</td>
+                    </tr>
+                    <tr>
+                      <td><code>jwsRepresentation</code></td>
+                      <td>JWS-encoded receipt</td>
+                    </tr>
+                    <tr>
+                      <td><code>latestTransaction</code></td>
+                      <td>Most recent transaction for this product</td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
             android: (
               <>
                 <h4>ReceiptValidationResultAndroid</h4>
-                <CodeBlock language="typescript">{`interface ReceiptValidationResultAndroid {
-  autoRenewing: boolean;
-  betaProduct: boolean;
-  cancelDate: number | null;
-  cancelReason: string;
-  deferredDate: number | null;
-  deferredSku: number | null;
-  freeTrialEndDate: number;
-  gracePeriodEndDate: number;
-  parentProductId: string;
-  productId: string;
-  productType: string;
-  purchaseDate: number;
-  quantity: number;
-  receiptId: string;
-  renewalDate: number;
-  term: string;
-  termSku: string;
-  testTransaction: boolean;
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>autoRenewing</code> — Auto‑renew state
-                    </li>
-                    <li>
-                      <code>betaProduct</code> — Indicates a beta product
-                    </li>
-                    <li>
-                      <code>cancelDate</code> — Cancellation timestamp
-                    </li>
-                    <li>
-                      <code>cancelReason</code> — Cancellation reason
-                    </li>
-                    <li>
-                      <code>deferredDate</code> — Deferred change date
-                    </li>
-                    <li>
-                      <code>deferredSku</code> — Deferred SKU
-                    </li>
-                    <li>
-                      <code>freeTrialEndDate</code> — Free trial end
-                    </li>
-                    <li>
-                      <code>gracePeriodEndDate</code> — Grace period end
-                    </li>
-                    <li>
-                      <code>parentProductId</code> — Parent product ID
-                    </li>
-                    <li>
-                      <code>productId</code> — Product ID
-                    </li>
-                    <li>
-                      <code>productType</code> — Product type
-                    </li>
-                    <li>
-                      <code>purchaseDate</code> — Purchase timestamp
-                    </li>
-                    <li>
-                      <code>quantity</code> — Quantity
-                    </li>
-                    <li>
-                      <code>receiptId</code> — Receipt ID
-                    </li>
-                    <li>
-                      <code>renewalDate</code> — Renewal timestamp
-                    </li>
-                    <li>
-                      <code>term</code> — Subscription term
-                    </li>
-                    <li>
-                      <code>termSku</code> — Term SKU
-                    </li>
-                    <li>
-                      <code>testTransaction</code> — Test transaction flag
-                    </li>
-                  </ul>
-                </div>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>autoRenewing</code></td>
+                      <td>Whether subscription will auto-renew</td>
+                    </tr>
+                    <tr>
+                      <td><code>betaProduct</code></td>
+                      <td>True if beta/test product</td>
+                    </tr>
+                    <tr>
+                      <td><code>cancelDate</code></td>
+                      <td>Cancellation timestamp (null if active)</td>
+                    </tr>
+                    <tr>
+                      <td><code>cancelReason</code></td>
+                      <td>Reason for cancellation</td>
+                    </tr>
+                    <tr>
+                      <td><code>freeTrialEndDate</code></td>
+                      <td>Free trial end timestamp</td>
+                    </tr>
+                    <tr>
+                      <td><code>gracePeriodEndDate</code></td>
+                      <td>Grace period end timestamp</td>
+                    </tr>
+                    <tr>
+                      <td><code>productId</code></td>
+                      <td>Product identifier</td>
+                    </tr>
+                    <tr>
+                      <td><code>productType</code></td>
+                      <td>Product type</td>
+                    </tr>
+                    <tr>
+                      <td><code>purchaseDate</code></td>
+                      <td>Purchase timestamp</td>
+                    </tr>
+                    <tr>
+                      <td><code>quantity</code></td>
+                      <td>Purchase quantity</td>
+                    </tr>
+                    <tr>
+                      <td><code>receiptId</code></td>
+                      <td>Receipt identifier</td>
+                    </tr>
+                    <tr>
+                      <td><code>renewalDate</code></td>
+                      <td>Next renewal timestamp</td>
+                    </tr>
+                    <tr>
+                      <td><code>term</code></td>
+                      <td>Subscription term (e.g., "P1M")</td>
+                    </tr>
+                    <tr>
+                      <td><code>testTransaction</code></td>
+                      <td>True if test/sandbox transaction</td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
           }}
         </PlatformTabs>
-
-        <h3>Union Type</h3>
-        <CodeBlock language="typescript">{`// Union type for receipt validation results
-type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidationResultIOS;`}</CodeBlock>
       </section>
 
       <section>
         <AnchorLink id="platform-specific-types" level="h2">
           Platform-Specific Types
         </AnchorLink>
+        <p>
+          Additional types specific to each platform for discounts, offers, and
+          pricing.
+        </p>
 
         <PlatformTabs>
           {{
@@ -1912,171 +2030,143 @@ type ReceiptValidationResult = ReceiptValidationResultAndroid | ReceiptValidatio
 
                 <h4>DiscountOffer</h4>
                 <p>
-                  Used when requesting a purchase with a promotional offer or
-                  discount.
+                  Used when requesting a purchase with a promotional offer.
+                  Generate signature server-side.
                 </p>
-                <CodeBlock language="graphql">{`type DiscountOffer {
-  identifier: String!
-  keyIdentifier: String!
-  nonce: String!
-  signature: String!
-  timestamp: Float!
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>identifier</code> — Discount identifier
-                    </li>
-                    <li>
-                      <code>keyIdentifier</code> — Key ID used for validation
-                    </li>
-                    <li>
-                      <code>nonce</code> — Cryptographic nonce
-                    </li>
-                    <li>
-                      <code>signature</code> — Signature for validation
-                    </li>
-                    <li>
-                      <code>timestamp</code> — Offer timestamp
-                    </li>
-                  </ul>
-                </div>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>identifier</code></td>
+                      <td>Discount identifier from App Store Connect</td>
+                    </tr>
+                    <tr>
+                      <td><code>keyIdentifier</code></td>
+                      <td>Key ID for signature validation</td>
+                    </tr>
+                    <tr>
+                      <td><code>nonce</code></td>
+                      <td>Cryptographic nonce (UUID)</td>
+                    </tr>
+                    <tr>
+                      <td><code>signature</code></td>
+                      <td>Server-generated signature</td>
+                    </tr>
+                    <tr>
+                      <td><code>timestamp</code></td>
+                      <td>Timestamp when signature was generated</td>
+                    </tr>
+                  </tbody>
+                </table>
 
                 <h4>Discount</h4>
-                <p>
-                  Discount information returned from the store as part of
-                  product details.
-                </p>
-                <CodeBlock language="graphql">{`type Discount {
-  identifier: String!
-  type: String!
-  numberOfPeriods: Int!
-  price: String!
-  priceAmount: Float!
-  paymentMode: String!
-  subscriptionPeriod: String!
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>identifier</code> — Discount identifier
-                    </li>
-                    <li>
-                      <code>type</code> — Discount type (introductory,
-                      subscription, etc.)
-                    </li>
-                    <li>
-                      <code>numberOfPeriods</code> — Billing periods covered
-                    </li>
-                    <li>
-                      <code>price</code> — Formatted price
-                    </li>
-                    <li>
-                      <code>priceAmount</code> — Numeric price amount
-                    </li>
-                    <li>
-                      <code>paymentMode</code> — Payment mode label
-                    </li>
-                    <li>
-                      <code>subscriptionPeriod</code> — Subscription period
-                      label
-                    </li>
-                  </ul>
-                </div>
+                <p>Discount info returned as part of product details:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>identifier</code></td>
+                      <td>Discount identifier</td>
+                    </tr>
+                    <tr>
+                      <td><code>type</code></td>
+                      <td>Discount type (introductory, promotional)</td>
+                    </tr>
+                    <tr>
+                      <td><code>numberOfPeriods</code></td>
+                      <td>Number of billing periods</td>
+                    </tr>
+                    <tr>
+                      <td><code>price</code></td>
+                      <td>Formatted price string</td>
+                    </tr>
+                    <tr>
+                      <td><code>priceAmount</code></td>
+                      <td>Numeric price value</td>
+                    </tr>
+                    <tr>
+                      <td><code>paymentMode</code></td>
+                      <td>Payment mode (FreeTrial, PayAsYouGo, PayUpFront)</td>
+                    </tr>
+                    <tr>
+                      <td><code>subscriptionPeriod</code></td>
+                      <td>Period duration string</td>
+                    </tr>
+                  </tbody>
+                </table>
 
                 <h4>SubscriptionPeriodIOS</h4>
-                <CodeBlock language="graphql">{`enum SubscriptionPeriodIOS {
-  Day
-  Week
-  Month
-  Year
-  ""
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>Day</code> — Daily period
-                    </li>
-                    <li>
-                      <code>Week</code> — Weekly period
-                    </li>
-                    <li>
-                      <code>Month</code> — Monthly period
-                    </li>
-                    <li>
-                      <code>Year</code> — Yearly period
-                    </li>
-                    <li>
-                      <code>""</code> — Unspecified
-                    </li>
-                  </ul>
-                </div>
+                <p>Subscription period units:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>Day</code>, <code>Week</code>, <code>Month</code>, <code>Year</code></td>
+                      <td>Available subscription period units</td>
+                    </tr>
+                  </tbody>
+                </table>
 
                 <h4>PaymentMode</h4>
-                <CodeBlock language="graphql">{`enum PaymentMode {
-  ""
-  FreeTrial
-  PayAsYouGo
-  PayUpFront
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>""</code> — Unspecified
-                    </li>
-                    <li>
-                      <code>FreeTrial</code> — Free trial
-                    </li>
-                    <li>
-                      <code>PayAsYouGo</code> — Pay as you go
-                    </li>
-                    <li>
-                      <code>PayUpFront</code> — Pay up front
-                    </li>
-                  </ul>
-                </div>
+                <p>Payment mode for offers:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>FreeTrial</code></td>
+                      <td>Free trial period</td>
+                    </tr>
+                    <tr>
+                      <td><code>PayAsYouGo</code></td>
+                      <td>Pay each period at reduced price</td>
+                    </tr>
+                    <tr>
+                      <td><code>PayUpFront</code></td>
+                      <td>Pay full amount upfront</td>
+                    </tr>
+                  </tbody>
+                </table>
 
                 <h4>SubscriptionStatusIOS</h4>
-                <p>
-                  Represents subscription status information from StoreKit 2.
-                </p>
-                <CodeBlock language="typescript">{`type RenewalInfo = {
-  jsonRepresentation?: string;
-  willAutoRenew: boolean;
-  autoRenewPreference?: string;
-};
-
-export type SubscriptionStatusIOS = {
-  state: string;
-  renewalInfo?: RenewalInfo;
-};`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>state</code> — StoreKit renewal state
-                    </li>
-                    <li>
-                      <code>renewalInfo</code> — Renewal details
-                      <ul>
-                        <li>
-                          <code>jsonRepresentation</code> — Raw JSON
-                        </li>
-                        <li>
-                          <code>willAutoRenew</code> — Auto-renew flag
-                        </li>
-                        <li>
-                          <code>autoRenewPreference</code> — Auto-renew
-                          preference
-                        </li>
-                      </ul>
-                    </li>
-                  </ul>
-                </div>
+                <p>Subscription status from StoreKit 2:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>state</code></td>
+                      <td>Current renewal state</td>
+                    </tr>
+                    <tr>
+                      <td><code>renewalInfo</code></td>
+                      <td>Renewal details. Contains: <code>willAutoRenew</code>, <code>autoRenewPreference</code></td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
             android: (
@@ -2084,111 +2174,332 @@ export type SubscriptionStatusIOS = {
                 <h3>Android Types</h3>
 
                 <h4>SubscriptionOffer</h4>
-                <p>Subscription offer details for Android purchases.</p>
-                <CodeBlock language="graphql">{`type SubscriptionOffer {
-  sku: String!
-  offerToken: String!
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>sku</code> — Product identifier
-                    </li>
-                    <li>
-                      <code>offerToken</code> — Play Billing offer token
-                    </li>
-                  </ul>
-                </div>
+                <p>Offer details for subscription purchases:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>sku</code></td>
+                      <td>Product identifier</td>
+                    </tr>
+                    <tr>
+                      <td><code>offerToken</code></td>
+                      <td>Play Billing offer token (required for purchase)</td>
+                    </tr>
+                  </tbody>
+                </table>
 
                 <h4>PricingPhase</h4>
-                <p>Pricing phase information for Android subscriptions.</p>
-                <CodeBlock language="graphql">{`type PricingPhase {
-  billingPeriod: String!
-  formattedPrice: String!
-  priceAmountMicros: String!
-  priceCurrencyCode: String!
-  billingCycleCount: Int
-  recurrenceMode: RecurrenceMode
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>billingPeriod</code> — ISO8601 period (e.g., P1W,
-                      P1M, P1Y)
-                    </li>
-                    <li>
-                      <code>formattedPrice</code> — Formatted price
-                    </li>
-                    <li>
-                      <code>priceAmountMicros</code> — Price in micros
-                    </li>
-                    <li>
-                      <code>priceCurrencyCode</code> — ISO 4217 currency
-                    </li>
-                    <li>
-                      <code>billingCycleCount</code> — Number of cycles
-                    </li>
-                    <li>
-                      <code>recurrenceMode</code> — Recurrence mode
-                    </li>
-                  </ul>
-                </div>
+                <p>Pricing phase for Android subscriptions:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>billingPeriod</code></td>
+                      <td>ISO 8601 period (P1W, P1M, P1Y)</td>
+                    </tr>
+                    <tr>
+                      <td><code>formattedPrice</code></td>
+                      <td>Formatted price string</td>
+                    </tr>
+                    <tr>
+                      <td><code>priceAmountMicros</code></td>
+                      <td>Price in micro-units (divide by 1,000,000)</td>
+                    </tr>
+                    <tr>
+                      <td><code>priceCurrencyCode</code></td>
+                      <td>ISO 4217 currency code</td>
+                    </tr>
+                    <tr>
+                      <td><code>billingCycleCount</code></td>
+                      <td>Number of cycles for this phase</td>
+                    </tr>
+                    <tr>
+                      <td><code>recurrenceMode</code></td>
+                      <td>How this phase recurs (1 = infinite, 2 = finite, 3 = non-recurring)</td>
+                    </tr>
+                  </tbody>
+                </table>
 
                 <h4>PricingPhasesAndroid</h4>
-                <CodeBlock language="graphql">{`type PricingPhasesAndroid {
-  pricingPhaseList: [PricingPhaseAndroid!]!
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>pricingPhaseList</code> — Pricing phases
-                      <ul>
-                        <li>See PricingPhaseAndroid for item fields</li>
-                      </ul>
-                    </li>
-                  </ul>
-                </div>
-
-                <h4>PricingPhaseAndroid</h4>
-                <CodeBlock language="graphql">{`type PricingPhaseAndroid {
-  formattedPrice: String!
-  priceCurrencyCode: String!
-  billingPeriod: String!
-  billingCycleCount: Int!
-  priceAmountMicros: String!
-  recurrenceMode: Int!
-}`}</CodeBlock>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Field Reference</h4>
-                  <ul style={{ marginTop: '0.5rem' }}>
-                    <li>
-                      <code>formattedPrice</code> — Formatted price
-                    </li>
-                    <li>
-                      <code>priceCurrencyCode</code> — ISO 4217 currency
-                    </li>
-                    <li>
-                      <code>billingPeriod</code> — ISO8601 period (e.g., P1W,
-                      P1M, P1Y)
-                    </li>
-                    <li>
-                      <code>billingCycleCount</code> — Number of cycles
-                    </li>
-                    <li>
-                      <code>priceAmountMicros</code> — Price in micros
-                    </li>
-                    <li>
-                      <code>recurrenceMode</code> — Recurrence mode
-                    </li>
-                  </ul>
-                </div>
+                <p>Container for pricing phases:</p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>pricingPhaseList</code></td>
+                      <td>Array of PricingPhase objects</td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
           }}
         </PlatformTabs>
+      </section>
+
+      <section>
+        <AnchorLink id="app-transaction" level="h2">
+          AppTransaction (iOS)
+        </AnchorLink>
+        <p>
+          Represents the app transaction information returned by{' '}
+          <code>getAppTransactionIOS()</code>. Contains metadata about the
+          app&apos;s purchase and installation.
+        </p>
+
+        <AnchorLink id="app-transaction-fields" level="h3">
+          Fields
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>bundleId</code></td>
+              <td>App bundle identifier</td>
+            </tr>
+            <tr>
+              <td><code>appVersion</code></td>
+              <td>Current app version</td>
+            </tr>
+            <tr>
+              <td><code>originalAppVersion</code></td>
+              <td>Version when user originally purchased/downloaded</td>
+            </tr>
+            <tr>
+              <td><code>originalPurchaseDate</code></td>
+              <td>Original purchase timestamp</td>
+            </tr>
+            <tr>
+              <td><code>deviceVerification</code></td>
+              <td>Device verification data</td>
+            </tr>
+            <tr>
+              <td><code>deviceVerificationNonce</code></td>
+              <td>Nonce for device verification</td>
+            </tr>
+            <tr>
+              <td><code>environment</code></td>
+              <td>Environment: &quot;Sandbox&quot; or &quot;Production&quot;</td>
+            </tr>
+            <tr>
+              <td><code>signedDate</code></td>
+              <td>Date when the transaction was signed</td>
+            </tr>
+            <tr>
+              <td><code>appId</code></td>
+              <td>App ID number</td>
+            </tr>
+            <tr>
+              <td><code>appVersionId</code></td>
+              <td>App version ID number</td>
+            </tr>
+            <tr>
+              <td><code>preorderDate</code></td>
+              <td>Preorder date (optional)</td>
+            </tr>
+            <tr>
+              <td><code>appTransactionId</code></td>
+              <td>App transaction ID (iOS 18.4+)</td>
+            </tr>
+            <tr>
+              <td><code>originalPlatform</code></td>
+              <td>Original platform (iOS 18.4+)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="app-transaction-type-definition" level="h3">
+          Type Definition
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`interface AppTransaction {
+  bundleId: string;
+  appVersion: string;
+  originalAppVersion: string;
+  originalPurchaseDate: number;  // epoch ms
+  deviceVerification: string;
+  deviceVerificationNonce: string;
+  environment: 'Sandbox' | 'Production';
+  signedDate: number;  // epoch ms
+  appId: number;
+  appVersionId: number;
+  preorderDate?: number;  // epoch ms
+  // iOS 18.4+ properties
+  appTransactionId?: string;
+  originalPlatform?: string;
+}`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`struct AppTransaction {
+    let bundleId: String
+    let appVersion: String
+    let originalAppVersion: String
+    let originalPurchaseDate: Date
+    let deviceVerification: String
+    let deviceVerificationNonce: String
+    let environment: String  // "Sandbox" | "Production"
+    let signedDate: Date
+    let appId: Int
+    let appVersionId: Int
+    let preorderDate: Date?
+    // iOS 18.4+ properties
+    let appTransactionId: String?
+    let originalPlatform: String?
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`data class AppTransaction(
+    val bundleId: String,
+    val appVersion: String,
+    val originalAppVersion: String,
+    val originalPurchaseDate: Long,  // epoch ms
+    val deviceVerification: String,
+    val deviceVerificationNonce: String,
+    val environment: String,  // "Sandbox" | "Production"
+    val signedDate: Long,  // epoch ms
+    val appId: Long,
+    val appVersionId: Long,
+    val preorderDate: Long? = null,
+    // iOS 18.4+ properties
+    val appTransactionId: String? = null,
+    val originalPlatform: String? = null
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`class AppTransaction {
+  final String bundleId;
+  final String appVersion;
+  final String originalAppVersion;
+  final int originalPurchaseDate;  // epoch ms
+  final String deviceVerification;
+  final String deviceVerificationNonce;
+  final String environment;  // "Sandbox" | "Production"
+  final int signedDate;  // epoch ms
+  final int appId;
+  final int appVersionId;
+  final int? preorderDate;
+  // iOS 18.4+ properties
+  final String? appTransactionId;
+  final String? originalPlatform;
+
+  AppTransaction({
+    required this.bundleId,
+    required this.appVersion,
+    required this.originalAppVersion,
+    required this.originalPurchaseDate,
+    required this.deviceVerification,
+    required this.deviceVerificationNonce,
+    required this.environment,
+    required this.signedDate,
+    required this.appId,
+    required this.appVersionId,
+    this.preorderDate,
+    this.appTransactionId,
+    this.originalPlatform,
+  });
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <AnchorLink id="app-transaction-example" level="h3">
+          Usage Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { getAppTransactionIOS } from 'expo-iap';
+
+// Get app transaction (iOS only)
+const appTransaction = await getAppTransactionIOS();
+
+if (appTransaction) {
+  console.log('Bundle ID:', appTransaction.bundleId);
+  console.log('Original version:', appTransaction.originalAppVersion);
+  console.log('Environment:', appTransaction.environment);
+
+  // Check if user originally purchased on a different platform (iOS 18.4+)
+  if (appTransaction.originalPlatform) {
+    console.log('Originally purchased on:', appTransaction.originalPlatform);
+  }
+}`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+// Get app transaction (iOS only)
+let appTransaction = try await OpenIapModule.shared.getAppTransactionIOS()
+
+if let transaction = appTransaction {
+    print("Bundle ID: \\(transaction.bundleId)")
+    print("Original version: \\(transaction.originalAppVersion)")
+    print("Environment: \\(transaction.environment)")
+
+    // Check if user originally purchased on a different platform (iOS 18.4+)
+    if let platform = transaction.originalPlatform {
+        print("Originally purchased on: \\(platform)")
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIapInstance
+
+// Get app transaction (iOS only via KMP)
+val appTransaction = kmpIapInstance.getAppTransactionIOS()
+
+appTransaction?.let { transaction ->
+    println("Bundle ID: \${transaction.bundleId}")
+    println("Original version: \${transaction.originalAppVersion}")
+    println("Environment: \${transaction.environment}")
+
+    // Check if user originally purchased on a different platform (iOS 18.4+)
+    transaction.originalPlatform?.let { platform ->
+        println("Originally purchased on: \$platform")
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Get app transaction (iOS only)
+final appTransaction = await FlutterInappPurchase.instance.getAppTransactionIOS();
+
+if (appTransaction != null) {
+  print('Bundle ID: \${appTransaction.bundleId}');
+  print('Original version: \${appTransaction.originalAppVersion}');
+  print('Environment: \${appTransaction.environment}');
+
+  // Check if user originally purchased on a different platform (iOS 18.4+)
+  if (appTransaction.originalPlatform != null) {
+    print('Originally purchased on: \${appTransaction.originalPlatform}');
+  }
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
       </section>
     </div>
   );

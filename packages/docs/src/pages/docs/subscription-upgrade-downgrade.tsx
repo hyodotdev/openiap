@@ -1,6 +1,7 @@
-import CodeBlock from '../../components/CodeBlock';
 import AnchorLink from '../../components/AnchorLink';
 import Accordion from '../../components/Accordion';
+import CodeBlock from '../../components/CodeBlock';
+import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
@@ -259,7 +260,27 @@ function SubscriptionUpgradeDowngrade() {
                 </p>
 
                 <Accordion title={<>📝 Code Example: Detecting Upgrades</>}>
-                  <CodeBlock language="swift">{`// Detecting upgrades with pendingUpgradeProductId
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Detecting upgrades with pendingUpgradeProductId
+const subscriptions = await getActiveSubscriptions();
+
+for (const sub of subscriptions) {
+  const renewalInfo = sub.renewalInfoIOS;
+  const pendingUpgrade = renewalInfo?.pendingUpgradeProductId;
+
+  if (pendingUpgrade && pendingUpgrade !== sub.productId) {
+    console.log('⚠️ UPGRADE IN PROGRESS');
+    console.log(\`  Current: \${sub.productId}\`);
+    console.log(\`  Upgrading to: \${pendingUpgrade}\`);
+
+    // Show UI: "Upgrade processing..."
+  }
+}`}</CodeBlock>
+                      ),
+                      swift: (
+                        <CodeBlock language="swift">{`// Detecting upgrades with pendingUpgradeProductId
 let subscriptions = try await getActiveSubscriptions()
 
 for sub in subscriptions {
@@ -273,6 +294,43 @@ for sub in subscriptions {
         // Show UI: "Upgrade processing..."
     }
 }`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Detecting upgrades with pendingUpgradeProductId (KMP)
+val subscriptions = kmpIapInstance.getActiveSubscriptions()
+
+for (sub in subscriptions) {
+    val renewalInfo = sub.renewalInfoIOS
+    val pendingUpgrade = renewalInfo?.pendingUpgradeProductId
+
+    if (pendingUpgrade != null && pendingUpgrade != sub.productId) {
+        println("⚠️ UPGRADE IN PROGRESS")
+        println("  Current: \${sub.productId}")
+        println("  Upgrading to: \$pendingUpgrade")
+
+        // Show UI: "Upgrade processing..."
+    }
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Detecting upgrades with pendingUpgradeProductId
+final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();
+
+for (final sub in subscriptions) {
+  final renewalInfo = sub.renewalInfoIOS;
+  final pendingUpgrade = renewalInfo?.pendingUpgradeProductId;
+
+  if (pendingUpgrade != null && pendingUpgrade != sub.productId) {
+    print('⚠️ UPGRADE IN PROGRESS');
+    print('  Current: \${sub.productId}');
+    print('  Upgrading to: \$pendingUpgrade');
+
+    // Show UI: "Upgrade processing..."
+  }
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
               </section>
 
@@ -320,7 +378,27 @@ for sub in subscriptions {
                 </p>
 
                 <Accordion title={<>📝 Code Example: Detecting Downgrades</>}>
-                  <CodeBlock language="swift">{`// Detecting downgrades
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Detecting downgrades
+const subscriptions = await getActiveSubscriptions();
+
+for (const sub of subscriptions) {
+  const renewalInfo = sub.renewalInfoIOS;
+  const autoRenewPref = renewalInfo?.autoRenewPreference;
+
+  if (autoRenewPref && autoRenewPref !== sub.productId && renewalInfo?.willAutoRenew) {
+    console.log('⚠️ DOWNGRADE SCHEDULED');
+    console.log(\`  Current (until \${sub.expirationDateIOS}): \${sub.productId}\`);
+    console.log(\`  Next: \${autoRenewPref}\`);
+
+    // Show UI: "Your plan will change to [tier] on [date]"
+  }
+}`}</CodeBlock>
+                      ),
+                      swift: (
+                        <CodeBlock language="swift">{`// Detecting downgrades
 let subscriptions = try await getActiveSubscriptions()
 
 for sub in subscriptions {
@@ -335,6 +413,43 @@ for sub in subscriptions {
         // Show UI: "Your plan will change to [tier] on [date]"
     }
 }`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Detecting downgrades (KMP)
+val subscriptions = kmpIapInstance.getActiveSubscriptions()
+
+for (sub in subscriptions) {
+    val renewalInfo = sub.renewalInfoIOS
+    val autoRenewPref = renewalInfo?.autoRenewPreference
+
+    if (autoRenewPref != null && autoRenewPref != sub.productId && renewalInfo?.willAutoRenew == true) {
+        println("⚠️ DOWNGRADE SCHEDULED")
+        println("  Current (until \${sub.expirationDateIOS}): \${sub.productId}")
+        println("  Next: \$autoRenewPref")
+
+        // Show UI: "Your plan will change to [tier] on [date]"
+    }
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Detecting downgrades
+final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();
+
+for (final sub in subscriptions) {
+  final renewalInfo = sub.renewalInfoIOS;
+  final autoRenewPref = renewalInfo?.autoRenewPreference;
+
+  if (autoRenewPref != null && autoRenewPref != sub.productId && renewalInfo?.willAutoRenew == true) {
+    print('⚠️ DOWNGRADE SCHEDULED');
+    print('  Current (until \${sub.expirationDateIOS}): \${sub.productId}');
+    print('  Next: \$autoRenewPref');
+
+    // Show UI: "Your plan will change to [tier] on [date]"
+  }
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
               </section>
 
@@ -373,8 +488,10 @@ const pendingUpgradeProductId =
                 <Accordion
                   title={<>📝 Code Example: Using pendingUpgradeProductId</>}
                 >
-                  <CodeBlock language="typescript">{`// TypeScript example
-import { getActiveSubscriptions } from 'openiap';
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`import { getActiveSubscriptions } from 'expo-iap';
 
 const subscriptions = await getActiveSubscriptions();
 
@@ -389,6 +506,58 @@ for (const sub of subscriptions) {
     showUpgradeInProgressUI(current, pending);
   }
 }`}</CodeBlock>
+                      ),
+                      swift: (
+                        <CodeBlock language="swift">{`import OpenIap
+
+let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions()
+
+for sub in subscriptions {
+    if let pending = sub.renewalInfoIOS?.pendingUpgradeProductId {
+        let current = sub.productId
+
+        print("Upgrading from \\(current) to \\(pending)")
+
+        // Show upgrade-in-progress UI
+        showUpgradeInProgressUI(current: current, pending: pending)
+    }
+}`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIapInstance
+
+val subscriptions = kmpIapInstance.getActiveSubscriptions()
+
+for (sub in subscriptions) {
+    sub.renewalInfoIOS?.pendingUpgradeProductId?.let { pending ->
+        val current = sub.productId
+
+        println("Upgrading from \$current to \$pending")
+
+        // Show upgrade-in-progress UI
+        showUpgradeInProgressUI(current, pending)
+    }
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();
+
+for (final sub in subscriptions) {
+  final pending = sub.renewalInfoIOS?.pendingUpgradeProductId;
+  if (pending != null) {
+    final current = sub.productId;
+
+    print('Upgrading from \$current to \$pending');
+
+    // Show upgrade-in-progress UI
+    showUpgradeInProgressUI(current, pending);
+  }
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
 
                 <Accordion
@@ -418,11 +587,38 @@ for (const sub of subscriptions) {
                     </li>
                   </ol>
 
-                  <CodeBlock language="swift">{`// ✅ Correct approach
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// ✅ Correct approach
+const effectiveTier = renewalInfo?.pendingUpgradeProductId ?? subscription.productId;
+
+// ❌ Wrong - may show outdated tier immediately after upgrade
+const currentTier = subscription.productId;`}</CodeBlock>
+                      ),
+                      swift: (
+                        <CodeBlock language="swift">{`// ✅ Correct approach
 let effectiveTier = renewalInfo.pendingUpgradeProductId ?? subscription.productId
 
 // ❌ Wrong - may show outdated tier immediately after upgrade
 let currentTier = subscription.productId`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// ✅ Correct approach
+val effectiveTier = renewalInfo?.pendingUpgradeProductId ?: subscription.productId
+
+// ❌ Wrong - may show outdated tier immediately after upgrade
+val currentTier = subscription.productId`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// ✅ Correct approach
+final effectiveTier = renewalInfo?.pendingUpgradeProductId ?? subscription.productId;
+
+// ❌ Wrong - may show outdated tier immediately after upgrade
+final currentTier = subscription.productId;`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
               </section>
 
@@ -462,7 +658,10 @@ let currentTier = subscription.productId`}</CodeBlock>
                 <Accordion
                   title={<>📝 Complete Example: Subscription Status Component</>}
                 >
-                  <CodeBlock language="typescript">{`// Complete example: Subscription status component
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Complete example: Subscription status component (React)
 function SubscriptionStatus() {
   const [subscription, setSubscription] = useState(null);
 
@@ -490,10 +689,10 @@ function SubscriptionStatus() {
   // Upgrade in progress
   if (pending && pending !== subscription.productId) {
     return (
-      <div className="upgrade-in-progress">
-        <p>⏳ Upgrading to {pending}...</p>
-        <p>Current: {subscription.productId}</p>
-      </div>
+      <View>
+        <Text>⏳ Upgrading to {pending}...</Text>
+        <Text>Current: {subscription.productId}</Text>
+      </View>
     );
   }
 
@@ -501,24 +700,179 @@ function SubscriptionStatus() {
   if (renewalInfo?.autoRenewPreference !== subscription.productId &&
       renewalInfo?.willAutoRenew) {
     return (
-      <div className="downgrade-scheduled">
-        <p>Current: {subscription.productId}</p>
-        <p>
+      <View>
+        <Text>Current: {subscription.productId}</Text>
+        <Text>
           Will change to {renewalInfo.autoRenewPreference} on{' '}
           {new Date(subscription.expirationDateIOS).toLocaleDateString()}
-        </p>
-      </div>
+        </Text>
+      </View>
     );
   }
 
   // Normal active subscription
   return (
-    <div className="active-subscription">
-      <p>Active: {subscription.productId}</p>
-      <p>Renews: {new Date(renewalInfo?.renewalDate).toLocaleDateString()}</p>
-    </div>
+    <View>
+      <Text>Active: {subscription.productId}</Text>
+      <Text>Renews: {new Date(renewalInfo?.renewalDate).toLocaleDateString()}</Text>
+    </View>
   );
 }`}</CodeBlock>
+                      ),
+                      swift: (
+                        <CodeBlock language="swift">{`// Complete example: Subscription status view (SwiftUI)
+struct SubscriptionStatusView: View {
+    @State private var subscription: ActiveSubscription?
+
+    var body: some View {
+        Group {
+            if let sub = subscription {
+                subscriptionContent(sub)
+            } else {
+                Text("Loading...")
+            }
+        }
+        .task {
+            await loadSubscription()
+        }
+    }
+
+    @ViewBuilder
+    func subscriptionContent(_ sub: ActiveSubscription) -> some View {
+        let renewalInfo = sub.renewalInfoIOS
+        let pending = renewalInfo?.pendingUpgradeProductId
+
+        if let pending = pending, pending != sub.productId {
+            // Upgrade in progress
+            VStack {
+                Text("⏳ Upgrading to \\(pending)...")
+                Text("Current: \\(sub.productId)")
+            }
+        } else if let autoRenewPref = renewalInfo?.autoRenewPreference,
+                  autoRenewPref != sub.productId,
+                  renewalInfo?.willAutoRenew == true {
+            // Downgrade scheduled
+            VStack {
+                Text("Current: \\(sub.productId)")
+                Text("Will change to \\(autoRenewPref) on \\(formattedDate(sub.expirationDateIOS))")
+            }
+        } else {
+            // Normal active subscription
+            VStack {
+                Text("Active: \\(sub.productId)")
+                Text("Renews: \\(formattedDate(renewalInfo?.renewalDate))")
+            }
+        }
+    }
+
+    func loadSubscription() async {
+        let subs = try? await OpenIapModule.shared.getActiveSubscriptions()
+        subscription = subs?.first
+    }
+}`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Complete example: Subscription status (Compose Multiplatform)
+@Composable
+fun SubscriptionStatus() {
+    var subscription by remember { mutableStateOf<ActiveSubscription?>(null) }
+
+    LaunchedEffect(Unit) {
+        val subs = kmpIapInstance.getActiveSubscriptions()
+        subscription = subs.firstOrNull()
+    }
+
+    subscription?.let { sub ->
+        val renewalInfo = sub.renewalInfoIOS
+        val pending = renewalInfo?.pendingUpgradeProductId
+
+        when {
+            pending != null && pending != sub.productId -> {
+                // Upgrade in progress
+                Column {
+                    Text("⏳ Upgrading to \$pending...")
+                    Text("Current: \${sub.productId}")
+                }
+            }
+            renewalInfo?.autoRenewPreference != sub.productId &&
+            renewalInfo?.willAutoRenew == true -> {
+                // Downgrade scheduled
+                Column {
+                    Text("Current: \${sub.productId}")
+                    Text("Will change to \${renewalInfo.autoRenewPreference} on \${formatDate(sub.expirationDateIOS)}")
+                }
+            }
+            else -> {
+                // Normal active subscription
+                Column {
+                    Text("Active: \${sub.productId}")
+                    Text("Renews: \${formatDate(renewalInfo?.renewalDate)}")
+                }
+            }
+        }
+    } ?: Text("Loading...")
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Complete example: Subscription status widget (Flutter)
+class SubscriptionStatus extends StatefulWidget {
+  @override
+  State<SubscriptionStatus> createState() => _SubscriptionStatusState();
+}
+
+class _SubscriptionStatusState extends State<SubscriptionStatus> {
+  ActiveSubscription? subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSubscription();
+  }
+
+  Future<void> _loadSubscription() async {
+    final subs = await FlutterInappPurchase.instance.getActiveSubscriptions();
+    setState(() => subscription = subs.firstOrNull);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sub = subscription;
+    if (sub == null) return Text('Loading...');
+
+    final renewalInfo = sub.renewalInfoIOS;
+    final pending = renewalInfo?.pendingUpgradeProductId;
+
+    // Upgrade in progress
+    if (pending != null && pending != sub.productId) {
+      return Column(children: [
+        Text('⏳ Upgrading to \$pending...'),
+        Text('Current: \${sub.productId}'),
+      ]);
+    }
+
+    // Downgrade scheduled
+    if (renewalInfo?.autoRenewPreference != sub.productId &&
+        renewalInfo?.willAutoRenew == true) {
+      return Column(children: [
+        Text('Current: \${sub.productId}'),
+        Text('Will change to \${renewalInfo!.autoRenewPreference} on \${_formatDate(sub.expirationDateIOS)}'),
+      ]);
+    }
+
+    // Normal active subscription
+    return Column(children: [
+      Text('Active: \${sub.productId}'),
+      Text('Renews: \${_formatDate(renewalInfo?.renewalDate)}'),
+    ]);
+  }
+
+  String _formatDate(int? timestamp) => timestamp != null
+      ? DateTime.fromMillisecondsSinceEpoch(timestamp).toLocal().toString()
+      : 'N/A';
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
               </section>
 
@@ -690,8 +1044,11 @@ function SubscriptionStatus() {
                 <Accordion
                   title={<>📝 Code Example: Upgrading Subscription</>}
                 >
-                  <CodeBlock language="typescript">{`// Android upgrade with proration
-import { requestPurchase, getAvailablePurchases } from 'openiap';
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Android upgrade with proration
+import { requestPurchase, getAvailablePurchases } from 'expo-iap';
 
 // Get current subscription
 const purchases = await getAvailablePurchases();
@@ -707,6 +1064,55 @@ if (currentSub) {
 
   console.log('✅ Upgrade initiated');
 }`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Android upgrade with proration
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+// Get current subscription
+val purchases = kmpIapInstance.getAvailablePurchases()
+val currentSub = purchases.find { it.productId == "basic_monthly" }
+
+currentSub?.let { sub ->
+    // Upgrade to premium with time proration
+    kmpIapInstance.requestPurchase {
+        android {
+            skus = listOf("premium_monthly")
+            purchaseToken = sub.purchaseToken
+            replacementMode = 1 // WITH_TIME_PRORATION
+        }
+    }
+
+    println("✅ Upgrade initiated")
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Android upgrade with proration
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Get current subscription
+final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();
+final currentSub = purchases.firstWhere((p) => p.productId == 'basic_monthly');
+
+if (currentSub != null) {
+  // Upgrade to premium with time proration
+  await FlutterInappPurchase.instance.requestPurchase(
+    RequestPurchaseProps(
+      request: RequestPurchasePropsByPlatforms(
+        android: RequestPurchaseAndroidProps(
+          skus: ['premium_monthly'],
+          purchaseToken: currentSub.purchaseToken,
+          replacementMode: 1, // WITH_TIME_PRORATION
+        ),
+      ),
+    ),
+  );
+
+  print('✅ Upgrade initiated');
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
               </section>
 
@@ -771,8 +1177,11 @@ if (currentSub) {
                 <Accordion
                   title={<>📝 Code Example: Downgrading Subscription</>}
                 >
-                  <CodeBlock language="typescript">{`// Android downgrade with deferred replacement
-import { requestPurchase, getAvailablePurchases } from 'openiap';
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Android downgrade with deferred replacement
+import { requestPurchase, getAvailablePurchases } from 'expo-iap';
 
 // Get current subscription
 const purchases = await getAvailablePurchases();
@@ -789,6 +1198,57 @@ if (premiumPurchase) {
   console.log('✅ Downgrade scheduled for next billing cycle');
   // Note: Purchase callback will complete with empty list - this is expected!
 }`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Android downgrade with deferred replacement
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+// Get current subscription
+val purchases = kmpIapInstance.getAvailablePurchases()
+val premiumPurchase = purchases.find { it.productId == "premium_monthly" }
+
+premiumPurchase?.let { purchase ->
+    // Downgrade - takes effect at next billing cycle
+    kmpIapInstance.requestPurchase {
+        android {
+            skus = listOf("basic_monthly")
+            purchaseToken = purchase.purchaseToken
+            replacementMode = 6 // DEFERRED - Change at renewal
+        }
+    }
+
+    println("✅ Downgrade scheduled for next billing cycle")
+    // Note: Purchase callback will complete with empty list - this is expected!
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Android downgrade with deferred replacement
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Get current subscription
+final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();
+final premiumPurchase = purchases.firstWhere((p) => p.productId == 'premium_monthly');
+
+if (premiumPurchase != null) {
+  // Downgrade - takes effect at next billing cycle
+  await FlutterInappPurchase.instance.requestPurchase(
+    RequestPurchaseProps(
+      request: RequestPurchasePropsByPlatforms(
+        android: RequestPurchaseAndroidProps(
+          skus: ['basic_monthly'],
+          purchaseToken: premiumPurchase.purchaseToken,
+          replacementMode: 6, // DEFERRED - Change at renewal
+        ),
+      ),
+    ),
+  );
+
+  print('✅ Downgrade scheduled for next billing cycle');
+  // Note: Purchase callback will complete with empty list - this is expected!
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
               </section>
 
@@ -806,8 +1266,11 @@ if (premiumPurchase) {
                 <h3>Checking for pending changes</h3>
 
                 <Accordion title={<>📝 Code Example: Checking Active Subscription</>}>
-                  <CodeBlock language="typescript">{`// Android - check if subscription will change
-import { getAvailablePurchases } from 'openiap';
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Android - check if subscription will change
+import { getAvailablePurchases } from 'expo-iap';
 
 const purchases = await getAvailablePurchases();
 
@@ -818,6 +1281,37 @@ for (const purchase of purchases) {
   // If using DEFERRED mode, the change is scheduled but not yet reflected
   // You'll need to track this in your backend or check purchase history
 }`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Android - check if subscription will change
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+val purchases = kmpIapInstance.getAvailablePurchases()
+
+for (purchase in purchases) {
+    // On Android, the current purchase reflects the active subscription
+    println("Active subscription: \${purchase.productId}")
+
+    // If using DEFERRED mode, the change is scheduled but not yet reflected
+    // You'll need to track this in your backend or check purchase history
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Android - check if subscription will change
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();
+
+for (final purchase in purchases) {
+  // On Android, the current purchase reflects the active subscription
+  print('Active subscription: \${purchase.productId}');
+
+  // If using DEFERRED mode, the change is scheduled but not yet reflected
+  // You'll need to track this in your backend or check purchase history
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
 
                 <Accordion
@@ -897,8 +1391,11 @@ for (const purchase of purchases) {
                 <Accordion
                   title={<>📝 Complete Example: Subscription Change Handler</>}
                 >
-                  <CodeBlock language="typescript">{`// Complete Android example: Subscription change
-import { requestPurchase, getAvailablePurchases } from 'openiap';
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Complete Android example: Subscription change
+import { requestPurchase, getAvailablePurchases } from 'expo-iap';
 
 async function changeSubscription(
   newSku: string,
@@ -941,6 +1438,114 @@ async function changeSubscription(
     console.error('Subscription change failed:', error);
   }
 }`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Complete Android example: Subscription change
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.PurchaseException
+
+suspend fun changeSubscription(
+    newSku: String,
+    isUpgrade: Boolean
+) {
+    // Get current subscription
+    val purchases = kmpIapInstance.getAvailablePurchases()
+    val currentSub = purchases.find { it.productId.contains("subscription") }
+
+    if (currentSub == null) {
+        println("No active subscription found")
+        return
+    }
+
+    // Choose appropriate replacement mode
+    val replacementMode = if (isUpgrade) {
+        1  // WITH_TIME_PRORATION - Upgrade: give credit
+    } else {
+        6  // DEFERRED - Downgrade: change at renewal
+    }
+
+    try {
+        kmpIapInstance.requestPurchase {
+            android {
+                skus = listOf(newSku)
+                purchaseToken = currentSub.purchaseToken
+                this.replacementMode = replacementMode
+            }
+        }
+
+        // If DEFERRED, store pending change in your backend
+        if (!isUpgrade) {
+            sendPendingChangeToBackend(
+                userId = "user123",
+                currentSku = currentSub.productId,
+                newSku = newSku,
+                effectiveDate = currentSub.expirationDate
+            )
+        }
+    } catch (e: PurchaseException) {
+        println("Subscription change failed: \${e.message}")
+    }
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Complete Android example: Subscription change
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+Future<void> changeSubscription(
+  String newSku,
+  bool isUpgrade,
+) async {
+  // Get current subscription
+  final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();
+  final currentSub = purchases.firstWhere(
+    (p) => p.productId.contains('subscription'),
+    orElse: () => null,
+  );
+
+  if (currentSub == null) {
+    print('No active subscription found');
+    return;
+  }
+
+  // Choose appropriate replacement mode
+  final replacementMode = isUpgrade
+      ? 1  // WITH_TIME_PRORATION - Upgrade: give credit
+      : 6; // DEFERRED - Downgrade: change at renewal
+
+  try {
+    await FlutterInappPurchase.instance.requestPurchase(
+      RequestPurchaseProps(
+        request: RequestPurchasePropsByPlatforms(
+          android: RequestPurchaseAndroidProps(
+            skus: [newSku],
+            purchaseToken: currentSub.purchaseToken,
+            replacementMode: replacementMode,
+          ),
+        ),
+      ),
+    );
+
+    // If DEFERRED, store pending change in your backend
+    if (!isUpgrade) {
+      await http.post(
+        Uri.parse('/api/subscriptions/pending-change'),
+        body: jsonEncode({
+          'userId': 'user123',
+          'currentSku': currentSub.productId,
+          'newSku': newSku,
+          'effectiveDate': currentSub.expirationDate,
+        }),
+      );
+    }
+  } catch (e) {
+    print('Subscription change failed: \$e');
+  }
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
                 </Accordion>
               </section>
 

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
+import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
@@ -61,10 +62,50 @@ function APIs() {
           initConnection
         </AnchorLink>
         <p>Initialize connection to the store service.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-initConnection(config: InitConnectionConfig?): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+initConnection(config?: InitConnectionConfig): Promise<boolean>
+
+// InitConnectionConfig type
+interface InitConnectionConfig {
+  alternativeBillingModeAndroid?: 'user-choice' | 'alternative-only';
+}`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func initConnection() async throws -> Bool
+
+// iOS uses standard StoreKit billing
+// Alternative billing is Android-only`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun initConnection(config: InitConnectionConfig? = null): Boolean
+
+// InitConnectionConfig type
+data class InitConnectionConfig(
+    val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null
+)
+
+enum class AlternativeBillingModeAndroid {
+    UserChoice, AlternativeOnly
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<bool> initConnection({InitConnectionConfig? config});
+
+// InitConnectionConfig type
+class InitConnectionConfig {
+  final AlternativeBillingModeAndroid? alternativeBillingModeAndroid;
+}
+
+enum AlternativeBillingModeAndroid { userChoice, alternativeOnly }`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p>
           Establishes connection with the platform's billing service. Returns
           true if successful. Optionally accepts configuration for alternative
@@ -76,27 +117,88 @@ initConnection(config: InitConnectionConfig?): Future`}</CodeBlock>
             InitConnectionConfig
           </Link>
         </p>
-        <CodeBlock language="typescript">{`// Standard connection
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Standard connection
 await initConnection();
 
 // Android with user choice billing
 await initConnection({
-  alternativeBillingModeAndroid: 'USER_CHOICE'
+  alternativeBillingModeAndroid: 'user-choice'
 });
 
 // Android with alternative billing only
 await initConnection({
-  alternativeBillingModeAndroid: 'ALTERNATIVE_ONLY'
+  alternativeBillingModeAndroid: 'alternative-only'
 });`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Standard connection
+try await OpenIapModule.shared.initConnection()
+
+// iOS uses standard StoreKit billing
+// Alternative billing is Android-only`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Standard connection
+openIapStore.initConnection()
+
+// With user choice billing
+openIapStore.initConnection(
+    InitConnectionConfig(
+        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    )
+)
+
+// With alternative billing only
+openIapStore.initConnection(
+    InitConnectionConfig(
+        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+    )
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Standard connection
+await FlutterInappPurchase.instance.initConnection();
+
+// With user choice billing
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
+);
+
+// With alternative billing only
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.alternativeOnly,
+);`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
 
         <AnchorLink id="end-connection" level="h3">
           endConnection
         </AnchorLink>
         <p>End connection to the store service.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-endConnection(): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+endConnection(): Promise<boolean>`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func endConnection() async throws -> Bool`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun endConnection(): Boolean`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<bool> endConnection();`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p>
           Closes the connection and cleans up resources. Returns true if
           successful.
@@ -111,15 +213,50 @@ endConnection(): Future`}</CodeBlock>
           fetchProducts
         </AnchorLink>
         <p>Retrieve products or subscriptions from the store.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: [Product!]! | [SubscriptionProduct!]!
-"""
-fetchProducts(params: ProductRequest!): Future
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+fetchProducts(params: ProductRequest): Promise<Product[] | SubscriptionProduct[]>
 
-type ProductRequest {
-  skus: [String]!
-  type?: ProductType  "Values: 'in-app' | 'subs' | 'all'. Defaults to 'in-app'"
+// ProductRequest type
+interface ProductRequest {
+  skus: string[];
+  type?: 'in-app' | 'subs' | 'all';  // Defaults to 'in-app'
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func fetchProducts(_ request: ProductRequest) async throws -> [Product]
+
+// ProductRequest type
+struct ProductRequest {
+    let skus: [String]
+    let type: ProductQueryType?  // .inApp, .subs, .all
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun fetchProducts(request: ProductRequest): List<Product>
+
+// ProductRequest type
+data class ProductRequest(
+    val skus: List<String>,
+    val type: ProductQueryType = ProductQueryType.InApp  // InApp, Subs, All
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<List<Product>> fetchProducts(ProductRequest request);
+
+// ProductRequest type
+class ProductRequest {
+  final List<String> skus;
+  final ProductQueryType? type;  // ProductQueryType.inApp, .subs, .all
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p className="type-link">
           See: <Link to="/docs/types#product">Product</Link>,{' '}
           <Link to="/docs/types#subscription-product">SubscriptionProduct</Link>
@@ -138,15 +275,50 @@ type ProductRequest {
           getAvailablePurchases
         </AnchorLink>
         <p>Get all available purchases for the current user.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: [Purchase!]!
-"""
-getAvailablePurchases(options: PurchaseOptions?): Future
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+getAvailablePurchases(options?: PurchaseOptions): Promise<Purchase[]>
 
-type PurchaseOptions {
-  alsoPublishToEventListenerIOS: Boolean?  # iOS only
-  onlyIncludeActiveItemsIOS: Boolean?      # iOS only
+// PurchaseOptions type
+interface PurchaseOptions {
+  alsoPublishToEventListenerIOS?: boolean;  // iOS only
+  onlyIncludeActiveItemsIOS?: boolean;      // iOS only
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func getAvailablePurchases(
+    options: PurchaseOptions? = nil
+) async throws -> [Purchase]
+
+// PurchaseOptions type
+struct PurchaseOptions {
+    let alsoPublishToEventListener: Bool?
+    let onlyIncludeActiveItems: Bool?
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun getAvailablePurchases(): List<Purchase>
+
+// Android doesn't support additional options`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<List<Purchase>> getAvailablePurchases({
+  PurchaseOptions? options,
+});
+
+// PurchaseOptions type
+class PurchaseOptions {
+  final bool? alsoPublishToEventListenerIOS;  // iOS only
+  final bool? onlyIncludeActiveItemsIOS;      // iOS only
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p className="type-link">
           See: <Link to="/docs/types#purchase">Purchase</Link>
         </p>
@@ -182,20 +354,49 @@ type PurchaseOptions {
           requestPurchase
         </AnchorLink>
         <p>Request a purchase for products or subscriptions.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Purchase | Purchase[] | void
-"""
-requestPurchase(props: RequestPurchaseProps): Future
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+requestPurchase(props: RequestPurchaseProps): Promise<Purchase | Purchase[] | void>
 
+// RequestPurchaseProps type (discriminated union)
 type RequestPurchaseProps =
-  | {
-      params: RequestPurchasePropsByPlatforms
-      type: 'in-app'
-    }
-  | {
-      params: RequestSubscriptionPropsByPlatforms
-      type: 'subs'
-    }`}</CodeBlock>
+  | { params: RequestPurchasePropsByPlatforms; type: 'in-app' }
+  | { params: RequestSubscriptionPropsByPlatforms; type: 'subs' }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func requestPurchase(_ props: RequestPurchaseProps) async throws -> Purchase?
+
+// RequestPurchaseProps type
+struct RequestPurchaseProps {
+    let request: RequestPurchasePropsByPlatforms
+    let type: ProductType  // .inApp or .subs
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun requestPurchase(props: RequestPurchaseProps): List<Purchase>
+
+// RequestPurchaseProps type
+data class RequestPurchaseProps(
+    val request: RequestPurchasePropsByPlatforms,
+    val type: ProductType  // ProductType.InApp or ProductType.Subs
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<Purchase?> requestPurchase(RequestPurchaseProps props);
+
+// RequestPurchaseProps type
+class RequestPurchaseProps {
+  final RequestPurchasePropsByPlatforms request;
+  final ProductType type;  // ProductType.inApp or ProductType.subs
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#request-purchase-props">
@@ -230,19 +431,102 @@ type RequestPurchaseProps =
           iOS External Purchase Links
         </AnchorLink>
         <p>
-          Starting from openiap-gql 1.0.10, iOS supports external purchase links
-          via the <code>externalPurchaseUrlOnIOS</code> parameter in{' '}
-          <code>requestPurchase</code>.
+          iOS supports external purchase links via Apple&apos;s StoreKit{' '}
+          <code>ExternalPurchase</code> API. This requires a 3-step flow for
+          Apple compliance:
         </p>
-        <CodeBlock language="typescript">{`await requestPurchase({
-  params: {
-    ios: {
-      sku: 'premium',
-      externalPurchaseUrlOnIOS: 'https://your-payment-site.com/checkout'
-    }
-  },
-  type: 'in-app'
-});`}</CodeBlock>
+        <ol>
+          <li>Check if external purchase is available on the device</li>
+          <li>Present Apple&apos;s required compliance notice sheet</li>
+          <li>Open the external purchase URL</li>
+        </ol>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import {
+  canPresentExternalPurchaseNoticeIOS,
+  presentExternalPurchaseNoticeSheetIOS,
+  presentExternalPurchaseLinkIOS,
+} from 'expo-iap';
+
+// Step 1: Check availability
+const canPresent = await canPresentExternalPurchaseNoticeIOS();
+if (!canPresent) return;
+
+// Step 2: Show Apple's notice sheet
+const noticeResult = await presentExternalPurchaseNoticeSheetIOS();
+if (noticeResult.result === 'dismissed') return;
+
+// Step 3: Open external purchase link
+const result = await presentExternalPurchaseLinkIOS(
+  'https://your-payment-site.com/checkout'
+);`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+// Step 1: Check availability
+let canPresent = try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
+guard canPresent else { return }
+
+// Step 2: Show Apple's notice sheet
+let noticeResult = try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()
+guard noticeResult.result == .continue else { return }
+
+// Step 3: Open external purchase link (iOS 18.2+)
+let result = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(
+    "https://your-payment-site.com/checkout"
+)
+if result.success {
+    print("External purchase flow completed")
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.ExternalPurchaseNoticeAction
+
+// External purchase is iOS-only. For iOS targets in KMP:
+// Step 1: Check availability
+val canPresent = kmpIapInstance.canPresentExternalPurchaseNoticeIOS()
+if (!canPresent) return
+
+// Step 2: Show Apple's notice sheet
+val noticeResult = kmpIapInstance.presentExternalPurchaseNoticeSheetIOS()
+if (noticeResult.result == ExternalPurchaseNoticeAction.Dismissed) return
+
+// Step 3: Open external purchase link
+val result = kmpIapInstance.presentExternalPurchaseLinkIOS(
+    "https://your-payment-site.com/checkout"
+)
+
+// For Android: Use alternative billing APIs instead`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final iap = FlutterInappPurchase.instance;
+
+// Step 1: Check availability
+final canPresent = await iap.canPresentExternalPurchaseNoticeIOS();
+if (!canPresent) return;
+
+// Step 2: Show Apple's notice sheet
+final noticeResult = await iap.presentExternalPurchaseNoticeSheetIOS();
+if (noticeResult.result == ExternalPurchaseNoticeAction.dismissed) return;
+
+// Step 3: Open external purchase link
+final result = await iap.presentExternalPurchaseLinkIOS(
+  'https://your-payment-site.com/checkout',
+);`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+        <blockquote className="info-note">
+          <p>
+            <strong>Requirements:</strong> iOS 15.4+ for notice sheet, iOS 18.2+
+            for custom links. App must have StoreKit external purchase entitlement.
+          </p>
+        </blockquote>
         <blockquote className="info-note">
           <p>
             <strong>Important:</strong> External purchase links redirect users
@@ -261,11 +545,11 @@ type RequestPurchaseProps =
               offer codes)
             </li>
           </ul>
-          <p>
-            The external link flow only opens the URL—it does not create
-            StoreKit transactions or trigger purchase events.
-          </p>
         </blockquote>
+        <p className="type-link">
+          See:{' '}
+          <Link to="/docs/types#external-purchase-link">External Purchase Types</Link>
+        </p>
 
         <AnchorLink id="handling-resubscription" level="h4">
           Handling Resubscription (Cancelled Subscriptions)
@@ -276,7 +560,10 @@ type RequestPurchaseProps =
           Starting from openiap-apple 1.2.34, the library automatically allows
           resubscription for cancelled subscriptions.
         </p>
-        <CodeBlock language="typescript">{`// Check if subscription is cancelled but still active
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Check if subscription is cancelled but still active
 const subscriptions = await getActiveSubscriptions(['premium_monthly']);
 const subscription = subscriptions[0];
 
@@ -285,21 +572,95 @@ if (subscription?.renewalInfoIOS?.willAutoRenew === false) {
   console.log('Subscription cancelled, showing resubscribe button');
 
   try {
-    // This will now succeed even though subscription is still active
     await requestPurchase({
       params: { ios: { sku: 'premium_monthly' } },
       type: 'subs'
     });
   } catch (error) {
     if (error.code === 'already-owned') {
-      // Only thrown if subscription is active AND will auto-renew
       console.log('Subscription is already active and will renew');
     }
   }
 } else if (subscription) {
-  // Subscription is active and will auto-renew
   console.log('Subscription is active');
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Check if subscription is cancelled but still active
+let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(
+    subscriptionIds: ["premium_monthly"]
+)
+
+if let subscription = subscriptions.first {
+    if subscription.renewalInfoIOS?.willAutoRenew == false {
+        // Subscription is cancelled - user can resubscribe
+        print("Subscription cancelled, showing resubscribe button")
+
+        try await OpenIapModule.shared.requestPurchase(
+            RequestPurchaseProps(
+                request: RequestPurchasePropsByPlatforms(
+                    ios: RequestPurchaseIosProps(sku: "premium_monthly")
+                ),
+                type: .subs
+            )
+        )
+    } else {
+        print("Subscription is active")
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Check if subscription is cancelled but still active
+val subscriptions = openIapStore.getActiveSubscriptions(
+    subscriptionIds = listOf("premium_monthly")
+)
+
+subscriptions.firstOrNull()?.let { subscription ->
+    if (subscription.autoRenewingAndroid == false) {
+        // Subscription is cancelled - user can resubscribe
+        println("Subscription cancelled, showing resubscribe button")
+
+        openIapStore.requestPurchase(
+            RequestPurchaseProps(
+                request = RequestPurchasePropsByPlatforms(
+                    android = RequestPurchaseAndroidProps(
+                        skus = listOf("premium_monthly")
+                    )
+                ),
+                type = ProductType.Subs
+            )
+        )
+    } else {
+        println("Subscription is active")
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Check if subscription is cancelled but still active
+final subscriptions = await FlutterInappPurchase.instance
+    .getActiveSubscriptions(subscriptionIds: ['premium_monthly']);
+
+final subscription = subscriptions.firstOrNull;
+
+if (subscription?.renewalInfoIOS?.willAutoRenew == false) {
+  // Subscription is cancelled - user can resubscribe
+  print('Subscription cancelled, showing resubscribe button');
+
+  await FlutterInappPurchase.instance.requestPurchase(
+    RequestPurchaseProps(
+      request: RequestPurchasePropsByPlatforms(
+        ios: RequestPurchaseIosProps(sku: 'premium_monthly'),
+        android: RequestPurchaseAndroidProps(skus: ['premium_monthly']),
+      ),
+      type: ProductType.subs,
+    ),
+  );
+} else if (subscription != null) {
+  print('Subscription is active');
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <blockquote className="info-note">
           <p>
             <strong>Behavior:</strong> The <code>already-owned</code> error is
@@ -334,10 +695,32 @@ if (subscription?.renewalInfoIOS?.willAutoRenew === false) {
           receipt validation for ALL purchase types to properly finish the
           transaction and remove it from the queue.
         </p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+finishTransaction(purchase: Purchase, isConsumable?: boolean): Promise<void>`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func finishTransaction(_ purchase: Purchase) async throws`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun finishTransaction(
+    purchase: Purchase,
+    isConsumable: Boolean = false
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<void> finishTransaction(
+  Purchase purchase, {
+  bool isConsumable = false,
+});`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p className="type-link">
           See: <Link to="/docs/types#purchase">Purchase</Link>
         </p>
@@ -416,10 +799,26 @@ finishTransaction(purchase: Purchase!, isConsumable: Boolean?): Future`}</CodeBl
           restorePurchases
         </AnchorLink>
         <p>Restore completed transactions (cross-platform behavior).</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-restorePurchases(): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+restorePurchases(): Promise<void>`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func restorePurchases() async throws`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun restorePurchases()`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<void> restorePurchases();`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p>
           iOS: performs a lightweight sync with <code>syncIOS()</code> to
           refresh transactions (sync errors are ignored), then calls{' '}
@@ -442,10 +841,26 @@ restorePurchases(): Future`}</CodeBlock>
           getStorefront
         </AnchorLink>
         <p>Get storefront metadata for the active user.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: String!
-"""
-getStorefront(): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+getStorefront(): Promise<string>`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func getStorefront() async throws -> String`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun getStorefront(): String`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<String> getStorefront();`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p>
           Resolves with the ISO 3166-1 alpha-2 country code for the active
           storefront. Returns an empty string when the storefront cannot be
@@ -471,10 +886,32 @@ getStorefront(): Future`}</CodeBlock>
           Get all active subscriptions with detailed information including
           renewal status.
         </p>
-        <CodeBlock language="graphql">{`"""
-Returns: [ActiveSubscription!]!
-"""
-getActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+getActiveSubscriptions(subscriptionIds?: string[]): Promise<ActiveSubscription[]>`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func getActiveSubscriptions(
+    subscriptionIds: [String]? = nil
+) async throws -> [ActiveSubscription]`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun getActiveSubscriptions(
+    subscriptionIds: List<String>? = null
+): List<ActiveSubscription>`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<List<ActiveSubscription>> getActiveSubscriptions({
+  List<String>? subscriptionIds,
+});`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#active-subscription">ActiveSubscription</Link>
@@ -486,18 +923,12 @@ getActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
           current platform.
         </p>
 
-        <div
-          style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            backgroundColor: '#ecfdf5',
-            borderLeft: '4px solid #10b981',
-            borderRadius: '0.25rem',
-          }}
-        >
-          <strong>✨ New in iOS:</strong> Each subscription now includes{' '}
-          <code>renewalInfoIOS</code> with renewal status information:
-          <ul style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+        <div className="alert-card alert-card--success">
+          <p>
+            <strong>✨ New in iOS:</strong> Each subscription now includes{' '}
+            <code>renewalInfoIOS</code> with renewal status information:
+          </p>
+          <ul>
             <li>
               <code>willAutoRenew</code> — Whether subscription will auto-renew
             </li>
@@ -515,7 +946,10 @@ getActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
           </ul>
         </div>
 
-        <CodeBlock language="typescript">{`// Example: Detect subscription upgrades
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Example: Detect subscription upgrades
 const subscriptions = await getActiveSubscriptions();
 for (const sub of subscriptions) {
   if (sub.renewalInfoIOS?.pendingUpgradeProductId) {
@@ -526,15 +960,76 @@ for (const sub of subscriptions) {
     console.log(\`Subscription \${sub.productId} will not renew\`);
   }
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Example: Detect subscription upgrades
+let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions()
+for sub in subscriptions {
+    if let pendingUpgrade = sub.renewalInfoIOS?.pendingUpgradeProductId {
+        print("Upgrading from \\(sub.productId) to \\(pendingUpgrade)")
+    }
+
+    if sub.renewalInfoIOS?.willAutoRenew == false {
+        print("Subscription \\(sub.productId) will not renew")
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Example: Detect subscription upgrades
+val subscriptions = openIapStore.getActiveSubscriptions()
+for (sub in subscriptions) {
+    // Android uses autoRenewingAndroid instead of renewalInfoIOS
+    if (sub.autoRenewingAndroid == false) {
+        println("Subscription \${sub.productId} will not renew")
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Example: Detect subscription upgrades
+final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();
+for (final sub in subscriptions) {
+  if (sub.renewalInfoIOS?.pendingUpgradeProductId != null) {
+    print('Upgrading from \${sub.productId} to \${sub.renewalInfoIOS!.pendingUpgradeProductId}');
+  }
+
+  if (sub.renewalInfoIOS?.willAutoRenew == false) {
+    print('Subscription \${sub.productId} will not renew');
+  }
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
 
         <AnchorLink id="has-active-subscriptions" level="h3">
           hasActiveSubscriptions
         </AnchorLink>
         <p>Check if the user has any active subscriptions.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Boolean!
-"""
-hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+hasActiveSubscriptions(subscriptionIds?: string[]): Promise<boolean>`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func hasActiveSubscriptions(
+    subscriptionIds: [String]? = nil
+) async throws -> Bool`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun hasActiveSubscriptions(
+    subscriptionIds: List<String>? = null
+): Boolean`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<bool> hasActiveSubscriptions({
+  List<String>? subscriptionIds,
+});`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p>
           Returns a future that completes with <code>true</code> if the user has
           at least one active subscription, <code>false</code> otherwise. If{' '}
@@ -546,17 +1041,43 @@ hasActiveSubscriptions(subscriptionIds: [String]?): Future`}</CodeBlock>
           deepLinkToSubscriptions
         </AnchorLink>
         <p>Open native subscription management interface.</p>
-        <CodeBlock language="graphql">{`"""
-Returns: Void
-"""
-deepLinkToSubscriptions(options: DeepLinkOptions): Future
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+deepLinkToSubscriptions(options: DeepLinkOptions): Promise<void>
 
-type DeepLinkOptions {
-  "Required on Android"
-  skuAndroid: String?
-  "Required on Android"
-  packageNameAndroid: String?
+// DeepLinkOptions type
+interface DeepLinkOptions {
+  skuAndroid?: string;         // Required on Android
+  packageNameAndroid?: string; // Required on Android
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func deepLinkToSubscriptions() async throws
+
+// iOS opens Settings app subscription management`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)
+
+// DeepLinkOptions type
+data class DeepLinkOptions(
+    val skuAndroid: String,         // Required
+    val packageNameAndroid: String  // Required
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<void> deepLinkToSubscriptions({
+  String? skuAndroid,         // Required on Android
+  String? packageNameAndroid, // Required on Android
+});`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p>
           Opens the platform's native subscription management interface where
           users can view and manage their subscriptions.
@@ -577,10 +1098,32 @@ type DeepLinkOptions {
             should be validated before granting entitlements.
           </strong>
         </p>
-        <CodeBlock language="graphql">{`"""
-Returns: ReceiptValidationResult!
-"""
-verifyPurchase(options: ReceiptValidationProps!): Future`}</CodeBlock>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+verifyPurchase(options: ReceiptValidationProps): Promise<ReceiptValidationResult>`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func verifyPurchase(
+    options: ReceiptValidationProps
+) async throws -> ReceiptValidationResult`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun verifyPurchase(
+    options: ReceiptValidationProps
+): ReceiptValidationResult`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<ReceiptValidationResult> verifyPurchase(
+  ReceiptValidationProps options,
+);`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#receipt-validation-types">
@@ -736,11 +1279,8 @@ verifyPurchase(options: ReceiptValidationProps!): Future`}</CodeBlock>
                   clearTransactionIOS
                 </AnchorLink>
                 <p>Clear pending transactions.</p>
-                <CodeBlock language="graphql">{`"""
-Clear pending transactions from the StoreKit payment queue
-"""
-# Future
-clearTransactionIOS: Boolean!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature
+func clearTransactionIOS() async throws -> Bool`}</CodeBlock>
                 <p>
                   Removes all pending transactions from the iOS payment queue.
                 </p>
@@ -755,12 +1295,9 @@ clearTransactionIOS: Boolean!`}</CodeBlock>
                   </Link>{' '}
                   for cross-platform storefront data.
                 </p>
-                <CodeBlock language="graphql">{`"""
-@deprecated(reason: "Use getStorefront")
-Returns: String!
-"""
-# Future
-getStorefrontIOS: String!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Deprecated: Use getStorefront() instead
+@available(*, deprecated, message: "Use getStorefront()")
+func getStorefrontIOS() async throws -> String`}</CodeBlock>
                 <p>
                   Returns the storefront country code (e.g., "US", "GB", "JP")
                   for the active App Store account.
@@ -777,11 +1314,8 @@ getStorefrontIOS: String!`}</CodeBlock>
                   getPromotedProductIOS
                 </AnchorLink>
                 <p>Get the currently promoted product (iOS 11+).</p>
-                <CodeBlock language="graphql">{`"""
-Get the currently promoted product (iOS 11+)
-"""
-# Future
-getPromotedProductIOS: ProductIOS`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 11+)
+func getPromotedProductIOS() async throws -> Product?`}</CodeBlock>
                 <p>
                   Returns the product that was promoted in the App Store, if
                   any. Requires iOS 11 or later.
@@ -794,11 +1328,8 @@ getPromotedProductIOS: ProductIOS`}</CodeBlock>
                   requestPurchaseOnPromotedProductIOS
                 </AnchorLink>
                 <p>Purchase a promoted product (iOS 11+).</p>
-                <CodeBlock language="graphql">{`"""
-Purchase the promoted product surfaced by the App Store
-"""
-# Future
-requestPurchaseOnPromotedProductIOS: Boolean!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 11+)
+func requestPurchaseOnPromotedProductIOS() async throws -> Bool`}</CodeBlock>
                 <p>
                   Initiates a purchase for the promoted product. The product
                   must have been previously promoted via the App Store.
@@ -808,11 +1339,8 @@ requestPurchaseOnPromotedProductIOS: Boolean!`}</CodeBlock>
                   getPendingTransactionsIOS
                 </AnchorLink>
                 <p>Retrieve all pending transactions in the StoreKit queue.</p>
-                <CodeBlock language="graphql">{`"""
-Retrieve all pending transactions in the StoreKit queue
-"""
-# Future
-getPendingTransactionsIOS: [PurchaseIOS!]!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature
+func getPendingTransactionsIOS() async throws -> [Purchase]`}</CodeBlock>
                 <p>
                   Returns all transactions that are pending completion in the
                   StoreKit payment queue as <code>PurchaseIOS</code> objects.
@@ -824,11 +1352,8 @@ getPendingTransactionsIOS: [PurchaseIOS!]!`}</CodeBlock>
                 <p>
                   Check introductory offer eligibility for a subscription group.
                 </p>
-                <CodeBlock language="graphql">{`"""
-Check introductory offer eligibility for a subscription group
-"""
-# Future
-isEligibleForIntroOfferIOS(groupID: String!): Boolean!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 12.2+)
+func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool`}</CodeBlock>
                 <p>
                   Returns true if the user is eligible for an introductory price
                   within the specified subscription group, false otherwise.
@@ -839,11 +1364,8 @@ isEligibleForIntroOfferIOS(groupID: String!): Boolean!`}</CodeBlock>
                   subscriptionStatusIOS
                 </AnchorLink>
                 <p>Get subscription status (iOS 15+).</p>
-                <CodeBlock language="graphql">{`"""
-Get StoreKit 2 subscription status details (iOS 15+)
-"""
-# Future
-subscriptionStatusIOS(sku: String!): [SubscriptionStatusIOS!]!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatus]`}</CodeBlock>
                 <p>
                   Returns detailed subscription status information using
                   StoreKit 2. Requires iOS 15+.
@@ -853,11 +1375,8 @@ subscriptionStatusIOS(sku: String!): [SubscriptionStatusIOS!]!`}</CodeBlock>
                   currentEntitlementIOS
                 </AnchorLink>
                 <p>Get current StoreKit 2 entitlements (iOS 15+).</p>
-                <CodeBlock language="graphql">{`"""
-Get current StoreKit 2 entitlements (iOS 15+)
-"""
-# Future
-currentEntitlementIOS(sku: String!): PurchaseIOS`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func currentEntitlementIOS(sku: String) async throws -> Purchase?`}</CodeBlock>
                 <p>
                   Returns the active StoreKit 2 entitlement for the provided
                   product identifier. Requires iOS 15+.
@@ -867,11 +1386,8 @@ currentEntitlementIOS(sku: String!): PurchaseIOS`}</CodeBlock>
                   latestTransactionIOS
                 </AnchorLink>
                 <p>Get latest transaction for a product (iOS 15+).</p>
-                <CodeBlock language="graphql">{`"""
-Get the latest transaction for a product using StoreKit 2
-"""
-# Future
-latestTransactionIOS(sku: String!): PurchaseIOS`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func latestTransactionIOS(sku: String) async throws -> Purchase?`}</CodeBlock>
                 <p>
                   Returns the most recent transaction for a specific product
                   using StoreKit 2. Requires iOS 15+.
@@ -884,11 +1400,8 @@ latestTransactionIOS(sku: String!): PurchaseIOS`}</CodeBlock>
                   Show subscription management UI and detect status changes (iOS
                   15+).
                 </p>
-                <CodeBlock language="graphql">{`"""
-Open subscription management UI and return changed purchases (iOS 15+)
-"""
-# Future
-showManageSubscriptionsIOS: [PurchaseIOS!]!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func showManageSubscriptionsIOS() async throws -> [Purchase]`}</CodeBlock>
                 <p>
                   Opens the native subscription management interface and returns
                   an array of purchases for subscriptions whose auto-renewal
@@ -901,11 +1414,8 @@ showManageSubscriptionsIOS: [PurchaseIOS!]!`}</CodeBlock>
                   beginRefundRequestIOS
                 </AnchorLink>
                 <p>Initiate refund request (iOS 15+).</p>
-                <CodeBlock language="graphql">{`"""
-Initiate a refund request for a product (iOS 15+)
-"""
-# Future
-beginRefundRequestIOS(sku: String!): String`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func beginRefundRequestIOS(sku: String) async throws -> String?`}</CodeBlock>
                 <p>
                   Presents the refund request sheet for a specific product and
                   returns a string token when submission succeeds. Requires iOS
@@ -916,11 +1426,8 @@ beginRefundRequestIOS(sku: String!): String`}</CodeBlock>
                   isTransactionVerifiedIOS
                 </AnchorLink>
                 <p>Verify a StoreKit 2 transaction signature.</p>
-                <CodeBlock language="graphql">{`"""
-Verify a StoreKit 2 transaction signature
-"""
-# Future
-isTransactionVerifiedIOS(sku: String!): Boolean!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func isTransactionVerifiedIOS(sku: String) async throws -> Bool`}</CodeBlock>
                 <p>
                   Verifies the transaction signature using StoreKit 2. Returns
                   true if valid, false otherwise. Requires iOS 15+.
@@ -930,11 +1437,8 @@ isTransactionVerifiedIOS(sku: String!): Boolean!`}</CodeBlock>
                   getTransactionJwsIOS
                 </AnchorLink>
                 <p>Get the transaction JWS (StoreKit 2).</p>
-                <CodeBlock language="graphql">{`"""
-Get the transaction JWS (StoreKit 2)
-"""
-# Future
-getTransactionJwsIOS(sku: String!): String`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func getTransactionJwsIOS(sku: String) async throws -> String?`}</CodeBlock>
                 <p>
                   Returns the JSON Web Signature for a product's transaction.
                   Use this token for server-side validation. Requires iOS 15+.
@@ -944,11 +1448,8 @@ getTransactionJwsIOS(sku: String!): String`}</CodeBlock>
                   getReceiptDataIOS
                 </AnchorLink>
                 <p>Get base64-encoded receipt data for validation.</p>
-                <CodeBlock language="graphql">{`"""
-Get base64-encoded receipt data for validation
-"""
-# Future
-getReceiptDataIOS: String`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature
+func getReceiptDataIOS() async throws -> String?`}</CodeBlock>
                 <p>
                   Returns the base64-encoded receipt data for server validation.
                   When no receipt exists, returns <code>null</code>.
@@ -958,11 +1459,8 @@ getReceiptDataIOS: String`}</CodeBlock>
                   syncIOS
                 </AnchorLink>
                 <p>Force a StoreKit sync for transactions (iOS 15+).</p>
-                <CodeBlock language="graphql">{`"""
-Force a StoreKit sync for transactions (iOS 15+)
-"""
-# Future
-syncIOS: Boolean!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature (iOS 15+)
+func syncIOS() async throws -> Bool`}</CodeBlock>
                 <p>
                   Forces a sync with StoreKit to ensure all transactions are up
                   to date. Requires iOS 15+.
@@ -972,37 +1470,33 @@ syncIOS: Boolean!`}</CodeBlock>
                   presentCodeRedemptionSheetIOS
                 </AnchorLink>
                 <p>Present the App Store code redemption sheet.</p>
-                <CodeBlock language="graphql">{`"""
-Present the App Store code redemption sheet
-"""
-# Future
-presentCodeRedemptionSheetIOS: Boolean!`}</CodeBlock>
+                <CodeBlock language="swift">{`// Function signature
+func presentCodeRedemptionSheetIOS() async throws -> Bool`}</CodeBlock>
                 <p>Presents the sheet for redeeming App Store promo codes.</p>
 
                 <AnchorLink id="get-app-transaction-ios" level="h4">
                   getAppTransactionIOS
                 </AnchorLink>
                 <p>Fetch the current app transaction (iOS 16+).</p>
-                <CodeBlock language="graphql">{`"""
-Fetch the current app transaction (iOS 16+)
-"""
-# Future
-getAppTransactionIOS: AppTransaction`}</CodeBlock>
-                <CodeBlock language="graphql">{`type AppTransaction {
-  bundleId: String!
-  appVersion: String!
-  originalAppVersion: String!
-  originalPurchaseDate: Date!
-  deviceVerification: String!
-  deviceVerificationNonce: String!
-  environment: String!  # "Sandbox" | "Production"
-  signedDate: Date!
-  appId: Number!
-  appVersionId: Number!
-  preorderDate: Date?
-  # iOS 18.4+ properties
-  appTransactionId: String?  # Requires iOS 18.4+
-  originalPlatform: String?  # Requires iOS 18.4+
+                <CodeBlock language="swift">{`// Function signature (iOS 16+)
+func getAppTransactionIOS() async throws -> AppTransaction?
+
+// AppTransaction type
+struct AppTransaction {
+    let bundleId: String
+    let appVersion: String
+    let originalAppVersion: String
+    let originalPurchaseDate: Date
+    let deviceVerification: String
+    let deviceVerificationNonce: String
+    let environment: String  // "Sandbox" | "Production"
+    let signedDate: Date
+    let appId: Int
+    let appVersionId: Int
+    let preorderDate: Date?
+    // iOS 18.4+ properties
+    let appTransactionId: String?  // Requires iOS 18.4+
+    let originalPlatform: String?  // Requires iOS 18.4+
 }`}</CodeBlock>
                 <p>
                   Returns information about the app's original purchase or
@@ -1012,6 +1506,57 @@ getAppTransactionIOS: AppTransaction`}</CodeBlock>
                   built with Xcode 16.4+.
                 </p>
 
+                <AnchorLink id="can-present-external-purchase-notice-ios" level="h4">
+                  canPresentExternalPurchaseNoticeIOS
+                </AnchorLink>
+                <p>Check if external purchase notice sheet can be presented (iOS 17.4+).</p>
+                <CodeBlock language="swift">{`// Function signature (iOS 17.4+)
+func canPresentExternalPurchaseNoticeIOS() async throws -> Bool`}</CodeBlock>
+                <p>
+                  Returns true if the device supports external purchase and the
+                  notice sheet can be presented. Use this before calling{' '}
+                  <code>presentExternalPurchaseNoticeSheetIOS</code>.
+                </p>
+
+                <AnchorLink id="present-external-purchase-notice-sheet-ios" level="h4">
+                  presentExternalPurchaseNoticeSheetIOS
+                </AnchorLink>
+                <p>Present Apple&apos;s compliance notice sheet (iOS 15.4+).</p>
+                <CodeBlock language="swift">{`// Function signature (iOS 15.4+)
+func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
+
+// Result type
+struct ExternalPurchaseNoticeResultIOS {
+    let error: String?
+    let result: ExternalPurchaseNoticeAction  // .continue or .dismissed
+}`}</CodeBlock>
+                <p>
+                  Presents Apple&apos;s required disclosure sheet before external
+                  purchase. Returns the user&apos;s action (continue or dismissed).
+                  Must be called before <code>presentExternalPurchaseLinkIOS</code>.
+                </p>
+
+                <AnchorLink id="present-external-purchase-link-ios" level="h4">
+                  presentExternalPurchaseLinkIOS
+                </AnchorLink>
+                <p>Open external purchase URL in Safari (iOS 18.2+).</p>
+                <CodeBlock language="swift">{`// Function signature (iOS 18.2+)
+func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
+
+// Result type
+struct ExternalPurchaseLinkResultIOS {
+    let error: String?
+    let success: Bool
+}`}</CodeBlock>
+                <p>
+                  Opens the external purchase URL in Safari after the user accepts
+                  the notice sheet. Returns success status. Requires iOS 18.2+.
+                </p>
+                <p className="type-link">
+                  See:{' '}
+                  <Link to="/docs/types#external-purchase-link">External Purchase Types</Link>
+                </p>
+
                 <AnchorLink id="validate-receipt-ios" level="h4">
                   validateReceiptIOS
                 </AnchorLink>
@@ -1019,11 +1564,11 @@ getAppTransactionIOS: AppTransaction`}</CodeBlock>
                   <strong>Deprecated:</strong> Use <code>verifyPurchase</code>{' '}
                   instead for both platforms.
                 </p>
-                <CodeBlock language="graphql">{`"""
-Validate a receipt for a specific product
-"""
-# Future
-validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS! @deprecated(reason: "Use verifyPurchase")`}</CodeBlock>
+                <CodeBlock language="swift">{`// Deprecated: Use verifyPurchase() instead
+@available(*, deprecated, message: "Use verifyPurchase()")
+func validateReceiptIOS(
+    options: ReceiptValidationProps
+) async throws -> ReceiptValidationResult`}</CodeBlock>
                 <p>
                   Validates a receipt payload against the App Store using the
                   provided validation options. Returns the parsed validation
@@ -1040,11 +1585,8 @@ validateReceiptIOS(options: ReceiptValidationProps!): ReceiptValidationResultIOS
                   acknowledgePurchaseAndroid
                 </AnchorLink>
                 <p>Acknowledge a non-consumable purchase or subscription.</p>
-                <CodeBlock language="graphql">{`"""
-Acknowledge a non-consumable purchase or subscription
-"""
-# Future
-acknowledgePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
+                <CodeBlock language="kotlin">{`// Function signature
+suspend fun acknowledgePurchase(purchaseToken: String): Boolean`}</CodeBlock>
                 <p>
                   Acknowledges the purchase to Google Play. Required within 3
                   days or the purchase will be refunded. Returns
@@ -1062,11 +1604,8 @@ acknowledgePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
                   consumePurchaseAndroid
                 </AnchorLink>
                 <p>Consume a purchase (for consumable products only).</p>
-                <CodeBlock language="graphql">{`"""
-Consume a purchase token so it can be repurchased
-"""
-# Future
-consumePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
+                <CodeBlock language="kotlin">{`// Function signature
+suspend fun consumePurchase(purchaseToken: String): Boolean`}</CodeBlock>
                 <p>
                   Marks a consumable product as consumed, allowing repurchase.
                   Automatically acknowledges the purchase. Returns
@@ -1098,15 +1637,10 @@ consumePurchaseAndroid(purchaseToken: String!): Boolean!`}</CodeBlock>
                   user/device. This is <strong>Step 1</strong> of the
                   alternative billing flow.
                 </p>
-                <CodeBlock language="graphql">{`"""
-Check if alternative billing is available for this user/device
-Step 1 of alternative billing flow
-
-Returns true if available, false otherwise
-Throws OpenIapError.NotPrepared if billing client not ready
-"""
-# Future
-checkAlternativeBillingAvailabilityAndroid: Boolean!`}</CodeBlock>
+                <CodeBlock language="kotlin">{`// Function signature (Step 1 of alternative billing flow)
+// Returns true if available, false otherwise
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun checkAlternativeBillingAvailability(): Boolean`}</CodeBlock>
                 <p>
                   Returns <code>true</code> if alternative billing is available,{' '}
                   <code>false</code> otherwise. Throws{' '}
@@ -1126,16 +1660,11 @@ checkAlternativeBillingAvailabilityAndroid: Boolean!`}</CodeBlock>
                   must be called <strong>before</strong> processing payment in
                   your payment system.
                 </p>
-                <CodeBlock language="graphql">{`"""
-Show alternative billing information dialog to user
-Step 2 of alternative billing flow
-Must be called BEFORE processing payment in your payment system
-
-Returns true if user accepted, false if user canceled
-Throws OpenIapError.NotPrepared if billing client not ready
-"""
-# Future
-showAlternativeBillingDialogAndroid: Boolean!`}</CodeBlock>
+                <CodeBlock language="kotlin">{`// Function signature (Step 2 of alternative billing flow)
+// Must be called BEFORE processing payment in your payment system
+// Returns true if user accepted, false if user canceled
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun showAlternativeBillingDialog(): Boolean`}</CodeBlock>
                 <p>
                   Returns <code>true</code> if the user accepted,{' '}
                   <code>false</code> if the user canceled. Throws{' '}
@@ -1155,17 +1684,12 @@ showAlternativeBillingDialogAndroid: Boolean!`}</CodeBlock>
                   flow and must be called <strong>after</strong> successful
                   payment in your payment system.
                 </p>
-                <CodeBlock language="graphql">{`"""
-Create external transaction token for Google Play reporting
-Step 3 of alternative billing flow
-Must be called AFTER successful payment in your payment system
-Token must be reported to Google Play backend within 24 hours
-
-Returns token string, or null if creation failed
-Throws OpenIapError.NotPrepared if billing client not ready
-"""
-# Future
-createAlternativeBillingTokenAndroid: String`}</CodeBlock>
+                <CodeBlock language="kotlin">{`// Function signature (Step 3 of alternative billing flow)
+// Must be called AFTER successful payment in your payment system
+// Token must be reported to Google Play backend within 24 hours
+// Returns token string, or null if creation failed
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun createAlternativeBillingToken(): String?`}</CodeBlock>
                 <p>
                   Returns a token string that must be reported to Google Play
                   backend within 24 hours, or <code>null</code> if creation
@@ -1174,7 +1698,10 @@ createAlternativeBillingTokenAndroid: String`}</CodeBlock>
                 </p>
 
                 <h4>Alternative Billing Flow Example</h4>
-                <CodeBlock language="typescript">{`// Step 1: Check availability
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`// Step 1: Check availability
 const isAvailable = await checkAlternativeBillingAvailabilityAndroid();
 if (!isAvailable) {
   // Fall back to standard billing
@@ -1200,6 +1727,68 @@ if (paymentSuccess) {
     await reportTokenToGooglePlay(token);
   }
 }`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`// Step 1: Check availability
+val isAvailable = openIapStore.checkAlternativeBillingAvailability()
+if (!isAvailable) {
+    // Fall back to standard billing
+    return
+}
+
+// Step 2: Show dialog to user
+val userAccepted = openIapStore.showAlternativeBillingDialog()
+if (!userAccepted) {
+    // User canceled
+    return
+}
+
+// Process payment in your payment system
+val paymentSuccess = processPaymentInYourSystem()
+
+if (paymentSuccess) {
+    // Step 3: Create token and report to Google Play
+    val token = openIapStore.createAlternativeBillingToken()
+
+    token?.let {
+        // Report token to Google Play backend within 24 hours
+        reportTokenToGooglePlay(it)
+    }
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`// Step 1: Check availability
+final isAvailable = await FlutterInappPurchase.instance
+    .checkAlternativeBillingAvailabilityAndroid();
+if (!isAvailable) {
+  // Fall back to standard billing
+  return;
+}
+
+// Step 2: Show dialog to user
+final userAccepted = await FlutterInappPurchase.instance
+    .showAlternativeBillingDialogAndroid();
+if (!userAccepted) {
+  // User canceled
+  return;
+}
+
+// Process payment in your payment system
+final paymentSuccess = await processPaymentInYourSystem();
+
+if (paymentSuccess) {
+  // Step 3: Create token and report to Google Play
+  final token = await FlutterInappPurchase.instance
+      .createAlternativeBillingTokenAndroid();
+
+  if (token != null) {
+    // Report token to Google Play backend within 24 hours
+    await reportTokenToGooglePlay(token);
+  }
+}`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
               </>
             ),
           }}

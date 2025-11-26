@@ -8,6 +8,7 @@ interface CodeBlockProps {
     | 'javascript'
     | 'swift'
     | 'kotlin'
+    | 'dart'
     | 'xml';
 }
 
@@ -41,6 +42,8 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
         return 'swift';
       case 'kotlin':
         return 'kt';
+      case 'dart':
+        return 'dart';
       case 'xml':
         return 'xml';
       default:
@@ -157,8 +160,8 @@ function highlightCode(element: HTMLElement, language: string) {
     });
 
     element.innerHTML = highlightedLines.join('\n');
-  } else if (language === 'swift' || language === 'kotlin') {
-    // Swift and Kotlin syntax highlighting
+  } else if (language === 'swift' || language === 'kotlin' || language === 'dart') {
+    // Swift, Kotlin, and Dart syntax highlighting
     const lines = text.split('\n');
     const highlightedLines = lines.map((line) => {
       let result = '';
@@ -208,11 +211,16 @@ function highlightCode(element: HTMLElement, language: string) {
         } else {
           let processed = escapeHtml(token.value);
 
-          // Swift/Kotlin keywords
-          const keywords =
-            language === 'swift'
-              ? 'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|@available'
-              : 'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where';
+          // Language-specific keywords
+          let keywords: string;
+          if (language === 'swift') {
+            keywords = 'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|@available';
+          } else if (language === 'kotlin') {
+            keywords = 'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where';
+          } else {
+            // Dart keywords
+            keywords = 'import|export|library|part|show|hide|as|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|rethrow|assert|class|abstract|extends|implements|with|mixin|enum|typedef|static|final|const|late|required|covariant|get|set|operator|factory|async|await|yield|sync|true|false|null|this|super|new|void|dynamic|var|Function|Future|Stream';
+          }
 
           processed = processed.replace(
             new RegExp(`\\b(${keywords})\\b`, 'g'),
