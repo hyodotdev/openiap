@@ -729,7 +729,7 @@ function Errors() {
             <strong>⚠️ Important:</strong> Static test product IDs like{' '}
             <code>android.test.purchased</code> are <strong>deprecated</strong>{' '}
             and no longer work. Use real product IDs with test accounts instead.{' '}
-            <Link to="/docs/updates">See Updates page for details →</Link>
+            <Link to="/docs/updates/notes">See Updates page for details →</Link>
           </p>
         </div>
 

@@ -1,4 +1,4 @@
-import { useScrollToHash } from '../../hooks/useScrollToHash';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function Announcements() {
   useScrollToHash();

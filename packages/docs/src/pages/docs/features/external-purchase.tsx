@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import AnchorLink from '../../components/AnchorLink';
-import CodeBlock from '../../components/CodeBlock';
-import LanguageTabs from '../../components/LanguageTabs';
-import PlatformTabs from '../../components/PlatformTabs';
-import { useScrollToHash } from '../../hooks/useScrollToHash';
+import AnchorLink from '../../../components/AnchorLink';
+import CodeBlock from '../../../components/CodeBlock';
+import LanguageTabs from '../../../components/LanguageTabs';
+import PlatformTabs from '../../../components/PlatformTabs';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function ExternalPurchase() {
   useScrollToHash();

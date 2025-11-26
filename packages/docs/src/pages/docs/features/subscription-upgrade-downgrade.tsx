@@ -1,9 +1,9 @@
-import AnchorLink from '../../components/AnchorLink';
-import Accordion from '../../components/Accordion';
-import CodeBlock from '../../components/CodeBlock';
-import LanguageTabs from '../../components/LanguageTabs';
-import PlatformTabs from '../../components/PlatformTabs';
-import { useScrollToHash } from '../../hooks/useScrollToHash';
+import AnchorLink from '../../../components/AnchorLink';
+import Accordion from '../../../components/Accordion';
+import CodeBlock from '../../../components/CodeBlock';
+import LanguageTabs from '../../../components/LanguageTabs';
+import PlatformTabs from '../../../components/PlatformTabs';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function SubscriptionUpgradeDowngrade() {
   useScrollToHash();

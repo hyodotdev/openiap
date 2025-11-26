@@ -733,7 +733,7 @@ subscription.cancel();`}</CodeBlock>
 
         <p>
           See{' '}
-          <Link to="/docs/external-purchase#platform-implementation">
+          <Link to="/docs/features/external-purchase#platform-implementation">
             External Purchase documentation
           </Link>{' '}
           for complete implementation examples.

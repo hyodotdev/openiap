@@ -17,7 +17,7 @@ function Home() {
           </h1>
           <div style={{ marginBottom: '1.5rem' }}>
             <Link
-              to="/docs/versions"
+              to="/docs/updates/versions"
               style={{
                 display: 'inline-block',
                 padding: '0.25rem 0.75rem',
