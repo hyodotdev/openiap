@@ -103,7 +103,7 @@ adb logcat | grep -E "OpenIap|Horizon"
 
 - **OpenIap prefix for public models (Android)**
   - Prefix all public model types with `OpenIap`.
-  - Examples: `OpenIapProduct`, `OpenIapPurchase`, `OpenIapActiveSubscription`, `OpenIapRequestPurchaseProps`, `OpenIapProductRequest`, `OpenIapReceiptValidationProps`, `OpenIapReceiptValidationResult`.
+- Examples: `OpenIapProduct`, `OpenIapPurchase`, `OpenIapActiveSubscription`, `OpenIapRequestPurchaseProps`, `OpenIapProductRequest`, `OpenIapVerifyPurchaseProps`, `OpenIapVerifyPurchaseResult`.
 - Private/internal helper types do not need the prefix.
 - When renaming existing types, provide a public typealias from the old name to the new name to preserve source compatibility and migrate usages incrementally when feasible.
 

@@ -27,6 +27,7 @@ interface OpenIapProtocol {
     @Deprecated("Use verifyPurchase")
     val validateReceipt: MutationValidateReceiptHandler
     val verifyPurchase: MutationVerifyPurchaseHandler
+    val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler
 
     val queryHandlers: QueryHandlers
     val mutationHandlers: MutationHandlers

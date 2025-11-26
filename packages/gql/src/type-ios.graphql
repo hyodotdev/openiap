@@ -223,7 +223,7 @@ input DiscountOfferInputIOS {
   timestamp: Float!
 }
 
-type ReceiptValidationResultIOS {
+type VerifyPurchaseResultIOS {
   """
   Whether the receipt is valid
   """

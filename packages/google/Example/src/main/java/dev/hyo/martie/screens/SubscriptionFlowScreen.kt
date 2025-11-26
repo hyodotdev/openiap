@@ -237,7 +237,7 @@ fun SubscriptionFlowScreen(
 
     // TODO: Replace with your backend call to Play Developer API
     suspend fun fetchSubStatusFromServer(productId: String, purchaseToken: String): SubscriptionUiInfo? {
-        // Expected mapping of your server response (ReceiptValidationResultAndroid)
+        // Expected mapping of your server response (VerifyPurchaseResultAndroid)
         // return SubscriptionUiInfo(
         //   renewalDate = result.renewalDate,
         //   autoRenewing = result.autoRenewing,

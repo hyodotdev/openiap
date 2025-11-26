@@ -42,10 +42,11 @@ public protocol OpenIapModuleProtocol {
     // Validation
     func getReceiptDataIOS() async throws -> String?
     @available(*, deprecated, message: "Use verifyPurchase")
-    func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS
+    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
     @available(*, deprecated, message: "Use verifyPurchase")
-    func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult
-    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult
+    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
+    func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
+    func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 
     // Store Information
     func getStorefrontIOS() async throws -> String
@@ -73,4 +74,27 @@ public protocol OpenIapModuleProtocol {
     func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription
     func removeListener(_ subscription: Subscription)
     func removeAllListeners()
+}
+
+// Backward compatibility for legacy receipt validation APIs
+public extension OpenIapModuleProtocol {
+    @available(*, deprecated, message: "Use verifyPurchaseWithProvider instead")
+    func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
+        throw PurchaseError(code: .featureNotSupported, message: "verifyPurchaseWithProvider not supported")
+    }
+
+    @available(*, deprecated, message: "Use verifyPurchase instead")
+    func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> VerifyPurchaseResultIOS {
+        try await validateReceiptIOS(VerifyPurchaseProps(androidOptions: props.androidOptions, sku: props.sku))
+    }
+
+    @available(*, deprecated, message: "Use verifyPurchase instead")
+    func validateReceipt(_ props: ReceiptValidationProps) async throws -> VerifyPurchaseResult {
+        try await verifyPurchase(VerifyPurchaseProps(androidOptions: props.androidOptions, sku: props.sku))
+    }
+
+    @available(*, deprecated, message: "Use verifyPurchase instead")
+    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> VerifyPurchaseResult {
+        try await verifyPurchase(VerifyPurchaseProps(androidOptions: props.androidOptions, sku: props.sku))
+    }
 }

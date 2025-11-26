@@ -11,7 +11,7 @@ This repo standardizes schema and identifier naming to improve clarity across pl
 ## Platform Suffix Rules
 
 - iOS‑specific identifiers include `IOS` when it appears as the final suffix.
-  - Example: `buyProductIOS`, `SubscriptionPeriodIOS`, `ReceiptValidationResultIOS`.
+- Example: `buyProductIOS`, `SubscriptionPeriodIOS`, `VerifyPurchaseResultIOS`.
 - If the iOS marker appears mid‑identifier (i.e., more words follow), use `Ios`.
   - Example: `ProductIosType`, `RequestPurchaseIosProps`.
 - Android‑specific identifiers use `Android` (PascalCase) and typically as a suffix.

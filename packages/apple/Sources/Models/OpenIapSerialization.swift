@@ -113,8 +113,8 @@ public enum OpenIapSerialization {
         try decode(object: object, as: PurchaseOptions.self)
     }
 
-    public static func receiptValidationProps(from object: Any) throws -> ReceiptValidationProps {
-        try decode(object: object, as: ReceiptValidationProps.self)
+    public static func verifyPurchaseProps(from object: Any) throws -> VerifyPurchaseProps {
+        try decode(object: object, as: VerifyPurchaseProps.self)
     }
 
     // MARK: - Discount Helpers
