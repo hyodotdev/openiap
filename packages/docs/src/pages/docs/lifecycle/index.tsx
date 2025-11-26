@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import CodeBlock from '../../components/CodeBlock';
-import AnchorLink from '../../components/AnchorLink';
-import { useScrollToHash } from '../../hooks/useScrollToHash';
+import CodeBlock from '../../../components/CodeBlock';
+import AnchorLink from '../../../components/AnchorLink';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 function LifeCycle() {
   useScrollToHash();
 
@@ -212,6 +212,10 @@ function LifeCycle() {
             <strong>On Hold</strong>: Subscription on hold due to payment issue
           </li>
         </ul>
+        <p>
+          For detailed platform-specific subscription handling, see the{' '}
+          <Link to="/docs/lifecycle/subscription">Subscription</Link> guide.
+        </p>
       </section>
     </div>
   );

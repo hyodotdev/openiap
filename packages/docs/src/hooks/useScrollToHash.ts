@@ -7,7 +7,7 @@ export function useScrollToHash() {
   useEffect(() => {
     // Always scroll to top first when route changes
     if (!location.hash) {
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
       // Wait for DOM to be ready
       const timeoutId = setTimeout(() => {
@@ -18,7 +18,7 @@ export function useScrollToHash() {
           const yOffset = -80;
           const y =
             element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({ top: y, behavior: 'smooth' });
+          window.scrollTo({ top: y, behavior: 'instant' });
         }
       }, 100);
 

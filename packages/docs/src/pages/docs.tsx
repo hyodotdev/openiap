@@ -3,6 +3,7 @@ import { Route, Routes, Navigate, NavLink } from 'react-router-dom';
 import { MenuDropdown } from '../components/MenuDropdown';
 import Ecosystem from './docs/ecosystem';
 import LifeCycle from './docs/lifecycle';
+import Subscription from './docs/lifecycle/subscription';
 import Types from './docs/types';
 import APIs from './docs/apis';
 import Events from './docs/events';
@@ -73,15 +74,14 @@ function Docs() {
                 Ecosystem
               </NavLink>
             </li>
-            <li>
-              <NavLink
-                to="/docs/lifecycle"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Life Cycle
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="Life Cycle"
+              titleTo="/docs/lifecycle"
+              items={[
+                { to: '/docs/lifecycle/subscription', label: 'Subscription' },
+              ]}
+              onItemClick={closeSidebar}
+            />
             <li>
               <NavLink
                 to="/docs/types"
@@ -195,6 +195,7 @@ function Docs() {
           <Route index element={<Navigate to="/docs/ecosystem" replace />} />
           <Route path="ecosystem" element={<Ecosystem />} />
           <Route path="lifecycle" element={<LifeCycle />} />
+          <Route path="lifecycle/subscription" element={<Subscription />} />
           <Route path="types" element={<Types />} />
           <Route path="apis" element={<APIs />} />
           <Route path="events" element={<Events />} />
