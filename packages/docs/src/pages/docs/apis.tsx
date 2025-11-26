@@ -350,6 +350,14 @@ class PurchaseOptions {
           history. On Android with Google Play Billing v8+, only active
           purchases are returned.
         </p>
+        <blockquote className="warning-note">
+          <p>
+            <strong>⚠️ Android limitation:</strong> For subscriptions with
+            multiple base plans, the <code>currentPlanId</code> field may be
+            inaccurate. See{' '}
+            <a href="#android-baseplanid-limitation">basePlanId limitation</a>.
+          </p>
+        </blockquote>
       </section>
 
       <section>
@@ -531,7 +539,8 @@ final result = await iap.presentExternalPurchaseLinkIOS(
         <blockquote className="info-note">
           <p>
             <strong>Requirements:</strong> iOS 15.4+ for notice sheet, iOS 18.2+
-            for custom links. App must have StoreKit external purchase entitlement.
+            for custom links. App must have StoreKit external purchase
+            entitlement.
           </p>
         </blockquote>
         <blockquote className="info-note">
@@ -555,7 +564,9 @@ final result = await iap.presentExternalPurchaseLinkIOS(
         </blockquote>
         <p className="type-link">
           See:{' '}
-          <Link to="/docs/types#external-purchase-link">External Purchase Types</Link>
+          <Link to="/docs/types#external-purchase-link">
+            External Purchase Types
+          </Link>
         </p>
 
         <AnchorLink id="handling-resubscription" level="h4">
@@ -1141,9 +1152,7 @@ Future<ReceiptValidationResult> verifyPurchase(
             ReceiptValidationResult
           </Link>
         </p>
-        <p>
-          Verifies purchases with the appropriate validation service.
-        </p>
+        <p>Verifies purchases with the appropriate validation service.</p>
         <p>
           The legacy <code>validateReceipt</code> mutation remains available but
           is deprecated; migrate to <code>verifyPurchase</code> for future
@@ -1513,10 +1522,16 @@ struct AppTransaction {
                   built with Xcode 16.4+.
                 </p>
 
-                <AnchorLink id="can-present-external-purchase-notice-ios" level="h4">
+                <AnchorLink
+                  id="can-present-external-purchase-notice-ios"
+                  level="h4"
+                >
                   canPresentExternalPurchaseNoticeIOS
                 </AnchorLink>
-                <p>Check if external purchase notice sheet can be presented (iOS 17.4+).</p>
+                <p>
+                  Check if external purchase notice sheet can be presented (iOS
+                  17.4+).
+                </p>
                 <CodeBlock language="swift">{`// Function signature (iOS 17.4+)
 func canPresentExternalPurchaseNoticeIOS() async throws -> Bool`}</CodeBlock>
                 <p>
@@ -1525,7 +1540,10 @@ func canPresentExternalPurchaseNoticeIOS() async throws -> Bool`}</CodeBlock>
                   <code>presentExternalPurchaseNoticeSheetIOS</code>.
                 </p>
 
-                <AnchorLink id="present-external-purchase-notice-sheet-ios" level="h4">
+                <AnchorLink
+                  id="present-external-purchase-notice-sheet-ios"
+                  level="h4"
+                >
                   presentExternalPurchaseNoticeSheetIOS
                 </AnchorLink>
                 <p>Present Apple&apos;s compliance notice sheet (iOS 15.4+).</p>
@@ -1538,9 +1556,10 @@ struct ExternalPurchaseNoticeResultIOS {
     let result: ExternalPurchaseNoticeAction  // .continue or .dismissed
 }`}</CodeBlock>
                 <p>
-                  Presents Apple&apos;s required disclosure sheet before external
-                  purchase. Returns the user&apos;s action (continue or dismissed).
-                  Must be called before <code>presentExternalPurchaseLinkIOS</code>.
+                  Presents Apple&apos;s required disclosure sheet before
+                  external purchase. Returns the user&apos;s action (continue or
+                  dismissed). Must be called before{' '}
+                  <code>presentExternalPurchaseLinkIOS</code>.
                 </p>
 
                 <AnchorLink id="present-external-purchase-link-ios" level="h4">
@@ -1556,12 +1575,15 @@ struct ExternalPurchaseLinkResultIOS {
     let success: Bool
 }`}</CodeBlock>
                 <p>
-                  Opens the external purchase URL in Safari after the user accepts
-                  the notice sheet. Returns success status. Requires iOS 18.2+.
+                  Opens the external purchase URL in Safari after the user
+                  accepts the notice sheet. Returns success status. Requires iOS
+                  18.2+.
                 </p>
                 <p className="type-link">
                   See:{' '}
-                  <Link to="/docs/types#external-purchase-link">External Purchase Types</Link>
+                  <Link to="/docs/types#external-purchase-link">
+                    External Purchase Types
+                  </Link>
                 </p>
 
                 <AnchorLink id="validate-receipt-ios" level="h4">
@@ -1857,54 +1879,112 @@ OpenIapLog.enable(false)`}</CodeBlock>
           scenarios:
         </p>
 
-        <h4>Multiple Subscription Offers</h4>
+        <h4 id="android-baseplanid-limitation">
+          Android basePlanId Limitation (Important)
+        </h4>
+        <blockquote className="warning-note">
+          <p>
+            <strong>⚠️ Critical Limitation:</strong> On Android, the{' '}
+            <code>currentPlanId</code> and <code>basePlanIdAndroid</code> fields
+            may return incorrect values for subscription groups with multiple
+            base plans.
+          </p>
+        </blockquote>
+
+        <p>
+          <strong>Root Cause:</strong> Google Play Billing API's{' '}
+          <code>Purchase</code> object does NOT include <code>basePlanId</code>{' '}
+          information. When a subscription group has multiple base plans
+          (weekly, monthly, yearly), there is no way to determine which specific
+          plan was purchased from the client-side <code>Purchase</code> object.
+        </p>
+
         <blockquote className="info-note">
           <p>
-            <strong>Warning:</strong>{' '}
+            <strong>Warning log you may see:</strong>{' '}
             <code>
               Multiple offers (3) found for premium_subscription, using first
               basePlanId (may be inaccurate)
             </code>
           </p>
         </blockquote>
-        <p>
-          This warning appears when a subscription product has multiple offers
-          (e.g., monthly, annual, promotional). Due to Google Play Billing
-          Library limitations, the <code>Purchase</code> object doesn't expose
-          which specific offer was purchased. The library uses the first offer's{' '}
-          <code>basePlanId</code> as a best-effort approach.
-        </p>
 
         <p>
-          <strong>Impact:</strong> The <code>currentPlanId</code> field in{' '}
-          <code>PurchaseAndroid</code> and <code>basePlanIdAndroid</code> in{' '}
-          <code>ActiveSubscription</code> may be inaccurate if users purchase
-          different offers.
+          <strong>What works correctly:</strong>
         </p>
+        <ul>
+          <li>
+            <code>productId</code> - Subscription group ID ✅
+          </li>
+          <li>
+            <code>purchaseToken</code> - Purchase token ✅
+          </li>
+          <li>
+            <code>isActive</code> - Subscription active status ✅
+          </li>
+          <li>
+            <code>transactionId</code> - Transaction ID ✅
+          </li>
+        </ul>
+
+        <p>
+          <strong>What may be incorrect:</strong>
+        </p>
+        <ul>
+          <li>
+            <code>currentPlanId</code> / <code>basePlanIdAndroid</code> - May
+            return first plan instead of purchased plan ❌
+          </li>
+        </ul>
 
         <p>
           <strong>Solutions:</strong>
         </p>
-        <ul>
-          <li>
-            <strong>Backend Validation</strong> (Recommended): Use Google Play
-            Developer API's{' '}
-            <code>purchases.subscriptionsv2:get</code> endpoint with the{' '}
-            <code>purchaseToken</code> to get accurate{' '}
-            <code>basePlanId</code> and <code>offerId</code>
-          </li>
-          <li>
-            <strong>Single Offer</strong>: Design your subscription products
-            with a single offer per product (most common approach)
-          </li>
-          <li>
-            <strong>Offer Tags</strong>: Use offer tags in Google Play Console
-            to help identify offers, though this doesn't solve the client-side
-            tracking issue
-          </li>
-        </ul>
 
-        <CodeBlock language="kotlin">{`// Example: Backend validation to get accurate basePlanId
+        <p>
+          <strong>1. Client-side tracking (Recommended for most apps):</strong>
+        </p>
+        <CodeBlock language="typescript">{`// Track basePlanId yourself during the purchase flow
+
+// 1. Store basePlanId BEFORE calling requestPurchase
+let purchasedBasePlanId: string | null = null;
+
+const handlePurchase = async (basePlanId: string) => {
+  const offers = product.subscriptionOfferDetailsAndroid ?? [];
+  const offer = offers.find(o => o.basePlanId === basePlanId && !o.offerId);
+
+  // Store it before purchase
+  purchasedBasePlanId = basePlanId;
+
+  await requestPurchase({
+    android: {
+      skus: [subscriptionGroupId],
+      subscriptionOffers: [{ sku: subscriptionGroupId, offerToken: offer.offerToken }],
+    },
+    type: 'subs',
+  });
+};
+
+// 2. Use YOUR tracked value in onPurchaseSuccess
+onPurchaseSuccess: async (purchase) => {
+  // DON'T rely on purchase.currentPlanId - it may be wrong!
+  const actualBasePlanId = purchasedBasePlanId;
+
+  // Save to your backend
+  await saveToBackend({
+    purchaseToken: purchase.purchaseToken,
+    basePlanId: actualBasePlanId,  // Use YOUR tracked value
+    productId: purchase.productId,
+  });
+}
+
+// 3. For getActiveSubscriptions after app restart,
+//    use your server data instead of relying on currentPlanId`}</CodeBlock>
+
+        <p>
+          <strong>2. Backend Validation (Recommended for production):</strong>
+        </p>
+        <CodeBlock language="kotlin">{`// Use Google Play Developer API for accurate basePlanId
 // GET https://androidpublisher.googleapis.com/androidpublisher/v3/
 //     applications/{packageName}/purchases/subscriptionsv2/tokens/{token}
 //
@@ -1918,11 +1998,21 @@ OpenIapLog.enable(false)`}</CodeBlock>
 //   }]
 // }`}</CodeBlock>
 
+        <p>
+          <strong>3. Single base plan per subscription group:</strong>
+        </p>
+        <p>
+          If your subscription group has only one base plan, the{' '}
+          <code>basePlanId</code> will always be accurate. This is the simplest
+          solution if your product design allows it.
+        </p>
+
         <blockquote className="info-note">
           <p>
-            <strong>Note:</strong> This limitation only affects products with
-            multiple offers. If your subscription has a single offer (the most
-            common case), the <code>basePlanId</code> will always be accurate.
+            <strong>Note:</strong> This is a fundamental limitation of Google
+            Play Billing API, not a bug in this library. The{' '}
+            <code>Purchase</code> object from Google simply does not include{' '}
+            <code>basePlanId</code> information.
           </p>
         </blockquote>
       </section>

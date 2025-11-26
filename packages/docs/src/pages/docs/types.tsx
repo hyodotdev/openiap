@@ -218,36 +218,64 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>id</code></td>
-              <td>Unique product identifier configured in App Store Connect or Google Play Console</td>
+              <td>
+                <code>id</code>
+              </td>
+              <td>
+                Unique product identifier configured in App Store Connect or
+                Google Play Console
+              </td>
             </tr>
             <tr>
-              <td><code>title</code></td>
+              <td>
+                <code>title</code>
+              </td>
               <td>Localized product title</td>
             </tr>
             <tr>
-              <td><code>description</code></td>
+              <td>
+                <code>description</code>
+              </td>
               <td>Localized product description</td>
             </tr>
             <tr>
-              <td><code>type</code></td>
-              <td>Product type: <code>"in-app"</code> for consumables/non-consumables, <code>"subs"</code> for subscriptions</td>
+              <td>
+                <code>type</code>
+              </td>
+              <td>
+                Product type: <code>"in-app"</code> for
+                consumables/non-consumables, <code>"subs"</code> for
+                subscriptions
+              </td>
             </tr>
             <tr>
-              <td><code>displayPrice</code></td>
-              <td>Formatted price with currency symbol (e.g., "$9.99", "₩12,000")</td>
+              <td>
+                <code>displayPrice</code>
+              </td>
+              <td>
+                Formatted price with currency symbol (e.g., "$9.99", "₩12,000")
+              </td>
             </tr>
             <tr>
-              <td><code>currency</code></td>
+              <td>
+                <code>currency</code>
+              </td>
               <td>ISO 4217 currency code (e.g., "USD", "KRW")</td>
             </tr>
             <tr>
-              <td><code>price</code></td>
+              <td>
+                <code>price</code>
+              </td>
               <td>Numeric price value (e.g., 9.99)</td>
             </tr>
             <tr>
-              <td><code>platform</code></td>
-              <td>Platform discriminator: <code>"ios"</code> or <code>"android"</code></td>
+              <td>
+                <code>platform</code>
+              </td>
+              <td>
+                Platform discriminator: <code>"ios"</code> or{' '}
+                <code>"android"</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -269,20 +297,39 @@ function Types() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>typeIOS</code></td>
-                      <td>Detailed product type: <code>Consumable</code>, <code>NonConsumable</code>, <code>AutoRenewableSubscription</code>, or <code>NonRenewingSubscription</code></td>
+                      <td>
+                        <code>typeIOS</code>
+                      </td>
+                      <td>
+                        Detailed product type: <code>Consumable</code>,{' '}
+                        <code>NonConsumable</code>,{' '}
+                        <code>AutoRenewableSubscription</code>, or{' '}
+                        <code>NonRenewingSubscription</code>
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>isFamilyShareableIOS</code></td>
+                      <td>
+                        <code>isFamilyShareableIOS</code>
+                      </td>
                       <td>Whether the product supports Family Sharing</td>
                     </tr>
                     <tr>
-                      <td><code>displayNameIOS</code></td>
+                      <td>
+                        <code>displayNameIOS</code>
+                      </td>
                       <td>iOS-specific display name</td>
                     </tr>
                     <tr>
-                      <td><code>subscriptionInfoIOS</code></td>
-                      <td>Subscription metadata (only for subscriptions). Contains: <code>subscriptionGroupId</code>, <code>subscriptionPeriod</code> (unit and value), <code>introductoryOffer</code>, <code>promotionalOffers</code></td>
+                      <td>
+                        <code>subscriptionInfoIOS</code>
+                      </td>
+                      <td>
+                        Subscription metadata (only for subscriptions).
+                        Contains: <code>subscriptionGroupId</code>,{' '}
+                        <code>subscriptionPeriod</code> (unit and value),{' '}
+                        <code>introductoryOffer</code>,{' '}
+                        <code>promotionalOffers</code>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -300,16 +347,31 @@ function Types() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>nameAndroid</code></td>
+                      <td>
+                        <code>nameAndroid</code>
+                      </td>
                       <td>Android-specific product name</td>
                     </tr>
                     <tr>
-                      <td><code>oneTimePurchaseOfferDetailsAndroid</code></td>
-                      <td>For one-time purchases. Contains: <code>formattedPrice</code>, <code>priceAmountMicros</code> (divide by 1,000,000), <code>priceCurrencyCode</code></td>
+                      <td>
+                        <code>oneTimePurchaseOfferDetailsAndroid</code>
+                      </td>
+                      <td>
+                        For one-time purchases. Contains:{' '}
+                        <code>formattedPrice</code>,{' '}
+                        <code>priceAmountMicros</code> (divide by 1,000,000),{' '}
+                        <code>priceCurrencyCode</code>
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>subscriptionOfferDetailsAndroid</code></td>
-                      <td>For subscriptions, array of offer details. Contains: <code>basePlanId</code>, <code>offerId</code>, <code>offerToken</code>, <code>pricingPhases</code></td>
+                      <td>
+                        <code>subscriptionOfferDetailsAndroid</code>
+                      </td>
+                      <td>
+                        For subscriptions, array of offer details. Contains:{' '}
+                        <code>basePlanId</code>, <code>offerId</code>,{' '}
+                        <code>offerToken</code>, <code>pricingPhases</code>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -333,9 +395,8 @@ function Types() {
           Common Fields
         </AnchorLink>
         <p>
-          In addition to all{' '}
-          <a href="#product-common">Product common fields</a>, subscription
-          products include:
+          In addition to all <a href="#product-common">Product common fields</a>
+          , subscription products include:
         </p>
         <table className="doc-table">
           <thead>
@@ -346,8 +407,12 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>type</code></td>
-              <td>Always <code>"subs"</code> for subscription products</td>
+              <td>
+                <code>type</code>
+              </td>
+              <td>
+                Always <code>"subs"</code> for subscription products
+              </td>
             </tr>
           </tbody>
         </table>
@@ -369,35 +434,62 @@ function Types() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>discountsIOS</code></td>
-                      <td>Array of available discounts. Each contains: <code>identifier</code>, <code>type</code>, <code>numberOfPeriods</code>, <code>price</code>, <code>localizedPrice</code>, <code>paymentMode</code>, <code>subscriptionPeriod</code></td>
+                      <td>
+                        <code>discountsIOS</code>
+                      </td>
+                      <td>
+                        Array of available discounts. Each contains:{' '}
+                        <code>identifier</code>, <code>type</code>,{' '}
+                        <code>numberOfPeriods</code>, <code>price</code>,{' '}
+                        <code>localizedPrice</code>, <code>paymentMode</code>,{' '}
+                        <code>subscriptionPeriod</code>
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>introductoryPriceIOS</code></td>
+                      <td>
+                        <code>introductoryPriceIOS</code>
+                      </td>
                       <td>Formatted introductory price (e.g., "$0.99")</td>
                     </tr>
                     <tr>
-                      <td><code>introductoryPriceAsAmountIOS</code></td>
+                      <td>
+                        <code>introductoryPriceAsAmountIOS</code>
+                      </td>
                       <td>Numeric introductory price value</td>
                     </tr>
                     <tr>
-                      <td><code>introductoryPricePaymentModeIOS</code></td>
-                      <td>Payment mode for intro offer (FreeTrial, PayAsYouGo, PayUpFront)</td>
+                      <td>
+                        <code>introductoryPricePaymentModeIOS</code>
+                      </td>
+                      <td>
+                        Payment mode for intro offer (FreeTrial, PayAsYouGo,
+                        PayUpFront)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>introductoryPriceNumberOfPeriodsIOS</code></td>
+                      <td>
+                        <code>introductoryPriceNumberOfPeriodsIOS</code>
+                      </td>
                       <td>Number of periods for intro pricing</td>
                     </tr>
                     <tr>
-                      <td><code>introductoryPriceSubscriptionPeriodIOS</code></td>
-                      <td>Period unit for intro pricing (Day, Week, Month, Year)</td>
+                      <td>
+                        <code>introductoryPriceSubscriptionPeriodIOS</code>
+                      </td>
+                      <td>
+                        Period unit for intro pricing (Day, Week, Month, Year)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>subscriptionPeriodNumberIOS</code></td>
+                      <td>
+                        <code>subscriptionPeriodNumberIOS</code>
+                      </td>
                       <td>Number of units in a subscription period</td>
                     </tr>
                     <tr>
-                      <td><code>subscriptionPeriodUnitIOS</code></td>
+                      <td>
+                        <code>subscriptionPeriodUnitIOS</code>
+                      </td>
                       <td>Period unit (Day, Week, Month, Year)</td>
                     </tr>
                   </tbody>
@@ -416,8 +508,15 @@ function Types() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>subscriptionOfferDetailsAndroid</code></td>
-                      <td>Array of subscription offers. Each contains: <code>basePlanId</code>, <code>offerId</code>, <code>offerToken</code>, <code>pricingPhases</code>, <code>offerTags</code></td>
+                      <td>
+                        <code>subscriptionOfferDetailsAndroid</code>
+                      </td>
+                      <td>
+                        Array of subscription offers. Each contains:{' '}
+                        <code>basePlanId</code>, <code>offerId</code>,{' '}
+                        <code>offerToken</code>, <code>pricingPhases</code>,{' '}
+                        <code>offerTags</code>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -453,12 +552,20 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>IosPlatform</code></td>
-              <td>Contains <code>platform: 'ios'</code></td>
+              <td>
+                <code>IosPlatform</code>
+              </td>
+              <td>
+                Contains <code>platform: 'ios'</code>
+              </td>
             </tr>
             <tr>
-              <td><code>AndroidPlatform</code></td>
-              <td>Contains <code>platform: 'android'</code></td>
+              <td>
+                <code>AndroidPlatform</code>
+              </td>
+              <td>
+                Contains <code>platform: 'android'</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -476,16 +583,30 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>Product</code></td>
-              <td>Union of <code>ProductIOS</code> and <code>ProductAndroid</code></td>
+              <td>
+                <code>Product</code>
+              </td>
+              <td>
+                Union of <code>ProductIOS</code> and <code>ProductAndroid</code>
+              </td>
             </tr>
             <tr>
-              <td><code>SubscriptionProduct</code></td>
-              <td>Union of <code>SubscriptionProductIOS</code> and <code>SubscriptionProductAndroid</code></td>
+              <td>
+                <code>SubscriptionProduct</code>
+              </td>
+              <td>
+                Union of <code>SubscriptionProductIOS</code> and{' '}
+                <code>SubscriptionProductAndroid</code>
+              </td>
             </tr>
             <tr>
-              <td><code>Purchase</code></td>
-              <td>Union of <code>PurchaseIOS</code> and <code>PurchaseAndroid</code></td>
+              <td>
+                <code>Purchase</code>
+              </td>
+              <td>
+                Union of <code>PurchaseIOS</code> and{' '}
+                <code>PurchaseAndroid</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -512,7 +633,9 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>StorefrontCode</code></td>
+              <td>
+                <code>StorefrontCode</code>
+              </td>
               <td>ISO 3166-1 alpha-2 country code (string)</td>
             </tr>
           </tbody>
@@ -554,27 +677,39 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>Pending</code></td>
+              <td>
+                <code>Pending</code>
+              </td>
               <td>Purchase initiated, awaiting completion</td>
             </tr>
             <tr>
-              <td><code>Purchased</code></td>
+              <td>
+                <code>Purchased</code>
+              </td>
               <td>Payment successful, needs validation</td>
             </tr>
             <tr>
-              <td><code>Failed</code></td>
+              <td>
+                <code>Failed</code>
+              </td>
               <td>Purchase failed or was cancelled</td>
             </tr>
             <tr>
-              <td><code>Restored</code></td>
+              <td>
+                <code>Restored</code>
+              </td>
               <td>Previous purchase restored</td>
             </tr>
             <tr>
-              <td><code>Deferred</code></td>
+              <td>
+                <code>Deferred</code>
+              </td>
               <td>Awaiting approval (e.g., parental consent)</td>
             </tr>
             <tr>
-              <td><code>Unknown</code></td>
+              <td>
+                <code>Unknown</code>
+              </td>
               <td>State could not be determined</td>
             </tr>
           </tbody>
@@ -593,44 +728,82 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>id</code></td>
-              <td>Purchase identifier (primary key). Maps to orderId on Android, transactionId on iOS</td>
+              <td>
+                <code>id</code>
+              </td>
+              <td>
+                Purchase identifier (primary key). Maps to orderId on Android,
+                transactionId on iOS
+              </td>
             </tr>
             <tr>
-              <td><code>productId</code></td>
+              <td>
+                <code>productId</code>
+              </td>
               <td>Product identifier that was purchased</td>
             </tr>
             <tr>
-              <td><code>ids</code></td>
+              <td>
+                <code>ids</code>
+              </td>
               <td>Array of SKUs for bundled purchases (optional)</td>
             </tr>
             <tr>
-              <td><code>transactionDate</code></td>
+              <td>
+                <code>transactionDate</code>
+              </td>
               <td>Transaction timestamp (epoch ms)</td>
             </tr>
             <tr>
-              <td><code>purchaseToken</code></td>
-              <td>JWS token (iOS) or Play purchase token (Android) for server validation</td>
+              <td>
+                <code>purchaseToken</code>
+              </td>
+              <td>
+                JWS token (iOS) or Play purchase token (Android) for server
+                validation
+              </td>
             </tr>
             <tr>
-              <td><code>platform</code></td>
-              <td>Platform discriminator: <code>"ios"</code> or <code>"android"</code></td>
+              <td>
+                <code>platform</code>
+              </td>
+              <td>
+                Platform discriminator: <code>"ios"</code> or{' '}
+                <code>"android"</code>
+              </td>
             </tr>
             <tr>
-              <td><code>quantity</code></td>
+              <td>
+                <code>quantity</code>
+              </td>
               <td>Number of items purchased</td>
             </tr>
             <tr>
-              <td><code>purchaseState</code></td>
+              <td>
+                <code>purchaseState</code>
+              </td>
               <td>Current purchase state (see PurchaseState above)</td>
             </tr>
             <tr>
-              <td><code>isAutoRenewing</code></td>
+              <td>
+                <code>isAutoRenewing</code>
+              </td>
               <td>Whether subscription will auto-renew</td>
             </tr>
             <tr>
-              <td><code>currentPlanId</code></td>
-              <td>Unified plan identifier. On Android: basePlanId (e.g., "premium"). On iOS: productId (e.g., "com.example.premium_monthly")</td>
+              <td>
+                <code>currentPlanId</code>
+              </td>
+              <td>
+                Unified plan identifier. On Android: basePlanId (e.g.,
+                "premium"). On iOS: productId (e.g.,
+                "com.example.premium_monthly"). <strong>⚠️ Android:</strong> May
+                be inaccurate for multi-plan subscriptions. See{' '}
+                <a href="/docs/apis#android-baseplanid-limitation">
+                  limitation
+                </a>
+                .
+              </td>
             </tr>
           </tbody>
         </table>
@@ -658,84 +831,135 @@ function Types() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>quantityIOS</code></td>
+                      <td>
+                        <code>quantityIOS</code>
+                      </td>
                       <td>Purchase quantity (iOS-specific)</td>
                     </tr>
                     <tr>
-                      <td><code>originalTransactionDateIOS</code></td>
-                      <td>Original purchase timestamp (for renewals/restores)</td>
+                      <td>
+                        <code>originalTransactionDateIOS</code>
+                      </td>
+                      <td>
+                        Original purchase timestamp (for renewals/restores)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>originalTransactionIdentifierIOS</code></td>
+                      <td>
+                        <code>originalTransactionIdentifierIOS</code>
+                      </td>
                       <td>Original transaction ID (links renewal chain)</td>
                     </tr>
                     <tr>
-                      <td><code>appAccountToken</code></td>
-                      <td>Your server's user identifier (UUID you provided at purchase)</td>
+                      <td>
+                        <code>appAccountToken</code>
+                      </td>
+                      <td>
+                        Your server's user identifier (UUID you provided at
+                        purchase)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>expirationDateIOS</code></td>
+                      <td>
+                        <code>expirationDateIOS</code>
+                      </td>
                       <td>Subscription expiration timestamp</td>
                     </tr>
                     <tr>
-                      <td><code>webOrderLineItemIdIOS</code></td>
+                      <td>
+                        <code>webOrderLineItemIdIOS</code>
+                      </td>
                       <td>Web order line item ID</td>
                     </tr>
                     <tr>
-                      <td><code>environmentIOS</code></td>
+                      <td>
+                        <code>environmentIOS</code>
+                      </td>
                       <td>Environment: "Sandbox" or "Production"</td>
                     </tr>
                     <tr>
-                      <td><code>storefrontCountryCodeIOS</code></td>
+                      <td>
+                        <code>storefrontCountryCodeIOS</code>
+                      </td>
                       <td>Storefront country code</td>
                     </tr>
                     <tr>
-                      <td><code>appBundleIdIOS</code></td>
+                      <td>
+                        <code>appBundleIdIOS</code>
+                      </td>
                       <td>App bundle identifier</td>
                     </tr>
                     <tr>
-                      <td><code>subscriptionGroupIdIOS</code></td>
+                      <td>
+                        <code>subscriptionGroupIdIOS</code>
+                      </td>
                       <td>Subscription group identifier</td>
                     </tr>
                     <tr>
-                      <td><code>isUpgradedIOS</code></td>
+                      <td>
+                        <code>isUpgradedIOS</code>
+                      </td>
                       <td>True if this transaction was upgraded</td>
                     </tr>
                     <tr>
-                      <td><code>ownershipTypeIOS</code></td>
+                      <td>
+                        <code>ownershipTypeIOS</code>
+                      </td>
                       <td>Ownership type (purchased, family shared)</td>
                     </tr>
                     <tr>
-                      <td><code>transactionReasonIOS</code></td>
+                      <td>
+                        <code>transactionReasonIOS</code>
+                      </td>
                       <td>Reason: "PURCHASE" or "RENEWAL"</td>
                     </tr>
                     <tr>
-                      <td><code>revocationDateIOS</code></td>
+                      <td>
+                        <code>revocationDateIOS</code>
+                      </td>
                       <td>Revocation timestamp (if refunded)</td>
                     </tr>
                     <tr>
-                      <td><code>revocationReasonIOS</code></td>
+                      <td>
+                        <code>revocationReasonIOS</code>
+                      </td>
                       <td>Revocation reason</td>
                     </tr>
                     <tr>
-                      <td><code>offerIOS</code></td>
-                      <td>Applied offer details. Contains: <code>id</code>, <code>type</code>, <code>paymentMode</code></td>
+                      <td>
+                        <code>offerIOS</code>
+                      </td>
+                      <td>
+                        Applied offer details. Contains: <code>id</code>,{' '}
+                        <code>type</code>, <code>paymentMode</code>
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>currencyCodeIOS</code></td>
+                      <td>
+                        <code>currencyCodeIOS</code>
+                      </td>
                       <td>ISO 4217 currency code</td>
                     </tr>
                     <tr>
-                      <td><code>currencySymbolIOS</code></td>
+                      <td>
+                        <code>currencySymbolIOS</code>
+                      </td>
                       <td>Currency symbol</td>
                     </tr>
                     <tr>
-                      <td><code>countryCodeIOS</code></td>
+                      <td>
+                        <code>countryCodeIOS</code>
+                      </td>
                       <td>Country code</td>
                     </tr>
                     <tr>
-                      <td><code>renewalInfoIOS</code></td>
-                      <td>Subscription renewal information (see RenewalInfoIOS below)</td>
+                      <td>
+                        <code>renewalInfoIOS</code>
+                      </td>
+                      <td>
+                        Subscription renewal information (see RenewalInfoIOS
+                        below)
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -764,44 +988,76 @@ function Types() {
                     </thead>
                     <tbody>
                       <tr>
-                        <td><code>willAutoRenew</code></td>
+                        <td>
+                          <code>willAutoRenew</code>
+                        </td>
                         <td>Whether subscription will automatically renew</td>
                       </tr>
                       <tr>
-                        <td><code>autoRenewPreference</code></td>
-                        <td>Product ID the subscription will renew to (may differ if upgrade/downgrade pending)</td>
+                        <td>
+                          <code>autoRenewPreference</code>
+                        </td>
+                        <td>
+                          Product ID the subscription will renew to (may differ
+                          if upgrade/downgrade pending)
+                        </td>
                       </tr>
                       <tr>
-                        <td><code>expirationReason</code></td>
-                        <td>Why subscription expired: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"</td>
+                        <td>
+                          <code>expirationReason</code>
+                        </td>
+                        <td>
+                          Why subscription expired: "VOLUNTARY",
+                          "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE",
+                          "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+                        </td>
                       </tr>
                       <tr>
-                        <td><code>gracePeriodExpirationDate</code></td>
+                        <td>
+                          <code>gracePeriodExpirationDate</code>
+                        </td>
                         <td>Grace period end timestamp (epoch ms)</td>
                       </tr>
                       <tr>
-                        <td><code>isInBillingRetry</code></td>
+                        <td>
+                          <code>isInBillingRetry</code>
+                        </td>
                         <td>True if retrying after billing failure</td>
                       </tr>
                       <tr>
-                        <td><code>pendingUpgradeProductId</code></td>
+                        <td>
+                          <code>pendingUpgradeProductId</code>
+                        </td>
                         <td>Product ID for pending upgrade/downgrade</td>
                       </tr>
                       <tr>
-                        <td><code>priceIncreaseStatus</code></td>
-                        <td>Price increase response: "AGREED", "PENDING", or null</td>
+                        <td>
+                          <code>priceIncreaseStatus</code>
+                        </td>
+                        <td>
+                          Price increase response: "AGREED", "PENDING", or null
+                        </td>
                       </tr>
                       <tr>
-                        <td><code>renewalDate</code></td>
+                        <td>
+                          <code>renewalDate</code>
+                        </td>
                         <td>Expected renewal timestamp (epoch ms)</td>
                       </tr>
                       <tr>
-                        <td><code>renewalOfferId</code></td>
+                        <td>
+                          <code>renewalOfferId</code>
+                        </td>
                         <td>Offer ID for next renewal</td>
                       </tr>
                       <tr>
-                        <td><code>renewalOfferType</code></td>
-                        <td>Offer type: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK"</td>
+                        <td>
+                          <code>renewalOfferType</code>
+                        </td>
+                        <td>
+                          Offer type: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE",
+                          "WIN_BACK"
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -820,39 +1076,60 @@ function Types() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>dataAndroid</code></td>
+                      <td>
+                        <code>dataAndroid</code>
+                      </td>
                       <td>Raw JSON purchase data for server validation</td>
                     </tr>
                     <tr>
-                      <td><code>transactionId</code></td>
+                      <td>
+                        <code>transactionId</code>
+                      </td>
                       <td>Transaction ID (orderId)</td>
                     </tr>
                     <tr>
-                      <td><code>signatureAndroid</code></td>
+                      <td>
+                        <code>signatureAndroid</code>
+                      </td>
                       <td>INAPP_DATA_SIGNATURE for verification</td>
                     </tr>
                     <tr>
-                      <td><code>autoRenewingAndroid</code></td>
+                      <td>
+                        <code>autoRenewingAndroid</code>
+                      </td>
                       <td>Whether subscription will auto-renew</td>
                     </tr>
                     <tr>
-                      <td><code>isAcknowledgedAndroid</code></td>
-                      <td>Whether purchase has been acknowledged (must be done within 3 days)</td>
+                      <td>
+                        <code>isAcknowledgedAndroid</code>
+                      </td>
+                      <td>
+                        Whether purchase has been acknowledged (must be done
+                        within 3 days)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>packageNameAndroid</code></td>
+                      <td>
+                        <code>packageNameAndroid</code>
+                      </td>
                       <td>Application package name</td>
                     </tr>
                     <tr>
-                      <td><code>developerPayloadAndroid</code></td>
+                      <td>
+                        <code>developerPayloadAndroid</code>
+                      </td>
                       <td>Developer-specified payload string</td>
                     </tr>
                     <tr>
-                      <td><code>obfuscatedAccountIdAndroid</code></td>
+                      <td>
+                        <code>obfuscatedAccountIdAndroid</code>
+                      </td>
                       <td>Obfuscated account ID you provided</td>
                     </tr>
                     <tr>
-                      <td><code>obfuscatedProfileIdAndroid</code></td>
+                      <td>
+                        <code>obfuscatedProfileIdAndroid</code>
+                      </td>
                       <td>Obfuscated profile ID you provided</td>
                     </tr>
                   </tbody>
@@ -885,32 +1162,62 @@ function Types() {
           </thead>
           <tbody>
             <tr>
-              <td><code>productId</code></td>
+              <td>
+                <code>productId</code>
+              </td>
               <td>Subscription product identifier</td>
             </tr>
             <tr>
-              <td><code>isActive</code></td>
+              <td>
+                <code>isActive</code>
+              </td>
               <td>Whether the subscription is currently active</td>
             </tr>
             <tr>
-              <td><code>willExpireSoon</code> <span className="deprecated">deprecated</span></td>
-              <td>iOS only - returns null on Android. Use <code>daysUntilExpirationIOS</code> for more precise control.</td>
+              <td>
+                <code>willExpireSoon</code>{' '}
+                <span className="deprecated">deprecated</span>
+              </td>
+              <td>
+                iOS only - returns null on Android. Use{' '}
+                <code>daysUntilExpirationIOS</code> for more precise control.
+              </td>
             </tr>
             <tr>
-              <td><code>transactionId</code></td>
+              <td>
+                <code>transactionId</code>
+              </td>
               <td>Transaction identifier for backend validation</td>
             </tr>
             <tr>
-              <td><code>purchaseToken</code></td>
-              <td>JWS token (iOS) or purchase token (Android) for server validation</td>
+              <td>
+                <code>purchaseToken</code>
+              </td>
+              <td>
+                JWS token (iOS) or purchase token (Android) for server
+                validation
+              </td>
             </tr>
             <tr>
-              <td><code>transactionDate</code></td>
+              <td>
+                <code>transactionDate</code>
+              </td>
               <td>Transaction timestamp (epoch ms)</td>
             </tr>
             <tr>
-              <td><code>currentPlanId</code></td>
-              <td>Unified plan identifier. On Android: basePlanId (e.g., "premium"). On iOS: productId (e.g., "com.example.premium_monthly")</td>
+              <td>
+                <code>currentPlanId</code>
+              </td>
+              <td>
+                Unified plan identifier. On Android: basePlanId (e.g.,
+                "premium"). On iOS: productId (e.g.,
+                "com.example.premium_monthly"). <strong>⚠️ Android:</strong> May
+                be inaccurate for multi-plan subscriptions. See{' '}
+                <a href="/docs/apis#android-baseplanid-limitation">
+                  limitation
+                </a>
+                .
+              </td>
             </tr>
           </tbody>
         </table>
@@ -930,20 +1237,31 @@ function Types() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>expirationDateIOS</code></td>
+                    <td>
+                      <code>expirationDateIOS</code>
+                    </td>
                     <td>Expiration timestamp (epoch ms)</td>
                   </tr>
                   <tr>
-                    <td><code>environmentIOS</code></td>
+                    <td>
+                      <code>environmentIOS</code>
+                    </td>
                     <td>Environment: "Sandbox" or "Production"</td>
                   </tr>
                   <tr>
-                    <td><code>daysUntilExpirationIOS</code></td>
+                    <td>
+                      <code>daysUntilExpirationIOS</code>
+                    </td>
                     <td>Days until expiration</td>
                   </tr>
                   <tr>
-                    <td><code>renewalInfoIOS</code></td>
-                    <td>Subscription renewal details (see <a href="#renewal-info-ios">RenewalInfoIOS</a>)</td>
+                    <td>
+                      <code>renewalInfoIOS</code>
+                    </td>
+                    <td>
+                      Subscription renewal details (see{' '}
+                      <a href="#renewal-info-ios">RenewalInfoIOS</a>)
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -958,15 +1276,28 @@ function Types() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>autoRenewingAndroid</code></td>
+                    <td>
+                      <code>autoRenewingAndroid</code>
+                    </td>
                     <td>Whether subscription will auto-renew</td>
                   </tr>
                   <tr>
-                    <td><code>basePlanIdAndroid</code></td>
-                    <td>Base plan identifier</td>
+                    <td>
+                      <code>basePlanIdAndroid</code>
+                    </td>
+                    <td>
+                      Base plan identifier. <strong>⚠️</strong> May be
+                      inaccurate for multi-plan subscriptions. See{' '}
+                      <a href="/docs/apis#android-baseplanid-limitation">
+                        limitation
+                      </a>
+                      .
+                    </td>
                   </tr>
                   <tr>
-                    <td><code>purchaseTokenAndroid</code></td>
+                    <td>
+                      <code>purchaseTokenAndroid</code>
+                    </td>
                     <td>Purchase token for upgrade/downgrade operations</td>
                   </tr>
                 </tbody>
@@ -1049,12 +1380,19 @@ if (subscription.renewalInfoIOS?.willAutoRenew == false) {
           </thead>
           <tbody>
             <tr>
-              <td><code>skus</code></td>
+              <td>
+                <code>skus</code>
+              </td>
               <td>Array of product identifiers to fetch</td>
             </tr>
             <tr>
-              <td><code>type</code></td>
-              <td>Product type filter (optional): <code>"in-app"</code> (default), <code>"subs"</code>, or <code>"all"</code></td>
+              <td>
+                <code>type</code>
+              </td>
+              <td>
+                Product type filter (optional): <code>"in-app"</code> (default),{' '}
+                <code>"subs"</code>, or <code>"all"</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1139,7 +1477,8 @@ final allProducts = await FlutterInappPurchase.instance.fetchProducts(
           Request Types
         </AnchorLink>
         <p>
-          Types used when initiating purchases via <code>requestPurchase()</code>.
+          Types used when initiating purchases via{' '}
+          <code>requestPurchase()</code>.
         </p>
 
         <AnchorLink id="request-purchase-props" level="h3">
@@ -1158,12 +1497,18 @@ final allProducts = await FlutterInappPurchase.instance.fetchProducts(
           </thead>
           <tbody>
             <tr>
-              <td><code>params</code></td>
+              <td>
+                <code>params</code>
+              </td>
               <td>Platform-specific purchase parameters (see below)</td>
             </tr>
             <tr>
-              <td><code>type</code></td>
-              <td>Purchase type: <code>"in-app"</code> or <code>"subs"</code></td>
+              <td>
+                <code>type</code>
+              </td>
+              <td>
+                Purchase type: <code>"in-app"</code> or <code>"subs"</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1275,11 +1620,15 @@ await FlutterInappPurchase.instance.requestPurchase(
           </thead>
           <tbody>
             <tr>
-              <td><code>ios</code></td>
+              <td>
+                <code>ios</code>
+              </td>
               <td>iOS purchase parameters (RequestPurchaseIosProps)</td>
             </tr>
             <tr>
-              <td><code>android</code></td>
+              <td>
+                <code>android</code>
+              </td>
               <td>Android purchase parameters (RequestPurchaseAndroidProps)</td>
             </tr>
           </tbody>
@@ -1298,12 +1647,19 @@ await FlutterInappPurchase.instance.requestPurchase(
           </thead>
           <tbody>
             <tr>
-              <td><code>ios</code></td>
+              <td>
+                <code>ios</code>
+              </td>
               <td>iOS subscription parameters (RequestSubscriptionIosProps)</td>
             </tr>
             <tr>
-              <td><code>android</code></td>
-              <td>Android subscription parameters (RequestSubscriptionAndroidProps)</td>
+              <td>
+                <code>android</code>
+              </td>
+              <td>
+                Android subscription parameters
+                (RequestSubscriptionAndroidProps)
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1325,28 +1681,49 @@ await FlutterInappPurchase.instance.requestPurchase(
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>sku</code></td>
+                      <td>
+                        <code>sku</code>
+                      </td>
                       <td>Product identifier to purchase (required)</td>
                     </tr>
                     <tr>
-                      <td><code>andDangerouslyFinishTransactionAutomatically</code></td>
-                      <td>Auto-finish transaction without validation (use with caution)</td>
+                      <td>
+                        <code>
+                          andDangerouslyFinishTransactionAutomatically
+                        </code>
+                      </td>
+                      <td>
+                        Auto-finish transaction without validation (use with
+                        caution)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>appAccountToken</code></td>
+                      <td>
+                        <code>appAccountToken</code>
+                      </td>
                       <td>UUID linking purchase to your server's user</td>
                     </tr>
                     <tr>
-                      <td><code>quantity</code></td>
+                      <td>
+                        <code>quantity</code>
+                      </td>
                       <td>Number of items to purchase</td>
                     </tr>
                     <tr>
-                      <td><code>withOffer</code></td>
-                      <td>Promotional/discount offer to apply (see DiscountOffer)</td>
+                      <td>
+                        <code>withOffer</code>
+                      </td>
+                      <td>
+                        Promotional/discount offer to apply (see DiscountOffer)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>externalPurchaseUrlOnIOS</code></td>
-                      <td>External payment URL (requires alternative billing)</td>
+                      <td>
+                        <code>externalPurchaseUrlOnIOS</code>
+                      </td>
+                      <td>
+                        External payment URL (requires alternative billing)
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1364,19 +1741,27 @@ await FlutterInappPurchase.instance.requestPurchase(
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>skus</code></td>
+                      <td>
+                        <code>skus</code>
+                      </td>
                       <td>Array of product identifiers (required)</td>
                     </tr>
                     <tr>
-                      <td><code>obfuscatedAccountIdAndroid</code></td>
+                      <td>
+                        <code>obfuscatedAccountIdAndroid</code>
+                      </td>
                       <td>Obfuscated user account ID</td>
                     </tr>
                     <tr>
-                      <td><code>obfuscatedProfileIdAndroid</code></td>
+                      <td>
+                        <code>obfuscatedProfileIdAndroid</code>
+                      </td>
                       <td>Obfuscated user profile ID</td>
                     </tr>
                     <tr>
-                      <td><code>isOfferPersonalized</code></td>
+                      <td>
+                        <code>isOfferPersonalized</code>
+                      </td>
                       <td>True if offer is personalized (EU compliance)</td>
                     </tr>
                   </tbody>
@@ -1416,16 +1801,27 @@ await FlutterInappPurchase.instance.requestPurchase(
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>purchaseTokenAndroid</code></td>
+                      <td>
+                        <code>purchaseTokenAndroid</code>
+                      </td>
                       <td>Existing subscription token for upgrade/downgrade</td>
                     </tr>
                     <tr>
-                      <td><code>replacementModeAndroid</code></td>
-                      <td>How to handle subscription change (proration mode)</td>
+                      <td>
+                        <code>replacementModeAndroid</code>
+                      </td>
+                      <td>
+                        How to handle subscription change (proration mode)
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>subscriptionOffers</code></td>
-                      <td>Array of offers to apply. Each contains: <code>sku</code>, <code>offerToken</code></td>
+                      <td>
+                        <code>subscriptionOffers</code>
+                      </td>
+                      <td>
+                        Array of offers to apply. Each contains:{' '}
+                        <code>sku</code>, <code>offerToken</code>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1460,16 +1856,28 @@ await FlutterInappPurchase.instance.requestPurchase(
           </thead>
           <tbody>
             <tr>
-              <td><code>NONE</code></td>
+              <td>
+                <code>NONE</code>
+              </td>
               <td>Standard Google Play billing (default)</td>
             </tr>
             <tr>
-              <td><code>USER_CHOICE</code></td>
-              <td>User can select between Google Play or alternative billing (requires Billing Library 7.0+)</td>
+              <td>
+                <code>USER_CHOICE</code>
+              </td>
+              <td>
+                User can select between Google Play or alternative billing
+                (requires Billing Library 7.0+)
+              </td>
             </tr>
             <tr>
-              <td><code>ALTERNATIVE_ONLY</code></td>
-              <td>Alternative billing only, no Google Play option (requires Billing Library 6.2+)</td>
+              <td>
+                <code>ALTERNATIVE_ONLY</code>
+              </td>
+              <td>
+                Alternative billing only, no Google Play option (requires
+                Billing Library 6.2+)
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1489,8 +1897,13 @@ await FlutterInappPurchase.instance.requestPurchase(
           </thead>
           <tbody>
             <tr>
-              <td><code>alternativeBillingModeAndroid</code></td>
-              <td>(Android only) Which billing mode to use. Defaults to <code>NONE</code>.</td>
+              <td>
+                <code>alternativeBillingModeAndroid</code>
+              </td>
+              <td>
+                (Android only) Which billing mode to use. Defaults to{' '}
+                <code>NONE</code>.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1589,17 +2002,26 @@ await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
           </thead>
           <tbody>
             <tr>
-              <td><code>canPresentExternalPurchaseNoticeIOS</code></td>
+              <td>
+                <code>canPresentExternalPurchaseNoticeIOS</code>
+              </td>
               <td>Check if external purchase notice sheet can be presented</td>
               <td>iOS 17.4+</td>
             </tr>
             <tr>
-              <td><code>presentExternalPurchaseNoticeSheetIOS</code></td>
-              <td>Present Apple&apos;s compliance notice sheet (required before external purchase)</td>
+              <td>
+                <code>presentExternalPurchaseNoticeSheetIOS</code>
+              </td>
+              <td>
+                Present Apple&apos;s compliance notice sheet (required before
+                external purchase)
+              </td>
               <td>iOS 15.4+</td>
             </tr>
             <tr>
-              <td><code>presentExternalPurchaseLinkIOS</code></td>
+              <td>
+                <code>presentExternalPurchaseLinkIOS</code>
+              </td>
               <td>Open external purchase URL in Safari</td>
               <td>iOS 18.2+</td>
             </tr>
@@ -1690,13 +2112,19 @@ enum ExternalPurchaseNoticeAction {
         <AnchorLink id="external-purchase-flow" level="h3">
           External Purchase Flow
         </AnchorLink>
-        <p>
-          The external purchase flow requires 3 steps for Apple compliance:
-        </p>
+        <p>The external purchase flow requires 3 steps for Apple compliance:</p>
         <ol>
-          <li><strong>Check availability</strong> - Verify the device supports external purchase</li>
-          <li><strong>Present notice sheet</strong> - Show Apple&apos;s required disclosure</li>
-          <li><strong>Open external link</strong> - Redirect to your payment page</li>
+          <li>
+            <strong>Check availability</strong> - Verify the device supports
+            external purchase
+          </li>
+          <li>
+            <strong>Present notice sheet</strong> - Show Apple&apos;s required
+            disclosure
+          </li>
+          <li>
+            <strong>Open external link</strong> - Redirect to your payment page
+          </li>
         </ol>
 
         <AnchorLink id="external-purchase-example" level="h3">
@@ -1852,7 +2280,9 @@ Future<void> handleExternalPurchase(String externalUrl) async {
             </tr>
             <tr>
               <td>Entitlement</td>
-              <td>App must have StoreKit external purchase entitlement from Apple</td>
+              <td>
+                App must have StoreKit external purchase entitlement from Apple
+              </td>
             </tr>
             <tr>
               <td>Deep Linking</td>
@@ -1860,7 +2290,10 @@ Future<void> handleExternalPurchase(String externalUrl) async {
             </tr>
             <tr>
               <td>Verification</td>
-              <td>Handle purchase verification on your backend (no StoreKit receipt)</td>
+              <td>
+                Handle purchase verification on your backend (no StoreKit
+                receipt)
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1868,8 +2301,11 @@ Future<void> handleExternalPurchase(String externalUrl) async {
         <blockquote className="info-note">
           <p>
             <strong>Android alternative:</strong> For Android, use the{' '}
-            <Link to="/docs/apis#alternative-billing-android">alternative billing APIs</Link>{' '}
-            (<code>checkAlternativeBillingAvailability</code>, <code>showAlternativeBillingDialog</code>,{' '}
+            <Link to="/docs/apis#alternative-billing-android">
+              alternative billing APIs
+            </Link>{' '}
+            (<code>checkAlternativeBillingAvailability</code>,{' '}
+            <code>showAlternativeBillingDialog</code>,{' '}
             <code>createAlternativeBillingToken</code>) instead.
           </p>
         </blockquote>
@@ -1903,12 +2339,20 @@ Future<void> handleExternalPurchase(String externalUrl) async {
           </thead>
           <tbody>
             <tr>
-              <td><code>sku</code></td>
+              <td>
+                <code>sku</code>
+              </td>
               <td>Product identifier to validate</td>
             </tr>
             <tr>
-              <td><code>androidOptions</code></td>
-              <td>Android Play Developer API options. Contains: <code>packageName</code>, <code>productToken</code>, <code>accessToken</code>, <code>isSub</code></td>
+              <td>
+                <code>androidOptions</code>
+              </td>
+              <td>
+                Android Play Developer API options. Contains:{' '}
+                <code>packageName</code>, <code>productToken</code>,{' '}
+                <code>accessToken</code>, <code>isSub</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1934,19 +2378,27 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>isValid</code></td>
+                      <td>
+                        <code>isValid</code>
+                      </td>
                       <td>Whether validation succeeded</td>
                     </tr>
                     <tr>
-                      <td><code>receiptData</code></td>
+                      <td>
+                        <code>receiptData</code>
+                      </td>
                       <td>Raw App Store receipt data</td>
                     </tr>
                     <tr>
-                      <td><code>jwsRepresentation</code></td>
+                      <td>
+                        <code>jwsRepresentation</code>
+                      </td>
                       <td>JWS-encoded receipt</td>
                     </tr>
                     <tr>
-                      <td><code>latestTransaction</code></td>
+                      <td>
+                        <code>latestTransaction</code>
+                      </td>
                       <td>Most recent transaction for this product</td>
                     </tr>
                   </tbody>
@@ -1965,59 +2417,87 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>autoRenewing</code></td>
+                      <td>
+                        <code>autoRenewing</code>
+                      </td>
                       <td>Whether subscription will auto-renew</td>
                     </tr>
                     <tr>
-                      <td><code>betaProduct</code></td>
+                      <td>
+                        <code>betaProduct</code>
+                      </td>
                       <td>True if beta/test product</td>
                     </tr>
                     <tr>
-                      <td><code>cancelDate</code></td>
+                      <td>
+                        <code>cancelDate</code>
+                      </td>
                       <td>Cancellation timestamp (null if active)</td>
                     </tr>
                     <tr>
-                      <td><code>cancelReason</code></td>
+                      <td>
+                        <code>cancelReason</code>
+                      </td>
                       <td>Reason for cancellation</td>
                     </tr>
                     <tr>
-                      <td><code>freeTrialEndDate</code></td>
+                      <td>
+                        <code>freeTrialEndDate</code>
+                      </td>
                       <td>Free trial end timestamp</td>
                     </tr>
                     <tr>
-                      <td><code>gracePeriodEndDate</code></td>
+                      <td>
+                        <code>gracePeriodEndDate</code>
+                      </td>
                       <td>Grace period end timestamp</td>
                     </tr>
                     <tr>
-                      <td><code>productId</code></td>
+                      <td>
+                        <code>productId</code>
+                      </td>
                       <td>Product identifier</td>
                     </tr>
                     <tr>
-                      <td><code>productType</code></td>
+                      <td>
+                        <code>productType</code>
+                      </td>
                       <td>Product type</td>
                     </tr>
                     <tr>
-                      <td><code>purchaseDate</code></td>
+                      <td>
+                        <code>purchaseDate</code>
+                      </td>
                       <td>Purchase timestamp</td>
                     </tr>
                     <tr>
-                      <td><code>quantity</code></td>
+                      <td>
+                        <code>quantity</code>
+                      </td>
                       <td>Purchase quantity</td>
                     </tr>
                     <tr>
-                      <td><code>receiptId</code></td>
+                      <td>
+                        <code>receiptId</code>
+                      </td>
                       <td>Receipt identifier</td>
                     </tr>
                     <tr>
-                      <td><code>renewalDate</code></td>
+                      <td>
+                        <code>renewalDate</code>
+                      </td>
                       <td>Next renewal timestamp</td>
                     </tr>
                     <tr>
-                      <td><code>term</code></td>
+                      <td>
+                        <code>term</code>
+                      </td>
                       <td>Subscription term (e.g., "P1M")</td>
                     </tr>
                     <tr>
-                      <td><code>testTransaction</code></td>
+                      <td>
+                        <code>testTransaction</code>
+                      </td>
                       <td>True if test/sandbox transaction</td>
                     </tr>
                   </tbody>
@@ -2057,23 +2537,33 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>identifier</code></td>
+                      <td>
+                        <code>identifier</code>
+                      </td>
                       <td>Discount identifier from App Store Connect</td>
                     </tr>
                     <tr>
-                      <td><code>keyIdentifier</code></td>
+                      <td>
+                        <code>keyIdentifier</code>
+                      </td>
                       <td>Key ID for signature validation</td>
                     </tr>
                     <tr>
-                      <td><code>nonce</code></td>
+                      <td>
+                        <code>nonce</code>
+                      </td>
                       <td>Cryptographic nonce (UUID)</td>
                     </tr>
                     <tr>
-                      <td><code>signature</code></td>
+                      <td>
+                        <code>signature</code>
+                      </td>
                       <td>Server-generated signature</td>
                     </tr>
                     <tr>
-                      <td><code>timestamp</code></td>
+                      <td>
+                        <code>timestamp</code>
+                      </td>
                       <td>Timestamp when signature was generated</td>
                     </tr>
                   </tbody>
@@ -2090,31 +2580,45 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>identifier</code></td>
+                      <td>
+                        <code>identifier</code>
+                      </td>
                       <td>Discount identifier</td>
                     </tr>
                     <tr>
-                      <td><code>type</code></td>
+                      <td>
+                        <code>type</code>
+                      </td>
                       <td>Discount type (introductory, promotional)</td>
                     </tr>
                     <tr>
-                      <td><code>numberOfPeriods</code></td>
+                      <td>
+                        <code>numberOfPeriods</code>
+                      </td>
                       <td>Number of billing periods</td>
                     </tr>
                     <tr>
-                      <td><code>price</code></td>
+                      <td>
+                        <code>price</code>
+                      </td>
                       <td>Formatted price string</td>
                     </tr>
                     <tr>
-                      <td><code>priceAmount</code></td>
+                      <td>
+                        <code>priceAmount</code>
+                      </td>
                       <td>Numeric price value</td>
                     </tr>
                     <tr>
-                      <td><code>paymentMode</code></td>
+                      <td>
+                        <code>paymentMode</code>
+                      </td>
                       <td>Payment mode (FreeTrial, PayAsYouGo, PayUpFront)</td>
                     </tr>
                     <tr>
-                      <td><code>subscriptionPeriod</code></td>
+                      <td>
+                        <code>subscriptionPeriod</code>
+                      </td>
                       <td>Period duration string</td>
                     </tr>
                   </tbody>
@@ -2131,7 +2635,10 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>Day</code>, <code>Week</code>, <code>Month</code>, <code>Year</code></td>
+                      <td>
+                        <code>Day</code>, <code>Week</code>, <code>Month</code>,{' '}
+                        <code>Year</code>
+                      </td>
                       <td>Available subscription period units</td>
                     </tr>
                   </tbody>
@@ -2148,15 +2655,21 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>FreeTrial</code></td>
+                      <td>
+                        <code>FreeTrial</code>
+                      </td>
                       <td>Free trial period</td>
                     </tr>
                     <tr>
-                      <td><code>PayAsYouGo</code></td>
+                      <td>
+                        <code>PayAsYouGo</code>
+                      </td>
                       <td>Pay each period at reduced price</td>
                     </tr>
                     <tr>
-                      <td><code>PayUpFront</code></td>
+                      <td>
+                        <code>PayUpFront</code>
+                      </td>
                       <td>Pay full amount upfront</td>
                     </tr>
                   </tbody>
@@ -2182,9 +2695,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                       <td>
                         <code>state</code>
                       </td>
-                      <td>
-                        Current renewal state (see values below)
-                      </td>
+                      <td>Current renewal state (see values below)</td>
                     </tr>
                     <tr>
                       <td>
@@ -2253,8 +2764,8 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                 <h5>iOS Expiration Reasons</h5>
                 <p>
                   When <code>willAutoRenew</code> is <code>false</code>, the{' '}
-                  <code>expirationReason</code> field in <code>renewalInfo</code>{' '}
-                  indicates why:
+                  <code>expirationReason</code> field in{' '}
+                  <code>renewalInfo</code> indicates why:
                 </p>
                 <table className="doc-table">
                   <thead>
@@ -2313,11 +2824,15 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>sku</code></td>
+                      <td>
+                        <code>sku</code>
+                      </td>
                       <td>Product identifier</td>
                     </tr>
                     <tr>
-                      <td><code>offerToken</code></td>
+                      <td>
+                        <code>offerToken</code>
+                      </td>
                       <td>Play Billing offer token (required for purchase)</td>
                     </tr>
                   </tbody>
@@ -2334,28 +2849,43 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>billingPeriod</code></td>
+                      <td>
+                        <code>billingPeriod</code>
+                      </td>
                       <td>ISO 8601 period (P1W, P1M, P1Y)</td>
                     </tr>
                     <tr>
-                      <td><code>formattedPrice</code></td>
+                      <td>
+                        <code>formattedPrice</code>
+                      </td>
                       <td>Formatted price string</td>
                     </tr>
                     <tr>
-                      <td><code>priceAmountMicros</code></td>
+                      <td>
+                        <code>priceAmountMicros</code>
+                      </td>
                       <td>Price in micro-units (divide by 1,000,000)</td>
                     </tr>
                     <tr>
-                      <td><code>priceCurrencyCode</code></td>
+                      <td>
+                        <code>priceCurrencyCode</code>
+                      </td>
                       <td>ISO 4217 currency code</td>
                     </tr>
                     <tr>
-                      <td><code>billingCycleCount</code></td>
+                      <td>
+                        <code>billingCycleCount</code>
+                      </td>
                       <td>Number of cycles for this phase</td>
                     </tr>
                     <tr>
-                      <td><code>recurrenceMode</code></td>
-                      <td>How this phase recurs (1 = infinite, 2 = finite, 3 = non-recurring)</td>
+                      <td>
+                        <code>recurrenceMode</code>
+                      </td>
+                      <td>
+                        How this phase recurs (1 = infinite, 2 = finite, 3 =
+                        non-recurring)
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -2371,7 +2901,9 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>pricingPhaseList</code></td>
+                      <td>
+                        <code>pricingPhaseList</code>
+                      </td>
                       <td>Array of PricingPhase objects</td>
                     </tr>
                   </tbody>
@@ -2404,55 +2936,83 @@ Future<void> handleExternalPurchase(String externalUrl) async {
           </thead>
           <tbody>
             <tr>
-              <td><code>bundleId</code></td>
+              <td>
+                <code>bundleId</code>
+              </td>
               <td>App bundle identifier</td>
             </tr>
             <tr>
-              <td><code>appVersion</code></td>
+              <td>
+                <code>appVersion</code>
+              </td>
               <td>Current app version</td>
             </tr>
             <tr>
-              <td><code>originalAppVersion</code></td>
+              <td>
+                <code>originalAppVersion</code>
+              </td>
               <td>Version when user originally purchased/downloaded</td>
             </tr>
             <tr>
-              <td><code>originalPurchaseDate</code></td>
+              <td>
+                <code>originalPurchaseDate</code>
+              </td>
               <td>Original purchase timestamp</td>
             </tr>
             <tr>
-              <td><code>deviceVerification</code></td>
+              <td>
+                <code>deviceVerification</code>
+              </td>
               <td>Device verification data</td>
             </tr>
             <tr>
-              <td><code>deviceVerificationNonce</code></td>
+              <td>
+                <code>deviceVerificationNonce</code>
+              </td>
               <td>Nonce for device verification</td>
             </tr>
             <tr>
-              <td><code>environment</code></td>
-              <td>Environment: &quot;Sandbox&quot; or &quot;Production&quot;</td>
+              <td>
+                <code>environment</code>
+              </td>
+              <td>
+                Environment: &quot;Sandbox&quot; or &quot;Production&quot;
+              </td>
             </tr>
             <tr>
-              <td><code>signedDate</code></td>
+              <td>
+                <code>signedDate</code>
+              </td>
               <td>Date when the transaction was signed</td>
             </tr>
             <tr>
-              <td><code>appId</code></td>
+              <td>
+                <code>appId</code>
+              </td>
               <td>App ID number</td>
             </tr>
             <tr>
-              <td><code>appVersionId</code></td>
+              <td>
+                <code>appVersionId</code>
+              </td>
               <td>App version ID number</td>
             </tr>
             <tr>
-              <td><code>preorderDate</code></td>
+              <td>
+                <code>preorderDate</code>
+              </td>
               <td>Preorder date (optional)</td>
             </tr>
             <tr>
-              <td><code>appTransactionId</code></td>
+              <td>
+                <code>appTransactionId</code>
+              </td>
               <td>App transaction ID (iOS 18.4+)</td>
             </tr>
             <tr>
-              <td><code>originalPlatform</code></td>
+              <td>
+                <code>originalPlatform</code>
+              </td>
               <td>Original platform (iOS 18.4+)</td>
             </tr>
           </tbody>
@@ -2606,7 +3166,7 @@ appTransaction?.let { transaction ->
 
     // Check if user originally purchased on a different platform (iOS 18.4+)
     transaction.originalPlatform?.let { platform ->
-        println("Originally purchased on: \$platform")
+        println("Originally purchased on: $platform")
     }
 }`}</CodeBlock>
             ),
