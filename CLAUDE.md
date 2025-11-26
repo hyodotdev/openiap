@@ -75,7 +75,7 @@ Functions available on both platforms have no suffix:
 - `requestPurchase` - Initiate purchase
 - `getAvailablePurchases` - Get user's purchases
 - `finishTransaction` - Complete transaction
-- `validateReceipt` - Validate purchase receipt
+- `verifyPurchase` - Verify purchase (server-side validation)
 - `initConnection` - Initialize store connection
 - `endConnection` - Close store connection
 - `getActiveSubscriptions` - Get active subscriptions
@@ -112,6 +112,8 @@ Functions available on both platforms have no suffix:
 - `buy-promoted-product-ios` → Use `requestPurchaseOnPromotedProductIOS`
 - `requestProducts` → Use `fetchProducts`
 - `get-storefront-ios` → Use `getStorefront`
+- `validateReceipt` → Use `verifyPurchase`
+- `validateReceiptIOS` → Use `verifyPurchase`
 
 ## Modal Pattern with Preact Signals
 
@@ -312,6 +314,7 @@ fun buildModule(context: Context)
 fun initConnection()
 fun fetchProducts()
 fun requestPurchase()
+fun verifyPurchase()
 ```
 
 **❌ Incorrect**:
@@ -351,6 +354,7 @@ func initConnection()
 func fetchProducts()
 func requestPurchase()
 func finishTransaction()
+func verifyPurchase()
 ```
 
 **❌ Incorrect**:
