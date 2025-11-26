@@ -376,7 +376,7 @@ const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'External purchase links for iOS - redirect users to external payment websites (iOS 16.0+)',
-    path: '/docs/external-purchase',
+    path: '/docs/features/external-purchase',
   },
   {
     id: 'types-page',

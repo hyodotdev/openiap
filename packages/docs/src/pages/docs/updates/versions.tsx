@@ -1,6 +1,6 @@
-import AnchorLink from '../../components/AnchorLink';
-import { useScrollToHash } from '../../hooks/useScrollToHash';
-import { GQL_RELEASE } from '../../lib/versioning';
+import AnchorLink from '../../../components/AnchorLink';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { GQL_RELEASE } from '../../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';

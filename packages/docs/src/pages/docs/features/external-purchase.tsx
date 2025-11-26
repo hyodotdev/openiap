@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import AnchorLink from '../../components/AnchorLink';
-import CodeBlock from '../../components/CodeBlock';
-import PlatformTabs from '../../components/PlatformTabs';
-import { useScrollToHash } from '../../hooks/useScrollToHash';
+import AnchorLink from '../../../components/AnchorLink';
+import CodeBlock from '../../../components/CodeBlock';
+import LanguageTabs from '../../../components/LanguageTabs';
+import PlatformTabs from '../../../components/PlatformTabs';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function ExternalPurchase() {
   useScrollToHash();
@@ -20,16 +21,8 @@ function ExternalPurchase() {
           methods and can reduce platform fees.
         </p>
 
-        <div
-          style={{
-            background: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <p style={{ margin: 0, fontSize: '0.875rem' }}>
+        <div className="alert-card alert-card--info">
+          <p>
             <strong>ℹ️ Important:</strong> External purchase bypasses native
             platform billing. You must implement your own payment processing,
             verification, and entitlement systems. Platform-specific callbacks
@@ -52,7 +45,7 @@ function ExternalPurchase() {
             <tr>
               <td>iOS</td>
               <td>External Purchase URL</td>
-              <td>iOS 16.0+</td>
+              <td>iOS 15.4+ (Notice Sheet), iOS 18.2+ (New APIs)</td>
               <td>StoreKit 2</td>
             </tr>
             <tr>
@@ -104,7 +97,52 @@ function ExternalPurchase() {
                   iOS 18.2+ provides dedicated APIs for external purchase flow
                   with notice sheet and link presentation:
                 </p>
-                <CodeBlock language="swift">{`import OpenIAP
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import {
+  canPresentExternalPurchaseNoticeIOS,
+  presentExternalPurchaseNoticeSheetIOS,
+  presentExternalPurchaseLinkIOS
+} from 'expo-iap';
+
+async function handleExternalPurchaseFlow() {
+  const externalUrl = 'https://your-payment-site.com/checkout';
+
+  try {
+    // Step 1: Check if notice sheet can be presented
+    const canPresent = await canPresentExternalPurchaseNoticeIOS();
+
+    if (!canPresent) {
+      console.log('External purchase notice sheet not available');
+      return;
+    }
+
+    // Step 2: Present notice sheet (Apple's info sheet)
+    const noticeResult = await presentExternalPurchaseNoticeSheetIOS();
+
+    if (noticeResult.result === 'continue') {
+      // Step 3: Present external purchase link
+      const linkResult = await presentExternalPurchaseLinkIOS(externalUrl);
+
+      if (linkResult.success) {
+        console.log('User acknowledged external purchase');
+        // User approved external purchase
+        // Call your backend API to initiate purchase
+        // await yourBackend.createPurchase(productId, userId);
+      } else {
+        console.log(\`External purchase link failed: \${linkResult.error ?? ''}\`);
+      }
+    } else {
+      console.log('User dismissed notice sheet');
+    }
+  } catch (error) {
+    console.error('External purchase error:', error);
+  }
+}`}</CodeBlock>
+                    ),
+                    swift: (
+                      <CodeBlock language="swift">{`import OpenIAP
 
 @available(iOS 18.2, *)
 func handleExternalPurchaseFlow() async {
@@ -144,17 +182,94 @@ func handleExternalPurchaseFlow() async {
         print("External purchase error: \\(error)")
     }
 }`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import dev.openiap.OpenIap
+import dev.openiap.ExternalPurchaseNoticeAction
 
-                <div
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                    marginTop: '1rem',
+// iOS 18.2+ External Purchase Flow (from Kotlin Multiplatform)
+suspend fun handleExternalPurchaseFlow() {
+    val externalUrl = "https://your-payment-site.com/checkout"
+
+    try {
+        // Step 1: Check if notice sheet can be presented
+        val canPresent = OpenIap.canPresentExternalPurchaseNoticeIOS()
+
+        if (!canPresent) {
+            println("External purchase notice sheet not available")
+            return
+        }
+
+        // Step 2: Present notice sheet (Apple's info sheet)
+        val noticeResult = OpenIap.presentExternalPurchaseNoticeSheetIOS()
+
+        if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
+            // Step 3: Present external purchase link
+            val linkResult = OpenIap.presentExternalPurchaseLinkIOS(externalUrl)
+
+            if (linkResult.success) {
+                println("User acknowledged external purchase")
+                // User approved external purchase
+                // Call your backend API to initiate purchase
+                // yourBackend.createPurchase(productId, userId)
+            } else {
+                println("External purchase link failed: \${linkResult.error ?: ""}")
+            }
+        } else {
+            println("User dismissed notice sheet")
+        }
+    } catch (e: Exception) {
+        println("External purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// iOS 18.2+ External Purchase Flow
+Future<void> handleExternalPurchaseFlow() async {
+  const externalUrl = 'https://your-payment-site.com/checkout';
+
+  try {
+    // Step 1: Check if notice sheet can be presented
+    final canPresent = await FlutterInappPurchase.instance
+        .canPresentExternalPurchaseNoticeIOS();
+
+    if (!canPresent) {
+      print('External purchase notice sheet not available');
+      return;
+    }
+
+    // Step 2: Present notice sheet (Apple's info sheet)
+    final noticeResult = await FlutterInappPurchase.instance
+        .presentExternalPurchaseNoticeSheetIOS();
+
+    if (noticeResult.result == ExternalPurchaseNoticeAction.continueAction) {
+      // Step 3: Present external purchase link
+      final linkResult = await FlutterInappPurchase.instance
+          .presentExternalPurchaseLinkIOS(externalUrl);
+
+      if (linkResult.success) {
+        print('User acknowledged external purchase');
+        // User approved external purchase
+        // Call your backend API to initiate purchase
+        // await yourBackend.createPurchase(productId, userId);
+      } else {
+        print('External purchase link failed: \${linkResult.error ?? ""}');
+      }
+    } else {
+      print('User dismissed notice sheet');
+    }
+  } catch (e) {
+    print('External purchase error: $e');
+  }
+}`}</CodeBlock>
+                    ),
                   }}
-                >
-                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                </LanguageTabs>
+
+                <div className="alert-card alert-card--info">
+                  <p>
                     <strong>ℹ️ Note:</strong> The iOS 18.2+ API provides a
                     cleaner flow with dedicated methods for presenting the
                     notice sheet and external purchase link. This is the
@@ -251,16 +366,8 @@ func handleExternalPurchaseFlow() async {
   <string>https://your-site.com/kr/checkout</string>
 </dict>`}</CodeBlock>
 
-                <div
-                  style={{
-                    background: 'rgba(255, 200, 0, 0.1)',
-                    border: '1px solid rgba(255, 200, 0, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                    marginTop: '1rem',
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                <div className="alert-card alert-card--warning">
+                  <p>
                     <strong>⚠️ URL Requirements:</strong> URLs must use HTTPS,
                     be valid absolute URLs, contain no query parameters, and be
                     1,000 or fewer ASCII characters. URLs in Info.plist must
@@ -294,16 +401,8 @@ func handleExternalPurchaseFlow() async {
   </array>
 </dict>`}</CodeBlock>
 
-                <div
-                  style={{
-                    background: 'rgba(255, 200, 0, 0.1)',
-                    border: '1px solid rgba(255, 200, 0, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                    marginTop: '1rem',
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                <div className="alert-card alert-card--warning">
+                  <p>
                     <strong>⚠️ Link Limits:</strong> Music streaming apps
                     qualifying for StoreKit External Purchase Link entitlement
                     can provide up to <strong>5 links per country</strong> (EU +
@@ -351,19 +450,11 @@ func handleExternalPurchaseFlow() async {
   <!-- Add other EU country codes -->
 </array>`}</CodeBlock>
 
-                <div
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                    marginTop: '1rem',
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                <div className="alert-card alert-card--info">
+                  <p>
                     <strong>ℹ️ Apple Documentation Links:</strong>
                   </p>
-                  <ul style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+                  <ul>
                     <li>
                       <a
                         href="https://developer.apple.com/documentation/bundleresources/information-property-list/skexternalpurchase"
@@ -469,7 +560,70 @@ func handleExternalPurchaseFlow() async {
                   Completely bypass Google Play Billing. Requires manual 3-step
                   flow:
                 </p>
-                <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import {
+  initConnection,
+  checkAlternativeBillingAvailabilityAndroid,
+  showAlternativeBillingDialogAndroid,
+  createAlternativeBillingTokenAndroid,
+} from 'expo-iap';
+
+// Initialize with Alternative Billing Only mode
+await initConnection({
+  alternativeBillingModeAndroid: 'alternativeOnly',
+});
+
+// Purchase flow
+async function handleAlternativeBillingPurchase(productId: string) {
+  try {
+    // Step 1: Check availability
+    const isAvailable = await checkAlternativeBillingAvailabilityAndroid();
+    if (!isAvailable) {
+      console.log('Alternative billing not available');
+      return;
+    }
+
+    // Step 2: Show Google's information dialog
+    const dialogAccepted = await showAlternativeBillingDialogAndroid();
+    if (!dialogAccepted) {
+      console.log('User canceled');
+      return;
+    }
+
+    // Step 3: Process payment with your backend API
+    const paymentResult = await yourBackend.createPayment({
+      productId,
+      userId,
+      amount: productPrice,
+    });
+
+    if (!paymentResult.success) {
+      console.log(\`Payment failed: \${paymentResult.error}\`);
+      return;
+    }
+
+    // Step 4: Create reporting token (after successful payment)
+    const token = await createAlternativeBillingTokenAndroid();
+    console.log(\`Token created: \${token?.slice(0, 20)}...\`);
+
+    // Step 5: Send token to your backend server
+    // Backend will report token to Google Play within 24 hours
+    await yourBackend.reportToken({
+      token,
+      orderId: paymentResult.orderId,
+      productId,
+    });
+
+    console.log('Purchase completed!');
+  } catch (error) {
+    console.error('Purchase error:', error);
+  }
+}`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.AlternativeBillingMode
 import dev.hyo.openiap.AlternativeBillingModeAndroid
 import dev.hyo.openiap.InitConnectionConfig
@@ -532,17 +686,70 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
         Log.e("IAP", "Purchase error: \${e.message}")
     }
 }`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-                <div
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                    marginTop: '1rem',
+// Initialize with Alternative Billing Only mode
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.alternativeOnly,
+);
+
+// Purchase flow
+Future<void> handleAlternativeBillingPurchase(String productId) async {
+  try {
+    // Step 1: Check availability
+    final isAvailable = await FlutterInappPurchase.instance
+        .checkAlternativeBillingAvailabilityAndroid();
+    if (!isAvailable) {
+      print('Alternative billing not available');
+      return;
+    }
+
+    // Step 2: Show Google's information dialog
+    final dialogAccepted = await FlutterInappPurchase.instance
+        .showAlternativeBillingDialogAndroid();
+    if (!dialogAccepted) {
+      print('User canceled');
+      return;
+    }
+
+    // Step 3: Process payment with your backend API
+    final paymentResult = await yourBackend.createPayment(
+      productId: productId,
+      userId: userId,
+      amount: productPrice,
+    );
+
+    if (!paymentResult.success) {
+      print('Payment failed: \${paymentResult.error}');
+      return;
+    }
+
+    // Step 4: Create reporting token (after successful payment)
+    final token = await FlutterInappPurchase.instance
+        .createAlternativeBillingTokenAndroid();
+    print('Token created: \${token?.substring(0, 20)}...');
+
+    // Step 5: Send token to your backend server
+    // Backend will report token to Google Play within 24 hours
+    await yourBackend.reportToken(
+      token: token,
+      orderId: paymentResult.orderId,
+      productId: productId,
+    );
+
+    print('Purchase completed!');
+  } catch (e) {
+    print('Purchase error: $e');
+  }
+}`}</CodeBlock>
+                    ),
                   }}
-                >
-                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                </LanguageTabs>
+
+                <div className="alert-card alert-card--info">
+                  <p>
                     <strong>ℹ️ Backend Integration:</strong> Process payment
                     directly through your backend API. Your backend handles
                     payment gateway integration (Stripe, PayPal, etc.) and
@@ -560,7 +767,80 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
                 <p>
                   Let users choose between Google Play and alternative billing:
                 </p>
-                <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import {
+  initConnection,
+  requestPurchase,
+  purchaseUpdatedListener,
+  userChoiceBillingListener,
+  type UserChoiceBillingDetails,
+  type Purchase,
+} from 'expo-iap';
+
+// Initialize with User Choice mode
+await initConnection({
+  alternativeBillingModeAndroid: 'userChoice',
+});
+
+// Set user choice billing listener (for alternative billing selection)
+const userChoiceSubscription = userChoiceBillingListener(
+  async (details: UserChoiceBillingDetails) => {
+    console.log('User selected alternative billing');
+    console.log('Token:', details.externalTransactionToken);
+    console.log('Products:', details.products);
+
+    try {
+      const paymentResult = await yourBackend.createPayment({
+        productId: details.products[0],
+        userId,
+        amount: productPrice,
+      });
+
+      if (paymentResult.success) {
+        // Report token to backend (backend will send to Google Play)
+        await yourBackend.reportToken({
+          token: details.externalTransactionToken,
+          orderId: paymentResult.orderId,
+          productId: details.products[0],
+        });
+        console.log('Alternative billing purchase completed');
+      }
+    } catch (error) {
+      console.error('Alternative billing payment error:', error);
+    }
+  }
+);
+
+// Set purchase success listener (for Google Play)
+const purchaseSubscription = purchaseUpdatedListener(
+  (purchase: Purchase) => {
+    console.log('Google Play purchase:', purchase.productId);
+    // Handle Google Play purchase
+  }
+);
+
+// Purchase flow - Google shows selection dialog automatically
+async function handleUserChoicePurchase(productId: string) {
+  try {
+    await requestPurchase({
+      android: { skus: [productId] },
+    });
+
+    // If user selects Google Play → purchaseUpdatedListener callback
+    // If user selects alternative → userChoiceBillingListener callback
+  } catch (error) {
+    console.error('Purchase error:', error);
+  }
+}
+
+// Clean up listeners when done
+// userChoiceSubscription.remove();
+// purchaseSubscription.remove();`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.AlternativeBillingMode
 import dev.hyo.openiap.AlternativeBillingModeAndroid
 import dev.hyo.openiap.InitConnectionConfig
@@ -639,6 +919,64 @@ suspend fun handleUserChoicePurchase(productId: String) {
         Log.e("IAP", "Purchase error: \${e.message}")
     }
 }`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Initialize with User Choice mode
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
+);
+
+// Set user choice billing listener (for alternative billing selection)
+FlutterInappPurchase.userChoiceBillingStream.listen((details) async {
+  print('User selected alternative billing');
+  print('Token: \${details.externalTransactionToken}');
+  print('Products: \${details.products}');
+
+  try {
+    final paymentResult = await yourBackend.createPayment(
+      productId: details.products.first,
+      userId: userId,
+      amount: productPrice,
+    );
+
+    if (paymentResult.success) {
+      // Report token to backend (backend will send to Google Play)
+      await yourBackend.reportToken(
+        token: details.externalTransactionToken,
+        orderId: paymentResult.orderId,
+        productId: details.products.first,
+      );
+      print('Alternative billing purchase completed');
+    }
+  } catch (e) {
+    print('Alternative billing payment error: $e');
+  }
+});
+
+// Set purchase success listener (for Google Play)
+FlutterInappPurchase.purchaseUpdatedStream.listen((purchase) {
+  print('Google Play purchase: \${purchase.productId}');
+  // Handle Google Play purchase
+});
+
+// Purchase flow - Google shows selection dialog automatically
+Future<void> handleUserChoicePurchase(String productId) async {
+  try {
+    await FlutterInappPurchase.instance.requestPurchase(
+      productId,
+    );
+
+    // If user selects Google Play → purchaseUpdatedStream callback
+    // If user selects alternative → userChoiceBillingStream callback
+  } catch (e) {
+    print('Purchase error: $e');
+  }
+}`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
 
                 <h4>Requirements</h4>
                 <ul>
@@ -661,7 +999,23 @@ suspend fun handleUserChoicePurchase(productId: String) {
                 </ul>
 
                 <h4>Configuration</h4>
-                <CodeBlock language="kotlin">{`// Method 1: Set mode during initialization
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import { initConnection } from 'expo-iap';
+
+// Alternative Billing Only mode
+await initConnection({
+  alternativeBillingModeAndroid: 'alternativeOnly',
+});
+
+// Or User Choice mode
+await initConnection({
+  alternativeBillingModeAndroid: 'userChoice',
+});`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`// Method 1: Set mode during initialization
 val iapStore = OpenIapStore(
     context = applicationContext,
     alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
@@ -674,6 +1028,22 @@ val config = InitConnectionConfig(
     // or AlternativeBillingModeAndroid.UserChoice
 )
 iapStore.initConnection(config)`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Alternative Billing Only mode
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.alternativeOnly,
+);
+
+// Or User Choice mode
+await FlutterInappPurchase.instance.initConnection(
+  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
+);`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
 
                 <h4>Common Issues (Android)</h4>
                 <table className="error-table">
@@ -794,16 +1164,8 @@ iapStore.initConnection(config)`}</CodeBlock>
                   </tbody>
                 </table>
 
-                <div
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                    marginTop: '1.5rem',
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                <div className="alert-card alert-card--info">
+                  <p>
                     <strong>ℹ️ Note:</strong> The iOS 18.2+ flow with dedicated
                     APIs provides better user experience with Apple's official
                     notice sheet. The entire flow happens within the app - no

@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 
 interface PlatformTabsProps {
   children: {
@@ -8,7 +8,29 @@ interface PlatformTabsProps {
 }
 
 function PlatformTabs({ children }: PlatformTabsProps) {
-  const [activeTab, setActiveTab] = useState<'ios' | 'android'>('ios');
+  const [activeTab, setActiveTab] = useState<'ios' | 'android'>(() => {
+    // Check URL hash to determine initial tab
+    const hash = window.location.hash.toLowerCase();
+    if (hash.includes('android')) {
+      return 'android';
+    }
+    return 'ios';
+  });
+
+  useEffect(() => {
+    // Handle hash changes for tab switching
+    const handleHashChange = () => {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.includes('android')) {
+        setActiveTab('android');
+      } else if (hash.includes('ios')) {
+        setActiveTab('ios');
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   return (
     <div className="platform-tabs">

@@ -1,7 +1,7 @@
-import { useScrollToHash } from '../../hooks/useScrollToHash';
-import CodeBlock from '../../components/CodeBlock';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import CodeBlock from '../../../components/CodeBlock';
 
-function Updates() {
+function Notes() {
   useScrollToHash();
 
   return (
@@ -53,7 +53,7 @@ function Updates() {
             </li>
           </ul>
           <p>
-            See: <a href="/docs/external-purchase">External Purchase Guide</a>,{' '}
+            See: <a href="/docs/features/external-purchase">External Purchase Guide</a>,{' '}
             <a href="/docs/events#user-choice-billing-event-android">
               User Choice Billing Event
             </a>
@@ -390,4 +390,4 @@ const testProduct = await fetchProducts(['your_real_product_id'])
   );
 }
 
-export default Updates;
+export default Notes;

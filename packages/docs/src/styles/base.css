@@ -8,7 +8,6 @@
 }
 
 html {
-  scroll-behavior: smooth;
   background-color: #fefefe;
   background-color: var(--bg-primary);
 }

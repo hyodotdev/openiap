@@ -1,4 +1,9 @@
+import AnchorLink from '../components/AnchorLink';
+import { useScrollToHash } from '../hooks/useScrollToHash';
+
 function Tutorials() {
+  useScrollToHash();
+
   return (
     <div className="page-container">
       <div className="content-wrapper">
@@ -16,7 +21,9 @@ function Tutorials() {
         </p>
 
         <section className="resources-section">
-          <h2>Setups</h2>
+          <AnchorLink id="setups" level="h2">
+            Setups
+          </AnchorLink>
           <div className="resource-list">
             <a href="/docs/ios-setup" className="resource-item">
               <h3>iOS Setup</h3>
@@ -30,7 +37,9 @@ function Tutorials() {
         </section>
 
         <section className="resources-section">
-          <h2>News</h2>
+          <AnchorLink id="news" level="h2">
+            News
+          </AnchorLink>
           <div
             style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
@@ -104,7 +113,9 @@ function Tutorials() {
         </section>
 
         <section className="resources-section">
-          <h2>Getting Started</h2>
+          <AnchorLink id="getting-started" level="h2">
+            Getting Started
+          </AnchorLink>
           <div className="resource-list">
             <a
               href="https://developer.apple.com/kr/storekit/"
@@ -128,7 +139,9 @@ function Tutorials() {
         </section>
 
         <section className="resources-section">
-          <h2>Verify Receipt</h2>
+          <AnchorLink id="verify-purchase" level="h2">
+            Verify Purchase
+          </AnchorLink>
           <div className="resource-list">
             <a
               href="https://developer.apple.com/documentation/appstoreserverapi/simplifying-your-implementation-by-using-the-app-store-server-library"

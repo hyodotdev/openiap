@@ -17,7 +17,7 @@ function AnchorLink({ id, level, children }: AnchorLinkProps) {
       setTimeout(() => {
         const element = document.getElementById(id);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          element.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
       }, 100);
     }
@@ -27,7 +27,7 @@ function AnchorLink({ id, level, children }: AnchorLinkProps) {
     e.preventDefault();
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: 'instant', block: 'start' });
       // Update URL without triggering navigation
       window.history.pushState(null, '', `#${id}`);
     }

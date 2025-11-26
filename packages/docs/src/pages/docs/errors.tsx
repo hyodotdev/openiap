@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../components/CodeBlock';
+import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
@@ -17,11 +18,38 @@ function Errors() {
           See <Link to="/docs/types#purchase-error">PurchaseError type</Link>{' '}
           for details.
         </p>
-        <CodeBlock language="graphql">{`type PurchaseError {
-  code: String!          # Error code constant
-  message: String!       # Human-readable message
-  productId: String      # Related product SKU (if applicable)
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`interface PurchaseError {
+  code: string;          // Error code constant
+  message: string;       // Human-readable message
+  productId?: string;    // Related product SKU (if applicable)
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`struct PurchaseError: Error {
+    let code: String      // Error code constant
+    let message: String   // Human-readable message
+    let productId: String? // Related product SKU (if applicable)
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`data class PurchaseError(
+    val code: String,           // Error code constant
+    val message: String,        // Human-readable message
+    val productId: String? = null // Related product SKU (if applicable)
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`class PurchaseError {
+  final String code;      // Error code constant
+  final String message;   // Human-readable message
+  final String? productId; // Related product SKU (if applicable)
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
       </section>
 
       <section>
@@ -470,7 +498,10 @@ function Errors() {
         <p>
           Complete list of error codes that can be returned by the IAP library.
         </p>
-        <CodeBlock language="typescript">{`enum ErrorCode {
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`enum ErrorCode {
   Unknown = 'E_UNKNOWN',
   UserCancelled = 'E_USER_CANCELLED',
   UserError = 'E_USER_ERROR',
@@ -506,6 +537,123 @@ function Errors() {
   FeatureNotSupported = 'E_FEATURE_NOT_SUPPORTED',
   EmptySkuList = 'E_EMPTY_SKU_LIST',
 }`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`enum OpenIapError: Error {
+    case unknown
+    case userCancelled
+    case userError
+    case itemUnavailable
+    case remoteError
+    case networkError
+    case serviceError
+    case receiptFailed
+    case receiptFinished
+    case receiptFinishedFailed
+    case notPrepared
+    case notEnded
+    case alreadyOwned
+    case developerError
+    case billingResponseJsonParseError
+    case deferredPayment
+    case interrupted
+    case iapNotAvailable
+    case purchaseError
+    case syncError
+    case transactionValidationFailed
+    case activityUnavailable
+    case alreadyPrepared
+    case pending
+    case connectionClosed
+    case initConnection
+    case serviceDisconnected
+    case queryProduct
+    case skuNotFound
+    case skuOfferMismatch
+    case itemNotOwned
+    case billingUnavailable
+    case featureNotSupported
+    case emptySkuList
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`enum class OpenIapError {
+    Unknown,
+    UserCancelled,
+    UserError,
+    ItemUnavailable,
+    RemoteError,
+    NetworkError,
+    ServiceError,
+    ReceiptFailed,
+    ReceiptFinished,
+    ReceiptFinishedFailed,
+    NotPrepared,
+    NotEnded,
+    AlreadyOwned,
+    DeveloperError,
+    BillingResponseJsonParseError,
+    DeferredPayment,
+    Interrupted,
+    IapNotAvailable,
+    PurchaseError,
+    SyncError,
+    TransactionValidationFailed,
+    ActivityUnavailable,
+    AlreadyPrepared,
+    Pending,
+    ConnectionClosed,
+    InitConnection,
+    ServiceDisconnected,
+    QueryProduct,
+    SkuNotFound,
+    SkuOfferMismatch,
+    ItemNotOwned,
+    BillingUnavailable,
+    FeatureNotSupported,
+    EmptySkuList,
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`enum IAPError {
+  unknown,
+  userCancelled,
+  userError,
+  itemUnavailable,
+  remoteError,
+  networkError,
+  serviceError,
+  receiptFailed,
+  receiptFinished,
+  receiptFinishedFailed,
+  notPrepared,
+  notEnded,
+  alreadyOwned,
+  developerError,
+  billingResponseJsonParseError,
+  deferredPayment,
+  interrupted,
+  iapNotAvailable,
+  purchaseError,
+  syncError,
+  transactionValidationFailed,
+  activityUnavailable,
+  alreadyPrepared,
+  pending,
+  connectionClosed,
+  initConnection,
+  serviceDisconnected,
+  queryProduct,
+  skuNotFound,
+  skuOfferMismatch,
+  itemNotOwned,
+  billingUnavailable,
+  featureNotSupported,
+  emptySkuList,
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
       </section>
 
       <section>
@@ -581,7 +729,7 @@ function Errors() {
             <strong>⚠️ Important:</strong> Static test product IDs like{' '}
             <code>android.test.purchased</code> are <strong>deprecated</strong>{' '}
             and no longer work. Use real product IDs with test accounts instead.{' '}
-            <Link to="/docs/updates">See Updates page for details →</Link>
+            <Link to="/docs/updates/notes">See Updates page for details →</Link>
           </p>
         </div>
 

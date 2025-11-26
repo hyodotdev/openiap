@@ -3,18 +3,22 @@ import { Route, Routes, Navigate, NavLink } from 'react-router-dom';
 import { MenuDropdown } from '../components/MenuDropdown';
 import Ecosystem from './docs/ecosystem';
 import LifeCycle from './docs/lifecycle';
+import Subscription from './docs/lifecycle/subscription';
 import Types from './docs/types';
 import APIs from './docs/apis';
 import Events from './docs/events';
 import Errors from './docs/errors';
-import ExternalPurchase from './docs/external-purchase';
-import SubscriptionUpgradeDowngrade from './docs/subscription-upgrade-downgrade';
+import Purchase from './docs/features/purchase';
+import SubscriptionFeature from './docs/features/subscription';
+import OfferCodeRedemption from './docs/features/offer-code-redemption';
+import ExternalPurchase from './docs/features/external-purchase';
+import SubscriptionUpgradeDowngrade from './docs/features/subscription-upgrade-downgrade';
 import IOSSetup from './docs/ios-setup';
 import AndroidSetup from './docs/android-setup';
 import HorizonSetup from './docs/horizon-setup';
-import Updates from './docs/updates';
-import Versions from './docs/versions';
-import Announcements from './docs/announcements';
+import Announcements from './docs/updates/announcements';
+import Notes from './docs/updates/notes';
+import Versions from './docs/updates/versions';
 import NotFound from './404';
 
 function Docs() {
@@ -73,15 +77,14 @@ function Docs() {
                 Ecosystem
               </NavLink>
             </li>
-            <li>
-              <NavLink
-                to="/docs/lifecycle"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Life Cycle
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="Life Cycle"
+              titleTo="/docs/lifecycle"
+              items={[
+                { to: '/docs/lifecycle/subscription', label: 'Subscription' },
+              ]}
+              onItemClick={closeSidebar}
+            />
             <li>
               <NavLink
                 to="/docs/types"
@@ -141,7 +144,34 @@ function Docs() {
           <ul>
             <li>
               <NavLink
-                to="/docs/external-purchase"
+                to="/docs/features/purchase"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Purchase
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/features/subscription"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Subscription
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/features/offer-code-redemption"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Offer Code Redemption
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/features/external-purchase"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
@@ -150,7 +180,7 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/subscription-upgrade-downgrade"
+                to="/docs/features/subscription-upgrade-downgrade"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
@@ -162,7 +192,7 @@ function Docs() {
           <ul>
             <li>
               <NavLink
-                to="/docs/announcements"
+                to="/docs/updates/announcements"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
@@ -171,7 +201,7 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/updates"
+                to="/docs/updates/notes"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
@@ -180,7 +210,7 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/versions"
+                to="/docs/updates/versions"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
@@ -195,21 +225,34 @@ function Docs() {
           <Route index element={<Navigate to="/docs/ecosystem" replace />} />
           <Route path="ecosystem" element={<Ecosystem />} />
           <Route path="lifecycle" element={<LifeCycle />} />
+          <Route path="lifecycle/subscription" element={<Subscription />} />
           <Route path="types" element={<Types />} />
           <Route path="apis" element={<APIs />} />
           <Route path="events" element={<Events />} />
           <Route path="errors" element={<Errors />} />
-          <Route path="external-purchase" element={<ExternalPurchase />} />
+          <Route path="features/purchase" element={<Purchase />} />
           <Route
-            path="subscription-upgrade-downgrade"
+            path="features/subscription"
+            element={<SubscriptionFeature />}
+          />
+          <Route
+            path="features/offer-code-redemption"
+            element={<OfferCodeRedemption />}
+          />
+          <Route
+            path="features/external-purchase"
+            element={<ExternalPurchase />}
+          />
+          <Route
+            path="features/subscription-upgrade-downgrade"
             element={<SubscriptionUpgradeDowngrade />}
           />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
-          <Route path="updates" element={<Updates />} />
-          <Route path="versions" element={<Versions />} />
-          <Route path="announcements" element={<Announcements />} />
+          <Route path="updates/announcements" element={<Announcements />} />
+          <Route path="updates/notes" element={<Notes />} />
+          <Route path="updates/versions" element={<Versions />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
