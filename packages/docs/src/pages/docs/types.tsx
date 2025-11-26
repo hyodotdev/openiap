@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
+import HighlightText from '../../components/HighlightText';
 import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
@@ -1868,12 +1869,19 @@ Future<void> handleExternalPurchase(String externalUrl) async {
       </section>
 
       <section>
-        <AnchorLink id="receipt-validation-types" level="h2">
-          ReceiptValidation Types
+        <AnchorLink id="purchase-verification-types" level="h2">
+          Purchase Verification Types
         </AnchorLink>
+        <HighlightText>
+          aka.{' '}
+          <strong style={{ color: 'var(--text-accent)' }}>
+            Receipt Validation
+          </strong>{' '}
+          - the legacy term used by Apple in StoreKit 1
+        </HighlightText>
         <p>
-          Types used with <code>verifyPurchase()</code> for server-side receipt
-          validation.
+          Types used with <code>verifyPurchase()</code> for server-side purchase
+          verification.
         </p>
 
         <AnchorLink id="receipt-validation-props" level="h3">

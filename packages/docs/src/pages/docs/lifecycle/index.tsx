@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import AnchorLink from '../../../components/AnchorLink';
+import HighlightText from '../../../components/HighlightText';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 function LifeCycle() {
   useScrollToHash();
@@ -62,15 +63,46 @@ function LifeCycle() {
           <code>purchaseErrorListener</code>.
         </p>
 
-        <AnchorLink id="receipt-validation" level="h3">
-          5. Receipt Validation
+        <AnchorLink id="purchase-verification" level="h3">
+          5. Purchase Verification
         </AnchorLink>
+        <HighlightText>
+          aka.{' '}
+          <strong style={{ color: 'var(--text-accent)' }}>
+            Receipt Validation
+          </strong>{' '}
+          - the legacy term used by Apple in StoreKit 1
+        </HighlightText>
         <p>
-          <strong>Critical:</strong> Always validate receipts server-side for
-          security. Never trust client-side validation alone in production. This
-          applies to ALL purchase types: consumables, non-consumables, and
+          <strong>Critical:</strong> Always verify purchases server-side for
+          security. Never trust client-side verification alone in production.
+          This applies to ALL purchase types: consumables, non-consumables, and
           subscriptions.
         </p>
+
+        <h4>When to Verify</h4>
+        <ul>
+          <li>
+            <strong>After purchase</strong> - Verify purchase is legitimate
+            before granting access
+          </li>
+          <li>
+            <strong>On restore</strong> - Check current status
+            (active/cancelled/refunded/expired)
+          </li>
+          <li>
+            <strong>Periodically</strong> - Detect refunds and cancellations for
+            subscriptions
+          </li>
+        </ul>
+
+        <div className="alert-card alert-card--info">
+          <p style={{ margin: 0 }}>
+            <strong>ℹ️ Tip:</strong> Use{' '}
+            <Link to="/docs/apis#verify-purchase">verifyPurchase</Link> for
+            server-side purchase verification.
+          </p>
+        </div>
 
         <AnchorLink id="content-delivery" level="h3">
           6. Content Delivery

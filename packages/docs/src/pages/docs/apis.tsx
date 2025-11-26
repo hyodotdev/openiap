@@ -692,7 +692,7 @@ if (subscription?.renewalInfoIOS?.willAutoRenew == false) {
         </AnchorLink>
         <p>
           Complete a purchase transaction. Must be called after successful
-          receipt validation for ALL purchase types to properly finish the
+          purchase verification for ALL purchase types to properly finish the
           transaction and remove it from the queue.
         </p>
         <LanguageTabs>
@@ -1126,7 +1126,7 @@ Future<ReceiptValidationResult> verifyPurchase(
         </LanguageTabs>
         <p className="type-link">
           See:{' '}
-          <Link to="/docs/types#receipt-validation-types">
+          <Link to="/docs/types#purchase-verification-types">
             ReceiptValidationProps
           </Link>
           ,{' '}
@@ -1156,7 +1156,7 @@ Future<ReceiptValidationResult> verifyPurchase(
           Purchase Identifier Usage
         </AnchorLink>
         <p>
-          After validating receipts, use the appropriate identifiers for content
+          After verifying purchases, use the appropriate identifiers for content
           delivery and purchase tracking:
         </p>
 

@@ -1,3 +1,5 @@
+import HighlightText from '../../components/HighlightText';
+
 function IOSSetup() {
   return (
     <div className="doc-page">
@@ -377,16 +379,23 @@ function IOSSetup() {
           </a>
         </h2>
 
-        <h3 id="receipt-validation" className="anchor-heading">
-          Receipt Validation
-          <a href="#receipt-validation" className="anchor-link">
+        <h3 id="purchase-verification" className="anchor-heading">
+          Purchase Verification
+          <a href="#purchase-verification" className="anchor-link">
             #
           </a>
         </h3>
+        <HighlightText>
+          aka.{' '}
+          <strong style={{ color: 'var(--text-accent)' }}>
+            Receipt Validation
+          </strong>{' '}
+          - the legacy term used by Apple in StoreKit 1
+        </HighlightText>
         <p>
-          iOS requires receipt validation to verify purchases. StoreKit 2 (iOS
-          15+) provides JWS (JSON Web Signature) for enhanced security, while
-          older versions use base64-encoded receipts.
+          iOS requires purchase verification to validate purchases. StoreKit 2
+          (iOS 15+) provides JWS (JSON Web Signature) for enhanced security,
+          while older versions use base64-encoded receipts.
         </p>
 
         <h3 id="transaction-finishing" className="anchor-heading">
@@ -523,14 +532,14 @@ function IOSSetup() {
           <li>Try on a real device (simulator may have issues)</li>
         </ul>
 
-        <h3 id="validation-failures" className="anchor-heading">
-          Receipt Validation Failures
-          <a href="#validation-failures" className="anchor-link">
+        <h3 id="verification-failures" className="anchor-heading">
+          Purchase Verification Failures
+          <a href="#verification-failures" className="anchor-link">
             #
           </a>
         </h3>
         <p>
-          <strong>Problem:</strong> Receipt validation returns invalid
+          <strong>Problem:</strong> Purchase verification returns invalid
         </p>
         <p>
           <strong>Solution:</strong>

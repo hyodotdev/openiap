@@ -10,6 +10,103 @@ function Notes() {
       <p>Important changes and deprecations in IAP libraries and platforms.</p>
 
       <section>
+        <h2>📝 API & Terminology Changes</h2>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap v1.2.6 - validateReceipt → verifyPurchase
+          </h4>
+          <p>
+            Starting from <strong>openiap v1.2.6</strong>, the{' '}
+            <code style={{ textDecoration: 'line-through' }}>validateReceipt</code>{' '}
+            API is deprecated in favor of <code>verifyPurchase</code>.
+          </p>
+          <p>
+            <strong>Why the change?</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>Terminology alignment</strong> - "Receipt Validation" was
+              Apple's legacy term from StoreKit 1. With StoreKit 2 (iOS 15+),
+              Apple moved away from this terminology. "Purchase Verification" is
+              a more accurate, platform-neutral term.
+            </li>
+            <li>
+              <strong>Cross-platform consistency</strong> - Android never used
+              "receipt" terminology. Using "purchase verification" better
+              represents what the API does on both platforms.
+            </li>
+            <li>
+              <strong>Modern API design</strong> - The new{' '}
+              <code>verifyPurchase</code> API provides a unified interface that
+              works consistently across iOS and Android.
+            </li>
+          </ul>
+          <p>
+            <strong>Migration:</strong>
+          </p>
+          <ul>
+            <li>
+              Replace <code>validateReceipt()</code> with{' '}
+              <code>verifyPurchase()</code>
+            </li>
+            <li>
+              Replace <code>validateReceiptIOS()</code> with{' '}
+              <code>verifyPurchase()</code>
+            </li>
+          </ul>
+          <p>
+            See:{' '}
+            <a href="/docs/lifecycle#purchase-verification">
+              Purchase Verification
+            </a>
+            , <a href="/docs/apis#verify-purchase">verifyPurchase API</a>
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap v1.2.0 - Version Alignment & Alternative Billing
+          </h4>
+          <p>
+            Version jumped directly from <strong>1.0.12</strong> to{' '}
+            <strong>1.2.0</strong> to align with native libraries (iOS/Android)
+            that were evolving rapidly.
+          </p>
+          <ul>
+            <li>
+              <strong>iOS External Purchase</strong> - StoreKit External
+              Purchase API support
+            </li>
+            <li>
+              <strong>Android Alternative Billing</strong> - Google Play
+              Alternative Billing support
+            </li>
+          </ul>
+          <p style={{ margin: 0 }}>
+            See:{' '}
+            <a href="/docs/features/external-purchase">External Purchase Guide</a>
+          </p>
+        </div>
+      </section>
+
+      <section>
         <h2>✨ New Features</h2>
 
         <div
