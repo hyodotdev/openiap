@@ -109,9 +109,7 @@ suspend fun verifyPurchaseWithIapkit(
         try {
             val body = gson.toJson(payload)
 
-            // Log request details for debugging (always log for troubleshooting)
-            android.util.Log.d("OpenIAP", "IAPKit request URL: $endpoint")
-            android.util.Log.d("OpenIAP", "IAPKit request body: $body")
+            // Log request details for debugging
             OpenIapLog.debug("IAPKit request URL: $endpoint", tag)
             OpenIapLog.debug("IAPKit request body: $body", tag)
 
@@ -125,11 +123,9 @@ suspend fun verifyPurchaseWithIapkit(
                 ?.use { it.readText() }
                 .orElse("")
 
-            android.util.Log.d("OpenIAP", "IAPKit response (HTTP $statusCode): $responseBody")
             OpenIapLog.debug("IAPKit response (HTTP $statusCode): $responseBody", tag)
 
             if (statusCode !in 200..299) {
-                android.util.Log.e("OpenIAP", "IAPKit verification failed (HTTP $statusCode): $responseBody")
                 OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode) [$store]: $responseBody", tag)
                 // Extract concise error message from IAPKit response
                 // IAPKit returns nested error format - extract the deepest originalError
