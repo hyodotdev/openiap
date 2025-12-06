@@ -605,22 +605,20 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         )
     }
 
+    // NOTE: This Apple module intentionally sends only Apple payloads to IAPKit.
+    // The buildIapkitPayload function has a .google branch for type completeness,
+    // but it is never invoked from this module.
     private func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> [RequestVerifyPurchaseWithIapkitResult] {
-        guard let url = URL(string: "https://api.iapkit.com/v1/purchase/verify") else {
-            throw makePurchaseError(code: .developerError, message: "IAPKit endpoint is required")
-        }
+        // URL is a constant and cannot fail, so force unwrap is safe
+        let url = URL(string: "https://api.iapkit.com/v1/purchase/verify")!
 
-        let targets: [(store: IapkitStore, body: Data)] = try {
-            // On Apple, only Apple verification is supported
-            guard props.apple != nil else {
-                throw makePurchaseError(code: .developerError, message: "Apple verification parameters are required")
-            }
-            return [(.apple, try buildIapkitPayload(props: props, store: .apple))]
-        }()
-
-        guard targets.isEmpty == false else {
-            throw makePurchaseError(code: .developerError, message: "IAPKit verification requires apple and/or google payloads")
+        // On Apple, only Apple verification is supported
+        guard props.apple != nil else {
+            throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires an apple payload")
         }
+        let targets: [(store: IapkitStore, body: Data)] = [
+            (.apple, try buildIapkitPayload(props: props, store: .apple))
+        ]
 
         return try await withThrowingTaskGroup(of: RequestVerifyPurchaseWithIapkitResult.self) { group in
             for target in targets {

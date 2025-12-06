@@ -171,12 +171,16 @@ await FlutterInappPurchase.instance.initConnection();
 
 // With user choice billing
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
+  config: InitConnectionConfig(
+    alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
+  ),
 );
 
 // With alternative billing only
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.alternativeOnly,
+  config: InitConnectionConfig(
+    alternativeBillingModeAndroid: AlternativeBillingModeAndroid.alternativeOnly,
+  ),
 );`}</CodeBlock>
             ),
           }}

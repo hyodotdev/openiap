@@ -46,7 +46,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
     }
 
     @MainActor
-    func testStoreReturnsNilWhenProviderResultIsNil() async throws {
+    func testStoreReturnsEmptyArrayWhenProviderResultIsEmpty() async throws {
         let module = FakeVerifyPurchaseModule(
             validateResult: VerifyPurchaseResult.verifyPurchaseResultIos(
                 VerifyPurchaseResultIOS(
@@ -116,7 +116,7 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
     func getReceiptDataIOS() async throws -> String? { "receipt" }
     func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
         guard case let .verifyPurchaseResultIos(ios) = validateResult else {
-            throw PurchaseError(code: .featureNotSupported, message: "Android validation not supported", productId: props.sku)
+            throw PurchaseError(code: .featureNotSupported, message: "Expected iOS validation result", productId: props.sku)
         }
         return ios
     }

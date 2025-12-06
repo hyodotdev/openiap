@@ -668,8 +668,10 @@ fun PurchaseFlowScreen(
             }
 
             if (!isValid) {
-                println("PurchaseFlow: Verification failed, but continuing with finishTransaction for testing")
-                // Continue to finishTransaction for testing purposes
+                println("PurchaseFlow: Verification failed – not finishing transaction")
+                // Mark as processed so the same purchase isn't re-processed
+                processedPurchaseKey = purchaseKey
+                return@LaunchedEffect
             }
 
             // 2) Determine consumable vs non-consumable

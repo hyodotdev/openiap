@@ -576,9 +576,10 @@ fun SubscriptionFlowScreen(
             }
             
             // Active Subscriptions Section
-            // Treat any purchase with matching subscription SKU as subscribed
+            // Only show purchased subscriptions (filter out pending, failed, etc.)
             val activeSubscriptions = androidPurchases.filter {
-                it.productId in subscriptionSkus
+                it.productId in subscriptionSkus &&
+                    it.purchaseState == PurchaseState.Purchased
             }
             if (activeSubscriptions.isNotEmpty()) {
                 item {
@@ -1375,8 +1376,10 @@ fun SubscriptionFlowScreen(
             }
 
             if (!isValid) {
-                println("SubscriptionFlow: Verification failed, but continuing with finishTransaction for testing")
-                // Continue to finishTransaction for testing purposes
+                println("SubscriptionFlow: Verification failed – not finishing transaction")
+                // Mark as processed so the same purchase isn't re-processed
+                processedPurchaseKey = purchaseKey
+                return@LaunchedEffect
             }
 
             // 2) Determine consumable vs non-consumable (subs -> false)

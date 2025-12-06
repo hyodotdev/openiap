@@ -78,23 +78,18 @@ public protocol OpenIapModuleProtocol {
 
 // Backward compatibility for legacy receipt validation APIs
 public extension OpenIapModuleProtocol {
-    @available(*, deprecated, message: "Use verifyPurchaseWithProvider instead")
+    /// Default implementation that throws. Override in your module to provide actual verification.
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         throw PurchaseError(code: .featureNotSupported, message: "verifyPurchaseWithProvider not supported")
     }
 
     @available(*, deprecated, message: "Use verifyPurchase instead")
-    func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> VerifyPurchaseResultIOS {
-        try await validateReceiptIOS(VerifyPurchaseProps(androidOptions: props.androidOptions, sku: props.sku))
+    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
+        try await validateReceiptIOS(props)
     }
 
     @available(*, deprecated, message: "Use verifyPurchase instead")
-    func validateReceipt(_ props: ReceiptValidationProps) async throws -> VerifyPurchaseResult {
-        try await verifyPurchase(VerifyPurchaseProps(androidOptions: props.androidOptions, sku: props.sku))
-    }
-
-    @available(*, deprecated, message: "Use verifyPurchase instead")
-    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> VerifyPurchaseResult {
-        try await verifyPurchase(VerifyPurchaseProps(androidOptions: props.androidOptions, sku: props.sku))
+    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
+        try await verifyPurchase(props)
     }
 }
