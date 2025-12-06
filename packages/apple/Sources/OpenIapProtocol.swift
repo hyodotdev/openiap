@@ -85,7 +85,15 @@ public extension OpenIapModuleProtocol {
 
     @available(*, deprecated, message: "Use verifyPurchase instead")
     func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
-        try await validateReceiptIOS(props)
+        let result = try await verifyPurchase(props)
+        if case let .verifyPurchaseResultIos(ios) = result {
+            return ios
+        }
+        throw PurchaseError(
+            code: .featureNotSupported,
+            message: "Expected iOS validation result",
+            productId: props.sku
+        )
     }
 
     @available(*, deprecated, message: "Use verifyPurchase instead")

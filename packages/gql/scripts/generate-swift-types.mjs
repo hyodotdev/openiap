@@ -331,10 +331,11 @@ const printEnum = (enumType) => {
         // This case is a legacy alias target - already handled by the main case
         lines.push(`        case "${rawValue}", "${camelCaseName}":`);
         lines.push(`            self = .${caseName}`);
-      } else if (legacyAliases[rawValue]) {
+      } else if (legacyAliases[rawValue] || legacyAliases[camelCaseName]) {
         // This is a legacy alias - map to the new case
+        const targetCase = legacyAliases[rawValue] || legacyAliases[camelCaseName];
         lines.push(`        case "${rawValue}", "${camelCaseName}":`);
-        lines.push(`            self = .${legacyAliases[rawValue]} // Legacy alias`);
+        lines.push(`            self = .${targetCase} // Legacy alias`);
       } else {
         lines.push(`        case "${rawValue}", "${camelCaseName}":`);
         lines.push(`            self = .${caseName}`);

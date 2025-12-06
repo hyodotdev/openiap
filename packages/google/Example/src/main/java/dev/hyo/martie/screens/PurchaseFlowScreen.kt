@@ -563,7 +563,7 @@ fun PurchaseFlowScreen(
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("PurchaseFlow: IAPKit verification params:")
-        println("  - purchaseToken: $token")
+        println("  - purchaseToken: ${token.take(6)}… (redacted)")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
