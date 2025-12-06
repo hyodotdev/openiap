@@ -1,0 +1,11 @@
+## This file must *NOT* be checked into Version Control Systems,
+# as it contains information specific to your local configuration.
+#
+# Location of the SDK. This is only used by Gradle.
+sdk.dir=/path/to/your/Android/sdk
+
+# Horizon OS App ID (Meta Quest)
+horizon.app.id=YOUR_HORIZON_APP_ID
+
+# IAPKit API Key for purchase verification
+iapkit.api.key=YOUR_IAPKIT_API_KEY_HERE

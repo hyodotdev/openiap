@@ -1,7 +1,9 @@
 {
   "cSpell.words": [
     "hyodotdev",
-    "openiap"
+    "Iapkit",
+    "openiap",
+    "Skus"
   ],
   "files.associations": {
     "*.podspec": "ruby"

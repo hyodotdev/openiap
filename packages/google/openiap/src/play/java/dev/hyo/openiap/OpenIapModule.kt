@@ -33,7 +33,9 @@ import dev.hyo.openiap.MutationRequestPurchaseHandler
 import dev.hyo.openiap.MutationRestorePurchasesHandler
 import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
+import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.MutationHandlers
+import dev.hyo.openiap.PurchaseVerificationProvider
 import dev.hyo.openiap.QueryHandlers
 import dev.hyo.openiap.SubscriptionHandlers
 import dev.hyo.openiap.QueryFetchProductsHandler
@@ -43,7 +45,7 @@ import dev.hyo.openiap.QueryHasActiveSubscriptionsHandler
 import dev.hyo.openiap.RequestPurchaseResultPurchases
 import dev.hyo.openiap.SubscriptionPurchaseErrorHandler
 import dev.hyo.openiap.SubscriptionPurchaseUpdatedHandler
-import dev.hyo.openiap.ReceiptValidationProps
+import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.helpers.AndroidPurchaseArgs
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
@@ -60,7 +62,8 @@ import dev.hyo.openiap.utils.BillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.toProduct
-import dev.hyo.openiap.utils.validateReceiptWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -802,7 +805,18 @@ class OpenIapModule(
     }
 
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
-        validateReceiptWithGooglePlay(props, TAG)
+        verifyPurchaseWithGooglePlay(props, TAG)
+    }
+
+    override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->
+        if (props.provider != PurchaseVerificationProvider.Iapkit) {
+            throw OpenIapError.FeatureNotSupported
+        }
+        val options = props.iapkit ?: throw OpenIapError.DeveloperError
+        VerifyPurchaseWithProviderResult(
+            iapkit = verifyPurchaseWithIapkit(options, TAG),
+            provider = props.provider
+        )
     }
 
     private val purchaseError: SubscriptionPurchaseErrorHandler = {
@@ -832,7 +846,8 @@ class OpenIapModule(
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         validateReceipt = validateReceipt,
-        verifyPurchase = verifyPurchase
+        verifyPurchase = verifyPurchase,
+        verifyPurchaseWithProvider = verifyPurchaseWithProvider
     )
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(

@@ -551,11 +551,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     @available(*, deprecated, message: "Use verifyPurchase")
-    public func validateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS {
-        try await performValidateReceiptIOS(props)
+    public func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
+        try await performVerifyPurchaseIOS(props)
     }
 
-    private func performValidateReceiptIOS(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS {
+    private func performVerifyPurchaseIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
         let receiptData = (try? await getReceiptDataIOS()) ?? ""
         var latestPurchase: Purchase? = nil
         var jws: String = ""
@@ -573,7 +573,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             isValid = false
         }
 
-        return ReceiptValidationResultIOS(
+        return VerifyPurchaseResultIOS(
             isValid: isValid,
             jwsRepresentation: jws,
             latestTransaction: latestPurchase,
@@ -582,13 +582,188 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     @available(*, deprecated, message: "Use verifyPurchase")
-    public func validateReceipt(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
+    public func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         try await verifyPurchase(props)
     }
 
-    public func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult {
-        let iosResult = try await performValidateReceiptIOS(props)
-        return .receiptValidationResultIos(iosResult)
+    public func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
+        let iosResult = try await performVerifyPurchaseIOS(props)
+        return .verifyPurchaseResultIos(iosResult)
+    }
+
+    public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
+        guard props.provider == .iapkit else {
+            throw makePurchaseError(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")
+        }
+        guard let iapkit = props.iapkit else {
+            throw makePurchaseError(code: .developerError, message: "Missing IAPKit verification parameters")
+        }
+        let results = try await verifyPurchaseWithIapkit(props: iapkit)
+        return VerifyPurchaseWithProviderResult(
+            iapkit: results,
+            provider: props.provider
+        )
+    }
+
+    // NOTE: This Apple module intentionally sends only Apple payloads to IAPKit.
+    // The buildIapkitPayload function has a .google branch for type completeness,
+    // but it is never invoked from this module.
+    private func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> [RequestVerifyPurchaseWithIapkitResult] {
+        // URL is a constant and cannot fail, so force unwrap is safe
+        let url = URL(string: "https://api.iapkit.com/v1/purchase/verify")!
+
+        // On Apple, only Apple verification is supported
+        guard props.apple != nil else {
+            throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires an apple payload")
+        }
+        let targets: [(store: IapkitStore, body: Data)] = [
+            (.apple, try buildIapkitPayload(props: props, store: .apple))
+        ]
+
+        return try await withThrowingTaskGroup(of: RequestVerifyPurchaseWithIapkitResult.self) { group in
+            for target in targets {
+                group.addTask { [self] in
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "POST"
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    if let apiKey = props.apiKey, apiKey.isEmpty == false {
+                        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+                    }
+                    request.httpBody = target.body
+
+                    // Log request details for debugging
+                    OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
+                    if let requestBody = String(data: target.body, encoding: .utf8) {
+                        // Truncate JWS for readability (keep first/last 50 chars)
+                        let truncatedBody = requestBody.count > 200
+                            ? String(requestBody.prefix(100)) + "..." + String(requestBody.suffix(50))
+                            : requestBody
+                        OpenIapLog.debug("IAPKit request body: \(truncatedBody)")
+                    }
+
+                    let (data, response) = try await URLSession.shared.data(for: request)
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        throw self.makePurchaseError(code: .networkError, message: "Invalid response")
+                    }
+                    guard (200...299).contains(httpResponse.statusCode) else {
+                        let body = String(data: data, encoding: .utf8) ?? ""
+                        OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP \(httpResponse.statusCode)): \(body)")
+                        // Extract concise error message from IAPKit response
+                        var errorMessage = "HTTP \(httpResponse.statusCode)"
+                        if let jsonData = body.data(using: .utf8),
+                           let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                            errorMessage = self.extractIapkitErrorMessage(from: json) ?? errorMessage
+                        }
+                        throw self.makePurchaseError(code: .receiptFailed, message: errorMessage)
+                    }
+
+                    // Log raw response for debugging
+                    let jsonString = String(data: data, encoding: .utf8) ?? ""
+                    OpenIapLog.info("IAPKit raw response: \(jsonString)")
+
+                    // Parse manually to handle extra fields from IAPKit
+                    // API response format: { "store": "apple", "isValid": true, "state": "PURCHASED" }
+                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                        OpenIapLog.warn("Failed to parse IAPKit verification response. Raw: \(jsonString)")
+                        throw self.makePurchaseError(code: .receiptFailed, message: "Unable to parse verification response")
+                    }
+
+                    // Check for error response format: { "errors": [{ "code": "...", "message": "..." }] }
+                    if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
+                        let errorMessage = firstError["message"] as? String ?? "Unknown error"
+                        let errorCode = firstError["code"] as? String ?? "unknown"
+                        OpenIapLog.warn("IAPKit verification error: \(errorCode) - \(errorMessage)")
+                        throw self.makePurchaseError(code: .receiptFailed, message: errorMessage)
+                    }
+
+                    let isValid = (json["isValid"] as? Bool) ?? false
+                    let stateString = json["state"] as? String ?? "UNKNOWN"
+                    // IAPKit API returns UPPER_SNAKE_CASE (e.g., "PURCHASED", "PENDING_ACKNOWLEDGMENT")
+                    // Swift enum expects lower-kebab-case (e.g., "purchased", "pending-acknowledgment")
+                    let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
+                    let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
+                    let storeString = json["store"] as? String
+                    let parsedStore = storeString.flatMap { IapkitStore(rawValue: $0) } ?? target.store
+                    OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
+                    return RequestVerifyPurchaseWithIapkitResult(isValid: isValid, state: parsedState, store: parsedStore)
+                }
+            }
+
+            var results: [RequestVerifyPurchaseWithIapkitResult] = []
+            for try await item in group {
+                results.append(item)
+            }
+            return results
+        }
+    }
+
+    private struct IapkitApplePayload: Codable {
+        let store: IapkitStore
+        let jws: String
+    }
+
+    private struct IapkitGooglePayload: Codable {
+        let store: IapkitStore
+        let purchaseToken: String
+    }
+
+    private func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps, store: IapkitStore) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.withoutEscapingSlashes]
+        switch store {
+        case .apple:
+            guard let apple = props.apple else {
+                throw makePurchaseError(code: .developerError, message: "Apple verification parameters are required")
+            }
+            guard apple.jws.isEmpty == false else {
+                throw makePurchaseError(code: .developerError, message: "JWS is required")
+            }
+            let payload = IapkitApplePayload(
+                store: store,
+                jws: apple.jws
+            )
+            return try encoder.encode(payload)
+        case .google:
+            guard let google = props.google else {
+                throw makePurchaseError(code: .developerError, message: "Google verification parameters are required")
+            }
+            guard google.purchaseToken.isEmpty == false else {
+                throw makePurchaseError(code: .developerError, message: "purchaseToken is required")
+            }
+            let payload = IapkitGooglePayload(
+                store: store,
+                purchaseToken: google.purchaseToken
+            )
+            return try encoder.encode(payload)
+        }
+    }
+
+    /// Extract concise error message from IAPKit error response.
+    /// IAPKit returns nested error structures - we extract the deepest originalError for clarity.
+    private func extractIapkitErrorMessage(from json: [String: Any]) -> String? {
+        // Try to get details.originalError first (deepest level)
+        if let details = json["details"] as? [String: Any],
+           let originalError = details["originalError"] as? String {
+            // originalError might be a JSON string, try to parse it
+            if let data = originalError.data(using: .utf8),
+               let nested = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                return extractIapkitErrorMessage(from: nested) ?? originalError
+            }
+            return originalError
+        }
+
+        // Try errors array format: { "errors": [{ "message": "..." }] }
+        if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
+            return extractIapkitErrorMessage(from: firstError)
+        }
+
+        // Try message field, but avoid the verbose nested JSON string
+        if let message = json["message"] as? String, !message.contains("{\"error\"") {
+            return message
+        }
+
+        // Fallback to error code
+        return json["error"] as? String
     }
 
     // MARK: - Store Information
@@ -1166,9 +1341,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         case .remoteError: return "Remote service error"
         case .networkError: return "Network connection error"
         case .serviceError: return "Store service error"
-        case .receiptFailed: return "Receipt validation failed"
-        case .receiptFinished: return "Receipt already finished"
-        case .receiptFinishedFailed: return "Receipt finish failed"
+        // Deprecated - use purchaseVerification* variants instead
+        case .receiptFailed: return "Purchase verification failed"
+        case .receiptFinished: return "Transaction already finished"
+        case .receiptFinishedFailed: return "Transaction finish failed"
+        case .purchaseVerificationFailed: return "Purchase verification failed"
+        case .purchaseVerificationFinished: return "Transaction already finished"
+        case .purchaseVerificationFinishFailed: return "Transaction finish failed"
         case .notPrepared: return "Billing is not prepared"
         case .notEnded: return "Billing connection not ended"
         case .alreadyOwned: return "Item already owned"

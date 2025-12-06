@@ -370,3 +370,93 @@
 .platform-link:hover {
   background: var(--primary-dark);
 }
+
+/* Screenshot Card */
+.screenshot-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+}
+
+.screenshot-card img {
+  width: 180px;
+  height: auto;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.screenshot-card-content {
+  flex: 1;
+}
+
+.screenshot-card-content h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.screenshot-card-content p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.screenshot-card-content .platform-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+}
+
+.screenshot-card-content .platform-badge.ios {
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+}
+
+.screenshot-card-content .platform-badge.android {
+  background: rgba(61, 220, 132, 0.1);
+  color: #3ddc84;
+}
+
+:root.dark .screenshot-card {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+:root.dark .screenshot-card img {
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .screenshot-card-content .platform-badge.ios {
+  background: rgba(10, 132, 255, 0.2);
+  color: #0a84ff;
+}
+
+:root.dark .screenshot-card-content .platform-badge.android {
+  background: rgba(61, 220, 132, 0.2);
+  color: #3ddc84;
+}
+
+@media (max-width: 600px) {
+  .screenshot-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .screenshot-card img {
+    width: 150px;
+  }
+}

@@ -64,12 +64,39 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Billing error"
     }
 
+    /**
+     * @deprecated Use [InvalidPurchaseVerification] instead
+     */
+    @Deprecated("Use InvalidPurchaseVerification instead", ReplaceWith("InvalidPurchaseVerification"))
     object InvalidReceipt : OpenIapError() {
-        val CODE = ErrorCode.ReceiptFailed.rawValue
+        val CODE = ErrorCode.PurchaseVerificationFailed.rawValue
         override val code = CODE
         override val message = MESSAGE
 
-        const val MESSAGE = "Invalid receipt"
+        const val MESSAGE = "Purchase verification failed"
+    }
+
+    /**
+     * Purchase verification failed (general error without specific provider message)
+     */
+    object InvalidPurchaseVerification : OpenIapError() {
+        val CODE = ErrorCode.PurchaseVerificationFailed.rawValue
+        override val code = CODE
+        override val message = MESSAGE
+
+        const val MESSAGE = "Purchase verification failed"
+    }
+
+    /**
+     * Purchase verification failed with a specific error from the verification provider (e.g., IAPKit)
+     */
+    class PurchaseVerificationFailed(val providerError: String) : OpenIapError() {
+        override val code = ErrorCode.PurchaseVerificationFailed.rawValue
+        override val message = "Purchase verification failed: $providerError"
+
+        companion object {
+            val CODE = ErrorCode.PurchaseVerificationFailed.rawValue
+        }
     }
 
     object NetworkError : OpenIapError() {
@@ -274,7 +301,7 @@ sealed class OpenIapError : Exception() {
                 ServiceTimeout.CODE to ServiceTimeout.MESSAGE,
                 PaymentNotAllowed.CODE to PaymentNotAllowed.MESSAGE,
                 BillingError.CODE to BillingError.MESSAGE,
-                InvalidReceipt.CODE to InvalidReceipt.MESSAGE,
+                InvalidPurchaseVerification.CODE to InvalidPurchaseVerification.MESSAGE,
                 VerificationFailed.CODE to VerificationFailed.MESSAGE,
                 RestoreFailed.CODE to RestoreFailed.MESSAGE,
                 MissingCurrentActivity.CODE to MissingCurrentActivity.MESSAGE

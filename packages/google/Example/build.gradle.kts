@@ -35,6 +35,12 @@ android {
         buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
         // Ensure placeholder exists for all variants (play included)
         manifestPlaceholders["OCULUS_APP_ID"] = appId
+
+        // IAPKit API Key for purchase verification
+        val iapkitApiKey = localProperties.getProperty("iapkit.api.key")
+            ?: (project.findProperty("IAPKIT_API_KEY") as String?)
+            ?: ""
+        buildConfigField("String", "IAPKIT_API_KEY", "\"${iapkitApiKey}\"")
     }
 
     flavorDimensions += "platform"

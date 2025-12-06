@@ -51,9 +51,10 @@ class OpenIapErrorTest {
 
     @Test
     fun `InvalidReceipt has correct code and message`() {
+        @Suppress("DEPRECATION")
         val error = OpenIapError.InvalidReceipt
-        assertEquals(ErrorCode.ReceiptFailed.rawValue, error.code)
-        assertEquals("Invalid receipt", error.message)
+        assertEquals(ErrorCode.PurchaseVerificationFailed.rawValue, error.code)
+        assertEquals("Purchase verification failed", error.message)
     }
 
     @Test
@@ -319,7 +320,7 @@ class OpenIapErrorTest {
             OpenIapError.PurchaseDeferred to ErrorCode.DeferredPayment.rawValue,
             OpenIapError.PaymentNotAllowed to ErrorCode.UserError.rawValue,
             OpenIapError.BillingError to ErrorCode.ServiceError.rawValue,
-            OpenIapError.InvalidReceipt to ErrorCode.ReceiptFailed.rawValue,
+            @Suppress("DEPRECATION") OpenIapError.InvalidReceipt to ErrorCode.PurchaseVerificationFailed.rawValue,
             OpenIapError.NetworkError to ErrorCode.NetworkError.rawValue,
             OpenIapError.VerificationFailed to ErrorCode.TransactionValidationFailed.rawValue,
             OpenIapError.RestoreFailed to ErrorCode.SyncError.rawValue,

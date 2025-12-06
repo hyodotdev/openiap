@@ -40,7 +40,7 @@ public protocol OpenIapModuleProtocol {
     func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
     func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void
-    func verifyPurchase(_ props: ReceiptValidationProps) async throws -> ReceiptValidationResult
+    func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     // ... more methods
 }
 ```

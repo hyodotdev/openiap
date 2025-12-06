@@ -42,7 +42,7 @@ swift test
 #### OpenIap Prefix (Public Models)
 
 - Prefix all public model types with `OpenIap`.
-  - Examples: `ProductIOS`, `PurchaseIOS`, `ProductIOSRequest`, `RequestPurchaseProps`, `PurchaseIOSOptions`, `ReceiptValidationProps`, `ReceiptValidationResultIOS`, `ActiveSubscription`, `PurchaseIOSState`, `PurchaseIOSOffer`, `ProductIOSType`, `ProductIOSTypeIOS`.
+- Examples: `ProductIOS`, `PurchaseIOS`, `ProductRequest`, `RequestPurchaseProps`, `PurchaseOptions`, `VerifyPurchaseProps`, `VerifyPurchaseResultIOS`, `ActiveSubscription`, `PurchaseState`, `PurchaseOfferIOS`, `ProductTypeIOS`.
 - Private/internal helper types do not need the prefix.
 - When renaming existing types, add a public `typealias` from the old name to the new name to preserve source compatibility, then migrate usages incrementally.
 

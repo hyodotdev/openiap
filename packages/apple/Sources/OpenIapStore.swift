@@ -369,13 +369,13 @@ public final class OpenIapStore: ObservableObject {
     // MARK: - Validation & Metadata
 
     @available(*, deprecated, message: "Use verifyPurchase")
-    public func validateReceipt(sku: String) async throws -> ReceiptValidationResultIOS {
+    public func validateReceipt(sku: String) async throws -> VerifyPurchaseResultIOS {
         try await verifyPurchase(sku: sku)
     }
 
-    public func verifyPurchase(sku: String) async throws -> ReceiptValidationResultIOS {
-        let result = try await module.verifyPurchase(ReceiptValidationProps(sku: sku))
-        if case let .receiptValidationResultIos(iosResult) = result {
+    public func verifyPurchase(sku: String) async throws -> VerifyPurchaseResultIOS {
+        let result = try await module.verifyPurchase(VerifyPurchaseProps(sku: sku))
+        if case let .verifyPurchaseResultIos(iosResult) = result {
             return iosResult
         }
         throw PurchaseError(
@@ -383,6 +383,11 @@ public final class OpenIapStore: ObservableObject {
             message: "Android receipt validation is not available on Apple platforms",
             productId: sku
         )
+    }
+
+    public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> [RequestVerifyPurchaseWithIapkitResult] {
+        let result = try await module.verifyPurchaseWithProvider(props)
+        return result.iapkit
     }
 
     public func getPromotedProductIOS() async throws -> ProductIOS? {
