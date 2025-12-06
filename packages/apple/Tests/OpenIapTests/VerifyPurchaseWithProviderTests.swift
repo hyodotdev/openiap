@@ -6,7 +6,11 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
 
     @MainActor
     func testStoreReturnsIapkitResult() async throws {
-        let iapkitResult = RequestVerifyPurchaseWithIapkitResult(store: .apple, valid: true)
+        let iapkitResult = RequestVerifyPurchaseWithIapkitResult(
+            isValid: true,
+            state: .entitled,
+            store: .apple
+        )
         let module = FakeVerifyPurchaseModule(
             validateResult: VerifyPurchaseResult.verifyPurchaseResultIos(
                 VerifyPurchaseResultIOS(
@@ -26,11 +30,9 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             iapkit: RequestVerifyPurchaseWithIapkitProps(
                 apiKey: "secret",
                 apple: RequestVerifyPurchaseWithIapkitAppleProps(
-                    environment: .production,
                     jws: "jws-token"
                 ),
-                google: nil,
-                store: .apple
+                google: nil
             ),
             provider: .iapkit
         )
@@ -39,7 +41,8 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
 
         XCTAssertEqual(1, results.count)
         XCTAssertEqual(IapkitStore.apple, results.first?.store)
-        XCTAssertEqual(true, results.first?.valid)
+        XCTAssertEqual(true, results.first?.isValid)
+        XCTAssertEqual(.entitled, results.first?.state)
     }
 
     @MainActor
@@ -63,11 +66,9 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             iapkit: RequestVerifyPurchaseWithIapkitProps(
                 apiKey: nil,
                 apple: RequestVerifyPurchaseWithIapkitAppleProps(
-                    environment: .sandbox,
                     jws: "jws-token"
                 ),
-                google: nil,
-                store: .apple
+                google: nil
             ),
             provider: .iapkit
         )
