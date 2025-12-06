@@ -79,7 +79,7 @@ public enum ErrorCode: String, Codable, CaseIterable {
         case "service-error", "ServiceError":
             self = .serviceError
         case "receipt-failed", "ReceiptFailed":
-            self = .receiptFailed
+            self = .purchaseVerificationFailed // Legacy alias
         case "receipt-finished", "ReceiptFinished":
             self = .receiptFinished
         case "receipt-finished-failed", "ReceiptFinishedFailed":

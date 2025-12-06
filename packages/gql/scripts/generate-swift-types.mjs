@@ -309,6 +309,12 @@ const printEnum = (enumType) => {
 
   // Add custom initializer for ErrorCode to handle both kebab-case and camelCase
   if (enumType.name === 'ErrorCode') {
+    // Define legacy aliases: old error codes that map to new ones
+    const legacyAliases = {
+      'receipt-failed': 'purchaseVerificationFailed',
+      'ReceiptFailed': 'purchaseVerificationFailed',
+    };
+
     lines.push('');
     lines.push('    /// Custom initializer to handle both kebab-case and camelCase error codes');
     lines.push('    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase');
@@ -319,8 +325,20 @@ const printEnum = (enumType) => {
       const caseName = escapeSwiftName(lowerCamelCase(value.name));
       const rawValue = toKebabCase(value.name);
       const camelCaseName = value.name.charAt(0).toUpperCase() + value.name.slice(1);
-      lines.push(`        case "${rawValue}", "${camelCaseName}":`);
-      lines.push(`            self = .${caseName}`);
+      // Check if this case has legacy aliases that should map to it
+      const aliasTarget = legacyAliases[rawValue] || legacyAliases[camelCaseName];
+      if (aliasTarget && aliasTarget === caseName) {
+        // This case is a legacy alias target - already handled by the main case
+        lines.push(`        case "${rawValue}", "${camelCaseName}":`);
+        lines.push(`            self = .${caseName}`);
+      } else if (legacyAliases[rawValue]) {
+        // This is a legacy alias - map to the new case
+        lines.push(`        case "${rawValue}", "${camelCaseName}":`);
+        lines.push(`            self = .${legacyAliases[rawValue]} // Legacy alias`);
+      } else {
+        lines.push(`        case "${rawValue}", "${camelCaseName}":`);
+        lines.push(`            self = .${caseName}`);
+      }
     });
     lines.push('        default:');
     lines.push('            return nil');
