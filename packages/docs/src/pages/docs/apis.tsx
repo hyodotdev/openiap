@@ -1172,6 +1172,176 @@ Future<ReceiptValidationResult> verifyPurchase(
           can validate against the Google Play developer API.
         </p>
 
+        <AnchorLink id="verify-purchase-with-provider" level="h3">
+          verifyPurchaseWithProvider
+        </AnchorLink>
+        <p>
+          Verify a purchase using a specific provider like{' '}
+          <a href="https://iapkit.com" target="_blank" rel="noopener noreferrer">
+            IAPKit
+          </a>
+          . This method sends purchase data directly to the provider's API for
+          server-side validation.
+        </p>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Function signature
+verifyPurchaseWithProvider(
+  props: VerifyPurchaseWithProviderProps
+): Promise<VerifyPurchaseWithProviderResult>
+
+// Props
+interface VerifyPurchaseWithProviderProps {
+  provider: PurchaseVerificationProvider; // Currently: 'iapkit'
+  iapkit?: RequestVerifyPurchaseWithIapkitProps;
+}
+
+interface RequestVerifyPurchaseWithIapkitProps {
+  apiKey?: string;  // API key for Authorization header
+  apple?: { jws: string };  // iOS: JWS token from purchase
+  google?: { purchaseToken: string };  // Android: purchase token
+}
+
+// Result
+interface VerifyPurchaseWithProviderResult {
+  provider: PurchaseVerificationProvider;
+  iapkit: RequestVerifyPurchaseWithIapkitResult[];
+}
+
+interface RequestVerifyPurchaseWithIapkitResult {
+  isValid: boolean;  // Whether the purchase is valid
+  state: IapkitPurchaseState;  // Purchase state
+  store: IapkitStore;  // 'apple' | 'google'
+}
+
+// IapkitPurchaseState values:
+// 'entitled' | 'pending-acknowledgment' | 'pending' | 'canceled' |
+// 'expired' | 'ready-to-consume' | 'consumed' | 'unknown' | 'inauthentic'`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Function signature
+func verifyPurchaseWithProvider(
+    _ props: VerifyPurchaseWithProviderProps
+) async throws -> VerifyPurchaseWithProviderResult
+
+// Usage
+let props = VerifyPurchaseWithProviderProps(
+    iapkit: RequestVerifyPurchaseWithIapkitProps(
+        apiKey: "your-iapkit-api-key",
+        apple: RequestVerifyPurchaseWithIapkitAppleProps(
+            jws: purchase.jwsRepresentationIOS ?? ""
+        ),
+        google: nil
+    ),
+    provider: .iapkit
+)
+
+let result = try await store.verifyPurchaseWithProvider(props)
+
+for item in result.iapkit {
+    if item.isValid && item.state == .entitled {
+        // Grant entitlement
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Function signature
+suspend fun verifyPurchaseWithProvider(
+    props: VerifyPurchaseWithProviderProps
+): VerifyPurchaseWithProviderResult
+
+// Usage
+val props = VerifyPurchaseWithProviderProps(
+    iapkit = RequestVerifyPurchaseWithIapkitProps(
+        apiKey = "your-iapkit-api-key",
+        apple = null,
+        google = RequestVerifyPurchaseWithIapkitGoogleProps(
+            purchaseToken = purchase.purchaseToken
+        )
+    ),
+    provider = PurchaseVerificationProvider.Iapkit
+)
+
+val result = module.verifyPurchaseWithProvider(props)
+
+result.iapkit.forEach { item ->
+    if (item.isValid && item.state == IapkitPurchaseState.Entitled) {
+        // Grant entitlement
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Function signature
+Future<VerifyPurchaseWithProviderResult> verifyPurchaseWithProvider(
+  VerifyPurchaseWithProviderProps props,
+);
+
+// Usage
+final props = VerifyPurchaseWithProviderProps(
+  provider: PurchaseVerificationProvider.iapkit,
+  iapkit: RequestVerifyPurchaseWithIapkitProps(
+    apiKey: 'your-iapkit-api-key',
+    apple: RequestVerifyPurchaseWithIapkitAppleProps(
+      jws: purchase.jwsRepresentationIOS ?? '',
+    ),
+  ),
+);
+
+final result = await iap.verifyPurchaseWithProvider(props);
+
+for (final item in result.iapkit) {
+  if (item.isValid && item.state == IapkitPurchaseState.entitled) {
+    // Grant entitlement
+  }
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+        <p className="type-link">
+          See:{' '}
+          <Link to="/docs/types#verify-purchase-with-provider-props">
+            VerifyPurchaseWithProviderProps
+          </Link>
+          ,{' '}
+          <Link to="/docs/types#verify-purchase-with-provider-result">
+            VerifyPurchaseWithProviderResult
+          </Link>
+        </p>
+        <p>
+          <strong>IAPKit Purchase States:</strong>
+        </p>
+        <ul>
+          <li>
+            <code>entitled</code> - User is entitled to the product
+          </li>
+          <li>
+            <code>pending-acknowledgment</code> - Purchase needs acknowledgment
+            (Android)
+          </li>
+          <li>
+            <code>pending</code> - Purchase is pending
+          </li>
+          <li>
+            <code>canceled</code> - Purchase was canceled
+          </li>
+          <li>
+            <code>expired</code> - Subscription has expired
+          </li>
+          <li>
+            <code>ready-to-consume</code> - Consumable ready for consumption
+          </li>
+          <li>
+            <code>consumed</code> - Consumable has been consumed
+          </li>
+          <li>
+            <code>unknown</code> - Unknown state
+          </li>
+          <li>
+            <code>inauthentic</code> - Purchase failed authenticity check
+          </li>
+        </ul>
+
         <AnchorLink id="purchase-identifier-usage" level="h3">
           Purchase Identifier Usage
         </AnchorLink>
