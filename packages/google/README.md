@@ -48,7 +48,7 @@ Add to your module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google:1.2.12")
+    implementation("io.github.hyochan.openiap:openiap-google:$version")
 }
 ```
 
@@ -56,9 +56,11 @@ Or `build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'io.github.hyochan.openiap:openiap-google:1.2.12'
+    implementation 'io.github.hyochan.openiap:openiap-google:$version'
 }
 ```
+
+> 📌 **Latest Version**: Check [`openiap-versions.json`](../../openiap-versions.json) for the current version, or see the [Maven Central badge](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) above.
 
 ## 🚀 Quick Start
 

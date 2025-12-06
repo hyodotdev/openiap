@@ -53,6 +53,9 @@ enum ErrorCode {
   ReceiptFailed('receipt-failed'),
   ReceiptFinished('receipt-finished'),
   ReceiptFinishedFailed('receipt-finished-failed'),
+  PurchaseVerificationFailed('purchase-verification-failed'),
+  PurchaseVerificationFinished('purchase-verification-finished'),
+  PurchaseVerificationFinishFailed('purchase-verification-finish-failed'),
   NotPrepared('not-prepared'),
   NotEnded('not-ended'),
   AlreadyOwned('already-owned'),
@@ -123,6 +126,18 @@ enum ErrorCode {
       case 'RECEIPT_FINISHED_FAILED':
       case 'ReceiptFinishedFailed':
         return ErrorCode.ReceiptFinishedFailed;
+      case 'purchase-verification-failed':
+      case 'PURCHASE_VERIFICATION_FAILED':
+      case 'PurchaseVerificationFailed':
+        return ErrorCode.PurchaseVerificationFailed;
+      case 'purchase-verification-finished':
+      case 'PURCHASE_VERIFICATION_FINISHED':
+      case 'PurchaseVerificationFinished':
+        return ErrorCode.PurchaseVerificationFinished;
+      case 'purchase-verification-finish-failed':
+      case 'PURCHASE_VERIFICATION_FINISH_FAILED':
+      case 'PurchaseVerificationFinishFailed':
+        return ErrorCode.PurchaseVerificationFinishFailed;
       case 'not-prepared':
       case 'NOT_PREPARED':
       case 'NotPrepared':
@@ -287,25 +302,61 @@ enum IapEvent {
   String toJson() => value;
 }
 
-enum IapkitEnvironment {
-  Sandbox('sandbox'),
-  Production('production');
+/// Unified purchase states from IAPKit verification response.
+enum IapkitPurchaseState {
+  /// User is entitled to the product (purchase is complete and active).
+  Entitled('entitled'),
+  /// Receipt is valid but still needs server acknowledgment.
+  PendingAcknowledgment('pending-acknowledgment'),
+  /// Purchase is in progress or awaiting confirmation.
+  Pending('pending'),
+  /// Purchase was cancelled or refunded.
+  Canceled('canceled'),
+  /// Subscription or entitlement has expired.
+  Expired('expired'),
+  /// Consumable purchase is ready to be fulfilled.
+  ReadyToConsume('ready-to-consume'),
+  /// Consumable item has been fulfilled/consumed.
+  Consumed('consumed'),
+  /// Purchase state could not be determined.
+  Unknown('unknown'),
+  /// Purchase receipt is not authentic (fraudulent or tampered).
+  Inauthentic('inauthentic');
 
-  const IapkitEnvironment(this.value);
+  const IapkitPurchaseState(this.value);
   final String value;
 
-  factory IapkitEnvironment.fromJson(String value) {
+  factory IapkitPurchaseState.fromJson(String value) {
     switch (value) {
-      case 'sandbox':
-      case 'SANDBOX':
-      case 'Sandbox':
-        return IapkitEnvironment.Sandbox;
-      case 'production':
-      case 'PRODUCTION':
-      case 'Production':
-        return IapkitEnvironment.Production;
+      case 'entitled':
+      case 'ENTITLED':
+        return IapkitPurchaseState.Entitled;
+      case 'pending-acknowledgment':
+      case 'PENDING_ACKNOWLEDGMENT':
+        return IapkitPurchaseState.PendingAcknowledgment;
+      case 'pending':
+      case 'PENDING':
+        return IapkitPurchaseState.Pending;
+      case 'canceled':
+      case 'CANCELED':
+        return IapkitPurchaseState.Canceled;
+      case 'expired':
+      case 'EXPIRED':
+        return IapkitPurchaseState.Expired;
+      case 'ready-to-consume':
+      case 'READY_TO_CONSUME':
+        return IapkitPurchaseState.ReadyToConsume;
+      case 'consumed':
+      case 'CONSUMED':
+        return IapkitPurchaseState.Consumed;
+      case 'unknown':
+      case 'UNKNOWN':
+        return IapkitPurchaseState.Unknown;
+      case 'inauthentic':
+      case 'INAUTHENTIC':
+        return IapkitPurchaseState.Inauthentic;
     }
-    throw ArgumentError('Unknown IapkitEnvironment value: $value');
+    throw ArgumentError('Unknown IapkitPurchaseState value: $value');
   }
 
   String toJson() => value;
@@ -1906,25 +1957,33 @@ class RequestPurchaseResultPurchases extends RequestPurchaseResult {
 
 class RequestVerifyPurchaseWithIapkitResult {
   const RequestVerifyPurchaseWithIapkitResult({
+    /// Whether the purchase is valid (not falsified).
+    required this.isValid,
+    /// The current state of the purchase.
+    required this.state,
     required this.store,
-    required this.valid,
   });
 
+  /// Whether the purchase is valid (not falsified).
+  final bool isValid;
+  /// The current state of the purchase.
+  final IapkitPurchaseState state;
   final IapkitStore store;
-  final bool valid;
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitResult(
+      isValid: json['isValid'] as bool,
+      state: IapkitPurchaseState.fromJson(json['state'] as String),
       store: IapkitStore.fromJson(json['store'] as String),
-      valid: json['valid'] as bool,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       '__typename': 'RequestVerifyPurchaseWithIapkitResult',
+      'isValid': isValid,
+      'state': state.toJson(),
       'store': store.toJson(),
-      'valid': valid,
     };
   }
 }
@@ -2730,67 +2789,43 @@ class RequestSubscriptionPropsByPlatforms {
 
 class RequestVerifyPurchaseWithIapkitAppleProps {
   const RequestVerifyPurchaseWithIapkitAppleProps({
-    /// Required when verifying purchases in production mode.
-    this.appId,
-    /// Target environment for verification.
-    this.environment,
     /// The JWS token returned with the purchase response.
-    required this.receipt,
+    required this.jws,
   });
 
-  /// Required when verifying purchases in production mode.
-  final String? appId;
-  /// Target environment for verification.
-  final IapkitEnvironment? environment;
   /// The JWS token returned with the purchase response.
-  final String receipt;
+  final String jws;
 
   factory RequestVerifyPurchaseWithIapkitAppleProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitAppleProps(
-      appId: json['appId'] as String?,
-      environment: json['environment'] != null ? IapkitEnvironment.fromJson(json['environment'] as String) : null,
-      receipt: json['receipt'] as String,
+      jws: json['jws'] as String,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'appId': appId,
-      'environment': environment?.toJson(),
-      'receipt': receipt,
+      'jws': jws,
     };
   }
 }
 
 class RequestVerifyPurchaseWithIapkitGoogleProps {
   const RequestVerifyPurchaseWithIapkitGoogleProps({
-    /// The package name of the application for which this subscription was purchased.
-    required this.packageName,
-    /// The ID of the product or subscription that was purchased.
-    required this.purchaseId,
-    /// The token provided to the user's device when the subscription was purchased.
+    /// The token provided to the user's device when the product or subscription was purchased.
     required this.purchaseToken,
   });
 
-  /// The package name of the application for which this subscription was purchased.
-  final String packageName;
-  /// The ID of the product or subscription that was purchased.
-  final String purchaseId;
-  /// The token provided to the user's device when the subscription was purchased.
+  /// The token provided to the user's device when the product or subscription was purchased.
   final String purchaseToken;
 
   factory RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitGoogleProps(
-      packageName: json['packageName'] as String,
-      purchaseId: json['purchaseId'] as String,
       purchaseToken: json['purchaseToken'] as String,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'packageName': packageName,
-      'purchaseId': purchaseId,
       'purchaseToken': purchaseToken,
     };
   }
@@ -2800,29 +2835,24 @@ class RequestVerifyPurchaseWithIapkitProps {
   const RequestVerifyPurchaseWithIapkitProps({
     /// API key used for the Authorization header (Bearer {apiKey}).
     this.apiKey,
-    /// Apple verification parameters (required when store is Apple).
+    /// Apple verification parameters.
     this.apple,
-    /// Google verification parameters (required when store is Google).
+    /// Google verification parameters.
     this.google,
-    /// Target store for this verification request. Optional when sending both Apple and Google payloads together.
-    this.store,
   });
 
   /// API key used for the Authorization header (Bearer {apiKey}).
   final String? apiKey;
-  /// Apple verification parameters (required when store is Apple).
+  /// Apple verification parameters.
   final RequestVerifyPurchaseWithIapkitAppleProps? apple;
-  /// Google verification parameters (required when store is Google).
+  /// Google verification parameters.
   final RequestVerifyPurchaseWithIapkitGoogleProps? google;
-  /// Target store for this verification request. Optional when sending both Apple and Google payloads together.
-  final IapkitStore? store;
 
   factory RequestVerifyPurchaseWithIapkitProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitProps(
       apiKey: json['apiKey'] as String?,
       apple: json['apple'] != null ? RequestVerifyPurchaseWithIapkitAppleProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
       google: json['google'] != null ? RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(json['google'] as Map<String, dynamic>) : null,
-      store: json['store'] != null ? IapkitStore.fromJson(json['store'] as String) : null,
     );
   }
 
@@ -2831,7 +2861,6 @@ class RequestVerifyPurchaseWithIapkitProps {
       'apiKey': apiKey,
       'apple': apple?.toJson(),
       'google': google?.toJson(),
-      'store': store?.toJson(),
     };
   }
 }

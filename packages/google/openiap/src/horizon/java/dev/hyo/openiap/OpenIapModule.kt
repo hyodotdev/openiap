@@ -33,7 +33,7 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toInAppProduct
 import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.toProduct
-import dev.hyo.openiap.utils.validateReceiptWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
@@ -654,7 +654,7 @@ class OpenIapModule(
     }
 
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
-        validateReceiptWithGooglePlay(props, TAG)
+        verifyPurchaseWithGooglePlay(props, TAG)
     }
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->

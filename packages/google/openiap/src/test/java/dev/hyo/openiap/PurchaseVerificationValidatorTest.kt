@@ -127,7 +127,6 @@ class ReceiptValidatorTest {
             apiKey = null,
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                packageName = "dev.hyo.app",
                 purchaseId = "premium_monthly",
                 purchaseToken = "token-abc"
             ),
@@ -143,8 +142,7 @@ class ReceiptValidatorTest {
             apiKey = null,
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                packageName = "",
-                purchaseId = "premium_monthly",
+                purchaseId = "",
                 purchaseToken = ""
             ),
             store = IapkitStore.Google
@@ -166,7 +164,6 @@ class ReceiptValidatorTest {
             apiKey = "secret",
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                packageName = "dev.hyo.app",
                 purchaseId = "premium_monthly",
                 purchaseToken = "token-123"
             ),
@@ -183,7 +180,6 @@ class ReceiptValidatorTest {
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
         assertEquals("google", bodyMap["store"])
-        assertEquals("dev.hyo.app", bodyMap["packageName"])
         assertEquals("premium_monthly", bodyMap["purchaseId"])
         assertEquals("token-123", bodyMap["purchaseToken"])
     }
@@ -194,7 +190,6 @@ class ReceiptValidatorTest {
             apiKey = null,
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                packageName = "dev.hyo.app",
                 purchaseId = "premium_monthly",
                 purchaseToken = "token-123"
             ),
@@ -210,7 +205,6 @@ class ReceiptValidatorTest {
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
         assertEquals("google", bodyMap["store"])
-        assertEquals("dev.hyo.app", bodyMap["packageName"])
         assertEquals("premium_monthly", bodyMap["purchaseId"])
         assertEquals("token-123", bodyMap["purchaseToken"])
     }
@@ -221,7 +215,6 @@ class ReceiptValidatorTest {
             apiKey = null,
             apple = null,
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                packageName = "dev.hyo.app",
                 purchaseId = "premium_monthly",
                 purchaseToken = "token-123"
             ),

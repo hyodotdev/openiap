@@ -54,6 +54,9 @@ public enum class ErrorCode(val rawValue: String) {
     ReceiptFailed("receipt-failed"),
     ReceiptFinished("receipt-finished"),
     ReceiptFinishedFailed("receipt-finished-failed"),
+    PurchaseVerificationFailed("purchase-verification-failed"),
+    PurchaseVerificationFinished("purchase-verification-finished"),
+    PurchaseVerificationFinishFailed("purchase-verification-finish-failed"),
     NotPrepared("not-prepared"),
     NotEnded("not-ended"),
     AlreadyOwned("already-owned"),
@@ -101,6 +104,12 @@ public enum class ErrorCode(val rawValue: String) {
             "ReceiptFinished" -> ErrorCode.ReceiptFinished
             "receipt-finished-failed" -> ErrorCode.ReceiptFinishedFailed
             "ReceiptFinishedFailed" -> ErrorCode.ReceiptFinishedFailed
+            "purchase-verification-failed" -> ErrorCode.PurchaseVerificationFailed
+            "PurchaseVerificationFailed" -> ErrorCode.PurchaseVerificationFailed
+            "purchase-verification-finished" -> ErrorCode.PurchaseVerificationFinished
+            "PurchaseVerificationFinished" -> ErrorCode.PurchaseVerificationFinished
+            "purchase-verification-finish-failed" -> ErrorCode.PurchaseVerificationFinishFailed
+            "PurchaseVerificationFinishFailed" -> ErrorCode.PurchaseVerificationFinishFailed
             "not-prepared" -> ErrorCode.NotPrepared
             "NotPrepared" -> ErrorCode.NotPrepared
             "not-ended" -> ErrorCode.NotEnded
@@ -193,13 +202,16 @@ public enum class IapEvent(val rawValue: String) {
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
             "purchase-updated" -> IapEvent.PurchaseUpdated
+            "PURCHASE_UPDATED" -> IapEvent.PurchaseUpdated
             "PurchaseUpdated" -> IapEvent.PurchaseUpdated
             "purchase-error" -> IapEvent.PurchaseError
+            "PURCHASE_ERROR" -> IapEvent.PurchaseError
             "PurchaseError" -> IapEvent.PurchaseError
             "promoted-product-ios" -> IapEvent.PromotedProductIos
-            "PromotedProductIos" -> IapEvent.PromotedProductIos
+            "PROMOTED_PRODUCT_IOS" -> IapEvent.PromotedProductIos
             "PromotedProductIOS" -> IapEvent.PromotedProductIos
             "user-choice-billing-android" -> IapEvent.UserChoiceBillingAndroid
+            "USER_CHOICE_BILLING_ANDROID" -> IapEvent.UserChoiceBillingAndroid
             "UserChoiceBillingAndroid" -> IapEvent.UserChoiceBillingAndroid
             else -> throw IllegalArgumentException("Unknown IapEvent value: $value")
         }
@@ -208,17 +220,68 @@ public enum class IapEvent(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
-public enum class IapkitEnvironment(val rawValue: String) {
-    Sandbox("sandbox"),
-    Production("production");
+/**
+ * Unified purchase states from IAPKit verification response.
+ */
+public enum class IapkitPurchaseState(val rawValue: String) {
+    /**
+     * User is entitled to the product (purchase is complete and active).
+     */
+    Entitled("entitled"),
+    /**
+     * Receipt is valid but still needs server acknowledgment.
+     */
+    PendingAcknowledgment("pending-acknowledgment"),
+    /**
+     * Purchase is in progress or awaiting confirmation.
+     */
+    Pending("pending"),
+    /**
+     * Purchase was cancelled or refunded.
+     */
+    Canceled("canceled"),
+    /**
+     * Subscription or entitlement has expired.
+     */
+    Expired("expired"),
+    /**
+     * Consumable purchase is ready to be fulfilled.
+     */
+    ReadyToConsume("ready-to-consume"),
+    /**
+     * Consumable item has been fulfilled/consumed.
+     */
+    Consumed("consumed"),
+    /**
+     * Purchase state could not be determined.
+     */
+    Unknown("unknown"),
+    /**
+     * Purchase receipt is not authentic (fraudulent or tampered).
+     */
+    Inauthentic("inauthentic");
 
     companion object {
-        fun fromJson(value: String): IapkitEnvironment = when (value) {
-            "sandbox" -> IapkitEnvironment.Sandbox
-            "Sandbox" -> IapkitEnvironment.Sandbox
-            "production" -> IapkitEnvironment.Production
-            "Production" -> IapkitEnvironment.Production
-            else -> throw IllegalArgumentException("Unknown IapkitEnvironment value: $value")
+        fun fromJson(value: String): IapkitPurchaseState = when (value) {
+            "entitled" -> IapkitPurchaseState.Entitled
+            "Entitled" -> IapkitPurchaseState.Entitled
+            "pending-acknowledgment" -> IapkitPurchaseState.PendingAcknowledgment
+            "PendingAcknowledgment" -> IapkitPurchaseState.PendingAcknowledgment
+            "pending" -> IapkitPurchaseState.Pending
+            "Pending" -> IapkitPurchaseState.Pending
+            "canceled" -> IapkitPurchaseState.Canceled
+            "Canceled" -> IapkitPurchaseState.Canceled
+            "expired" -> IapkitPurchaseState.Expired
+            "Expired" -> IapkitPurchaseState.Expired
+            "ready-to-consume" -> IapkitPurchaseState.ReadyToConsume
+            "ReadyToConsume" -> IapkitPurchaseState.ReadyToConsume
+            "consumed" -> IapkitPurchaseState.Consumed
+            "Consumed" -> IapkitPurchaseState.Consumed
+            "unknown" -> IapkitPurchaseState.Unknown
+            "Unknown" -> IapkitPurchaseState.Unknown
+            "inauthentic" -> IapkitPurchaseState.Inauthentic
+            "Inauthentic" -> IapkitPurchaseState.Inauthentic
+            else -> throw IllegalArgumentException("Unknown IapkitPurchaseState value: $value")
         }
     }
 
@@ -1475,23 +1538,32 @@ public data class RequestPurchaseResultPurchase(val value: Purchase?) : RequestP
 public data class RequestPurchaseResultPurchases(val value: List<Purchase>?) : RequestPurchaseResult
 
 public data class RequestVerifyPurchaseWithIapkitResult(
-    val store: IapkitStore,
-    val valid: Boolean
+    /**
+     * Whether the purchase is valid (not falsified).
+     */
+    val isValid: Boolean,
+    /**
+     * The current state of the purchase.
+     */
+    val state: IapkitPurchaseState,
+    val store: IapkitStore
 ) {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
             return RequestVerifyPurchaseWithIapkitResult(
+                isValid = json["isValid"] as Boolean,
+                state = IapkitPurchaseState.fromJson(json["state"] as String),
                 store = IapkitStore.fromJson(json["store"] as String),
-                valid = json["valid"] as Boolean,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RequestVerifyPurchaseWithIapkitResult",
+        "isValid" to isValid,
+        "state" to state.toJson(),
         "store" to store.toJson(),
-        "valid" to valid,
     )
 }
 
@@ -2197,62 +2269,38 @@ public data class RequestSubscriptionPropsByPlatforms(
 
 public data class RequestVerifyPurchaseWithIapkitAppleProps(
     /**
-     * Required when verifying purchases in production mode.
-     */
-    val appId: String? = null,
-    /**
-     * Target environment for verification.
-     */
-    val environment: IapkitEnvironment? = null,
-    /**
      * The JWS token returned with the purchase response.
      */
-    val receipt: String
+    val jws: String
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAppleProps {
             return RequestVerifyPurchaseWithIapkitAppleProps(
-                appId = json["appId"] as String?,
-                environment = (json["environment"] as String?)?.let { IapkitEnvironment.fromJson(it) },
-                receipt = json["receipt"] as String,
+                jws = json["jws"] as String,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "appId" to appId,
-        "environment" to environment?.toJson(),
-        "receipt" to receipt,
+        "jws" to jws,
     )
 }
 
 public data class RequestVerifyPurchaseWithIapkitGoogleProps(
     /**
-     * The package name of the application for which this subscription was purchased.
-     */
-    val packageName: String,
-    /**
-     * The ID of the product or subscription that was purchased.
-     */
-    val purchaseId: String,
-    /**
-     * The token provided to the user's device when the subscription was purchased.
+     * The token provided to the user's device when the product or subscription was purchased.
      */
     val purchaseToken: String
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitGoogleProps {
             return RequestVerifyPurchaseWithIapkitGoogleProps(
-                packageName = json["packageName"] as String,
-                purchaseId = json["purchaseId"] as String,
                 purchaseToken = json["purchaseToken"] as String,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "packageName" to packageName,
-        "purchaseId" to purchaseId,
         "purchaseToken" to purchaseToken,
     )
 }
@@ -2263,17 +2311,13 @@ public data class RequestVerifyPurchaseWithIapkitProps(
      */
     val apiKey: String? = null,
     /**
-     * Apple verification parameters (required when store is Apple).
+     * Apple verification parameters.
      */
     val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
     /**
-     * Google verification parameters (required when store is Google).
+     * Google verification parameters.
      */
-    val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null,
-    /**
-     * Target store for this verification request. Optional when sending both Apple and Google payloads together.
-     */
-    val store: IapkitStore? = null
+    val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
@@ -2281,7 +2325,6 @@ public data class RequestVerifyPurchaseWithIapkitProps(
                 apiKey = json["apiKey"] as String?,
                 apple = (json["apple"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
                 google = (json["google"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
-                store = (json["store"] as String?)?.let { IapkitStore.fromJson(it) },
             )
         }
     }
@@ -2290,7 +2333,6 @@ public data class RequestVerifyPurchaseWithIapkitProps(
         "apiKey" to apiKey,
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
-        "store" to store?.toJson(),
     )
 }
 

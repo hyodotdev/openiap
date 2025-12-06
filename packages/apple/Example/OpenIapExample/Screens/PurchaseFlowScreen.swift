@@ -1,10 +1,24 @@
 import SwiftUI
 import OpenIAP
 
+enum VerificationMethod: String, CaseIterable {
+    case none = "None"
+    case local = "Local"
+    case iapkit = "IAPKit"
+
+    var displayName: String {
+        switch self {
+        case .none: return "❌ None (Skip)"
+        case .local: return "📱 Local (Device)"
+        case .iapkit: return "☁️ IAPKit (Server)"
+        }
+    }
+}
+
 @available(iOS 15.0, *)
 struct PurchaseFlowScreen: View {
     @StateObject private var iapStore = OpenIapStore()
-    
+
     // UI State
     @State private var showPurchaseResult = false
     @State private var purchaseResultMessage = ""
@@ -13,7 +27,16 @@ struct PurchaseFlowScreen: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var isInitialLoading = true
-    
+    @State private var verificationMethod: VerificationMethod = .none
+    @State private var isVerifying = false
+    @State private var processedPurchaseKey: String?
+
+    // IAPKit API Key from environment (set in scheme or Info.plist)
+    private var iapkitApiKey: String? {
+        ProcessInfo.processInfo.environment["IAPKIT_API_KEY"] ??
+        Bundle.main.object(forInfoDictionaryKey: "IAPKIT_API_KEY") as? String
+    }
+
     // Product IDs configured in App Store Connect
     private let productIds: [String] = [
         "dev.hyo.martie.10bulbs",
@@ -26,6 +49,8 @@ struct PurchaseFlowScreen: View {
             VStack(spacing: 20) {
                 HeaderCardView()
 
+                VerificationMethodCard()
+
                 if isInitialLoading {
                     LoadingCard(text: "Loading products...")
                 } else {
@@ -35,9 +60,9 @@ struct PurchaseFlowScreen: View {
                         PurchaseResultSection()
                     }
                 }
-                
+
                 InstructionsCard()
-                
+
                 Spacer(minLength: 20)
             }
             .padding(.vertical)
@@ -176,6 +201,82 @@ struct PurchaseFlowScreen: View {
     }
     
     @ViewBuilder
+    private func VerificationMethodCard() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "checkmark.shield.fill")
+                    .foregroundColor(AppColors.secondary)
+                Text("Purchase Verification")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Menu {
+                ForEach(VerificationMethod.allCases, id: \.self) { method in
+                    Button(method.displayName) {
+                        verificationMethod = method
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(verificationMethod.displayName)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            if verificationMethod == .iapkit {
+                VStack(alignment: .leading, spacing: 8) {
+                    if iapkitApiKey != nil {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(AppColors.success)
+                            Text("API Key configured")
+                                .font(.caption)
+                                .foregroundColor(AppColors.success)
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("API Key not configured")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                    .fontWeight(.semibold)
+                                Text("Set IAPKIT_API_KEY in:")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text("• Xcode Scheme → Environment Variables")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text("• Or Info.plist → IAPKIT_API_KEY")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .cornerRadius(12)
+        .shadow(radius: 2)
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
     private func InstructionsCard() -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -185,14 +286,14 @@ struct PurchaseFlowScreen: View {
                     .font(.headline)
                 Spacer()
             }
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 InstructionRow(
                     number: "1",
                     text: "Products are loaded from App Store Connect"
                 )
                 InstructionRow(
-                    number: "2", 
+                    number: "2",
                     text: "Tap Purchase to initiate transaction"
                 )
                 InstructionRow(
@@ -211,7 +312,7 @@ struct PurchaseFlowScreen: View {
         .shadow(radius: 2)
         .padding(.horizontal)
     }
-    
+
     // using shared InstructionRow in Screens/uis/InstructionRow.swift
     
     // MARK: - OpenIapStore Setup
@@ -296,21 +397,143 @@ struct PurchaseFlowScreen: View {
     
     private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
         print("✅ [PurchaseFlow] Purchase successful: \(purchase.productId)")
-        
+
+        // Create unique key for this purchase to prevent duplicate processing
+        let purchaseKey = "\(purchase.id)_\(purchase.transactionDate)"
+
+        // Skip if we've already processed this exact purchase
+        if purchaseKey == processedPurchaseKey {
+            print("🔄 [PurchaseFlow] Skipping already processed purchase: \(purchaseKey)")
+            return
+        }
+
+        // Mark as processed
+        processedPurchaseKey = purchaseKey
+
         // Update UI state
         let transactionDate = Date(timeIntervalSince1970: purchase.transactionDate / 1000)
-        purchaseResultMessage = """
-        ✅ Purchase successful
-        Product: \(purchase.productId)
-        Transaction ID: \(purchase.id)
-        Date: \(DateFormatter.localizedString(from: transactionDate, dateStyle: .short, timeStyle: .short))
-        """
-        showPurchaseResult = true
         latestPurchase = purchase
 
-        // In production, validate receipt on your server before finishing
         Task {
+            await verifyAndFinishPurchase(purchase, transactionDate: transactionDate)
+        }
+    }
+
+    private func verifyAndFinishPurchase(_ purchase: OpenIapPurchase, transactionDate: Date) async {
+        let dateString = DateFormatter.localizedString(from: transactionDate, dateStyle: .short, timeStyle: .short)
+
+        switch verificationMethod {
+        case .none:
+            await MainActor.run {
+                purchaseResultMessage = """
+                ✅ Purchase successful (No verification)
+                Product: \(purchase.productId)
+                Transaction ID: \(purchase.id)
+                Date: \(dateString)
+                """
+                showPurchaseResult = true
+            }
             await finishPurchase(purchase)
+
+        case .local:
+            await MainActor.run {
+                isVerifying = true
+                purchaseResultMessage = "🔍 Verifying locally..."
+                showPurchaseResult = true
+            }
+
+            do {
+                let result = try await iapStore.verifyPurchase(sku: purchase.productId)
+                await MainActor.run {
+                    isVerifying = false
+                    purchaseResultMessage = """
+                    ✅ Purchase verified locally
+                    Product: \(purchase.productId)
+                    Valid: \(result.isValid)
+                    Date: \(dateString)
+                    """
+                }
+                await finishPurchase(purchase)
+            } catch {
+                await MainActor.run {
+                    isVerifying = false
+                    purchaseResultMessage = "❌ Local verification failed: \(error.localizedDescription)"
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+
+        case .iapkit:
+            guard let apiKey = iapkitApiKey else {
+                await MainActor.run {
+                    purchaseResultMessage = "❌ IAPKit API Key not configured"
+                    showPurchaseResult = true
+                    errorMessage = "Set IAPKIT_API_KEY in Xcode Scheme or Info.plist"
+                    showError = true
+                }
+                return
+            }
+
+            await MainActor.run {
+                isVerifying = true
+                purchaseResultMessage = "☁️ Verifying with IAPKit..."
+                showPurchaseResult = true
+            }
+
+            do {
+                // Get JWS token for verification
+                guard let jws = purchase.purchaseToken, !jws.isEmpty else {
+                    await MainActor.run {
+                        isVerifying = false
+                        purchaseResultMessage = "❌ Missing JWS token"
+                        errorMessage = "Missing JWS token"
+                        showError = true
+                    }
+                    return
+                }
+
+                let props = VerifyPurchaseWithProviderProps(
+                    iapkit: RequestVerifyPurchaseWithIapkitProps(
+                        apiKey: apiKey,
+                        apple: RequestVerifyPurchaseWithIapkitAppleProps(
+                            jws: jws
+                        ),
+                        google: nil
+                    ),
+                    provider: .iapkit
+                )
+
+                let results = try await iapStore.verifyPurchaseWithProvider(props)
+                let isValid = results.first?.isValid ?? false
+                let state = results.first?.state.rawValue ?? "unknown"
+
+                print("📱 [PurchaseFlow] IAPKit verification result:")
+                print("  - Product: \(purchase.productId)")
+                print("  - isValid: \(isValid)")
+                print("  - state: \(state)")
+                print("  - Results count: \(results.count)")
+
+                await MainActor.run {
+                    isVerifying = false
+                    purchaseResultMessage = """
+                    \(isValid ? "✅" : "❌") IAPKit verification \(isValid ? "passed" : "failed")
+                    Product: \(purchase.productId)
+                    isValid: \(isValid), state: \(state)
+                    Date: \(dateString)
+                    """
+                }
+
+                if isValid {
+                    await finishPurchase(purchase)
+                }
+            } catch {
+                await MainActor.run {
+                    isVerifying = false
+                    purchaseResultMessage = "❌ IAPKit verification failed: \(error.localizedDescription)"
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
         }
     }
     

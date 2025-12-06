@@ -4,7 +4,7 @@ import OpenIAP
 @available(iOS 15.0, *)
 struct SubscriptionFlowScreen: View {
     @StateObject private var iapStore = OpenIapStore()
-    
+
     // UI State
     @State private var showError = false
     @State private var errorMessage = ""
@@ -12,7 +12,17 @@ struct SubscriptionFlowScreen: View {
     @State private var selectedPurchase: OpenIapPurchase?
     @State private var isInitialLoading = true
     @State private var isRefreshing = false
-    
+    @State private var verificationMethod: VerificationMethod = .none
+    @State private var isVerifying = false
+    @State private var verificationResultMessage: String?
+    @State private var processedPurchaseKey: String?
+
+    // IAPKit API Key from environment (set in scheme or Info.plist)
+    private var iapkitApiKey: String? {
+        ProcessInfo.processInfo.environment["IAPKIT_API_KEY"] ??
+        Bundle.main.object(forInfoDictionaryKey: "IAPKIT_API_KEY") as? String
+    }
+
     // Product IDs for subscription testing
     // Ordered from lowest to highest tier for upgrade scenarios
     private let subscriptionIds: [String] = [
@@ -53,7 +63,9 @@ struct SubscriptionFlowScreen: View {
                 .cornerRadius(12)
                 .shadow(radius: 2)
                 .padding(.horizontal)
-                
+
+                VerificationMethodCard()
+
                 if isInitialLoading {
                     LoadingCard(text: "Loading subscriptions...")
                 } else if isRefreshing {
@@ -462,7 +474,187 @@ struct SubscriptionFlowScreen: View {
         }
         return 0  // Unknown tier
     }
-    
+
+    // MARK: - Verification Method UI
+
+    @ViewBuilder
+    private func VerificationMethodCard() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "checkmark.shield.fill")
+                    .foregroundColor(AppColors.secondary)
+                Text("Purchase Verification")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Menu {
+                ForEach(VerificationMethod.allCases, id: \.self) { method in
+                    Button(method.displayName) {
+                        verificationMethod = method
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(verificationMethod.displayName)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            if verificationMethod == .iapkit {
+                VStack(alignment: .leading, spacing: 8) {
+                    if iapkitApiKey != nil {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(AppColors.success)
+                            Text("API Key configured")
+                                .font(.caption)
+                                .foregroundColor(AppColors.success)
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("API Key not configured")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                    .fontWeight(.semibold)
+                                Text("Set IAPKIT_API_KEY in:")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text("• Xcode Scheme → Environment Variables")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text("• Or Info.plist → IAPKIT_API_KEY")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+                }
+            }
+
+            if let resultMessage = verificationResultMessage {
+                Text(resultMessage)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(8)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(6)
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .cornerRadius(12)
+        .shadow(radius: 2)
+        .padding(.horizontal)
+    }
+
+    // MARK: - Verification Logic
+
+    private func verifyAndFinishPurchase(_ purchase: OpenIapPurchase) async {
+        switch verificationMethod {
+        case .none:
+            await MainActor.run {
+                verificationResultMessage = "✅ No verification (skipped)"
+            }
+            // Transaction already finished via autoFinish: true
+
+        case .local:
+            await MainActor.run {
+                isVerifying = true
+                verificationResultMessage = "🔍 Verifying locally..."
+            }
+
+            do {
+                let result = try await iapStore.verifyPurchase(sku: purchase.productId)
+                await MainActor.run {
+                    isVerifying = false
+                    verificationResultMessage = "✅ Local verification: Valid=\(result.isValid)"
+                }
+            } catch {
+                await MainActor.run {
+                    isVerifying = false
+                    verificationResultMessage = "❌ Local verification failed: \(error.localizedDescription)"
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+
+        case .iapkit:
+            guard let apiKey = iapkitApiKey else {
+                await MainActor.run {
+                    verificationResultMessage = "❌ IAPKit API Key not configured"
+                    errorMessage = "Set IAPKIT_API_KEY in Xcode Scheme or Info.plist"
+                    showError = true
+                }
+                return
+            }
+
+            await MainActor.run {
+                isVerifying = true
+                verificationResultMessage = "☁️ Verifying with IAPKit..."
+            }
+
+            do {
+                guard let jws = purchase.purchaseToken, !jws.isEmpty else {
+                    await MainActor.run {
+                        isVerifying = false
+                        verificationResultMessage = "❌ Missing JWS token"
+                        errorMessage = "Missing JWS token"
+                        showError = true
+                    }
+                    return
+                }
+
+                let props = VerifyPurchaseWithProviderProps(
+                    iapkit: RequestVerifyPurchaseWithIapkitProps(
+                        apiKey: apiKey,
+                        apple: RequestVerifyPurchaseWithIapkitAppleProps(
+                            jws: jws
+                        ),
+                        google: nil
+                    ),
+                    provider: .iapkit
+                )
+
+                let results = try await iapStore.verifyPurchaseWithProvider(props)
+                let isValid = results.first?.isValid ?? false
+                let state = results.first?.state.rawValue ?? "unknown"
+
+                print("📱 [SubscriptionFlow] IAPKit verification result:")
+                print("  - Product: \(purchase.productId)")
+                print("  - isValid: \(isValid)")
+                print("  - state: \(state)")
+                print("  - Results count: \(results.count)")
+
+                await MainActor.run {
+                    isVerifying = false
+                    verificationResultMessage = "\(isValid ? "✅" : "❌") IAPKit: isValid=\(isValid), state=\(state)"
+                }
+            } catch {
+                await MainActor.run {
+                    isVerifying = false
+                    verificationResultMessage = "❌ IAPKit failed: \(error.localizedDescription)"
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
+    }
+
     private func restorePurchases() async {
         await MainActor.run {
             isRefreshing = true
@@ -502,6 +694,19 @@ struct SubscriptionFlowScreen: View {
 
     private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
         print("✅ [SubscriptionFlow] Subscription successful: \(purchase.productId)")
+
+        // Create unique key for this purchase to prevent duplicate processing
+        let purchaseKey = "\(purchase.id)_\(purchase.transactionDate)"
+
+        // Skip if we've already processed this exact purchase
+        if purchaseKey == processedPurchaseKey {
+            print("🔄 [SubscriptionFlow] Skipping already processed purchase: \(purchaseKey)")
+            return
+        }
+
+        // Mark as processed
+        processedPurchaseKey = purchaseKey
+
         print("📦 [SubscriptionFlow] Purchase fired immediately - no need to call getActiveSubscriptions()")
 
         // Log detailed purchase info
@@ -572,6 +777,11 @@ struct SubscriptionFlowScreen: View {
 
         // Show the recent purchase
         recentPurchase = purchase
+
+        // Perform verification if method is selected
+        Task {
+            await verifyAndFinishPurchase(purchase)
+        }
 
         // DO NOT call getActiveSubscriptions() here - it causes infinite rendering
         // The store's handlePurchaseUpdate already updates activeSubscriptions directly from purchase data

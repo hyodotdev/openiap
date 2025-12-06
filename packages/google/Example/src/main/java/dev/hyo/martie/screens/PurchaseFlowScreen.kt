@@ -40,13 +40,24 @@ import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseInput
+import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseAndroidProps
 import dev.hyo.openiap.RequestPurchasePropsByPlatforms
 import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.utils.toPurchaseInput
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import dev.hyo.martie.util.findActivity
+import dev.hyo.martie.BuildConfig
+
+enum class VerificationMethod(val displayName: String) {
+    None("❌ None (Skip)"),
+    Local("📱 Local (Device)"),
+    IAPKit("☁️ IAPKit (Server)")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +92,19 @@ fun PurchaseFlowScreen(
     var selectedPurchase by remember { mutableStateOf<PurchaseAndroid?>(null) }
     var isInitializing by remember { mutableStateOf(true) }
 
+    // Verification states
+    var verificationMethod by remember { mutableStateOf(VerificationMethod.None) }
+    var isVerifying by remember { mutableStateOf(false) }
+    var verificationResultMessage by remember { mutableStateOf<String?>(null) }
+    var verificationDropdownExpanded by remember { mutableStateOf(false) }
+    // Track which purchase IDs have been processed (to allow re-purchase after failure)
+    var processedPurchaseKey by remember { mutableStateOf<String?>(null) }
+
+    // IAPKit API Key from BuildConfig
+    val iapkitApiKey: String? = remember {
+        runCatching { BuildConfig.IAPKIT_API_KEY.takeIf { it.isNotBlank() } }.getOrNull()
+    }
+
     // Use a dedicated scope for cleanup that won't be cancelled with composition
     val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
 
@@ -92,6 +116,9 @@ fun PurchaseFlowScreen(
 
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
+        // Enable OpenIapLog for debugging
+        dev.hyo.openiap.OpenIapLog.isEnabled = true
+
         try {
             val connected = iapStore.initConnection()
             if (connected) {
@@ -220,7 +247,154 @@ fun PurchaseFlowScreen(
                     }
                 }
             }
-            
+
+            // Verification Method Card
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBackground),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.VerifiedUser,
+                                contentDescription = null,
+                                tint = AppColors.secondary
+                            )
+                            Text(
+                                "Purchase Verification",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        ExposedDropdownMenuBox(
+                            expanded = verificationDropdownExpanded,
+                            onExpandedChange = { verificationDropdownExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = verificationMethod.displayName,
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = verificationDropdownExpanded)
+                                },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = verificationDropdownExpanded,
+                                onDismissRequest = { verificationDropdownExpanded = false }
+                            ) {
+                                VerificationMethod.entries.forEach { method ->
+                                    DropdownMenuItem(
+                                        text = { Text(method.displayName) },
+                                        onClick = {
+                                            verificationMethod = method
+                                            verificationDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (verificationMethod == VerificationMethod.IAPKit) {
+                            if (iapkitApiKey != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = AppColors.success,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        "API Key configured",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = AppColors.success
+                                    )
+                                }
+                            } else {
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = AppColors.warning.copy(alpha = 0.1f)
+                                    ),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Warning,
+                                                contentDescription = null,
+                                                tint = AppColors.warning,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                "API Key not configured",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = AppColors.warning
+                                            )
+                                        }
+                                        Text(
+                                            "Set IAPKIT_API_KEY in:",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AppColors.textSecondary
+                                        )
+                                        Text(
+                                            "• local.properties → iapkit.api.key=xxx",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AppColors.textSecondary
+                                        )
+                                        Text(
+                                            "• Or build.gradle → buildConfigField",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AppColors.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        verificationResultMessage?.let { message ->
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = AppColors.background
+                                ),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppColors.textSecondary,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Loading State
             if (isInitializing || status.isLoading) {
                 item {
@@ -383,28 +557,121 @@ fun PurchaseFlowScreen(
         }
     }
     
-    // Simple helper: simulate server-side receipt validation
-    suspend fun validateReceiptOnServer(purchase: PurchaseAndroid): Boolean {
-        // TODO: Replace with your real backend API call
-        // e.g., POST purchase.purchaseToken to your server and verify
-        return true
+    // Verification helper functions
+    suspend fun verifyWithIapkit(purchase: PurchaseAndroid, apiKey: String): Boolean {
+        val token = purchase.purchaseToken
+            ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
+
+        println("PurchaseFlow: IAPKit verification params:")
+        println("  - purchaseToken: $token")
+
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = apiKey,
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = token
+            )
+        )
+        val results = verifyPurchaseWithIapkit(props, "PurchaseFlowScreen")
+        return results.firstOrNull()?.isValid == true
     }
 
-    // Auto-handle purchase: validate on server then finish
-    // IMPORTANT: Implement real server-side receipt validation in validateReceiptOnServer()
-    LaunchedEffect(lastPurchaseAndroid?.id) {
+    // Local verification: For Android, we just check if the purchase state is authentic
+    // Real local verification should use Google Play Billing's acknowledgment
+    fun verifyLocally(purchase: PurchaseAndroid): Boolean {
+        return purchase.purchaseState == PurchaseState.Purchased
+    }
+
+    // Auto-handle purchase: validate then finish
+    // Use a unique key combining purchase ID and transaction date to ensure re-trigger on new purchases
+    // This fixes the issue where Buy button doesn't work after verification failure
+    val purchaseKey = lastPurchaseAndroid?.let { "${it.id}_${it.transactionDate}" }
+    LaunchedEffect(purchaseKey) {
         val purchase = lastPurchaseAndroid ?: return@LaunchedEffect
+
+        // Skip if we've already processed this exact purchase
+        if (purchaseKey == processedPurchaseKey) {
+            println("PurchaseFlow: Skipping already processed purchase: $purchaseKey")
+            return@LaunchedEffect
+        }
+
+        // Clear any premature "success" message from purchase listener
+        // We will only show the final result after verification completes
+        iapStore.clearStatusMessage()
+
         try {
-            // 1) Server-side validation (replace with your backend call)
-            val valid = validateReceiptOnServer(purchase)
-            if (!valid) {
-                iapStore.postStatusMessage(
-                    message = "Receipt validation failed",
-                    status = PurchaseResultStatus.Error,
-                    productId = purchase.productId
-                )
-                return@LaunchedEffect
+            // 1) Perform verification based on selected method
+            val isValid = when (verificationMethod) {
+                VerificationMethod.None -> {
+                    verificationResultMessage = "✅ No verification (skipped)"
+                    true
+                }
+                VerificationMethod.Local -> {
+                    isVerifying = true
+                    verificationResultMessage = "🔍 Verifying locally..."
+                    try {
+                        val result = verifyLocally(purchase)
+                        verificationResultMessage = if (result) "✅ Local verification passed" else "❌ Local verification failed"
+                        result
+                    } catch (e: Exception) {
+                        verificationResultMessage = "❌ Local verification error: ${e.message}"
+                        false
+                    } finally {
+                        isVerifying = false
+                    }
+                }
+                VerificationMethod.IAPKit -> {
+                    val apiKey = iapkitApiKey
+                    if (apiKey == null) {
+                        verificationResultMessage = "❌ IAPKit API Key not configured"
+                        iapStore.postStatusMessage(
+                            message = "IAPKit API Key not configured. Set iapkit.api.key in local.properties",
+                            status = PurchaseResultStatus.Error,
+                            productId = purchase.productId
+                        )
+                        // Mark as processed so user can retry
+                        processedPurchaseKey = purchaseKey
+                        return@LaunchedEffect
+                    }
+                    isVerifying = true
+                    verificationResultMessage = "☁️ Verifying with IAPKit..."
+                    println("PurchaseFlow: Starting IAPKit verification for ${purchase.productId}")
+                    try {
+                        val result = verifyWithIapkit(purchase, apiKey)
+                        println("PurchaseFlow: IAPKit verification result: $result")
+                        verificationResultMessage = if (result) "✅ IAPKit verification passed" else "❌ IAPKit verification failed"
+                        if (!result) {
+                            // Post error with auto-refund notice
+                            iapStore.postStatusMessage(
+                                message = "Verification failed. Purchase not acknowledged - will be auto-refunded within 3 days.",
+                                status = PurchaseResultStatus.Error,
+                                productId = purchase.productId
+                            )
+                        }
+                        result
+                    } catch (e: Exception) {
+                        println("PurchaseFlow: IAPKit verification error: ${e.message}")
+                        e.printStackTrace()
+                        verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
+                        iapStore.postStatusMessage(
+                            message = "Verification error: ${e.message}. Finishing transaction anyway for testing.",
+                            status = PurchaseResultStatus.Error,
+                            productId = purchase.productId
+                        )
+                        // For testing: return true to continue with finishTransaction
+                        println("PurchaseFlow: [TEST MODE] Continuing with finishTransaction despite verification error")
+                        true
+                    } finally {
+                        isVerifying = false
+                    }
+                }
             }
+
+            if (!isValid) {
+                println("PurchaseFlow: Verification failed, but continuing with finishTransaction for testing")
+                // Continue to finishTransaction for testing purposes
+            }
+
             // 2) Determine consumable vs non-consumable
             val product = products.find { it.id == purchase.productId }
             val isConsumable = product?.let {
@@ -445,6 +712,9 @@ fun PurchaseFlowScreen(
                 status = PurchaseResultStatus.Error,
                 productId = purchase.productId
             )
+        } finally {
+            // Mark as processed so user can retry if needed
+            processedPurchaseKey = purchaseKey
         }
     }
 

@@ -62,7 +62,7 @@ import dev.hyo.openiap.utils.BillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.toProduct
-import dev.hyo.openiap.utils.validateReceiptWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -805,7 +805,7 @@ class OpenIapModule(
     }
 
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
-        validateReceiptWithGooglePlay(props, TAG)
+        verifyPurchaseWithGooglePlay(props, TAG)
     }
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->

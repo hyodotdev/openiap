@@ -26,9 +26,8 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             iapkit: RequestVerifyPurchaseWithIapkitProps(
                 apiKey: "secret",
                 apple: RequestVerifyPurchaseWithIapkitAppleProps(
-                    appId: "com.example.app",
                     environment: .production,
-                    receipt: "receipt-token"
+                    jws: "jws-token"
                 ),
                 google: nil,
                 store: .apple
@@ -64,9 +63,8 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             iapkit: RequestVerifyPurchaseWithIapkitProps(
                 apiKey: nil,
                 apple: RequestVerifyPurchaseWithIapkitAppleProps(
-                    appId: nil,
                     environment: .sandbox,
-                    receipt: "receipt-token"
+                    jws: "jws-token"
                 ),
                 google: nil,
                 store: .apple

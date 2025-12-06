@@ -253,23 +253,23 @@ function Errors() {
           <tbody>
             <tr>
               <td>
-                <code>ReceiptFailed</code>
+                <code>PurchaseVerificationFailed</code>
               </td>
-              <td>Receipt validation failed</td>
-              <td>Check receipt validation logic, retry validation</td>
+              <td>Purchase verification failed</td>
+              <td>Check verification logic, retry validation</td>
             </tr>
             <tr>
               <td>
-                <code>ReceiptFinished</code>
+                <code>TransactionFinished</code>
               </td>
-              <td>Receipt already processed/finished</td>
+              <td>Transaction already processed/finished</td>
               <td>Transaction already completed, check records</td>
             </tr>
             <tr>
               <td>
-                <code>ReceiptFinishedFailed</code>
+                <code>TransactionFinishFailed</code>
               </td>
-              <td>Failed to finish receipt processing</td>
+              <td>Failed to finish transaction processing</td>
               <td>Check transaction state and retry</td>
             </tr>
             <tr>
@@ -425,8 +425,8 @@ function Errors() {
                     </tr>
                     <tr>
                       <td>5</td>
-                      <td>ReceiptFailed</td>
-                      <td>Receipt validation failed</td>
+                      <td>PurchaseVerificationFailed</td>
+                      <td>Purchase verification failed</td>
                     </tr>
                     <tr>
                       <td>6</td>
@@ -516,9 +516,9 @@ function Errors() {
   RemoteError = 'E_REMOTE_ERROR',
   NetworkError = 'E_NETWORK_ERROR',
   ServiceError = 'E_SERVICE_ERROR',
-  ReceiptFailed = 'E_RECEIPT_FAILED',
-  ReceiptFinished = 'E_RECEIPT_FINISHED',
-  ReceiptFinishedFailed = 'E_RECEIPT_FINISHED_FAILED',
+  PurchaseVerificationFailed = 'E_PURCHASE_VERIFICATION_FAILED',
+  TransactionFinished = 'E_TRANSACTION_FINISHED',
+  TransactionFinishFailed = 'E_TRANSACTION_FINISH_FAILED',
   NotPrepared = 'E_NOT_PREPARED',
   NotEnded = 'E_NOT_ENDED',
   AlreadyOwned = 'E_ALREADY_OWNED',
@@ -554,9 +554,9 @@ function Errors() {
     case remoteError
     case networkError
     case serviceError
-    case receiptFailed
-    case receiptFinished
-    case receiptFinishedFailed
+    case purchaseVerificationFailed
+    case transactionFinished
+    case transactionFinishFailed
     case notPrepared
     case notEnded
     case alreadyOwned
@@ -592,9 +592,9 @@ function Errors() {
     RemoteError,
     NetworkError,
     ServiceError,
-    ReceiptFailed,
-    ReceiptFinished,
-    ReceiptFinishedFailed,
+    PurchaseVerificationFailed,
+    TransactionFinished,
+    TransactionFinishFailed,
     NotPrepared,
     NotEnded,
     AlreadyOwned,
@@ -630,9 +630,9 @@ function Errors() {
   remoteError,
   networkError,
   serviceError,
-  receiptFailed,
-  receiptFinished,
-  receiptFinishedFailed,
+  purchaseVerificationFailed,
+  transactionFinished,
+  transactionFinishFailed,
   notPrepared,
   notEnded,
   alreadyOwned,
@@ -678,7 +678,7 @@ function Errors() {
           <tbody>
             <tr>
               <td>test.purchase.failed@example.com</td>
-              <td>ReceiptFailed</td>
+              <td>PurchaseVerificationFailed</td>
             </tr>
             <tr>
               <td>test.purchase.cancelled@example.com</td>

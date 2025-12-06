@@ -31,6 +31,9 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case receiptFailed = "receipt-failed"
     case receiptFinished = "receipt-finished"
     case receiptFinishedFailed = "receipt-finished-failed"
+    case purchaseVerificationFailed = "purchase-verification-failed"
+    case purchaseVerificationFinished = "purchase-verification-finished"
+    case purchaseVerificationFinishFailed = "purchase-verification-finish-failed"
     case notPrepared = "not-prepared"
     case notEnded = "not-ended"
     case alreadyOwned = "already-owned"
@@ -81,6 +84,12 @@ public enum ErrorCode: String, Codable, CaseIterable {
             self = .receiptFinished
         case "receipt-finished-failed", "ReceiptFinishedFailed":
             self = .receiptFinishedFailed
+        case "purchase-verification-failed", "PurchaseVerificationFailed":
+            self = .purchaseVerificationFailed
+        case "purchase-verification-finished", "PurchaseVerificationFinished":
+            self = .purchaseVerificationFinished
+        case "purchase-verification-finish-failed", "PurchaseVerificationFinishFailed":
+            self = .purchaseVerificationFinishFailed
         case "not-prepared", "NotPrepared":
             self = .notPrepared
         case "not-ended", "NotEnded":
@@ -150,9 +159,26 @@ public enum IapEvent: String, Codable, CaseIterable {
     case userChoiceBillingAndroid = "user-choice-billing-android"
 }
 
-public enum IapkitEnvironment: String, Codable, CaseIterable {
-    case sandbox = "sandbox"
-    case production = "production"
+/// Unified purchase states from IAPKit verification response.
+public enum IapkitPurchaseState: String, Codable, CaseIterable {
+    /// User is entitled to the product (purchase is complete and active).
+    case entitled = "entitled"
+    /// Receipt is valid but still needs server acknowledgment.
+    case pendingAcknowledgment = "pending-acknowledgment"
+    /// Purchase is in progress or awaiting confirmation.
+    case pending = "pending"
+    /// Purchase was cancelled or refunded.
+    case canceled = "canceled"
+    /// Subscription or entitlement has expired.
+    case expired = "expired"
+    /// Consumable purchase is ready to be fulfilled.
+    case readyToConsume = "ready-to-consume"
+    /// Consumable item has been fulfilled/consumed.
+    case consumed = "consumed"
+    /// Purchase state could not be determined.
+    case unknown = "unknown"
+    /// Purchase receipt is not authentic (fraudulent or tampered).
+    case inauthentic = "inauthentic"
 }
 
 public enum IapkitStore: String, Codable, CaseIterable {
@@ -561,8 +587,11 @@ public enum RequestPurchaseResult {
 }
 
 public struct RequestVerifyPurchaseWithIapkitResult: Codable {
+    /// Whether the purchase is valid (not falsified).
+    public var isValid: Bool
+    /// The current state of the purchase.
+    public var state: IapkitPurchaseState
     public var store: IapkitStore
-    public var valid: Bool
 }
 
 public struct SubscriptionInfoIOS: Codable {
@@ -975,39 +1004,23 @@ public struct RequestSubscriptionPropsByPlatforms: Codable {
 }
 
 public struct RequestVerifyPurchaseWithIapkitAppleProps: Codable {
-    /// Required when verifying purchases in production mode.
-    public var appId: String?
-    /// Target environment for verification.
-    public var environment: IapkitEnvironment?
     /// The JWS token returned with the purchase response.
-    public var receipt: String
+    public var jws: String
 
     public init(
-        appId: String? = nil,
-        environment: IapkitEnvironment? = nil,
-        receipt: String
+        jws: String
     ) {
-        self.appId = appId
-        self.environment = environment
-        self.receipt = receipt
+        self.jws = jws
     }
 }
 
 public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
-    /// The package name of the application for which this subscription was purchased.
-    public var packageName: String
-    /// The ID of the product or subscription that was purchased.
-    public var purchaseId: String
-    /// The token provided to the user's device when the subscription was purchased.
+    /// The token provided to the user's device when the product or subscription was purchased.
     public var purchaseToken: String
 
     public init(
-        packageName: String,
-        purchaseId: String,
         purchaseToken: String
     ) {
-        self.packageName = packageName
-        self.purchaseId = purchaseId
         self.purchaseToken = purchaseToken
     }
 }
@@ -1015,23 +1028,19 @@ public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
 public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     /// API key used for the Authorization header (Bearer {apiKey}).
     public var apiKey: String?
-    /// Apple verification parameters (required when store is Apple).
+    /// Apple verification parameters.
     public var apple: RequestVerifyPurchaseWithIapkitAppleProps?
-    /// Google verification parameters (required when store is Google).
+    /// Google verification parameters.
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
-    /// Target store for this verification request. Optional when sending both Apple and Google payloads together.
-    public var store: IapkitStore?
 
     public init(
         apiKey: String? = nil,
         apple: RequestVerifyPurchaseWithIapkitAppleProps? = nil,
-        google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil,
-        store: IapkitStore? = nil
+        google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil
     ) {
         self.apiKey = apiKey
         self.apple = apple
         self.google = google
-        self.store = store
     }
 }
 

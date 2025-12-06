@@ -267,7 +267,8 @@ final class OpenIapTests: XCTestCase {
             ("remote-error", "RemoteError", .remoteError),
             ("network-error", "NetworkError", .networkError),
             ("service-error", "ServiceError", .serviceError),
-            ("receipt-failed", "ReceiptFailed", .receiptFailed),
+            ("purchase-verification-failed", "PurchaseVerificationFailed", .purchaseVerificationFailed),
+            ("receipt-failed", "ReceiptFailed", .purchaseVerificationFailed), // Legacy alias
             ("not-prepared", "NotPrepared", .notPrepared),
             ("already-owned", "AlreadyOwned", .alreadyOwned),
             ("developer-error", "DeveloperError", .developerError),

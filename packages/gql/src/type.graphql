@@ -40,11 +40,6 @@ enum IapkitStore {
   Google
 }
 
-enum IapkitEnvironment {
-  Sandbox
-  Production
-}
-
 # Common product fields
 interface ProductCommon {
   id: ID!
@@ -222,28 +217,12 @@ input RequestVerifyPurchaseWithIapkitAppleProps {
   """
   The JWS token returned with the purchase response.
   """
-  receipt: String!
-  """
-  Target environment for verification.
-  """
-  environment: IapkitEnvironment = Sandbox
-  """
-  Required when verifying purchases in production mode.
-  """
-  appId: String
+  jws: String!
 }
 
 input RequestVerifyPurchaseWithIapkitGoogleProps {
   """
-  The package name of the application for which this subscription was purchased.
-  """
-  packageName: String!
-  """
-  The ID of the product or subscription that was purchased.
-  """
-  purchaseId: String!
-  """
-  The token provided to the user's device when the subscription was purchased.
+  The token provided to the user's device when the product or subscription was purchased.
   """
   purchaseToken: String!
 }
@@ -254,22 +233,67 @@ input RequestVerifyPurchaseWithIapkitProps {
   """
   apiKey: String
   """
-  Target store for this verification request. Optional when sending both Apple and Google payloads together.
-  """
-  store: IapkitStore
-  """
-  Apple verification parameters (required when store is Apple).
+  Apple verification parameters.
   """
   apple: RequestVerifyPurchaseWithIapkitAppleProps
   """
-  Google verification parameters (required when store is Google).
+  Google verification parameters.
   """
   google: RequestVerifyPurchaseWithIapkitGoogleProps
 }
 
+"""
+Unified purchase states from IAPKit verification response.
+"""
+enum IapkitPurchaseState {
+  """
+  User is entitled to the product (purchase is complete and active).
+  """
+  ENTITLED
+  """
+  Receipt is valid but still needs server acknowledgment.
+  """
+  PENDING_ACKNOWLEDGMENT
+  """
+  Purchase is in progress or awaiting confirmation.
+  """
+  PENDING
+  """
+  Purchase was cancelled or refunded.
+  """
+  CANCELED
+  """
+  Subscription or entitlement has expired.
+  """
+  EXPIRED
+  """
+  Consumable purchase is ready to be fulfilled.
+  """
+  READY_TO_CONSUME
+  """
+  Consumable item has been fulfilled/consumed.
+  """
+  CONSUMED
+  """
+  Purchase state could not be determined.
+  """
+  UNKNOWN
+  """
+  Purchase receipt is not authentic (fraudulent or tampered).
+  """
+  INAUTHENTIC
+}
+
 type RequestVerifyPurchaseWithIapkitResult {
   store: IapkitStore!
-  valid: Boolean!
+  """
+  Whether the purchase is valid (not falsified).
+  """
+  isValid: Boolean!
+  """
+  The current state of the purchase.
+  """
+  state: IapkitPurchaseState!
 }
 
 input VerifyPurchaseWithProviderProps {

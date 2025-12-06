@@ -137,6 +137,9 @@ export enum ErrorCode {
   NotPrepared = 'not-prepared',
   Pending = 'pending',
   PurchaseError = 'purchase-error',
+  PurchaseVerificationFailed = 'purchase-verification-failed',
+  PurchaseVerificationFinishFailed = 'purchase-verification-finish-failed',
+  PurchaseVerificationFinished = 'purchase-verification-finished',
   QueryProduct = 'query-product',
   ReceiptFailed = 'receipt-failed',
   ReceiptFinished = 'receipt-finished',
@@ -178,7 +181,8 @@ export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product
 
 export type IapPlatform = 'ios' | 'android';
 
-export type IapkitEnvironment = 'sandbox' | 'production';
+/** Unified purchase states from IAPKit verification response. */
+export type IapkitPurchaseState = 'entitled' | 'pending-acknowledgment' | 'pending' | 'canceled' | 'expired' | 'ready-to-consume' | 'consumed' | 'unknown' | 'inauthentic';
 
 export type IapkitStore = 'apple' | 'google';
 
@@ -748,37 +752,30 @@ export interface RequestSubscriptionPropsByPlatforms {
 }
 
 export interface RequestVerifyPurchaseWithIapkitAppleProps {
-  /** Required when verifying purchases in production mode. */
-  appId?: (string | null);
-  /** Target environment for verification. */
-  environment?: (IapkitEnvironment | null);
   /** The JWS token returned with the purchase response. */
-  receipt: string;
+  jws: string;
 }
 
 export interface RequestVerifyPurchaseWithIapkitGoogleProps {
-  /** The package name of the application for which this subscription was purchased. */
-  packageName: string;
-  /** The ID of the product or subscription that was purchased. */
-  purchaseId: string;
-  /** The token provided to the user's device when the subscription was purchased. */
+  /** The token provided to the user's device when the product or subscription was purchased. */
   purchaseToken: string;
 }
 
 export interface RequestVerifyPurchaseWithIapkitProps {
   /** API key used for the Authorization header (Bearer {apiKey}). */
   apiKey?: (string | null);
-  /** Apple verification parameters (required when store is Apple). */
+  /** Apple verification parameters. */
   apple?: (RequestVerifyPurchaseWithIapkitAppleProps | null);
-  /** Google verification parameters (required when store is Google). */
+  /** Google verification parameters. */
   google?: (RequestVerifyPurchaseWithIapkitGoogleProps | null);
-  /** Target store for this verification request. Optional when sending both Apple and Google payloads together. */
-  store?: (IapkitStore | null);
 }
 
 export interface RequestVerifyPurchaseWithIapkitResult {
+  /** Whether the purchase is valid (not falsified). */
+  isValid: boolean;
+  /** The current state of the purchase. */
+  state: IapkitPurchaseState;
   store: IapkitStore;
-  valid: boolean;
 }
 
 export interface Subscription {

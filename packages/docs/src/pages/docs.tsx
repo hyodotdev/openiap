@@ -16,6 +16,7 @@ import SubscriptionUpgradeDowngrade from './docs/features/subscription-upgrade-d
 import IOSSetup from './docs/ios-setup';
 import AndroidSetup from './docs/android-setup';
 import HorizonSetup from './docs/horizon-setup';
+import Example from './docs/example';
 import Announcements from './docs/updates/announcements';
 import Notes from './docs/updates/notes';
 import Versions from './docs/updates/versions';
@@ -139,6 +140,15 @@ function Docs() {
               items={[{ to: '/docs/horizon-setup', label: 'Horizon OS' }]}
               onItemClick={closeSidebar}
             />
+            <li>
+              <NavLink
+                to="/docs/example"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Example
+              </NavLink>
+            </li>
           </ul>
           <h3 style={{ marginTop: '2rem' }}>Features</h3>
           <ul>
@@ -250,6 +260,7 @@ function Docs() {
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
+          <Route path="example" element={<Example />} />
           <Route path="updates/announcements" element={<Announcements />} />
           <Route path="updates/notes" element={<Notes />} />
           <Route path="updates/versions" element={<Versions />} />

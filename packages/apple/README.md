@@ -65,7 +65,7 @@ Add OpenIAP to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/hyodotdev/openiap.git", from: "1.2.23")
+    .package(url: "https://github.com/hyodotdev/openiap.git", from: "$version")
 ]
 ```
 
@@ -80,7 +80,7 @@ Or through Xcode:
 Add to your `Podfile`:
 
 ```ruby
-pod 'openiap', '~> 1.2.23'
+pod 'openiap', '~> $version'
 ```
 
 Then run:
@@ -88,6 +88,8 @@ Then run:
 ```bash
 pod install
 ```
+
+> 📌 **Latest Version**: Check [`openiap-versions.json`](../../openiap-versions.json) for the current version, or see the badges above.
 
 ## 🚀 Quick Start
 
