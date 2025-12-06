@@ -595,7 +595,7 @@ if (subscription?.renewalInfoIOS?.willAutoRenew === false) {
 
   try {
     await requestPurchase({
-      params: { ios: { sku: 'premium_monthly' } },
+      request: { ios: { sku: 'premium_monthly' } },
       type: 'subs'
     });
   } catch (error) {
@@ -1124,24 +1124,24 @@ Future<void> deepLinkToSubscriptions({
           {{
             typescript: (
               <CodeBlock language="typescript">{`// Function signature
-verifyPurchase(options: ReceiptValidationProps): Promise<ReceiptValidationResult>`}</CodeBlock>
+verifyPurchase(options: VerifyPurchaseProps): Promise<VerifyPurchaseResult>`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`// Function signature
 func verifyPurchase(
-    options: ReceiptValidationProps
-) async throws -> ReceiptValidationResult`}</CodeBlock>
+    options: VerifyPurchaseProps
+) async throws -> VerifyPurchaseResult`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`// Function signature
 suspend fun verifyPurchase(
-    options: ReceiptValidationProps
-): ReceiptValidationResult`}</CodeBlock>
+    options: VerifyPurchaseProps
+): VerifyPurchaseResult`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`// Function signature
-Future<ReceiptValidationResult> verifyPurchase(
-  ReceiptValidationProps options,
+Future<VerifyPurchaseResult> verifyPurchase(
+  VerifyPurchaseProps options,
 );`}</CodeBlock>
             ),
           }}
@@ -1149,11 +1149,11 @@ Future<ReceiptValidationResult> verifyPurchase(
         <p className="type-link">
           See:{' '}
           <Link to="/docs/types#purchase-verification-types">
-            ReceiptValidationProps
+            VerifyPurchaseProps
           </Link>
           ,{' '}
           <Link to="/docs/types#receipt-validation-result">
-            ReceiptValidationResult
+            VerifyPurchaseResult
           </Link>
         </p>
         <p>Verifies purchases with the appropriate validation service.</p>
@@ -2131,9 +2131,13 @@ const handlePurchase = async (basePlanId: string) => {
   purchasedBasePlanId = basePlanId;
 
   await requestPurchase({
-    android: {
-      skus: [subscriptionGroupId],
-      subscriptionOffers: [{ sku: subscriptionGroupId, offerToken: offer.offerToken }],
+    request: {
+      android: {
+        skus: [subscriptionGroupId],
+        subscriptionOffers: [
+          { sku: subscriptionGroupId, offerToken: offer.offerToken },
+        ],
+      },
     },
     type: 'subs',
   });
