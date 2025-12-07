@@ -124,13 +124,50 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         switch params.type ?? .all {
         case .subs:
-            // Only return products that are actually subscriptions
-            let validSubs = subscriptionEntries.filter { sub in
+            // Return products that are subscriptions (both auto-renewable and non-renewing)
+            // Auto-renewable subscriptions have product.subscription != nil and use subscriptionEntries
+            // Non-renewing subscriptions have product.type == .nonRenewable but no subscription metadata
+            let autoRenewableSubs = subscriptionEntries.filter { sub in
                 fetchedProducts.contains { product in
                     product.id == sub.id && product.subscription != nil
                 }
             }
-            return .subscriptions(validSubs.isEmpty ? nil : validSubs)
+
+            // Include non-renewing subscriptions as ProductSubscriptionIOS
+            // Note: Non-renewing subscriptions in StoreKit 2 don't have subscription metadata
+            // (no discounts, intro offers, subscription period, or subscription group).
+            // This is a StoreKit limitation, not missing data - we include all available product info.
+            let nonRenewingSubs: [ProductSubscription] = fetchedProducts.compactMap { product in
+                guard product.type == .nonRenewable else { return nil }
+                return .productSubscriptionIos(ProductSubscriptionIOS(
+                    currency: product.priceFormatStyle.currencyCode,
+                    debugDescription: product.description,
+                    description: product.description,
+                    discountsIOS: nil,  // StoreKit: Non-renewing subscriptions don't support discounts
+                    displayName: product.displayName,
+                    displayNameIOS: product.displayName,
+                    displayPrice: product.displayPrice,
+                    id: product.id,
+                    introductoryPriceAsAmountIOS: nil,  // StoreKit: Non-renewing subscriptions don't support intro offers
+                    introductoryPriceIOS: nil,
+                    introductoryPriceNumberOfPeriodsIOS: nil,
+                    introductoryPricePaymentModeIOS: .empty,
+                    introductoryPriceSubscriptionPeriodIOS: nil,
+                    isFamilyShareableIOS: product.isFamilyShareable,
+                    jsonRepresentationIOS: String(data: product.jsonRepresentation, encoding: .utf8) ?? "",
+                    platform: .ios,
+                    price: NSDecimalNumber(decimal: product.price).doubleValue,
+                    subscriptionInfoIOS: nil,  // StoreKit: Non-renewing subscriptions have no subscription metadata
+                    subscriptionPeriodNumberIOS: nil,
+                    subscriptionPeriodUnitIOS: nil,
+                    title: product.displayName,
+                    type: .subs,
+                    typeIOS: .nonRenewingSubscription
+                ))
+            }
+
+            let allSubs = autoRenewableSubs + nonRenewingSubs
+            return .subscriptions(allSubs.isEmpty ? nil : allSubs)
         case .inApp:
             let inApp = productEntries.compactMap { entry -> OpenIAP.Product? in
                 guard case let .productIos(value) = entry, value.type == .inApp else { return nil }
