@@ -350,6 +350,49 @@ import StoreKit
         }
     }
 
+    /// Verify purchase with external provider (e.g., IAPKit)
+    /// - Parameters:
+    ///   - provider: The provider name (currently only "iapkit" is supported)
+    ///   - apiKey: Optional API key for the provider
+    ///   - jws: JWS token from StoreKit 2 purchase (for Apple verification)
+    ///   - completion: Callback with array of verification results or error
+    @objc func verifyPurchaseWithProviderObjC(
+        provider: String,
+        apiKey: String?,
+        jws: String?,
+        completion: @escaping ([Any]?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                guard let providerEnum = PurchaseVerificationProvider(rawValue: provider) else {
+                    throw PurchaseError(code: .featureNotSupported, message: "Provider '\(provider)' is not supported")
+                }
+
+                var appleProps: RequestVerifyPurchaseWithIapkitAppleProps?
+                if let jws = jws, !jws.isEmpty {
+                    appleProps = RequestVerifyPurchaseWithIapkitAppleProps(jws: jws)
+                }
+
+                let iapkitProps = RequestVerifyPurchaseWithIapkitProps(
+                    apiKey: apiKey,
+                    apple: appleProps,
+                    google: nil
+                )
+
+                let props = VerifyPurchaseWithProviderProps(
+                    iapkit: iapkitProps,
+                    provider: providerEnum
+                )
+
+                let result = try await verifyPurchaseWithProvider(props)
+                let dictionaries = result.iapkit.map { OpenIapSerialization.encode($0) }
+                completion(dictionaries, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     // MARK: - Store Information
 
     @objc func getStorefrontIOSWithCompletion(_ completion: @escaping (String?, Error?) -> Void) {
