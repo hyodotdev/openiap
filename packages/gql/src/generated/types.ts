@@ -29,10 +29,9 @@ export interface ActiveSubscription {
   transactionDate: number;
   transactionId: string;
   /**
-   * @deprecated iOS only - returns null on Android.
+   * @deprecated iOS only - use daysUntilExpirationIOS instead.
    * Whether the subscription will expire soon (within 7 days).
    * Consider using daysUntilExpirationIOS for more precise control.
-   * @deprecated iOS only - use daysUntilExpirationIOS instead
    */
   willExpireSoon?: (boolean | null);
 }

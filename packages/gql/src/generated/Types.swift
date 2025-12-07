@@ -298,7 +298,7 @@ public struct ActiveSubscription: Codable {
     public var renewalInfoIOS: RenewalInfoIOS?
     public var transactionDate: Double
     public var transactionId: String
-    /// @deprecated iOS only - returns null on Android.
+    /// @deprecated iOS only - use daysUntilExpirationIOS instead.
     /// Whether the subscription will expire soon (within 7 days).
     /// Consider using daysUntilExpirationIOS for more precise control.
     public var willExpireSoon: Bool?

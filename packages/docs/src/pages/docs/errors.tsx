@@ -260,17 +260,17 @@ function Errors() {
             </tr>
             <tr>
               <td>
-                <code>TransactionFinished</code>
+                <code>PurchaseVerificationFinished</code>
               </td>
-              <td>Transaction already processed/finished</td>
-              <td>Transaction already completed, check records</td>
+              <td>Purchase verification already completed</td>
+              <td>Verification already completed, check records</td>
             </tr>
             <tr>
               <td>
-                <code>TransactionFinishFailed</code>
+                <code>PurchaseVerificationFinishFailed</code>
               </td>
-              <td>Failed to finish transaction processing</td>
-              <td>Check transaction state and retry</td>
+              <td>Failed to finish purchase verification</td>
+              <td>Check verification state and retry</td>
             </tr>
             <tr>
               <td>
@@ -285,6 +285,46 @@ function Errors() {
               </td>
               <td>Empty SKU list provided</td>
               <td>Provide at least one SKU to query</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Deprecated Error Codes</h3>
+        <div className="info-note">
+          <strong>Note:</strong> The following error codes are deprecated and
+          will be removed in a future version. Use the new codes instead.
+        </div>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Deprecated Code</th>
+              <th>Replacement</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>ReceiptFailed</code>
+              </td>
+              <td>
+                <code>PurchaseVerificationFailed</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>ReceiptFinished</code>
+              </td>
+              <td>
+                <code>PurchaseVerificationFinished</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>ReceiptFinishedFailed</code>
+              </td>
+              <td>
+                <code>PurchaseVerificationFinishFailed</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -516,9 +556,15 @@ function Errors() {
   RemoteError = 'E_REMOTE_ERROR',
   NetworkError = 'E_NETWORK_ERROR',
   ServiceError = 'E_SERVICE_ERROR',
+  // @deprecated Use PurchaseVerificationFailed instead
+  ReceiptFailed = 'E_RECEIPT_FAILED',
+  // @deprecated Use PurchaseVerificationFinished instead
+  ReceiptFinished = 'E_RECEIPT_FINISHED',
+  // @deprecated Use PurchaseVerificationFinishFailed instead
+  ReceiptFinishedFailed = 'E_RECEIPT_FINISHED_FAILED',
   PurchaseVerificationFailed = 'E_PURCHASE_VERIFICATION_FAILED',
-  TransactionFinished = 'E_TRANSACTION_FINISHED',
-  TransactionFinishFailed = 'E_TRANSACTION_FINISH_FAILED',
+  PurchaseVerificationFinished = 'E_PURCHASE_VERIFICATION_FINISHED',
+  PurchaseVerificationFinishFailed = 'E_PURCHASE_VERIFICATION_FINISH_FAILED',
   NotPrepared = 'E_NOT_PREPARED',
   NotEnded = 'E_NOT_ENDED',
   AlreadyOwned = 'E_ALREADY_OWNED',
@@ -554,9 +600,15 @@ function Errors() {
     case remoteError
     case networkError
     case serviceError
+    // @deprecated Use purchaseVerificationFailed instead
+    case receiptFailed
+    // @deprecated Use purchaseVerificationFinished instead
+    case receiptFinished
+    // @deprecated Use purchaseVerificationFinishFailed instead
+    case receiptFinishedFailed
     case purchaseVerificationFailed
-    case transactionFinished
-    case transactionFinishFailed
+    case purchaseVerificationFinished
+    case purchaseVerificationFinishFailed
     case notPrepared
     case notEnded
     case alreadyOwned
@@ -592,9 +644,15 @@ function Errors() {
     RemoteError,
     NetworkError,
     ServiceError,
+    // @deprecated Use PurchaseVerificationFailed instead
+    ReceiptFailed,
+    // @deprecated Use PurchaseVerificationFinished instead
+    ReceiptFinished,
+    // @deprecated Use PurchaseVerificationFinishFailed instead
+    ReceiptFinishedFailed,
     PurchaseVerificationFailed,
-    TransactionFinished,
-    TransactionFinishFailed,
+    PurchaseVerificationFinished,
+    PurchaseVerificationFinishFailed,
     NotPrepared,
     NotEnded,
     AlreadyOwned,
@@ -630,9 +688,15 @@ function Errors() {
   remoteError,
   networkError,
   serviceError,
+  // @deprecated Use purchaseVerificationFailed instead
+  receiptFailed,
+  // @deprecated Use purchaseVerificationFinished instead
+  receiptFinished,
+  // @deprecated Use purchaseVerificationFinishFailed instead
+  receiptFinishedFailed,
   purchaseVerificationFailed,
-  transactionFinished,
-  transactionFinishFailed,
+  purchaseVerificationFinished,
+  purchaseVerificationFinishFailed,
   notPrepared,
   notEnded,
   alreadyOwned,
