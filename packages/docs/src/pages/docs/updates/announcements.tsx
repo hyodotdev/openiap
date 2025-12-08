@@ -14,7 +14,140 @@ function Announcements() {
       <h1>📢 Announcements</h1>
       <p>Important news and updates about OpenIAP</p>
 
-      <section>
+      <section id="2025-12-09">
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '2px solid var(--border-color)',
+            borderRadius: '1rem',
+            padding: '2rem',
+            marginBottom: '2rem',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden',
+            overflowWrap: 'break-word',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <img
+              src="/iapkit.png"
+              alt="IAPKit"
+              style={{ width: '48px', height: '48px', borderRadius: '10px' }}
+            />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              IAPKit is Now an Official Verification Provider!
+            </h2>
+            <a
+              href="#2025-12-09"
+              style={{
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                fontSize: '1.2rem',
+              }}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p
+            style={{
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '1rem',
+            }}
+          >
+            December 2025 - v1.3.0
+          </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Starting from <strong>OpenIAP v1.3.0</strong>,{' '}
+            <a
+              href="https://iapkit.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              IAPKit
+            </a>{' '}
+            is now integrated as the official purchase verification provider. This
+            brings enterprise-grade backend verification to OpenIAP with minimal
+            setup required.
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Backend Purchase Verification + Security</strong> - Server-side
+              validation that prevents fraud, tampering, and receipt reuse. More
+              secure than client-only verification.
+            </li>
+            <li>
+              <strong>Fast Launch</strong> - Simplified IAP verification process.
+              Start selling in-app products with minimal configuration.
+            </li>
+            <li>
+              <strong>Flexibility + Easy Maintenance</strong> - Single unified API
+              for both Apple App Store and Google Play. Adding or changing stores
+              is seamless.
+            </li>
+          </ul>
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '400px',
+              height: '220px',
+              borderRadius: '0.75rem',
+              margin: '1.5rem auto 0',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/iapkit-love.png"
+              alt="OpenIAP + IAPKit"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center',
+              }}
+            />
+          </div>
+          <div
+            style={{
+              marginTop: '1.5rem',
+              padding: '1rem',
+              background: 'var(--bg-secondary)',
+              borderRadius: '0.5rem',
+              borderLeft: '4px solid var(--primary-color)',
+            }}
+          >
+            <strong>Getting Started:</strong> Use the new{' '}
+            <code>verifyPurchaseWithProvider</code> API with <code>provider: 'iapkit'</code>.
+            See the{' '}
+            <a
+              href="/docs/apis#verify-purchase-with-provider"
+              className="external-link"
+            >
+              API documentation
+            </a>{' '}
+            for details.
+          </div>
+        </div>
+      </section>
+
+      <section id="2025-10-01">
         <div
           style={{
             background: 'var(--bg-secondary)',
@@ -44,6 +177,17 @@ function Announcements() {
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               Meta Horizon OS Support is Here!
             </h2>
+            <a
+              href="#2025-10-01"
+              style={{
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                fontSize: '1.2rem',
+              }}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
           </div>
           <p
             style={{
@@ -113,7 +257,7 @@ function Announcements() {
         </div>
       </section>
 
-      <section>
+      <section id="2025-09-15">
         <div
           style={{
             background: 'var(--bg-secondary)',
@@ -139,6 +283,17 @@ function Announcements() {
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               openiap-gql v1.0.0 is live
             </h2>
+            <a
+              href="#2025-09-15"
+              style={{
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                fontSize: '1.2rem',
+              }}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
           </div>
           <p
             style={{
@@ -207,7 +362,7 @@ function Announcements() {
         </div>
       </section>
 
-      <section>
+      <section id="2025-09-01">
         <div
           style={{
             background: 'var(--bg-secondary)',
@@ -230,6 +385,17 @@ function Announcements() {
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               OpenIAP Official Modules are live
             </h2>
+            <a
+              href="#2025-09-01"
+              style={{
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                fontSize: '1.2rem',
+              }}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
           </div>
           <p
             style={{
@@ -310,7 +476,7 @@ function Announcements() {
         </div>
       </section>
 
-      <section>
+      <section id="2025-08-15">
         <div
           style={{
             background: 'var(--bg-secondary)',
@@ -345,6 +511,17 @@ function Announcements() {
               </a>
               !
             </h2>
+            <a
+              href="#2025-08-15"
+              style={{
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                fontSize: '1.2rem',
+              }}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
           </div>
           <p
             style={{
