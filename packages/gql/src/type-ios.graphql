@@ -132,9 +132,6 @@ type PurchaseIOS implements PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
-  """
-  @deprecated Use store instead
-  """
   platform: IapPlatform! @deprecated(reason: "Use store instead")
   quantity: Int!
   purchaseState: PurchaseState!

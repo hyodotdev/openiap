@@ -690,7 +690,6 @@ abstract class PurchaseCommon {
   String get id;
   List<String>? get ids;
   bool get isAutoRenewing;
-  /// @deprecated Use store instead
   IapPlatform get platform;
   String get productId;
   PurchaseState get purchaseState;
@@ -1539,7 +1538,6 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
     this.packageNameAndroid,
-    /// @deprecated Use store instead
     required this.platform,
     required this.productId,
     required this.purchaseState,
@@ -1564,7 +1562,6 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String? obfuscatedAccountIdAndroid;
   final String? obfuscatedProfileIdAndroid;
   final String? packageNameAndroid;
-  /// @deprecated Use store instead
   final IapPlatform platform;
   final String productId;
   final PurchaseState purchaseState;
@@ -1679,7 +1676,6 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.originalTransactionDateIOS,
     this.originalTransactionIdentifierIOS,
     this.ownershipTypeIOS,
-    /// @deprecated Use store instead
     required this.platform,
     required this.productId,
     required this.purchaseState,
@@ -1718,7 +1714,6 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final double? originalTransactionDateIOS;
   final String? originalTransactionIdentifierIOS;
   final String? ownershipTypeIOS;
-  /// @deprecated Use store instead
   final IapPlatform platform;
   final String productId;
   final PurchaseState purchaseState;
@@ -3174,7 +3169,6 @@ sealed class Purchase implements PurchaseCommon {
   List<String>? get ids;
   @override
   bool get isAutoRenewing;
-  /// @deprecated Use store instead
   @override
   IapPlatform get platform;
   @override

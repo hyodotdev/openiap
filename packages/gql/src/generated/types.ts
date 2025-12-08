@@ -457,10 +457,7 @@ export interface PurchaseAndroid extends PurchaseCommon {
   obfuscatedAccountIdAndroid?: (string | null);
   obfuscatedProfileIdAndroid?: (string | null);
   packageNameAndroid?: (string | null);
-  /**
-   * @deprecated Use store instead
-   * @deprecated Use store instead
-   */
+  /** @deprecated Use store instead */
   platform: IapPlatform;
   productId: string;
   purchaseState: PurchaseState;
@@ -484,10 +481,7 @@ export interface PurchaseCommon {
   id: string;
   ids?: (string[] | null);
   isAutoRenewing: boolean;
-  /**
-   * @deprecated Use store instead
-   * @deprecated Use store instead
-   */
+  /** @deprecated Use store instead */
   platform: IapPlatform;
   productId: string;
   purchaseState: PurchaseState;
@@ -522,10 +516,7 @@ export interface PurchaseIOS extends PurchaseCommon {
   originalTransactionDateIOS?: (number | null);
   originalTransactionIdentifierIOS?: (string | null);
   ownershipTypeIOS?: (string | null);
-  /**
-   * @deprecated Use store instead
-   * @deprecated Use store instead
-   */
+  /** @deprecated Use store instead */
   platform: IapPlatform;
   productId: string;
   purchaseState: PurchaseState;

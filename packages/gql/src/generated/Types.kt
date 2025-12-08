@@ -591,9 +591,6 @@ public interface PurchaseCommon {
     val id: String
     val ids: List<String>?
     val isAutoRenewing: Boolean
-    /**
-     * @deprecated Use store instead
-     */
     val platform: IapPlatform
     val productId: String
     val purchaseState: PurchaseState
@@ -1285,9 +1282,6 @@ public data class PurchaseAndroid(
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
-    /**
-     * @deprecated Use store instead
-     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
@@ -1395,9 +1389,6 @@ public data class PurchaseIOS(
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
     val ownershipTypeIOS: String? = null,
-    /**
-     * @deprecated Use store instead
-     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,

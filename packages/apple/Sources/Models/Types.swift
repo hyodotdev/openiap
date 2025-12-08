@@ -268,7 +268,6 @@ public protocol PurchaseCommon: Codable {
     var id: String { get }
     var ids: [String]? { get }
     var isAutoRenewing: Bool { get }
-    /// @deprecated Use store instead
     var platform: IapPlatform { get }
     var productId: String { get }
     var purchaseState: PurchaseState { get }
@@ -492,7 +491,6 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var obfuscatedAccountIdAndroid: String?
     public var obfuscatedProfileIdAndroid: String?
     public var packageNameAndroid: String?
-    /// @deprecated Use store instead
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
@@ -528,7 +526,6 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var originalTransactionDateIOS: Double?
     public var originalTransactionIdentifierIOS: String?
     public var ownershipTypeIOS: String?
-    /// @deprecated Use store instead
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
@@ -1366,7 +1363,6 @@ public enum Purchase: Codable, PurchaseCommon {
         }
     }
 
-    /// @deprecated Use store instead
     public var platform: IapPlatform {
         switch self {
         case let .purchaseAndroid(value):
