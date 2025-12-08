@@ -385,7 +385,7 @@ public final class OpenIapStore: ObservableObject {
         )
     }
 
-    public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> [RequestVerifyPurchaseWithIapkitResult] {
+    public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> RequestVerifyPurchaseWithIapkitResult? {
         let result = try await module.verifyPurchaseWithProvider(props)
         return result.iapkit
     }

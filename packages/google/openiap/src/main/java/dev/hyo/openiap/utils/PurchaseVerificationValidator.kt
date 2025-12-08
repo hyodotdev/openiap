@@ -84,7 +84,7 @@ suspend fun verifyPurchaseWithIapkit(
     props: RequestVerifyPurchaseWithIapkitProps,
     tag: String,
     connectionFactory: (String) -> HttpURLConnection = ::openConnection
-): List<RequestVerifyPurchaseWithIapkitResult> = withContext(Dispatchers.IO) {
+): RequestVerifyPurchaseWithIapkitResult = withContext(Dispatchers.IO) {
     val endpoint = DEFAULT_IAPKIT_ENDPOINT
 
     // On Android, only Google verification is supported
@@ -92,80 +92,77 @@ suspend fun verifyPurchaseWithIapkit(
         throw IllegalArgumentException("IAPKit verification on Android requires google payload")
     }
 
-    val requests: List<Pair<IapkitStore, Map<String, Any?>>> = listOf(
-        IapkitStore.Google to buildPayload(props, IapkitStore.Google)
-    )
+    val store = IapkitStore.Google
+    val payload = buildPayload(props, store)
 
-    requests.map { (store, payload) ->
-        val connection = connectionFactory(endpoint).apply {
-            requestMethod = "POST"
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-            props.apiKey?.takeIf { it.isNotBlank() }?.let { apiKey ->
-                setRequestProperty("Authorization", "Bearer $apiKey")
+    val connection = connectionFactory(endpoint).apply {
+        requestMethod = "POST"
+        doOutput = true
+        setRequestProperty("Content-Type", "application/json")
+        props.apiKey?.takeIf { it.isNotBlank() }?.let { apiKey ->
+            setRequestProperty("Authorization", "Bearer $apiKey")
+        }
+    }
+
+    try {
+        val body = gson.toJson(payload)
+
+        // Log request details for debugging
+        OpenIapLog.debug("IAPKit request URL: $endpoint", tag)
+        OpenIapLog.debug("IAPKit request body: $body", tag)
+
+        connection.outputStream.use { stream ->
+            stream.write(body.toByteArray())
+        }
+
+        val statusCode = connection.responseCode
+        val responseBody = (if (statusCode in 200..299) connection.inputStream else connection.errorStream)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            .orElse("")
+
+        OpenIapLog.debug("IAPKit response (HTTP $statusCode): $responseBody", tag)
+
+        if (statusCode !in 200..299) {
+            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode) [$store]: $responseBody", tag)
+            // Extract concise error message from IAPKit response
+            // IAPKit returns nested error format - extract the deepest originalError
+            val errorMessage = try {
+                val mapType = object : TypeToken<Map<String, Any?>>() {}.type
+                val errorJson = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
+                extractIapkitErrorMessage(errorJson) ?: "HTTP $statusCode"
+            } catch (e: Exception) {
+                "HTTP $statusCode"
             }
+            throw OpenIapError.PurchaseVerificationFailed(errorMessage)
         }
 
         try {
-            val body = gson.toJson(payload)
-
-            // Log request details for debugging
-            OpenIapLog.debug("IAPKit request URL: $endpoint", tag)
-            OpenIapLog.debug("IAPKit request body: $body", tag)
-
-            connection.outputStream.use { stream ->
-                stream.write(body.toByteArray())
-            }
-
-            val statusCode = connection.responseCode
-            val responseBody = (if (statusCode in 200..299) connection.inputStream else connection.errorStream)
-                ?.bufferedReader()
-                ?.use { it.readText() }
-                .orElse("")
-
-            OpenIapLog.debug("IAPKit response (HTTP $statusCode): $responseBody", tag)
-
-            if (statusCode !in 200..299) {
-                OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode) [$store]: $responseBody", tag)
-                // Extract concise error message from IAPKit response
-                // IAPKit returns nested error format - extract the deepest originalError
-                val errorMessage = try {
-                    val mapType = object : TypeToken<Map<String, Any?>>() {}.type
-                    val errorJson = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
-                    extractIapkitErrorMessage(errorJson) ?: "HTTP $statusCode"
-                } catch (e: Exception) {
-                    "HTTP $statusCode"
+            val mapType = object : TypeToken<Map<String, Any?>>() {}.type
+            val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
+            // IAPKit API returns UPPER_SNAKE_CASE (e.g., "PURCHASED", "PENDING_ACKNOWLEDGMENT")
+            // Types.kt expects lower-kebab-case (e.g., "purchased", "pending-acknowledgment")
+            val normalizedParsed = parsed.toMutableMap().apply {
+                val state = this["state"] as? String
+                if (state != null) {
+                    this["state"] = state.lowercase().replace("_", "-")
                 }
-                throw OpenIapError.PurchaseVerificationFailed(errorMessage)
-            }
-
-            try {
-                val mapType = object : TypeToken<Map<String, Any?>>() {}.type
-                val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
-                // IAPKit API returns UPPER_SNAKE_CASE (e.g., "PURCHASED", "PENDING_ACKNOWLEDGMENT")
-                // Types.kt expects lower-kebab-case (e.g., "purchased", "pending-acknowledgment")
-                val normalizedParsed = parsed.toMutableMap().apply {
-                    val state = this["state"] as? String
-                    if (state != null) {
-                        this["state"] = state.lowercase().replace("_", "-")
-                    }
-                    // IAPKit response doesn't include store, add it from request
-                    if (this["store"] == null) {
-                        this["store"] = store.toJson()
-                    }
+                // IAPKit response doesn't include store, add it from request
+                if (this["store"] == null) {
+                    this["store"] = store.toJson()
                 }
-                OpenIapLog.debug("IAPKit normalized response: $normalizedParsed", tag)
-                RequestVerifyPurchaseWithIapkitResult.fromJson(normalizedParsed)
-            } catch (jsonError: Exception) {
-                OpenIapLog.warn("Failed to parse IAPKit verification response: ${jsonError.message}", tag)
-                throw OpenIapError.PurchaseVerificationFailed("Failed to parse response")
             }
-        } catch (io: IOException) {
-            OpenIapLog.warn("Network error during IAPKit verification: ${io.message}", tag)
-            throw OpenIapError.PurchaseVerificationFailed("Network error: ${io.message}")
-        } finally {
-            connection.disconnect()
+            OpenIapLog.debug("IAPKit normalized response: $normalizedParsed", tag)
+            RequestVerifyPurchaseWithIapkitResult.fromJson(normalizedParsed)
+        } catch (jsonError: Exception) {
+            OpenIapLog.warn("Failed to parse IAPKit verification response: ${jsonError.message}", tag)
+            throw OpenIapError.PurchaseVerificationFailed("Failed to parse response")
         }
+    } catch (io: IOException) {
+        OpenIapLog.warn("Network error during IAPKit verification: ${io.message}", tag)
+        throw OpenIapError.PurchaseVerificationFailed("Network error: ${io.message}")
+    } finally {
+        connection.disconnect()
     }
 }
 

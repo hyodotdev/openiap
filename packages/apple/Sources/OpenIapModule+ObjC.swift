@@ -355,12 +355,12 @@ import StoreKit
     ///   - provider: The provider name (currently only "iapkit" is supported)
     ///   - apiKey: Optional API key for the provider
     ///   - jws: JWS token from StoreKit 2 purchase (for Apple verification)
-    ///   - completion: Callback with array of verification results or error
+    ///   - completion: Callback with verification result dictionary or error
     @objc func verifyPurchaseWithProviderObjC(
         provider: String,
         apiKey: String?,
         jws: String?,
-        completion: @escaping ([Any]?, Error?) -> Void
+        completion: @escaping ([String: Any]?, Error?) -> Void
     ) {
         Task {
             do {
@@ -385,8 +385,8 @@ import StoreKit
                 )
 
                 let result = try await verifyPurchaseWithProvider(props)
-                let dictionaries = result.iapkit.map { OpenIapSerialization.encode($0) }
-                completion(dictionaries, nil)
+                let dictionary = result.iapkit.map { OpenIapSerialization.encode($0) }
+                completion(dictionary, nil)
             } catch {
                 completion(nil, error)
             }
