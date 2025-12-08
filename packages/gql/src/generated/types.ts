@@ -882,14 +882,21 @@ export interface VerifyPurchaseResultIOS {
   receiptData: string;
 }
 
+export interface VerifyPurchaseWithProviderError {
+  code?: (string | null);
+  message: string;
+}
+
 export interface VerifyPurchaseWithProviderProps {
   iapkit?: (RequestVerifyPurchaseWithIapkitProps | null);
   provider: PurchaseVerificationProvider;
 }
 
 export interface VerifyPurchaseWithProviderResult {
-  /** IAPKit verification results (can include Apple and Google entries) */
-  iapkit: RequestVerifyPurchaseWithIapkitResult[];
+  /** Error details if verification failed */
+  errors?: (VerifyPurchaseWithProviderError[] | null);
+  /** IAPKit verification result */
+  iapkit?: (RequestVerifyPurchaseWithIapkitResult | null);
   provider: PurchaseVerificationProvider;
 }
 

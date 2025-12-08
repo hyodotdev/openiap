@@ -2279,20 +2279,50 @@ class VerifyPurchaseResultIOS extends VerifyPurchaseResult {
   }
 }
 
+class VerifyPurchaseWithProviderError {
+  const VerifyPurchaseWithProviderError({
+    this.code,
+    required this.message,
+  });
+
+  final String? code;
+  final String message;
+
+  factory VerifyPurchaseWithProviderError.fromJson(Map<String, dynamic> json) {
+    return VerifyPurchaseWithProviderError(
+      code: json['code'] as String?,
+      message: json['message'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'VerifyPurchaseWithProviderError',
+      'code': code,
+      'message': message,
+    };
+  }
+}
+
 class VerifyPurchaseWithProviderResult {
   const VerifyPurchaseWithProviderResult({
-    /// IAPKit verification results (can include Apple and Google entries)
-    required this.iapkit,
+    /// Error details if verification failed
+    this.errors,
+    /// IAPKit verification result
+    this.iapkit,
     required this.provider,
   });
 
-  /// IAPKit verification results (can include Apple and Google entries)
-  final List<RequestVerifyPurchaseWithIapkitResult> iapkit;
+  /// Error details if verification failed
+  final List<VerifyPurchaseWithProviderError>? errors;
+  /// IAPKit verification result
+  final RequestVerifyPurchaseWithIapkitResult? iapkit;
   final PurchaseVerificationProvider provider;
 
   factory VerifyPurchaseWithProviderResult.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseWithProviderResult(
-      iapkit: (json['iapkit'] as List<dynamic>).map((e) => RequestVerifyPurchaseWithIapkitResult.fromJson(e as Map<String, dynamic>)).toList(),
+      errors: (json['errors'] as List<dynamic>?) == null ? null : (json['errors'] as List<dynamic>?)!.map((e) => VerifyPurchaseWithProviderError.fromJson(e as Map<String, dynamic>)).toList(),
+      iapkit: json['iapkit'] != null ? RequestVerifyPurchaseWithIapkitResult.fromJson(json['iapkit'] as Map<String, dynamic>) : null,
       provider: PurchaseVerificationProvider.fromJson(json['provider'] as String),
     );
   }
@@ -2300,7 +2330,8 @@ class VerifyPurchaseWithProviderResult {
   Map<String, dynamic> toJson() {
     return {
       '__typename': 'VerifyPurchaseWithProviderResult',
-      'iapkit': iapkit.map((e) => e.toJson()).toList(),
+      'errors': errors == null ? null : errors!.map((e) => e.toJson()).toList(),
+      'iapkit': iapkit?.toJson(),
       'provider': provider.toJson(),
     };
   }

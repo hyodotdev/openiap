@@ -304,9 +304,18 @@ input VerifyPurchaseWithProviderProps {
 type VerifyPurchaseWithProviderResult {
   provider: PurchaseVerificationProvider!
   """
-  IAPKit verification results (can include Apple and Google entries)
+  IAPKit verification result
   """
-  iapkit: [RequestVerifyPurchaseWithIapkitResult!]!
+  iapkit: RequestVerifyPurchaseWithIapkitResult
+  """
+  Error details if verification failed
+  """
+  errors: [VerifyPurchaseWithProviderError!]
+}
+
+type VerifyPurchaseWithProviderError {
+  message: String!
+  code: String
 }
 
 # Aggregated active subscription data across platforms

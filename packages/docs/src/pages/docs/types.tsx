@@ -3,7 +3,6 @@ import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
-import HighlightText from '../../components/HighlightText';
 import LanguageTabs from '../../components/LanguageTabs';
 import PlatformTabs from '../../components/PlatformTabs';
 import SEO from '../../components/SEO';
@@ -114,7 +113,7 @@ function Types() {
         title="Types"
         description="OpenIAP type definitions - Product, Purchase, PurchaseError, SubscriptionPeriod, purchase verification types, and more for TypeScript, Swift, Kotlin."
         path="/docs/types"
-        keywords="IAP types, Product, Purchase, PurchaseError, TypeScript, Swift, Kotlin, purchase verification, receipt validation"
+        keywords="IAP types, Product, Purchase, PurchaseError, TypeScript, Swift, Kotlin, purchase verification"
       />
       <div
         style={{
@@ -2315,20 +2314,13 @@ Future<void> handleExternalPurchase(String externalUrl) async {
         <AnchorLink id="purchase-verification-types" level="h2">
           Purchase Verification Types
         </AnchorLink>
-        <HighlightText>
-          aka.{' '}
-          <strong style={{ color: 'var(--text-accent)' }}>
-            Receipt Validation
-          </strong>{' '}
-          - the legacy term used by Apple in StoreKit 1
-        </HighlightText>
         <p>
           Types used with <code>verifyPurchase()</code> for server-side purchase
           verification.
         </p>
 
-        <AnchorLink id="receipt-validation-props" level="h3">
-          ReceiptValidationProps
+        <AnchorLink id="purchase-verification-props" level="h3">
+          PurchaseVerificationProps
         </AnchorLink>
         <table className="doc-table">
           <thead>
@@ -2342,7 +2334,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
               <td>
                 <code>sku</code>
               </td>
-              <td>Product identifier to validate</td>
+              <td>Product identifier to verify</td>
             </tr>
             <tr>
               <td>
@@ -2357,18 +2349,18 @@ Future<void> handleExternalPurchase(String externalUrl) async {
           </tbody>
         </table>
 
-        <AnchorLink id="receipt-validation-result" level="h3">
-          ReceiptValidationResult
+        <AnchorLink id="purchase-verification-result" level="h3">
+          PurchaseVerificationResult
         </AnchorLink>
         <p>
-          Union of <code>ReceiptValidationResultIOS</code> and{' '}
-          <code>ReceiptValidationResultAndroid</code>.
+          Union of <code>PurchaseVerificationResultIOS</code> and{' '}
+          <code>PurchaseVerificationResultAndroid</code>.
         </p>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>ReceiptValidationResultIOS</h4>
+                <h4>PurchaseVerificationResultIOS</h4>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -2381,7 +2373,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                       <td>
                         <code>isValid</code>
                       </td>
-                      <td>Whether validation succeeded</td>
+                      <td>Whether verification succeeded</td>
                     </tr>
                     <tr>
                       <td>
@@ -2393,7 +2385,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                       <td>
                         <code>jwsRepresentation</code>
                       </td>
-                      <td>JWS-encoded receipt</td>
+                      <td>JWS-encoded transaction</td>
                     </tr>
                     <tr>
                       <td>
@@ -2407,7 +2399,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
             ),
             android: (
               <>
-                <h4>ReceiptValidationResultAndroid</h4>
+                <h4>PurchaseVerificationResultAndroid</h4>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -2478,9 +2470,9 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                     </tr>
                     <tr>
                       <td>
-                        <code>receiptId</code>
+                        <code>transactionId</code>
                       </td>
-                      <td>Receipt identifier</td>
+                      <td>Transaction identifier</td>
                     </tr>
                     <tr>
                       <td>

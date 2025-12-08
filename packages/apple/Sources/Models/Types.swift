@@ -662,9 +662,16 @@ public struct VerifyPurchaseResultIOS: Codable {
     public var receiptData: String
 }
 
+public struct VerifyPurchaseWithProviderError: Codable {
+    public var code: String?
+    public var message: String
+}
+
 public struct VerifyPurchaseWithProviderResult: Codable {
-    /// IAPKit verification results (can include Apple and Google entries)
-    public var iapkit: [RequestVerifyPurchaseWithIapkitResult]
+    /// Error details if verification failed
+    public var errors: [VerifyPurchaseWithProviderError]?
+    /// IAPKit verification result
+    public var iapkit: RequestVerifyPurchaseWithIapkitResult?
     public var provider: PurchaseVerificationProvider
 }
 

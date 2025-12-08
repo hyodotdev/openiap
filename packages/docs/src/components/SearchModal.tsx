@@ -132,8 +132,8 @@ const apiData: ApiItem[] = [
     title: 'verifyPurchase',
     category: 'Purchase Verification',
     description: 'Verify purchases with your server or platform providers',
-    parameters: 'ReceiptValidationProps!',
-    returns: 'ReceiptValidationResult!',
+    parameters: 'PurchaseVerificationProps!',
+    returns: 'PurchaseVerificationResult!',
     path: '/docs/apis#verify-purchase',
   },
   // iOS APIs
@@ -314,8 +314,8 @@ const apiData: ApiItem[] = [
     title: 'validateReceiptIOS',
     category: 'iOS APIs',
     description: 'Deprecated: use verifyPurchase for purchase verification',
-    parameters: 'options: ReceiptValidationProps!',
-    returns: 'ReceiptValidationResultIOS!',
+    parameters: 'options: PurchaseVerificationProps!',
+    returns: 'PurchaseVerificationResultIOS!',
     path: '/docs/apis#validate-receipt-ios',
   },
 

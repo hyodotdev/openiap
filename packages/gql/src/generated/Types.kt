@@ -1876,18 +1876,44 @@ public data class VerifyPurchaseResultIOS(
     )
 }
 
+public data class VerifyPurchaseWithProviderError(
+    val code: String? = null,
+    val message: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderError {
+            return VerifyPurchaseWithProviderError(
+                code = json["code"] as String?,
+                message = json["message"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "VerifyPurchaseWithProviderError",
+        "code" to code,
+        "message" to message,
+    )
+}
+
 public data class VerifyPurchaseWithProviderResult(
     /**
-     * IAPKit verification results (can include Apple and Google entries)
+     * Error details if verification failed
      */
-    val iapkit: List<RequestVerifyPurchaseWithIapkitResult>,
+    val errors: List<VerifyPurchaseWithProviderError>? = null,
+    /**
+     * IAPKit verification result
+     */
+    val iapkit: RequestVerifyPurchaseWithIapkitResult? = null,
     val provider: PurchaseVerificationProvider
 ) {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderResult {
             return VerifyPurchaseWithProviderResult(
-                iapkit = (json["iapkit"] as List<*>).map { RequestVerifyPurchaseWithIapkitResult.fromJson((it as Map<String, Any?>)) },
+                errors = (json["errors"] as List<*>?)?.map { VerifyPurchaseWithProviderError.fromJson((it as Map<String, Any?>)) },
+                iapkit = (json["iapkit"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitResult.fromJson(it) },
                 provider = PurchaseVerificationProvider.fromJson(json["provider"] as String),
             )
         }
@@ -1895,7 +1921,8 @@ public data class VerifyPurchaseWithProviderResult(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "VerifyPurchaseWithProviderResult",
-        "iapkit" to iapkit.map { it.toJson() },
+        "errors" to errors?.map { it.toJson() },
+        "iapkit" to iapkit?.toJson(),
         "provider" to provider.toJson(),
     )
 }

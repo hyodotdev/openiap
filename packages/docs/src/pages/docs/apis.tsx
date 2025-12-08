@@ -15,7 +15,7 @@ function APIs() {
         title="APIs"
         description="OpenIAP API reference - initConnection, fetchProducts, requestPurchase, verifyPurchase, finishTransaction, and more for cross-platform in-app purchases."
         path="/docs/apis"
-        keywords="IAP API, initConnection, fetchProducts, requestPurchase, finishTransaction, verifyPurchase, validateReceipt, receipt validation"
+        keywords="IAP API, initConnection, fetchProducts, requestPurchase, finishTransaction, verifyPurchase, purchase verification"
       />
       <h1>APIs</h1>
 
@@ -794,8 +794,8 @@ Future<void> finishTransaction(
           </li>
         </ul>
         <p>
-          <strong>Important</strong>: Always call this after validating the
-          receipt to avoid losing track of purchases. Android purchases must be
+          <strong>Important</strong>: Always call this after verifying the
+          purchase to avoid losing track of purchases. Android purchases must be
           acknowledged within 3 days or they will be automatically refunded.
         </p>
 
@@ -1152,7 +1152,7 @@ Future<VerifyPurchaseResult> verifyPurchase(
             VerifyPurchaseProps
           </Link>
           ,{' '}
-          <Link to="/docs/types#receipt-validation-result">
+          <Link to="/docs/types#purchase-verification-result">
             VerifyPurchaseResult
           </Link>
         </p>
@@ -1770,8 +1770,8 @@ struct ExternalPurchaseLinkResultIOS {
                 <CodeBlock language="swift">{`// Deprecated: Use verifyPurchase() instead
 @available(*, deprecated, message: "Use verifyPurchase()")
 func validateReceiptIOS(
-    options: ReceiptValidationProps
-) async throws -> ReceiptValidationResult`}</CodeBlock>
+    options: PurchaseVerificationProps
+) async throws -> PurchaseVerificationResult`}</CodeBlock>
                 <p>
                   Validates a receipt payload against the App Store using the
                   provided validation options. Returns the parsed validation
