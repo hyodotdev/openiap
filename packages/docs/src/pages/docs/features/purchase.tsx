@@ -276,8 +276,8 @@ const purchaseProduct = async (productId: string) => {
   try {
     await requestPurchase({
       request: {
-        ios: { sku: productId },
-        android: { skus: [productId] },
+        apple: { sku: productId },
+        google: { skus: [productId] },
       },
       type: 'inapp', // 'inapp' for consumables/non-consumables
     });

@@ -297,6 +297,7 @@ import StoreKit
                     reasonStringRepresentationIOS: nil,
                     revocationDateIOS: nil,
                     revocationReasonIOS: nil,
+                    store: .apple,
                     storefrontCountryCodeIOS: nil,
                     subscriptionGroupIdIOS: nil,
                     transactionDate: Date().timeIntervalSince1970,

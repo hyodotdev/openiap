@@ -2,6 +2,7 @@ package dev.hyo.openiap.utils
 
 import dev.hyo.openiap.ActiveSubscription
 import dev.hyo.openiap.IapPlatform
+import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.PricingPhaseAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.Product
@@ -117,8 +118,9 @@ internal object BillingConverters {
             purchaseToken = purchaseToken,
             quantity = quantity,
             signatureAndroid = signature,
-            transactionId = orderId,
-            transactionDate = purchaseTime.toDouble()
+            store = IapStore.Google,
+            transactionDate = purchaseTime.toDouble(),
+            transactionId = orderId
         )
     }
 

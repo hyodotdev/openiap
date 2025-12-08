@@ -29,6 +29,75 @@ function Notes() {
           }}
         >
           <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap v1.3.0 - Platform Props & Store Field Updates
+          </h4>
+          <p>
+            <strong>Breaking Changes:</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>Purchase.platform → Purchase.store</strong> - The{' '}
+              <code>platform</code> field is deprecated. Use <code>store</code>{' '}
+              instead which returns <code>'apple'</code> or <code>'google'</code>.
+            </li>
+            <li>
+              <strong>requestPurchase props</strong> - The <code>ios</code> and{' '}
+              <code>android</code> props are deprecated. Use <code>apple</code>{' '}
+              and <code>google</code> instead.
+            </li>
+          </ul>
+          <p>
+            <strong>New Feature:</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>verifyPurchaseWithProvider</strong> - New API for purchase
+              verification with external providers like IAPKit. Supports both
+              Apple App Store and Google Play Store.
+            </li>
+          </ul>
+          <p>
+            <strong>Migration:</strong>
+          </p>
+          <CodeBlock language="typescript">
+            {`// Before (deprecated)
+requestPurchase({
+  requestPurchase: {
+    ios: { sku: 'product_id' },
+    android: { skus: ['product_id'] }
+  }
+})
+
+// After (recommended)
+requestPurchase({
+  requestPurchase: {
+    apple: { sku: 'product_id' },
+    google: { skus: ['product_id'] }
+  }
+})
+
+// Purchase store field
+purchase.store  // 'apple' | 'google'
+purchase.platform  // deprecated`}
+          </CodeBlock>
+          <p>
+            See:{' '}
+            <a href="/docs/apis#verify-purchase-with-provider">
+              verifyPurchaseWithProvider API
+            </a>
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
             📅 openiap v1.2.6 - validateReceipt → verifyPurchase
           </h4>
           <p>

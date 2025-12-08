@@ -4,6 +4,7 @@ import com.meta.horizon.billingclient.api.ProductDetails as HorizonProductDetail
 import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
 import dev.hyo.openiap.ActiveSubscription
 import dev.hyo.openiap.IapPlatform
+import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.PricingPhaseAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.ProductAndroid
@@ -118,6 +119,7 @@ internal object HorizonBillingConverters {
             purchaseToken = token,
             quantity = quantity ?: 1,
             signatureAndroid = signature,
+            store = IapStore.Horizon,
             transactionDate = (purchaseTime ?: 0L).toDouble(),
             transactionId = orderId ?: token
         )

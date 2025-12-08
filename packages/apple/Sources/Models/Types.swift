@@ -181,14 +181,16 @@ public enum IapkitPurchaseState: String, Codable, CaseIterable {
     case inauthentic = "inauthentic"
 }
 
-public enum IapkitStore: String, Codable, CaseIterable {
-    case apple = "apple"
-    case google = "google"
-}
-
 public enum IapPlatform: String, Codable, CaseIterable {
     case ios = "ios"
     case android = "android"
+}
+
+public enum IapStore: String, Codable, CaseIterable {
+    case unknown = "unknown"
+    case apple = "apple"
+    case google = "google"
+    case horizon = "horizon"
 }
 
 public enum PaymentModeIOS: String, Codable, CaseIterable {
@@ -266,12 +268,15 @@ public protocol PurchaseCommon: Codable {
     var id: String { get }
     var ids: [String]? { get }
     var isAutoRenewing: Bool { get }
+    /// @deprecated Use store instead
     var platform: IapPlatform { get }
     var productId: String { get }
     var purchaseState: PurchaseState { get }
     /// Unified purchase token (iOS JWS, Android purchaseToken)
     var purchaseToken: String? { get }
     var quantity: Int { get }
+    /// Store where purchase was made
+    var store: IapStore { get }
     var transactionDate: Double { get }
 }
 
@@ -487,12 +492,15 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var obfuscatedAccountIdAndroid: String?
     public var obfuscatedProfileIdAndroid: String?
     public var packageNameAndroid: String?
+    /// @deprecated Use store instead
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
     public var purchaseToken: String?
     public var quantity: Int
     public var signatureAndroid: String?
+    /// Store where purchase was made
+    public var store: IapStore
     public var transactionDate: Double
     public var transactionId: String?
 }
@@ -520,6 +528,7 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var originalTransactionDateIOS: Double?
     public var originalTransactionIdentifierIOS: String?
     public var ownershipTypeIOS: String?
+    /// @deprecated Use store instead
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
@@ -531,6 +540,8 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var renewalInfoIOS: RenewalInfoIOS?
     public var revocationDateIOS: Double?
     public var revocationReasonIOS: String?
+    /// Store where purchase was made
+    public var store: IapStore
     public var storefrontCountryCodeIOS: String?
     public var subscriptionGroupIdIOS: String?
     public var transactionDate: Double
@@ -591,7 +602,7 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     public var isValid: Bool
     /// The current state of the purchase.
     public var state: IapkitPurchaseState
-    public var store: IapkitStore
+    public var store: IapStore
 }
 
 public struct SubscriptionInfoIOS: Codable {
@@ -924,16 +935,24 @@ public struct RequestPurchaseProps: Codable {
 }
 
 public struct RequestPurchasePropsByPlatforms: Codable {
-    /// Android-specific purchase parameters
+    /// @deprecated Use google instead
     public var android: RequestPurchaseAndroidProps?
-    /// iOS-specific purchase parameters
+    /// Apple-specific purchase parameters
+    public var apple: RequestPurchaseIosProps?
+    /// Google-specific purchase parameters
+    public var google: RequestPurchaseAndroidProps?
+    /// @deprecated Use apple instead
     public var ios: RequestPurchaseIosProps?
 
     public init(
         android: RequestPurchaseAndroidProps? = nil,
+        apple: RequestPurchaseIosProps? = nil,
+        google: RequestPurchaseAndroidProps? = nil,
         ios: RequestPurchaseIosProps? = nil
     ) {
         self.android = android
+        self.apple = apple
+        self.google = google
         self.ios = ios
     }
 }
@@ -996,16 +1015,24 @@ public struct RequestSubscriptionIosProps: Codable {
 }
 
 public struct RequestSubscriptionPropsByPlatforms: Codable {
-    /// Android-specific subscription parameters
+    /// @deprecated Use google instead
     public var android: RequestSubscriptionAndroidProps?
-    /// iOS-specific subscription parameters
+    /// Apple-specific subscription parameters
+    public var apple: RequestSubscriptionIosProps?
+    /// Google-specific subscription parameters
+    public var google: RequestSubscriptionAndroidProps?
+    /// @deprecated Use apple instead
     public var ios: RequestSubscriptionIosProps?
 
     public init(
         android: RequestSubscriptionAndroidProps? = nil,
+        apple: RequestSubscriptionIosProps? = nil,
+        google: RequestSubscriptionAndroidProps? = nil,
         ios: RequestSubscriptionIosProps? = nil
     ) {
         self.android = android
+        self.apple = apple
+        self.google = google
         self.ios = ios
     }
 }
@@ -1339,6 +1366,7 @@ public enum Purchase: Codable, PurchaseCommon {
         }
     }
 
+    /// @deprecated Use store instead
     public var platform: IapPlatform {
         switch self {
         case let .purchaseAndroid(value):
@@ -1382,6 +1410,16 @@ public enum Purchase: Codable, PurchaseCommon {
             return value.quantity
         case let .purchaseIos(value):
             return value.quantity
+        }
+    }
+
+    /// Store where purchase was made
+    public var store: IapStore {
+        switch self {
+        case let .purchaseAndroid(value):
+            return value.store
+        case let .purchaseIos(value):
+            return value.store
         }
     }
 

@@ -157,6 +157,7 @@ enum StoreKitTypesBridge {
             renewalInfoIOS: renewalInfoIOS,
             revocationDateIOS: revocationDate,
             revocationReasonIOS: transaction.revocationReason?.rawValue.description,
+            store: .apple,
             storefrontCountryCodeIOS: {
                 if #available(iOS 17.0, tvOS 17.0, watchOS 10.0, *) {
                     transaction.storefront.countryCode

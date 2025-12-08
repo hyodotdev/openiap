@@ -288,23 +288,6 @@ public enum class IapkitPurchaseState(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
-public enum class IapkitStore(val rawValue: String) {
-    Apple("apple"),
-    Google("google");
-
-    companion object {
-        fun fromJson(value: String): IapkitStore = when (value) {
-            "apple" -> IapkitStore.Apple
-            "Apple" -> IapkitStore.Apple
-            "google" -> IapkitStore.Google
-            "Google" -> IapkitStore.Google
-            else -> throw IllegalArgumentException("Unknown IapkitStore value: $value")
-        }
-    }
-
-    fun toJson(): String = rawValue
-}
-
 public enum class IapPlatform(val rawValue: String) {
     Ios("ios"),
     Android("android");
@@ -317,6 +300,29 @@ public enum class IapPlatform(val rawValue: String) {
             "android" -> IapPlatform.Android
             "Android" -> IapPlatform.Android
             else -> throw IllegalArgumentException("Unknown IapPlatform value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+public enum class IapStore(val rawValue: String) {
+    Unknown("unknown"),
+    Apple("apple"),
+    Google("google"),
+    Horizon("horizon");
+
+    companion object {
+        fun fromJson(value: String): IapStore = when (value) {
+            "unknown" -> IapStore.Unknown
+            "Unknown" -> IapStore.Unknown
+            "apple" -> IapStore.Apple
+            "Apple" -> IapStore.Apple
+            "google" -> IapStore.Google
+            "Google" -> IapStore.Google
+            "horizon" -> IapStore.Horizon
+            "Horizon" -> IapStore.Horizon
+            else -> throw IllegalArgumentException("Unknown IapStore value: $value")
         }
     }
 
@@ -518,6 +524,9 @@ public interface PurchaseCommon {
     val id: String
     val ids: List<String>?
     val isAutoRenewing: Boolean
+    /**
+     * @deprecated Use store instead
+     */
     val platform: IapPlatform
     val productId: String
     val purchaseState: PurchaseState
@@ -526,6 +535,10 @@ public interface PurchaseCommon {
      */
     val purchaseToken: String?
     val quantity: Int
+    /**
+     * Store where purchase was made
+     */
+    val store: IapStore
     val transactionDate: Double
 }
 
@@ -1205,12 +1218,19 @@ public data class PurchaseAndroid(
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
+    /**
+     * @deprecated Use store instead
+     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
     override val purchaseToken: String? = null,
     override val quantity: Int,
     val signatureAndroid: String? = null,
+    /**
+     * Store where purchase was made
+     */
+    override val store: IapStore,
     override val transactionDate: Double,
     val transactionId: String? = null
 ) : PurchaseCommon, Purchase {
@@ -1235,6 +1255,7 @@ public data class PurchaseAndroid(
                 purchaseToken = json["purchaseToken"] as String?,
                 quantity = (json["quantity"] as Number).toInt(),
                 signatureAndroid = json["signatureAndroid"] as String?,
+                store = IapStore.fromJson(json["store"] as String),
                 transactionDate = (json["transactionDate"] as Number).toDouble(),
                 transactionId = json["transactionId"] as String?,
             )
@@ -1260,6 +1281,7 @@ public data class PurchaseAndroid(
         "purchaseToken" to purchaseToken,
         "quantity" to quantity,
         "signatureAndroid" to signatureAndroid,
+        "store" to store.toJson(),
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
     )
@@ -1306,6 +1328,9 @@ public data class PurchaseIOS(
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
     val ownershipTypeIOS: String? = null,
+    /**
+     * @deprecated Use store instead
+     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
@@ -1317,6 +1342,10 @@ public data class PurchaseIOS(
     val renewalInfoIOS: RenewalInfoIOS? = null,
     val revocationDateIOS: Double? = null,
     val revocationReasonIOS: String? = null,
+    /**
+     * Store where purchase was made
+     */
+    override val store: IapStore,
     val storefrontCountryCodeIOS: String? = null,
     val subscriptionGroupIdIOS: String? = null,
     override val transactionDate: Double,
@@ -1355,6 +1384,7 @@ public data class PurchaseIOS(
                 renewalInfoIOS = (json["renewalInfoIOS"] as Map<String, Any?>?)?.let { RenewalInfoIOS.fromJson(it) },
                 revocationDateIOS = (json["revocationDateIOS"] as Number?)?.toDouble(),
                 revocationReasonIOS = json["revocationReasonIOS"] as String?,
+                store = IapStore.fromJson(json["store"] as String),
                 storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as String?,
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as String?,
                 transactionDate = (json["transactionDate"] as Number).toDouble(),
@@ -1394,6 +1424,7 @@ public data class PurchaseIOS(
         "renewalInfoIOS" to renewalInfoIOS?.toJson(),
         "revocationDateIOS" to revocationDateIOS,
         "revocationReasonIOS" to revocationReasonIOS,
+        "store" to store.toJson(),
         "storefrontCountryCodeIOS" to storefrontCountryCodeIOS,
         "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
         "transactionDate" to transactionDate,
@@ -1546,7 +1577,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
      * The current state of the purchase.
      */
     val state: IapkitPurchaseState,
-    val store: IapkitStore
+    val store: IapStore
 ) {
 
     companion object {
@@ -1554,7 +1585,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
             return RequestVerifyPurchaseWithIapkitResult(
                 isValid = json["isValid"] as Boolean,
                 state = IapkitPurchaseState.fromJson(json["state"] as String),
-                store = IapkitStore.fromJson(json["store"] as String),
+                store = IapStore.fromJson(json["store"] as String),
             )
         }
     }
@@ -2163,11 +2194,19 @@ public data class RequestPurchaseProps(
 
 public data class RequestPurchasePropsByPlatforms(
     /**
-     * Android-specific purchase parameters
+     * @deprecated Use google instead
      */
     val android: RequestPurchaseAndroidProps? = null,
     /**
-     * iOS-specific purchase parameters
+     * Apple-specific purchase parameters
+     */
+    val apple: RequestPurchaseIosProps? = null,
+    /**
+     * Google-specific purchase parameters
+     */
+    val google: RequestPurchaseAndroidProps? = null,
+    /**
+     * @deprecated Use apple instead
      */
     val ios: RequestPurchaseIosProps? = null
 ) {
@@ -2175,6 +2214,8 @@ public data class RequestPurchasePropsByPlatforms(
         fun fromJson(json: Map<String, Any?>): RequestPurchasePropsByPlatforms {
             return RequestPurchasePropsByPlatforms(
                 android = (json["android"] as Map<String, Any?>?)?.let { RequestPurchaseAndroidProps.fromJson(it) },
+                apple = (json["apple"] as Map<String, Any?>?)?.let { RequestPurchaseIosProps.fromJson(it) },
+                google = (json["google"] as Map<String, Any?>?)?.let { RequestPurchaseAndroidProps.fromJson(it) },
                 ios = (json["ios"] as Map<String, Any?>?)?.let { RequestPurchaseIosProps.fromJson(it) },
             )
         }
@@ -2182,6 +2223,8 @@ public data class RequestPurchasePropsByPlatforms(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "android" to android?.toJson(),
+        "apple" to apple?.toJson(),
+        "google" to google?.toJson(),
         "ios" to ios?.toJson(),
     )
 }
@@ -2271,11 +2314,19 @@ public data class RequestSubscriptionIosProps(
 
 public data class RequestSubscriptionPropsByPlatforms(
     /**
-     * Android-specific subscription parameters
+     * @deprecated Use google instead
      */
     val android: RequestSubscriptionAndroidProps? = null,
     /**
-     * iOS-specific subscription parameters
+     * Apple-specific subscription parameters
+     */
+    val apple: RequestSubscriptionIosProps? = null,
+    /**
+     * Google-specific subscription parameters
+     */
+    val google: RequestSubscriptionAndroidProps? = null,
+    /**
+     * @deprecated Use apple instead
      */
     val ios: RequestSubscriptionIosProps? = null
 ) {
@@ -2283,6 +2334,8 @@ public data class RequestSubscriptionPropsByPlatforms(
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionPropsByPlatforms {
             return RequestSubscriptionPropsByPlatforms(
                 android = (json["android"] as Map<String, Any?>?)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
+                apple = (json["apple"] as Map<String, Any?>?)?.let { RequestSubscriptionIosProps.fromJson(it) },
+                google = (json["google"] as Map<String, Any?>?)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
                 ios = (json["ios"] as Map<String, Any?>?)?.let { RequestSubscriptionIosProps.fromJson(it) },
             )
         }
@@ -2290,6 +2343,8 @@ public data class RequestSubscriptionPropsByPlatforms(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "android" to android?.toJson(),
+        "apple" to apple?.toJson(),
+        "google" to google?.toJson(),
         "ios" to ios?.toJson(),
     )
 }

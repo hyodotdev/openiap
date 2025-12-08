@@ -40,7 +40,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         let result = try await store.verifyPurchaseWithProvider(props)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(IapkitStore.apple, result?.store)
+        XCTAssertEqual(IapStore.apple, result?.store)
         XCTAssertEqual(true, result?.isValid)
         XCTAssertEqual(.entitled, result?.state)
     }

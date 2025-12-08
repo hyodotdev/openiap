@@ -3,7 +3,7 @@ package dev.hyo.openiap
 import com.google.gson.Gson
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
-import dev.hyo.openiap.IapkitStore
+import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -168,7 +168,7 @@ class PurchaseVerificationValidatorTest {
         val connection = FakeHttpURLConnection(200, """{"store":"google","isValid":true,"state":"ENTITLED"}""")
         val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
 
-        assertEquals(IapkitStore.Google, result.store)
+        assertEquals(IapStore.Google, result.store)
         assertTrue(result.isValid)
         assertEquals("Bearer secret", connection.headers["Authorization"])
 
@@ -190,7 +190,7 @@ class PurchaseVerificationValidatorTest {
         val connection = FakeHttpURLConnection(200, """{"store":"google","isValid":false,"state":"INAUTHENTIC"}""")
         val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
 
-        assertEquals(IapkitStore.Google, result.store)
+        assertEquals(IapStore.Google, result.store)
         assertEquals(false, result.isValid)
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
