@@ -21,7 +21,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
                 )
             ),
             providerResult: VerifyPurchaseWithProviderResult(
-                iapkit: [iapkitResult],
+                iapkit: iapkitResult,
                 provider: .iapkit
             )
         )
@@ -37,16 +37,16 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             provider: .iapkit
         )
 
-        let results = try await store.verifyPurchaseWithProvider(props)
+        let result = try await store.verifyPurchaseWithProvider(props)
 
-        XCTAssertEqual(1, results.count)
-        XCTAssertEqual(IapkitStore.apple, results.first?.store)
-        XCTAssertEqual(true, results.first?.isValid)
-        XCTAssertEqual(.entitled, results.first?.state)
+        XCTAssertNotNil(result)
+        XCTAssertEqual(IapkitStore.apple, result?.store)
+        XCTAssertEqual(true, result?.isValid)
+        XCTAssertEqual(.entitled, result?.state)
     }
 
     @MainActor
-    func testStoreReturnsEmptyArrayWhenProviderResultIsEmpty() async throws {
+    func testStoreReturnsNilWhenProviderResultIsNil() async throws {
         let module = FakeVerifyPurchaseModule(
             validateResult: VerifyPurchaseResult.verifyPurchaseResultIos(
                 VerifyPurchaseResultIOS(
@@ -57,7 +57,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
                 )
             ),
             providerResult: VerifyPurchaseWithProviderResult(
-                iapkit: [],
+                iapkit: nil,
                 provider: .iapkit
             )
         )
@@ -75,7 +75,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
 
         let result = try await store.verifyPurchaseWithProvider(props)
 
-        XCTAssertEqual(0, result.count)
+        XCTAssertNil(result)
     }
 }
 

@@ -168,9 +168,8 @@ class PurchaseVerificationValidatorTest {
         val connection = FakeHttpURLConnection(200, """{"store":"google","isValid":true,"state":"ENTITLED"}""")
         val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
 
-        assertEquals(1, result.size)
-        assertEquals(IapkitStore.Google, result.first().store)
-        assertTrue(result.first().isValid)
+        assertEquals(IapkitStore.Google, result.store)
+        assertTrue(result.isValid)
         assertEquals("Bearer secret", connection.headers["Authorization"])
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
@@ -191,9 +190,8 @@ class PurchaseVerificationValidatorTest {
         val connection = FakeHttpURLConnection(200, """{"store":"google","isValid":false,"state":"INAUTHENTIC"}""")
         val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
 
-        assertEquals(1, result.size)
-        assertEquals(IapkitStore.Google, result.first().store)
-        assertEquals(false, result.first().isValid)
+        assertEquals(IapkitStore.Google, result.store)
+        assertEquals(false, result.isValid)
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
         assertEquals("google", bodyMap["store"])

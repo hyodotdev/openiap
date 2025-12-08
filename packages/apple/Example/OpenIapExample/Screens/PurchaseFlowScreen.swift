@@ -503,15 +503,14 @@ struct PurchaseFlowScreen: View {
                     provider: .iapkit
                 )
 
-                let results = try await iapStore.verifyPurchaseWithProvider(props)
-                let isValid = results.first?.isValid ?? false
-                let state = results.first?.state.rawValue ?? "unknown"
+                let result = try await iapStore.verifyPurchaseWithProvider(props)
+                let isValid = result?.isValid ?? false
+                let state = result?.state.rawValue ?? "unknown"
 
                 print("📱 [PurchaseFlow] IAPKit verification result:")
                 print("  - Product: \(purchase.productId)")
                 print("  - isValid: \(isValid)")
                 print("  - state: \(state)")
-                print("  - Results count: \(results.count)")
 
                 await MainActor.run {
                     isVerifying = false

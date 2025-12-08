@@ -66,7 +66,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     init(
         validateResult: VerifyPurchaseResult,
         providerResult: VerifyPurchaseWithProviderResult = VerifyPurchaseWithProviderResult(
-            iapkit: [],
+            iapkit: nil,
             provider: .iapkit
         )
     ) {
