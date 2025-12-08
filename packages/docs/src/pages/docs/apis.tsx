@@ -2136,7 +2136,7 @@ const handlePurchase = async (basePlanId: string) => {
         ],
       },
     },
-    type: 'Subs',
+    type: 'subs',
   });
 };
 

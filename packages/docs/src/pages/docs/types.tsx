@@ -1656,15 +1656,33 @@ await FlutterInappPurchase.instance.requestPurchase(
           <tbody>
             <tr>
               <td>
-                <code>ios</code>
+                <code>apple</code>
               </td>
-              <td>iOS purchase parameters (RequestPurchaseIosProps)</td>
+              <td>Apple purchase parameters (RequestPurchaseIosProps)</td>
             </tr>
             <tr>
               <td>
-                <code>android</code>
+                <code>google</code>
               </td>
-              <td>Android purchase parameters (RequestPurchaseAndroidProps)</td>
+              <td>Google purchase parameters (RequestPurchaseAndroidProps)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>ios</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>apple</code> instead</td>
+            </tr>
+            <tr>
+              <td>
+                <code>android</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>google</code> instead</td>
             </tr>
           </tbody>
         </table>
@@ -1683,18 +1701,36 @@ await FlutterInappPurchase.instance.requestPurchase(
           <tbody>
             <tr>
               <td>
-                <code>ios</code>
+                <code>apple</code>
               </td>
-              <td>iOS subscription parameters (RequestSubscriptionIosProps)</td>
+              <td>Apple subscription parameters (RequestSubscriptionIosProps)</td>
             </tr>
             <tr>
               <td>
-                <code>android</code>
+                <code>google</code>
               </td>
               <td>
-                Android subscription parameters
+                Google subscription parameters
                 (RequestSubscriptionAndroidProps)
               </td>
+            </tr>
+            <tr>
+              <td>
+                <code>ios</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>apple</code> instead</td>
+            </tr>
+            <tr>
+              <td>
+                <code>android</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>google</code> instead</td>
             </tr>
           </tbody>
         </table>
