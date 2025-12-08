@@ -1206,7 +1206,7 @@ interface RequestVerifyPurchaseWithIapkitProps {
 // Result
 interface VerifyPurchaseWithProviderResult {
   provider: PurchaseVerificationProvider;
-  iapkit: RequestVerifyPurchaseWithIapkitResult[];
+  iapkit?: RequestVerifyPurchaseWithIapkitResult;
 }
 
 interface RequestVerifyPurchaseWithIapkitResult {
@@ -1239,10 +1239,8 @@ let props = VerifyPurchaseWithProviderProps(
 
 let result = try await store.verifyPurchaseWithProvider(props)
 
-for item in result.iapkit {
-    if item.isValid && item.state == .entitled {
-        // Grant entitlement
-    }
+if let iapkit = result, iapkit.isValid && iapkit.state == .entitled {
+    // Grant entitlement
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -1265,8 +1263,8 @@ val props = VerifyPurchaseWithProviderProps(
 
 val result = module.verifyPurchaseWithProvider(props)
 
-result.iapkit.forEach { item ->
-    if (item.isValid && item.state == IapkitPurchaseState.Entitled) {
+result.iapkit?.let { iapkit ->
+    if (iapkit.isValid && iapkit.state == IapkitPurchaseState.Entitled) {
         // Grant entitlement
     }
 }`}</CodeBlock>
@@ -1290,10 +1288,9 @@ final props = VerifyPurchaseWithProviderProps(
 
 final result = await iap.verifyPurchaseWithProvider(props);
 
-for (final item in result.iapkit) {
-  if (item.isValid && item.state == IapkitPurchaseState.entitled) {
-    // Grant entitlement
-  }
+final iapkit = result.iapkit;
+if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.entitled) {
+  // Grant entitlement
 }`}</CodeBlock>
             ),
           }}

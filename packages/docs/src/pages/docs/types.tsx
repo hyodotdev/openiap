@@ -2683,12 +2683,9 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                 <code>iapkit</code>
               </td>
               <td>
-                <code>RequestVerifyPurchaseWithIapkitResult[]</code>
+                <code>RequestVerifyPurchaseWithIapkitResult?</code>
               </td>
-              <td>
-                IAPKit verification results (can include Apple and Google
-                entries).
-              </td>
+              <td>IAPKit verification result (optional).</td>
             </tr>
           </tbody>
         </table>
@@ -2903,11 +2900,9 @@ const androidResult = await verifyPurchaseWithProvider({
 });
 
 // Check result
-for (const item of result.iapkit) {
-  if (item.isValid && item.state === 'entitled') {
-    // Grant entitlement to user
-    console.log(\`Valid purchase from \${item.store}\`);
-  }
+if (result.iapkit?.isValid && result.iapkit.state === 'entitled') {
+  // Grant entitlement to user
+  console.log(\`Valid purchase from \${result.iapkit.store}\`);
 }`}</CodeBlock>
             ),
             swift: (
@@ -2928,12 +2923,10 @@ let props = VerifyPurchaseWithProviderProps(
 // Verify purchase
 let result = try await store.verifyPurchaseWithProvider(props)
 
-// Check results
-for item in result.iapkit {
-    if item.isValid && item.state == .entitled {
-        // Grant entitlement to user
-        print("Valid purchase from \\(item.store)")
-    }
+// Check result
+if let iapkit = result, iapkit.isValid && iapkit.state == .entitled {
+    // Grant entitlement to user
+    print("Valid purchase from \\(iapkit.store)")
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -2954,11 +2947,11 @@ val props = VerifyPurchaseWithProviderProps(
 // Verify purchase
 val result = module.verifyPurchaseWithProvider(props)
 
-// Check results
-result.iapkit.forEach { item ->
-    if (item.isValid && item.state == IapkitPurchaseState.Entitled) {
+// Check result
+result.iapkit?.let { iapkit ->
+    if (iapkit.isValid && iapkit.state == IapkitPurchaseState.Entitled) {
         // Grant entitlement to user
-        println("Valid purchase from \${item.store}")
+        println("Valid purchase from \${iapkit.store}")
     }
 }`}</CodeBlock>
             ),
@@ -2979,12 +2972,11 @@ final props = VerifyPurchaseWithProviderProps(
 // Verify purchase
 final result = await iap.verifyPurchaseWithProvider(props);
 
-// Check results
-for (final item in result.iapkit) {
-  if (item.isValid && item.state == IapkitPurchaseState.entitled) {
-    // Grant entitlement to user
-    print('Valid purchase from \${item.store}');
-  }
+// Check result
+final iapkit = result.iapkit;
+if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.entitled) {
+  // Grant entitlement to user
+  print('Valid purchase from \${iapkit.store}');
 }`}</CodeBlock>
             ),
           }}
