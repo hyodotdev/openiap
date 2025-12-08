@@ -35,9 +35,11 @@ enum PurchaseVerificationProvider {
   Iapkit
 }
 
-enum IapkitStore {
+enum IapStore {
+  Unknown
   Apple
   Google
+  Horizon
 }
 
 # Common product fields
@@ -64,7 +66,14 @@ interface PurchaseCommon {
   Unified purchase token (iOS JWS, Android purchaseToken)
   """
   purchaseToken: String
-  platform: IapPlatform!
+  """
+  Store where purchase was made
+  """
+  store: IapStore!
+  """
+  @deprecated Use store instead
+  """
+  platform: IapPlatform! @deprecated(reason: "Use store instead")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -156,7 +165,14 @@ input PurchaseInput {
   ids: [String!]
   transactionDate: Float!
   purchaseToken: String
-  platform: IapPlatform!
+  """
+  Store where purchase was made
+  """
+  store: IapStore
+  """
+  @deprecated Use store instead
+  """
+  platform: IapPlatform
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -177,22 +193,38 @@ input DeepLinkOptions {
 # Request props (platform-specific containers)
 input RequestPurchasePropsByPlatforms {
   """
-  iOS-specific purchase parameters
+  Apple-specific purchase parameters
+  """
+  apple: RequestPurchaseIosProps
+  """
+  Google-specific purchase parameters
+  """
+  google: RequestPurchaseAndroidProps
+  """
+  @deprecated Use apple instead
   """
   ios: RequestPurchaseIosProps
   """
-  Android-specific purchase parameters
+  @deprecated Use google instead
   """
   android: RequestPurchaseAndroidProps
 }
 
 input RequestSubscriptionPropsByPlatforms {
   """
-  iOS-specific subscription parameters
+  Apple-specific subscription parameters
+  """
+  apple: RequestSubscriptionIosProps
+  """
+  Google-specific subscription parameters
+  """
+  google: RequestSubscriptionAndroidProps
+  """
+  @deprecated Use apple instead
   """
   ios: RequestSubscriptionIosProps
   """
-  Android-specific subscription parameters
+  @deprecated Use google instead
   """
   android: RequestSubscriptionAndroidProps
 }
@@ -285,7 +317,7 @@ enum IapkitPurchaseState {
 }
 
 type RequestVerifyPurchaseWithIapkitResult {
-  store: IapkitStore!
+  store: IapStore!
   """
   Whether the purchase is valid (not falsified).
   """

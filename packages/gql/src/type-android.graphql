@@ -74,7 +74,14 @@ type PurchaseAndroid implements PurchaseCommon {
   transactionId: String # Optional in Android unlike iOS
   transactionDate: Float!
   purchaseToken: String
-  platform: IapPlatform!
+  """
+  Store where purchase was made
+  """
+  store: IapStore!
+  """
+  @deprecated Use store instead
+  """
+  platform: IapPlatform! @deprecated(reason: "Use store instead")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!

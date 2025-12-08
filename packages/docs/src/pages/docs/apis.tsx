@@ -595,7 +595,7 @@ if (subscription?.renewalInfoIOS?.willAutoRenew === false) {
 
   try {
     await requestPurchase({
-      request: { ios: { sku: 'premium_monthly' } },
+      request: { apple: { sku: 'premium_monthly' } },
       type: 'subs'
     });
   } catch (error) {
@@ -621,7 +621,7 @@ if let subscription = subscriptions.first {
         try await OpenIapModule.shared.requestPurchase(
             RequestPurchaseProps(
                 request: RequestPurchasePropsByPlatforms(
-                    ios: RequestPurchaseIosProps(sku: "premium_monthly")
+                    apple: RequestPurchaseIosProps(sku: "premium_monthly")
                 ),
                 type: .subs
             )
@@ -645,7 +645,7 @@ subscriptions.firstOrNull()?.let { subscription ->
         openIapStore.requestPurchase(
             RequestPurchaseProps(
                 request = RequestPurchasePropsByPlatforms(
-                    android = RequestPurchaseAndroidProps(
+                    google = RequestPurchaseAndroidProps(
                         skus = listOf("premium_monthly")
                     )
                 ),
@@ -671,8 +671,8 @@ if (subscription?.renewalInfoIOS?.willAutoRenew == false) {
   await FlutterInappPurchase.instance.requestPurchase(
     RequestPurchaseProps(
       request: RequestPurchasePropsByPlatforms(
-        ios: RequestPurchaseIosProps(sku: 'premium_monthly'),
-        android: RequestPurchaseAndroidProps(skus: ['premium_monthly']),
+        apple: RequestPurchaseIosProps(sku: 'premium_monthly'),
+        google: RequestPurchaseAndroidProps(skus: ['premium_monthly']),
       ),
       type: ProductType.subs,
     ),
@@ -2128,15 +2128,15 @@ const handlePurchase = async (basePlanId: string) => {
   purchasedBasePlanId = basePlanId;
 
   await requestPurchase({
-    request: {
-      android: {
+    requestSubscription: {
+      google: {
         skus: [subscriptionGroupId],
         subscriptionOffers: [
           { sku: subscriptionGroupId, offerToken: offer.offerToken },
         ],
       },
     },
-    type: 'subs',
+    type: 'Subs',
   });
 };
 

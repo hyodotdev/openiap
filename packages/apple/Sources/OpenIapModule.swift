@@ -653,7 +653,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         guard props.apple != nil else {
             throw makePurchaseError(code: .developerError, message: "IAPKit verification on Apple requires an apple payload")
         }
-        let store: IapkitStore = .apple
+        let store: IapStore = .apple
         let body = try buildIapkitPayload(props: props, store: store)
 
         var request = URLRequest(url: url)
@@ -716,22 +716,22 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
         let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
         let storeString = json["store"] as? String
-        let parsedStore = storeString.flatMap { IapkitStore(rawValue: $0) } ?? store
+        let parsedStore = storeString.flatMap { IapStore(rawValue: $0) } ?? store
         OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
         return RequestVerifyPurchaseWithIapkitResult(isValid: isValid, state: parsedState, store: parsedStore)
     }
 
     private struct IapkitApplePayload: Codable {
-        let store: IapkitStore
+        let store: IapStore
         let jws: String
     }
 
     private struct IapkitGooglePayload: Codable {
-        let store: IapkitStore
+        let store: IapStore
         let purchaseToken: String
     }
 
-    private func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps, store: IapkitStore) throws -> Data {
+    private func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps, store: IapStore) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.withoutEscapingSlashes]
         switch store {
@@ -747,7 +747,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 jws: apple.jws
             )
             return try encoder.encode(payload)
-        case .google:
+        case .google, .horizon:
             guard let google = props.google else {
                 throw makePurchaseError(code: .developerError, message: "Google verification parameters are required")
             }
@@ -759,6 +759,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 purchaseToken: google.purchaseToken
             )
             return try encoder.encode(payload)
+        case .unknown:
+            throw makePurchaseError(code: .developerError, message: "Unknown store type")
         }
     }
 

@@ -362,30 +362,6 @@ enum IapkitPurchaseState {
   String toJson() => value;
 }
 
-enum IapkitStore {
-  Apple('apple'),
-  Google('google');
-
-  const IapkitStore(this.value);
-  final String value;
-
-  factory IapkitStore.fromJson(String value) {
-    switch (value) {
-      case 'apple':
-      case 'APPLE':
-      case 'Apple':
-        return IapkitStore.Apple;
-      case 'google':
-      case 'GOOGLE':
-      case 'Google':
-        return IapkitStore.Google;
-    }
-    throw ArgumentError('Unknown IapkitStore value: $value');
-  }
-
-  String toJson() => value;
-}
-
 enum IapPlatform {
   IOS('ios'),
   Android('android');
@@ -404,6 +380,40 @@ enum IapPlatform {
         return IapPlatform.Android;
     }
     throw ArgumentError('Unknown IapPlatform value: $value');
+  }
+
+  String toJson() => value;
+}
+
+enum IapStore {
+  Unknown('unknown'),
+  Apple('apple'),
+  Google('google'),
+  Horizon('horizon');
+
+  const IapStore(this.value);
+  final String value;
+
+  factory IapStore.fromJson(String value) {
+    switch (value) {
+      case 'unknown':
+      case 'UNKNOWN':
+      case 'Unknown':
+        return IapStore.Unknown;
+      case 'apple':
+      case 'APPLE':
+      case 'Apple':
+        return IapStore.Apple;
+      case 'google':
+      case 'GOOGLE':
+      case 'Google':
+        return IapStore.Google;
+      case 'horizon':
+      case 'HORIZON':
+      case 'Horizon':
+        return IapStore.Horizon;
+    }
+    throw ArgumentError('Unknown IapStore value: $value');
   }
 
   String toJson() => value;
@@ -680,12 +690,15 @@ abstract class PurchaseCommon {
   String get id;
   List<String>? get ids;
   bool get isAutoRenewing;
+  /// @deprecated Use store instead
   IapPlatform get platform;
   String get productId;
   PurchaseState get purchaseState;
   /// Unified purchase token (iOS JWS, Android purchaseToken)
   String? get purchaseToken;
   int get quantity;
+  /// Store where purchase was made
+  IapStore get store;
   double get transactionDate;
 }
 
@@ -1526,12 +1539,15 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
     this.packageNameAndroid,
+    /// @deprecated Use store instead
     required this.platform,
     required this.productId,
     required this.purchaseState,
     this.purchaseToken,
     required this.quantity,
     this.signatureAndroid,
+    /// Store where purchase was made
+    required this.store,
     required this.transactionDate,
     this.transactionId,
     this.isAlternativeBilling,
@@ -1548,12 +1564,15 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String? obfuscatedAccountIdAndroid;
   final String? obfuscatedProfileIdAndroid;
   final String? packageNameAndroid;
+  /// @deprecated Use store instead
   final IapPlatform platform;
   final String productId;
   final PurchaseState purchaseState;
   final String? purchaseToken;
   final int quantity;
   final String? signatureAndroid;
+  /// Store where purchase was made
+  final IapStore store;
   final double transactionDate;
   final String? transactionId;
   final bool? isAlternativeBilling;
@@ -1577,6 +1596,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       purchaseToken: json['purchaseToken'] as String?,
       quantity: json['quantity'] as int,
       signatureAndroid: json['signatureAndroid'] as String?,
+      store: IapStore.fromJson(json['store'] as String),
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String?,
       isAlternativeBilling: json['isAlternativeBilling'] as bool?,
@@ -1604,6 +1624,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       'purchaseToken': purchaseToken,
       'quantity': quantity,
       'signatureAndroid': signatureAndroid,
+      'store': store.toJson(),
       'transactionDate': transactionDate,
       'transactionId': transactionId,
       'isAlternativeBilling': isAlternativeBilling,
@@ -1658,6 +1679,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.originalTransactionDateIOS,
     this.originalTransactionIdentifierIOS,
     this.ownershipTypeIOS,
+    /// @deprecated Use store instead
     required this.platform,
     required this.productId,
     required this.purchaseState,
@@ -1669,6 +1691,8 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.renewalInfoIOS,
     this.revocationDateIOS,
     this.revocationReasonIOS,
+    /// Store where purchase was made
+    required this.store,
     this.storefrontCountryCodeIOS,
     this.subscriptionGroupIdIOS,
     required this.transactionDate,
@@ -1694,6 +1718,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final double? originalTransactionDateIOS;
   final String? originalTransactionIdentifierIOS;
   final String? ownershipTypeIOS;
+  /// @deprecated Use store instead
   final IapPlatform platform;
   final String productId;
   final PurchaseState purchaseState;
@@ -1705,6 +1730,8 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final RenewalInfoIOS? renewalInfoIOS;
   final double? revocationDateIOS;
   final String? revocationReasonIOS;
+  /// Store where purchase was made
+  final IapStore store;
   final String? storefrontCountryCodeIOS;
   final String? subscriptionGroupIdIOS;
   final double transactionDate;
@@ -1742,6 +1769,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       renewalInfoIOS: json['renewalInfoIOS'] != null ? RenewalInfoIOS.fromJson(json['renewalInfoIOS'] as Map<String, dynamic>) : null,
       revocationDateIOS: (json['revocationDateIOS'] as num?)?.toDouble(),
       revocationReasonIOS: json['revocationReasonIOS'] as String?,
+      store: IapStore.fromJson(json['store'] as String),
       storefrontCountryCodeIOS: json['storefrontCountryCodeIOS'] as String?,
       subscriptionGroupIdIOS: json['subscriptionGroupIdIOS'] as String?,
       transactionDate: (json['transactionDate'] as num).toDouble(),
@@ -1783,6 +1811,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       'renewalInfoIOS': renewalInfoIOS?.toJson(),
       'revocationDateIOS': revocationDateIOS,
       'revocationReasonIOS': revocationReasonIOS,
+      'store': store.toJson(),
       'storefrontCountryCodeIOS': storefrontCountryCodeIOS,
       'subscriptionGroupIdIOS': subscriptionGroupIdIOS,
       'transactionDate': transactionDate,
@@ -1968,13 +1997,13 @@ class RequestVerifyPurchaseWithIapkitResult {
   final bool isValid;
   /// The current state of the purchase.
   final IapkitPurchaseState state;
-  final IapkitStore store;
+  final IapStore store;
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitResult(
       isValid: json['isValid'] as bool,
       state: IapkitPurchaseState.fromJson(json['state'] as String),
-      store: IapkitStore.fromJson(json['store'] as String),
+      store: IapStore.fromJson(json['store'] as String),
     );
   }
 
@@ -2670,20 +2699,30 @@ class _SubsPurchase extends RequestPurchaseProps {
 
 class RequestPurchasePropsByPlatforms {
   const RequestPurchasePropsByPlatforms({
-    /// Android-specific purchase parameters
+    /// @deprecated Use google instead
     this.android,
-    /// iOS-specific purchase parameters
+    /// Apple-specific purchase parameters
+    this.apple,
+    /// Google-specific purchase parameters
+    this.google,
+    /// @deprecated Use apple instead
     this.ios,
   });
 
-  /// Android-specific purchase parameters
+  /// @deprecated Use google instead
   final RequestPurchaseAndroidProps? android;
-  /// iOS-specific purchase parameters
+  /// Apple-specific purchase parameters
+  final RequestPurchaseIosProps? apple;
+  /// Google-specific purchase parameters
+  final RequestPurchaseAndroidProps? google;
+  /// @deprecated Use apple instead
   final RequestPurchaseIosProps? ios;
 
   factory RequestPurchasePropsByPlatforms.fromJson(Map<String, dynamic> json) {
     return RequestPurchasePropsByPlatforms(
       android: json['android'] != null ? RequestPurchaseAndroidProps.fromJson(json['android'] as Map<String, dynamic>) : null,
+      apple: json['apple'] != null ? RequestPurchaseIosProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
+      google: json['google'] != null ? RequestPurchaseAndroidProps.fromJson(json['google'] as Map<String, dynamic>) : null,
       ios: json['ios'] != null ? RequestPurchaseIosProps.fromJson(json['ios'] as Map<String, dynamic>) : null,
     );
   }
@@ -2691,6 +2730,8 @@ class RequestPurchasePropsByPlatforms {
   Map<String, dynamic> toJson() {
     return {
       'android': android?.toJson(),
+      'apple': apple?.toJson(),
+      'google': google?.toJson(),
       'ios': ios?.toJson(),
     };
   }
@@ -2792,20 +2833,30 @@ class RequestSubscriptionIosProps {
 
 class RequestSubscriptionPropsByPlatforms {
   const RequestSubscriptionPropsByPlatforms({
-    /// Android-specific subscription parameters
+    /// @deprecated Use google instead
     this.android,
-    /// iOS-specific subscription parameters
+    /// Apple-specific subscription parameters
+    this.apple,
+    /// Google-specific subscription parameters
+    this.google,
+    /// @deprecated Use apple instead
     this.ios,
   });
 
-  /// Android-specific subscription parameters
+  /// @deprecated Use google instead
   final RequestSubscriptionAndroidProps? android;
-  /// iOS-specific subscription parameters
+  /// Apple-specific subscription parameters
+  final RequestSubscriptionIosProps? apple;
+  /// Google-specific subscription parameters
+  final RequestSubscriptionAndroidProps? google;
+  /// @deprecated Use apple instead
   final RequestSubscriptionIosProps? ios;
 
   factory RequestSubscriptionPropsByPlatforms.fromJson(Map<String, dynamic> json) {
     return RequestSubscriptionPropsByPlatforms(
       android: json['android'] != null ? RequestSubscriptionAndroidProps.fromJson(json['android'] as Map<String, dynamic>) : null,
+      apple: json['apple'] != null ? RequestSubscriptionIosProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
+      google: json['google'] != null ? RequestSubscriptionAndroidProps.fromJson(json['google'] as Map<String, dynamic>) : null,
       ios: json['ios'] != null ? RequestSubscriptionIosProps.fromJson(json['ios'] as Map<String, dynamic>) : null,
     );
   }
@@ -2813,6 +2864,8 @@ class RequestSubscriptionPropsByPlatforms {
   Map<String, dynamic> toJson() {
     return {
       'android': android?.toJson(),
+      'apple': apple?.toJson(),
+      'google': google?.toJson(),
       'ios': ios?.toJson(),
     };
   }
@@ -3121,6 +3174,7 @@ sealed class Purchase implements PurchaseCommon {
   List<String>? get ids;
   @override
   bool get isAutoRenewing;
+  /// @deprecated Use store instead
   @override
   IapPlatform get platform;
   @override
@@ -3132,6 +3186,9 @@ sealed class Purchase implements PurchaseCommon {
   String? get purchaseToken;
   @override
   int get quantity;
+  /// Store where purchase was made
+  @override
+  IapStore get store;
   @override
   double get transactionDate;
 

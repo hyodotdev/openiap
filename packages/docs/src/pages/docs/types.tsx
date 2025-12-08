@@ -269,11 +269,22 @@ function Types() {
             </tr>
             <tr>
               <td>
-                <code>platform</code>
+                <code>store</code>
               </td>
               <td>
-                Platform discriminator: <code>"ios"</code> or{' '}
-                <code>"android"</code>
+                Store discriminator: <code>"apple"</code>,{' '}
+                <code>"google"</code>, or <code>"horizon"</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>platform</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>
+                Use <code>store</code> instead
               </td>
             </tr>
           </tbody>
@@ -531,43 +542,57 @@ function Types() {
         </AnchorLink>
         <p>
           These types combine platform-specific types with a{' '}
-          <code>platform</code> discriminator for type-safe handling across iOS
-          and Android.
+          <code>store</code> discriminator for type-safe handling across Apple,
+          Google, and Horizon stores.
         </p>
 
-        <AnchorLink id="platform-discriminators" level="h3">
-          Platform Discriminators
+        <AnchorLink id="store-discriminators" level="h3">
+          Store Discriminators
         </AnchorLink>
         <p>
-          Each unified type includes a <code>platform</code> field that
-          identifies the source platform:
+          Each unified type includes a <code>store</code> field that identifies
+          the source store:
         </p>
         <table className="doc-table">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Value</th>
               <th>Summary</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>
-                <code>IosPlatform</code>
+                <code>"apple"</code>
               </td>
-              <td>
-                Contains <code>platform: 'ios'</code>
-              </td>
+              <td>Apple App Store (iOS/macOS)</td>
             </tr>
             <tr>
               <td>
-                <code>AndroidPlatform</code>
+                <code>"google"</code>
               </td>
+              <td>Google Play Store (Android)</td>
+            </tr>
+            <tr>
               <td>
-                Contains <code>platform: 'android'</code>
+                <code>"horizon"</code>
               </td>
+              <td>Meta Horizon Store (Quest)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>"unknown"</code>
+              </td>
+              <td>Unknown store (default)</td>
             </tr>
           </tbody>
         </table>
+        <blockquote className="info-note">
+          <p>
+            <strong>Note:</strong> The <code>platform</code> field is deprecated.
+            Use <code>store</code> instead.
+          </p>
+        </blockquote>
 
         <AnchorLink id="union-types" level="h3">
           Union Types
@@ -764,11 +789,22 @@ function Types() {
             </tr>
             <tr>
               <td>
-                <code>platform</code>
+                <code>store</code>
               </td>
               <td>
-                Platform discriminator: <code>"ios"</code> or{' '}
-                <code>"android"</code>
+                Store discriminator: <code>"apple"</code>,{' '}
+                <code>"google"</code>, or <code>"horizon"</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>platform</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>
+                Use <code>store</code> instead
               </td>
             </tr>
             <tr>
@@ -1521,8 +1557,8 @@ final allProducts = await FlutterInappPurchase.instance.fetchProducts(
               <CodeBlock language="typescript">{`// Standard in-app purchase
 await requestPurchase({
   params: {
-    ios: { sku: 'premium' },
-    android: { skus: ['premium'] }
+    apple: { sku: 'premium' },
+    google: { skus: ['premium'] }
   },
   type: 'in-app'
 });
@@ -1530,8 +1566,8 @@ await requestPurchase({
 // Subscription purchase
 await requestPurchase({
   params: {
-    ios: { sku: 'monthly_sub' },
-    android: { skus: ['monthly_sub'] }
+    apple: { sku: 'monthly_sub' },
+    google: { skus: ['monthly_sub'] }
   },
   type: 'subs'
 });`}</CodeBlock>
@@ -1541,7 +1577,7 @@ await requestPurchase({
 try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
         request: RequestPurchasePropsByPlatforms(
-            ios: RequestPurchaseIosProps(sku: "premium")
+            apple: RequestPurchaseIosProps(sku: "premium")
         ),
         type: .inApp
     )
@@ -1551,7 +1587,7 @@ try await OpenIapModule.shared.requestPurchase(
 try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
         request: RequestPurchasePropsByPlatforms(
-            ios: RequestPurchaseIosProps(sku: "monthly_sub")
+            apple: RequestPurchaseIosProps(sku: "monthly_sub")
         ),
         type: .subs
     )
@@ -1562,7 +1598,7 @@ try await OpenIapModule.shared.requestPurchase(
 openIapStore.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchasePropsByPlatforms(
-            android = RequestPurchaseAndroidProps(skus = listOf("premium"))
+            google = RequestPurchaseAndroidProps(skus = listOf("premium"))
         ),
         type = ProductType.InApp
     )
@@ -1572,7 +1608,7 @@ openIapStore.requestPurchase(
 openIapStore.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchasePropsByPlatforms(
-            android = RequestPurchaseAndroidProps(skus = listOf("monthly_sub"))
+            google = RequestPurchaseAndroidProps(skus = listOf("monthly_sub"))
         ),
         type = ProductType.Subs
     )
@@ -1583,8 +1619,8 @@ openIapStore.requestPurchase(
 await FlutterInappPurchase.instance.requestPurchase(
   RequestPurchaseProps(
     request: RequestPurchasePropsByPlatforms(
-      ios: RequestPurchaseIosProps(sku: 'premium'),
-      android: RequestPurchaseAndroidProps(skus: ['premium']),
+      apple: RequestPurchaseIosProps(sku: 'premium'),
+      google: RequestPurchaseAndroidProps(skus: ['premium']),
     ),
     type: ProductType.inApp,
   ),
@@ -1594,8 +1630,8 @@ await FlutterInappPurchase.instance.requestPurchase(
 await FlutterInappPurchase.instance.requestPurchase(
   RequestPurchaseProps(
     request: RequestPurchasePropsByPlatforms(
-      ios: RequestPurchaseIosProps(sku: 'monthly_sub'),
-      android: RequestPurchaseAndroidProps(skus: ['monthly_sub']),
+      apple: RequestPurchaseIosProps(sku: 'monthly_sub'),
+      google: RequestPurchaseAndroidProps(skus: ['monthly_sub']),
     ),
     type: ProductType.subs,
   ),

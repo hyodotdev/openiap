@@ -485,18 +485,27 @@ const printDataClass = (objectType) => {
     lines.push('');
     return;
   }
+  // Collect all fields from interfaces to determine which need 'override'
+  const interfaceFields = new Set();
+  for (const iface of objectType.getInterfaces()) {
+    for (const fieldName of Object.keys(iface.getFields())) {
+      interfaceFields.add(fieldName);
+    }
+  }
   const fieldInfos = fields.map((field) => {
     const { type, nullable, metadata } = getKotlinType(field.type);
     const propertyType = type + (nullable ? '?' : '');
     const propertyName = escapeKotlinName(field.name);
     const defaultValue = nullable ? ' = null' : '';
-    return { field, propertyName, propertyType, defaultValue, metadata };
+    const needsOverride = interfaceFields.has(field.name);
+    return { field, propertyName, propertyType, defaultValue, metadata, needsOverride };
   });
   lines.push(`public data class ${objectType.name}(`);
-  fieldInfos.forEach(({ field, propertyName, propertyType, defaultValue }, index) => {
+  fieldInfos.forEach(({ field, propertyName, propertyType, defaultValue, needsOverride }, index) => {
     addDocComment(lines, field.description, '    ');
     const suffix = index === fieldInfos.length - 1 ? '' : ',';
-    lines.push(`    val ${propertyName}: ${propertyType}${defaultValue}${suffix}`);
+    const overrideKeyword = needsOverride ? 'override ' : '';
+    lines.push(`    ${overrideKeyword}val ${propertyName}: ${propertyType}${defaultValue}${suffix}`);
   });
   const implementsList = [...interfacesForObject, ...unionInterfaces];
   if (implementsList.length > 0) {

@@ -1108,7 +1108,7 @@ if (currentSub != null) {
   await FlutterInappPurchase.instance.requestPurchase(
     RequestPurchaseProps(
       request: RequestPurchasePropsByPlatforms(
-        android: RequestPurchaseAndroidProps(
+        google: RequestPurchaseAndroidProps(
           skus: ['premium_monthly'],
           purchaseToken: currentSub.purchaseToken,
           replacementMode: 1, // WITH_TIME_PRORATION
@@ -1249,7 +1249,7 @@ if (premiumPurchase != null) {
   await FlutterInappPurchase.instance.requestPurchase(
     RequestPurchaseProps(
       request: RequestPurchasePropsByPlatforms(
-        android: RequestPurchaseAndroidProps(
+        google: RequestPurchaseAndroidProps(
           skus: ['basic_monthly'],
           purchaseToken: premiumPurchase.purchaseToken,
           replacementMode: 6, // DEFERRED - Change at renewal
@@ -1536,7 +1536,7 @@ Future<void> changeSubscription(
     await FlutterInappPurchase.instance.requestPurchase(
       RequestPurchaseProps(
         request: RequestPurchasePropsByPlatforms(
-          android: RequestPurchaseAndroidProps(
+          google: RequestPurchaseAndroidProps(
             skus: [newSku],
             purchaseToken: currentSub.purchaseToken,
             replacementMode: replacementMode,

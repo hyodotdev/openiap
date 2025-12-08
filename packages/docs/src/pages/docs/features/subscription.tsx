@@ -353,7 +353,7 @@ const purchaseWithPromoOffer = async (
   // 2. Purchase with the promotional offer
   await requestPurchase({
     request: {
-      ios: {
+      apple: {
         sku: subscriptionId,
         withOffer: {
           identifier: offerId,
@@ -363,7 +363,7 @@ const purchaseWithPromoOffer = async (
           timestamp,
         },
       },
-      android: { skus: [subscriptionId] },
+      google: { skus: [subscriptionId] },
     },
     type: 'subs',
   });
@@ -489,8 +489,8 @@ const purchaseSubscription = async (subscriptionId: string) => {
   // iOS: Base plan with auto-applied intro offer
   await requestPurchase({
     request: {
-      ios: { sku: subscriptionId },
-      android: { skus: [subscriptionId] },
+      apple: { sku: subscriptionId },
+      google: { skus: [subscriptionId] },
     },
     type: 'subs',
   });
@@ -758,8 +758,8 @@ const purchaseSubscription = async (subscriptionId: string) => {
 
   await requestPurchase({
     request: {
-      ios: { sku: subscriptionId },
-      android: {
+      apple: { sku: subscriptionId },
+      google: {
         skus: [subscriptionId],
         subscriptionOffers, // Required for Android
       },
@@ -894,8 +894,8 @@ const purchaseWithOffer = async (
 
   await requestPurchase({
     request: {
-      ios: { sku: subscriptionId },
-      android: {
+      apple: { sku: subscriptionId },
+      google: {
         skus: [subscriptionId],
         subscriptionOffers: [{
           sku: subscriptionId,

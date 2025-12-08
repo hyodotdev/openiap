@@ -3,7 +3,7 @@ package dev.hyo.openiap.utils
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
-import dev.hyo.openiap.IapkitStore
+import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -92,7 +92,7 @@ suspend fun verifyPurchaseWithIapkit(
         throw IllegalArgumentException("IAPKit verification on Android requires google payload")
     }
 
-    val store = IapkitStore.Google
+    val store = IapStore.Google
     val payload = buildPayload(props, store)
 
     val connection = connectionFactory(endpoint).apply {
@@ -168,10 +168,10 @@ suspend fun verifyPurchaseWithIapkit(
 
 private fun buildPayload(
     props: RequestVerifyPurchaseWithIapkitProps,
-    store: IapkitStore
+    store: IapStore
 ): Map<String, Any?> {
     return when (store) {
-        IapkitStore.Google -> {
+        IapStore.Google, IapStore.Horizon -> {
             val google = props.google
                 ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
             if (google.purchaseToken.isBlank()) {
@@ -180,7 +180,7 @@ private fun buildPayload(
                 )
             }
             mutableMapOf<String, Any?>(
-                "store" to store.toJson(),
+                "store" to store.rawValue,
                 "purchaseToken" to google.purchaseToken
             )
         }

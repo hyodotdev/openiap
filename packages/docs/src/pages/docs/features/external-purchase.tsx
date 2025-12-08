@@ -832,7 +832,7 @@ const purchaseSubscription = purchaseUpdatedListener(
 async function handleUserChoicePurchase(productId: string) {
   try {
     await requestPurchase({
-      android: { skus: [productId] },
+      google: { skus: [productId] },
     });
 
     // If user selects Google Play → purchaseUpdatedListener callback
@@ -910,7 +910,7 @@ suspend fun handleUserChoicePurchase(productId: String) {
         val props = RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Purchase(
                 RequestPurchasePropsByPlatforms(
-                    android = RequestPurchaseAndroidProps(
+                    google = RequestPurchaseAndroidProps(
                         skus = listOf(productId)
                     )
                 )
