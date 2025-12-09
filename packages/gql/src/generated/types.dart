@@ -1069,6 +1069,41 @@ class FetchProductsResultSubscriptions extends FetchProductsResult {
   final List<ProductSubscription>? value;
 }
 
+/// Pre-order details for one-time purchase products (Android)
+/// Available in Google Play Billing Library 8.1.0+
+class PreorderDetailsAndroid {
+  const PreorderDetailsAndroid({
+    /// Pre-order presale end time in milliseconds since epoch.
+    /// This is when the presale period ends and the product will be released.
+    required this.preorderPresaleEndTimeMillis,
+    /// Pre-order release time in milliseconds since epoch.
+    /// This is when the product will be available to users who pre-ordered.
+    required this.preorderReleaseTimeMillis,
+  });
+
+  /// Pre-order presale end time in milliseconds since epoch.
+  /// This is when the presale period ends and the product will be released.
+  final String preorderPresaleEndTimeMillis;
+  /// Pre-order release time in milliseconds since epoch.
+  /// This is when the product will be available to users who pre-ordered.
+  final String preorderReleaseTimeMillis;
+
+  factory PreorderDetailsAndroid.fromJson(Map<String, dynamic> json) {
+    return PreorderDetailsAndroid(
+      preorderPresaleEndTimeMillis: json['preorderPresaleEndTimeMillis'] as String,
+      preorderReleaseTimeMillis: json['preorderReleaseTimeMillis'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'PreorderDetailsAndroid',
+      'preorderPresaleEndTimeMillis': preorderPresaleEndTimeMillis,
+      'preorderReleaseTimeMillis': preorderReleaseTimeMillis,
+    };
+  }
+}
+
 class PricingPhaseAndroid {
   const PricingPhaseAndroid({
     required this.billingCycleCount,
@@ -1204,17 +1239,24 @@ class ProductAndroid extends Product implements ProductCommon {
 class ProductAndroidOneTimePurchaseOfferDetail {
   const ProductAndroidOneTimePurchaseOfferDetail({
     required this.formattedPrice,
+    /// Pre-order details for products available for pre-order (Android)
+    /// Available in Google Play Billing Library 8.1.0+
+    this.preorderDetailsAndroid,
     required this.priceAmountMicros,
     required this.priceCurrencyCode,
   });
 
   final String formattedPrice;
+  /// Pre-order details for products available for pre-order (Android)
+  /// Available in Google Play Billing Library 8.1.0+
+  final PreorderDetailsAndroid? preorderDetailsAndroid;
   final String priceAmountMicros;
   final String priceCurrencyCode;
 
   factory ProductAndroidOneTimePurchaseOfferDetail.fromJson(Map<String, dynamic> json) {
     return ProductAndroidOneTimePurchaseOfferDetail(
       formattedPrice: json['formattedPrice'] as String,
+      preorderDetailsAndroid: json['preorderDetailsAndroid'] != null ? PreorderDetailsAndroid.fromJson(json['preorderDetailsAndroid'] as Map<String, dynamic>) : null,
       priceAmountMicros: json['priceAmountMicros'] as String,
       priceCurrencyCode: json['priceCurrencyCode'] as String,
     );
@@ -1224,6 +1266,7 @@ class ProductAndroidOneTimePurchaseOfferDetail {
     return {
       '__typename': 'ProductAndroidOneTimePurchaseOfferDetail',
       'formattedPrice': formattedPrice,
+      'preorderDetailsAndroid': preorderDetailsAndroid?.toJson(),
       'priceAmountMicros': priceAmountMicros,
       'priceCurrencyCode': priceCurrencyCode,
     };
@@ -1535,6 +1578,12 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     this.ids,
     this.isAcknowledgedAndroid,
     required this.isAutoRenewing,
+    /// Whether the subscription is suspended (Android)
+    /// A suspended subscription means the user's payment method failed and they need to fix it.
+    /// Users should be directed to the subscription center to resolve the issue.
+    /// Do NOT grant entitlements for suspended subscriptions.
+    /// Available in Google Play Billing Library 8.1.0+
+    this.isSuspendedAndroid,
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
     this.packageNameAndroid,
@@ -1559,6 +1608,12 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final List<String>? ids;
   final bool? isAcknowledgedAndroid;
   final bool isAutoRenewing;
+  /// Whether the subscription is suspended (Android)
+  /// A suspended subscription means the user's payment method failed and they need to fix it.
+  /// Users should be directed to the subscription center to resolve the issue.
+  /// Do NOT grant entitlements for suspended subscriptions.
+  /// Available in Google Play Billing Library 8.1.0+
+  final bool? isSuspendedAndroid;
   final String? obfuscatedAccountIdAndroid;
   final String? obfuscatedProfileIdAndroid;
   final String? packageNameAndroid;
@@ -1584,6 +1639,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       ids: (json['ids'] as List<dynamic>?) == null ? null : (json['ids'] as List<dynamic>?)!.map((e) => e as String).toList(),
       isAcknowledgedAndroid: json['isAcknowledgedAndroid'] as bool?,
       isAutoRenewing: json['isAutoRenewing'] as bool,
+      isSuspendedAndroid: json['isSuspendedAndroid'] as bool?,
       obfuscatedAccountIdAndroid: json['obfuscatedAccountIdAndroid'] as String?,
       obfuscatedProfileIdAndroid: json['obfuscatedProfileIdAndroid'] as String?,
       packageNameAndroid: json['packageNameAndroid'] as String?,
@@ -1612,6 +1668,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       'ids': ids == null ? null : ids!.map((e) => e).toList(),
       'isAcknowledgedAndroid': isAcknowledgedAndroid,
       'isAutoRenewing': isAutoRenewing,
+      'isSuspendedAndroid': isSuspendedAndroid,
       'obfuscatedAccountIdAndroid': obfuscatedAccountIdAndroid,
       'obfuscatedProfileIdAndroid': obfuscatedProfileIdAndroid,
       'packageNameAndroid': packageNameAndroid,

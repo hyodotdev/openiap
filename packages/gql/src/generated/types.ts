@@ -310,6 +310,23 @@ export type MutationVerifyPurchaseWithProviderArgs = VerifyPurchaseWithProviderP
 
 export type PaymentModeIOS = 'empty' | 'free-trial' | 'pay-as-you-go' | 'pay-up-front';
 
+/**
+ * Pre-order details for one-time purchase products (Android)
+ * Available in Google Play Billing Library 8.1.0+
+ */
+export interface PreorderDetailsAndroid {
+  /**
+   * Pre-order presale end time in milliseconds since epoch.
+   * This is when the presale period ends and the product will be released.
+   */
+  preorderPresaleEndTimeMillis: string;
+  /**
+   * Pre-order release time in milliseconds since epoch.
+   * This is when the product will be available to users who pre-ordered.
+   */
+  preorderReleaseTimeMillis: string;
+}
+
 export interface PricingPhaseAndroid {
   billingCycleCount: number;
   billingPeriod: string;
@@ -343,6 +360,11 @@ export interface ProductAndroid extends ProductCommon {
 
 export interface ProductAndroidOneTimePurchaseOfferDetail {
   formattedPrice: string;
+  /**
+   * Pre-order details for products available for pre-order (Android)
+   * Available in Google Play Billing Library 8.1.0+
+   */
+  preorderDetailsAndroid?: (PreorderDetailsAndroid | null);
   priceAmountMicros: string;
   priceCurrencyCode: string;
 }
@@ -454,6 +476,14 @@ export interface PurchaseAndroid extends PurchaseCommon {
   ids?: (string[] | null);
   isAcknowledgedAndroid?: (boolean | null);
   isAutoRenewing: boolean;
+  /**
+   * Whether the subscription is suspended (Android)
+   * A suspended subscription means the user's payment method failed and they need to fix it.
+   * Users should be directed to the subscription center to resolve the issue.
+   * Do NOT grant entitlements for suspended subscriptions.
+   * Available in Google Play Billing Library 8.1.0+
+   */
+  isSuspendedAndroid?: (boolean | null);
   obfuscatedAccountIdAndroid?: (string | null);
   obfuscatedProfileIdAndroid?: (string | null);
   packageNameAndroid?: (string | null);

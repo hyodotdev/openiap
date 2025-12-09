@@ -7,6 +7,7 @@ import dev.hyo.openiap.PricingPhaseAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.Product
 import dev.hyo.openiap.ProductAndroid
+import dev.hyo.openiap.PreorderDetailsAndroid
 import dev.hyo.openiap.ProductAndroidOneTimePurchaseOfferDetail
 import dev.hyo.openiap.ProductSubscriptionAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroidOfferDetails
@@ -26,6 +27,14 @@ internal object BillingConverters {
         val currency = offer?.priceCurrencyCode.orEmpty()
         val priceAmountMicros = offer?.priceAmountMicros ?: 0L
 
+        // Extract preorder details (available in Billing Library 8.1.0+)
+        val preorderDetails = offer?.preorderDetails?.let { preorder ->
+            PreorderDetailsAndroid(
+                preorderPresaleEndTimeMillis = preorder.preorderPresaleEndTimeMillis.toString(),
+                preorderReleaseTimeMillis = preorder.preorderReleaseTimeMillis.toString()
+            )
+        }
+
         return ProductAndroid(
             currency = currency,
             debugDescription = description,
@@ -38,7 +47,8 @@ internal object BillingConverters {
                 ProductAndroidOneTimePurchaseOfferDetail(
                     formattedPrice = it.formattedPrice,
                     priceAmountMicros = it.priceAmountMicros.toString(),
-                    priceCurrencyCode = it.priceCurrencyCode
+                    priceCurrencyCode = it.priceCurrencyCode,
+                    preorderDetailsAndroid = preorderDetails
                 )
             },
             platform = IapPlatform.Android,
@@ -100,6 +110,19 @@ internal object BillingConverters {
 
     fun BillingPurchase.toPurchase(productType: String, basePlanId: String? = null): PurchaseAndroid {
         val state = PurchaseState.fromBillingState(purchaseState)
+
+        // Check if subscription is suspended (available in Billing Library 8.1.0+)
+        // Suspended subscriptions should NOT grant entitlements - direct users to subscription center
+        val isSuspended = if (productType == BillingClient.ProductType.SUBS) {
+            runCatching {
+                // Use reflection to maintain backward compatibility
+                val method = this::class.java.getMethod("isSuspended")
+                method.invoke(this) as? Boolean
+            }.getOrNull()
+        } else {
+            null
+        }
+
         return PurchaseAndroid(
             autoRenewingAndroid = isAutoRenewing,
             currentPlanId = basePlanId,
@@ -109,6 +132,7 @@ internal object BillingConverters {
             ids = products,
             isAcknowledgedAndroid = isAcknowledged,
             isAutoRenewing = isAutoRenewing,
+            isSuspendedAndroid = isSuspended,
             obfuscatedAccountIdAndroid = accountIdentifiers?.obfuscatedAccountId,
             obfuscatedProfileIdAndroid = accountIdentifiers?.obfuscatedProfileId,
             packageNameAndroid = packageName,

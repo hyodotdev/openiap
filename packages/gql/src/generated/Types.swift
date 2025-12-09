@@ -376,6 +376,17 @@ public enum FetchProductsResult {
     case subscriptions([ProductSubscription]?)
 }
 
+/// Pre-order details for one-time purchase products (Android)
+/// Available in Google Play Billing Library 8.1.0+
+public struct PreorderDetailsAndroid: Codable {
+    /// Pre-order presale end time in milliseconds since epoch.
+    /// This is when the presale period ends and the product will be released.
+    public var preorderPresaleEndTimeMillis: String
+    /// Pre-order release time in milliseconds since epoch.
+    /// This is when the product will be available to users who pre-ordered.
+    public var preorderReleaseTimeMillis: String
+}
+
 public struct PricingPhaseAndroid: Codable {
     public var billingCycleCount: Int
     public var billingPeriod: String
@@ -407,6 +418,9 @@ public struct ProductAndroid: Codable, ProductCommon {
 
 public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
     public var formattedPrice: String
+    /// Pre-order details for products available for pre-order (Android)
+    /// Available in Google Play Billing Library 8.1.0+
+    public var preorderDetailsAndroid: PreorderDetailsAndroid?
     public var priceAmountMicros: String
     public var priceCurrencyCode: String
 }
@@ -488,6 +502,12 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var ids: [String]?
     public var isAcknowledgedAndroid: Bool?
     public var isAutoRenewing: Bool
+    /// Whether the subscription is suspended (Android)
+    /// A suspended subscription means the user's payment method failed and they need to fix it.
+    /// Users should be directed to the subscription center to resolve the issue.
+    /// Do NOT grant entitlements for suspended subscriptions.
+    /// Available in Google Play Billing Library 8.1.0+
+    public var isSuspendedAndroid: Bool?
     public var obfuscatedAccountIdAndroid: String?
     public var obfuscatedProfileIdAndroid: String?
     public var packageNameAndroid: String?

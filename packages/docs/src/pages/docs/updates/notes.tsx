@@ -29,6 +29,93 @@ function Notes() {
           }}
         >
           <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap-google v1.3.11 / openiap-gql v1.3.1 -{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Play Billing 8.1.0
+            </a>{' '}
+            Support
+          </h4>
+          <p>
+            <strong>Google Play Billing Library Upgrade:</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <a
+                  href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Billing Library 8.0.0 → 8.1.0
+                </a>
+              </strong>{' '}
+              - Upgraded to latest Google Play Billing Library
+            </li>
+            <li>
+              <strong>minSdk 21 → 23</strong> - Minimum SDK increased to Android
+              6.0 (Marshmallow) as required by Billing Library 8.1.0
+            </li>
+            <li>
+              <strong>Kotlin 2.0.21 → 2.2.0</strong> - Upgraded Kotlin version
+              for compatibility
+            </li>
+          </ul>
+          <p>
+            <strong>New Features:</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>isSuspendedAndroid</strong> - New field on{' '}
+              <code>PurchaseAndroid</code> to detect suspended subscriptions due
+              to payment failures. Suspended subscriptions should NOT grant
+              entitlements - direct users to the subscription center to resolve
+              payment issues.
+            </li>
+            <li>
+              <strong>PreorderDetailsAndroid</strong> - New type for pre-order
+              products. Contains <code>preorderPresaleEndTimeMillis</code> and{' '}
+              <code>preorderReleaseTimeMillis</code> for scheduling pre-order
+              availability.
+            </li>
+          </ul>
+          <CodeBlock language="kotlin">
+            {`// Handling suspended subscriptions
+val purchase = getAvailablePurchases()
+if (purchase.isSuspendedAndroid == true) {
+    // ❌ Do NOT grant entitlements
+    // ✅ Direct user to subscription center
+    showMessage("Payment issue detected. Please update your payment method.")
+    deepLinkToSubscriptions()
+}
+
+// Pre-order details
+val product = fetchProducts(skus)
+product.oneTimePurchaseOfferDetailsAndroid?.preorderDetailsAndroid?.let {
+    val releaseTime = it.preorderReleaseTimeMillis.toLong()
+    val presaleEndTime = it.preorderPresaleEndTimeMillis.toLong()
+}`}
+          </CodeBlock>
+          <p>
+            See:{' '}
+            <a href="/docs/types#purchase-android">Purchase Android Fields</a>,{' '}
+            <a href="/docs/types#product-platform">Product Platform Fields</a>
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
             📅 openiap v1.3.0 - Platform Props & Store Field Updates
           </h4>
           <p>
@@ -418,16 +505,22 @@ const testProduct = await fetchProducts(['your_real_product_id'])
           </thead>
           <tbody>
             <tr>
-              <td>v7.x</td>
+              <td>v8.x</td>
               <td>✅ Current</td>
+              <td>TBD</td>
+              <td>Latest recommended version (requires minSdk 23, Kotlin 2.2.0)</td>
+            </tr>
+            <tr>
+              <td>v7.x</td>
+              <td>✅ Supported</td>
               <td>August 31, 2025</td>
-              <td>Latest recommended version</td>
+              <td>User Choice Billing support</td>
             </tr>
             <tr>
               <td>v6.x</td>
               <td>✅ Supported</td>
               <td>August 31, 2025</td>
-              <td>Minimum required version</td>
+              <td>Alternative Billing support</td>
             </tr>
             <tr>
               <td>v5.x</td>
@@ -447,6 +540,41 @@ const testProduct = await fetchProducts(['your_real_product_id'])
 
       <section>
         <h2>🆕 Recent Updates</h2>
+
+        <h3>
+          <a
+            href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google Play Billing Library v8.1
+          </a>{' '}
+          (November 2024)
+        </h3>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          Released November 6, 2024
+        </p>
+        <ul>
+          <li>
+            <strong>Suspended Subscriptions</strong> -{' '}
+            <code>Purchase.isSuspended()</code> to detect payment failures
+          </li>
+          <li>
+            <strong>Pre-order Products</strong> -{' '}
+            <code>PreorderDetails</code> for one-time purchase pre-orders
+          </li>
+          <li>
+            <strong>minSdk 23</strong> - Minimum SDK increased to Android 6.0
+          </li>
+          <li>
+            <strong>Kotlin 2.2.0</strong> - Requires Kotlin 2.2.0 or higher
+          </li>
+          <li>
+            <strong>Deprecated API</strong> -{' '}
+            <code>setSubscriptionReplacementMode()</code> deprecated in favor of{' '}
+            <code>SubscriptionProductReplacementParams</code>
+          </li>
+        </ul>
 
         <h3>Google Play Billing Library v7 (May 2024)</h3>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>

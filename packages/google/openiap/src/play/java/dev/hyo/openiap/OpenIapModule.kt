@@ -433,7 +433,7 @@ class OpenIapModule(
                             "• Wait for Google approval\n" +
                             "• Test with license tester accounts\n\n" +
                             "Current mode: ALTERNATIVE_ONLY\n" +
-                            "Library: Billing 8.0.0"
+                            "Library: Billing 8.1.0"
                         )
 
                         purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
@@ -632,7 +632,11 @@ class OpenIapModule(
                             .setOldPurchaseToken(androidArgs.purchaseTokenAndroid)
 
                         // Set replacement mode - this is critical for upgrades
+                        // Note: setSubscriptionReplacementMode() is deprecated in Billing 8.1.0
+                        // in favor of SubscriptionProductReplacementParams for per-product control.
+                        // However, for single-product upgrades, the legacy API still works.
                         val replacementMode = androidArgs.replacementModeAndroid ?: 5 // Default to CHARGE_FULL_PRICE
+                        @Suppress("DEPRECATION")
                         updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
                         OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)
 
@@ -1084,7 +1088,7 @@ class OpenIapModule(
                 } catch (e: NoSuchMethodException) {
                     OpenIapLog.e("✗ enableAlternativeBillingOnly() method not found", e, TAG)
                     OpenIapLog.e("This method requires Billing Library 6.2+", tag = TAG)
-                    OpenIapLog.e("Current library version: 8.0.0", tag = TAG)
+                    OpenIapLog.e("Current library version: 8.1.0", tag = TAG)
                     OpenIapLog.e("Alternative billing will NOT work - standard Google Play billing will be used", tag = TAG)
                 } catch (e: Exception) {
                     OpenIapLog.e("✗ Failed to enable alternative billing only: ${e.javaClass.simpleName}: ${e.message}", e, TAG)

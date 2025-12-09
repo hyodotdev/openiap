@@ -846,6 +846,39 @@ public data class FetchProductsResultProducts(val value: List<Product>?) : Fetch
 
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
 
+/**
+ * Pre-order details for one-time purchase products (Android)
+ * Available in Google Play Billing Library 8.1.0+
+ */
+public data class PreorderDetailsAndroid(
+    /**
+     * Pre-order presale end time in milliseconds since epoch.
+     * This is when the presale period ends and the product will be released.
+     */
+    val preorderPresaleEndTimeMillis: String,
+    /**
+     * Pre-order release time in milliseconds since epoch.
+     * This is when the product will be available to users who pre-ordered.
+     */
+    val preorderReleaseTimeMillis: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): PreorderDetailsAndroid {
+            return PreorderDetailsAndroid(
+                preorderPresaleEndTimeMillis = json["preorderPresaleEndTimeMillis"] as String,
+                preorderReleaseTimeMillis = json["preorderReleaseTimeMillis"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "PreorderDetailsAndroid",
+        "preorderPresaleEndTimeMillis" to preorderPresaleEndTimeMillis,
+        "preorderReleaseTimeMillis" to preorderReleaseTimeMillis,
+    )
+}
+
 public data class PricingPhaseAndroid(
     val billingCycleCount: Int,
     val billingPeriod: String,
@@ -953,6 +986,11 @@ public data class ProductAndroid(
 
 public data class ProductAndroidOneTimePurchaseOfferDetail(
     val formattedPrice: String,
+    /**
+     * Pre-order details for products available for pre-order (Android)
+     * Available in Google Play Billing Library 8.1.0+
+     */
+    val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
     val priceAmountMicros: String,
     val priceCurrencyCode: String
 ) {
@@ -961,6 +999,7 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
         fun fromJson(json: Map<String, Any?>): ProductAndroidOneTimePurchaseOfferDetail {
             return ProductAndroidOneTimePurchaseOfferDetail(
                 formattedPrice = json["formattedPrice"] as String,
+                preorderDetailsAndroid = (json["preorderDetailsAndroid"] as Map<String, Any?>?)?.let { PreorderDetailsAndroid.fromJson(it) },
                 priceAmountMicros = json["priceAmountMicros"] as String,
                 priceCurrencyCode = json["priceCurrencyCode"] as String,
             )
@@ -970,6 +1009,7 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "ProductAndroidOneTimePurchaseOfferDetail",
         "formattedPrice" to formattedPrice,
+        "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
         "priceAmountMicros" to priceAmountMicros,
         "priceCurrencyCode" to priceCurrencyCode,
     )
@@ -1212,6 +1252,14 @@ public data class PurchaseAndroid(
     override val ids: List<String>? = null,
     val isAcknowledgedAndroid: Boolean? = null,
     override val isAutoRenewing: Boolean,
+    /**
+     * Whether the subscription is suspended (Android)
+     * A suspended subscription means the user's payment method failed and they need to fix it.
+     * Users should be directed to the subscription center to resolve the issue.
+     * Do NOT grant entitlements for suspended subscriptions.
+     * Available in Google Play Billing Library 8.1.0+
+     */
+    val isSuspendedAndroid: Boolean? = null,
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
@@ -1240,6 +1288,7 @@ public data class PurchaseAndroid(
                 ids = (json["ids"] as List<*>?)?.map { it as String },
                 isAcknowledgedAndroid = json["isAcknowledgedAndroid"] as Boolean?,
                 isAutoRenewing = json["isAutoRenewing"] as Boolean,
+                isSuspendedAndroid = json["isSuspendedAndroid"] as Boolean?,
                 obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as String?,
                 obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as String?,
                 packageNameAndroid = json["packageNameAndroid"] as String?,
@@ -1266,6 +1315,7 @@ public data class PurchaseAndroid(
         "ids" to ids?.map { it },
         "isAcknowledgedAndroid" to isAcknowledgedAndroid,
         "isAutoRenewing" to isAutoRenewing,
+        "isSuspendedAndroid" to isSuspendedAndroid,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
         "packageNameAndroid" to packageNameAndroid,
