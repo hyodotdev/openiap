@@ -125,7 +125,8 @@ product.oneTimePurchaseOfferDetailsAndroid?.preorderDetailsAndroid?.let {
             <li>
               <strong>Purchase.platform → Purchase.store</strong> - The{' '}
               <code>platform</code> field is deprecated. Use <code>store</code>{' '}
-              instead which returns <code>'apple'</code> or <code>'google'</code>.
+              instead which returns <code>'apple'</code> or{' '}
+              <code>'google'</code>.
             </li>
             <li>
               <strong>requestPurchase props</strong> - The <code>ios</code> and{' '}
@@ -189,7 +190,9 @@ purchase.platform  // deprecated`}
           </h4>
           <p>
             Starting from <strong>openiap v1.2.6</strong>, the{' '}
-            <code style={{ textDecoration: 'line-through' }}>validateReceipt</code>{' '}
+            <code style={{ textDecoration: 'line-through' }}>
+              validateReceipt
+            </code>{' '}
             API is deprecated in favor of <code>verifyPurchase</code>.
           </p>
           <p>
@@ -264,7 +267,9 @@ purchase.platform  // deprecated`}
           </ul>
           <p style={{ margin: 0 }}>
             See:{' '}
-            <a href="/docs/features/external-purchase">External Purchase Guide</a>
+            <a href="/docs/features/external-purchase">
+              External Purchase Guide
+            </a>
           </p>
         </div>
       </section>
@@ -313,7 +318,11 @@ purchase.platform  // deprecated`}
             </li>
           </ul>
           <p>
-            See: <a href="/docs/features/external-purchase">External Purchase Guide</a>,{' '}
+            See:{' '}
+            <a href="/docs/features/external-purchase">
+              External Purchase Guide
+            </a>
+            ,{' '}
             <a href="/docs/events#user-choice-billing-event-android">
               User Choice Billing Event
             </a>
@@ -508,7 +517,9 @@ const testProduct = await fetchProducts(['your_real_product_id'])
               <td>v8.x</td>
               <td>✅ Current</td>
               <td>TBD</td>
-              <td>Latest recommended version (requires minSdk 23, Kotlin 2.2.0)</td>
+              <td>
+                Latest recommended version (requires minSdk 23, Kotlin 2.2.0)
+              </td>
             </tr>
             <tr>
               <td>v7.x</td>
@@ -560,8 +571,8 @@ const testProduct = await fetchProducts(['your_real_product_id'])
             <code>Purchase.isSuspended()</code> to detect payment failures
           </li>
           <li>
-            <strong>Pre-order Products</strong> -{' '}
-            <code>PreorderDetails</code> for one-time purchase pre-orders
+            <strong>Pre-order Products</strong> - <code>PreorderDetails</code>{' '}
+            for one-time purchase pre-orders
           </li>
           <li>
             <strong>minSdk 23</strong> - Minimum SDK increased to Android 6.0
