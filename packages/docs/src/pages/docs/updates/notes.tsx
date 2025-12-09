@@ -101,8 +101,8 @@ product.oneTimePurchaseOfferDetailsAndroid?.preorderDetailsAndroid?.let {
           </CodeBlock>
           <p>
             See:{' '}
-            <a href="/docs/types#purchase-android">Purchase Android Fields</a>,{' '}
-            <a href="/docs/types#product-platform">Product Platform Fields</a>
+            <a href="/docs/types#purchase-platform">Purchase Platform Fields</a>
+            , <a href="/docs/types#product-platform">Product Platform Fields</a>
           </p>
         </div>
 
