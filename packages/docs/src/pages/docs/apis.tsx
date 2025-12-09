@@ -1177,7 +1177,11 @@ Future<VerifyPurchaseResult> verifyPurchase(
         </AnchorLink>
         <p>
           Verify a purchase using a specific provider like{' '}
-          <a href="https://iapkit.com" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://iapkit.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             IAPKit
           </a>
           . This method sends purchase data directly to the provider's API for
@@ -1186,51 +1190,25 @@ Future<VerifyPurchaseResult> verifyPurchase(
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`// Function signature
-verifyPurchaseWithProvider(
-  props: VerifyPurchaseWithProviderProps
-): Promise<VerifyPurchaseWithProviderResult>
+              <CodeBlock language="typescript">{`const result = await verifyPurchaseWithProvider({
+  provider: 'iapkit',
+  iapkit: {
+    apiKey: 'your-iapkit-api-key',
+    apple: { jws: purchase.purchaseToken },
+    google: { purchaseToken: purchase.purchaseToken }
+  }
+});
 
-// Props
-interface VerifyPurchaseWithProviderProps {
-  provider: PurchaseVerificationProvider; // Currently: 'iapkit'
-  iapkit?: RequestVerifyPurchaseWithIapkitProps;
-}
-
-interface RequestVerifyPurchaseWithIapkitProps {
-  apiKey?: string;  // API key for Authorization header
-  apple?: { jws: string };  // iOS: JWS token from purchase
-  google?: { purchaseToken: string };  // Android: purchase token
-}
-
-// Result
-interface VerifyPurchaseWithProviderResult {
-  provider: PurchaseVerificationProvider;
-  iapkit?: RequestVerifyPurchaseWithIapkitResult;
-}
-
-interface RequestVerifyPurchaseWithIapkitResult {
-  isValid: boolean;  // Whether the purchase is valid
-  state: IapkitPurchaseState;  // Purchase state
-  store: IapkitStore;  // 'apple' | 'google'
-}
-
-// IapkitPurchaseState values:
-// 'entitled' | 'pending-acknowledgment' | 'pending' | 'canceled' |
-// 'expired' | 'ready-to-consume' | 'consumed' | 'unknown' | 'inauthentic'`}</CodeBlock>
+if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
+  // Grant entitlement
+}`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`// Function signature
-func verifyPurchaseWithProvider(
-    _ props: VerifyPurchaseWithProviderProps
-) async throws -> VerifyPurchaseWithProviderResult
-
-// Usage
-let props = VerifyPurchaseWithProviderProps(
+              <CodeBlock language="swift">{`let props = VerifyPurchaseWithProviderProps(
     iapkit: RequestVerifyPurchaseWithIapkitProps(
         apiKey: "your-iapkit-api-key",
         apple: RequestVerifyPurchaseWithIapkitAppleProps(
-            jws: purchase.jwsRepresentationIOS ?? ""
+            jws: purchase.purchaseToken ?? ""
         ),
         google: nil
     ),
@@ -1244,16 +1222,13 @@ if let iapkit = result, iapkit.isValid && iapkit.state == .entitled {
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`// Function signature
-suspend fun verifyPurchaseWithProvider(
-    props: VerifyPurchaseWithProviderProps
-): VerifyPurchaseWithProviderResult
-
-// Usage
-val props = VerifyPurchaseWithProviderProps(
+              <CodeBlock language="kotlin">{`val props = VerifyPurchaseWithProviderProps(
     iapkit = RequestVerifyPurchaseWithIapkitProps(
         apiKey = "your-iapkit-api-key",
-        apple = null,
+        // For KMP targeting iOS: provide apple payload
+        apple = RequestVerifyPurchaseWithIapkitAppleProps(
+            jws = purchase.purchaseToken
+        ),
         google = RequestVerifyPurchaseWithIapkitGoogleProps(
             purchaseToken = purchase.purchaseToken
         )
@@ -1270,23 +1245,20 @@ result.iapkit?.let { iapkit ->
 }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`// Function signature
-Future<VerifyPurchaseWithProviderResult> verifyPurchaseWithProvider(
-  VerifyPurchaseWithProviderProps props,
-);
-
-// Usage
-final props = VerifyPurchaseWithProviderProps(
-  provider: PurchaseVerificationProvider.iapkit,
-  iapkit: RequestVerifyPurchaseWithIapkitProps(
-    apiKey: 'your-iapkit-api-key',
-    apple: RequestVerifyPurchaseWithIapkitAppleProps(
-      jws: purchase.jwsRepresentationIOS ?? '',
+              <CodeBlock language="dart">{`final result = await iap.verifyPurchaseWithProvider(
+  VerifyPurchaseWithProviderProps(
+    provider: PurchaseVerificationProvider.iapkit,
+    iapkit: RequestVerifyPurchaseWithIapkitProps(
+      apiKey: 'your-iapkit-api-key',
+      apple: RequestVerifyPurchaseWithIapkitAppleProps(
+        jws: purchase.purchaseToken ?? '',
+      ),
+      google: RequestVerifyPurchaseWithIapkitGoogleProps(
+        purchaseToken: purchase.purchaseToken ?? '',
+      ),
     ),
   ),
 );
-
-final result = await iap.verifyPurchaseWithProvider(props);
 
 final iapkit = result.iapkit;
 if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.entitled) {
@@ -1305,9 +1277,9 @@ if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.enti
             VerifyPurchaseWithProviderResult
           </Link>
         </p>
-        <p>
-          <strong>IAPKit Purchase States:</strong>
-        </p>
+        <AnchorLink id="iapkit-purchase-states" level="h4">
+          IAPKit Purchase States
+        </AnchorLink>
         <ul>
           <li>
             <code>entitled</code> - User is entitled to the product
@@ -1338,6 +1310,165 @@ if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.enti
             <code>inauthentic</code> - Purchase failed authenticity check
           </li>
         </ul>
+
+        <AnchorLink id="verification-error-handling" level="h4">
+          Error Handling Best Practice
+        </AnchorLink>
+        <blockquote className="warning-note">
+          <p>
+            <strong>Important: Verification error ≠ Invalid purchase</strong>
+          </p>
+          <p>
+            When <code>verifyPurchaseWithProvider</code> throws an error, it
+            does NOT mean the purchase is invalid. Errors can occur due to:
+          </p>
+          <ul>
+            <li>Network connectivity issues</li>
+            <li>IAPKit server downtime</li>
+            <li>Misconfigured API keys</li>
+            <li>Temporary service errors</li>
+          </ul>
+          <p>
+            <strong>
+              Don&apos;t penalize customers for verification failures.
+            </strong>{' '}
+            Use a &quot;fail-open&quot; approach: grant access and finish the
+            transaction when verification fails due to errors.
+          </p>
+        </blockquote>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`try {
+  const result = await verifyPurchaseWithProvider({
+    provider: 'iapkit',
+    iapkit: {
+      apiKey: 'your-api-key',
+      apple: { jws: purchase.purchaseToken },
+      google: { purchaseToken: purchase.purchaseToken }
+    }
+  });
+
+  if (result.iapkit?.isValid) {
+    // Verification succeeded - grant access
+    await finishTransaction(purchase);
+    grantAccess();
+  } else {
+    // Verification failed (isValid: false) - actually invalid purchase
+    // Don't call finishTransaction - allow retry
+    denyAccess();
+  }
+} catch (error) {
+  // Verification itself failed (network, server error, etc.)
+  // This doesn't mean the purchase is invalid - don't penalize the customer
+  console.error('Verification failed:', error);
+  await finishTransaction(purchase);  // Complete the transaction
+  grantAccess();  // Grant access (fail-open approach)
+}`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`do {
+    let result = try await store.verifyPurchaseWithProvider(
+        VerifyPurchaseWithProviderProps(
+            iapkit: RequestVerifyPurchaseWithIapkitProps(
+                apiKey: "your-api-key",
+                apple: RequestVerifyPurchaseWithIapkitAppleProps(
+                    jws: purchase.jwsRepresentationIOS ?? ""
+                ),
+                google: nil
+            ),
+            provider: .iapkit
+        )
+    )
+
+    if let iapkit = result, iapkit.isValid {
+        // Verification succeeded - grant access
+        try await store.finishTransaction(purchase: purchase)
+        grantAccess()
+    } else {
+        // Verification failed (isValid: false) - actually invalid purchase
+        // Don't call finishTransaction - allow retry
+        denyAccess()
+    }
+} catch {
+    // Verification itself failed (network, server error, etc.)
+    // This doesn't mean the purchase is invalid - don't penalize the customer
+    print("Verification failed: \\(error.localizedDescription)")
+    try await store.finishTransaction(purchase: purchase)  // Complete the transaction
+    grantAccess()  // Grant access (fail-open approach)
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`try {
+    val result = module.verifyPurchaseWithProvider(
+        VerifyPurchaseWithProviderProps(
+            iapkit = RequestVerifyPurchaseWithIapkitProps(
+                apiKey = "your-api-key",
+                // For KMP targeting iOS: provide apple payload
+                apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                    jws = purchase.purchaseToken
+                ),
+                google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                    purchaseToken = purchase.purchaseToken
+                )
+            ),
+            provider = PurchaseVerificationProvider.Iapkit
+        )
+    )
+
+    result.iapkit?.let { iapkit ->
+        if (iapkit.isValid) {
+            // Verification succeeded - grant access
+            module.finishTransaction(purchase, isConsumable = false)
+            grantAccess()
+        } else {
+            // Verification failed (isValid: false) - actually invalid purchase
+            // Don't call finishTransaction - allow retry
+            denyAccess()
+        }
+    }
+} catch (e: Exception) {
+    // Verification itself failed (network, server error, etc.)
+    // This doesn't mean the purchase is invalid - don't penalize the customer
+    println("Verification failed: \${e.message}")
+    module.finishTransaction(purchase, isConsumable = false)  // Complete the transaction
+    grantAccess()  // Grant access (fail-open approach)
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`try {
+  final result = await iap.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+      provider: PurchaseVerificationProvider.iapkit,
+      iapkit: RequestVerifyPurchaseWithIapkitProps(
+        apiKey: 'your-api-key',
+        apple: RequestVerifyPurchaseWithIapkitAppleProps(
+          jws: purchase.jwsRepresentationIOS ?? '',
+        ),
+      ),
+    ),
+  );
+
+  final iapkit = result.iapkit;
+  if (iapkit != null && iapkit.isValid) {
+    // Verification succeeded - grant access
+    await iap.finishTransaction(purchase);
+    grantAccess();
+  } else {
+    // Verification failed (isValid: false) - actually invalid purchase
+    // Don't call finishTransaction - allow retry
+    denyAccess();
+  }
+} catch (e) {
+  // Verification itself failed (network, server error, etc.)
+  // This doesn't mean the purchase is invalid - don't penalize the customer
+  print('Verification failed: $e');
+  await iap.finishTransaction(purchase);  // Complete the transaction
+  grantAccess();  // Grant access (fail-open approach)
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
 
         <AnchorLink id="purchase-identifier-usage" level="h3">
           Purchase Identifier Usage

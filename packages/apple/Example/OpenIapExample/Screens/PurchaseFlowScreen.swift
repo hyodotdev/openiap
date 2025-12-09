@@ -480,29 +480,29 @@ struct PurchaseFlowScreen: View {
                 showPurchaseResult = true
             }
 
-            do {
-                // Get JWS token for verification
-                guard let jws = purchase.purchaseToken, !jws.isEmpty else {
-                    await MainActor.run {
-                        isVerifying = false
-                        purchaseResultMessage = "❌ Missing JWS token"
-                        errorMessage = "Missing JWS token"
-                        showError = true
-                    }
-                    return
+            // Get JWS token for verification
+            guard let jws = purchase.purchaseToken, !jws.isEmpty else {
+                await MainActor.run {
+                    isVerifying = false
+                    purchaseResultMessage = "❌ Missing JWS token"
+                    errorMessage = "Missing JWS token"
+                    showError = true
                 }
+                return
+            }
 
-                let props = VerifyPurchaseWithProviderProps(
-                    iapkit: RequestVerifyPurchaseWithIapkitProps(
-                        apiKey: apiKey,
-                        apple: RequestVerifyPurchaseWithIapkitAppleProps(
-                            jws: jws
-                        ),
-                        google: nil
+            let props = VerifyPurchaseWithProviderProps(
+                iapkit: RequestVerifyPurchaseWithIapkitProps(
+                    apiKey: apiKey,
+                    apple: RequestVerifyPurchaseWithIapkitAppleProps(
+                        jws: jws
                     ),
-                    provider: .iapkit
-                )
+                    google: nil
+                ),
+                provider: .iapkit
+            )
 
+            do {
                 let result = try await iapStore.verifyPurchaseWithProvider(props)
                 let isValid = result?.isValid ?? false
                 let state = result?.state.rawValue ?? "unknown"
@@ -525,13 +525,25 @@ struct PurchaseFlowScreen: View {
                 if isValid {
                     await finishPurchase(purchase)
                 }
+                // If isValid == false, don't finish - allow retry
             } catch {
+                // Verification error (network, server, etc.) ≠ invalid purchase
+                // Use fail-open approach: don't penalize customer for verification failures
+                print("⚠️ [PurchaseFlow] IAPKit verification error: \(error.localizedDescription)")
+                print("⚠️ [PurchaseFlow] Using fail-open approach - finishing transaction anyway")
+
                 await MainActor.run {
                     isVerifying = false
-                    purchaseResultMessage = "❌ IAPKit verification failed: \(error.localizedDescription)"
-                    errorMessage = error.localizedDescription
-                    showError = true
+                    purchaseResultMessage = """
+                    ⚠️ IAPKit verification error (fail-open)
+                    Product: \(purchase.productId)
+                    Error: \(error.localizedDescription)
+                    Date: \(dateString)
+                    Note: Transaction finished - customer not penalized
+                    """
                 }
+                // Finish transaction despite verification error
+                await finishPurchase(purchase)
             }
         }
     }
