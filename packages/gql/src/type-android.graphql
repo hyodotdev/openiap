@@ -14,10 +14,32 @@ type PricingPhaseAndroid {
   recurrenceMode: Int!
 }
 
+"""
+Pre-order details for one-time purchase products (Android)
+Available in Google Play Billing Library 8.1.0+
+"""
+type PreorderDetailsAndroid {
+  """
+  Pre-order presale end time in milliseconds since epoch.
+  This is when the presale period ends and the product will be released.
+  """
+  preorderPresaleEndTimeMillis: String!
+  """
+  Pre-order release time in milliseconds since epoch.
+  This is when the product will be available to users who pre-ordered.
+  """
+  preorderReleaseTimeMillis: String!
+}
+
 type ProductAndroidOneTimePurchaseOfferDetail {
   priceCurrencyCode: String!
   formattedPrice: String!
   priceAmountMicros: String!
+  """
+  Pre-order details for products available for pre-order (Android)
+  Available in Google Play Billing Library 8.1.0+
+  """
+  preorderDetailsAndroid: PreorderDetailsAndroid
 }
 
 type ProductSubscriptionAndroidOfferDetails {
@@ -93,6 +115,14 @@ type PurchaseAndroid implements PurchaseCommon {
   developerPayloadAndroid: String
   obfuscatedAccountIdAndroid: String
   obfuscatedProfileIdAndroid: String
+  """
+  Whether the subscription is suspended (Android)
+  A suspended subscription means the user's payment method failed and they need to fix it.
+  Users should be directed to the subscription center to resolve the issue.
+  Do NOT grant entitlements for suspended subscriptions.
+  Available in Google Play Billing Library 8.1.0+
+  """
+  isSuspendedAndroid: Boolean
 }
 
 # Android inputs

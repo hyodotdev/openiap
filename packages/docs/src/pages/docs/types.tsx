@@ -370,7 +370,18 @@ function Types() {
                         For one-time purchases. Contains:{' '}
                         <code>formattedPrice</code>,{' '}
                         <code>priceAmountMicros</code> (divide by 1,000,000),{' '}
-                        <code>priceCurrencyCode</code>
+                        <code>priceCurrencyCode</code>,{' '}
+                        <code>preorderDetailsAndroid</code> (for pre-order
+                        products, contains <code>preorderPresaleEndTimeMillis</code>{' '}
+                        and <code>preorderReleaseTimeMillis</code> -{' '}
+                        <a
+                          href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Billing Library 8.1.0+
+                        </a>
+                        )
                       </td>
                     </tr>
                     <tr>
@@ -1166,6 +1177,25 @@ function Types() {
                         <code>obfuscatedProfileIdAndroid</code>
                       </td>
                       <td>Obfuscated profile ID you provided</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>isSuspendedAndroid</code>
+                      </td>
+                      <td>
+                        Whether the subscription is suspended due to payment
+                        failure. Suspended subscriptions should NOT grant
+                        entitlements - direct users to the subscription center
+                        to resolve payment issues. (
+                        <a
+                          href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Billing Library 8.1.0+
+                        </a>
+                        )
+                      </td>
                     </tr>
                   </tbody>
                 </table>
