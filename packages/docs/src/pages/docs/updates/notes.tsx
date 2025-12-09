@@ -560,10 +560,10 @@ const testProduct = await fetchProducts(['your_real_product_id'])
           >
             Google Play Billing Library v8.1
           </a>{' '}
-          (November 2024)
+          (November 2025)
         </h3>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Released November 6, 2024
+          Released November 6, 2025
         </p>
         <ul>
           <li>
