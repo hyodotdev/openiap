@@ -84,9 +84,13 @@ jobs:
         working-directory: packages/google
         run: ./gradlew :openiap:test
 
-      - name: Build
+      - name: Build Play flavor
         working-directory: packages/google
-        run: ./gradlew :openiap:assembleDebug
+        run: ./gradlew :openiap:assemblePlayDebug
+
+      - name: Build Horizon flavor
+        working-directory: packages/google
+        run: ./gradlew :openiap:assembleHorizonDebug
 
   test-ios:
     name: Test iOS
