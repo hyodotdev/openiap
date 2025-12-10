@@ -353,7 +353,6 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         val skuForStatus = when (val request = props.request) {
             is RequestPurchaseProps.Request.Purchase -> request.value.android?.skus?.firstOrNull()
             is RequestPurchaseProps.Request.Subscription -> request.value.android?.skus?.firstOrNull()
-            else -> null
         }
 
         if (skuForStatus != null) {
