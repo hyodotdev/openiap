@@ -324,6 +324,26 @@ public struct AppTransaction: Codable {
     public var signedDate: Double
 }
 
+/// Discount amount details for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 7.0+
+public struct DiscountAmountAndroid: Codable {
+    /// Discount amount in micro-units (1,000,000 = 1 unit of currency)
+    public var discountAmountMicros: String
+    /// Formatted discount amount with currency sign (e.g., "$4.99")
+    public var formattedDiscountAmount: String
+}
+
+/// Discount display information for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 7.0+
+public struct DiscountDisplayInfoAndroid: Codable {
+    /// Absolute discount amount details
+    /// Only returned for fixed amount discounts
+    public var discountAmount: DiscountAmountAndroid?
+    /// Percentage discount (e.g., 33 for 33% off)
+    /// Only returned for percentage-based discounts
+    public var percentageDiscount: Int?
+}
+
 public struct DiscountIOS: Codable {
     public var identifier: String
     public var localizedPrice: String?
@@ -376,6 +396,15 @@ public enum FetchProductsResult {
     case subscriptions([ProductSubscription]?)
 }
 
+/// Limited quantity information for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 7.0+
+public struct LimitedQuantityInfoAndroid: Codable {
+    /// Maximum quantity a user can purchase
+    public var maximumQuantity: Int
+    /// Remaining quantity the user can still purchase
+    public var remainingQuantity: Int
+}
+
 /// Pre-order details for one-time purchase products (Android)
 /// Available in Google Play Billing Library 8.1.0+
 public struct PreorderDetailsAndroid: Codable {
@@ -408,7 +437,9 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
-    public var oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail?
+    /// One-time purchase offer details including discounts (Android)
+    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
+    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]?
     public var platform: IapPlatform = .android
     public var price: Double?
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]?
@@ -416,13 +447,33 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var type: ProductType = .inApp
 }
 
+/// One-time purchase offer details (Android)
+/// Available in Google Play Billing Library 7.0+
 public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
+    /// Discount display information
+    /// Only available for discounted offers
+    public var discountDisplayInfo: DiscountDisplayInfoAndroid?
     public var formattedPrice: String
-    /// Pre-order details for products available for pre-order (Android)
+    /// Full (non-discounted) price in micro-units
+    /// Only available for discounted offers
+    public var fullPriceMicros: String?
+    /// Limited quantity information
+    public var limitedQuantityInfo: LimitedQuantityInfoAndroid?
+    /// Offer ID
+    public var offerId: String?
+    /// List of offer tags
+    public var offerTags: [String]
+    /// Offer token for use in BillingFlowParams when purchasing
+    public var offerToken: String
+    /// Pre-order details for products available for pre-order
     /// Available in Google Play Billing Library 8.1.0+
     public var preorderDetailsAndroid: PreorderDetailsAndroid?
     public var priceAmountMicros: String
     public var priceCurrencyCode: String
+    /// Rental details for rental offers
+    public var rentalDetailsAndroid: RentalDetailsAndroid?
+    /// Valid time window for the offer
+    public var validTimeWindow: ValidTimeWindowAndroid?
 }
 
 public struct ProductIOS: Codable, ProductCommon {
@@ -451,7 +502,9 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
-    public var oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail?
+    /// One-time purchase offer details including discounts (Android)
+    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
+    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]?
     public var platform: IapPlatform = .android
     public var price: Double?
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
@@ -609,6 +662,16 @@ public struct RenewalInfoIOS: Codable {
     public var willAutoRenew: Bool
 }
 
+/// Rental details for one-time purchase products that can be rented (Android)
+/// Available in Google Play Billing Library 7.0+
+public struct RentalDetailsAndroid: Codable {
+    /// Rental expiration period in ISO 8601 format
+    /// Time after rental period ends when user can still extend
+    public var rentalExpirationPeriod: String?
+    /// Rental period in ISO 8601 format (e.g., P7D for 7 days)
+    public var rentalPeriod: String
+}
+
 public enum RequestPurchaseResult {
     case purchase(Purchase?)
     case purchases([Purchase]?)
@@ -656,6 +719,15 @@ public struct UserChoiceBillingDetails: Codable {
     public var externalTransactionToken: String
     /// List of product IDs selected by the user
     public var products: [String]
+}
+
+/// Valid time window for when an offer is available (Android)
+/// Available in Google Play Billing Library 7.0+
+public struct ValidTimeWindowAndroid: Codable {
+    /// End time in milliseconds since epoch
+    public var endTimeMillis: String
+    /// Start time in milliseconds since epoch
+    public var startTimeMillis: String
 }
 
 public struct VerifyPurchaseResultAndroid: Codable {

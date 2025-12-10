@@ -865,6 +865,72 @@ class AppTransaction {
   }
 }
 
+/// Discount amount details for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 7.0+
+class DiscountAmountAndroid {
+  const DiscountAmountAndroid({
+    /// Discount amount in micro-units (1,000,000 = 1 unit of currency)
+    required this.discountAmountMicros,
+    /// Formatted discount amount with currency sign (e.g., "$4.99")
+    required this.formattedDiscountAmount,
+  });
+
+  /// Discount amount in micro-units (1,000,000 = 1 unit of currency)
+  final String discountAmountMicros;
+  /// Formatted discount amount with currency sign (e.g., "$4.99")
+  final String formattedDiscountAmount;
+
+  factory DiscountAmountAndroid.fromJson(Map<String, dynamic> json) {
+    return DiscountAmountAndroid(
+      discountAmountMicros: json['discountAmountMicros'] as String,
+      formattedDiscountAmount: json['formattedDiscountAmount'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'DiscountAmountAndroid',
+      'discountAmountMicros': discountAmountMicros,
+      'formattedDiscountAmount': formattedDiscountAmount,
+    };
+  }
+}
+
+/// Discount display information for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 7.0+
+class DiscountDisplayInfoAndroid {
+  const DiscountDisplayInfoAndroid({
+    /// Absolute discount amount details
+    /// Only returned for fixed amount discounts
+    this.discountAmount,
+    /// Percentage discount (e.g., 33 for 33% off)
+    /// Only returned for percentage-based discounts
+    this.percentageDiscount,
+  });
+
+  /// Absolute discount amount details
+  /// Only returned for fixed amount discounts
+  final DiscountAmountAndroid? discountAmount;
+  /// Percentage discount (e.g., 33 for 33% off)
+  /// Only returned for percentage-based discounts
+  final int? percentageDiscount;
+
+  factory DiscountDisplayInfoAndroid.fromJson(Map<String, dynamic> json) {
+    return DiscountDisplayInfoAndroid(
+      discountAmount: json['discountAmount'] != null ? DiscountAmountAndroid.fromJson(json['discountAmount'] as Map<String, dynamic>) : null,
+      percentageDiscount: json['percentageDiscount'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'DiscountDisplayInfoAndroid',
+      'discountAmount': discountAmount?.toJson(),
+      'percentageDiscount': percentageDiscount,
+    };
+  }
+}
+
 class DiscountIOS {
   const DiscountIOS({
     required this.identifier,
@@ -1069,6 +1135,37 @@ class FetchProductsResultSubscriptions extends FetchProductsResult {
   final List<ProductSubscription>? value;
 }
 
+/// Limited quantity information for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 7.0+
+class LimitedQuantityInfoAndroid {
+  const LimitedQuantityInfoAndroid({
+    /// Maximum quantity a user can purchase
+    required this.maximumQuantity,
+    /// Remaining quantity the user can still purchase
+    required this.remainingQuantity,
+  });
+
+  /// Maximum quantity a user can purchase
+  final int maximumQuantity;
+  /// Remaining quantity the user can still purchase
+  final int remainingQuantity;
+
+  factory LimitedQuantityInfoAndroid.fromJson(Map<String, dynamic> json) {
+    return LimitedQuantityInfoAndroid(
+      maximumQuantity: json['maximumQuantity'] as int,
+      remainingQuantity: json['remainingQuantity'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'LimitedQuantityInfoAndroid',
+      'maximumQuantity': maximumQuantity,
+      'remainingQuantity': remainingQuantity,
+    };
+  }
+}
+
 /// Pre-order details for one-time purchase products (Android)
 /// Available in Google Play Billing Library 8.1.0+
 class PreorderDetailsAndroid {
@@ -1175,6 +1272,8 @@ class ProductAndroid extends Product implements ProductCommon {
     required this.displayPrice,
     required this.id,
     required this.nameAndroid,
+    /// One-time purchase offer details including discounts (Android)
+    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
     this.oneTimePurchaseOfferDetailsAndroid,
     this.platform = IapPlatform.Android,
     this.price,
@@ -1190,7 +1289,9 @@ class ProductAndroid extends Product implements ProductCommon {
   final String displayPrice;
   final String id;
   final String nameAndroid;
-  final ProductAndroidOneTimePurchaseOfferDetail? oneTimePurchaseOfferDetailsAndroid;
+  /// One-time purchase offer details including discounts (Android)
+  /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  final List<ProductAndroidOneTimePurchaseOfferDetail>? oneTimePurchaseOfferDetailsAndroid;
   final IapPlatform platform;
   final double? price;
   final List<ProductSubscriptionAndroidOfferDetails>? subscriptionOfferDetailsAndroid;
@@ -1206,7 +1307,7 @@ class ProductAndroid extends Product implements ProductCommon {
       displayPrice: json['displayPrice'] as String,
       id: json['id'] as String,
       nameAndroid: json['nameAndroid'] as String,
-      oneTimePurchaseOfferDetailsAndroid: json['oneTimePurchaseOfferDetailsAndroid'] != null ? ProductAndroidOneTimePurchaseOfferDetail.fromJson(json['oneTimePurchaseOfferDetailsAndroid'] as Map<String, dynamic>) : null,
+      oneTimePurchaseOfferDetailsAndroid: (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?) == null ? null : (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?)!.map((e) => ProductAndroidOneTimePurchaseOfferDetail.fromJson(e as Map<String, dynamic>)).toList(),
       platform: IapPlatform.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
       subscriptionOfferDetailsAndroid: (json['subscriptionOfferDetailsAndroid'] as List<dynamic>?) == null ? null : (json['subscriptionOfferDetailsAndroid'] as List<dynamic>?)!.map((e) => ProductSubscriptionAndroidOfferDetails.fromJson(e as Map<String, dynamic>)).toList(),
@@ -1226,7 +1327,7 @@ class ProductAndroid extends Product implements ProductCommon {
       'displayPrice': displayPrice,
       'id': id,
       'nameAndroid': nameAndroid,
-      'oneTimePurchaseOfferDetailsAndroid': oneTimePurchaseOfferDetailsAndroid?.toJson(),
+      'oneTimePurchaseOfferDetailsAndroid': oneTimePurchaseOfferDetailsAndroid == null ? null : oneTimePurchaseOfferDetailsAndroid!.map((e) => e.toJson()).toList(),
       'platform': platform.toJson(),
       'price': price,
       'subscriptionOfferDetailsAndroid': subscriptionOfferDetailsAndroid == null ? null : subscriptionOfferDetailsAndroid!.map((e) => e.toJson()).toList(),
@@ -1236,39 +1337,93 @@ class ProductAndroid extends Product implements ProductCommon {
   }
 }
 
+/// One-time purchase offer details (Android)
+/// Available in Google Play Billing Library 7.0+
 class ProductAndroidOneTimePurchaseOfferDetail {
   const ProductAndroidOneTimePurchaseOfferDetail({
+    /// Discount display information
+    /// Only available for discounted offers
+    this.discountDisplayInfo,
     required this.formattedPrice,
-    /// Pre-order details for products available for pre-order (Android)
+    /// Full (non-discounted) price in micro-units
+    /// Only available for discounted offers
+    this.fullPriceMicros,
+    /// Limited quantity information
+    this.limitedQuantityInfo,
+    /// Offer ID
+    this.offerId,
+    /// List of offer tags
+    required this.offerTags,
+    /// Offer token for use in BillingFlowParams when purchasing
+    required this.offerToken,
+    /// Pre-order details for products available for pre-order
     /// Available in Google Play Billing Library 8.1.0+
     this.preorderDetailsAndroid,
     required this.priceAmountMicros,
     required this.priceCurrencyCode,
+    /// Rental details for rental offers
+    this.rentalDetailsAndroid,
+    /// Valid time window for the offer
+    this.validTimeWindow,
   });
 
+  /// Discount display information
+  /// Only available for discounted offers
+  final DiscountDisplayInfoAndroid? discountDisplayInfo;
   final String formattedPrice;
-  /// Pre-order details for products available for pre-order (Android)
+  /// Full (non-discounted) price in micro-units
+  /// Only available for discounted offers
+  final String? fullPriceMicros;
+  /// Limited quantity information
+  final LimitedQuantityInfoAndroid? limitedQuantityInfo;
+  /// Offer ID
+  final String? offerId;
+  /// List of offer tags
+  final List<String> offerTags;
+  /// Offer token for use in BillingFlowParams when purchasing
+  final String offerToken;
+  /// Pre-order details for products available for pre-order
   /// Available in Google Play Billing Library 8.1.0+
   final PreorderDetailsAndroid? preorderDetailsAndroid;
   final String priceAmountMicros;
   final String priceCurrencyCode;
+  /// Rental details for rental offers
+  final RentalDetailsAndroid? rentalDetailsAndroid;
+  /// Valid time window for the offer
+  final ValidTimeWindowAndroid? validTimeWindow;
 
   factory ProductAndroidOneTimePurchaseOfferDetail.fromJson(Map<String, dynamic> json) {
     return ProductAndroidOneTimePurchaseOfferDetail(
+      discountDisplayInfo: json['discountDisplayInfo'] != null ? DiscountDisplayInfoAndroid.fromJson(json['discountDisplayInfo'] as Map<String, dynamic>) : null,
       formattedPrice: json['formattedPrice'] as String,
+      fullPriceMicros: json['fullPriceMicros'] as String?,
+      limitedQuantityInfo: json['limitedQuantityInfo'] != null ? LimitedQuantityInfoAndroid.fromJson(json['limitedQuantityInfo'] as Map<String, dynamic>) : null,
+      offerId: json['offerId'] as String?,
+      offerTags: (json['offerTags'] as List<dynamic>).map((e) => e as String).toList(),
+      offerToken: json['offerToken'] as String,
       preorderDetailsAndroid: json['preorderDetailsAndroid'] != null ? PreorderDetailsAndroid.fromJson(json['preorderDetailsAndroid'] as Map<String, dynamic>) : null,
       priceAmountMicros: json['priceAmountMicros'] as String,
       priceCurrencyCode: json['priceCurrencyCode'] as String,
+      rentalDetailsAndroid: json['rentalDetailsAndroid'] != null ? RentalDetailsAndroid.fromJson(json['rentalDetailsAndroid'] as Map<String, dynamic>) : null,
+      validTimeWindow: json['validTimeWindow'] != null ? ValidTimeWindowAndroid.fromJson(json['validTimeWindow'] as Map<String, dynamic>) : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       '__typename': 'ProductAndroidOneTimePurchaseOfferDetail',
+      'discountDisplayInfo': discountDisplayInfo?.toJson(),
       'formattedPrice': formattedPrice,
+      'fullPriceMicros': fullPriceMicros,
+      'limitedQuantityInfo': limitedQuantityInfo?.toJson(),
+      'offerId': offerId,
+      'offerTags': offerTags.map((e) => e).toList(),
+      'offerToken': offerToken,
       'preorderDetailsAndroid': preorderDetailsAndroid?.toJson(),
       'priceAmountMicros': priceAmountMicros,
       'priceCurrencyCode': priceCurrencyCode,
+      'rentalDetailsAndroid': rentalDetailsAndroid?.toJson(),
+      'validTimeWindow': validTimeWindow?.toJson(),
     };
   }
 }
@@ -1360,6 +1515,8 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
     required this.displayPrice,
     required this.id,
     required this.nameAndroid,
+    /// One-time purchase offer details including discounts (Android)
+    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
     this.oneTimePurchaseOfferDetailsAndroid,
     this.platform = IapPlatform.Android,
     this.price,
@@ -1375,7 +1532,9 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
   final String displayPrice;
   final String id;
   final String nameAndroid;
-  final ProductAndroidOneTimePurchaseOfferDetail? oneTimePurchaseOfferDetailsAndroid;
+  /// One-time purchase offer details including discounts (Android)
+  /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  final List<ProductAndroidOneTimePurchaseOfferDetail>? oneTimePurchaseOfferDetailsAndroid;
   final IapPlatform platform;
   final double? price;
   final List<ProductSubscriptionAndroidOfferDetails> subscriptionOfferDetailsAndroid;
@@ -1391,7 +1550,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
       displayPrice: json['displayPrice'] as String,
       id: json['id'] as String,
       nameAndroid: json['nameAndroid'] as String,
-      oneTimePurchaseOfferDetailsAndroid: json['oneTimePurchaseOfferDetailsAndroid'] != null ? ProductAndroidOneTimePurchaseOfferDetail.fromJson(json['oneTimePurchaseOfferDetailsAndroid'] as Map<String, dynamic>) : null,
+      oneTimePurchaseOfferDetailsAndroid: (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?) == null ? null : (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?)!.map((e) => ProductAndroidOneTimePurchaseOfferDetail.fromJson(e as Map<String, dynamic>)).toList(),
       platform: IapPlatform.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
       subscriptionOfferDetailsAndroid: (json['subscriptionOfferDetailsAndroid'] as List<dynamic>).map((e) => ProductSubscriptionAndroidOfferDetails.fromJson(e as Map<String, dynamic>)).toList(),
@@ -1411,7 +1570,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
       'displayPrice': displayPrice,
       'id': id,
       'nameAndroid': nameAndroid,
-      'oneTimePurchaseOfferDetailsAndroid': oneTimePurchaseOfferDetailsAndroid?.toJson(),
+      'oneTimePurchaseOfferDetailsAndroid': oneTimePurchaseOfferDetailsAndroid == null ? null : oneTimePurchaseOfferDetailsAndroid!.map((e) => e.toJson()).toList(),
       'platform': platform.toJson(),
       'price': price,
       'subscriptionOfferDetailsAndroid': subscriptionOfferDetailsAndroid.map((e) => e.toJson()).toList(),
@@ -2022,6 +2181,39 @@ class RenewalInfoIOS {
   }
 }
 
+/// Rental details for one-time purchase products that can be rented (Android)
+/// Available in Google Play Billing Library 7.0+
+class RentalDetailsAndroid {
+  const RentalDetailsAndroid({
+    /// Rental expiration period in ISO 8601 format
+    /// Time after rental period ends when user can still extend
+    this.rentalExpirationPeriod,
+    /// Rental period in ISO 8601 format (e.g., P7D for 7 days)
+    required this.rentalPeriod,
+  });
+
+  /// Rental expiration period in ISO 8601 format
+  /// Time after rental period ends when user can still extend
+  final String? rentalExpirationPeriod;
+  /// Rental period in ISO 8601 format (e.g., P7D for 7 days)
+  final String rentalPeriod;
+
+  factory RentalDetailsAndroid.fromJson(Map<String, dynamic> json) {
+    return RentalDetailsAndroid(
+      rentalExpirationPeriod: json['rentalExpirationPeriod'] as String?,
+      rentalPeriod: json['rentalPeriod'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'RentalDetailsAndroid',
+      'rentalExpirationPeriod': rentalExpirationPeriod,
+      'rentalPeriod': rentalPeriod,
+    };
+  }
+}
+
 abstract class RequestPurchaseResult {
   const RequestPurchaseResult();
 }
@@ -2224,6 +2416,37 @@ class UserChoiceBillingDetails {
       '__typename': 'UserChoiceBillingDetails',
       'externalTransactionToken': externalTransactionToken,
       'products': products.map((e) => e).toList(),
+    };
+  }
+}
+
+/// Valid time window for when an offer is available (Android)
+/// Available in Google Play Billing Library 7.0+
+class ValidTimeWindowAndroid {
+  const ValidTimeWindowAndroid({
+    /// End time in milliseconds since epoch
+    required this.endTimeMillis,
+    /// Start time in milliseconds since epoch
+    required this.startTimeMillis,
+  });
+
+  /// End time in milliseconds since epoch
+  final String endTimeMillis;
+  /// Start time in milliseconds since epoch
+  final String startTimeMillis;
+
+  factory ValidTimeWindowAndroid.fromJson(Map<String, dynamic> json) {
+    return ValidTimeWindowAndroid(
+      endTimeMillis: json['endTimeMillis'] as String,
+      startTimeMillis: json['startTimeMillis'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'ValidTimeWindowAndroid',
+      'endTimeMillis': endTimeMillis,
+      'startTimeMillis': startTimeMillis,
     };
   }
 }

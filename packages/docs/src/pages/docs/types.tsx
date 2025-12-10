@@ -367,21 +367,26 @@ function Types() {
                         <code>oneTimePurchaseOfferDetailsAndroid</code>
                       </td>
                       <td>
-                        For one-time purchases. Contains:{' '}
+                        Array of one-time purchase offers. Each offer contains:{' '}
                         <code>formattedPrice</code>,{' '}
-                        <code>priceAmountMicros</code> (divide by 1,000,000),{' '}
+                        <code>priceAmountMicros</code>,{' '}
                         <code>priceCurrencyCode</code>,{' '}
-                        <code>preorderDetailsAndroid</code> (for pre-order
-                        products, contains <code>preorderPresaleEndTimeMillis</code>{' '}
-                        and <code>preorderReleaseTimeMillis</code> -{' '}
+                        <code>offerToken</code>,{' '}
+                        <code>discountDisplayInfo</code> (discount info),{' '}
+                        <code>fullPriceMicros</code> (original price),{' '}
+                        <code>validTimeWindow</code>,{' '}
+                        <code>limitedQuantityInfo</code>,{' '}
+                        <code>preorderDetailsAndroid</code>,{' '}
+                        <code>rentalDetailsAndroid</code>.
+                        See <a href="/docs/features/discount">Discounts</a>.
+                        Requires{' '}
                         <a
-                          href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
+                          href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Billing Library 8.1.0+
+                          Billing Library 7.0+
                         </a>
-                        )
                       </td>
                     </tr>
                     <tr>

@@ -136,15 +136,84 @@ fun ProductDetailModal(
                         product.nameAndroid?.let { DetailRow("Android Name", it) }
                     }
 
-                    product.oneTimePurchaseOfferDetailsAndroid?.let { offer ->
+                    product.oneTimePurchaseOfferDetailsAndroid?.takeIf { it.isNotEmpty() }?.let { offers ->
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         Text(
-                            "One-Time Purchase Details",
+                            "One-Time Purchase Offers (${offers.size})",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
-                        DetailRow("Formatted Price", offer.formattedPrice)
-                        DetailRow("Price (micros)", offer.priceAmountMicros)
+                        offers.forEachIndexed { index, offer ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (offer.discountDisplayInfo != null)
+                                        AppColors.success.copy(alpha = 0.1f)
+                                    else
+                                        AppColors.surfaceVariant
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        "Offer ${index + 1}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    DetailRow("Formatted Price", offer.formattedPrice)
+                                    DetailRow("Price (micros)", offer.priceAmountMicros)
+                                    offer.offerId?.let { DetailRow("Offer ID", it) }
+                                    DetailRow("Offer Token", offer.offerToken)
+                                    if (offer.offerTags.isNotEmpty()) {
+                                        DetailRow("Tags", offer.offerTags.joinToString(", "))
+                                    }
+
+                                    // Discount information
+                                    offer.fullPriceMicros?.let { fullPrice ->
+                                        DetailRow("Full Price (micros)", fullPrice)
+                                    }
+                                    offer.discountDisplayInfo?.let { discount ->
+                                        discount.percentageDiscount?.let {
+                                            DetailRow("Discount", "$it% OFF")
+                                        }
+                                        discount.discountAmount?.let { amount ->
+                                            DetailRow("Discount Amount", amount.formattedDiscountAmount)
+                                            DetailRow("Discount (micros)", amount.discountAmountMicros)
+                                        }
+                                    }
+
+                                    // Time window
+                                    offer.validTimeWindow?.let { window ->
+                                        DetailRow("Valid From", window.startTimeMillis)
+                                        DetailRow("Valid Until", window.endTimeMillis)
+                                    }
+
+                                    // Limited quantity
+                                    offer.limitedQuantityInfo?.let { limit ->
+                                        DetailRow("Max Quantity", limit.maximumQuantity.toString())
+                                        DetailRow("Remaining", limit.remainingQuantity.toString())
+                                    }
+
+                                    // Preorder details
+                                    offer.preorderDetailsAndroid?.let { preorder ->
+                                        DetailRow("Presale Ends", preorder.preorderPresaleEndTimeMillis)
+                                        DetailRow("Release Time", preorder.preorderReleaseTimeMillis)
+                                    }
+
+                                    // Rental details
+                                    offer.rentalDetailsAndroid?.let { rental ->
+                                        DetailRow("Rental Period", rental.rentalPeriod)
+                                        rental.rentalExpirationPeriod?.let {
+                                            DetailRow("Expiration Period", it)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     product.subscriptionOfferDetailsAndroid?.takeIf { it.isNotEmpty() }?.let { offers ->

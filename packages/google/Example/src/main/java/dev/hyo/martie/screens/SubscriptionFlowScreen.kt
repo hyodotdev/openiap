@@ -1281,8 +1281,8 @@ fun SubscriptionFlowScreen(
                 purchaseToken = token
             )
         )
-        val results = verifyPurchaseWithIapkit(props, "SubscriptionFlowScreen")
-        return results.firstOrNull()?.isValid == true
+        val result = verifyPurchaseWithIapkit(props, "SubscriptionFlowScreen")
+        return result.isValid
     }
 
     // Local verification: For Android, we just check if the purchase state is authentic

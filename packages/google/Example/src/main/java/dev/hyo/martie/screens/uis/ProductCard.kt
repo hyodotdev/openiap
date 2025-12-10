@@ -111,12 +111,50 @@ fun ProductCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Check for discount information
+                val firstOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
+                val discountInfo = firstOffer?.discountDisplayInfo
+                val hasDiscount = discountInfo != null
+
+                if (hasDiscount && firstOffer?.fullPriceMicros != null) {
+                    // Show original price with strikethrough
+                    val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+                    val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
+                    Text(
+                        "${firstOffer.priceCurrencyCode} ${String.format("%.2f", fullPrice)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AppColors.textSecondary,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                    )
+                }
+
                 Text(
                     product.displayPrice,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = AppColors.primary
+                    color = if (hasDiscount) AppColors.success else AppColors.primary
                 )
+
+                // Show discount badge
+                if (hasDiscount) {
+                    val discountText = when {
+                        discountInfo?.percentageDiscount != null -> "${discountInfo.percentageDiscount}% OFF"
+                        discountInfo?.discountAmount != null -> "${discountInfo.discountAmount?.formattedDiscountAmount} OFF"
+                        else -> "SALE"
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = AppColors.danger.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            discountText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.danger
+                        )
+                    }
+                }
 
                 if (isPurchasing) {
                     CircularProgressIndicator(

@@ -72,6 +72,34 @@ export interface DeepLinkOptions {
   skuAndroid?: (string | null);
 }
 
+/**
+ * Discount amount details for one-time purchase offers (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+export interface DiscountAmountAndroid {
+  /** Discount amount in micro-units (1,000,000 = 1 unit of currency) */
+  discountAmountMicros: string;
+  /** Formatted discount amount with currency sign (e.g., "$4.99") */
+  formattedDiscountAmount: string;
+}
+
+/**
+ * Discount display information for one-time purchase offers (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+export interface DiscountDisplayInfoAndroid {
+  /**
+   * Absolute discount amount details
+   * Only returned for fixed amount discounts
+   */
+  discountAmount?: (DiscountAmountAndroid | null);
+  /**
+   * Percentage discount (e.g., 33 for 33% off)
+   * Only returned for percentage-based discounts
+   */
+  percentageDiscount?: (number | null);
+}
+
 export interface DiscountIOS {
   identifier: string;
   localizedPrice?: (string | null);
@@ -192,6 +220,17 @@ export interface InitConnectionConfig {
    * If not specified, defaults to NONE (standard Google Play billing)
    */
   alternativeBillingModeAndroid?: (AlternativeBillingModeAndroid | null);
+}
+
+/**
+ * Limited quantity information for one-time purchase offers (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+export interface LimitedQuantityInfoAndroid {
+  /** Maximum quantity a user can purchase */
+  maximumQuantity: number;
+  /** Remaining quantity the user can still purchase */
+  remainingQuantity: number;
 }
 
 export interface Mutation {
@@ -350,7 +389,11 @@ export interface ProductAndroid extends ProductCommon {
   displayPrice: string;
   id: string;
   nameAndroid: string;
-  oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail | null);
+  /**
+   * One-time purchase offer details including discounts (Android)
+   * Returns all eligible offers. Available in Google Play Billing Library 7.0+
+   */
+  oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
   price?: (number | null);
   subscriptionOfferDetailsAndroid?: (ProductSubscriptionAndroidOfferDetails[] | null);
@@ -358,15 +401,41 @@ export interface ProductAndroid extends ProductCommon {
   type: 'in-app';
 }
 
+/**
+ * One-time purchase offer details (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
 export interface ProductAndroidOneTimePurchaseOfferDetail {
+  /**
+   * Discount display information
+   * Only available for discounted offers
+   */
+  discountDisplayInfo?: (DiscountDisplayInfoAndroid | null);
   formattedPrice: string;
   /**
-   * Pre-order details for products available for pre-order (Android)
+   * Full (non-discounted) price in micro-units
+   * Only available for discounted offers
+   */
+  fullPriceMicros?: (string | null);
+  /** Limited quantity information */
+  limitedQuantityInfo?: (LimitedQuantityInfoAndroid | null);
+  /** Offer ID */
+  offerId?: (string | null);
+  /** List of offer tags */
+  offerTags: string[];
+  /** Offer token for use in BillingFlowParams when purchasing */
+  offerToken: string;
+  /**
+   * Pre-order details for products available for pre-order
    * Available in Google Play Billing Library 8.1.0+
    */
   preorderDetailsAndroid?: (PreorderDetailsAndroid | null);
   priceAmountMicros: string;
   priceCurrencyCode: string;
+  /** Rental details for rental offers */
+  rentalDetailsAndroid?: (RentalDetailsAndroid | null);
+  /** Valid time window for the offer */
+  validTimeWindow?: (ValidTimeWindowAndroid | null);
 }
 
 export interface ProductCommon {
@@ -419,7 +488,11 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
   displayPrice: string;
   id: string;
   nameAndroid: string;
-  oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail | null);
+  /**
+   * One-time purchase offer details including discounts (Android)
+   * Returns all eligible offers. Available in Google Play Billing Library 7.0+
+   */
+  oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
   price?: (number | null);
   subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
@@ -708,6 +781,20 @@ export interface RenewalInfoIOS {
   willAutoRenew: boolean;
 }
 
+/**
+ * Rental details for one-time purchase products that can be rented (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+export interface RentalDetailsAndroid {
+  /**
+   * Rental expiration period in ISO 8601 format
+   * Time after rental period ends when user can still extend
+   */
+  rentalExpirationPeriod?: (string | null);
+  /** Rental period in ISO 8601 format (e.g., P7D for 7 days) */
+  rentalPeriod: string;
+}
+
 export interface RequestPurchaseAndroidProps {
   /** Personalized offer flag */
   isOfferPersonalized?: (boolean | null);
@@ -879,6 +966,17 @@ export interface UserChoiceBillingDetails {
   externalTransactionToken: string;
   /** List of product IDs selected by the user */
   products: string[];
+}
+
+/**
+ * Valid time window for when an offer is available (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+export interface ValidTimeWindowAndroid {
+  /** End time in milliseconds since epoch */
+  endTimeMillis: string;
+  /** Start time in milliseconds since epoch */
+  startTimeMillis: string;
 }
 
 export interface VerifyPurchaseAndroidOptions {

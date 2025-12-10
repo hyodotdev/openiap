@@ -31,15 +31,131 @@ type PreorderDetailsAndroid {
   preorderReleaseTimeMillis: String!
 }
 
+"""
+Rental details for one-time purchase products that can be rented (Android)
+Available in Google Play Billing Library 7.0+
+"""
+type RentalDetailsAndroid {
+  """
+  Rental period in ISO 8601 format (e.g., P7D for 7 days)
+  """
+  rentalPeriod: String!
+  """
+  Rental expiration period in ISO 8601 format
+  Time after rental period ends when user can still extend
+  """
+  rentalExpirationPeriod: String
+}
+
+"""
+Valid time window for when an offer is available (Android)
+Available in Google Play Billing Library 7.0+
+"""
+type ValidTimeWindowAndroid {
+  """
+  Start time in milliseconds since epoch
+  """
+  startTimeMillis: String!
+  """
+  End time in milliseconds since epoch
+  """
+  endTimeMillis: String!
+}
+
+"""
+Limited quantity information for one-time purchase offers (Android)
+Available in Google Play Billing Library 7.0+
+"""
+type LimitedQuantityInfoAndroid {
+  """
+  Maximum quantity a user can purchase
+  """
+  maximumQuantity: Int!
+  """
+  Remaining quantity the user can still purchase
+  """
+  remainingQuantity: Int!
+}
+
+"""
+Discount amount details for one-time purchase offers (Android)
+Available in Google Play Billing Library 7.0+
+"""
+type DiscountAmountAndroid {
+  """
+  Discount amount in micro-units (1,000,000 = 1 unit of currency)
+  """
+  discountAmountMicros: String!
+  """
+  Formatted discount amount with currency sign (e.g., "$4.99")
+  """
+  formattedDiscountAmount: String!
+}
+
+"""
+Discount display information for one-time purchase offers (Android)
+Available in Google Play Billing Library 7.0+
+"""
+type DiscountDisplayInfoAndroid {
+  """
+  Percentage discount (e.g., 33 for 33% off)
+  Only returned for percentage-based discounts
+  """
+  percentageDiscount: Int
+  """
+  Absolute discount amount details
+  Only returned for fixed amount discounts
+  """
+  discountAmount: DiscountAmountAndroid
+}
+
+"""
+One-time purchase offer details (Android)
+Available in Google Play Billing Library 7.0+
+"""
 type ProductAndroidOneTimePurchaseOfferDetail {
+  """
+  Offer ID
+  """
+  offerId: String
+  """
+  Offer token for use in BillingFlowParams when purchasing
+  """
+  offerToken: String!
+  """
+  List of offer tags
+  """
+  offerTags: [String!]!
   priceCurrencyCode: String!
   formattedPrice: String!
   priceAmountMicros: String!
   """
-  Pre-order details for products available for pre-order (Android)
+  Full (non-discounted) price in micro-units
+  Only available for discounted offers
+  """
+  fullPriceMicros: String
+  """
+  Discount display information
+  Only available for discounted offers
+  """
+  discountDisplayInfo: DiscountDisplayInfoAndroid
+  """
+  Valid time window for the offer
+  """
+  validTimeWindow: ValidTimeWindowAndroid
+  """
+  Limited quantity information
+  """
+  limitedQuantityInfo: LimitedQuantityInfoAndroid
+  """
+  Pre-order details for products available for pre-order
   Available in Google Play Billing Library 8.1.0+
   """
   preorderDetailsAndroid: PreorderDetailsAndroid
+  """
+  Rental details for rental offers
+  """
+  rentalDetailsAndroid: RentalDetailsAndroid
 }
 
 type ProductSubscriptionAndroidOfferDetails {
@@ -65,7 +181,11 @@ type ProductAndroid implements ProductCommon {
 
   # Android-specific
   nameAndroid: String!
-  oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail
+  """
+  One-time purchase offer details including discounts (Android)
+  Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  """
+  oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]
 }
 
@@ -84,7 +204,11 @@ type ProductSubscriptionAndroid implements ProductCommon {
 
   # Android-specific
   nameAndroid: String!
-  oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail
+  """
+  One-time purchase offer details including discounts (Android)
+  Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  """
+  oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]!
 }
 

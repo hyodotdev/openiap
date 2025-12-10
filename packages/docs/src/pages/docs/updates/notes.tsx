@@ -92,9 +92,9 @@ if (purchase.isSuspendedAndroid == true) {
     deepLinkToSubscriptions()
 }
 
-// Pre-order details
+// Pre-order details (oneTimePurchaseOfferDetailsAndroid is now an array)
 val product = fetchProducts(skus)
-product.oneTimePurchaseOfferDetailsAndroid?.preorderDetailsAndroid?.let {
+product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()?.preorderDetailsAndroid?.let {
     val releaseTime = it.preorderReleaseTimeMillis.toLong()
     val presaleEndTime = it.preorderPresaleEndTimeMillis.toLong()
 }`}

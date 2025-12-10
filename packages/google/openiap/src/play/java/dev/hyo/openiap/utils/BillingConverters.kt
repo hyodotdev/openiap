@@ -1,8 +1,11 @@
 package dev.hyo.openiap.utils
 
 import dev.hyo.openiap.ActiveSubscription
+import dev.hyo.openiap.DiscountAmountAndroid
+import dev.hyo.openiap.DiscountDisplayInfoAndroid
 import dev.hyo.openiap.IapPlatform
 import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.LimitedQuantityInfoAndroid
 import dev.hyo.openiap.PricingPhaseAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.Product
@@ -16,23 +19,97 @@ import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseInput
 import dev.hyo.openiap.PurchaseState
+import dev.hyo.openiap.RentalDetailsAndroid
+import dev.hyo.openiap.ValidTimeWindowAndroid
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase as BillingPurchase
 
 internal object BillingConverters {
+    /**
+     * Converts a ProductDetails.OneTimePurchaseOfferDetails to ProductAndroidOneTimePurchaseOfferDetail
+     * This includes all discount-related fields available in Billing Library 7.0+
+     */
+    private fun ProductDetails.OneTimePurchaseOfferDetails.toOfferDetail(): ProductAndroidOneTimePurchaseOfferDetail {
+        // Extract discount display info if available
+        val discountInfo = discountDisplayInfo?.let { info ->
+            DiscountDisplayInfoAndroid(
+                percentageDiscount = runCatching { info.percentageDiscount }.getOrNull(),
+                discountAmount = runCatching {
+                    info.discountAmount?.let { amount ->
+                        DiscountAmountAndroid(
+                            discountAmountMicros = amount.discountAmountMicros.toString(),
+                            formattedDiscountAmount = amount.formattedDiscountAmount
+                        )
+                    }
+                }.getOrNull()
+            )
+        }
+
+        // Extract valid time window if available
+        val timeWindow = validTimeWindow?.let { window ->
+            ValidTimeWindowAndroid(
+                startTimeMillis = window.startTimeMillis.toString(),
+                endTimeMillis = window.endTimeMillis.toString()
+            )
+        }
+
+        // Extract limited quantity info if available
+        val quantityInfo = limitedQuantityInfo?.let { info ->
+            LimitedQuantityInfoAndroid(
+                maximumQuantity = info.maximumQuantity,
+                remainingQuantity = info.remainingQuantity
+            )
+        }
+
+        // Extract preorder details if available
+        val preorder = preorderDetails?.let { details ->
+            PreorderDetailsAndroid(
+                preorderPresaleEndTimeMillis = details.preorderPresaleEndTimeMillis.toString(),
+                preorderReleaseTimeMillis = details.preorderReleaseTimeMillis.toString()
+            )
+        }
+
+        // Extract rental details if available
+        val rental = rentalDetails?.let { details ->
+            RentalDetailsAndroid(
+                rentalPeriod = details.rentalPeriod,
+                rentalExpirationPeriod = runCatching { details.rentalExpirationPeriod }.getOrNull()
+            )
+        }
+
+        return ProductAndroidOneTimePurchaseOfferDetail(
+            offerId = runCatching { offerId }.getOrNull(),
+            offerToken = offerToken ?: "",
+            offerTags = runCatching { offerTags.orEmpty() }.getOrElse { emptyList() },
+            formattedPrice = formattedPrice,
+            priceCurrencyCode = priceCurrencyCode,
+            priceAmountMicros = priceAmountMicros.toString(),
+            fullPriceMicros = runCatching { fullPriceMicros?.toString() }.getOrNull(),
+            discountDisplayInfo = discountInfo,
+            validTimeWindow = timeWindow,
+            limitedQuantityInfo = quantityInfo,
+            preorderDetailsAndroid = preorder,
+            rentalDetailsAndroid = rental
+        )
+    }
+
     fun ProductDetails.toInAppProduct(): ProductAndroid {
+        // Get all offers using getOneTimePurchaseOfferDetailsList() for discount support
+        val allOffers = runCatching { oneTimePurchaseOfferDetailsList }.getOrNull().orEmpty()
+
+        // Fall back to legacy oneTimePurchaseOfferDetails if list is empty
         val offer = oneTimePurchaseOfferDetails
         val displayPrice = offer?.formattedPrice.orEmpty()
         val currency = offer?.priceCurrencyCode.orEmpty()
         val priceAmountMicros = offer?.priceAmountMicros ?: 0L
 
-        // Extract preorder details (available in Billing Library 8.1.0+)
-        val preorderDetails = offer?.preorderDetails?.let { preorder ->
-            PreorderDetailsAndroid(
-                preorderPresaleEndTimeMillis = preorder.preorderPresaleEndTimeMillis.toString(),
-                preorderReleaseTimeMillis = preorder.preorderReleaseTimeMillis.toString()
-            )
+        // Convert all offers to the list format
+        val offerDetailsList = if (allOffers.isNotEmpty()) {
+            allOffers.map { it.toOfferDetail() }
+        } else {
+            // Fall back to legacy single offer if list is empty
+            offer?.let { listOf(it.toOfferDetail()) }
         }
 
         return ProductAndroid(
@@ -43,14 +120,7 @@ internal object BillingConverters {
             displayPrice = displayPrice,
             id = productId,
             nameAndroid = name,
-            oneTimePurchaseOfferDetailsAndroid = offer?.let {
-                ProductAndroidOneTimePurchaseOfferDetail(
-                    formattedPrice = it.formattedPrice,
-                    priceAmountMicros = it.priceAmountMicros.toString(),
-                    priceCurrencyCode = it.priceCurrencyCode,
-                    preorderDetailsAndroid = preorderDetails
-                )
-            },
+            oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
             platform = IapPlatform.Android,
             price = priceAmountMicros.toDouble() / 1_000_000.0,
             subscriptionOfferDetailsAndroid = null,
@@ -85,6 +155,14 @@ internal object BillingConverters {
             )
         }
 
+        // Get all one-time offers for subscriptions that may have them
+        val allOneTimeOffers = runCatching { oneTimePurchaseOfferDetailsList }.getOrNull().orEmpty()
+        val oneTimeOfferDetailsList = if (allOneTimeOffers.isNotEmpty()) {
+            allOneTimeOffers.map { it.toOfferDetail() }
+        } else {
+            oneTimePurchaseOfferDetails?.let { listOf(it.toOfferDetail()) }
+        }
+
         return ProductSubscriptionAndroid(
             currency = currency,
             debugDescription = description,
@@ -93,13 +171,7 @@ internal object BillingConverters {
             displayPrice = displayPrice,
             id = productId,
             nameAndroid = name,
-            oneTimePurchaseOfferDetailsAndroid = oneTimePurchaseOfferDetails?.let {
-                ProductAndroidOneTimePurchaseOfferDetail(
-                    formattedPrice = it.formattedPrice,
-                    priceAmountMicros = it.priceAmountMicros.toString(),
-                    priceCurrencyCode = it.priceCurrencyCode
-                )
-            },
+            oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetailsList,
             platform = IapPlatform.Android,
             price = firstPhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
             subscriptionOfferDetailsAndroid = pricingDetails,

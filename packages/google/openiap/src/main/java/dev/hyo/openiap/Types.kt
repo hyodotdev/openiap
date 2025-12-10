@@ -670,6 +670,70 @@ public data class AppTransaction(
     )
 }
 
+/**
+ * Discount amount details for one-time purchase offers (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+public data class DiscountAmountAndroid(
+    /**
+     * Discount amount in micro-units (1,000,000 = 1 unit of currency)
+     */
+    val discountAmountMicros: String,
+    /**
+     * Formatted discount amount with currency sign (e.g., "$4.99")
+     */
+    val formattedDiscountAmount: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DiscountAmountAndroid {
+            return DiscountAmountAndroid(
+                discountAmountMicros = json["discountAmountMicros"] as String,
+                formattedDiscountAmount = json["formattedDiscountAmount"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "DiscountAmountAndroid",
+        "discountAmountMicros" to discountAmountMicros,
+        "formattedDiscountAmount" to formattedDiscountAmount,
+    )
+}
+
+/**
+ * Discount display information for one-time purchase offers (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+public data class DiscountDisplayInfoAndroid(
+    /**
+     * Absolute discount amount details
+     * Only returned for fixed amount discounts
+     */
+    val discountAmount: DiscountAmountAndroid? = null,
+    /**
+     * Percentage discount (e.g., 33 for 33% off)
+     * Only returned for percentage-based discounts
+     */
+    val percentageDiscount: Int? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DiscountDisplayInfoAndroid {
+            return DiscountDisplayInfoAndroid(
+                discountAmount = (json["discountAmount"] as Map<String, Any?>?)?.let { DiscountAmountAndroid.fromJson(it) },
+                percentageDiscount = (json["percentageDiscount"] as Number?)?.toInt(),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "DiscountDisplayInfoAndroid",
+        "discountAmount" to discountAmount?.toJson(),
+        "percentageDiscount" to percentageDiscount,
+    )
+}
+
 public data class DiscountIOS(
     val identifier: String,
     val localizedPrice: String? = null,
@@ -847,6 +911,37 @@ public data class FetchProductsResultProducts(val value: List<Product>?) : Fetch
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
 
 /**
+ * Limited quantity information for one-time purchase offers (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+public data class LimitedQuantityInfoAndroid(
+    /**
+     * Maximum quantity a user can purchase
+     */
+    val maximumQuantity: Int,
+    /**
+     * Remaining quantity the user can still purchase
+     */
+    val remainingQuantity: Int
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): LimitedQuantityInfoAndroid {
+            return LimitedQuantityInfoAndroid(
+                maximumQuantity = (json["maximumQuantity"] as Number).toInt(),
+                remainingQuantity = (json["remainingQuantity"] as Number).toInt(),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "LimitedQuantityInfoAndroid",
+        "maximumQuantity" to maximumQuantity,
+        "remainingQuantity" to remainingQuantity,
+    )
+}
+
+/**
  * Pre-order details for one-time purchase products (Android)
  * Available in Google Play Billing Library 8.1.0+
  */
@@ -938,7 +1033,11 @@ public data class ProductAndroid(
     override val displayPrice: String,
     override val id: String,
     val nameAndroid: String,
-    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    /**
+     * One-time purchase offer details including discounts (Android)
+     * Returns all eligible offers. Available in Google Play Billing Library 7.0+
+     */
+    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
@@ -956,7 +1055,7 @@ public data class ProductAndroid(
                 displayPrice = json["displayPrice"] as String,
                 id = json["id"] as String,
                 nameAndroid = json["nameAndroid"] as String,
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as Map<String, Any?>?)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) },
+                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as List<*>?)?.map { ProductAndroidOneTimePurchaseOfferDetail.fromJson((it as Map<String, Any?>)) },
                 platform = IapPlatform.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>?)?.map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
@@ -975,7 +1074,7 @@ public data class ProductAndroid(
         "displayPrice" to displayPrice,
         "id" to id,
         "nameAndroid" to nameAndroid,
-        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.toJson(),
+        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid?.map { it.toJson() },
@@ -984,34 +1083,88 @@ public data class ProductAndroid(
     )
 }
 
+/**
+ * One-time purchase offer details (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
 public data class ProductAndroidOneTimePurchaseOfferDetail(
+    /**
+     * Discount display information
+     * Only available for discounted offers
+     */
+    val discountDisplayInfo: DiscountDisplayInfoAndroid? = null,
     val formattedPrice: String,
     /**
-     * Pre-order details for products available for pre-order (Android)
+     * Full (non-discounted) price in micro-units
+     * Only available for discounted offers
+     */
+    val fullPriceMicros: String? = null,
+    /**
+     * Limited quantity information
+     */
+    val limitedQuantityInfo: LimitedQuantityInfoAndroid? = null,
+    /**
+     * Offer ID
+     */
+    val offerId: String? = null,
+    /**
+     * List of offer tags
+     */
+    val offerTags: List<String>,
+    /**
+     * Offer token for use in BillingFlowParams when purchasing
+     */
+    val offerToken: String,
+    /**
+     * Pre-order details for products available for pre-order
      * Available in Google Play Billing Library 8.1.0+
      */
     val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
     val priceAmountMicros: String,
-    val priceCurrencyCode: String
+    val priceCurrencyCode: String,
+    /**
+     * Rental details for rental offers
+     */
+    val rentalDetailsAndroid: RentalDetailsAndroid? = null,
+    /**
+     * Valid time window for the offer
+     */
+    val validTimeWindow: ValidTimeWindowAndroid? = null
 ) {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductAndroidOneTimePurchaseOfferDetail {
             return ProductAndroidOneTimePurchaseOfferDetail(
+                discountDisplayInfo = (json["discountDisplayInfo"] as Map<String, Any?>?)?.let { DiscountDisplayInfoAndroid.fromJson(it) },
                 formattedPrice = json["formattedPrice"] as String,
+                fullPriceMicros = json["fullPriceMicros"] as String?,
+                limitedQuantityInfo = (json["limitedQuantityInfo"] as Map<String, Any?>?)?.let { LimitedQuantityInfoAndroid.fromJson(it) },
+                offerId = json["offerId"] as String?,
+                offerTags = (json["offerTags"] as List<*>).map { it as String },
+                offerToken = json["offerToken"] as String,
                 preorderDetailsAndroid = (json["preorderDetailsAndroid"] as Map<String, Any?>?)?.let { PreorderDetailsAndroid.fromJson(it) },
                 priceAmountMicros = json["priceAmountMicros"] as String,
                 priceCurrencyCode = json["priceCurrencyCode"] as String,
+                rentalDetailsAndroid = (json["rentalDetailsAndroid"] as Map<String, Any?>?)?.let { RentalDetailsAndroid.fromJson(it) },
+                validTimeWindow = (json["validTimeWindow"] as Map<String, Any?>?)?.let { ValidTimeWindowAndroid.fromJson(it) },
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "ProductAndroidOneTimePurchaseOfferDetail",
+        "discountDisplayInfo" to discountDisplayInfo?.toJson(),
         "formattedPrice" to formattedPrice,
+        "fullPriceMicros" to fullPriceMicros,
+        "limitedQuantityInfo" to limitedQuantityInfo?.toJson(),
+        "offerId" to offerId,
+        "offerTags" to offerTags.map { it },
+        "offerToken" to offerToken,
         "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
         "priceAmountMicros" to priceAmountMicros,
         "priceCurrencyCode" to priceCurrencyCode,
+        "rentalDetailsAndroid" to rentalDetailsAndroid?.toJson(),
+        "validTimeWindow" to validTimeWindow?.toJson(),
     )
 }
 
@@ -1083,7 +1236,11 @@ public data class ProductSubscriptionAndroid(
     override val displayPrice: String,
     override val id: String,
     val nameAndroid: String,
-    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    /**
+     * One-time purchase offer details including discounts (Android)
+     * Returns all eligible offers. Available in Google Play Billing Library 7.0+
+     */
+    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
@@ -1101,7 +1258,7 @@ public data class ProductSubscriptionAndroid(
                 displayPrice = json["displayPrice"] as String,
                 id = json["id"] as String,
                 nameAndroid = json["nameAndroid"] as String,
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as Map<String, Any?>?)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) },
+                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as List<*>?)?.map { ProductAndroidOneTimePurchaseOfferDetail.fromJson((it as Map<String, Any?>)) },
                 platform = IapPlatform.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>).map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
@@ -1120,7 +1277,7 @@ public data class ProductSubscriptionAndroid(
         "displayPrice" to displayPrice,
         "id" to id,
         "nameAndroid" to nameAndroid,
-        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.toJson(),
+        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid.map { it.toJson() },
@@ -1603,6 +1760,38 @@ public data class RenewalInfoIOS(
     )
 }
 
+/**
+ * Rental details for one-time purchase products that can be rented (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+public data class RentalDetailsAndroid(
+    /**
+     * Rental expiration period in ISO 8601 format
+     * Time after rental period ends when user can still extend
+     */
+    val rentalExpirationPeriod: String? = null,
+    /**
+     * Rental period in ISO 8601 format (e.g., P7D for 7 days)
+     */
+    val rentalPeriod: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RentalDetailsAndroid {
+            return RentalDetailsAndroid(
+                rentalExpirationPeriod = json["rentalExpirationPeriod"] as String?,
+                rentalPeriod = json["rentalPeriod"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "RentalDetailsAndroid",
+        "rentalExpirationPeriod" to rentalExpirationPeriod,
+        "rentalPeriod" to rentalPeriod,
+    )
+}
+
 public sealed interface RequestPurchaseResult
 
 public data class RequestPurchaseResultPurchase(val value: Purchase?) : RequestPurchaseResult
@@ -1772,6 +1961,37 @@ public data class UserChoiceBillingDetails(
         "__typename" to "UserChoiceBillingDetails",
         "externalTransactionToken" to externalTransactionToken,
         "products" to products.map { it },
+    )
+}
+
+/**
+ * Valid time window for when an offer is available (Android)
+ * Available in Google Play Billing Library 7.0+
+ */
+public data class ValidTimeWindowAndroid(
+    /**
+     * End time in milliseconds since epoch
+     */
+    val endTimeMillis: String,
+    /**
+     * Start time in milliseconds since epoch
+     */
+    val startTimeMillis: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ValidTimeWindowAndroid {
+            return ValidTimeWindowAndroid(
+                endTimeMillis = json["endTimeMillis"] as String,
+                startTimeMillis = json["startTimeMillis"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ValidTimeWindowAndroid",
+        "endTimeMillis" to endTimeMillis,
+        "startTimeMillis" to startTimeMillis,
     )
 }
 
