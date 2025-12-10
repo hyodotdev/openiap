@@ -23,6 +23,26 @@ internal object HorizonBillingConverters {
         val currency = offer?.priceCurrencyCode.orEmpty()
         val priceAmountMicros = offer?.priceAmountMicros ?: 0L
 
+        // Convert single offer to list format (Horizon doesn't support discount offers yet)
+        val offerDetailsList = offer?.let {
+            listOf(
+                ProductAndroidOneTimePurchaseOfferDetail(
+                    offerId = null,
+                    offerToken = "",
+                    offerTags = emptyList(),
+                    formattedPrice = it.formattedPrice,
+                    priceAmountMicros = it.priceAmountMicros.toString(),
+                    priceCurrencyCode = it.priceCurrencyCode,
+                    fullPriceMicros = null,
+                    discountDisplayInfo = null,
+                    validTimeWindow = null,
+                    limitedQuantityInfo = null,
+                    preorderDetailsAndroid = null,
+                    rentalDetailsAndroid = null
+                )
+            )
+        }
+
         return ProductAndroid(
             currency = currency,
             debugDescription = description,
@@ -31,13 +51,7 @@ internal object HorizonBillingConverters {
             displayPrice = displayPrice,
             id = productId,
             nameAndroid = name,
-            oneTimePurchaseOfferDetailsAndroid = offer?.let {
-                ProductAndroidOneTimePurchaseOfferDetail(
-                    formattedPrice = it.formattedPrice,
-                    priceAmountMicros = it.priceAmountMicros.toString(),
-                    priceCurrencyCode = it.priceCurrencyCode
-                )
-            },
+            oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
             platform = IapPlatform.Android,
             price = priceAmountMicros.toDouble() / 1_000_000.0,
             subscriptionOfferDetailsAndroid = null,
@@ -73,6 +87,26 @@ internal object HorizonBillingConverters {
             )
         }
 
+        // Convert single offer to list format (Horizon doesn't support discount offers yet)
+        val oneTimeOfferDetailsList = oneTimePurchaseOfferDetails?.let {
+            listOf(
+                ProductAndroidOneTimePurchaseOfferDetail(
+                    offerId = null,
+                    offerToken = "",
+                    offerTags = emptyList(),
+                    formattedPrice = it.formattedPrice,
+                    priceAmountMicros = it.priceAmountMicros.toString(),
+                    priceCurrencyCode = it.priceCurrencyCode,
+                    fullPriceMicros = null,
+                    discountDisplayInfo = null,
+                    validTimeWindow = null,
+                    limitedQuantityInfo = null,
+                    preorderDetailsAndroid = null,
+                    rentalDetailsAndroid = null
+                )
+            )
+        }
+
         return ProductSubscriptionAndroid(
             currency = currency,
             debugDescription = description,
@@ -81,13 +115,7 @@ internal object HorizonBillingConverters {
             displayPrice = displayPrice,
             id = productId,
             nameAndroid = name,
-            oneTimePurchaseOfferDetailsAndroid = oneTimePurchaseOfferDetails?.let {
-                ProductAndroidOneTimePurchaseOfferDetail(
-                    formattedPrice = it.formattedPrice,
-                    priceAmountMicros = it.priceAmountMicros.toString(),
-                    priceCurrencyCode = it.priceCurrencyCode
-                )
-            },
+            oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetailsList,
             platform = IapPlatform.Android,
             price = firstPhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
             subscriptionOfferDetailsAndroid = pricingDetails,
