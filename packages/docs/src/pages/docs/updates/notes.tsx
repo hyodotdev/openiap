@@ -81,6 +81,13 @@ function Notes() {
               <code>preorderReleaseTimeMillis</code> for scheduling pre-order
               availability.
             </li>
+            <li>
+              <strong>oneTimePurchaseOfferDetailsAndroid</strong> - Changed from
+              single object to array type. Now returns{' '}
+              <code>[ProductAndroidOneTimePurchaseOfferDetail]</code> to support
+              multiple offers per product (discounts, time-limited offers,
+              etc.).
+            </li>
           </ul>
           <CodeBlock language="kotlin">
             {`// Handling suspended subscriptions
