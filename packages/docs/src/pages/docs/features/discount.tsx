@@ -53,8 +53,8 @@ function Discount() {
             strikethrough display
           </li>
           <li>
-            <strong>Time Windows</strong> - Start and end times for
-            limited-time offers
+            <strong>Time Windows</strong> - Start and end times for limited-time
+            offers
           </li>
           <li>
             <strong>Quantity Limits</strong> - Maximum and remaining quantities
@@ -654,6 +654,7 @@ async function purchaseWithOffer(
   const selectedOffer = offers[offerIndex];
 
   await requestPurchase({
+    type: 'inapp',
     request: {
       skus: [product.id],
       // Include offerToken for discounted purchases
@@ -681,6 +682,7 @@ async function purchaseWithOffer(
     iapStore.requestPurchase(
         activity = activity,
         props = RequestPurchaseProps(
+            type = "inapp",
             request = RequestPurchasePropsByPlatforms(
                 android = RequestPurchaseAndroidProps(
                     skus = listOf(product.id),
