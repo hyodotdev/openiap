@@ -171,7 +171,7 @@ class OpenIapModule(
                         queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.INAPP)
                     }.getOrDefault(emptyList())
 
-                    inAppDetails.forEach { detail ->
+                    for (detail in inAppDetails) {
                         val product = detail.toInAppProduct()
                         allProducts.add(product)
                         processedIds.add(detail.productId)
@@ -182,7 +182,7 @@ class OpenIapModule(
                         queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.SUBS)
                     }.getOrDefault(emptyList())
 
-                    subsDetails.forEach { detail ->
+                    for (detail in subsDetails) {
                         if (detail.productId !in processedIds) {
                             // Keep subscription as ProductSubscription, but convert to Product for return
                             val subProduct = detail.toSubscriptionProduct()
@@ -404,14 +404,14 @@ class OpenIapModule(
                 val client = billingClient
                 if (client == null || !client.isReady) {
                     val err = OpenIapError.NotPrepared
-                    purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                     return@withContext emptyList()
                 }
 
                 val activity = currentActivityRef?.get() ?: fallbackActivity
                 if (activity == null) {
                     val err = OpenIapError.MissingCurrentActivity
-                    purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                     return@withContext emptyList()
                 }
 
@@ -436,7 +436,7 @@ class OpenIapModule(
                             "Library: Billing 8.1.0"
                         )
 
-                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         return@withContext emptyList()
                     }
 
@@ -444,7 +444,7 @@ class OpenIapModule(
                     val dialogSuccess = showAlternativeBillingInformationDialog(activity)
                     if (!dialogSuccess) {
                         val err = OpenIapError.UserCancelled
-                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         return@withContext emptyList()
                     }
 
@@ -500,13 +500,13 @@ class OpenIapModule(
                         return@withContext emptyList()
                     } else {
                         val err = OpenIapError.PurchaseFailed
-                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         return@withContext emptyList()
                     }
                 } catch (e: Exception) {
                     OpenIapLog.e("Alternative billing only flow failed: ${e.message}", e, TAG)
                     val err = OpenIapError.FeatureNotSupported
-                    purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                     return@withContext emptyList()
                 }
             }
@@ -516,20 +516,20 @@ class OpenIapModule(
 
             if (activity == null) {
                 val err = OpenIapError.MissingCurrentActivity
-                purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                 return@withContext emptyList()
             }
 
             val client = billingClient
             if (client == null || !client.isReady) {
                 val err = OpenIapError.NotPrepared
-                purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                 return@withContext emptyList()
             }
 
             if (androidArgs.skus.isEmpty()) {
                 val err = OpenIapError.EmptySkuList
-                purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                 return@withContext emptyList()
             }
 
@@ -541,7 +541,7 @@ class OpenIapModule(
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
                 val detailsBySku = mutableMapOf<String, ProductDetails>()
-                androidArgs.skus.forEach { sku ->
+                for (sku in androidArgs.skus) {
                     productManager.get(sku)?.takeIf { it.productType == desiredType }?.let { detailsBySku[sku] = it }
                 }
 
@@ -552,7 +552,7 @@ class OpenIapModule(
                     val requestedOffersBySku = mutableMapOf<String, MutableList<String>>()
 
                     if (androidArgs.type == ProductQueryType.Subs) {
-                        androidArgs.subscriptionOffers.orEmpty().forEach { offer ->
+                        for (offer in androidArgs.subscriptionOffers.orEmpty()) {
                             if (offer.offerToken.isNotEmpty()) {
                                 OpenIapLog.d("Adding offer token for SKU ${offer.sku}: ${offer.offerToken}", TAG)
                                 val queue = requestedOffersBySku.getOrPut(offer.sku) { mutableListOf() }
@@ -561,7 +561,7 @@ class OpenIapModule(
                         }
                     }
 
-                    details.forEachIndexed { index, productDetails ->
+                    for ((index, productDetails) in details.withIndex()) {
                         val builder = BillingFlowParams.ProductDetailsParams.newBuilder()
                             .setProductDetails(productDetails)
 
@@ -583,7 +583,7 @@ class OpenIapModule(
                             if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
                                 OpenIapLog.w("Invalid offer token: $resolved not in $availableTokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
-                                purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                                 currentPurchaseCallback?.invoke(Result.success(emptyList()))
                                 return
                             }
@@ -624,7 +624,7 @@ class OpenIapModule(
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
                         OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementModeAndroid}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
-                        paramsList.forEachIndexed { index, params ->
+                        for ((index, params) in paramsList.withIndex()) {
                             OpenIapLog.d("  - Product[$index]: SKU=${details[index].productId}, offerToken=...", TAG)
                         }
 
@@ -662,7 +662,7 @@ class OpenIapModule(
                             BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
                             else -> OpenIapError.PurchaseFailed
                         }
-                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         currentPurchaseCallback?.invoke(Result.success(emptyList()))
                     }
                 }
@@ -672,7 +672,7 @@ class OpenIapModule(
                     if (ordered.size != androidArgs.skus.size) {
                         val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
                         val err = OpenIapError.SkuNotFound(missingSku ?: "")
-                        purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         currentPurchaseCallback?.invoke(Result.success(emptyList()))
                         return@suspendCancellableCoroutine
                     }
@@ -693,19 +693,19 @@ class OpenIapModule(
                         val productDetailsList = result.productDetailsList
                         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && !productDetailsList.isNullOrEmpty()) {
                             productManager.putAll(productDetailsList)
-                            productDetailsList.forEach { detailsBySku[it.productId] = it }
+                            for (detail in productDetailsList) { detailsBySku[detail.productId] = detail }
                             val ordered = androidArgs.skus.mapNotNull { detailsBySku[it] }
                             if (ordered.size != androidArgs.skus.size) {
                                 val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
                                 val err = OpenIapError.SkuNotFound(missingSku ?: "")
-                                purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                                 currentPurchaseCallback?.invoke(Result.success(emptyList()))
                                 return@queryProductDetailsAsync
                             }
                             buildAndLaunch(ordered)
                         } else {
                             val err = OpenIapError.QueryProduct
-                            purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                            for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                             currentPurchaseCallback?.invoke(Result.success(emptyList()))
                         }
                     }
@@ -909,11 +909,13 @@ class OpenIapModule(
 
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<BillingPurchase>?) {
         OpenIapLog.d("onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}", TAG)
-        purchases?.forEachIndexed { index, purchase ->
-            OpenIapLog.d(
-                "[Purchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}",
-                TAG
-            )
+        if (purchases != null) {
+            for ((index, purchase) in purchases.withIndex()) {
+                OpenIapLog.d(
+                    "[Purchase $index] token=${purchase.purchaseToken} orderId=${purchase.orderId} state=${purchase.purchaseState} autoRenew=${purchase.isAutoRenewing} acknowledged=${purchase.isAcknowledged} products=${purchase.products}",
+                    TAG
+                )
+            }
         }
 
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
@@ -948,8 +950,8 @@ class OpenIapModule(
                     purchase.toPurchase(productType, basePlanId)
                 }
                 OpenIapLog.d("Mapped purchases=${gson.toJson(mapped)}", TAG)
-                mapped.forEach { converted ->
-                    purchaseUpdateListeners.forEach { listener ->
+                for (converted in mapped) {
+                    for (listener in purchaseUpdateListeners) {
                         runCatching { listener.onPurchaseUpdated(converted) }
                     }
                 }
@@ -963,7 +965,7 @@ class OpenIapModule(
             when (billingResult.responseCode) {
                 BillingClient.BillingResponseCode.USER_CANCELED -> {
                     val err = OpenIapError.UserCancelled
-                    purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
+                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                     currentPurchaseCallback?.invoke(Result.success(emptyList()))
                 }
                 else -> {
@@ -972,7 +974,7 @@ class OpenIapModule(
                         billingResult.debugMessage
                     )
                     OpenIapLog.w("Purchase failed: code=${billingResult.responseCode} msg=${error.message}", TAG)
-                    purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(error) } }
+                    for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(error) } }
                     currentPurchaseCallback?.invoke(Result.success(emptyList()))
                 }
             }
@@ -1034,7 +1036,7 @@ class OpenIapModule(
                                     )
 
                                     // Notify all UserChoiceBilling listeners
-                                    userChoiceBillingListeners.forEach { listener ->
+                                    for (listener in userChoiceBillingListeners) {
                                         try {
                                             listener.onUserChoiceBilling(billingDetails)
                                         } catch (e: Exception) {

@@ -23,7 +23,7 @@ internal class ProductManager {
     fun get(productId: String): ProductDetails? = cache[productId]
 
     fun putAll(details: Collection<ProductDetails>) {
-        details.forEach { cache[it.productId] = it }
+        for (detail in details) { cache[detail.productId] = detail }
     }
 
     fun clear() = cache.clear()
@@ -49,7 +49,7 @@ internal class ProductManager {
         val needsQuery = mutableListOf<String>()
         val validCached = mutableListOf<ProductDetails>()
 
-        productIds.distinct().forEach { productId ->
+        for (productId in productIds.distinct()) {
             val cached = cache[productId]
             if (cached == null) {
                 needsQuery.add(productId)
