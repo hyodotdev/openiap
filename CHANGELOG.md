@@ -5,6 +5,105 @@ All notable changes to the OpenIAP monorepo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [openiap-gql 1.3.2] - 2025-12-11
+
+### Added
+
+#### Google Play Billing Library 8.1.0 Support
+
+- **`SubscriptionProductReplacementParamsAndroid`**: New type for per-product subscription replacement configuration
+  - `oldProductId`: The product ID being replaced
+  - `replacementMode`: The replacement mode enum value
+- **`SubscriptionReplacementModeAndroid.KeepExisting`**: New replacement mode (8.1.0+) to keep the existing payment schedule unchanged
+
+#### Google Play Billing Library 8.2.0 Support (Billing Programs API)
+
+- **`BillingProgramAndroid`**: Enum for billing program types
+  - `ExternalContentLink`: For apps linking to external content (reader apps, music streaming)
+  - `ExternalOffer`: For apps offering alternative payment options
+  - `Unspecified`: Default/unspecified value
+- **`BillingProgramAvailabilityResultAndroid`**: Result type for billing program availability checks
+  - `billingProgram`: The program that was checked
+  - `isAvailable`: Whether the program is available
+- **`BillingProgramReportingDetailsAndroid`**: Reporting details for external transactions
+  - `billingProgram`: The billing program used
+  - `externalTransactionToken`: Token for reporting to Google Play
+- **`LaunchExternalLinkParamsAndroid`**: Parameters for launching external links
+  - `billingProgram`: Which billing program to use
+  - `launchMode`: How to launch the link
+  - `linkType`: Type of external link
+  - `linkUri`: The URI to launch
+- **`ExternalLinkLaunchModeAndroid`**: Enum for external link launch modes
+  - `LaunchInExternalBrowserOrApp`: Launch in external browser or app
+  - `CallerWillLaunchLink`: Caller handles the link launch
+  - `Unspecified`: Default value
+- **`ExternalLinkTypeAndroid`**: Enum for external link types
+  - `LinkToDigitalContentOffer`: Link to digital content offer
+  - `LinkToAppDownload`: Link to app download
+  - `Unspecified`: Default value
+
+### Changed
+
+- Updated `RequestSubscriptionAndroidProps` to include optional `subscriptionProductReplacementParams` field
+
+---
+
+## [openiap-google 1.3.12] - 2025-12-11
+
+### Added
+
+#### Google Play Billing Library 8.1.0 APIs
+
+- **`applySubscriptionProductReplacementParams()`**: Apply per-product replacement params to subscription upgrades/downgrades
+  - Enables `KeepExisting` replacement mode (only available via this API)
+  - More granular control over subscription replacements at the product level
+
+#### Google Play Billing Library 8.2.0 APIs (Billing Programs)
+
+- **`enableBillingProgram(program: BillingProgramAndroid)`**: Enable a billing program before `initConnection()`
+  - Must be called before connecting to configure the BillingClient
+  - Available via both `OpenIapModule` and `OpenIapStore`
+- **`isBillingProgramAvailable(program: BillingProgramAndroid)`**: Check if a billing program is available
+  - Replaces deprecated `checkAlternativeBillingAvailability()` for external offers
+  - Returns `BillingProgramAvailabilityResultAndroid` with availability status
+- **`createBillingProgramReportingDetails(program: BillingProgramAndroid)`**: Create reporting details for external transactions
+  - Replaces deprecated `createAlternativeBillingReportingToken()`
+  - Returns `BillingProgramReportingDetailsAndroid` with `externalTransactionToken`
+- **`launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid)`**: Launch external link for external offers
+  - Replaces deprecated `showAlternativeBillingInformationDialog()`
+  - Supports configurable launch modes and link types
+
+### Deprecated
+
+The following APIs are deprecated in favor of the new Billing Programs API (8.2.0+):
+
+- `checkAlternativeBillingAvailability()` → Use `isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)`
+- `showAlternativeBillingInformationDialog()` → Use `launchExternalLink(activity, params)`
+- `createAlternativeBillingReportingToken()` → Use `createBillingProgramReportingDetails(BillingProgramAndroid.ExternalOffer)`
+
+### Changed
+
+- **Example App (`AlternativeBillingScreen`)**: Updated to demonstrate all three billing modes:
+  - Billing Programs (8.2.0+) - Recommended
+  - Alternative Billing Only (Legacy 6.2+)
+  - User Choice Billing (Legacy 7.0+)
+- **Error Handling**: Improved exception propagation in Proxy handlers using `resumeWithException()`
+- **Null Safety**: Added null-safe activity handling to prevent potential NPE
+
+### Fixed
+
+- Empty catch blocks now properly log errors and display status messages to users
+- Exception handling in coroutine Proxy handlers now correctly propagates exceptions
+
+### Documentation
+
+- Updated `external-purchase.tsx` with Billing Programs API (8.2.0+) documentation
+- Added API Migration Guide table for legacy to new API mapping
+- Updated Implementation Flow section with new step-by-step guide
+- Added code examples for TypeScript, Kotlin, and Dart
+
+---
+
 ## [1.2.2] - 2025-10-16
 
 ### Added
