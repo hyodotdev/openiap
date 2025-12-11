@@ -638,8 +638,17 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 }
 
                                                 // Step 2: Launch external link
+                                                val currentActivity = activity
+                                                if (currentActivity == null) {
+                                                    iapStore.postStatusMessage(
+                                                        "Activity not available",
+                                                        PurchaseResultStatus.Error
+                                                    )
+                                                    return@launch
+                                                }
+
                                                 val launched = iapStore.launchExternalLink(
-                                                    activity!!,
+                                                    currentActivity,
                                                     LaunchExternalLinkParamsAndroid(
                                                         billingProgram = selectedBillingProgram,
                                                         launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
@@ -745,7 +754,11 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                     )
                                                 }
                                             } catch (e: Exception) {
-                                                // Error handled by store
+                                                android.util.Log.e("AlternativeBilling", "Legacy alternative billing error: ${e.message}", e)
+                                                iapStore.postStatusMessage(
+                                                    "Alternative billing failed: ${e.message}",
+                                                    PurchaseResultStatus.Error
+                                                )
                                             }
                                         }
                                     },
@@ -791,7 +804,11 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 // If user selects Google Play → onPurchaseUpdated callback
                                                 // If user selects alternative → UserChoiceBillingListener callback
                                             } catch (e: Exception) {
-                                                // Error handled by store
+                                                android.util.Log.e("AlternativeBilling", "User choice billing error: ${e.message}", e)
+                                                iapStore.postStatusMessage(
+                                                    "User choice billing failed: ${e.message}",
+                                                    PurchaseResultStatus.Error
+                                                )
                                             }
                                         }
                                     },

@@ -68,6 +68,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import java.lang.ref.WeakReference
 
 // AlternativeBillingMode moved to main source set (shared between Play and Horizon)
@@ -515,15 +516,15 @@ class OpenIapModule(
                                         externalTransactionToken = token
                                     ))
                                 } else if (continuation.isActive) {
-                                    throw OpenIapError.PurchaseFailed
+                                    continuation.resumeWithException(OpenIapError.PurchaseFailed)
                                 }
                             } catch (e: Exception) {
                                 OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
-                                if (continuation.isActive) throw OpenIapError.PurchaseFailed
+                                if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed)
                             }
                         } else {
                             OpenIapLog.e("Reporting details creation failed: ${result?.debugMessage}", tag = TAG)
-                            if (continuation.isActive) throw OpenIapError.PurchaseFailed
+                            if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed)
                         }
                     }
                     null
