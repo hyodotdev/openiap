@@ -72,47 +72,63 @@ function Notes() {
             </li>
           </ul>
           <p>
-            <strong>New Types:</strong>
+            <strong>New Types:</strong> (See{' '}
+            <a href="/docs/types#billing-program-android">Types Reference</a>)
           </p>
           <ul>
             <li>
               <strong>
-                <code>BillingProgramAndroid</code>
+                <a href="/docs/types#billing-program-android">
+                  <code>BillingProgramAndroid</code>
+                </a>
               </strong>{' '}
               - Enum: <code>ExternalContentLink</code>, <code>ExternalOffer</code>
             </li>
             <li>
               <strong>
-                <code>LaunchExternalLinkParamsAndroid</code>
+                <a href="/docs/types#launch-external-link-params-android">
+                  <code>LaunchExternalLinkParamsAndroid</code>
+                </a>
               </strong>{' '}
               - Parameters for launching external links
             </li>
             <li>
               <strong>
-                <code>ExternalLinkLaunchModeAndroid</code>
+                <a href="/docs/types#external-link-launch-mode-android">
+                  <code>ExternalLinkLaunchModeAndroid</code>
+                </a>
               </strong>{' '}
               - Launch mode options
             </li>
             <li>
               <strong>
-                <code>ExternalLinkTypeAndroid</code>
+                <a href="/docs/types#external-link-type-android">
+                  <code>ExternalLinkTypeAndroid</code>
+                </a>
               </strong>{' '}
               - Link type options
             </li>
           </ul>
           <p>
-            <strong>Google Play Billing 8.1.0 Support:</strong>
+            <strong>Google Play Billing 8.1.0 Support:</strong> (See{' '}
+            <a href="/docs/features/subscription-upgrade-downgrade#replacement-modes">
+              Subscription Upgrade/Downgrade
+            </a>)
           </p>
           <ul>
             <li>
               <strong>
-                <code>SubscriptionProductReplacementParamsAndroid</code>
+                <a href="/docs/types#subscription-product-replacement-params-android">
+                  <code>SubscriptionProductReplacementParamsAndroid</code>
+                </a>
               </strong>{' '}
               - Per-product subscription replacement configuration
             </li>
             <li>
               <strong>
-                <code>SubscriptionReplacementModeAndroid.KeepExisting</code>
+                <a href="/docs/types#subscription-replacement-mode-android">
+                  <code>SubscriptionReplacementModeAndroid.KeepExisting</code>
+                </a>
               </strong>{' '}
               - New replacement mode to keep existing payment schedule
             </li>
