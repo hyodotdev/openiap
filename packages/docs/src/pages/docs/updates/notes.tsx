@@ -29,6 +29,178 @@ function Notes() {
           }}
         >
           <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap-google v1.3.12 / openiap-gql v1.3.2 -{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#8-2-0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Play Billing 8.2.0
+            </a>{' '}
+            Billing Programs API
+          </h4>
+          <p>
+            <strong>New Billing Programs API (8.2.0+):</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <code>enableBillingProgram()</code>
+              </strong>{' '}
+              - Enable a billing program before <code>initConnection()</code>
+            </li>
+            <li>
+              <strong>
+                <code>isBillingProgramAvailable()</code>
+              </strong>{' '}
+              - Check if a billing program is available (replaces{' '}
+              <code>checkAlternativeBillingAvailability()</code>)
+            </li>
+            <li>
+              <strong>
+                <code>createBillingProgramReportingDetails()</code>
+              </strong>{' '}
+              - Create reporting details with token (replaces{' '}
+              <code>createAlternativeBillingReportingToken()</code>)
+            </li>
+            <li>
+              <strong>
+                <code>launchExternalLink()</code>
+              </strong>{' '}
+              - Launch external link for external offers (replaces{' '}
+              <code>showAlternativeBillingInformationDialog()</code>)
+            </li>
+          </ul>
+          <p>
+            <strong>New Types:</strong> (See{' '}
+            <a href="/docs/types#billing-program-android">Types Reference</a>)
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <a href="/docs/types#billing-program-android">
+                  <code>BillingProgramAndroid</code>
+                </a>
+              </strong>{' '}
+              - Enum: <code>ExternalContentLink</code>, <code>ExternalOffer</code>
+            </li>
+            <li>
+              <strong>
+                <a href="/docs/types#launch-external-link-params-android">
+                  <code>LaunchExternalLinkParamsAndroid</code>
+                </a>
+              </strong>{' '}
+              - Parameters for launching external links
+            </li>
+            <li>
+              <strong>
+                <a href="/docs/types#external-link-launch-mode-android">
+                  <code>ExternalLinkLaunchModeAndroid</code>
+                </a>
+              </strong>{' '}
+              - Launch mode options
+            </li>
+            <li>
+              <strong>
+                <a href="/docs/types#external-link-type-android">
+                  <code>ExternalLinkTypeAndroid</code>
+                </a>
+              </strong>{' '}
+              - Link type options
+            </li>
+          </ul>
+          <p>
+            <strong>Google Play Billing 8.1.0 Support:</strong> (See{' '}
+            <a href="/docs/features/subscription-upgrade-downgrade#replacement-modes">
+              Subscription Upgrade/Downgrade
+            </a>)
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <a href="/docs/types#subscription-product-replacement-params-android">
+                  <code>SubscriptionProductReplacementParamsAndroid</code>
+                </a>
+              </strong>{' '}
+              - Per-product subscription replacement configuration
+            </li>
+            <li>
+              <strong>
+                <a href="/docs/types#subscription-replacement-mode-android">
+                  <code>SubscriptionReplacementModeAndroid.KeepExisting</code>
+                </a>
+              </strong>{' '}
+              - New replacement mode to keep existing payment schedule
+            </li>
+          </ul>
+          <CodeBlock language="kotlin">
+            {`// Billing Programs API (8.2.0+) - Recommended approach
+val iapStore = OpenIapStore(context)
+
+// Step 0: Enable billing program BEFORE initConnection
+iapStore.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
+iapStore.initConnection(null)
+
+// Step 1: Check availability
+val result = iapStore.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)
+if (!result.isAvailable) return
+
+// Step 2: Launch external link
+val launched = iapStore.launchExternalLink(
+    activity,
+    LaunchExternalLinkParamsAndroid(
+        billingProgram = BillingProgramAndroid.ExternalOffer,
+        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+        linkUri = "https://your-payment-site.com/checkout"
+    )
+)
+
+// Step 3: Process payment with your backend...
+
+// Step 4: Create reporting details
+val reportingDetails = iapStore.createBillingProgramReportingDetails(
+    BillingProgramAndroid.ExternalOffer
+)
+// Send reportingDetails.externalTransactionToken to Google within 24h`}
+          </CodeBlock>
+          <p>
+            <strong>Deprecated APIs:</strong>
+          </p>
+          <ul>
+            <li>
+              <code>checkAlternativeBillingAvailability()</code> → Use{' '}
+              <code>isBillingProgramAvailable()</code>
+            </li>
+            <li>
+              <code>showAlternativeBillingInformationDialog()</code> → Use{' '}
+              <code>launchExternalLink()</code>
+            </li>
+            <li>
+              <code>createAlternativeBillingReportingToken()</code> → Use{' '}
+              <code>createBillingProgramReportingDetails()</code>
+            </li>
+          </ul>
+          <p>
+            See:{' '}
+            <a href="/docs/features/external-purchase">External Purchase Guide</a>
+            ,{' '}
+            <a href="/docs/features/subscription-upgrade-downgrade">
+              Subscription Upgrade/Downgrade
+            </a>
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
             📅 openiap-google v1.3.11 / openiap-gql v1.3.1 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-1-0"

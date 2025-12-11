@@ -42,6 +42,39 @@ enum AlternativeBillingModeAndroid {
   String toJson() => value;
 }
 
+/// Billing program types for external content links and external offers (Android)
+/// Available in Google Play Billing Library 8.2.0+
+enum BillingProgramAndroid {
+  /// Unspecified billing program. Do not use.
+  Unspecified('unspecified'),
+  /// External Content Links program.
+  /// Allows linking to external content outside the app.
+  ExternalContentLink('external-content-link'),
+  /// External Offers program.
+  /// Allows offering digital content purchases outside the app.
+  ExternalOffer('external-offer');
+
+  const BillingProgramAndroid(this.value);
+  final String value;
+
+  factory BillingProgramAndroid.fromJson(String value) {
+    switch (value) {
+      case 'unspecified':
+      case 'UNSPECIFIED':
+        return BillingProgramAndroid.Unspecified;
+      case 'external-content-link':
+      case 'EXTERNAL_CONTENT_LINK':
+        return BillingProgramAndroid.ExternalContentLink;
+      case 'external-offer':
+      case 'EXTERNAL_OFFER':
+        return BillingProgramAndroid.ExternalOffer;
+    }
+    throw ArgumentError('Unknown BillingProgramAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
 enum ErrorCode {
   Unknown('unknown'),
   UserCancelled('user-cancelled'),
@@ -236,6 +269,70 @@ enum ErrorCode {
         return ErrorCode.EmptySkuList;
     }
     throw ArgumentError('Unknown ErrorCode value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// Launch mode for external link flow (Android)
+/// Determines how the external URL is launched
+/// Available in Google Play Billing Library 8.2.0+
+enum ExternalLinkLaunchModeAndroid {
+  /// Unspecified launch mode. Do not use.
+  Unspecified('unspecified'),
+  /// Play will launch the URL in an external browser or eligible app
+  LaunchInExternalBrowserOrApp('launch-in-external-browser-or-app'),
+  /// Play will not launch the URL. The app handles launching the URL after Play returns control.
+  CallerWillLaunchLink('caller-will-launch-link');
+
+  const ExternalLinkLaunchModeAndroid(this.value);
+  final String value;
+
+  factory ExternalLinkLaunchModeAndroid.fromJson(String value) {
+    switch (value) {
+      case 'unspecified':
+      case 'UNSPECIFIED':
+        return ExternalLinkLaunchModeAndroid.Unspecified;
+      case 'launch-in-external-browser-or-app':
+      case 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP':
+        return ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp;
+      case 'caller-will-launch-link':
+      case 'CALLER_WILL_LAUNCH_LINK':
+        return ExternalLinkLaunchModeAndroid.CallerWillLaunchLink;
+    }
+    throw ArgumentError('Unknown ExternalLinkLaunchModeAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// Link type for external link flow (Android)
+/// Specifies the type of external link destination
+/// Available in Google Play Billing Library 8.2.0+
+enum ExternalLinkTypeAndroid {
+  /// Unspecified link type. Do not use.
+  Unspecified('unspecified'),
+  /// The link will direct users to a digital content offer
+  LinkToDigitalContentOffer('link-to-digital-content-offer'),
+  /// The link will direct users to download an app
+  LinkToAppDownload('link-to-app-download');
+
+  const ExternalLinkTypeAndroid(this.value);
+  final String value;
+
+  factory ExternalLinkTypeAndroid.fromJson(String value) {
+    switch (value) {
+      case 'unspecified':
+      case 'UNSPECIFIED':
+        return ExternalLinkTypeAndroid.Unspecified;
+      case 'link-to-digital-content-offer':
+      case 'LINK_TO_DIGITAL_CONTENT_OFFER':
+        return ExternalLinkTypeAndroid.LinkToDigitalContentOffer;
+      case 'link-to-app-download':
+      case 'LINK_TO_APP_DOWNLOAD':
+        return ExternalLinkTypeAndroid.LinkToAppDownload;
+    }
+    throw ArgumentError('Unknown ExternalLinkTypeAndroid value: $value');
   }
 
   String toJson() => value;
@@ -666,6 +763,58 @@ enum SubscriptionPeriodIOS {
   String toJson() => value;
 }
 
+/// Replacement mode for subscription changes (Android)
+/// These modes determine how the subscription replacement affects billing.
+/// Available in Google Play Billing Library 8.1.0+
+enum SubscriptionReplacementModeAndroid {
+  /// Unknown replacement mode. Do not use.
+  UnknownReplacementMode('unknown-replacement-mode'),
+  /// Replacement takes effect immediately, and the new expiration time will be prorated.
+  WithTimeProration('with-time-proration'),
+  /// Replacement takes effect immediately, and the billing cycle remains the same.
+  ChargeProratedPrice('charge-prorated-price'),
+  /// Replacement takes effect immediately, and the user is charged full price immediately.
+  ChargeFullPrice('charge-full-price'),
+  /// Replacement takes effect when the old plan expires.
+  WithoutProration('without-proration'),
+  /// Replacement takes effect when the old plan expires, and the user is not charged.
+  Deferred('deferred'),
+  /// Keep the existing payment schedule unchanged for the item (8.1.0+)
+  KeepExisting('keep-existing');
+
+  const SubscriptionReplacementModeAndroid(this.value);
+  final String value;
+
+  factory SubscriptionReplacementModeAndroid.fromJson(String value) {
+    switch (value) {
+      case 'unknown-replacement-mode':
+      case 'UNKNOWN_REPLACEMENT_MODE':
+        return SubscriptionReplacementModeAndroid.UnknownReplacementMode;
+      case 'with-time-proration':
+      case 'WITH_TIME_PRORATION':
+        return SubscriptionReplacementModeAndroid.WithTimeProration;
+      case 'charge-prorated-price':
+      case 'CHARGE_PRORATED_PRICE':
+        return SubscriptionReplacementModeAndroid.ChargeProratedPrice;
+      case 'charge-full-price':
+      case 'CHARGE_FULL_PRICE':
+        return SubscriptionReplacementModeAndroid.ChargeFullPrice;
+      case 'without-proration':
+      case 'WITHOUT_PRORATION':
+        return SubscriptionReplacementModeAndroid.WithoutProration;
+      case 'deferred':
+      case 'DEFERRED':
+        return SubscriptionReplacementModeAndroid.Deferred;
+      case 'keep-existing':
+      case 'KEEP_EXISTING':
+        return SubscriptionReplacementModeAndroid.KeepExisting;
+    }
+    throw ArgumentError('Unknown SubscriptionReplacementModeAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
 // MARK: - Interfaces
 
 abstract class ProductCommon {
@@ -865,6 +1014,71 @@ class AppTransaction {
   }
 }
 
+/// Result of checking billing program availability (Android)
+/// Available in Google Play Billing Library 8.2.0+
+class BillingProgramAvailabilityResultAndroid {
+  const BillingProgramAvailabilityResultAndroid({
+    /// The billing program that was checked
+    required this.billingProgram,
+    /// Whether the billing program is available for the user
+    required this.isAvailable,
+  });
+
+  /// The billing program that was checked
+  final BillingProgramAndroid billingProgram;
+  /// Whether the billing program is available for the user
+  final bool isAvailable;
+
+  factory BillingProgramAvailabilityResultAndroid.fromJson(Map<String, dynamic> json) {
+    return BillingProgramAvailabilityResultAndroid(
+      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      isAvailable: json['isAvailable'] as bool,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'BillingProgramAvailabilityResultAndroid',
+      'billingProgram': billingProgram.toJson(),
+      'isAvailable': isAvailable,
+    };
+  }
+}
+
+/// Reporting details for transactions made outside of Google Play Billing (Android)
+/// Contains the external transaction token needed for reporting
+/// Available in Google Play Billing Library 8.2.0+
+class BillingProgramReportingDetailsAndroid {
+  const BillingProgramReportingDetailsAndroid({
+    /// The billing program that the reporting details are associated with
+    required this.billingProgram,
+    /// External transaction token used to report transactions made outside of Google Play Billing.
+    /// This token must be used when reporting the external transaction to Google.
+    required this.externalTransactionToken,
+  });
+
+  /// The billing program that the reporting details are associated with
+  final BillingProgramAndroid billingProgram;
+  /// External transaction token used to report transactions made outside of Google Play Billing.
+  /// This token must be used when reporting the external transaction to Google.
+  final String externalTransactionToken;
+
+  factory BillingProgramReportingDetailsAndroid.fromJson(Map<String, dynamic> json) {
+    return BillingProgramReportingDetailsAndroid(
+      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      externalTransactionToken: json['externalTransactionToken'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'BillingProgramReportingDetailsAndroid',
+      'billingProgram': billingProgram.toJson(),
+      'externalTransactionToken': externalTransactionToken,
+    };
+  }
+}
+
 /// Discount amount details for one-time purchase offers (Android)
 /// Available in Google Play Billing Library 7.0+
 class DiscountAmountAndroid {
@@ -1052,6 +1266,58 @@ class EntitlementIOS {
       'jsonRepresentation': jsonRepresentation,
       'sku': sku,
       'transactionId': transactionId,
+    };
+  }
+}
+
+/// External offer availability result (Android)
+/// @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
+/// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+class ExternalOfferAvailabilityResultAndroid {
+  const ExternalOfferAvailabilityResultAndroid({
+    /// Whether external offers are available for the user
+    required this.isAvailable,
+  });
+
+  /// Whether external offers are available for the user
+  final bool isAvailable;
+
+  factory ExternalOfferAvailabilityResultAndroid.fromJson(Map<String, dynamic> json) {
+    return ExternalOfferAvailabilityResultAndroid(
+      isAvailable: json['isAvailable'] as bool,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'ExternalOfferAvailabilityResultAndroid',
+      'isAvailable': isAvailable,
+    };
+  }
+}
+
+/// External offer reporting details (Android)
+/// @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
+/// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+class ExternalOfferReportingDetailsAndroid {
+  const ExternalOfferReportingDetailsAndroid({
+    /// External transaction token for reporting external offer transactions
+    required this.externalTransactionToken,
+  });
+
+  /// External transaction token for reporting external offer transactions
+  final String externalTransactionToken;
+
+  factory ExternalOfferReportingDetailsAndroid.fromJson(Map<String, dynamic> json) {
+    return ExternalOfferReportingDetailsAndroid(
+      externalTransactionToken: json['externalTransactionToken'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'ExternalOfferReportingDetailsAndroid',
+      'externalTransactionToken': externalTransactionToken,
     };
   }
 }
@@ -2772,6 +3038,49 @@ class InitConnectionConfig {
   }
 }
 
+/// Parameters for launching an external link (Android)
+/// Used with launchExternalLink to initiate external offer or app install flows
+/// Available in Google Play Billing Library 8.2.0+
+class LaunchExternalLinkParamsAndroid {
+  const LaunchExternalLinkParamsAndroid({
+    /// The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+    required this.billingProgram,
+    /// The external link launch mode
+    required this.launchMode,
+    /// The type of the external link
+    required this.linkType,
+    /// The URI where the content will be accessed from
+    required this.linkUri,
+  });
+
+  /// The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+  final BillingProgramAndroid billingProgram;
+  /// The external link launch mode
+  final ExternalLinkLaunchModeAndroid launchMode;
+  /// The type of the external link
+  final ExternalLinkTypeAndroid linkType;
+  /// The URI where the content will be accessed from
+  final String linkUri;
+
+  factory LaunchExternalLinkParamsAndroid.fromJson(Map<String, dynamic> json) {
+    return LaunchExternalLinkParamsAndroid(
+      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      launchMode: ExternalLinkLaunchModeAndroid.fromJson(json['launchMode'] as String),
+      linkType: ExternalLinkTypeAndroid.fromJson(json['linkType'] as String),
+      linkUri: json['linkUri'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'billingProgram': billingProgram.toJson(),
+      'launchMode': launchMode.toJson(),
+      'linkType': linkType.toJson(),
+      'linkUri': linkUri,
+    };
+  }
+}
+
 class ProductRequest {
   const ProductRequest({
     required this.skus,
@@ -3023,11 +3332,15 @@ class RequestSubscriptionAndroidProps {
     /// Purchase token for upgrades/downgrades
     this.purchaseTokenAndroid,
     /// Replacement mode for subscription changes
+    /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
     this.replacementModeAndroid,
     /// List of subscription SKUs
     required this.skus,
     /// Subscription offers
     this.subscriptionOffers,
+    /// Product-level replacement parameters (8.1.0+)
+    /// Use this instead of replacementModeAndroid for item-level replacement
+    this.subscriptionProductReplacementParams,
   });
 
   /// Personalized offer flag
@@ -3039,11 +3352,15 @@ class RequestSubscriptionAndroidProps {
   /// Purchase token for upgrades/downgrades
   final String? purchaseTokenAndroid;
   /// Replacement mode for subscription changes
+  /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
   final int? replacementModeAndroid;
   /// List of subscription SKUs
   final List<String> skus;
   /// Subscription offers
   final List<AndroidSubscriptionOfferInput>? subscriptionOffers;
+  /// Product-level replacement parameters (8.1.0+)
+  /// Use this instead of replacementModeAndroid for item-level replacement
+  final SubscriptionProductReplacementParamsAndroid? subscriptionProductReplacementParams;
 
   factory RequestSubscriptionAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestSubscriptionAndroidProps(
@@ -3054,6 +3371,7 @@ class RequestSubscriptionAndroidProps {
       replacementModeAndroid: json['replacementModeAndroid'] as int?,
       skus: (json['skus'] as List<dynamic>).map((e) => e as String).toList(),
       subscriptionOffers: (json['subscriptionOffers'] as List<dynamic>?) == null ? null : (json['subscriptionOffers'] as List<dynamic>?)!.map((e) => AndroidSubscriptionOfferInput.fromJson(e as Map<String, dynamic>)).toList(),
+      subscriptionProductReplacementParams: json['subscriptionProductReplacementParams'] != null ? SubscriptionProductReplacementParamsAndroid.fromJson(json['subscriptionProductReplacementParams'] as Map<String, dynamic>) : null,
     );
   }
 
@@ -3066,6 +3384,7 @@ class RequestSubscriptionAndroidProps {
       'replacementModeAndroid': replacementModeAndroid,
       'skus': skus.map((e) => e).toList(),
       'subscriptionOffers': subscriptionOffers == null ? null : subscriptionOffers!.map((e) => e.toJson()).toList(),
+      'subscriptionProductReplacementParams': subscriptionProductReplacementParams?.toJson(),
     };
   }
 }
@@ -3220,6 +3539,37 @@ class RequestVerifyPurchaseWithIapkitProps {
       'apiKey': apiKey,
       'apple': apple?.toJson(),
       'google': google?.toJson(),
+    };
+  }
+}
+
+/// Product-level subscription replacement parameters (Android)
+/// Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams
+/// Available in Google Play Billing Library 8.1.0+
+class SubscriptionProductReplacementParamsAndroid {
+  const SubscriptionProductReplacementParamsAndroid({
+    /// The old product ID that needs to be replaced
+    required this.oldProductId,
+    /// The replacement mode for this product change
+    required this.replacementMode,
+  });
+
+  /// The old product ID that needs to be replaced
+  final String oldProductId;
+  /// The replacement mode for this product change
+  final SubscriptionReplacementModeAndroid replacementMode;
+
+  factory SubscriptionProductReplacementParamsAndroid.fromJson(Map<String, dynamic> json) {
+    return SubscriptionProductReplacementParamsAndroid(
+      oldProductId: json['oldProductId'] as String,
+      replacementMode: SubscriptionReplacementModeAndroid.fromJson(json['replacementMode'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'oldProductId': oldProductId,
+      'replacementMode': replacementMode.toJson(),
     };
   }
 }

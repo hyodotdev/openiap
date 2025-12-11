@@ -57,9 +57,9 @@ function ExternalPurchase() {
             </tr>
             <tr>
               <td>Android</td>
-              <td>Alternative Billing</td>
+              <td>Alternative Billing / Billing Programs</td>
               <td>Android 6.0+ (API 23)</td>
-              <td>Google Play Billing 6.2+</td>
+              <td>Google Play Billing 6.2+ (legacy), 8.2.0+ (recommended)</td>
             </tr>
           </tbody>
         </table>
@@ -985,15 +985,291 @@ Future<void> handleUserChoicePurchase(String productId) async {
                   }}
                 </LanguageTabs>
 
+                <div className="alert-card alert-card--warning">
+                  <p>
+                    <strong>⚠️ Deprecated APIs:</strong> The above APIs (
+                    <code>checkAlternativeBillingAvailability</code>,{' '}
+                    <code>showAlternativeBillingInformationDialog</code>,{' '}
+                    <code>createAlternativeBillingReportingToken</code>) are
+                    deprecated in Google Play Billing Library 8.2.0+. For new
+                    implementations, use the <strong>Billing Programs API</strong>{' '}
+                    described below.
+                  </p>
+                </div>
+
+                <h4>Billing Programs API (8.2.0+)</h4>
+                <p>
+                  Google Play Billing Library 8.2.0 introduces the new{' '}
+                  <strong>Billing Programs API</strong> which replaces the legacy
+                  alternative billing APIs. This provides better support for
+                  External Content Links and External Offers.
+                </p>
+
+                <h5>Program Types</h5>
+                <ul>
+                  <li>
+                    <strong>ExternalContentLink</strong> - For apps that link to
+                    external content (e.g., reader apps, music streaming)
+                  </li>
+                  <li>
+                    <strong>ExternalOffer</strong> - For apps offering alternative
+                    payment options
+                  </li>
+                </ul>
+
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import {
+  initConnection,
+  enableBillingProgramAndroid,
+  isBillingProgramAvailableAndroid,
+  createBillingProgramReportingDetailsAndroid,
+  launchExternalLinkAndroid,
+} from 'expo-iap';
+
+// Step 0: Enable billing program BEFORE initConnection
+enableBillingProgramAndroid('EXTERNAL_OFFER');
+// or enableBillingProgramAndroid('EXTERNAL_CONTENT_LINK');
+
+await initConnection();
+
+// Purchase flow with Billing Programs API (8.2.0+)
+async function handleExternalPurchaseWithBillingPrograms(productId: string) {
+  try {
+    // Step 1: Check if billing program is available
+    const result = await isBillingProgramAvailableAndroid('EXTERNAL_OFFER');
+    if (!result.isAvailable) {
+      console.log('External offer program not available');
+      return;
+    }
+
+    // Step 2: Launch external link (replaces showAlternativeBillingDialog)
+    const launched = await launchExternalLinkAndroid({
+      billingProgram: 'EXTERNAL_OFFER',
+      launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
+      linkType: 'LINK_TO_DIGITAL_CONTENT_OFFER',
+      linkUri: 'https://your-payment-site.com/checkout',
+    });
+
+    if (!launched) {
+      console.log('Failed to launch external link');
+      return;
+    }
+
+    // Step 3: Process payment with your backend API
+    const paymentResult = await yourBackend.createPayment({
+      productId,
+      userId,
+      amount: productPrice,
+    });
+
+    if (!paymentResult.success) {
+      console.log(\`Payment failed: \${paymentResult.error}\`);
+      return;
+    }
+
+    // Step 4: Create reporting details (replaces createAlternativeBillingToken)
+    const reportingDetails = await createBillingProgramReportingDetailsAndroid('EXTERNAL_OFFER');
+    console.log(\`Token created: \${reportingDetails.externalTransactionToken.slice(0, 20)}...\`);
+
+    // Step 5: Send token to your backend server
+    await yourBackend.reportToken({
+      token: reportingDetails.externalTransactionToken,
+      orderId: paymentResult.orderId,
+      productId,
+    });
+
+    console.log('Purchase completed!');
+  } catch (error) {
+    console.error('Purchase error:', error);
+  }
+}`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
+import dev.hyo.openiap.BillingProgramAndroid
+import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
+import dev.hyo.openiap.ExternalLinkLaunchModeAndroid
+import dev.hyo.openiap.ExternalLinkTypeAndroid
+
+// Initialize store
+val iapStore = OpenIapStore(context = applicationContext)
+
+// Step 0: Enable billing program BEFORE initConnection
+iapStore.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
+// or BillingProgramAndroid.ExternalContentLink
+
+iapStore.initConnection(null)
+
+// Purchase flow with Billing Programs API (8.2.0+)
+suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
+    try {
+        // Step 1: Check if billing program is available
+        val result = iapStore.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)
+        if (!result.isAvailable) {
+            Log.e("IAP", "External offer program not available")
+            return
+        }
+
+        // Step 2: Launch external link (replaces showAlternativeBillingDialog)
+        val launched = iapStore.launchExternalLink(
+            activity,
+            LaunchExternalLinkParamsAndroid(
+                billingProgram = BillingProgramAndroid.ExternalOffer,
+                launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+                linkUri = "https://your-payment-site.com/checkout"
+            )
+        )
+
+        if (!launched) {
+            Log.e("IAP", "Failed to launch external link")
+            return
+        }
+
+        // Step 3: Process payment with your backend API
+        val paymentResult = yourBackend.createPayment(
+            productId = productId,
+            userId = userId,
+            amount = productPrice
+        )
+
+        if (!paymentResult.success) {
+            Log.e("IAP", "Payment failed: \${paymentResult.error}")
+            return
+        }
+
+        // Step 4: Create reporting details (replaces createAlternativeBillingToken)
+        val reportingDetails = iapStore.createBillingProgramReportingDetails(
+            BillingProgramAndroid.ExternalOffer
+        )
+        Log.d("IAP", "Token created: \${reportingDetails.externalTransactionToken.take(20)}...")
+
+        // Step 5: Send token to your backend server
+        yourBackend.reportToken(
+            token = reportingDetails.externalTransactionToken,
+            orderId = paymentResult.orderId,
+            productId = productId
+        )
+
+        Log.d("IAP", "Purchase completed!")
+    } catch (e: Exception) {
+        Log.e("IAP", "Purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Step 0: Enable billing program BEFORE initConnection
+FlutterInappPurchase.instance.enableBillingProgramAndroid(
+  BillingProgramAndroid.externalOffer,
+);
+// or BillingProgramAndroid.externalContentLink
+
+await FlutterInappPurchase.instance.initConnection();
+
+// Purchase flow with Billing Programs API (8.2.0+)
+Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
+  try {
+    // Step 1: Check if billing program is available
+    final result = await FlutterInappPurchase.instance
+        .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalOffer);
+    if (!result.isAvailable) {
+      print('External offer program not available');
+      return;
+    }
+
+    // Step 2: Launch external link (replaces showAlternativeBillingDialog)
+    final launched = await FlutterInappPurchase.instance.launchExternalLinkAndroid(
+      LaunchExternalLinkParamsAndroid(
+        billingProgram: BillingProgramAndroid.externalOffer,
+        launchMode: ExternalLinkLaunchModeAndroid.launchInExternalBrowserOrApp,
+        linkType: ExternalLinkTypeAndroid.linkToDigitalContentOffer,
+        linkUri: 'https://your-payment-site.com/checkout',
+      ),
+    );
+
+    if (!launched) {
+      print('Failed to launch external link');
+      return;
+    }
+
+    // Step 3: Process payment with your backend API
+    final paymentResult = await yourBackend.createPayment(
+      productId: productId,
+      userId: userId,
+      amount: productPrice,
+    );
+
+    if (!paymentResult.success) {
+      print('Payment failed: \${paymentResult.error}');
+      return;
+    }
+
+    // Step 4: Create reporting details (replaces createAlternativeBillingToken)
+    final reportingDetails = await FlutterInappPurchase.instance
+        .createBillingProgramReportingDetailsAndroid(BillingProgramAndroid.externalOffer);
+    print('Token created: \${reportingDetails.externalTransactionToken.substring(0, 20)}...');
+
+    // Step 5: Send token to your backend server
+    await yourBackend.reportToken(
+      token: reportingDetails.externalTransactionToken,
+      orderId: paymentResult.orderId,
+      productId: productId,
+    );
+
+    print('Purchase completed!');
+  } catch (e) {
+    print('Purchase error: $e');
+  }
+}`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
+
+                <h5>API Migration Guide</h5>
+                <table className="error-table">
+                  <thead>
+                    <tr>
+                      <th>Legacy API (6.2+)</th>
+                      <th>New API (8.2.0+)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>checkAlternativeBillingAvailability()</code></td>
+                      <td><code>isBillingProgramAvailable(program)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>showAlternativeBillingInformationDialog()</code></td>
+                      <td><code>launchExternalLink(activity, params)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>createAlternativeBillingReportingToken()</code></td>
+                      <td><code>createBillingProgramReportingDetails(program)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>enableAlternativeBillingOnly()</code></td>
+                      <td><code>enableBillingProgram(program)</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+
                 <h4>Requirements</h4>
                 <ul>
                   <li>
                     <strong>Google Play Billing 6.2+</strong> - For alternative
-                    billing only mode
+                    billing only mode (legacy)
                   </li>
                   <li>
                     <strong>Google Play Billing 7.0+</strong> - For user choice
                     mode
+                  </li>
+                  <li>
+                    <strong>Google Play Billing 8.2.0+</strong> - For Billing
+                    Programs API (recommended)
                   </li>
                   <li>
                     <strong>Play Console Setup</strong> - Configure alternative
@@ -1183,7 +1459,76 @@ await FlutterInappPurchase.instance.initConnection(
             ),
             android: (
               <>
-                <h3>Alternative Billing Only</h3>
+                <h3>Billing Programs API (8.2.0+ Recommended)</h3>
+                <table className="error-table">
+                  <thead>
+                    <tr>
+                      <th>Step</th>
+                      <th>API / Action</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>0</td>
+                      <td>
+                        <code>enableBillingProgram(program)</code>
+                      </td>
+                      <td>
+                        Enable billing program BEFORE initConnection
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>1</td>
+                      <td>
+                        <code>isBillingProgramAvailable(program)</code>
+                      </td>
+                      <td>
+                        Check if billing program is available for this user
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>
+                        <code>launchExternalLink(activity, params)</code>
+                      </td>
+                      <td>
+                        Launch external link (browser or app) with configured params
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>Backend API Call</td>
+                      <td>
+                        Call backend API to process payment with payment gateway
+                        (Stripe, PayPal, etc.)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td>
+                        <code>createBillingProgramReportingDetails(program)</code>
+                      </td>
+                      <td>After successful payment, create reporting details with token</td>
+                    </tr>
+                    <tr>
+                      <td>5</td>
+                      <td>Token Reporting</td>
+                      <td>
+                        Send externalTransactionToken to Google Play backend within 24 hours
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>6</td>
+                      <td>Unlock Content</td>
+                      <td>
+                        Backend grants entitlements and app unlocks content
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h3>Alternative Billing Only (Legacy 6.2+)</h3>
                 <table className="error-table">
                   <thead>
                     <tr>

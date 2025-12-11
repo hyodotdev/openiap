@@ -292,12 +292,71 @@ input RequestSubscriptionAndroidProps {
   purchaseTokenAndroid: String
   """
   Replacement mode for subscription changes
+  @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
   """
   replacementModeAndroid: Int
   """
   Subscription offers
   """
   subscriptionOffers: [AndroidSubscriptionOfferInput!]
+  """
+  Product-level replacement parameters (8.1.0+)
+  Use this instead of replacementModeAndroid for item-level replacement
+  """
+  subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid
+}
+
+# Subscription Replacement (Google Play Billing Library 8.1.0+)
+"""
+Replacement mode for subscription changes (Android)
+These modes determine how the subscription replacement affects billing.
+Available in Google Play Billing Library 8.1.0+
+"""
+enum SubscriptionReplacementModeAndroid {
+  """
+  Unknown replacement mode. Do not use.
+  """
+  UNKNOWN_REPLACEMENT_MODE
+  """
+  Replacement takes effect immediately, and the new expiration time will be prorated.
+  """
+  WITH_TIME_PRORATION
+  """
+  Replacement takes effect immediately, and the billing cycle remains the same.
+  """
+  CHARGE_PRORATED_PRICE
+  """
+  Replacement takes effect immediately, and the user is charged full price immediately.
+  """
+  CHARGE_FULL_PRICE
+  """
+  Replacement takes effect when the old plan expires.
+  """
+  WITHOUT_PRORATION
+  """
+  Replacement takes effect when the old plan expires, and the user is not charged.
+  """
+  DEFERRED
+  """
+  Keep the existing payment schedule unchanged for the item (8.1.0+)
+  """
+  KEEP_EXISTING
+}
+
+"""
+Product-level subscription replacement parameters (Android)
+Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams
+Available in Google Play Billing Library 8.1.0+
+"""
+input SubscriptionProductReplacementParamsAndroid {
+  """
+  The old product ID that needs to be replaced
+  """
+  oldProductId: String!
+  """
+  The replacement mode for this product change
+  """
+  replacementMode: SubscriptionReplacementModeAndroid!
 }
 
 input AndroidSubscriptionOfferInput {
@@ -377,4 +436,155 @@ type UserChoiceBillingDetails {
   List of product IDs selected by the user
   """
   products: [String!]!
+}
+
+# External Billing Programs (Google Play Billing Library 8.2.0+)
+"""
+Billing program types for external content links and external offers (Android)
+Available in Google Play Billing Library 8.2.0+
+"""
+enum BillingProgramAndroid {
+  """
+  Unspecified billing program. Do not use.
+  """
+  UNSPECIFIED
+  """
+  External Content Links program.
+  Allows linking to external content outside the app.
+  """
+  EXTERNAL_CONTENT_LINK
+  """
+  External Offers program.
+  Allows offering digital content purchases outside the app.
+  """
+  EXTERNAL_OFFER
+}
+
+"""
+Launch mode for external link flow (Android)
+Determines how the external URL is launched
+Available in Google Play Billing Library 8.2.0+
+"""
+enum ExternalLinkLaunchModeAndroid {
+  """
+  Unspecified launch mode. Do not use.
+  """
+  UNSPECIFIED
+  """
+  Play will launch the URL in an external browser or eligible app
+  """
+  LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+  """
+  Play will not launch the URL. The app handles launching the URL after Play returns control.
+  """
+  CALLER_WILL_LAUNCH_LINK
+}
+
+"""
+Link type for external link flow (Android)
+Specifies the type of external link destination
+Available in Google Play Billing Library 8.2.0+
+"""
+enum ExternalLinkTypeAndroid {
+  """
+  Unspecified link type. Do not use.
+  """
+  UNSPECIFIED
+  """
+  The link will direct users to a digital content offer
+  """
+  LINK_TO_DIGITAL_CONTENT_OFFER
+  """
+  The link will direct users to download an app
+  """
+  LINK_TO_APP_DOWNLOAD
+}
+
+"""
+Parameters for launching an external link (Android)
+Used with launchExternalLink to initiate external offer or app install flows
+Available in Google Play Billing Library 8.2.0+
+"""
+input LaunchExternalLinkParamsAndroid {
+  """
+  The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+  """
+  billingProgram: BillingProgramAndroid!
+  """
+  The external link launch mode
+  """
+  launchMode: ExternalLinkLaunchModeAndroid!
+  """
+  The type of the external link
+  """
+  linkType: ExternalLinkTypeAndroid!
+  """
+  The URI where the content will be accessed from
+  """
+  linkUri: String!
+}
+
+"""
+Reporting details for transactions made outside of Google Play Billing (Android)
+Contains the external transaction token needed for reporting
+Available in Google Play Billing Library 8.2.0+
+"""
+type BillingProgramReportingDetailsAndroid {
+  """
+  The billing program that the reporting details are associated with
+  """
+  billingProgram: BillingProgramAndroid!
+  """
+  External transaction token used to report transactions made outside of Google Play Billing.
+  This token must be used when reporting the external transaction to Google.
+  """
+  externalTransactionToken: String!
+}
+
+"""
+Result of checking billing program availability (Android)
+Available in Google Play Billing Library 8.2.0+
+"""
+type BillingProgramAvailabilityResultAndroid {
+  """
+  Whether the billing program is available for the user
+  """
+  isAvailable: Boolean!
+  """
+  The billing program that was checked
+  """
+  billingProgram: BillingProgramAndroid!
+}
+
+# Deprecated External Offers APIs (Google Play Billing Library 8.2.0)
+# These APIs are deprecated in favor of the new BillingProgram APIs above
+
+"""
+External offer reporting details (Android)
+@deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
+Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+"""
+type ExternalOfferReportingDetailsAndroid
+  @deprecated(
+    reason: "Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead"
+  ) {
+  """
+  External transaction token for reporting external offer transactions
+  """
+  externalTransactionToken: String!
+}
+
+"""
+External offer availability result (Android)
+@deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
+Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+"""
+type ExternalOfferAvailabilityResultAndroid
+  @deprecated(
+    reason: "Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead"
+  ) {
+  """
+  Whether external offers are available for the user
+  """
+  isAvailable: Boolean!
 }

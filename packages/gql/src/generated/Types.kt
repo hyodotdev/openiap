@@ -42,6 +42,41 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Billing program types for external content links and external offers (Android)
+ * Available in Google Play Billing Library 8.2.0+
+ */
+public enum class BillingProgramAndroid(val rawValue: String) {
+    /**
+     * Unspecified billing program. Do not use.
+     */
+    Unspecified("unspecified"),
+    /**
+     * External Content Links program.
+     * Allows linking to external content outside the app.
+     */
+    ExternalContentLink("external-content-link"),
+    /**
+     * External Offers program.
+     * Allows offering digital content purchases outside the app.
+     */
+    ExternalOffer("external-offer")
+
+    companion object {
+        fun fromJson(value: String): BillingProgramAndroid = when (value) {
+            "unspecified" -> BillingProgramAndroid.Unspecified
+            "UNSPECIFIED" -> BillingProgramAndroid.Unspecified
+            "external-content-link" -> BillingProgramAndroid.ExternalContentLink
+            "EXTERNAL_CONTENT_LINK" -> BillingProgramAndroid.ExternalContentLink
+            "external-offer" -> BillingProgramAndroid.ExternalOffer
+            "EXTERNAL_OFFER" -> BillingProgramAndroid.ExternalOffer
+            else -> throw IllegalArgumentException("Unknown BillingProgramAndroid value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class ErrorCode(val rawValue: String) {
     Unknown("unknown"),
     UserCancelled("user-cancelled"),
@@ -195,6 +230,74 @@ public enum class ErrorCode(val rawValue: String) {
             "EMPTY_SKU_LIST" -> ErrorCode.EmptySkuList
             "EmptySkuList" -> ErrorCode.EmptySkuList
             else -> throw IllegalArgumentException("Unknown ErrorCode value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Launch mode for external link flow (Android)
+ * Determines how the external URL is launched
+ * Available in Google Play Billing Library 8.2.0+
+ */
+public enum class ExternalLinkLaunchModeAndroid(val rawValue: String) {
+    /**
+     * Unspecified launch mode. Do not use.
+     */
+    Unspecified("unspecified"),
+    /**
+     * Play will launch the URL in an external browser or eligible app
+     */
+    LaunchInExternalBrowserOrApp("launch-in-external-browser-or-app"),
+    /**
+     * Play will not launch the URL. The app handles launching the URL after Play returns control.
+     */
+    CallerWillLaunchLink("caller-will-launch-link")
+
+    companion object {
+        fun fromJson(value: String): ExternalLinkLaunchModeAndroid = when (value) {
+            "unspecified" -> ExternalLinkLaunchModeAndroid.Unspecified
+            "UNSPECIFIED" -> ExternalLinkLaunchModeAndroid.Unspecified
+            "launch-in-external-browser-or-app" -> ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp
+            "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP" -> ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp
+            "caller-will-launch-link" -> ExternalLinkLaunchModeAndroid.CallerWillLaunchLink
+            "CALLER_WILL_LAUNCH_LINK" -> ExternalLinkLaunchModeAndroid.CallerWillLaunchLink
+            else -> throw IllegalArgumentException("Unknown ExternalLinkLaunchModeAndroid value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Link type for external link flow (Android)
+ * Specifies the type of external link destination
+ * Available in Google Play Billing Library 8.2.0+
+ */
+public enum class ExternalLinkTypeAndroid(val rawValue: String) {
+    /**
+     * Unspecified link type. Do not use.
+     */
+    Unspecified("unspecified"),
+    /**
+     * The link will direct users to a digital content offer
+     */
+    LinkToDigitalContentOffer("link-to-digital-content-offer"),
+    /**
+     * The link will direct users to download an app
+     */
+    LinkToAppDownload("link-to-app-download")
+
+    companion object {
+        fun fromJson(value: String): ExternalLinkTypeAndroid = when (value) {
+            "unspecified" -> ExternalLinkTypeAndroid.Unspecified
+            "UNSPECIFIED" -> ExternalLinkTypeAndroid.Unspecified
+            "link-to-digital-content-offer" -> ExternalLinkTypeAndroid.LinkToDigitalContentOffer
+            "LINK_TO_DIGITAL_CONTENT_OFFER" -> ExternalLinkTypeAndroid.LinkToDigitalContentOffer
+            "link-to-app-download" -> ExternalLinkTypeAndroid.LinkToAppDownload
+            "LINK_TO_APP_DOWNLOAD" -> ExternalLinkTypeAndroid.LinkToAppDownload
+            else -> throw IllegalArgumentException("Unknown ExternalLinkTypeAndroid value: $value")
         }
     }
 
@@ -565,6 +668,64 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Replacement mode for subscription changes (Android)
+ * These modes determine how the subscription replacement affects billing.
+ * Available in Google Play Billing Library 8.1.0+
+ */
+public enum class SubscriptionReplacementModeAndroid(val rawValue: String) {
+    /**
+     * Unknown replacement mode. Do not use.
+     */
+    UnknownReplacementMode("unknown-replacement-mode"),
+    /**
+     * Replacement takes effect immediately, and the new expiration time will be prorated.
+     */
+    WithTimeProration("with-time-proration"),
+    /**
+     * Replacement takes effect immediately, and the billing cycle remains the same.
+     */
+    ChargeProratedPrice("charge-prorated-price"),
+    /**
+     * Replacement takes effect immediately, and the user is charged full price immediately.
+     */
+    ChargeFullPrice("charge-full-price"),
+    /**
+     * Replacement takes effect when the old plan expires.
+     */
+    WithoutProration("without-proration"),
+    /**
+     * Replacement takes effect when the old plan expires, and the user is not charged.
+     */
+    Deferred("deferred"),
+    /**
+     * Keep the existing payment schedule unchanged for the item (8.1.0+)
+     */
+    KeepExisting("keep-existing")
+
+    companion object {
+        fun fromJson(value: String): SubscriptionReplacementModeAndroid = when (value) {
+            "unknown-replacement-mode" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            "UNKNOWN_REPLACEMENT_MODE" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            "with-time-proration" -> SubscriptionReplacementModeAndroid.WithTimeProration
+            "WITH_TIME_PRORATION" -> SubscriptionReplacementModeAndroid.WithTimeProration
+            "charge-prorated-price" -> SubscriptionReplacementModeAndroid.ChargeProratedPrice
+            "CHARGE_PRORATED_PRICE" -> SubscriptionReplacementModeAndroid.ChargeProratedPrice
+            "charge-full-price" -> SubscriptionReplacementModeAndroid.ChargeFullPrice
+            "CHARGE_FULL_PRICE" -> SubscriptionReplacementModeAndroid.ChargeFullPrice
+            "without-proration" -> SubscriptionReplacementModeAndroid.WithoutProration
+            "WITHOUT_PRORATION" -> SubscriptionReplacementModeAndroid.WithoutProration
+            "deferred" -> SubscriptionReplacementModeAndroid.Deferred
+            "DEFERRED" -> SubscriptionReplacementModeAndroid.Deferred
+            "keep-existing" -> SubscriptionReplacementModeAndroid.KeepExisting
+            "KEEP_EXISTING" -> SubscriptionReplacementModeAndroid.KeepExisting
+            else -> throw IllegalArgumentException("Unknown SubscriptionReplacementModeAndroid value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 // MARK: - Interfaces
 
 public interface ProductCommon {
@@ -738,6 +899,70 @@ public data class AppTransaction(
 }
 
 /**
+ * Result of checking billing program availability (Android)
+ * Available in Google Play Billing Library 8.2.0+
+ */
+public data class BillingProgramAvailabilityResultAndroid(
+    /**
+     * The billing program that was checked
+     */
+    val billingProgram: BillingProgramAndroid,
+    /**
+     * Whether the billing program is available for the user
+     */
+    val isAvailable: Boolean
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BillingProgramAvailabilityResultAndroid {
+            return BillingProgramAvailabilityResultAndroid(
+                billingProgram = BillingProgramAndroid.fromJson(json["billingProgram"] as String),
+                isAvailable = json["isAvailable"] as Boolean,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "BillingProgramAvailabilityResultAndroid",
+        "billingProgram" to billingProgram.toJson(),
+        "isAvailable" to isAvailable,
+    )
+}
+
+/**
+ * Reporting details for transactions made outside of Google Play Billing (Android)
+ * Contains the external transaction token needed for reporting
+ * Available in Google Play Billing Library 8.2.0+
+ */
+public data class BillingProgramReportingDetailsAndroid(
+    /**
+     * The billing program that the reporting details are associated with
+     */
+    val billingProgram: BillingProgramAndroid,
+    /**
+     * External transaction token used to report transactions made outside of Google Play Billing.
+     * This token must be used when reporting the external transaction to Google.
+     */
+    val externalTransactionToken: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BillingProgramReportingDetailsAndroid {
+            return BillingProgramReportingDetailsAndroid(
+                billingProgram = BillingProgramAndroid.fromJson(json["billingProgram"] as String),
+                externalTransactionToken = json["externalTransactionToken"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "BillingProgramReportingDetailsAndroid",
+        "billingProgram" to billingProgram.toJson(),
+        "externalTransactionToken" to externalTransactionToken,
+    )
+}
+
+/**
  * Discount amount details for one-time purchase offers (Android)
  * Available in Google Play Billing Library 7.0+
  */
@@ -906,6 +1131,58 @@ public data class EntitlementIOS(
         "jsonRepresentation" to jsonRepresentation,
         "sku" to sku,
         "transactionId" to transactionId,
+    )
+}
+
+/**
+ * External offer availability result (Android)
+ * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
+ * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ */
+public data class ExternalOfferAvailabilityResultAndroid(
+    /**
+     * Whether external offers are available for the user
+     */
+    val isAvailable: Boolean
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalOfferAvailabilityResultAndroid {
+            return ExternalOfferAvailabilityResultAndroid(
+                isAvailable = json["isAvailable"] as Boolean,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ExternalOfferAvailabilityResultAndroid",
+        "isAvailable" to isAvailable,
+    )
+}
+
+/**
+ * External offer reporting details (Android)
+ * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
+ * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ */
+public data class ExternalOfferReportingDetailsAndroid(
+    /**
+     * External transaction token for reporting external offer transactions
+     */
+    val externalTransactionToken: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalOfferReportingDetailsAndroid {
+            return ExternalOfferReportingDetailsAndroid(
+                externalTransactionToken = json["externalTransactionToken"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ExternalOfferReportingDetailsAndroid",
+        "externalTransactionToken" to externalTransactionToken,
     )
 }
 
@@ -2341,6 +2618,48 @@ public data class InitConnectionConfig(
     )
 }
 
+/**
+ * Parameters for launching an external link (Android)
+ * Used with launchExternalLink to initiate external offer or app install flows
+ * Available in Google Play Billing Library 8.2.0+
+ */
+public data class LaunchExternalLinkParamsAndroid(
+    /**
+     * The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     */
+    val billingProgram: BillingProgramAndroid,
+    /**
+     * The external link launch mode
+     */
+    val launchMode: ExternalLinkLaunchModeAndroid,
+    /**
+     * The type of the external link
+     */
+    val linkType: ExternalLinkTypeAndroid,
+    /**
+     * The URI where the content will be accessed from
+     */
+    val linkUri: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParamsAndroid {
+            return LaunchExternalLinkParamsAndroid(
+                billingProgram = BillingProgramAndroid.fromJson(json["billingProgram"] as String),
+                launchMode = ExternalLinkLaunchModeAndroid.fromJson(json["launchMode"] as String),
+                linkType = ExternalLinkTypeAndroid.fromJson(json["linkType"] as String),
+                linkUri = json["linkUri"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "billingProgram" to billingProgram.toJson(),
+        "launchMode" to launchMode.toJson(),
+        "linkType" to linkType.toJson(),
+        "linkUri" to linkUri,
+    )
+}
+
 public data class ProductRequest(
     val skus: List<String>,
     val type: ProductQueryType? = null
@@ -2576,6 +2895,7 @@ public data class RequestSubscriptionAndroidProps(
     val purchaseTokenAndroid: String? = null,
     /**
      * Replacement mode for subscription changes
+     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
      */
     val replacementModeAndroid: Int? = null,
     /**
@@ -2585,7 +2905,12 @@ public data class RequestSubscriptionAndroidProps(
     /**
      * Subscription offers
      */
-    val subscriptionOffers: List<AndroidSubscriptionOfferInput>? = null
+    val subscriptionOffers: List<AndroidSubscriptionOfferInput>? = null,
+    /**
+     * Product-level replacement parameters (8.1.0+)
+     * Use this instead of replacementModeAndroid for item-level replacement
+     */
+    val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps {
@@ -2597,6 +2922,7 @@ public data class RequestSubscriptionAndroidProps(
                 replacementModeAndroid = (json["replacementModeAndroid"] as Number?)?.toInt(),
                 skus = (json["skus"] as List<*>).map { it as String },
                 subscriptionOffers = (json["subscriptionOffers"] as List<*>?)?.map { AndroidSubscriptionOfferInput.fromJson((it as Map<String, Any?>)) },
+                subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as Map<String, Any?>?)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) },
             )
         }
     }
@@ -2609,6 +2935,7 @@ public data class RequestSubscriptionAndroidProps(
         "replacementModeAndroid" to replacementModeAndroid,
         "skus" to skus.map { it },
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
+        "subscriptionProductReplacementParams" to subscriptionProductReplacementParams?.toJson(),
     )
 }
 
@@ -2743,6 +3070,36 @@ public data class RequestVerifyPurchaseWithIapkitProps(
         "apiKey" to apiKey,
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
+    )
+}
+
+/**
+ * Product-level subscription replacement parameters (Android)
+ * Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams
+ * Available in Google Play Billing Library 8.1.0+
+ */
+public data class SubscriptionProductReplacementParamsAndroid(
+    /**
+     * The old product ID that needs to be replaced
+     */
+    val oldProductId: String,
+    /**
+     * The replacement mode for this product change
+     */
+    val replacementMode: SubscriptionReplacementModeAndroid
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): SubscriptionProductReplacementParamsAndroid {
+            return SubscriptionProductReplacementParamsAndroid(
+                oldProductId = json["oldProductId"] as String,
+                replacementMode = SubscriptionReplacementModeAndroid.fromJson(json["replacementMode"] as String),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "oldProductId" to oldProductId,
+        "replacementMode" to replacementMode.toJson(),
     )
 }
 

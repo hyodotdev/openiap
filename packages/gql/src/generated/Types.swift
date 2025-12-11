@@ -20,6 +20,19 @@ public enum AlternativeBillingModeAndroid: String, Codable, CaseIterable {
     case alternativeOnly = "alternative-only"
 }
 
+/// Billing program types for external content links and external offers (Android)
+/// Available in Google Play Billing Library 8.2.0+
+public enum BillingProgramAndroid: String, Codable, CaseIterable {
+    /// Unspecified billing program. Do not use.
+    case unspecified = "unspecified"
+    /// External Content Links program.
+    /// Allows linking to external content outside the app.
+    case externalContentLink = "external-content-link"
+    /// External Offers program.
+    /// Allows offering digital content purchases outside the app.
+    case externalOffer = "external-offer"
+}
+
 public enum ErrorCode: String, Codable, CaseIterable {
     case unknown = "unknown"
     case userCancelled = "user-cancelled"
@@ -144,6 +157,30 @@ public enum ErrorCode: String, Codable, CaseIterable {
     }
 }
 
+/// Launch mode for external link flow (Android)
+/// Determines how the external URL is launched
+/// Available in Google Play Billing Library 8.2.0+
+public enum ExternalLinkLaunchModeAndroid: String, Codable, CaseIterable {
+    /// Unspecified launch mode. Do not use.
+    case unspecified = "unspecified"
+    /// Play will launch the URL in an external browser or eligible app
+    case launchInExternalBrowserOrApp = "launch-in-external-browser-or-app"
+    /// Play will not launch the URL. The app handles launching the URL after Play returns control.
+    case callerWillLaunchLink = "caller-will-launch-link"
+}
+
+/// Link type for external link flow (Android)
+/// Specifies the type of external link destination
+/// Available in Google Play Billing Library 8.2.0+
+public enum ExternalLinkTypeAndroid: String, Codable, CaseIterable {
+    /// Unspecified link type. Do not use.
+    case unspecified = "unspecified"
+    /// The link will direct users to a digital content offer
+    case linkToDigitalContentOffer = "link-to-digital-content-offer"
+    /// The link will direct users to download an app
+    case linkToAppDownload = "link-to-app-download"
+}
+
 /// User actions on external purchase notice sheet (iOS 18.2+)
 public enum ExternalPurchaseNoticeAction: String, Codable, CaseIterable {
     /// User chose to continue to external purchase
@@ -244,6 +281,26 @@ public enum SubscriptionPeriodIOS: String, Codable, CaseIterable {
     case empty = "empty"
 }
 
+/// Replacement mode for subscription changes (Android)
+/// These modes determine how the subscription replacement affects billing.
+/// Available in Google Play Billing Library 8.1.0+
+public enum SubscriptionReplacementModeAndroid: String, Codable, CaseIterable {
+    /// Unknown replacement mode. Do not use.
+    case unknownReplacementMode = "unknown-replacement-mode"
+    /// Replacement takes effect immediately, and the new expiration time will be prorated.
+    case withTimeProration = "with-time-proration"
+    /// Replacement takes effect immediately, and the billing cycle remains the same.
+    case chargeProratedPrice = "charge-prorated-price"
+    /// Replacement takes effect immediately, and the user is charged full price immediately.
+    case chargeFullPrice = "charge-full-price"
+    /// Replacement takes effect when the old plan expires.
+    case withoutProration = "without-proration"
+    /// Replacement takes effect when the old plan expires, and the user is not charged.
+    case deferred = "deferred"
+    /// Keep the existing payment schedule unchanged for the item (8.1.0+)
+    case keepExisting = "keep-existing"
+}
+
 // MARK: - Interfaces
 
 public protocol ProductCommon: Codable {
@@ -324,6 +381,26 @@ public struct AppTransaction: Codable {
     public var signedDate: Double
 }
 
+/// Result of checking billing program availability (Android)
+/// Available in Google Play Billing Library 8.2.0+
+public struct BillingProgramAvailabilityResultAndroid: Codable {
+    /// The billing program that was checked
+    public var billingProgram: BillingProgramAndroid
+    /// Whether the billing program is available for the user
+    public var isAvailable: Bool
+}
+
+/// Reporting details for transactions made outside of Google Play Billing (Android)
+/// Contains the external transaction token needed for reporting
+/// Available in Google Play Billing Library 8.2.0+
+public struct BillingProgramReportingDetailsAndroid: Codable {
+    /// The billing program that the reporting details are associated with
+    public var billingProgram: BillingProgramAndroid
+    /// External transaction token used to report transactions made outside of Google Play Billing.
+    /// This token must be used when reporting the external transaction to Google.
+    public var externalTransactionToken: String
+}
+
 /// Discount amount details for one-time purchase offers (Android)
 /// Available in Google Play Billing Library 7.0+
 public struct DiscountAmountAndroid: Codable {
@@ -372,6 +449,22 @@ public struct EntitlementIOS: Codable {
     public var jsonRepresentation: String
     public var sku: String
     public var transactionId: String
+}
+
+/// External offer availability result (Android)
+/// @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
+/// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+public struct ExternalOfferAvailabilityResultAndroid: Codable {
+    /// Whether external offers are available for the user
+    public var isAvailable: Bool
+}
+
+/// External offer reporting details (Android)
+/// @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
+/// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+public struct ExternalOfferReportingDetailsAndroid: Codable {
+    /// External transaction token for reporting external offer transactions
+    public var externalTransactionToken: String
 }
 
 /// Result of presenting an external purchase link (iOS 18.2+)
@@ -873,6 +966,32 @@ public struct InitConnectionConfig: Codable {
     }
 }
 
+/// Parameters for launching an external link (Android)
+/// Used with launchExternalLink to initiate external offer or app install flows
+/// Available in Google Play Billing Library 8.2.0+
+public struct LaunchExternalLinkParamsAndroid: Codable {
+    /// The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+    public var billingProgram: BillingProgramAndroid
+    /// The external link launch mode
+    public var launchMode: ExternalLinkLaunchModeAndroid
+    /// The type of the external link
+    public var linkType: ExternalLinkTypeAndroid
+    /// The URI where the content will be accessed from
+    public var linkUri: String
+
+    public init(
+        billingProgram: BillingProgramAndroid,
+        launchMode: ExternalLinkLaunchModeAndroid,
+        linkType: ExternalLinkTypeAndroid,
+        linkUri: String
+    ) {
+        self.billingProgram = billingProgram
+        self.launchMode = launchMode
+        self.linkType = linkType
+        self.linkUri = linkUri
+    }
+}
+
 public struct ProductRequest: Codable {
     public var skus: [String]
     public var type: ProductQueryType?
@@ -1056,11 +1175,15 @@ public struct RequestSubscriptionAndroidProps: Codable {
     /// Purchase token for upgrades/downgrades
     public var purchaseTokenAndroid: String?
     /// Replacement mode for subscription changes
+    /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
     public var replacementModeAndroid: Int?
     /// List of subscription SKUs
     public var skus: [String]
     /// Subscription offers
     public var subscriptionOffers: [AndroidSubscriptionOfferInput]?
+    /// Product-level replacement parameters (8.1.0+)
+    /// Use this instead of replacementModeAndroid for item-level replacement
+    public var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?
 
     public init(
         isOfferPersonalized: Bool? = nil,
@@ -1069,7 +1192,8 @@ public struct RequestSubscriptionAndroidProps: Codable {
         purchaseTokenAndroid: String? = nil,
         replacementModeAndroid: Int? = nil,
         skus: [String],
-        subscriptionOffers: [AndroidSubscriptionOfferInput]? = nil
+        subscriptionOffers: [AndroidSubscriptionOfferInput]? = nil,
+        subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = nil
     ) {
         self.isOfferPersonalized = isOfferPersonalized
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
@@ -1078,6 +1202,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
         self.replacementModeAndroid = replacementModeAndroid
         self.skus = skus
         self.subscriptionOffers = subscriptionOffers
+        self.subscriptionProductReplacementParams = subscriptionProductReplacementParams
     }
 }
 
@@ -1164,6 +1289,24 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
         self.apiKey = apiKey
         self.apple = apple
         self.google = google
+    }
+}
+
+/// Product-level subscription replacement parameters (Android)
+/// Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams
+/// Available in Google Play Billing Library 8.1.0+
+public struct SubscriptionProductReplacementParamsAndroid: Codable {
+    /// The old product ID that needs to be replaced
+    public var oldProductId: String
+    /// The replacement mode for this product change
+    public var replacementMode: SubscriptionReplacementModeAndroid
+
+    public init(
+        oldProductId: String,
+        replacementMode: SubscriptionReplacementModeAndroid
+    ) {
+        self.oldProductId = oldProductId
+        self.replacementMode = replacementMode
     }
 }
 

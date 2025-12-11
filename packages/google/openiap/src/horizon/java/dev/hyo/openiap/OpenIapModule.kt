@@ -901,6 +901,7 @@ class OpenIapModule(
     }
 
     // Alternative Billing - Testing if supported by Horizon Billing Compatibility Library
+    @Deprecated("Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead")
     override suspend fun checkAlternativeBillingAvailability(): Boolean = withContext(Dispatchers.IO) {
         try {
             val client = billingClient ?: throw Exception("Not connected")
@@ -931,6 +932,7 @@ class OpenIapModule(
         }
     }
 
+    @Deprecated("Use launchExternalLink instead")
     override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = withContext(Dispatchers.IO) {
         try {
             val client = billingClient ?: throw Exception("Not connected")
@@ -968,6 +970,7 @@ class OpenIapModule(
         }
     }
 
+    @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
     override suspend fun createAlternativeBillingReportingToken(): String? = withContext(Dispatchers.IO) {
         try {
             val client = billingClient ?: throw Exception("Not connected")
@@ -1010,5 +1013,24 @@ class OpenIapModule(
 
     override fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
         // Not supported on Horizon
+    }
+
+    // Billing Programs (8.2.0+) - Not supported on Horizon
+    override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
+        OpenIapLog.w("isBillingProgramAvailable not supported on Horizon", TAG)
+        return BillingProgramAvailabilityResultAndroid(
+            billingProgram = program,
+            isAvailable = false
+        )
+    }
+
+    override suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
+        OpenIapLog.w("createBillingProgramReportingDetails not supported on Horizon", TAG)
+        throw OpenIapError.FeatureNotSupported
+    }
+
+    override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean {
+        OpenIapLog.w("launchExternalLink not supported on Horizon", TAG)
+        return false
     }
 }

@@ -33,6 +33,10 @@ import dev.hyo.openiap.QueryGetAvailablePurchasesHandler
 import dev.hyo.openiap.MutationFinishTransactionHandler
 import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationEndConnectionHandler
+import dev.hyo.openiap.BillingProgramAndroid
+import dev.hyo.openiap.BillingProgramAvailabilityResultAndroid
+import dev.hyo.openiap.BillingProgramReportingDetailsAndroid
+import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import android.app.Activity
 import android.content.Context
 import dev.hyo.openiap.OpenIapError
@@ -419,9 +423,65 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * Must be called AFTER successful payment in your payment system
      * Token must be reported to Google Play backend within 24 hours
      * @return External transaction token, or null if failed
+     * @deprecated Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead
      */
+    @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
     suspend fun createAlternativeBillingReportingToken(): String? =
         module.createAlternativeBillingReportingToken()
+
+    // -------------------------------------------------------------------------
+    // Billing Programs (Google Play Billing Library 8.2.0+)
+    // -------------------------------------------------------------------------
+    /**
+     * Check if a billing program is available for this user/device.
+     * This is the new API that replaces checkAlternativeBillingAvailability for external offers.
+     *
+     * @param program The billing program to check (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     * @return Result containing availability information
+     */
+    suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =
+        module.isBillingProgramAvailable(program)
+
+    /**
+     * Create reporting details for transactions made outside of Google Play Billing.
+     * This is the new API that replaces createAlternativeBillingReportingToken for external offers.
+     *
+     * @param program The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
+     * @return Reporting details containing the external transaction token
+     */
+    suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid =
+        module.createBillingProgramReportingDetails(program)
+
+    /**
+     * Launch an external link for external offer or app download.
+     * This is the new API that replaces showAlternativeBillingInformationDialog for external offers.
+     *
+     * @param activity Current activity context
+     * @param params Parameters for the external link
+     * @return true if launch was successful, false otherwise
+     */
+    suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean =
+        module.launchExternalLink(activity, params)
+
+    /**
+     * Enable a billing program for external content links or external offers (8.2.0+).
+     * This should be called BEFORE initConnection to configure the BillingClient.
+     *
+     * @param program The billing program to enable (ExternalOffer or ExternalContentLink)
+     */
+    fun enableBillingProgram(program: BillingProgramAndroid) {
+        // Use reflection to call enableBillingProgram on the module
+        // This is needed because the method is only available in the Play flavor
+        try {
+            val method = module.javaClass.getMethod("enableBillingProgram", BillingProgramAndroid::class.java)
+            method.invoke(module, program)
+            OpenIapLog.d("Billing program enabled via store: $program", "OpenIapStore")
+        } catch (e: NoSuchMethodException) {
+            OpenIapLog.w("enableBillingProgram not available (Horizon flavor or older library)", "OpenIapStore")
+        } catch (e: Exception) {
+            OpenIapLog.e("Failed to enable billing program: ${e.message}", e, "OpenIapStore")
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Event listeners passthrough
