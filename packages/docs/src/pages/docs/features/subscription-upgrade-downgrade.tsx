@@ -975,23 +975,26 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                   </p>
                   <ul>
                     <li>
-                      <code>1 (WITH_TIME_PRORATION)</code> - Immediate change
+                      <code>WITH_TIME_PRORATION</code> - Immediate change
                       with prorated credit
                     </li>
                     <li>
-                      <code>2 (CHARGE_PRORATED_PRICE)</code> - Immediate change,
+                      <code>CHARGE_PRORATED_PRICE</code> - Immediate change,
                       charge difference (upgrade only)
                     </li>
                     <li>
-                      <code>3 (WITHOUT_PRORATION)</code> - Immediate change, no
+                      <code>WITHOUT_PRORATION</code> - Immediate change, no
                       proration
                     </li>
                     <li>
-                      <code>5 (CHARGE_FULL_PRICE)</code> - Immediate change,
+                      <code>CHARGE_FULL_PRICE</code> - Immediate change,
                       charge full price
                     </li>
                     <li>
-                      <code>6 (DEFERRED)</code> - Change at next billing cycle
+                      <code>DEFERRED</code> - Change at next billing cycle
+                    </li>
+                    <li>
+                      <code>KEEP_EXISTING</code> - Keep the existing payment schedule unchanged (8.1.0+)
                     </li>
                   </ul>
 
@@ -999,6 +1002,39 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
                     <strong>Note:</strong> If you don't specify a replacement
                     mode, the system uses the default configured in your Google
                     Play Console subscription settings.
+                  </p>
+                </Accordion>
+
+                <Accordion
+                  title={<>🆕 Billing Library 8.1.0+: Per-Product Replacement Params</>}
+                  variant="tip"
+                >
+                  <p>
+                    Starting with Google Play Billing Library 8.1.0, you can use{' '}
+                    <code>subscriptionProductReplacementParams</code> for more granular
+                    control over subscription replacements at the product level:
+                  </p>
+
+                  <ul>
+                    <li>
+                      <strong>
+                        <code>oldProductId</code>
+                      </strong>
+                      : The product ID being replaced
+                    </li>
+                    <li>
+                      <strong>
+                        <code>replacementMode</code>
+                      </strong>
+                      : The replacement mode enum value
+                    </li>
+                  </ul>
+
+                  <p>
+                    This API is useful when you need different replacement behaviors
+                    for different products in a multi-product purchase scenario.
+                    The new <code>KEEP_EXISTING</code> mode is only available through
+                    this API.
                   </p>
                 </Accordion>
               </section>
@@ -1260,6 +1296,100 @@ if (premiumPurchase != null) {
 
   print('✅ Downgrade scheduled for next billing cycle');
   // Note: Purchase callback will complete with empty list - this is expected!
+}`}</CodeBlock>
+                      ),
+                    }}
+                  </LanguageTabs>
+                </Accordion>
+
+                <Accordion
+                  title={<>📝 Code Example: Using subscriptionProductReplacementParams (8.1.0+)</>}
+                >
+                  <p>
+                    For more granular control, use the new per-product replacement params API:
+                  </p>
+                  <LanguageTabs>
+                    {{
+                      typescript: (
+                        <CodeBlock language="typescript">{`// Android subscription replacement with 8.1.0+ API
+import { requestSubscription, getAvailablePurchases } from 'expo-iap';
+
+// Get current subscription
+const purchases = await getAvailablePurchases();
+const currentSub = purchases.find(p => p.productId === 'premium_monthly');
+
+if (currentSub) {
+  // Upgrade using the new per-product replacement params
+  await requestSubscription({
+    skus: ['premium_yearly'],
+    subscriptionProductReplacementParams: {
+      oldProductId: currentSub.productId,
+      replacementMode: 'WITH_TIME_PRORATION', // or 'KEEP_EXISTING' (8.1.0+ only)
+    },
+    // subscriptionOffers if needed for base plan selection
+  });
+
+  console.log('✅ Upgrade initiated with per-product replacement');
+}`}</CodeBlock>
+                      ),
+                      kotlin: (
+                        <CodeBlock language="kotlin">{`// Android subscription replacement with 8.1.0+ API
+import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.SubscriptionReplacementModeAndroid
+
+// Get current subscription
+val purchases = openIapModule.getAvailablePurchases()
+val currentSub = purchases.find { it.productId == "premium_monthly" }
+
+currentSub?.let { sub ->
+    // Upgrade using the new per-product replacement params
+    openIapModule.requestSubscription(
+        RequestPurchaseProps(
+            type = ProductQueryType.Subs,
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionProps(
+                    android = RequestSubscriptionAndroidProps(
+                        skus = listOf("premium_yearly"),
+                        subscriptionProductReplacementParams = SubscriptionProductReplacementParamsAndroid(
+                            oldProductId = sub.productId,
+                            replacementMode = SubscriptionReplacementModeAndroid.WithTimeProration
+                            // or SubscriptionReplacementModeAndroid.KeepExisting (8.1.0+ only)
+                        )
+                    )
+                )
+            )
+        )
+    )
+
+    println("✅ Upgrade initiated with per-product replacement")
+}`}</CodeBlock>
+                      ),
+                      dart: (
+                        <CodeBlock language="dart">{`// Android subscription replacement with 8.1.0+ API
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Get current subscription
+final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();
+final currentSub = purchases.firstWhere((p) => p.productId == 'premium_monthly');
+
+if (currentSub != null) {
+  // Upgrade using the new per-product replacement params
+  await FlutterInappPurchase.instance.requestSubscription(
+    RequestPurchaseProps(
+      request: RequestPurchasePropsByPlatforms(
+        google: RequestSubscriptionAndroidProps(
+          skus: ['premium_yearly'],
+          subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid(
+            oldProductId: currentSub.productId,
+            replacementMode: SubscriptionReplacementModeAndroid.withTimeProration,
+            // or SubscriptionReplacementModeAndroid.keepExisting (8.1.0+ only)
+          ),
+        ),
+      ),
+    ),
+  );
+
+  print('✅ Upgrade initiated with per-product replacement');
 }`}</CodeBlock>
                       ),
                     }}

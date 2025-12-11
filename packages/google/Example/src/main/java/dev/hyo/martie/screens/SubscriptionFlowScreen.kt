@@ -43,6 +43,8 @@ import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
+import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,12 +59,15 @@ import dev.hyo.martie.util.resolvePremiumOfferInfo
 import dev.hyo.martie.util.savePremiumOffer
 
 // Google Play Billing SubscriptionReplacementMode values
+// See: https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode
 private object ReplacementMode {
-    const val WITHOUT_PRORATION = 1 // No proration
-    const val CHARGE_PRORATED_PRICE = 2 // Charge prorated amount immediately
-    const val DEFERRED = 3 // Change takes effect at next billing cycle
-    const val WITH_TIME_PRORATION = 4 // Time-based proration
-    const val CHARGE_FULL_PRICE = 5 // Charge full price immediately
+    const val UNKNOWN_REPLACEMENT_MODE = 0
+    const val WITH_TIME_PRORATION = 1     // Immediate change with prorated credit
+    const val CHARGE_PRORATED_PRICE = 2   // Immediate change, charge difference (upgrade only)
+    const val WITHOUT_PRORATION = 3       // Immediate change, no proration
+    const val CHARGE_FULL_PRICE = 5       // Immediate change, charge full price
+    const val DEFERRED = 6                // Change at next billing cycle
+    const val KEEP_EXISTING = 7           // Keep existing payment schedule (8.1.0+)
 }
 
 // Helper to format remaining time like "3d 4h" / "2h 12m" / "35m"
@@ -768,10 +773,8 @@ fun SubscriptionFlowScreen(
 
                                                             println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: ${purchaseToken.take(10)}...")
 
-                                                            // Use CHARGE_FULL_PRICE for plan changes
-                                                            val replacementMode = ReplacementMode.CHARGE_FULL_PRICE
-
                                                             // Request subscription offer change (same product, different offer)
+                                                            // Using new subscriptionProductReplacementParams API (8.1.0+)
                                                             val offerInputs = listOf(
                                                                 AndroidSubscriptionOfferInput(
                                                                     sku = IapConstants.PREMIUM_PRODUCT_ID,
@@ -786,7 +789,11 @@ fun SubscriptionFlowScreen(
                                                                             obfuscatedAccountIdAndroid = null,
                                                                             obfuscatedProfileIdAndroid = null,
                                                                             purchaseTokenAndroid = purchaseToken,
-                                                                            replacementModeAndroid = replacementMode,
+                                                                            // New 8.1.0+ API: per-product replacement params
+                                                                            subscriptionProductReplacementParams = SubscriptionProductReplacementParamsAndroid(
+                                                                                oldProductId = IapConstants.PREMIUM_PRODUCT_ID,
+                                                                                replacementMode = SubscriptionReplacementModeAndroid.ChargeFullPrice
+                                                                            ),
                                                                             skus = listOf(IapConstants.PREMIUM_PRODUCT_ID),
                                                                             subscriptionOffers = offerInputs
                                                                         )

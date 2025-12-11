@@ -62,16 +62,16 @@ internal object BillingConverters {
             )
         }
 
-        // Extract preorder details if available
-        val preorder = preorderDetails?.let { details ->
+        // Extract preorder details if available (Billing Library 8.1.0+)
+        val preorder = runCatching { preorderDetails }?.getOrNull()?.let { details ->
             PreorderDetailsAndroid(
                 preorderPresaleEndTimeMillis = details.preorderPresaleEndTimeMillis.toString(),
                 preorderReleaseTimeMillis = details.preorderReleaseTimeMillis.toString()
             )
         }
 
-        // Extract rental details if available
-        val rental = rentalDetails?.let { details ->
+        // Extract rental details if available (Billing Library 7.0+)
+        val rental = runCatching { rentalDetails }?.getOrNull()?.let { details ->
             RentalDetailsAndroid(
                 rentalPeriod = details.rentalPeriod,
                 rentalExpirationPeriod = runCatching { details.rentalExpirationPeriod }.getOrNull()

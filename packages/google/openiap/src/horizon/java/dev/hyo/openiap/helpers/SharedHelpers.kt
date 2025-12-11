@@ -7,6 +7,7 @@ import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseError
 import dev.hyo.openiap.RequestPurchaseProps
+import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -57,6 +58,7 @@ internal data class AndroidPurchaseArgs(
     val purchaseTokenAndroid: String?,
     val replacementModeAndroid: Int?,
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>?,
+    val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
     val type: ProductQueryType,
     val useAlternativeBilling: Boolean?
 )
@@ -77,6 +79,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 purchaseTokenAndroid = null,
                 replacementModeAndroid = null,
                 subscriptionOffers = null,
+                subscriptionProductReplacementParams = null,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
@@ -97,6 +100,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 purchaseTokenAndroid = android.purchaseTokenAndroid,
                 replacementModeAndroid = android.replacementModeAndroid,
                 subscriptionOffers = android.subscriptionOffers,
+                subscriptionProductReplacementParams = android.subscriptionProductReplacementParams,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
