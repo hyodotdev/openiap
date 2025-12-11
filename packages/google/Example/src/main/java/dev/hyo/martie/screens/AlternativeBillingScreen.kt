@@ -35,8 +35,19 @@ import dev.hyo.openiap.PurchaseInput
 import dev.hyo.openiap.AlternativeBillingMode
 import dev.hyo.openiap.AlternativeBillingModeAndroid
 import dev.hyo.openiap.InitConnectionConfig
+import dev.hyo.openiap.BillingProgramAndroid
+import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
+import dev.hyo.openiap.ExternalLinkLaunchModeAndroid
+import dev.hyo.openiap.ExternalLinkTypeAndroid
 import dev.hyo.martie.util.findActivity
 import kotlinx.coroutines.delay
+
+// Billing mode options including new 8.2.0+ Billing Programs
+private enum class BillingModeOption {
+    ALTERNATIVE_ONLY,       // Legacy 6.2+ API
+    USER_CHOICE,           // Legacy 7.0+ API
+    BILLING_PROGRAMS       // New 8.2.0+ API (recommended)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,8 +59,9 @@ fun AlternativeBillingScreen(navController: NavController) {
     // Platform detection (runtime detection)
     val isHorizon = remember { dev.hyo.martie.IapConstants.isHorizonOS() }
 
-    var selectedMode by remember { mutableStateOf<AlternativeBillingMode>(AlternativeBillingMode.ALTERNATIVE_ONLY) }
+    var selectedMode by remember { mutableStateOf(BillingModeOption.BILLING_PROGRAMS) }
     var isModeDropdownExpanded by remember { mutableStateOf(false) }
+    var selectedBillingProgram by remember { mutableStateOf(BillingProgramAndroid.ExternalOffer) }
 
     // Initialize store - use default constructor for auto-detection (compatible with both Play and Horizon)
     val iapStore = remember {
@@ -63,7 +75,7 @@ fun AlternativeBillingScreen(navController: NavController) {
 
     // Set up User Choice Billing listener when mode changes
     LaunchedEffect(selectedMode) {
-        if (selectedMode == AlternativeBillingMode.USER_CHOICE) {
+        if (selectedMode == BillingModeOption.USER_CHOICE) {
             iapStore.addUserChoiceBillingListener { details ->
                 android.util.Log.d("UserChoiceEvent", "=== User Choice Billing Event ===")
                 android.util.Log.d("UserChoiceEvent", "External Token: ${details.externalTransactionToken}")
@@ -112,7 +124,7 @@ fun AlternativeBillingScreen(navController: NavController) {
     }
 
     // Initialize connection when mode changes
-    LaunchedEffect(selectedMode) {
+    LaunchedEffect(selectedMode, selectedBillingProgram) {
         try {
             android.util.Log.d("AlternativeBillingScreen", "Initializing with mode: $selectedMode")
 
@@ -126,13 +138,18 @@ fun AlternativeBillingScreen(navController: NavController) {
 
             // Create config based on selected mode
             val config = when (selectedMode) {
-                AlternativeBillingMode.USER_CHOICE -> InitConnectionConfig(
+                BillingModeOption.USER_CHOICE -> InitConnectionConfig(
                     alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
                 )
-                AlternativeBillingMode.ALTERNATIVE_ONLY -> InitConnectionConfig(
+                BillingModeOption.ALTERNATIVE_ONLY -> InitConnectionConfig(
                     alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
                 )
-                else -> null
+                BillingModeOption.BILLING_PROGRAMS -> {
+                    // For 8.2.0+ Billing Programs, enable the program before connection
+                    android.util.Log.d("AlternativeBillingScreen", "Enabling billing program: $selectedBillingProgram")
+                    iapStore.enableBillingProgram(selectedBillingProgram)
+                    null // No special config needed, program is enabled separately
+                }
             }
 
             android.util.Log.d("AlternativeBillingScreen", "Reconnecting with config: $config")
@@ -255,9 +272,9 @@ fun AlternativeBillingScreen(navController: NavController) {
                         ) {
                             OutlinedTextField(
                                 value = when (selectedMode) {
-                                    AlternativeBillingMode.ALTERNATIVE_ONLY -> "Alternative Billing Only"
-                                    AlternativeBillingMode.USER_CHOICE -> "User Choice Billing"
-                                    else -> "None"
+                                    BillingModeOption.ALTERNATIVE_ONLY -> "Alternative Billing Only (Legacy)"
+                                    BillingModeOption.USER_CHOICE -> "User Choice Billing (Legacy)"
+                                    BillingModeOption.BILLING_PROGRAMS -> "Billing Programs (8.2.0+)"
                                 },
                                 onValueChange = {},
                                 readOnly = true,
@@ -275,10 +292,39 @@ fun AlternativeBillingScreen(navController: NavController) {
                                 onDismissRequest = { isModeDropdownExpanded = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Alternative Billing Only") },
+                                    text = {
+                                        Column {
+                                            Text("Billing Programs (8.2.0+)")
+                                            Text(
+                                                "Recommended - New API",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = AppColors.success
+                                            )
+                                        }
+                                    },
                                     onClick = {
                                         selectedProduct = null
-                                        selectedMode = AlternativeBillingMode.ALTERNATIVE_ONLY
+                                        selectedMode = BillingModeOption.BILLING_PROGRAMS
+                                        isModeDropdownExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.success)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text("Alternative Billing Only")
+                                            Text(
+                                                "Legacy 6.2+ API",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = AppColors.textSecondary
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedProduct = null
+                                        selectedMode = BillingModeOption.ALTERNATIVE_ONLY
                                         isModeDropdownExpanded = false
                                     },
                                     leadingIcon = {
@@ -286,15 +332,49 @@ fun AlternativeBillingScreen(navController: NavController) {
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("User Choice Billing") },
+                                    text = {
+                                        Column {
+                                            Text("User Choice Billing")
+                                            Text(
+                                                "Legacy 7.0+ API",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = AppColors.textSecondary
+                                            )
+                                        }
+                                    },
                                     onClick = {
                                         selectedProduct = null
-                                        selectedMode = AlternativeBillingMode.USER_CHOICE
+                                        selectedMode = BillingModeOption.USER_CHOICE
                                         isModeDropdownExpanded = false
                                     },
                                     leadingIcon = {
                                         Icon(Icons.Default.Person, contentDescription = null)
                                     }
+                                )
+                            }
+                        }
+
+                        // Billing Program Type selector (only for BILLING_PROGRAMS mode)
+                        if (selectedMode == BillingModeOption.BILLING_PROGRAMS) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "Program Type",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(top = 8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = selectedBillingProgram == BillingProgramAndroid.ExternalOffer,
+                                    onClick = { selectedBillingProgram = BillingProgramAndroid.ExternalOffer },
+                                    label = { Text("External Offer") }
+                                )
+                                FilterChip(
+                                    selected = selectedBillingProgram == BillingProgramAndroid.ExternalContentLink,
+                                    onClick = { selectedBillingProgram = BillingProgramAndroid.ExternalContentLink },
+                                    label = { Text("External Content Link") }
                                 )
                             }
                         }
@@ -320,42 +400,61 @@ fun AlternativeBillingScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                Icons.Default.Info,
+                                if (selectedMode == BillingModeOption.BILLING_PROGRAMS) Icons.Default.Star else Icons.Default.Info,
                                 contentDescription = null,
-                                tint = AppColors.warning
+                                tint = if (selectedMode == BillingModeOption.BILLING_PROGRAMS) AppColors.success else AppColors.warning
                             )
                             Text(
-                                if (selectedMode == AlternativeBillingMode.ALTERNATIVE_ONLY)
-                                    "Alternative Billing Only"
-                                else
-                                    "User Choice Billing",
+                                when (selectedMode) {
+                                    BillingModeOption.BILLING_PROGRAMS -> "Billing Programs (8.2.0+)"
+                                    BillingModeOption.ALTERNATIVE_ONLY -> "Alternative Billing Only (Legacy)"
+                                    BillingModeOption.USER_CHOICE -> "User Choice Billing (Legacy)"
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
 
                         Text(
-                            if (selectedMode == AlternativeBillingMode.ALTERNATIVE_ONLY) {
-                                "Alternative Billing Only Mode:\n\n" +
-                                "• Users CANNOT use Google Play billing\n" +
-                                "• Only your payment system is available\n" +
-                                "• Requires manual 3-step flow:\n" +
-                                "  1. Check availability\n" +
-                                "  2. Show info dialog\n" +
-                                "  3. Process payment → Create token\n\n" +
-                                "• No onPurchaseUpdated callback\n" +
-                                "• Must report to Google within 24h"
-                            } else {
-                                "User Choice Billing Mode:\n\n" +
-                                "• Users CAN choose between:\n" +
-                                "  - Google Play (30% fee)\n" +
-                                "  - Your payment system (lower fee)\n" +
-                                "• Google shows selection dialog automatically\n" +
-                                "• If user selects Google Play:\n" +
-                                "  → onPurchaseUpdated callback\n" +
-                                "• If user selects alternative:\n" +
-                                "  → UserChoiceBillingListener callback\n" +
-                                "  → Process payment → Report to Google"
+                            when (selectedMode) {
+                                BillingModeOption.BILLING_PROGRAMS -> {
+                                    "Billing Programs API (8.2.0+):\n\n" +
+                                    "✨ NEW: Recommended approach\n\n" +
+                                    "• Program Types:\n" +
+                                    "  - ExternalOffer: Alternative payment\n" +
+                                    "  - ExternalContentLink: Reader/music apps\n\n" +
+                                    "• Flow:\n" +
+                                    "  1. enableBillingProgram() before init\n" +
+                                    "  2. isBillingProgramAvailable() check\n" +
+                                    "  3. launchExternalLink() to browser\n" +
+                                    "  4. Process payment in your system\n" +
+                                    "  5. createBillingProgramReportingDetails()\n\n" +
+                                    "• Must report token to Google within 24h"
+                                }
+                                BillingModeOption.ALTERNATIVE_ONLY -> {
+                                    "Alternative Billing Only Mode (Legacy):\n\n" +
+                                    "⚠️ Deprecated in 8.2.0+\n\n" +
+                                    "• Users CANNOT use Google Play billing\n" +
+                                    "• Only your payment system is available\n" +
+                                    "• Requires manual 3-step flow:\n" +
+                                    "  1. Check availability\n" +
+                                    "  2. Show info dialog\n" +
+                                    "  3. Process payment → Create token\n\n" +
+                                    "• No onPurchaseUpdated callback\n" +
+                                    "• Must report to Google within 24h"
+                                }
+                                BillingModeOption.USER_CHOICE -> {
+                                    "User Choice Billing Mode (Legacy):\n\n" +
+                                    "• Users CAN choose between:\n" +
+                                    "  - Google Play (30% fee)\n" +
+                                    "  - Your payment system (lower fee)\n" +
+                                    "• Google shows selection dialog automatically\n" +
+                                    "• If user selects Google Play:\n" +
+                                    "  → onPurchaseUpdated callback\n" +
+                                    "• If user selects alternative:\n" +
+                                    "  → UserChoiceBillingListener callback\n" +
+                                    "  → Process payment → Report to Google"
+                                }
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = AppColors.textSecondary
@@ -394,7 +493,11 @@ fun AlternativeBillingScreen(navController: NavController) {
                             )
                             Text(
                                 if (connectionStatus) {
-                                    "Connected (${if (selectedMode == AlternativeBillingMode.ALTERNATIVE_ONLY) "Alternative Only" else "User Choice"})"
+                                    "Connected (${when (selectedMode) {
+                                        BillingModeOption.BILLING_PROGRAMS -> "Billing Programs"
+                                        BillingModeOption.ALTERNATIVE_ONLY -> "Alternative Only"
+                                        BillingModeOption.USER_CHOICE -> "User Choice"
+                                    }})"
                                 } else "Disconnected",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AppColors.textSecondary
@@ -515,113 +618,197 @@ fun AlternativeBillingScreen(navController: NavController) {
                         }
 
                         // Show button based on selected mode
-                        if (selectedMode == AlternativeBillingMode.ALTERNATIVE_ONLY) {
-                            // Alternative Billing Only Button
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        try {
-                                            iapStore.setActivity(activity)
+                        when (selectedMode) {
+                            BillingModeOption.BILLING_PROGRAMS -> {
+                                // Billing Programs (8.2.0+) Button
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            try {
+                                                iapStore.setActivity(activity)
 
-                                            // Step 1: Check availability
-                                            val isAvailable = iapStore.checkAlternativeBillingAvailability()
-                                            if (!isAvailable) {
-                                                iapStore.postStatusMessage(
-                                                    "Alternative billing not available",
-                                                    PurchaseResultStatus.Error
+                                                // Step 1: Check availability
+                                                val availabilityResult = iapStore.isBillingProgramAvailable(selectedBillingProgram)
+                                                if (!availabilityResult.isAvailable) {
+                                                    iapStore.postStatusMessage(
+                                                        "Billing program not available: $selectedBillingProgram\n\nPossible causes:\n• Requires Billing Library 8.2.0+\n• Not configured in Play Console\n• Region restrictions",
+                                                        PurchaseResultStatus.Error
+                                                    )
+                                                    return@launch
+                                                }
+
+                                                // Step 2: Launch external link
+                                                val launched = iapStore.launchExternalLink(
+                                                    activity!!,
+                                                    LaunchExternalLinkParamsAndroid(
+                                                        billingProgram = selectedBillingProgram,
+                                                        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                                                        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+                                                        linkUri = "https://example.com/checkout?product=${selectedProduct!!.id}"
+                                                    )
                                                 )
-                                                return@launch
-                                            }
 
-                                            // Step 2: Show information dialog
-                                            val dialogAccepted = iapStore.showAlternativeBillingInformationDialog(activity!!)
-                                            if (!dialogAccepted) {
+                                                if (!launched) {
+                                                    iapStore.postStatusMessage(
+                                                        "Failed to launch external link",
+                                                        PurchaseResultStatus.Error
+                                                    )
+                                                    return@launch
+                                                }
+
+                                                // Step 3: Process payment (DEMO - not implemented)
+                                                android.util.Log.d("BillingPrograms", "⚠️ Payment processing not implemented - this is a demo")
+
+                                                // Step 4: Create reporting details
+                                                val reportingDetails = iapStore.createBillingProgramReportingDetails(selectedBillingProgram)
                                                 iapStore.postStatusMessage(
-                                                    "User canceled",
-                                                    PurchaseResultStatus.Info
-                                                )
-                                                return@launch
-                                            }
-
-                                            // Step 2.5: Process payment (DEMO - not implemented)
-                                            android.util.Log.d("AlternativeBilling", "⚠️ Payment processing not implemented")
-
-                                            // Step 3: Create token
-                                            val token = iapStore.createAlternativeBillingReportingToken()
-                                            if (token != null) {
-                                                iapStore.postStatusMessage(
-                                                    "Alternative billing completed (DEMO)\nToken: ${token.take(20)}...\n⚠️ Backend reporting required",
+                                                    "✅ Billing Programs flow completed (DEMO)\n\n" +
+                                                    "Program: ${reportingDetails.billingProgram}\n" +
+                                                    "Token: ${reportingDetails.externalTransactionToken.take(20)}...\n\n" +
+                                                    "⚠️ Next steps:\n" +
+                                                    "1. Process payment in your system\n" +
+                                                    "2. Report token to Google within 24h",
                                                     PurchaseResultStatus.Info,
                                                     selectedProduct!!.id
                                                 )
-                                            } else {
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("BillingPrograms", "Error: ${e.message}", e)
                                                 iapStore.postStatusMessage(
-                                                    "Failed to create reporting token",
+                                                    "Error: ${e.message}",
                                                     PurchaseResultStatus.Error
                                                 )
                                             }
-                                        } catch (e: Exception) {
-                                            // Error handled by store
                                         }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !status.isLoading && connectionStatus,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = AppColors.primary
-                                )
-                            ) {
-                                Icon(
-                                    Icons.Default.ShoppingCart,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("Buy (Alternative Billing Only)")
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !status.isLoading && connectionStatus,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppColors.success
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Star,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Buy (Billing Programs 8.2.0+)")
+                                }
                             }
-                        } else {
-                            // User Choice Button
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        try {
-                                            iapStore.setActivity(activity)
 
-                                            // User Choice: Just call requestPurchase
-                                            // Google will show selection dialog automatically
-                                            val props = RequestPurchaseProps(
-                                                request = RequestPurchaseProps.Request.Purchase(
-                                                    RequestPurchasePropsByPlatforms(
-                                                        android = RequestPurchaseAndroidProps(
-                                                            skus = listOf(selectedProduct!!.id)
-                                                        )
+                            BillingModeOption.ALTERNATIVE_ONLY -> {
+                                // Alternative Billing Only Button (Legacy)
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            try {
+                                                iapStore.setActivity(activity)
+
+                                                // Step 1: Check availability
+                                                @Suppress("DEPRECATION")
+                                                val isAvailable = iapStore.checkAlternativeBillingAvailability()
+                                                if (!isAvailable) {
+                                                    iapStore.postStatusMessage(
+                                                        "Alternative billing not available",
+                                                        PurchaseResultStatus.Error
                                                     )
-                                                ),
-                                                type = ProductQueryType.InApp
-                                            )
+                                                    return@launch
+                                                }
 
-                                            iapStore.requestPurchase(props)
+                                                // Step 2: Show information dialog
+                                                @Suppress("DEPRECATION")
+                                                val dialogAccepted = iapStore.showAlternativeBillingInformationDialog(activity!!)
+                                                if (!dialogAccepted) {
+                                                    iapStore.postStatusMessage(
+                                                        "User canceled",
+                                                        PurchaseResultStatus.Info
+                                                    )
+                                                    return@launch
+                                                }
 
-                                            // If user selects Google Play → onPurchaseUpdated callback
-                                            // If user selects alternative → UserChoiceBillingListener callback
-                                        } catch (e: Exception) {
-                                            // Error handled by store
+                                                // Step 2.5: Process payment (DEMO - not implemented)
+                                                android.util.Log.d("AlternativeBilling", "⚠️ Payment processing not implemented")
+
+                                                // Step 3: Create token
+                                                @Suppress("DEPRECATION")
+                                                val token = iapStore.createAlternativeBillingReportingToken()
+                                                if (token != null) {
+                                                    iapStore.postStatusMessage(
+                                                        "Alternative billing completed (DEMO)\nToken: ${token.take(20)}...\n⚠️ Backend reporting required",
+                                                        PurchaseResultStatus.Info,
+                                                        selectedProduct!!.id
+                                                    )
+                                                } else {
+                                                    iapStore.postStatusMessage(
+                                                        "Failed to create reporting token",
+                                                        PurchaseResultStatus.Error
+                                                    )
+                                                }
+                                            } catch (e: Exception) {
+                                                // Error handled by store
+                                            }
                                         }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !status.isLoading && connectionStatus,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = AppColors.secondary
-                                )
-                            ) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("Buy (User Choice)")
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !status.isLoading && connectionStatus,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppColors.primary
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ShoppingCart,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Buy (Legacy Alternative Billing)")
+                                }
+                            }
+
+                            BillingModeOption.USER_CHOICE -> {
+                                // User Choice Button (Legacy)
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            try {
+                                                iapStore.setActivity(activity)
+
+                                                // User Choice: Just call requestPurchase
+                                                // Google will show selection dialog automatically
+                                                val props = RequestPurchaseProps(
+                                                    request = RequestPurchaseProps.Request.Purchase(
+                                                        RequestPurchasePropsByPlatforms(
+                                                            android = RequestPurchaseAndroidProps(
+                                                                skus = listOf(selectedProduct!!.id)
+                                                            )
+                                                        )
+                                                    ),
+                                                    type = ProductQueryType.InApp
+                                                )
+
+                                                iapStore.requestPurchase(props)
+
+                                                // If user selects Google Play → onPurchaseUpdated callback
+                                                // If user selects alternative → UserChoiceBillingListener callback
+                                            } catch (e: Exception) {
+                                                // Error handled by store
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !status.isLoading && connectionStatus,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppColors.secondary
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Buy (Legacy User Choice)")
+                                }
                             }
                         }
                     }

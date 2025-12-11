@@ -463,6 +463,26 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean =
         module.launchExternalLink(activity, params)
 
+    /**
+     * Enable a billing program for external content links or external offers (8.2.0+).
+     * This should be called BEFORE initConnection to configure the BillingClient.
+     *
+     * @param program The billing program to enable (ExternalOffer or ExternalContentLink)
+     */
+    fun enableBillingProgram(program: BillingProgramAndroid) {
+        // Use reflection to call enableBillingProgram on the module
+        // This is needed because the method is only available in the Play flavor
+        try {
+            val method = module.javaClass.getMethod("enableBillingProgram", BillingProgramAndroid::class.java)
+            method.invoke(module, program)
+            OpenIapLog.d("Billing program enabled via store: $program", "OpenIapStore")
+        } catch (e: NoSuchMethodException) {
+            OpenIapLog.w("enableBillingProgram not available (Horizon flavor or older library)", "OpenIapStore")
+        } catch (e: Exception) {
+            OpenIapLog.e("Failed to enable billing program: ${e.message}", e, "OpenIapStore")
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Event listeners passthrough
     // -------------------------------------------------------------------------
