@@ -104,6 +104,102 @@ The following APIs are deprecated in favor of the new Billing Programs API (8.2.
 
 ---
 
+## [openiap-gql 1.3.1 / openiap-google 1.3.11] - 2025-12-10
+
+### Added
+
+#### One-Time Purchase Discount Offers (Google Play Billing 7.0+)
+
+- **`oneTimePurchaseOfferDetailsAndroid`**: Changed from single object to array to support multiple discount offers
+- **`DiscountDisplayInfoAndroid`**: Discount display information
+  - `discountPercent`: Percentage off
+  - `discountAmount`: Discount amount details
+- **`DiscountAmountAndroid`**: Discount amount with currency
+- **`ValidTimeWindowAndroid`**: Start and end time for limited-time offers
+- **`LimitedQuantityInfoAndroid`**: Limited quantity information
+- **`RentalDetailsAndroid`**: Rental product metadata
+
+#### Google Play Billing 8.1.0 Support
+
+- **`PreorderDetailsAndroid`**: Pre-order product details
+  - `preorderPresaleEndTimeMillis`: Presale end time
+  - `preorderReleaseTimeMillis`: Release time
+- **`isSuspendedAndroid`**: Detect suspended subscriptions due to payment failures
+
+### Changed
+
+- **Upgraded Google Play Billing Library**: 8.0.0 → 8.1.0
+- **Increased minSdk**: 21 → 23 (Android 6.0)
+- **Upgraded Kotlin**: 2.0.21 → 2.2.0
+
+### Breaking Changes
+
+- **`oneTimePurchaseOfferDetailsAndroid`** type changed from single object to array
+  - Before: `product.oneTimePurchaseOfferDetailsAndroid?.formattedPrice`
+  - After: `product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()?.formattedPrice`
+
+### Documentation
+
+- Added comprehensive "Discounts (Android)" documentation
+- Updated types page with new Android fields
+
+---
+
+## [openiap-gql 1.3.0 / openiap-google 1.3.0 / openiap-apple 1.3.0] - 2025-12-08
+
+### Added
+
+- **`IapStore` enum**: Unified store identification
+  - `Unknown`: Unknown store
+  - `Apple`: Apple App Store
+  - `Google`: Google Play Store
+  - `Horizon`: Meta Horizon Store
+- **`store` field**: Added to `PurchaseCommon` interface for consistent store identification
+- **`verifyPurchaseWithProvider()`**: Server-side purchase verification API
+
+### Changed
+
+- **Renamed request props**: `ios`/`android` → `apple`/`google` in request payloads
+  - `RequestPurchasePropsByPlatforms`: `ios` → `apple`, `android` → `google`
+  - `RequestSubscriptionPropsByPlatforms`: `ios` → `apple`, `android` → `google`
+
+### Deprecated
+
+- **`platform` field**: Use `store` field instead
+- **`ios`/`android` props**: Use `apple`/`google` props in request payloads
+
+### Migration Guide
+
+**Request props migration:**
+```typescript
+// Before (deprecated)
+requestPurchase({
+  request: {
+    ios: { sku: 'product_id' },
+    android: { skus: ['product_id'] }
+  }
+});
+
+// After (recommended)
+requestPurchase({
+  request: {
+    apple: { sku: 'product_id' },
+    google: { skus: ['product_id'] }
+  }
+});
+```
+
+**Platform field migration:**
+```typescript
+// Before (deprecated)
+if (purchase.platform === 'ios') { ... }
+
+// After (recommended)
+if (purchase.store === 'Apple') { ... }
+```
+
+---
+
 ## [1.2.2] - 2025-10-16
 
 ### Added
