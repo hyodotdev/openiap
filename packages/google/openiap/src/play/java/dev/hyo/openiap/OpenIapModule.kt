@@ -1134,9 +1134,9 @@ class OpenIapModule(
         purchaseUpdated = purchaseUpdated
     )
 
-    init {
-        buildBillingClient()
-    }
+    // BillingClient is built lazily in initBillingClient() so that
+    // alternativeBillingMode and enabledBillingPrograms can be configured
+    // before the first client instance is created.
 
     suspend fun getStorefront() = withContext(Dispatchers.IO) {
         val client = billingClient ?: return@withContext ""

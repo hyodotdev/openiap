@@ -725,8 +725,17 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                 }
 
                                                 // Step 2: Show information dialog
+                                                val currentActivity = activity
+                                                if (currentActivity == null) {
+                                                    iapStore.postStatusMessage(
+                                                        "Activity not available",
+                                                        PurchaseResultStatus.Error
+                                                    )
+                                                    return@launch
+                                                }
+
                                                 @Suppress("DEPRECATION")
-                                                val dialogAccepted = iapStore.showAlternativeBillingInformationDialog(activity!!)
+                                                val dialogAccepted = iapStore.showAlternativeBillingInformationDialog(currentActivity)
                                                 if (!dialogAccepted) {
                                                     iapStore.postStatusMessage(
                                                         "User canceled",
