@@ -2426,8 +2426,8 @@ Future<void> handleExternalPurchase(String externalUrl) async {
           verification.
         </p>
 
-        <AnchorLink id="purchase-verification-props" level="h3">
-          PurchaseVerificationProps
+        <AnchorLink id="verify-purchase-props" level="h3">
+          VerifyPurchaseProps
         </AnchorLink>
         <table className="doc-table">
           <thead>
@@ -2439,35 +2439,49 @@ Future<void> handleExternalPurchase(String externalUrl) async {
           <tbody>
             <tr>
               <td>
+                <code>apple</code>
+              </td>
+              <td>
+                Apple App Store verification options. Contains:{' '}
                 <code>sku</code>
               </td>
-              <td>Product identifier to verify</td>
             </tr>
             <tr>
               <td>
-                <code>androidOptions</code>
+                <code>google</code>
               </td>
               <td>
-                Android Play Developer API options. Contains:{' '}
-                <code>packageName</code>, <code>productToken</code>,{' '}
-                <code>accessToken</code>, <code>isSub</code>
+                Google Play verification options. Contains:{' '}
+                <code>sku</code>, <code>packageName</code>,{' '}
+                <code>purchaseToken</code>, <code>accessToken</code>,{' '}
+                <code>isSub</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>horizon</code>
+              </td>
+              <td>
+                Meta Horizon (Quest) verification options. Contains:{' '}
+                <code>sku</code>, <code>userId</code>, <code>accessToken</code>
               </td>
             </tr>
           </tbody>
         </table>
 
-        <AnchorLink id="purchase-verification-result" level="h3">
-          PurchaseVerificationResult
+        <AnchorLink id="verify-purchase-result" level="h3">
+          VerifyPurchaseResult
         </AnchorLink>
         <p>
-          Union of <code>PurchaseVerificationResultIOS</code> and{' '}
-          <code>PurchaseVerificationResultAndroid</code>.
+          Union of <code>VerifyPurchaseResultIOS</code>,{' '}
+          <code>VerifyPurchaseResultAndroid</code>, and{' '}
+          <code>VerifyPurchaseResultHorizon</code>.
         </p>
         <PlatformTabs>
           {{
             ios: (
               <>
-                <h4>PurchaseVerificationResultIOS</h4>
+                <h4>VerifyPurchaseResultIOS</h4>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -2506,7 +2520,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
             ),
             android: (
               <>
-                <h4>PurchaseVerificationResultAndroid</h4>
+                <h4>VerifyPurchaseResultAndroid (Google Play)</h4>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -2598,6 +2612,35 @@ Future<void> handleExternalPurchase(String externalUrl) async {
                         <code>testTransaction</code>
                       </td>
                       <td>True if test/sandbox transaction</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h4 style={{ marginTop: '2rem' }}>
+                  VerifyPurchaseResultHorizon (Meta Quest)
+                </h4>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>success</code>
+                      </td>
+                      <td>Whether the entitlement verification succeeded</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>grantTime</code>
+                      </td>
+                      <td>
+                        Unix timestamp when the entitlement was granted (null if
+                        verification failed)
+                      </td>
                     </tr>
                   </tbody>
                 </table>
