@@ -92,7 +92,7 @@ public extension OpenIapModuleProtocol {
         throw PurchaseError(
             code: .featureNotSupported,
             message: "Expected iOS validation result",
-            productId: props.sku
+            productId: props.apple?.sku
         )
     }
 
