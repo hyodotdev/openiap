@@ -8,12 +8,12 @@ function Notes() {
   return (
     <div className="doc-page">
       <SEO
-        title="Updates"
+        title="Notes"
         description="Important changes and deprecations in IAP libraries and platforms - API changes, breaking changes, validateReceipt to verifyPurchase migration, and guides."
         path="/docs/updates/notes"
         keywords="IAP updates, validateReceipt, verifyPurchase, receipt validation, purchase verification, migration guide"
       />
-      <h1>Updates</h1>
+      <h1>Notes</h1>
       <p>Important changes and deprecations in IAP libraries and platforms.</p>
 
       <section>
