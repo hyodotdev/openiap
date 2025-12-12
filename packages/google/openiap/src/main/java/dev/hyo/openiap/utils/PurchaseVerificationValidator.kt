@@ -49,10 +49,11 @@ suspend fun verifyPurchaseWithGooglePlay(
         )
     }
 
+    val sku = googleOptions.sku
     val typeSegment = if (isSub == true) "subscriptions" else "products"
     val baseUrl = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
     val url = "$baseUrl/${encodePathSegment(packageName)}/purchases/$typeSegment/" +
-        "${encodePathSegment(props.sku)}/tokens/${encodePathSegment(purchaseToken)}"
+        "${encodePathSegment(sku)}/tokens/${encodePathSegment(purchaseToken)}"
 
     val connection = connectionFactory(url).apply {
         requestMethod = "GET"

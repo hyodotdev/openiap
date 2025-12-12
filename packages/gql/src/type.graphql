@@ -251,10 +251,6 @@ Platform-specific purchase verification parameters.
 """
 input VerifyPurchaseProps {
   """
-  Product SKU to validate
-  """
-  sku: String!
-  """
   Apple App Store verification parameters.
   """
   apple: VerifyPurchaseAppleOptions

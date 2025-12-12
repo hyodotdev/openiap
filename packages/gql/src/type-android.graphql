@@ -378,6 +378,10 @@ Used for server-side receipt validation via Google Play Developer API.
 """
 input VerifyPurchaseGoogleOptions {
   """
+  Product SKU to validate
+  """
+  sku: String!
+  """
   Android package name (e.g., com.example.app)
   """
   packageName: String!
