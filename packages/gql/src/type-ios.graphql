@@ -227,6 +227,20 @@ input DiscountOfferInputIOS {
   timestamp: Float!
 }
 
+"""
+Apple App Store verification parameters.
+Used for server-side receipt validation via App Store Server API.
+
+⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
+"""
+input VerifyPurchaseAppleOptions {
+  """
+  The JWS (JSON Web Signature) representation of the transaction.
+  ⚠️ Sensitive: Do not log this value.
+  """
+  jws: String!
+}
+
 type VerifyPurchaseResultIOS {
   """
   Whether the receipt is valid

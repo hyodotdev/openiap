@@ -2,12 +2,14 @@ package dev.hyo.openiap
 
 import com.google.gson.Gson
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithHorizon
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
-import dev.hyo.openiap.VerifyPurchaseAndroidOptions
+import dev.hyo.openiap.VerifyPurchaseGoogleOptions
+import dev.hyo.openiap.VerifyPurchaseHorizonOptions
 import dev.hyo.openiap.VerifyPurchaseProps
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -23,28 +25,70 @@ import org.junit.Test
 class PurchaseVerificationValidatorTest {
 
     @Test
-    fun `verifyPurchaseWithGooglePlay throws without androidOptions`() = runTest {
-        val props = VerifyPurchaseProps(androidOptions = null, sku = "product.sku")
+    fun `verifyPurchaseWithGooglePlay throws without google options`() = runTest {
+        val props = VerifyPurchaseProps(sku = "product.sku")
 
         try {
             verifyPurchaseWithGooglePlay(props, "TEST_TAG") { _ ->
                 throw AssertionError("Connection should not be created when options are missing")
             }
-            throw AssertionError("Expected IllegalArgumentException for missing androidOptions")
+            throw AssertionError("Expected IllegalArgumentException for missing google options")
         } catch (expected: IllegalArgumentException) {
             // Expected path
         }
     }
 
     @Test
-    fun `verifyPurchaseWithGooglePlay parses successful response`() = runTest {
-        val options = VerifyPurchaseAndroidOptions(
+    fun `verifyPurchaseWithGooglePlay works with new google field`() = runTest {
+        val googleOptions = VerifyPurchaseGoogleOptions(
             accessToken = "token",
             isSub = true,
             packageName = "dev.hyo.app",
-            productToken = "purchaseToken"
+            purchaseToken = "purchaseToken"
         )
-        val props = VerifyPurchaseProps(androidOptions = options, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
+        val body = """
+            {
+              "autoRenewing": true,
+              "betaProduct": false,
+              "cancelDate": null,
+              "cancelReason": null,
+              "deferredDate": null,
+              "deferredSku": null,
+              "freeTrialEndDate": 1.0,
+              "gracePeriodEndDate": 2.0,
+              "parentProductId": "parent",
+              "productId": "premium_monthly",
+              "productType": "subs",
+              "purchaseDate": 3.0,
+              "quantity": 1,
+              "receiptId": "rid-123",
+              "renewalDate": 4.0,
+              "term": "P1M",
+              "termSku": "plan_monthly",
+              "testTransaction": false
+            }
+        """.trimIndent()
+
+        val result = verifyPurchaseWithGooglePlay(
+            props,
+            "TEST_TAG"
+        ) { _ -> FakeHttpURLConnection(200, body) }
+
+        assertEquals("premium_monthly", result.productId)
+        assertEquals("plan_monthly", result.termSku)
+        assertEquals(true, result.autoRenewing)
+    }
+
+    @Test
+    fun `verifyPurchaseWithGooglePlay parses successful response`() = runTest {
+        val googleOptions = VerifyPurchaseGoogleOptions(
+            accessToken = "token",
+            isSub = true,
+            packageName = "dev.hyo.app",
+            purchaseToken = "purchaseToken"
+        )
+        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
         val body = """
             {
               "autoRenewing": true,
@@ -82,13 +126,13 @@ class PurchaseVerificationValidatorTest {
 
     @Test
     fun `verifyPurchaseWithGooglePlay wraps non-2xx as InvalidPurchaseVerification`() = runTest {
-        val options = VerifyPurchaseAndroidOptions(
+        val googleOptions = VerifyPurchaseGoogleOptions(
             accessToken = "token",
             isSub = false,
             packageName = "dev.hyo.app",
-            productToken = "purchaseToken"
+            purchaseToken = "purchaseToken"
         )
-        val props = VerifyPurchaseProps(androidOptions = options, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
 
         try {
             verifyPurchaseWithGooglePlay(
@@ -219,6 +263,63 @@ class PurchaseVerificationValidatorTest {
             assertTrue(true)
         }
     }
+
+    // ===== Horizon verification tests =====
+
+    @Test
+    fun `verifyPurchaseWithHorizon throws without horizon options`() = runTest {
+        val props = VerifyPurchaseProps(sku = "50_gems")
+
+        try {
+            verifyPurchaseWithHorizon(props, "test-app-id", "TEST") { _ ->
+                throw AssertionError("Connection should not be created when horizon options are missing")
+            }
+            throw AssertionError("Expected IllegalArgumentException for missing horizon options")
+        } catch (expected: IllegalArgumentException) {
+            // Expected path
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithHorizon parses successful response`() = runTest {
+        val horizonOptions = VerifyPurchaseHorizonOptions(
+            sku = "50_gems",
+            userId = "123456789",
+            accessToken = "OC|app_id|app_secret"
+        )
+        val props = VerifyPurchaseProps(horizon = horizonOptions, sku = "50_gems")
+
+        val result = verifyPurchaseWithHorizon(
+            props,
+            "test-app-id",
+            "TEST"
+        ) { _ -> FakeHttpURLConnection(200, """{"success":true,"grant_time":1744148687}""") }
+
+        assertEquals(true, result.success)
+        assertEquals(1744148687.0, result.grantTime)
+    }
+
+    @Test
+    fun `verifyPurchaseWithHorizon throws on failure response`() = runTest {
+        val horizonOptions = VerifyPurchaseHorizonOptions(
+            sku = "50_gems",
+            userId = "123456789",
+            accessToken = "OC|app_id|app_secret"
+        )
+        val props = VerifyPurchaseProps(horizon = horizonOptions, sku = "50_gems")
+
+        try {
+            verifyPurchaseWithHorizon(
+                props,
+                "test-app-id",
+                "TEST"
+            ) { _ -> FakeHttpURLConnection(400, """{"error":"invalid_user"}""") }
+            throw AssertionError("Expected InvalidPurchaseVerification for non-2xx response")
+        } catch (error: OpenIapError.InvalidPurchaseVerification) {
+            assertTrue(true)
+        }
+    }
+
 }
 
 private class FakeHttpURLConnection(

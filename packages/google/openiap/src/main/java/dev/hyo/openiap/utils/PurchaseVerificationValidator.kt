@@ -10,11 +10,13 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseResultAndroid
+import dev.hyo.openiap.VerifyPurchaseResultHorizon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 private const val DEFAULT_IAPKIT_ENDPOINT = "https://api.iapkit.com/v1/purchase/verify"
 private val gson = Gson()
@@ -23,34 +25,39 @@ private fun openConnection(url: String): HttpURLConnection {
     return URL(url).openConnection() as HttpURLConnection
 }
 
+private fun encodePathSegment(value: String): String =
+    URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")
+
 suspend fun verifyPurchaseWithGooglePlay(
     props: VerifyPurchaseProps,
     tag: String,
     connectionFactory: (String) -> HttpURLConnection = ::openConnection
 ): VerifyPurchaseResultAndroid = withContext(Dispatchers.IO) {
-    val options = props.androidOptions
+    val googleOptions = props.google
         ?: throw IllegalArgumentException(
-            "Android validation requires packageName, productToken, and accessToken"
+            "Google Play validation requires google options (packageName, purchaseToken, accessToken)"
         )
 
-    if (
-        options.packageName.isBlank() ||
-        options.productToken.isBlank() ||
-        options.accessToken.isBlank()
-    ) {
+    val packageName = googleOptions.packageName
+    val purchaseToken = googleOptions.purchaseToken
+    val accessToken = googleOptions.accessToken
+    val isSub = googleOptions.isSub
+
+    if (packageName.isBlank() || purchaseToken.isBlank() || accessToken.isBlank()) {
         throw IllegalArgumentException(
-            "Android validation requires packageName, productToken, and accessToken"
+            "Google Play validation requires packageName, purchaseToken, and accessToken"
         )
     }
 
-    val typeSegment = if (options.isSub == true) "subscriptions" else "products"
+    val typeSegment = if (isSub == true) "subscriptions" else "products"
     val baseUrl = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
-    val url = "$baseUrl/${options.packageName}/purchases/$typeSegment/${props.sku}/tokens/${options.productToken}"
+    val url = "$baseUrl/${encodePathSegment(packageName)}/purchases/$typeSegment/" +
+        "${encodePathSegment(props.sku)}/tokens/${encodePathSegment(purchaseToken)}"
 
     val connection = connectionFactory(url).apply {
         requestMethod = "GET"
         setRequestProperty("Content-Type", "application/json")
-        setRequestProperty("Authorization", "Bearer ${options.accessToken}")
+        setRequestProperty("Authorization", "Bearer $accessToken")
     }
 
     try {
@@ -80,6 +87,81 @@ suspend fun verifyPurchaseWithGooglePlay(
     }
 }
 
+/**
+ * Verify purchase with Meta Horizon S2S API.
+ * POST https://graph.oculus.com/$APP_ID/verify_entitlement
+ */
+suspend fun verifyPurchaseWithHorizon(
+    props: VerifyPurchaseProps,
+    appId: String,
+    tag: String,
+    connectionFactory: (String) -> HttpURLConnection = ::openConnection
+): VerifyPurchaseResultHorizon = withContext(Dispatchers.IO) {
+    val horizonOptions = props.horizon
+        ?: throw IllegalArgumentException(
+            "Horizon validation requires horizon options (sku, userId, accessToken)"
+        )
+
+    if (horizonOptions.sku.isBlank() || horizonOptions.userId.isBlank() || horizonOptions.accessToken.isBlank()) {
+        throw IllegalArgumentException(
+            "Horizon validation requires sku, userId, and accessToken"
+        )
+    }
+
+    val url = "https://graph.oculus.com/$appId/verify_entitlement"
+
+    val connection = connectionFactory(url).apply {
+        requestMethod = "POST"
+        doOutput = true
+        setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+    }
+
+    try {
+        // Build form data
+        val formData = buildString {
+            append("access_token=${java.net.URLEncoder.encode(horizonOptions.accessToken, "UTF-8")}")
+            append("&user_id=${java.net.URLEncoder.encode(horizonOptions.userId, "UTF-8")}")
+            append("&sku=${java.net.URLEncoder.encode(horizonOptions.sku, "UTF-8")}")
+        }
+
+        connection.outputStream.use { stream ->
+            stream.write(formData.toByteArray(Charsets.UTF_8))
+        }
+
+        val statusCode = connection.responseCode
+        val responseBody = (if (statusCode in 200..299) connection.inputStream else connection.errorStream)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            .orElse("")
+
+        if (statusCode !in 200..299) {
+            OpenIapLog.warn("Horizon verifyPurchase failed (HTTP $statusCode)", tag)
+            throw OpenIapError.InvalidPurchaseVerification
+        }
+
+        try {
+            // Response: {"success":true,"grant_time":1744148687}
+            val mapType = object : TypeToken<Map<String, Any?>>() {}.type
+            val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
+            val success = parsed["success"] as? Boolean ?: false
+            val grantTime = (parsed["grant_time"] as? Number)?.toDouble()
+
+            VerifyPurchaseResultHorizon(
+                grantTime = grantTime,
+                success = success
+            )
+        } catch (jsonError: JsonSyntaxException) {
+            OpenIapLog.warn("Failed to parse Horizon verification response: ${jsonError.message}", tag)
+            throw OpenIapError.InvalidPurchaseVerification
+        }
+    } catch (io: IOException) {
+        OpenIapLog.warn("Network error during Horizon verification: ${io.message}", tag)
+        throw OpenIapError.NetworkError
+    } finally {
+        connection.disconnect()
+    }
+}
+
 suspend fun verifyPurchaseWithIapkit(
     props: RequestVerifyPurchaseWithIapkitProps,
     tag: String,
@@ -87,13 +169,14 @@ suspend fun verifyPurchaseWithIapkit(
 ): RequestVerifyPurchaseWithIapkitResult = withContext(Dispatchers.IO) {
     val endpoint = DEFAULT_IAPKIT_ENDPOINT
 
-    // On Android, only Google verification is supported
+    // On Android, only Google verification is supported via IAPKit
+    // Note: Horizon verification requires direct S2S API calls to Meta (not yet supported)
     if (props.google == null) {
         throw IllegalArgumentException("IAPKit verification on Android requires google payload")
     }
 
     val store = IapStore.Google
-    val payload = buildPayload(props, store)
+    val payload = buildGooglePayload(props)
 
     val connection = connectionFactory(endpoint).apply {
         requestMethod = "POST"
@@ -107,12 +190,8 @@ suspend fun verifyPurchaseWithIapkit(
     try {
         val body = gson.toJson(payload)
 
-        // Log request details for debugging
-        OpenIapLog.debug("IAPKit request URL: $endpoint", tag)
-        OpenIapLog.debug("IAPKit request body: $body", tag)
-
         connection.outputStream.use { stream ->
-            stream.write(body.toByteArray())
+            stream.write(body.toByteArray(Charsets.UTF_8))
         }
 
         val statusCode = connection.responseCode
@@ -121,10 +200,8 @@ suspend fun verifyPurchaseWithIapkit(
             ?.use { it.readText() }
             .orElse("")
 
-        OpenIapLog.debug("IAPKit response (HTTP $statusCode): $responseBody", tag)
-
         if (statusCode !in 200..299) {
-            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode) [$store]: $responseBody", tag)
+            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode) [$store]", tag)
             // Extract concise error message from IAPKit response
             // IAPKit returns nested error format - extract the deepest originalError
             val errorMessage = try {
@@ -152,7 +229,6 @@ suspend fun verifyPurchaseWithIapkit(
                     this["store"] = store.toJson()
                 }
             }
-            OpenIapLog.debug("IAPKit normalized response: $normalizedParsed", tag)
             RequestVerifyPurchaseWithIapkitResult.fromJson(normalizedParsed)
         } catch (jsonError: Exception) {
             OpenIapLog.warn("Failed to parse IAPKit verification response: ${jsonError.message}", tag)
@@ -166,27 +242,21 @@ suspend fun verifyPurchaseWithIapkit(
     }
 }
 
-private fun buildPayload(
-    props: RequestVerifyPurchaseWithIapkitProps,
-    store: IapStore
-): Map<String, Any?> {
-    return when (store) {
-        IapStore.Google, IapStore.Horizon -> {
-            val google = props.google
-                ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
-            if (google.purchaseToken.isBlank()) {
-                throw IllegalArgumentException(
-                    "IAPKit Google verification requires purchaseToken"
-                )
-            }
-            mutableMapOf<String, Any?>(
-                "store" to store.rawValue,
-                "purchaseToken" to google.purchaseToken
-            )
-        }
-        else -> throw IllegalArgumentException("IAPKit verification on Android supports Google payloads only")
+/**
+ * Build payload for Google Play Store verification via IAPKit.
+ */
+private fun buildGooglePayload(props: RequestVerifyPurchaseWithIapkitProps): Map<String, Any?> {
+    val google = props.google
+        ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
+    if (google.purchaseToken.isBlank()) {
+        throw IllegalArgumentException("IAPKit Google verification requires purchaseToken")
     }
+    return mutableMapOf<String, Any?>(
+        "store" to IapStore.Google.rawValue,
+        "purchaseToken" to google.purchaseToken
+    )
 }
+
 
 private fun String?.orElse(fallback: String): String = this ?: fallback
 

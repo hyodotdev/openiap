@@ -370,11 +370,69 @@ input AndroidSubscriptionOfferInput {
   offerToken: String!
 }
 
-input VerifyPurchaseAndroidOptions {
+"""
+Google Play Store verification parameters.
+Used for server-side receipt validation via Google Play Developer API.
+
+⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
+"""
+input VerifyPurchaseGoogleOptions {
+  """
+  Android package name (e.g., com.example.app)
+  """
   packageName: String!
-  productToken: String!
+  """
+  Purchase token from the purchase response.
+  ⚠️ Sensitive: Do not log this value.
+  """
+  purchaseToken: String!
+  """
+  Google OAuth2 access token for API authentication.
+  ⚠️ Sensitive: Do not log this value.
+  """
   accessToken: String!
+  """
+  Whether this is a subscription purchase (affects API endpoint used)
+  """
   isSub: Boolean
+}
+
+"""
+Meta Horizon (Quest) verification parameters.
+Used for server-side entitlement verification via Meta's S2S API.
+POST https://graph.oculus.com/$APP_ID/verify_entitlement
+
+⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
+"""
+input VerifyPurchaseHorizonOptions {
+  """
+  The SKU for the add-on item, defined in Meta Developer Dashboard
+  """
+  sku: String!
+  """
+  The user ID of the user whose purchase you want to verify
+  """
+  userId: String!
+  """
+  Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
+  ⚠️ Sensitive: Do not log this value.
+  """
+  accessToken: String!
+}
+
+"""
+Result from Meta Horizon verify_entitlement API.
+Returns verification status and grant time for the entitlement.
+"""
+type VerifyPurchaseResultHorizon {
+  """
+  Whether the entitlement verification succeeded.
+  """
+  success: Boolean!
+  """
+  Unix timestamp (seconds) when the entitlement was granted.
+  """
+  grantTime: Float
 }
 
 type VerifyPurchaseResultAndroid {

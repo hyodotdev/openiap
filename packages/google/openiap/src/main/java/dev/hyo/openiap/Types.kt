@@ -2336,6 +2336,37 @@ public data class VerifyPurchaseResultAndroid(
     )
 }
 
+/**
+ * Result from Meta Horizon verify_entitlement API.
+ * Returns verification status and grant time for the entitlement.
+ */
+public data class VerifyPurchaseResultHorizon(
+    /**
+     * Unix timestamp (seconds) when the entitlement was granted.
+     */
+    val grantTime: Double? = null,
+    /**
+     * Whether the entitlement verification succeeded.
+     */
+    val success: Boolean
+) : VerifyPurchaseResult {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultHorizon {
+            return VerifyPurchaseResultHorizon(
+                grantTime = (json["grantTime"] as Number?)?.toDouble(),
+                success = json["success"] as Boolean,
+            )
+        }
+    }
+
+    override fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "VerifyPurchaseResultHorizon",
+        "grantTime" to grantTime,
+        "success" to success,
+    )
+}
+
 public data class VerifyPurchaseResultIOS(
     /**
      * Whether the receipt is valid
@@ -2767,6 +2798,14 @@ public data class RequestPurchaseProps(
     }
 }
 
+/**
+ * Platform-specific purchase request parameters.
+ * 
+ * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+ * - apple: Always targets App Store
+ * - google: Targets Play Store by default, or Horizon when built with horizon flavor
+ *   (determined at build time, not runtime)
+ */
 public data class RequestPurchasePropsByPlatforms(
     /**
      * @deprecated Use google instead
@@ -2895,6 +2934,14 @@ public data class RequestSubscriptionIosProps(
     )
 }
 
+/**
+ * Platform-specific subscription request parameters.
+ * 
+ * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+ * - apple: Always targets App Store
+ * - google: Targets Play Store by default, or Horizon when built with horizon flavor
+ *   (determined at build time, not runtime)
+ */
 public data class RequestSubscriptionPropsByPlatforms(
     /**
      * @deprecated Use google instead
@@ -2970,17 +3017,23 @@ public data class RequestVerifyPurchaseWithIapkitGoogleProps(
     )
 }
 
+/**
+ * Platform-specific verification parameters for IAPKit.
+ * 
+ * - apple: Verifies via App Store (JWS token)
+ * - google: Verifies via Play Store (purchase token)
+ */
 public data class RequestVerifyPurchaseWithIapkitProps(
     /**
      * API key used for the Authorization header (Bearer {apiKey}).
      */
     val apiKey: String? = null,
     /**
-     * Apple verification parameters.
+     * Apple App Store verification parameters.
      */
     val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
     /**
-     * Google verification parameters.
+     * Google Play Store verification parameters.
      */
     val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null
 ) {
@@ -3031,19 +3084,65 @@ public data class SubscriptionProductReplacementParamsAndroid(
     )
 }
 
-public data class VerifyPurchaseAndroidOptions(
-    val accessToken: String,
-    val isSub: Boolean? = null,
-    val packageName: String,
-    val productToken: String
+/**
+ * Apple App Store verification parameters.
+ * Used for server-side receipt validation via App Store Server API.
+ * 
+ * ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
+ */
+public data class VerifyPurchaseAppleOptions(
+    /**
+     * The JWS (JSON Web Signature) representation of the transaction.
+     * ⚠️ Sensitive: Do not log this value.
+     */
+    val jws: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAndroidOptions {
-            return VerifyPurchaseAndroidOptions(
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAppleOptions {
+            return VerifyPurchaseAppleOptions(
+                jws = json["jws"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "jws" to jws,
+    )
+}
+
+/**
+ * Google Play Store verification parameters.
+ * Used for server-side receipt validation via Google Play Developer API.
+ * 
+ * ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
+ */
+public data class VerifyPurchaseGoogleOptions(
+    /**
+     * Google OAuth2 access token for API authentication.
+     * ⚠️ Sensitive: Do not log this value.
+     */
+    val accessToken: String,
+    /**
+     * Whether this is a subscription purchase (affects API endpoint used)
+     */
+    val isSub: Boolean? = null,
+    /**
+     * Android package name (e.g., com.example.app)
+     */
+    val packageName: String,
+    /**
+     * Purchase token from the purchase response.
+     * ⚠️ Sensitive: Do not log this value.
+     */
+    val purchaseToken: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseGoogleOptions {
+            return VerifyPurchaseGoogleOptions(
                 accessToken = json["accessToken"] as String,
                 isSub = json["isSub"] as Boolean?,
                 packageName = json["packageName"] as String,
-                productToken = json["productToken"] as String,
+                purchaseToken = json["purchaseToken"] as String,
             )
         }
     }
@@ -3052,15 +3151,69 @@ public data class VerifyPurchaseAndroidOptions(
         "accessToken" to accessToken,
         "isSub" to isSub,
         "packageName" to packageName,
-        "productToken" to productToken,
+        "purchaseToken" to purchaseToken,
     )
 }
 
+/**
+ * Meta Horizon (Quest) verification parameters.
+ * Used for server-side entitlement verification via Meta's S2S API.
+ * POST https://graph.oculus.com/$APP_ID/verify_entitlement
+ * 
+ * ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
+ */
+public data class VerifyPurchaseHorizonOptions(
+    /**
+     * Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
+     * ⚠️ Sensitive: Do not log this value.
+     */
+    val accessToken: String,
+    /**
+     * The SKU for the add-on item, defined in Meta Developer Dashboard
+     */
+    val sku: String,
+    /**
+     * The user ID of the user whose purchase you want to verify
+     */
+    val userId: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseHorizonOptions {
+            return VerifyPurchaseHorizonOptions(
+                accessToken = json["accessToken"] as String,
+                sku = json["sku"] as String,
+                userId = json["userId"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "accessToken" to accessToken,
+        "sku" to sku,
+        "userId" to userId,
+    )
+}
+
+/**
+ * Platform-specific purchase verification parameters.
+ * 
+ * - apple: Verifies via App Store Server API
+ * - google: Verifies via Google Play Developer API
+ * - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
+ */
 public data class VerifyPurchaseProps(
     /**
-     * Android-specific validation options
+     * Apple App Store verification parameters.
      */
-    val androidOptions: VerifyPurchaseAndroidOptions? = null,
+    val apple: VerifyPurchaseAppleOptions? = null,
+    /**
+     * Google Play Store verification parameters.
+     */
+    val google: VerifyPurchaseGoogleOptions? = null,
+    /**
+     * Meta Horizon (Quest) verification parameters.
+     */
+    val horizon: VerifyPurchaseHorizonOptions? = null,
     /**
      * Product SKU to validate
      */
@@ -3069,14 +3222,18 @@ public data class VerifyPurchaseProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
             return VerifyPurchaseProps(
-                androidOptions = (json["androidOptions"] as Map<String, Any?>?)?.let { VerifyPurchaseAndroidOptions.fromJson(it) },
+                apple = (json["apple"] as Map<String, Any?>?)?.let { VerifyPurchaseAppleOptions.fromJson(it) },
+                google = (json["google"] as Map<String, Any?>?)?.let { VerifyPurchaseGoogleOptions.fromJson(it) },
+                horizon = (json["horizon"] as Map<String, Any?>?)?.let { VerifyPurchaseHorizonOptions.fromJson(it) },
                 sku = json["sku"] as String,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "androidOptions" to androidOptions?.toJson(),
+        "apple" to apple?.toJson(),
+        "google" to google?.toJson(),
+        "horizon" to horizon?.toJson(),
         "sku" to sku,
     )
 }
@@ -3175,6 +3332,7 @@ public sealed interface VerifyPurchaseResult {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResult {
             return when (json["__typename"] as String?) {
                 "VerifyPurchaseResultAndroid" -> VerifyPurchaseResultAndroid.fromJson(json)
+                "VerifyPurchaseResultHorizon" -> VerifyPurchaseResultHorizon.fromJson(json)
                 "VerifyPurchaseResultIOS" -> VerifyPurchaseResultIOS.fromJson(json)
                 else -> throw IllegalArgumentException("Unknown __typename for VerifyPurchaseResult: ${json["__typename"]}")
             }

@@ -34,6 +34,7 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithHorizon
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
@@ -654,7 +655,17 @@ class OpenIapModule(
     }
 
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
-        verifyPurchaseWithGooglePlay(props, TAG)
+        // Use Horizon API if horizon options provided, otherwise fallback to Google Play
+        if (props.horizon != null) {
+            val horizonAppId = appId ?: throw OpenIapError.DeveloperError
+            val horizonResult = verifyPurchaseWithHorizon(props, horizonAppId, TAG)
+            if (!horizonResult.success) {
+                throw OpenIapError.InvalidPurchaseVerification
+            }
+            horizonResult
+        } else {
+            verifyPurchaseWithGooglePlay(props, TAG)
+        }
     }
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->
