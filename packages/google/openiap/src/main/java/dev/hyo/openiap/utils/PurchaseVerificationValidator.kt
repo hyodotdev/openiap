@@ -10,6 +10,7 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseResultAndroid
+import dev.hyo.openiap.VerifyPurchaseResultHorizon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -138,11 +139,11 @@ suspend fun verifyPurchaseWithHorizon(
             val mapType = object : TypeToken<Map<String, Any?>>() {}.type
             val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
             val success = parsed["success"] as? Boolean ?: false
-            val grantTime = (parsed["grant_time"] as? Number)?.toLong()
+            val grantTime = (parsed["grant_time"] as? Number)?.toDouble()
 
             VerifyPurchaseResultHorizon(
-                success = success,
-                grantTime = grantTime
+                grantTime = grantTime,
+                success = success
             )
         } catch (jsonError: JsonSyntaxException) {
             OpenIapLog.warn("Failed to parse Horizon verification response: ${jsonError.message}", tag)
@@ -155,14 +156,6 @@ suspend fun verifyPurchaseWithHorizon(
         connection.disconnect()
     }
 }
-
-/**
- * Result from Meta Horizon verify_entitlement API.
- */
-data class VerifyPurchaseResultHorizon(
-    val success: Boolean,
-    val grantTime: Long?
-)
 
 suspend fun verifyPurchaseWithIapkit(
     props: RequestVerifyPurchaseWithIapkitProps,

@@ -8,7 +8,6 @@ import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
-import dev.hyo.openiap.VerifyPurchaseAndroidOptions
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions
 import dev.hyo.openiap.VerifyPurchaseHorizonOptions
 import dev.hyo.openiap.VerifyPurchaseProps
@@ -83,13 +82,13 @@ class PurchaseVerificationValidatorTest {
 
     @Test
     fun `verifyPurchaseWithGooglePlay parses successful response`() = runTest {
-        val options = VerifyPurchaseAndroidOptions(
+        val googleOptions = VerifyPurchaseGoogleOptions(
             accessToken = "token",
             isSub = true,
             packageName = "dev.hyo.app",
-            productToken = "purchaseToken"
+            purchaseToken = "purchaseToken"
         )
-        val props = VerifyPurchaseProps(androidOptions = options, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
         val body = """
             {
               "autoRenewing": true,
@@ -127,13 +126,13 @@ class PurchaseVerificationValidatorTest {
 
     @Test
     fun `verifyPurchaseWithGooglePlay wraps non-2xx as InvalidPurchaseVerification`() = runTest {
-        val options = VerifyPurchaseAndroidOptions(
+        val googleOptions = VerifyPurchaseGoogleOptions(
             accessToken = "token",
             isSub = false,
             packageName = "dev.hyo.app",
-            productToken = "purchaseToken"
+            purchaseToken = "purchaseToken"
         )
-        val props = VerifyPurchaseProps(androidOptions = options, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
 
         try {
             verifyPurchaseWithGooglePlay(
@@ -297,7 +296,7 @@ class PurchaseVerificationValidatorTest {
         ) { _ -> FakeHttpURLConnection(200, """{"success":true,"grant_time":1744148687}""") }
 
         assertEquals(true, result.success)
-        assertEquals(1744148687L, result.grantTime)
+        assertEquals(1744148687.0, result.grantTime)
     }
 
     @Test

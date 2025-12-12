@@ -266,15 +266,12 @@ input VerifyPurchaseProps {
   Meta Horizon (Quest) verification parameters.
   """
   horizon: VerifyPurchaseHorizonOptions
-  """
-  @deprecated Use google instead
-  """
-  androidOptions: VerifyPurchaseAndroidOptions
 }
 
 union VerifyPurchaseResult =
     VerifyPurchaseResultAndroid
   | VerifyPurchaseResultIOS
+  | VerifyPurchaseResultHorizon
 
 input RequestVerifyPurchaseWithIapkitAppleProps {
   """

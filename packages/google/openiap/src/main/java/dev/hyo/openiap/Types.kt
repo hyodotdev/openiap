@@ -2336,6 +2336,37 @@ public data class VerifyPurchaseResultAndroid(
     )
 }
 
+/**
+ * Result from Meta Horizon verify_entitlement API.
+ * Returns verification status and grant time for the entitlement.
+ */
+public data class VerifyPurchaseResultHorizon(
+    /**
+     * Unix timestamp (seconds) when the entitlement was granted.
+     */
+    val grantTime: Double? = null,
+    /**
+     * Whether the entitlement verification succeeded.
+     */
+    val success: Boolean
+) : VerifyPurchaseResult {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultHorizon {
+            return VerifyPurchaseResultHorizon(
+                grantTime = (json["grantTime"] as Number?)?.toDouble(),
+                success = json["success"] as Boolean,
+            )
+        }
+    }
+
+    override fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "VerifyPurchaseResultHorizon",
+        "grantTime" to grantTime,
+        "success" to success,
+    )
+}
+
 public data class VerifyPurchaseResultIOS(
     /**
      * Whether the receipt is valid
@@ -3054,34 +3085,6 @@ public data class SubscriptionProductReplacementParamsAndroid(
 }
 
 /**
- * @deprecated Use VerifyPurchaseGoogleOptions instead
- */
-public data class VerifyPurchaseAndroidOptions(
-    val accessToken: String,
-    val isSub: Boolean? = null,
-    val packageName: String,
-    val productToken: String
-) {
-    companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAndroidOptions {
-            return VerifyPurchaseAndroidOptions(
-                accessToken = json["accessToken"] as String,
-                isSub = json["isSub"] as Boolean?,
-                packageName = json["packageName"] as String,
-                productToken = json["productToken"] as String,
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "accessToken" to accessToken,
-        "isSub" to isSub,
-        "packageName" to packageName,
-        "productToken" to productToken,
-    )
-}
-
-/**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
  */
@@ -3190,10 +3193,6 @@ public data class VerifyPurchaseHorizonOptions(
  */
 public data class VerifyPurchaseProps(
     /**
-     * @deprecated Use google instead
-     */
-    val androidOptions: VerifyPurchaseAndroidOptions? = null,
-    /**
      * Apple App Store verification parameters.
      */
     val apple: VerifyPurchaseAppleOptions? = null,
@@ -3213,7 +3212,6 @@ public data class VerifyPurchaseProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
             return VerifyPurchaseProps(
-                androidOptions = (json["androidOptions"] as Map<String, Any?>?)?.let { VerifyPurchaseAndroidOptions.fromJson(it) },
                 apple = (json["apple"] as Map<String, Any?>?)?.let { VerifyPurchaseAppleOptions.fromJson(it) },
                 google = (json["google"] as Map<String, Any?>?)?.let { VerifyPurchaseGoogleOptions.fromJson(it) },
                 horizon = (json["horizon"] as Map<String, Any?>?)?.let { VerifyPurchaseHorizonOptions.fromJson(it) },
@@ -3223,7 +3221,6 @@ public data class VerifyPurchaseProps(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "androidOptions" to androidOptions?.toJson(),
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
         "horizon" to horizon?.toJson(),
@@ -3325,6 +3322,7 @@ public sealed interface VerifyPurchaseResult {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResult {
             return when (json["__typename"] as String?) {
                 "VerifyPurchaseResultAndroid" -> VerifyPurchaseResultAndroid.fromJson(json)
+                "VerifyPurchaseResultHorizon" -> VerifyPurchaseResultHorizon.fromJson(json)
                 "VerifyPurchaseResultIOS" -> VerifyPurchaseResultIOS.fromJson(json)
                 else -> throw IllegalArgumentException("Unknown __typename for VerifyPurchaseResult: ${json["__typename"]}")
             }

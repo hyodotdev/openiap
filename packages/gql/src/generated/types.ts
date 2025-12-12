@@ -1110,14 +1110,6 @@ export interface ValidTimeWindowAndroid {
   startTimeMillis: string;
 }
 
-/** @deprecated Use VerifyPurchaseGoogleOptions instead */
-export interface VerifyPurchaseAndroidOptions {
-  accessToken: string;
-  isSub?: (boolean | null);
-  packageName: string;
-  productToken: string;
-}
-
 /**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
@@ -1164,8 +1156,6 @@ export interface VerifyPurchaseHorizonOptions {
  * - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
  */
 export interface VerifyPurchaseProps {
-  /** @deprecated Use google instead */
-  androidOptions?: (VerifyPurchaseAndroidOptions | null);
   /** Apple App Store verification parameters. */
   apple?: (VerifyPurchaseAppleOptions | null);
   /** Google Play Store verification parameters. */
@@ -1176,7 +1166,7 @@ export interface VerifyPurchaseProps {
   sku: string;
 }
 
-export type VerifyPurchaseResult = VerifyPurchaseResultAndroid | VerifyPurchaseResultIOS;
+export type VerifyPurchaseResult = VerifyPurchaseResultAndroid | VerifyPurchaseResultHorizon | VerifyPurchaseResultIOS;
 
 export interface VerifyPurchaseResultAndroid {
   autoRenewing: boolean;
@@ -1197,6 +1187,17 @@ export interface VerifyPurchaseResultAndroid {
   term: string;
   termSku: string;
   testTransaction: boolean;
+}
+
+/**
+ * Result from Meta Horizon verify_entitlement API.
+ * Returns verification status and grant time for the entitlement.
+ */
+export interface VerifyPurchaseResultHorizon {
+  /** Unix timestamp (seconds) when the entitlement was granted. */
+  grantTime?: (number | null);
+  /** Whether the entitlement verification succeeded. */
+  success: boolean;
 }
 
 export interface VerifyPurchaseResultIOS {

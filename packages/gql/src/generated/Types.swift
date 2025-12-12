@@ -844,6 +844,15 @@ public struct VerifyPurchaseResultAndroid: Codable {
     public var testTransaction: Bool
 }
 
+/// Result from Meta Horizon verify_entitlement API.
+/// Returns verification status and grant time for the entitlement.
+public struct VerifyPurchaseResultHorizon: Codable {
+    /// Unix timestamp (seconds) when the entitlement was granted.
+    public var grantTime: Double?
+    /// Whether the entitlement verification succeeded.
+    public var success: Bool
+}
+
 public struct VerifyPurchaseResultIOS: Codable {
     /// Whether the receipt is valid
     public var isValid: Bool
@@ -1326,26 +1335,6 @@ public struct SubscriptionProductReplacementParamsAndroid: Codable {
     }
 }
 
-/// @deprecated Use VerifyPurchaseGoogleOptions instead
-public struct VerifyPurchaseAndroidOptions: Codable {
-    public var accessToken: String
-    public var isSub: Bool?
-    public var packageName: String
-    public var productToken: String
-
-    public init(
-        accessToken: String,
-        isSub: Bool? = nil,
-        packageName: String,
-        productToken: String
-    ) {
-        self.accessToken = accessToken
-        self.isSub = isSub
-        self.packageName = packageName
-        self.productToken = productToken
-    }
-}
-
 /// Apple App Store verification parameters.
 /// Used for server-side receipt validation via App Store Server API.
 public struct VerifyPurchaseAppleOptions: Codable {
@@ -1412,8 +1401,6 @@ public struct VerifyPurchaseHorizonOptions: Codable {
 /// - google: Verifies via Google Play Developer API
 /// - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 public struct VerifyPurchaseProps: Codable {
-    /// @deprecated Use google instead
-    public var androidOptions: VerifyPurchaseAndroidOptions?
     /// Apple App Store verification parameters.
     public var apple: VerifyPurchaseAppleOptions?
     /// Google Play Store verification parameters.
@@ -1424,13 +1411,11 @@ public struct VerifyPurchaseProps: Codable {
     public var sku: String
 
     public init(
-        androidOptions: VerifyPurchaseAndroidOptions? = nil,
         apple: VerifyPurchaseAppleOptions? = nil,
         google: VerifyPurchaseGoogleOptions? = nil,
         horizon: VerifyPurchaseHorizonOptions? = nil,
         sku: String
     ) {
-        self.androidOptions = androidOptions
         self.apple = apple
         self.google = google
         self.horizon = horizon
@@ -1761,6 +1746,7 @@ public enum Purchase: Codable, PurchaseCommon {
 public enum VerifyPurchaseResult: Codable {
     case verifyPurchaseResultAndroid(VerifyPurchaseResultAndroid)
     case verifyPurchaseResultIos(VerifyPurchaseResultIOS)
+    case verifyPurchaseResultHorizon(VerifyPurchaseResultHorizon)
 }
 
 // MARK: - Root Operations

@@ -414,13 +414,18 @@ input VerifyPurchaseHorizonOptions {
 }
 
 """
-@deprecated Use VerifyPurchaseGoogleOptions instead
+Result from Meta Horizon verify_entitlement API.
+Returns verification status and grant time for the entitlement.
 """
-input VerifyPurchaseAndroidOptions {
-  packageName: String!
-  productToken: String!
-  accessToken: String!
-  isSub: Boolean
+type VerifyPurchaseResultHorizon {
+  """
+  Whether the entitlement verification succeeded.
+  """
+  success: Boolean!
+  """
+  Unix timestamp (seconds) when the entitlement was granted.
+  """
+  grantTime: Float
 }
 
 type VerifyPurchaseResultAndroid {

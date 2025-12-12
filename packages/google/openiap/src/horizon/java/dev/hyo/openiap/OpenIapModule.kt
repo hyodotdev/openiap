@@ -662,28 +662,7 @@ class OpenIapModule(
             if (!horizonResult.success) {
                 throw OpenIapError.InvalidPurchaseVerification
             }
-            // Return a VerifyPurchaseResult - for now using Android result type
-            // TODO: Add VerifyPurchaseResultHorizon to GraphQL schema
-            VerifyPurchaseResultAndroid(
-                autoRenewing = false,
-                betaProduct = false,
-                cancelDate = null,
-                cancelReason = null,
-                deferredDate = null,
-                deferredSku = null,
-                freeTrialEndDate = 0.0,
-                gracePeriodEndDate = 0.0,
-                parentProductId = "",
-                productId = props.horizon?.sku ?: props.sku,
-                productType = "inapp",
-                purchaseDate = ((horizonResult.grantTime ?: 0L) * 1000L).toDouble(),
-                quantity = 1,
-                receiptId = "horizon:${props.horizon?.userId.orEmpty()}:${props.horizon?.sku.orEmpty()}",
-                renewalDate = 0.0,
-                term = "",
-                termSku = "",
-                testTransaction = false
-            )
+            horizonResult
         } else {
             verifyPurchaseWithGooglePlay(props, TAG)
         }

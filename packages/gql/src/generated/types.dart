@@ -2807,6 +2807,38 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
   }
 }
 
+/// Result from Meta Horizon verify_entitlement API.
+/// Returns verification status and grant time for the entitlement.
+class VerifyPurchaseResultHorizon extends VerifyPurchaseResult {
+  const VerifyPurchaseResultHorizon({
+    /// Unix timestamp (seconds) when the entitlement was granted.
+    this.grantTime,
+    /// Whether the entitlement verification succeeded.
+    required this.success,
+  });
+
+  /// Unix timestamp (seconds) when the entitlement was granted.
+  final double? grantTime;
+  /// Whether the entitlement verification succeeded.
+  final bool success;
+
+  factory VerifyPurchaseResultHorizon.fromJson(Map<String, dynamic> json) {
+    return VerifyPurchaseResultHorizon(
+      grantTime: (json['grantTime'] as num?)?.toDouble(),
+      success: json['success'] as bool,
+    );
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'VerifyPurchaseResultHorizon',
+      'grantTime': grantTime,
+      'success': success,
+    };
+  }
+}
+
 class VerifyPurchaseResultIOS extends VerifyPurchaseResult {
   const VerifyPurchaseResultIOS({
     /// Whether the receipt is valid
@@ -3590,39 +3622,6 @@ class SubscriptionProductReplacementParamsAndroid {
   }
 }
 
-/// @deprecated Use VerifyPurchaseGoogleOptions instead
-class VerifyPurchaseAndroidOptions {
-  const VerifyPurchaseAndroidOptions({
-    required this.accessToken,
-    this.isSub,
-    required this.packageName,
-    required this.productToken,
-  });
-
-  final String accessToken;
-  final bool? isSub;
-  final String packageName;
-  final String productToken;
-
-  factory VerifyPurchaseAndroidOptions.fromJson(Map<String, dynamic> json) {
-    return VerifyPurchaseAndroidOptions(
-      accessToken: json['accessToken'] as String,
-      isSub: json['isSub'] as bool?,
-      packageName: json['packageName'] as String,
-      productToken: json['productToken'] as String,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'accessToken': accessToken,
-      'isSub': isSub,
-      'packageName': packageName,
-      'productToken': productToken,
-    };
-  }
-}
-
 /// Apple App Store verification parameters.
 /// Used for server-side receipt validation via App Store Server API.
 class VerifyPurchaseAppleOptions {
@@ -3733,8 +3732,6 @@ class VerifyPurchaseHorizonOptions {
 /// - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 class VerifyPurchaseProps {
   const VerifyPurchaseProps({
-    /// @deprecated Use google instead
-    this.androidOptions,
     /// Apple App Store verification parameters.
     this.apple,
     /// Google Play Store verification parameters.
@@ -3745,8 +3742,6 @@ class VerifyPurchaseProps {
     required this.sku,
   });
 
-  /// @deprecated Use google instead
-  final VerifyPurchaseAndroidOptions? androidOptions;
   /// Apple App Store verification parameters.
   final VerifyPurchaseAppleOptions? apple;
   /// Google Play Store verification parameters.
@@ -3758,7 +3753,6 @@ class VerifyPurchaseProps {
 
   factory VerifyPurchaseProps.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseProps(
-      androidOptions: json['androidOptions'] != null ? VerifyPurchaseAndroidOptions.fromJson(json['androidOptions'] as Map<String, dynamic>) : null,
       apple: json['apple'] != null ? VerifyPurchaseAppleOptions.fromJson(json['apple'] as Map<String, dynamic>) : null,
       google: json['google'] != null ? VerifyPurchaseGoogleOptions.fromJson(json['google'] as Map<String, dynamic>) : null,
       horizon: json['horizon'] != null ? VerifyPurchaseHorizonOptions.fromJson(json['horizon'] as Map<String, dynamic>) : null,
@@ -3768,7 +3762,6 @@ class VerifyPurchaseProps {
 
   Map<String, dynamic> toJson() {
     return {
-      'androidOptions': androidOptions?.toJson(),
       'apple': apple?.toJson(),
       'google': google?.toJson(),
       'horizon': horizon?.toJson(),
@@ -3970,6 +3963,8 @@ sealed class VerifyPurchaseResult {
     switch (typeName) {
       case 'VerifyPurchaseResultAndroid':
         return VerifyPurchaseResultAndroid.fromJson(json);
+      case 'VerifyPurchaseResultHorizon':
+        return VerifyPurchaseResultHorizon.fromJson(json);
       case 'VerifyPurchaseResultIOS':
         return VerifyPurchaseResultIOS.fromJson(json);
     }
@@ -4046,7 +4041,6 @@ abstract class MutationResolver {
   Future<bool> syncIOS();
   /// Validate purchase receipts with the configured providers
   Future<VerifyPurchaseResult> validateReceipt({
-    VerifyPurchaseAndroidOptions? androidOptions,
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
     VerifyPurchaseHorizonOptions? horizon,
@@ -4054,7 +4048,6 @@ abstract class MutationResolver {
   });
   /// Verify purchases with the configured providers
   Future<VerifyPurchaseResult> verifyPurchase({
-    VerifyPurchaseAndroidOptions? androidOptions,
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
     VerifyPurchaseHorizonOptions? horizon,
@@ -4111,7 +4104,6 @@ abstract class QueryResolver {
   Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);
   /// Validate a receipt for a specific product
   Future<VerifyPurchaseResultIOS> validateReceiptIOS({
-    VerifyPurchaseAndroidOptions? androidOptions,
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
     VerifyPurchaseHorizonOptions? horizon,
@@ -4164,14 +4156,12 @@ typedef MutationShowAlternativeBillingDialogAndroidHandler = Future<bool> Functi
 typedef MutationShowManageSubscriptionsIOSHandler = Future<List<PurchaseIOS>> Function();
 typedef MutationSyncIOSHandler = Future<bool> Function();
 typedef MutationValidateReceiptHandler = Future<VerifyPurchaseResult> Function({
-  VerifyPurchaseAndroidOptions? androidOptions,
   VerifyPurchaseAppleOptions? apple,
   VerifyPurchaseGoogleOptions? google,
   VerifyPurchaseHorizonOptions? horizon,
   required String sku,
 });
 typedef MutationVerifyPurchaseHandler = Future<VerifyPurchaseResult> Function({
-  VerifyPurchaseAndroidOptions? androidOptions,
   VerifyPurchaseAppleOptions? apple,
   VerifyPurchaseGoogleOptions? google,
   VerifyPurchaseHorizonOptions? horizon,
@@ -4258,7 +4248,6 @@ typedef QueryIsTransactionVerifiedIOSHandler = Future<bool> Function(String sku)
 typedef QueryLatestTransactionIOSHandler = Future<PurchaseIOS?> Function(String sku);
 typedef QuerySubscriptionStatusIOSHandler = Future<List<SubscriptionStatusIOS>> Function(String sku);
 typedef QueryValidateReceiptIOSHandler = Future<VerifyPurchaseResultIOS> Function({
-  VerifyPurchaseAndroidOptions? androidOptions,
   VerifyPurchaseAppleOptions? apple,
   VerifyPurchaseGoogleOptions? google,
   VerifyPurchaseHorizonOptions? horizon,
