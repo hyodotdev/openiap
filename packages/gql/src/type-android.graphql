@@ -370,6 +370,52 @@ input AndroidSubscriptionOfferInput {
   offerToken: String!
 }
 
+"""
+Google Play Store verification parameters.
+Used for server-side receipt validation via Google Play Developer API.
+"""
+input VerifyPurchaseGoogleOptions {
+  """
+  Android package name (e.g., com.example.app)
+  """
+  packageName: String!
+  """
+  Purchase token from the purchase response
+  """
+  purchaseToken: String!
+  """
+  Google OAuth2 access token for API authentication
+  """
+  accessToken: String!
+  """
+  Whether this is a subscription purchase (affects API endpoint used)
+  """
+  isSub: Boolean
+}
+
+"""
+Meta Horizon (Quest) verification parameters.
+Used for server-side entitlement verification via Meta's S2S API.
+POST https://graph.oculus.com/$APP_ID/verify_entitlement
+"""
+input VerifyPurchaseHorizonOptions {
+  """
+  The SKU for the add-on item, defined in Meta Developer Dashboard
+  """
+  sku: String!
+  """
+  The user ID of the user whose purchase you want to verify
+  """
+  userId: String!
+  """
+  Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token)
+  """
+  accessToken: String!
+}
+
+"""
+@deprecated Use VerifyPurchaseGoogleOptions instead
+"""
 input VerifyPurchaseAndroidOptions {
   packageName: String!
   productToken: String!

@@ -187,7 +187,14 @@ input DeepLinkOptions {
   packageNameAndroid: String
 }
 
-# Request props (platform-specific containers)
+"""
+Platform-specific purchase request parameters.
+
+Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+- apple: Always targets App Store
+- google: Targets Play Store by default, or Horizon when built with horizon flavor
+  (determined at build time, not runtime)
+"""
 input RequestPurchasePropsByPlatforms {
   """
   Apple-specific purchase parameters
@@ -207,6 +214,14 @@ input RequestPurchasePropsByPlatforms {
   android: RequestPurchaseAndroidProps
 }
 
+"""
+Platform-specific subscription request parameters.
+
+Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+- apple: Always targets App Store
+- google: Targets Play Store by default, or Horizon when built with horizon flavor
+  (determined at build time, not runtime)
+"""
 input RequestSubscriptionPropsByPlatforms {
   """
   Apple-specific subscription parameters
@@ -227,13 +242,32 @@ input RequestSubscriptionPropsByPlatforms {
 }
 
 # Receipt validation inputs and results
+"""
+Platform-specific purchase verification parameters.
+
+- apple: Verifies via App Store Server API
+- google: Verifies via Google Play Developer API
+- horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
+"""
 input VerifyPurchaseProps {
   """
   Product SKU to validate
   """
   sku: String!
   """
-  Android-specific validation options
+  Apple App Store verification parameters.
+  """
+  apple: VerifyPurchaseAppleOptions
+  """
+  Google Play Store verification parameters.
+  """
+  google: VerifyPurchaseGoogleOptions
+  """
+  Meta Horizon (Quest) verification parameters.
+  """
+  horizon: VerifyPurchaseHorizonOptions
+  """
+  @deprecated Use google instead
   """
   androidOptions: VerifyPurchaseAndroidOptions
 }
@@ -256,17 +290,23 @@ input RequestVerifyPurchaseWithIapkitGoogleProps {
   purchaseToken: String!
 }
 
+"""
+Platform-specific verification parameters for IAPKit.
+
+- apple: Verifies via App Store (JWS token)
+- google: Verifies via Play Store (purchase token)
+"""
 input RequestVerifyPurchaseWithIapkitProps {
   """
   API key used for the Authorization header (Bearer {apiKey}).
   """
   apiKey: String
   """
-  Apple verification parameters.
+  Apple App Store verification parameters.
   """
   apple: RequestVerifyPurchaseWithIapkitAppleProps
   """
-  Google verification parameters.
+  Google Play Store verification parameters.
   """
   google: RequestVerifyPurchaseWithIapkitGoogleProps
 }

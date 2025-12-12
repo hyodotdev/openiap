@@ -1142,6 +1142,12 @@ public struct RequestPurchaseProps: Codable {
     }
 }
 
+/// Platform-specific purchase request parameters.
+/// 
+/// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+/// - apple: Always targets App Store
+/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+///   (determined at build time, not runtime)
 public struct RequestPurchasePropsByPlatforms: Codable {
     /// @deprecated Use google instead
     public var android: RequestPurchaseAndroidProps?
@@ -1228,6 +1234,12 @@ public struct RequestSubscriptionIosProps: Codable {
     }
 }
 
+/// Platform-specific subscription request parameters.
+/// 
+/// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+/// - apple: Always targets App Store
+/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+///   (determined at build time, not runtime)
 public struct RequestSubscriptionPropsByPlatforms: Codable {
     /// @deprecated Use google instead
     public var android: RequestSubscriptionAndroidProps?
@@ -1273,12 +1285,16 @@ public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
     }
 }
 
+/// Platform-specific verification parameters for IAPKit.
+/// 
+/// - apple: Verifies via App Store (JWS token)
+/// - google: Verifies via Play Store (purchase token)
 public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     /// API key used for the Authorization header (Bearer {apiKey}).
     public var apiKey: String?
-    /// Apple verification parameters.
+    /// Apple App Store verification parameters.
     public var apple: RequestVerifyPurchaseWithIapkitAppleProps?
-    /// Google verification parameters.
+    /// Google Play Store verification parameters.
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
 
     public init(
@@ -1310,6 +1326,7 @@ public struct SubscriptionProductReplacementParamsAndroid: Codable {
     }
 }
 
+/// @deprecated Use VerifyPurchaseGoogleOptions instead
 public struct VerifyPurchaseAndroidOptions: Codable {
     public var accessToken: String
     public var isSub: Bool?
@@ -1329,17 +1346,94 @@ public struct VerifyPurchaseAndroidOptions: Codable {
     }
 }
 
+/// Apple App Store verification parameters.
+/// Used for server-side receipt validation via App Store Server API.
+public struct VerifyPurchaseAppleOptions: Codable {
+    /// The JWS (JSON Web Signature) representation of the transaction.
+    public var jws: String
+
+    public init(
+        jws: String
+    ) {
+        self.jws = jws
+    }
+}
+
+/// Google Play Store verification parameters.
+/// Used for server-side receipt validation via Google Play Developer API.
+public struct VerifyPurchaseGoogleOptions: Codable {
+    /// Google OAuth2 access token for API authentication
+    public var accessToken: String
+    /// Whether this is a subscription purchase (affects API endpoint used)
+    public var isSub: Bool?
+    /// Android package name (e.g., com.example.app)
+    public var packageName: String
+    /// Purchase token from the purchase response
+    public var purchaseToken: String
+
+    public init(
+        accessToken: String,
+        isSub: Bool? = nil,
+        packageName: String,
+        purchaseToken: String
+    ) {
+        self.accessToken = accessToken
+        self.isSub = isSub
+        self.packageName = packageName
+        self.purchaseToken = purchaseToken
+    }
+}
+
+/// Meta Horizon (Quest) verification parameters.
+/// Used for server-side entitlement verification via Meta's S2S API.
+/// POST https://graph.oculus.com/$APP_ID/verify_entitlement
+public struct VerifyPurchaseHorizonOptions: Codable {
+    /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token)
+    public var accessToken: String
+    /// The SKU for the add-on item, defined in Meta Developer Dashboard
+    public var sku: String
+    /// The user ID of the user whose purchase you want to verify
+    public var userId: String
+
+    public init(
+        accessToken: String,
+        sku: String,
+        userId: String
+    ) {
+        self.accessToken = accessToken
+        self.sku = sku
+        self.userId = userId
+    }
+}
+
+/// Platform-specific purchase verification parameters.
+/// 
+/// - apple: Verifies via App Store Server API
+/// - google: Verifies via Google Play Developer API
+/// - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 public struct VerifyPurchaseProps: Codable {
-    /// Android-specific validation options
+    /// @deprecated Use google instead
     public var androidOptions: VerifyPurchaseAndroidOptions?
+    /// Apple App Store verification parameters.
+    public var apple: VerifyPurchaseAppleOptions?
+    /// Google Play Store verification parameters.
+    public var google: VerifyPurchaseGoogleOptions?
+    /// Meta Horizon (Quest) verification parameters.
+    public var horizon: VerifyPurchaseHorizonOptions?
     /// Product SKU to validate
     public var sku: String
 
     public init(
         androidOptions: VerifyPurchaseAndroidOptions? = nil,
+        apple: VerifyPurchaseAppleOptions? = nil,
+        google: VerifyPurchaseGoogleOptions? = nil,
+        horizon: VerifyPurchaseHorizonOptions? = nil,
         sku: String
     ) {
         self.androidOptions = androidOptions
+        self.apple = apple
+        self.google = google
+        self.horizon = horizon
         self.sku = sku
     }
 }

@@ -227,6 +227,17 @@ input DiscountOfferInputIOS {
   timestamp: Float!
 }
 
+"""
+Apple App Store verification parameters.
+Used for server-side receipt validation via App Store Server API.
+"""
+input VerifyPurchaseAppleOptions {
+  """
+  The JWS (JSON Web Signature) representation of the transaction.
+  """
+  jws: String!
+}
+
 type VerifyPurchaseResultIOS {
   """
   Whether the receipt is valid

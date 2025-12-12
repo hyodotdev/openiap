@@ -3281,6 +3281,12 @@ class _SubsPurchase extends RequestPurchaseProps {
   }
 }
 
+/// Platform-specific purchase request parameters.
+/// 
+/// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+/// - apple: Always targets App Store
+/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+///   (determined at build time, not runtime)
 class RequestPurchasePropsByPlatforms {
   const RequestPurchasePropsByPlatforms({
     /// @deprecated Use google instead
@@ -3425,6 +3431,12 @@ class RequestSubscriptionIosProps {
   }
 }
 
+/// Platform-specific subscription request parameters.
+/// 
+/// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
+/// - apple: Always targets App Store
+/// - google: Targets Play Store by default, or Horizon when built with horizon flavor
+///   (determined at build time, not runtime)
 class RequestSubscriptionPropsByPlatforms {
   const RequestSubscriptionPropsByPlatforms({
     /// @deprecated Use google instead
@@ -3509,21 +3521,25 @@ class RequestVerifyPurchaseWithIapkitGoogleProps {
   }
 }
 
+/// Platform-specific verification parameters for IAPKit.
+/// 
+/// - apple: Verifies via App Store (JWS token)
+/// - google: Verifies via Play Store (purchase token)
 class RequestVerifyPurchaseWithIapkitProps {
   const RequestVerifyPurchaseWithIapkitProps({
     /// API key used for the Authorization header (Bearer {apiKey}).
     this.apiKey,
-    /// Apple verification parameters.
+    /// Apple App Store verification parameters.
     this.apple,
-    /// Google verification parameters.
+    /// Google Play Store verification parameters.
     this.google,
   });
 
   /// API key used for the Authorization header (Bearer {apiKey}).
   final String? apiKey;
-  /// Apple verification parameters.
+  /// Apple App Store verification parameters.
   final RequestVerifyPurchaseWithIapkitAppleProps? apple;
-  /// Google verification parameters.
+  /// Google Play Store verification parameters.
   final RequestVerifyPurchaseWithIapkitGoogleProps? google;
 
   factory RequestVerifyPurchaseWithIapkitProps.fromJson(Map<String, dynamic> json) {
@@ -3574,6 +3590,7 @@ class SubscriptionProductReplacementParamsAndroid {
   }
 }
 
+/// @deprecated Use VerifyPurchaseGoogleOptions instead
 class VerifyPurchaseAndroidOptions {
   const VerifyPurchaseAndroidOptions({
     required this.accessToken,
@@ -3606,22 +3623,145 @@ class VerifyPurchaseAndroidOptions {
   }
 }
 
+/// Apple App Store verification parameters.
+/// Used for server-side receipt validation via App Store Server API.
+class VerifyPurchaseAppleOptions {
+  const VerifyPurchaseAppleOptions({
+    /// The JWS (JSON Web Signature) representation of the transaction.
+    required this.jws,
+  });
+
+  /// The JWS (JSON Web Signature) representation of the transaction.
+  final String jws;
+
+  factory VerifyPurchaseAppleOptions.fromJson(Map<String, dynamic> json) {
+    return VerifyPurchaseAppleOptions(
+      jws: json['jws'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'jws': jws,
+    };
+  }
+}
+
+/// Google Play Store verification parameters.
+/// Used for server-side receipt validation via Google Play Developer API.
+class VerifyPurchaseGoogleOptions {
+  const VerifyPurchaseGoogleOptions({
+    /// Google OAuth2 access token for API authentication
+    required this.accessToken,
+    /// Whether this is a subscription purchase (affects API endpoint used)
+    this.isSub,
+    /// Android package name (e.g., com.example.app)
+    required this.packageName,
+    /// Purchase token from the purchase response
+    required this.purchaseToken,
+  });
+
+  /// Google OAuth2 access token for API authentication
+  final String accessToken;
+  /// Whether this is a subscription purchase (affects API endpoint used)
+  final bool? isSub;
+  /// Android package name (e.g., com.example.app)
+  final String packageName;
+  /// Purchase token from the purchase response
+  final String purchaseToken;
+
+  factory VerifyPurchaseGoogleOptions.fromJson(Map<String, dynamic> json) {
+    return VerifyPurchaseGoogleOptions(
+      accessToken: json['accessToken'] as String,
+      isSub: json['isSub'] as bool?,
+      packageName: json['packageName'] as String,
+      purchaseToken: json['purchaseToken'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'accessToken': accessToken,
+      'isSub': isSub,
+      'packageName': packageName,
+      'purchaseToken': purchaseToken,
+    };
+  }
+}
+
+/// Meta Horizon (Quest) verification parameters.
+/// Used for server-side entitlement verification via Meta's S2S API.
+/// POST https://graph.oculus.com/$APP_ID/verify_entitlement
+class VerifyPurchaseHorizonOptions {
+  const VerifyPurchaseHorizonOptions({
+    /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token)
+    required this.accessToken,
+    /// The SKU for the add-on item, defined in Meta Developer Dashboard
+    required this.sku,
+    /// The user ID of the user whose purchase you want to verify
+    required this.userId,
+  });
+
+  /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token)
+  final String accessToken;
+  /// The SKU for the add-on item, defined in Meta Developer Dashboard
+  final String sku;
+  /// The user ID of the user whose purchase you want to verify
+  final String userId;
+
+  factory VerifyPurchaseHorizonOptions.fromJson(Map<String, dynamic> json) {
+    return VerifyPurchaseHorizonOptions(
+      accessToken: json['accessToken'] as String,
+      sku: json['sku'] as String,
+      userId: json['userId'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'accessToken': accessToken,
+      'sku': sku,
+      'userId': userId,
+    };
+  }
+}
+
+/// Platform-specific purchase verification parameters.
+/// 
+/// - apple: Verifies via App Store Server API
+/// - google: Verifies via Google Play Developer API
+/// - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 class VerifyPurchaseProps {
   const VerifyPurchaseProps({
-    /// Android-specific validation options
+    /// @deprecated Use google instead
     this.androidOptions,
+    /// Apple App Store verification parameters.
+    this.apple,
+    /// Google Play Store verification parameters.
+    this.google,
+    /// Meta Horizon (Quest) verification parameters.
+    this.horizon,
     /// Product SKU to validate
     required this.sku,
   });
 
-  /// Android-specific validation options
+  /// @deprecated Use google instead
   final VerifyPurchaseAndroidOptions? androidOptions;
+  /// Apple App Store verification parameters.
+  final VerifyPurchaseAppleOptions? apple;
+  /// Google Play Store verification parameters.
+  final VerifyPurchaseGoogleOptions? google;
+  /// Meta Horizon (Quest) verification parameters.
+  final VerifyPurchaseHorizonOptions? horizon;
   /// Product SKU to validate
   final String sku;
 
   factory VerifyPurchaseProps.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseProps(
       androidOptions: json['androidOptions'] != null ? VerifyPurchaseAndroidOptions.fromJson(json['androidOptions'] as Map<String, dynamic>) : null,
+      apple: json['apple'] != null ? VerifyPurchaseAppleOptions.fromJson(json['apple'] as Map<String, dynamic>) : null,
+      google: json['google'] != null ? VerifyPurchaseGoogleOptions.fromJson(json['google'] as Map<String, dynamic>) : null,
+      horizon: json['horizon'] != null ? VerifyPurchaseHorizonOptions.fromJson(json['horizon'] as Map<String, dynamic>) : null,
       sku: json['sku'] as String,
     );
   }
@@ -3629,6 +3769,9 @@ class VerifyPurchaseProps {
   Map<String, dynamic> toJson() {
     return {
       'androidOptions': androidOptions?.toJson(),
+      'apple': apple?.toJson(),
+      'google': google?.toJson(),
+      'horizon': horizon?.toJson(),
       'sku': sku,
     };
   }
@@ -3904,11 +4047,17 @@ abstract class MutationResolver {
   /// Validate purchase receipts with the configured providers
   Future<VerifyPurchaseResult> validateReceipt({
     VerifyPurchaseAndroidOptions? androidOptions,
+    VerifyPurchaseAppleOptions? apple,
+    VerifyPurchaseGoogleOptions? google,
+    VerifyPurchaseHorizonOptions? horizon,
     required String sku,
   });
   /// Verify purchases with the configured providers
   Future<VerifyPurchaseResult> verifyPurchase({
     VerifyPurchaseAndroidOptions? androidOptions,
+    VerifyPurchaseAppleOptions? apple,
+    VerifyPurchaseGoogleOptions? google,
+    VerifyPurchaseHorizonOptions? horizon,
     required String sku,
   });
   /// Verify purchases with a specific provider (e.g., IAPKit)
@@ -3963,6 +4112,9 @@ abstract class QueryResolver {
   /// Validate a receipt for a specific product
   Future<VerifyPurchaseResultIOS> validateReceiptIOS({
     VerifyPurchaseAndroidOptions? androidOptions,
+    VerifyPurchaseAppleOptions? apple,
+    VerifyPurchaseGoogleOptions? google,
+    VerifyPurchaseHorizonOptions? horizon,
     required String sku,
   });
 }
@@ -4013,10 +4165,16 @@ typedef MutationShowManageSubscriptionsIOSHandler = Future<List<PurchaseIOS>> Fu
 typedef MutationSyncIOSHandler = Future<bool> Function();
 typedef MutationValidateReceiptHandler = Future<VerifyPurchaseResult> Function({
   VerifyPurchaseAndroidOptions? androidOptions,
+  VerifyPurchaseAppleOptions? apple,
+  VerifyPurchaseGoogleOptions? google,
+  VerifyPurchaseHorizonOptions? horizon,
   required String sku,
 });
 typedef MutationVerifyPurchaseHandler = Future<VerifyPurchaseResult> Function({
   VerifyPurchaseAndroidOptions? androidOptions,
+  VerifyPurchaseAppleOptions? apple,
+  VerifyPurchaseGoogleOptions? google,
+  VerifyPurchaseHorizonOptions? horizon,
   required String sku,
 });
 typedef MutationVerifyPurchaseWithProviderHandler = Future<VerifyPurchaseWithProviderResult> Function({
@@ -4101,6 +4259,9 @@ typedef QueryLatestTransactionIOSHandler = Future<PurchaseIOS?> Function(String 
 typedef QuerySubscriptionStatusIOSHandler = Future<List<SubscriptionStatusIOS>> Function(String sku);
 typedef QueryValidateReceiptIOSHandler = Future<VerifyPurchaseResultIOS> Function({
   VerifyPurchaseAndroidOptions? androidOptions,
+  VerifyPurchaseAppleOptions? apple,
+  VerifyPurchaseGoogleOptions? google,
+  VerifyPurchaseHorizonOptions? horizon,
   required String sku,
 });
 

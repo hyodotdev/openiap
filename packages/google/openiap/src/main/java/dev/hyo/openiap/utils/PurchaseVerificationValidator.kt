@@ -28,29 +28,49 @@ suspend fun verifyPurchaseWithGooglePlay(
     tag: String,
     connectionFactory: (String) -> HttpURLConnection = ::openConnection
 ): VerifyPurchaseResultAndroid = withContext(Dispatchers.IO) {
-    val options = props.androidOptions
-        ?: throw IllegalArgumentException(
-            "Android validation requires packageName, productToken, and accessToken"
-        )
+    // Support both new google field and deprecated androidOptions
+    val googleOptions = props.google
+    val legacyOptions = props.androidOptions
 
-    if (
-        options.packageName.isBlank() ||
-        options.productToken.isBlank() ||
-        options.accessToken.isBlank()
-    ) {
+    val packageName: String
+    val purchaseToken: String
+    val accessToken: String
+    val isSub: Boolean?
+
+    when {
+        googleOptions != null -> {
+            packageName = googleOptions.packageName
+            purchaseToken = googleOptions.purchaseToken
+            accessToken = googleOptions.accessToken
+            isSub = googleOptions.isSub
+        }
+        legacyOptions != null -> {
+            packageName = legacyOptions.packageName
+            purchaseToken = legacyOptions.productToken
+            accessToken = legacyOptions.accessToken
+            isSub = legacyOptions.isSub
+        }
+        else -> {
+            throw IllegalArgumentException(
+                "Google Play validation requires google options (packageName, purchaseToken, accessToken)"
+            )
+        }
+    }
+
+    if (packageName.isBlank() || purchaseToken.isBlank() || accessToken.isBlank()) {
         throw IllegalArgumentException(
-            "Android validation requires packageName, productToken, and accessToken"
+            "Google Play validation requires packageName, purchaseToken, and accessToken"
         )
     }
 
-    val typeSegment = if (options.isSub == true) "subscriptions" else "products"
+    val typeSegment = if (isSub == true) "subscriptions" else "products"
     val baseUrl = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
-    val url = "$baseUrl/${options.packageName}/purchases/$typeSegment/${props.sku}/tokens/${options.productToken}"
+    val url = "$baseUrl/$packageName/purchases/$typeSegment/${props.sku}/tokens/$purchaseToken"
 
     val connection = connectionFactory(url).apply {
         requestMethod = "GET"
         setRequestProperty("Content-Type", "application/json")
-        setRequestProperty("Authorization", "Bearer ${options.accessToken}")
+        setRequestProperty("Authorization", "Bearer $accessToken")
     }
 
     try {
@@ -80,6 +100,89 @@ suspend fun verifyPurchaseWithGooglePlay(
     }
 }
 
+/**
+ * Verify purchase with Meta Horizon S2S API.
+ * POST https://graph.oculus.com/$APP_ID/verify_entitlement
+ */
+suspend fun verifyPurchaseWithHorizon(
+    props: VerifyPurchaseProps,
+    appId: String,
+    tag: String,
+    connectionFactory: (String) -> HttpURLConnection = ::openConnection
+): VerifyPurchaseResultHorizon = withContext(Dispatchers.IO) {
+    val horizonOptions = props.horizon
+        ?: throw IllegalArgumentException(
+            "Horizon validation requires horizon options (sku, userId, accessToken)"
+        )
+
+    if (horizonOptions.sku.isBlank() || horizonOptions.userId.isBlank() || horizonOptions.accessToken.isBlank()) {
+        throw IllegalArgumentException(
+            "Horizon validation requires sku, userId, and accessToken"
+        )
+    }
+
+    val url = "https://graph.oculus.com/$appId/verify_entitlement"
+
+    val connection = connectionFactory(url).apply {
+        requestMethod = "POST"
+        doOutput = true
+        setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+    }
+
+    try {
+        // Build form data
+        val formData = buildString {
+            append("access_token=${java.net.URLEncoder.encode(horizonOptions.accessToken, "UTF-8")}")
+            append("&user_id=${java.net.URLEncoder.encode(horizonOptions.userId, "UTF-8")}")
+            append("&sku=${java.net.URLEncoder.encode(horizonOptions.sku, "UTF-8")}")
+        }
+
+        connection.outputStream.use { stream ->
+            stream.write(formData.toByteArray())
+        }
+
+        val statusCode = connection.responseCode
+        val responseBody = (if (statusCode in 200..299) connection.inputStream else connection.errorStream)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            .orElse("")
+
+        if (statusCode !in 200..299) {
+            OpenIapLog.warn("Horizon verifyPurchase failed (HTTP $statusCode): $responseBody", tag)
+            throw OpenIapError.InvalidPurchaseVerification
+        }
+
+        try {
+            // Response: {"success":true,"grant_time":1744148687}
+            val mapType = object : TypeToken<Map<String, Any?>>() {}.type
+            val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
+            val success = parsed["success"] as? Boolean ?: false
+            val grantTime = (parsed["grant_time"] as? Number)?.toLong()
+
+            VerifyPurchaseResultHorizon(
+                success = success,
+                grantTime = grantTime
+            )
+        } catch (jsonError: JsonSyntaxException) {
+            OpenIapLog.warn("Failed to parse Horizon verification response: ${jsonError.message}", tag)
+            throw OpenIapError.InvalidPurchaseVerification
+        }
+    } catch (io: IOException) {
+        OpenIapLog.warn("Network error during Horizon verification: ${io.message}", tag)
+        throw OpenIapError.NetworkError
+    } finally {
+        connection.disconnect()
+    }
+}
+
+/**
+ * Result from Meta Horizon verify_entitlement API.
+ */
+data class VerifyPurchaseResultHorizon(
+    val success: Boolean,
+    val grantTime: Long?
+)
+
 suspend fun verifyPurchaseWithIapkit(
     props: RequestVerifyPurchaseWithIapkitProps,
     tag: String,
@@ -87,13 +190,14 @@ suspend fun verifyPurchaseWithIapkit(
 ): RequestVerifyPurchaseWithIapkitResult = withContext(Dispatchers.IO) {
     val endpoint = DEFAULT_IAPKIT_ENDPOINT
 
-    // On Android, only Google verification is supported
+    // On Android, only Google verification is supported via IAPKit
+    // Note: Horizon verification requires direct S2S API calls to Meta (not yet supported)
     if (props.google == null) {
         throw IllegalArgumentException("IAPKit verification on Android requires google payload")
     }
 
     val store = IapStore.Google
-    val payload = buildPayload(props, store)
+    val payload = buildGooglePayload(props)
 
     val connection = connectionFactory(endpoint).apply {
         requestMethod = "POST"
@@ -166,27 +270,21 @@ suspend fun verifyPurchaseWithIapkit(
     }
 }
 
-private fun buildPayload(
-    props: RequestVerifyPurchaseWithIapkitProps,
-    store: IapStore
-): Map<String, Any?> {
-    return when (store) {
-        IapStore.Google, IapStore.Horizon -> {
-            val google = props.google
-                ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
-            if (google.purchaseToken.isBlank()) {
-                throw IllegalArgumentException(
-                    "IAPKit Google verification requires purchaseToken"
-                )
-            }
-            mutableMapOf<String, Any?>(
-                "store" to store.rawValue,
-                "purchaseToken" to google.purchaseToken
-            )
-        }
-        else -> throw IllegalArgumentException("IAPKit verification on Android supports Google payloads only")
+/**
+ * Build payload for Google Play Store verification via IAPKit.
+ */
+private fun buildGooglePayload(props: RequestVerifyPurchaseWithIapkitProps): Map<String, Any?> {
+    val google = props.google
+        ?: throw IllegalArgumentException("IAPKit Google verification requires google options")
+    if (google.purchaseToken.isBlank()) {
+        throw IllegalArgumentException("IAPKit Google verification requires purchaseToken")
     }
+    return mutableMapOf<String, Any?>(
+        "store" to IapStore.Google.rawValue,
+        "purchaseToken" to google.purchaseToken
+    )
 }
+
 
 private fun String?.orElse(fallback: String): String = this ?: fallback
 

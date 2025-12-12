@@ -34,6 +34,7 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toPurchase
 import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
+import dev.hyo.openiap.utils.verifyPurchaseWithHorizon
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
@@ -654,7 +655,35 @@ class OpenIapModule(
     }
 
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
-        verifyPurchaseWithGooglePlay(props, TAG)
+        // Use Horizon API if horizon options provided, otherwise fallback to Google Play
+        if (props.horizon != null) {
+            val horizonAppId = appId ?: throw OpenIapError.DeveloperError
+            verifyPurchaseWithHorizon(props, horizonAppId, TAG)
+            // Return a VerifyPurchaseResult - for now using Android result type
+            // TODO: Add VerifyPurchaseResultHorizon to GraphQL schema
+            VerifyPurchaseResultAndroid(
+                autoRenewing = false,
+                betaProduct = false,
+                cancelDate = null,
+                cancelReason = null,
+                deferredDate = null,
+                deferredSku = null,
+                freeTrialEndDate = 0.0,
+                gracePeriodEndDate = 0.0,
+                parentProductId = "",
+                productId = props.sku,
+                productType = "inapp",
+                purchaseDate = 0.0,
+                quantity = 1,
+                receiptId = "",
+                renewalDate = 0.0,
+                term = "",
+                termSku = "",
+                testTransaction = false
+            )
+        } else {
+            verifyPurchaseWithGooglePlay(props, TAG)
+        }
     }
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->

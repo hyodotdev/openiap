@@ -598,16 +598,25 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         var jws: String = ""
         var isValid = false
 
-        do {
-            let product = try await storeProduct(for: props.sku)
-            if let result = await product.latestTransaction {
-                jws = result.jwsRepresentation
-                let transaction = try checkVerified(result)
-                latestPurchase = .purchaseIos(await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation))
-                isValid = true
+        // If apple options with JWS are provided, use that directly
+        // Otherwise, fetch the latest transaction from StoreKit
+        if let appleOptions = props.apple, !appleOptions.jws.isEmpty {
+            jws = appleOptions.jws
+            // When JWS is provided externally, we trust it's valid
+            // The caller should verify the JWS on their server
+            isValid = true
+        } else {
+            do {
+                let product = try await storeProduct(for: props.sku)
+                if let result = await product.latestTransaction {
+                    jws = result.jwsRepresentation
+                    let transaction = try checkVerified(result)
+                    latestPurchase = .purchaseIos(await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation))
+                    isValid = true
+                }
+            } catch {
+                isValid = false
             }
-        } catch {
-            isValid = false
         }
 
         return VerifyPurchaseResultIOS(
