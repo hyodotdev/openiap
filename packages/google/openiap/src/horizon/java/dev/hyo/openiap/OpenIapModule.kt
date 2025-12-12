@@ -658,7 +658,10 @@ class OpenIapModule(
         // Use Horizon API if horizon options provided, otherwise fallback to Google Play
         if (props.horizon != null) {
             val horizonAppId = appId ?: throw OpenIapError.DeveloperError
-            verifyPurchaseWithHorizon(props, horizonAppId, TAG)
+            val horizonResult = verifyPurchaseWithHorizon(props, horizonAppId, TAG)
+            if (!horizonResult.success) {
+                throw OpenIapError.InvalidPurchaseVerification
+            }
             // Return a VerifyPurchaseResult - for now using Android result type
             // TODO: Add VerifyPurchaseResultHorizon to GraphQL schema
             VerifyPurchaseResultAndroid(
@@ -671,11 +674,11 @@ class OpenIapModule(
                 freeTrialEndDate = 0.0,
                 gracePeriodEndDate = 0.0,
                 parentProductId = "",
-                productId = props.sku,
+                productId = props.horizon?.sku ?: props.sku,
                 productType = "inapp",
-                purchaseDate = 0.0,
+                purchaseDate = ((horizonResult.grantTime ?: 0L) * 1000L).toDouble(),
                 quantity = 1,
-                receiptId = "",
+                receiptId = "horizon:${props.horizon?.userId.orEmpty()}:${props.horizon?.sku.orEmpty()}",
                 renewalDate = 0.0,
                 term = "",
                 termSku = "",

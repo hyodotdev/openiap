@@ -28,34 +28,15 @@ suspend fun verifyPurchaseWithGooglePlay(
     tag: String,
     connectionFactory: (String) -> HttpURLConnection = ::openConnection
 ): VerifyPurchaseResultAndroid = withContext(Dispatchers.IO) {
-    // Support both new google field and deprecated androidOptions
     val googleOptions = props.google
-    val legacyOptions = props.androidOptions
+        ?: throw IllegalArgumentException(
+            "Google Play validation requires google options (packageName, purchaseToken, accessToken)"
+        )
 
-    val packageName: String
-    val purchaseToken: String
-    val accessToken: String
-    val isSub: Boolean?
-
-    when {
-        googleOptions != null -> {
-            packageName = googleOptions.packageName
-            purchaseToken = googleOptions.purchaseToken
-            accessToken = googleOptions.accessToken
-            isSub = googleOptions.isSub
-        }
-        legacyOptions != null -> {
-            packageName = legacyOptions.packageName
-            purchaseToken = legacyOptions.productToken
-            accessToken = legacyOptions.accessToken
-            isSub = legacyOptions.isSub
-        }
-        else -> {
-            throw IllegalArgumentException(
-                "Google Play validation requires google options (packageName, purchaseToken, accessToken)"
-            )
-        }
-    }
+    val packageName = googleOptions.packageName
+    val purchaseToken = googleOptions.purchaseToken
+    val accessToken = googleOptions.accessToken
+    val isSub = googleOptions.isSub
 
     if (packageName.isBlank() || purchaseToken.isBlank() || accessToken.isBlank()) {
         throw IllegalArgumentException(
