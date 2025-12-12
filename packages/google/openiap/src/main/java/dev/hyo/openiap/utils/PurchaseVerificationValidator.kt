@@ -135,7 +135,7 @@ suspend fun verifyPurchaseWithHorizon(
             .orElse("")
 
         if (statusCode !in 200..299) {
-            OpenIapLog.warn("Horizon verifyPurchase failed (HTTP $statusCode): $responseBody", tag)
+            OpenIapLog.warn("Horizon verifyPurchase failed (HTTP $statusCode)", tag)
             throw OpenIapError.InvalidPurchaseVerification
         }
 
