@@ -185,10 +185,6 @@ suspend fun verifyPurchaseWithIapkit(
     try {
         val body = gson.toJson(payload)
 
-        // Log request details for debugging
-        OpenIapLog.debug("IAPKit request URL: $endpoint", tag)
-        OpenIapLog.debug("IAPKit request body: $body", tag)
-
         connection.outputStream.use { stream ->
             stream.write(body.toByteArray())
         }
@@ -199,10 +195,8 @@ suspend fun verifyPurchaseWithIapkit(
             ?.use { it.readText() }
             .orElse("")
 
-        OpenIapLog.debug("IAPKit response (HTTP $statusCode): $responseBody", tag)
-
         if (statusCode !in 200..299) {
-            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode) [$store]: $responseBody", tag)
+            OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP $statusCode) [$store]", tag)
             // Extract concise error message from IAPKit response
             // IAPKit returns nested error format - extract the deepest originalError
             val errorMessage = try {
@@ -230,7 +224,6 @@ suspend fun verifyPurchaseWithIapkit(
                     this["store"] = store.toJson()
                 }
             }
-            OpenIapLog.debug("IAPKit normalized response: $normalizedParsed", tag)
             RequestVerifyPurchaseWithIapkitResult.fromJson(normalizedParsed)
         } catch (jsonError: Exception) {
             OpenIapLog.warn("Failed to parse IAPKit verification response: ${jsonError.message}", tag)

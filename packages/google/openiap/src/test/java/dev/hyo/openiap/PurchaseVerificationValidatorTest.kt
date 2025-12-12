@@ -25,7 +25,7 @@ import org.junit.Test
 class PurchaseVerificationValidatorTest {
 
     @Test
-    fun `verifyPurchaseWithGooglePlay throws without google or androidOptions`() = runTest {
+    fun `verifyPurchaseWithGooglePlay throws without google options`() = runTest {
         val props = VerifyPurchaseProps(sku = "product.sku")
 
         try {
