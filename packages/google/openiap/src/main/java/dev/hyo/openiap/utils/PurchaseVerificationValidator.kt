@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 private const val DEFAULT_IAPKIT_ENDPOINT = "https://api.iapkit.com/v1/purchase/verify"
 private val gson = Gson()
@@ -23,6 +24,9 @@ private val gson = Gson()
 private fun openConnection(url: String): HttpURLConnection {
     return URL(url).openConnection() as HttpURLConnection
 }
+
+private fun encodePathSegment(value: String): String =
+    URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")
 
 suspend fun verifyPurchaseWithGooglePlay(
     props: VerifyPurchaseProps,
@@ -47,7 +51,8 @@ suspend fun verifyPurchaseWithGooglePlay(
 
     val typeSegment = if (isSub == true) "subscriptions" else "products"
     val baseUrl = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
-    val url = "$baseUrl/$packageName/purchases/$typeSegment/${props.sku}/tokens/$purchaseToken"
+    val url = "$baseUrl/${encodePathSegment(packageName)}/purchases/$typeSegment/" +
+        "${encodePathSegment(props.sku)}/tokens/${encodePathSegment(purchaseToken)}"
 
     val connection = connectionFactory(url).apply {
         requestMethod = "GET"
@@ -120,7 +125,7 @@ suspend fun verifyPurchaseWithHorizon(
         }
 
         connection.outputStream.use { stream ->
-            stream.write(formData.toByteArray())
+            stream.write(formData.toByteArray(Charsets.UTF_8))
         }
 
         val statusCode = connection.responseCode
