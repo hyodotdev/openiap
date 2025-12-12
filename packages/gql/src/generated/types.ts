@@ -1113,24 +1113,37 @@ export interface ValidTimeWindowAndroid {
 /**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
+ *
+ * ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
  */
 export interface VerifyPurchaseAppleOptions {
-  /** The JWS (JSON Web Signature) representation of the transaction. */
+  /**
+   * The JWS (JSON Web Signature) representation of the transaction.
+   * ⚠️ Sensitive: Do not log this value.
+   */
   jws: string;
 }
 
 /**
  * Google Play Store verification parameters.
  * Used for server-side receipt validation via Google Play Developer API.
+ *
+ * ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
  */
 export interface VerifyPurchaseGoogleOptions {
-  /** Google OAuth2 access token for API authentication */
+  /**
+   * Google OAuth2 access token for API authentication.
+   * ⚠️ Sensitive: Do not log this value.
+   */
   accessToken: string;
   /** Whether this is a subscription purchase (affects API endpoint used) */
   isSub?: (boolean | null);
   /** Android package name (e.g., com.example.app) */
   packageName: string;
-  /** Purchase token from the purchase response */
+  /**
+   * Purchase token from the purchase response.
+   * ⚠️ Sensitive: Do not log this value.
+   */
   purchaseToken: string;
 }
 
@@ -1138,9 +1151,14 @@ export interface VerifyPurchaseGoogleOptions {
  * Meta Horizon (Quest) verification parameters.
  * Used for server-side entitlement verification via Meta's S2S API.
  * POST https://graph.oculus.com/$APP_ID/verify_entitlement
+ *
+ * ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
  */
 export interface VerifyPurchaseHorizonOptions {
-  /** Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token) */
+  /**
+   * Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
+   * ⚠️ Sensitive: Do not log this value.
+   */
   accessToken: string;
   /** The SKU for the add-on item, defined in Meta Developer Dashboard */
   sku: string;

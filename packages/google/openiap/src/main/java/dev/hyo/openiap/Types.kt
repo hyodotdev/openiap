@@ -3087,10 +3087,13 @@ public data class SubscriptionProductReplacementParamsAndroid(
 /**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
+ * 
+ * ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
  */
 public data class VerifyPurchaseAppleOptions(
     /**
      * The JWS (JSON Web Signature) representation of the transaction.
+     * ⚠️ Sensitive: Do not log this value.
      */
     val jws: String
 ) {
@@ -3110,10 +3113,13 @@ public data class VerifyPurchaseAppleOptions(
 /**
  * Google Play Store verification parameters.
  * Used for server-side receipt validation via Google Play Developer API.
+ * 
+ * ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
  */
 public data class VerifyPurchaseGoogleOptions(
     /**
-     * Google OAuth2 access token for API authentication
+     * Google OAuth2 access token for API authentication.
+     * ⚠️ Sensitive: Do not log this value.
      */
     val accessToken: String,
     /**
@@ -3125,7 +3131,8 @@ public data class VerifyPurchaseGoogleOptions(
      */
     val packageName: String,
     /**
-     * Purchase token from the purchase response
+     * Purchase token from the purchase response.
+     * ⚠️ Sensitive: Do not log this value.
      */
     val purchaseToken: String
 ) {
@@ -3152,10 +3159,13 @@ public data class VerifyPurchaseGoogleOptions(
  * Meta Horizon (Quest) verification parameters.
  * Used for server-side entitlement verification via Meta's S2S API.
  * POST https://graph.oculus.com/$APP_ID/verify_entitlement
+ * 
+ * ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
  */
 public data class VerifyPurchaseHorizonOptions(
     /**
-     * Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token)
+     * Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
+     * ⚠️ Sensitive: Do not log this value.
      */
     val accessToken: String,
     /**

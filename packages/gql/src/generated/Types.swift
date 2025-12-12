@@ -1337,8 +1337,11 @@ public struct SubscriptionProductReplacementParamsAndroid: Codable {
 
 /// Apple App Store verification parameters.
 /// Used for server-side receipt validation via App Store Server API.
+/// 
+/// ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
 public struct VerifyPurchaseAppleOptions: Codable {
     /// The JWS (JSON Web Signature) representation of the transaction.
+    /// ⚠️ Sensitive: Do not log this value.
     public var jws: String
 
     public init(
@@ -1350,14 +1353,18 @@ public struct VerifyPurchaseAppleOptions: Codable {
 
 /// Google Play Store verification parameters.
 /// Used for server-side receipt validation via Google Play Developer API.
+/// 
+/// ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
 public struct VerifyPurchaseGoogleOptions: Codable {
-    /// Google OAuth2 access token for API authentication
+    /// Google OAuth2 access token for API authentication.
+    /// ⚠️ Sensitive: Do not log this value.
     public var accessToken: String
     /// Whether this is a subscription purchase (affects API endpoint used)
     public var isSub: Bool?
     /// Android package name (e.g., com.example.app)
     public var packageName: String
-    /// Purchase token from the purchase response
+    /// Purchase token from the purchase response.
+    /// ⚠️ Sensitive: Do not log this value.
     public var purchaseToken: String
 
     public init(
@@ -1376,8 +1383,11 @@ public struct VerifyPurchaseGoogleOptions: Codable {
 /// Meta Horizon (Quest) verification parameters.
 /// Used for server-side entitlement verification via Meta's S2S API.
 /// POST https://graph.oculus.com/$APP_ID/verify_entitlement
+/// 
+/// ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
 public struct VerifyPurchaseHorizonOptions: Codable {
-    /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token)
+    /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
+    /// ⚠️ Sensitive: Do not log this value.
     public var accessToken: String
     /// The SKU for the add-on item, defined in Meta Developer Dashboard
     public var sku: String
