@@ -29,6 +29,91 @@ function Notes() {
           }}
         >
           <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap-gql v1.3.3 / openiap-google v1.3.13 / openiap-apple v1.3.1
+            - Platform-Specific Verification Options
+          </h4>
+          <p>
+            <strong>verifyPurchase API Refactored:</strong>
+          </p>
+          <p>
+            The <code>verifyPurchase</code> API now supports platform-specific
+            options for Apple, Google, and Meta Horizon stores.
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <code>VerifyPurchaseAppleOptions</code>
+              </strong>{' '}
+              - Apple App Store verification with JWS token
+            </li>
+            <li>
+              <strong>
+                <code>VerifyPurchaseGoogleOptions</code>
+              </strong>{' '}
+              - Google Play verification with packageName, purchaseToken, and
+              accessToken
+            </li>
+            <li>
+              <strong>
+                <code>VerifyPurchaseHorizonOptions</code>
+              </strong>{' '}
+              - Meta Horizon (Quest) verification via S2S API with sku, userId,
+              and accessToken
+            </li>
+          </ul>
+          <p>
+            <strong>New VerifyPurchaseProps Structure:</strong>
+          </p>
+          <CodeBlock language="typescript">
+            {`// Platform-specific verification (recommended)
+verifyPurchase({
+  sku: 'premium_monthly',
+  apple: { jws: 'eyJ...' },              // iOS App Store
+  google: {                              // Google Play
+    packageName: 'com.example.app',
+    purchaseToken: 'token...',
+    accessToken: 'oauth_token...',
+    isSub: true
+  },
+  horizon: {                             // Meta Quest
+    sku: '50_gems',
+    userId: '123456789',
+    accessToken: 'OC|app_id|app_secret'
+  }
+})
+
+// Legacy format still supported (deprecated)
+verifyPurchase({
+  sku: 'premium_monthly',
+  androidOptions: { ... }  // @deprecated - use google instead
+})`}
+          </CodeBlock>
+          <p>
+            <strong>Deprecations:</strong>
+          </p>
+          <ul>
+            <li>
+              <code>androidOptions</code> in VerifyPurchaseProps → Use{' '}
+              <code>google</code> instead
+            </li>
+          </ul>
+          <p>
+            See:{' '}
+            <a href="/docs/apis#verify-purchase">verifyPurchase API</a>,{' '}
+            <a href="/docs/types#verify-purchase-props">VerifyPurchaseProps</a>
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
             📅 openiap-google v1.3.12 / openiap-gql v1.3.2 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-2-0"
