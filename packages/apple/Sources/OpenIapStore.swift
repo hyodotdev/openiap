@@ -374,7 +374,7 @@ public final class OpenIapStore: ObservableObject {
     }
 
     public func verifyPurchase(sku: String) async throws -> VerifyPurchaseResultIOS {
-        let result = try await module.verifyPurchase(VerifyPurchaseProps(sku: sku))
+        let result = try await module.verifyPurchase(VerifyPurchaseProps(apple: VerifyPurchaseAppleOptions(sku: sku)))
         if case let .verifyPurchaseResultIos(iosResult) = result {
             return iosResult
         }

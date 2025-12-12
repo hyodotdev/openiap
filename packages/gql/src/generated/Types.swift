@@ -1337,17 +1337,14 @@ public struct SubscriptionProductReplacementParamsAndroid: Codable {
 
 /// Apple App Store verification parameters.
 /// Used for server-side receipt validation via App Store Server API.
-/// 
-/// ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
 public struct VerifyPurchaseAppleOptions: Codable {
-    /// The JWS (JSON Web Signature) representation of the transaction.
-    /// ⚠️ Sensitive: Do not log this value.
-    public var jws: String
+    /// Product SKU to validate
+    public var sku: String
 
     public init(
-        jws: String
+        sku: String
     ) {
-        self.jws = jws
+        self.sku = sku
     }
 }
 
@@ -1366,17 +1363,21 @@ public struct VerifyPurchaseGoogleOptions: Codable {
     /// Purchase token from the purchase response.
     /// ⚠️ Sensitive: Do not log this value.
     public var purchaseToken: String
+    /// Product SKU to validate
+    public var sku: String
 
     public init(
         accessToken: String,
         isSub: Bool? = nil,
         packageName: String,
-        purchaseToken: String
+        purchaseToken: String,
+        sku: String
     ) {
         self.accessToken = accessToken
         self.isSub = isSub
         self.packageName = packageName
         self.purchaseToken = purchaseToken
+        self.sku = sku
     }
 }
 
@@ -1417,19 +1418,15 @@ public struct VerifyPurchaseProps: Codable {
     public var google: VerifyPurchaseGoogleOptions?
     /// Meta Horizon (Quest) verification parameters.
     public var horizon: VerifyPurchaseHorizonOptions?
-    /// Product SKU to validate
-    public var sku: String
 
     public init(
         apple: VerifyPurchaseAppleOptions? = nil,
         google: VerifyPurchaseGoogleOptions? = nil,
-        horizon: VerifyPurchaseHorizonOptions? = nil,
-        sku: String
+        horizon: VerifyPurchaseHorizonOptions? = nil
     ) {
         self.apple = apple
         self.google = google
         self.horizon = horizon
-        self.sku = sku
     }
 }
 

@@ -225,7 +225,7 @@ function Docs() {
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Notes
+                Updates
               </NavLink>
             </li>
             <li>

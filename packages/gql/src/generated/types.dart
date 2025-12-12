@@ -3624,28 +3624,24 @@ class SubscriptionProductReplacementParamsAndroid {
 
 /// Apple App Store verification parameters.
 /// Used for server-side receipt validation via App Store Server API.
-/// 
-/// ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
 class VerifyPurchaseAppleOptions {
   const VerifyPurchaseAppleOptions({
-    /// The JWS (JSON Web Signature) representation of the transaction.
-    /// ⚠️ Sensitive: Do not log this value.
-    required this.jws,
+    /// Product SKU to validate
+    required this.sku,
   });
 
-  /// The JWS (JSON Web Signature) representation of the transaction.
-  /// ⚠️ Sensitive: Do not log this value.
-  final String jws;
+  /// Product SKU to validate
+  final String sku;
 
   factory VerifyPurchaseAppleOptions.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseAppleOptions(
-      jws: json['jws'] as String,
+      sku: json['sku'] as String,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'jws': jws,
+      'sku': sku,
     };
   }
 }
@@ -3666,6 +3662,8 @@ class VerifyPurchaseGoogleOptions {
     /// Purchase token from the purchase response.
     /// ⚠️ Sensitive: Do not log this value.
     required this.purchaseToken,
+    /// Product SKU to validate
+    required this.sku,
   });
 
   /// Google OAuth2 access token for API authentication.
@@ -3678,6 +3676,8 @@ class VerifyPurchaseGoogleOptions {
   /// Purchase token from the purchase response.
   /// ⚠️ Sensitive: Do not log this value.
   final String purchaseToken;
+  /// Product SKU to validate
+  final String sku;
 
   factory VerifyPurchaseGoogleOptions.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseGoogleOptions(
@@ -3685,6 +3685,7 @@ class VerifyPurchaseGoogleOptions {
       isSub: json['isSub'] as bool?,
       packageName: json['packageName'] as String,
       purchaseToken: json['purchaseToken'] as String,
+      sku: json['sku'] as String,
     );
   }
 
@@ -3694,6 +3695,7 @@ class VerifyPurchaseGoogleOptions {
       'isSub': isSub,
       'packageName': packageName,
       'purchaseToken': purchaseToken,
+      'sku': sku,
     };
   }
 }
@@ -3752,8 +3754,6 @@ class VerifyPurchaseProps {
     this.google,
     /// Meta Horizon (Quest) verification parameters.
     this.horizon,
-    /// Product SKU to validate
-    required this.sku,
   });
 
   /// Apple App Store verification parameters.
@@ -3762,15 +3762,12 @@ class VerifyPurchaseProps {
   final VerifyPurchaseGoogleOptions? google;
   /// Meta Horizon (Quest) verification parameters.
   final VerifyPurchaseHorizonOptions? horizon;
-  /// Product SKU to validate
-  final String sku;
 
   factory VerifyPurchaseProps.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseProps(
       apple: json['apple'] != null ? VerifyPurchaseAppleOptions.fromJson(json['apple'] as Map<String, dynamic>) : null,
       google: json['google'] != null ? VerifyPurchaseGoogleOptions.fromJson(json['google'] as Map<String, dynamic>) : null,
       horizon: json['horizon'] != null ? VerifyPurchaseHorizonOptions.fromJson(json['horizon'] as Map<String, dynamic>) : null,
-      sku: json['sku'] as String,
     );
   }
 
@@ -3779,7 +3776,6 @@ class VerifyPurchaseProps {
       'apple': apple?.toJson(),
       'google': google?.toJson(),
       'horizon': horizon?.toJson(),
-      'sku': sku,
     };
   }
 }
@@ -4058,14 +4054,12 @@ abstract class MutationResolver {
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
     VerifyPurchaseHorizonOptions? horizon,
-    required String sku,
   });
   /// Verify purchases with the configured providers
   Future<VerifyPurchaseResult> verifyPurchase({
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
     VerifyPurchaseHorizonOptions? horizon,
-    required String sku,
   });
   /// Verify purchases with a specific provider (e.g., IAPKit)
   Future<VerifyPurchaseWithProviderResult> verifyPurchaseWithProvider({
@@ -4121,7 +4115,6 @@ abstract class QueryResolver {
     VerifyPurchaseAppleOptions? apple,
     VerifyPurchaseGoogleOptions? google,
     VerifyPurchaseHorizonOptions? horizon,
-    required String sku,
   });
 }
 
@@ -4173,13 +4166,11 @@ typedef MutationValidateReceiptHandler = Future<VerifyPurchaseResult> Function({
   VerifyPurchaseAppleOptions? apple,
   VerifyPurchaseGoogleOptions? google,
   VerifyPurchaseHorizonOptions? horizon,
-  required String sku,
 });
 typedef MutationVerifyPurchaseHandler = Future<VerifyPurchaseResult> Function({
   VerifyPurchaseAppleOptions? apple,
   VerifyPurchaseGoogleOptions? google,
   VerifyPurchaseHorizonOptions? horizon,
-  required String sku,
 });
 typedef MutationVerifyPurchaseWithProviderHandler = Future<VerifyPurchaseWithProviderResult> Function({
   RequestVerifyPurchaseWithIapkitProps? iapkit,
@@ -4265,7 +4256,6 @@ typedef QueryValidateReceiptIOSHandler = Future<VerifyPurchaseResultIOS> Functio
   VerifyPurchaseAppleOptions? apple,
   VerifyPurchaseGoogleOptions? google,
   VerifyPurchaseHorizonOptions? horizon,
-  required String sku,
 });
 
 class QueryHandlers {

@@ -101,7 +101,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     func getReceiptDataIOS() async throws -> String? { "receipt" }
     func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
         guard case let .verifyPurchaseResultIos(ios) = validateResult else {
-            throw PurchaseError(code: .featureNotSupported, message: "Android validation not supported", productId: props.sku)
+            throw PurchaseError(code: .featureNotSupported, message: "Android validation not supported", productId: props.apple?.sku)
         }
         return ios
     }

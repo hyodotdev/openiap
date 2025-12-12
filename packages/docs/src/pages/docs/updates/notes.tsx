@@ -8,12 +8,12 @@ function Notes() {
   return (
     <div className="doc-page">
       <SEO
-        title="Updates"
+        title="Notes"
         description="Important changes and deprecations in IAP libraries and platforms - API changes, breaking changes, validateReceipt to verifyPurchase migration, and guides."
         path="/docs/updates/notes"
         keywords="IAP updates, validateReceipt, verifyPurchase, receipt validation, purchase verification, migration guide"
       />
-      <h1>Updates</h1>
+      <h1>Notes</h1>
       <p>Important changes and deprecations in IAP libraries and platforms.</p>
 
       <section>
@@ -29,29 +29,31 @@ function Notes() {
           }}
         >
           <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
-            📅 openiap-gql v1.3.3 / openiap-google v1.3.13 / openiap-apple v1.3.1
+            📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple v1.3.2
             - Platform-Specific Verification Options
           </h4>
           <p>
-            <strong>verifyPurchase API Refactored:</strong>
+            <strong>verifyPurchase API Refactored (Breaking Change):</strong>
           </p>
           <p>
-            The <code>verifyPurchase</code> API now supports platform-specific
-            options for Apple, Google, and Meta Horizon stores.
+            The <code>verifyPurchase</code> API now requires platform-specific
+            options for Apple, Google, and Meta Horizon stores. The{' '}
+            <code>sku</code> field has been moved inside each platform-specific
+            options object.
           </p>
           <ul>
             <li>
               <strong>
                 <code>VerifyPurchaseAppleOptions</code>
               </strong>{' '}
-              - Apple App Store verification with JWS token
+              - Apple App Store verification with sku
             </li>
             <li>
               <strong>
                 <code>VerifyPurchaseGoogleOptions</code>
               </strong>{' '}
-              - Google Play verification with packageName, purchaseToken, and
-              accessToken
+              - Google Play verification with sku, packageName, purchaseToken,
+              and accessToken
             </li>
             <li>
               <strong>
@@ -65,11 +67,11 @@ function Notes() {
             <strong>New VerifyPurchaseProps Structure:</strong>
           </p>
           <CodeBlock language="typescript">
-            {`// Platform-specific verification (recommended)
+            {`// Platform-specific verification
 verifyPurchase({
-  sku: 'premium_monthly',
-  apple: { jws: 'eyJ...' },              // iOS App Store
+  apple: { sku: 'premium_monthly' },     // iOS App Store
   google: {                              // Google Play
+    sku: 'premium_monthly',
     packageName: 'com.example.app',
     purchaseToken: 'token...',
     accessToken: 'oauth_token...',
@@ -80,20 +82,18 @@ verifyPurchase({
     userId: '123456789',
     accessToken: 'OC|app_id|app_secret'
   }
-})
-
-// Legacy format still supported (deprecated)
-verifyPurchase({
-  sku: 'premium_monthly',
-  androidOptions: { ... }  // @deprecated - use google instead
 })`}
           </CodeBlock>
           <p>
-            <strong>Deprecations:</strong>
+            <strong>Breaking Changes:</strong>
           </p>
           <ul>
             <li>
-              <code>androidOptions</code> in VerifyPurchaseProps → Use{' '}
+              <code>sku</code> removed from <code>VerifyPurchaseProps</code>{' '}
+              root level → Now inside each platform options
+            </li>
+            <li>
+              <code>androidOptions</code> completely removed → Use{' '}
               <code>google</code> instead
             </li>
           </ul>

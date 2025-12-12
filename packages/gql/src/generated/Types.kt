@@ -3159,26 +3159,23 @@ public data class SubscriptionProductReplacementParamsAndroid(
 /**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
- * 
- * ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
  */
 public data class VerifyPurchaseAppleOptions(
     /**
-     * The JWS (JSON Web Signature) representation of the transaction.
-     * ⚠️ Sensitive: Do not log this value.
+     * Product SKU to validate
      */
-    val jws: String
+    val sku: String
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseAppleOptions {
             return VerifyPurchaseAppleOptions(
-                jws = json["jws"] as String,
+                sku = json["sku"] as String,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "jws" to jws,
+        "sku" to sku,
     )
 }
 
@@ -3206,7 +3203,11 @@ public data class VerifyPurchaseGoogleOptions(
      * Purchase token from the purchase response.
      * ⚠️ Sensitive: Do not log this value.
      */
-    val purchaseToken: String
+    val purchaseToken: String,
+    /**
+     * Product SKU to validate
+     */
+    val sku: String
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseGoogleOptions {
@@ -3215,6 +3216,7 @@ public data class VerifyPurchaseGoogleOptions(
                 isSub = json["isSub"] as Boolean?,
                 packageName = json["packageName"] as String,
                 purchaseToken = json["purchaseToken"] as String,
+                sku = json["sku"] as String,
             )
         }
     }
@@ -3224,6 +3226,7 @@ public data class VerifyPurchaseGoogleOptions(
         "isSub" to isSub,
         "packageName" to packageName,
         "purchaseToken" to purchaseToken,
+        "sku" to sku,
     )
 }
 
@@ -3285,11 +3288,7 @@ public data class VerifyPurchaseProps(
     /**
      * Meta Horizon (Quest) verification parameters.
      */
-    val horizon: VerifyPurchaseHorizonOptions? = null,
-    /**
-     * Product SKU to validate
-     */
-    val sku: String
+    val horizon: VerifyPurchaseHorizonOptions? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
@@ -3297,7 +3296,6 @@ public data class VerifyPurchaseProps(
                 apple = (json["apple"] as Map<String, Any?>?)?.let { VerifyPurchaseAppleOptions.fromJson(it) },
                 google = (json["google"] as Map<String, Any?>?)?.let { VerifyPurchaseGoogleOptions.fromJson(it) },
                 horizon = (json["horizon"] as Map<String, Any?>?)?.let { VerifyPurchaseHorizonOptions.fromJson(it) },
-                sku = json["sku"] as String,
             )
         }
     }
@@ -3306,7 +3304,6 @@ public data class VerifyPurchaseProps(
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
         "horizon" to horizon?.toJson(),
-        "sku" to sku,
     )
 }
 

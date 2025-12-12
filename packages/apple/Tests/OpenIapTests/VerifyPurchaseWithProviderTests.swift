@@ -116,7 +116,7 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
     func getReceiptDataIOS() async throws -> String? { "receipt" }
     func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
         guard case let .verifyPurchaseResultIos(ios) = validateResult else {
-            throw PurchaseError(code: .featureNotSupported, message: "Expected iOS validation result", productId: props.sku)
+            throw PurchaseError(code: .featureNotSupported, message: "Expected iOS validation result", productId: props.apple?.sku)
         }
         return ios
     }

@@ -1113,15 +1113,10 @@ export interface ValidTimeWindowAndroid {
 /**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
- *
- * ⚠️ SECURITY: Contains sensitive token (jws). Do not log or persist this data.
  */
 export interface VerifyPurchaseAppleOptions {
-  /**
-   * The JWS (JSON Web Signature) representation of the transaction.
-   * ⚠️ Sensitive: Do not log this value.
-   */
-  jws: string;
+  /** Product SKU to validate */
+  sku: string;
 }
 
 /**
@@ -1145,6 +1140,8 @@ export interface VerifyPurchaseGoogleOptions {
    * ⚠️ Sensitive: Do not log this value.
    */
   purchaseToken: string;
+  /** Product SKU to validate */
+  sku: string;
 }
 
 /**
@@ -1180,8 +1177,6 @@ export interface VerifyPurchaseProps {
   google?: (VerifyPurchaseGoogleOptions | null);
   /** Meta Horizon (Quest) verification parameters. */
   horizon?: (VerifyPurchaseHorizonOptions | null);
-  /** Product SKU to validate */
-  sku: string;
 }
 
 export type VerifyPurchaseResult = VerifyPurchaseResultAndroid | VerifyPurchaseResultHorizon | VerifyPurchaseResultIOS;

@@ -26,7 +26,7 @@ class PurchaseVerificationValidatorTest {
 
     @Test
     fun `verifyPurchaseWithGooglePlay throws without google options`() = runTest {
-        val props = VerifyPurchaseProps(sku = "product.sku")
+        val props = VerifyPurchaseProps()
 
         try {
             verifyPurchaseWithGooglePlay(props, "TEST_TAG") { _ ->
@@ -44,9 +44,10 @@ class PurchaseVerificationValidatorTest {
             accessToken = "token",
             isSub = true,
             packageName = "dev.hyo.app",
-            purchaseToken = "purchaseToken"
+            purchaseToken = "purchaseToken",
+            sku = "premium_monthly"
         )
-        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(google = googleOptions)
         val body = """
             {
               "autoRenewing": true,
@@ -86,9 +87,10 @@ class PurchaseVerificationValidatorTest {
             accessToken = "token",
             isSub = true,
             packageName = "dev.hyo.app",
-            purchaseToken = "purchaseToken"
+            purchaseToken = "purchaseToken",
+            sku = "premium_monthly"
         )
-        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(google = googleOptions)
         val body = """
             {
               "autoRenewing": true,
@@ -130,9 +132,10 @@ class PurchaseVerificationValidatorTest {
             accessToken = "token",
             isSub = false,
             packageName = "dev.hyo.app",
-            purchaseToken = "purchaseToken"
+            purchaseToken = "purchaseToken",
+            sku = "premium_monthly"
         )
-        val props = VerifyPurchaseProps(google = googleOptions, sku = "premium_monthly")
+        val props = VerifyPurchaseProps(google = googleOptions)
 
         try {
             verifyPurchaseWithGooglePlay(
@@ -268,7 +271,7 @@ class PurchaseVerificationValidatorTest {
 
     @Test
     fun `verifyPurchaseWithHorizon throws without horizon options`() = runTest {
-        val props = VerifyPurchaseProps(sku = "50_gems")
+        val props = VerifyPurchaseProps()
 
         try {
             verifyPurchaseWithHorizon(props, "test-app-id", "TEST") { _ ->
@@ -287,7 +290,7 @@ class PurchaseVerificationValidatorTest {
             userId = "123456789",
             accessToken = "OC|app_id|app_secret"
         )
-        val props = VerifyPurchaseProps(horizon = horizonOptions, sku = "50_gems")
+        val props = VerifyPurchaseProps(horizon = horizonOptions)
 
         val result = verifyPurchaseWithHorizon(
             props,
@@ -306,7 +309,7 @@ class PurchaseVerificationValidatorTest {
             userId = "123456789",
             accessToken = "OC|app_id|app_secret"
         )
-        val props = VerifyPurchaseProps(horizon = horizonOptions, sku = "50_gems")
+        val props = VerifyPurchaseProps(horizon = horizonOptions)
 
         try {
             verifyPurchaseWithHorizon(
