@@ -191,7 +191,7 @@ suspend fun verifyPurchaseWithIapkit(
         val body = gson.toJson(payload)
 
         connection.outputStream.use { stream ->
-            stream.write(body.toByteArray())
+            stream.write(body.toByteArray(Charsets.UTF_8))
         }
 
         val statusCode = connection.responseCode
