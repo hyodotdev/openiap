@@ -224,6 +224,35 @@ function Subscription() {
           </li>
         </ul>
 
+        <Accordion title={<>💡 Easy Server Verification with IAPKit</>} variant="tip" defaultOpen>
+          <p>
+            Setting up server-side verification can be complex. OpenIAP's partner{' '}
+            <a
+              href="https://iapkit.com"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              IAPKit
+            </a>{' '}
+            provides a simple, unified API for server-side receipt validation across
+            both iOS and Android platforms.
+          </p>
+          <p>
+            With IAPKit, you can verify purchases, manage subscriptions, and handle
+            webhooks without building complex server infrastructure from scratch.
+          </p>
+          <p>
+            Learn more about IAPKit integration in our{' '}
+            <a
+              href="https://www.openiap.dev/docs/updates/announcements#2025-12-09"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              announcement
+            </a>.
+          </p>
+        </Accordion>
+
         <Accordion title={<>⚠️ Why server-side validation?</>} variant="warning">
           <ul>
             <li>
