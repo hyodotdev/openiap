@@ -245,6 +245,17 @@ import StoreKit
         }
     }
 
+    @objc func syncIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
+        Task {
+            do {
+                let result = try await syncIOS()
+                completion(result, nil)
+            } catch {
+                completion(false, error)
+            }
+        }
+    }
+
     // MARK: - Transaction Management
 
     @objc func finishTransactionWithPurchaseId(
@@ -345,6 +356,31 @@ import StoreKit
             do {
                 let receipt = try await getReceiptDataIOS()
                 completion(receipt, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
+    @objc func verifyPurchaseWithSku(
+        _ sku: String,
+        completion: @escaping ([String: Any]?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let props = VerifyPurchaseProps(apple: VerifyPurchaseAppleOptions(sku: sku))
+                let result = try await verifyPurchase(props)
+
+                if case let .verifyPurchaseResultIos(iosResult) = result {
+                    let dictionary = OpenIapSerialization.encode(iosResult)
+                    completion(dictionary, nil)
+                } else {
+                    let error = PurchaseError(
+                        code: .featureNotSupported,
+                        message: "verifyPurchase did not return an iOS result"
+                    )
+                    completion(nil, error)
+                }
             } catch {
                 completion(nil, error)
             }
@@ -470,6 +506,17 @@ import StoreKit
                 } else {
                     completion(nil, nil)
                 }
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
+    @objc func beginRefundRequestIOSWithSku(_ sku: String, completion: @escaping (String?, Error?) -> Void) {
+        Task {
+            do {
+                let result = try await beginRefundRequestIOS(sku: sku)
+                completion(result, nil)
             } catch {
                 completion(nil, error)
             }
