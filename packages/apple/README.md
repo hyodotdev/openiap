@@ -10,7 +10,7 @@
 
 <div align="center">
   <a href="https://github.com/hyodotdev/openiap/tree/main/packages/apple">
-    <img src="https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=apple-v*&label=Swift%20Package&logo=swift&color=orange" alt="Swift Package" />
+    <img src="https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=[0-9]*&label=Swift%20Package&logo=swift&color=orange" alt="Swift Package" />
   </a>
   <a href="https://cocoapods.org/pods/openiap">
     <img src="https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods" alt="CocoaPods" />

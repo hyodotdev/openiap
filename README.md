@@ -21,9 +21,9 @@ The OpenIAP specification standardizes IAP implementations to reduce fragmentati
 This monorepo contains all OpenIAP packages:
 
 - **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
-- **[gql](packages/gql)** - GraphQL schema and type generation
+- **[gql](packages/gql)** - GraphQL schema and type generation [![GQL Release](https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=gql-*\u0026label=version\u0026logo=graphql\u0026color=purple)](https://github.com/hyodotdev/openiap/tags)
 - **[google](packages/google)** - Android library [![Maven Central (Play)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google?label=Play%20Store)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![Maven Central (Horizon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-horizon?label=Meta%20Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
-- **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=apple-v*&label=version&logo=swift&color=orange)](https://github.com/hyodotdev/openiap/tags) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
+- **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=[0-9]*&label=version&logo=swift&color=orange)](https://github.com/hyodotdev/openiap/tags) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 
 ## Documentation
 
