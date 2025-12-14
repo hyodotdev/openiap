@@ -65,14 +65,20 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
+        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "❌ Tag google-$VERSION already exists. Skipping release."
+          exit 1
+        fi
+
         if git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
           echo "exists=true" >> $GITHUB_OUTPUT
-          echo "❌ Tag google-v$VERSION already exists. Skipping release."
+          echo "❌ Legacy tag google-v$VERSION already exists. Choose a new version."
           exit 1
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "✓ Tag google-v$VERSION does not exist, proceeding with release"
         fi
+
+        echo "exists=false" >> $GITHUB_OUTPUT
+        echo "✓ Tag google-$VERSION does not exist, proceeding with release"
 
     - name: Update version in openiap-versions.json
       working-directory: packages/google
@@ -226,12 +232,12 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
         # Check if tag already exists
-        if git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
-          echo "Tag google-v$VERSION already exists"
+        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
+          echo "Tag google-$VERSION already exists"
         else
-          git tag "google-v$VERSION"
-          git push origin "google-v$VERSION"
-          echo "✅ Created and pushed tag google-v$VERSION"
+          git tag "google-$VERSION"
+          git push origin "google-$VERSION"
+          echo "✅ Created and pushed tag google-$VERSION"
         fi
 
     - name: Generate release notes
@@ -241,7 +247,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Get the previous google tag
-        PREV_TAG=$(git tag -l 'google-v*' --sort=-v:refname | head -n 1)
+        PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/google-*' | head -n 1)
 
         if [ -z "$PREV_TAG" ]; then
           echo "No previous google tag found"
@@ -260,7 +266,7 @@ jobs:
 
         # Create release notes
         cat > /tmp/release-notes.md <<EOF
-        ## OpenIAP Google v$VERSION
+        ## OpenIAP Google $VERSION
 
         ### What's Changed
         $CHANGELOG
@@ -324,8 +330,8 @@ jobs:
         fi
 
         # Generate release notes with changelog
-        gh release create "google-v$VERSION" \
+        gh release create "google-$VERSION" \
           $ARTIFACTS \
-          --title "Google v$VERSION" \
+          --title "Google $VERSION" \
           --latest \
           --notes-file /tmp/release-notes.md
