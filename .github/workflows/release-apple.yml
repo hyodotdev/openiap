@@ -16,6 +16,16 @@ on:
         description: 'Manual version override (e.g., 1.3.5). Leave empty to auto-bump.'
         required: false
         type: string
+      publish_cocoapods:
+        description: 'Publish to CocoaPods'
+        required: false
+        type: boolean
+        default: true
+      publish_spm:
+        description: 'Publish Swift Package (GitHub release)'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -78,20 +88,17 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
+        # Allow reusing existing semver tags (for reruns where CocoaPods succeeded but SPM failed)
         if git rev-parse "$VERSION" >/dev/null 2>&1; then
           echo "exists=true" >> $GITHUB_OUTPUT
-          echo "❌ Tag $VERSION already exists. Choose a new version."
-          exit 1
-        fi
-
-        if git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
+          echo "⚠️ Tag $VERSION already exists. Will reuse existing tag."
+        elif git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
           echo "exists=true" >> $GITHUB_OUTPUT
-          echo "❌ Legacy tag apple-v$VERSION already exists. Choose a new version."
-          exit 1
+          echo "⚠️ Legacy tag apple-v$VERSION already exists. Will reuse existing tag."
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✓ Tag $VERSION does not exist, proceeding with release"
         fi
-
-        echo "exists=false" >> $GITHUB_OUTPUT
-        echo "✓ Tag $VERSION does not exist, proceeding with release"
 
     - name: Update version in openiap-versions.json
       working-directory: packages/apple
@@ -166,16 +173,19 @@ jobs:
         fi
 
     - name: Setup Ruby
+      if: inputs.publish_cocoapods == true
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.0'
         bundler-cache: false
 
     - name: Install CocoaPods
+      if: inputs.publish_cocoapods == true
       run: |
         gem install cocoapods
 
     - name: Validate Podspec
+      if: inputs.publish_cocoapods == true
       id: validate_podspec
       run: |
         # Remove symlink if exists and copy podspec to root for validation
@@ -184,7 +194,7 @@ jobs:
         pod lib lint openiap.podspec --allow-warnings
 
     - name: Cleanup on validation failure
-      if: failure() && steps.validate_podspec.outcome == 'failure'
+      if: inputs.publish_cocoapods == true && failure() && steps.validate_podspec.outcome == 'failure'
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
@@ -197,6 +207,7 @@ jobs:
         echo "✅ Deleted tag $VERSION"
 
     - name: Deploy to CocoaPods
+      if: inputs.publish_cocoapods == true
       env:
         COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         COCOAPODS_VALIDATOR_SKIP_XCODEBUILD: 1
@@ -210,6 +221,7 @@ jobs:
         fi
 
     - name: Generate release notes
+      if: inputs.publish_spm == true
       id: release_notes
       env:
         VERSION: ${{ steps.version.outputs.version }}
@@ -269,11 +281,16 @@ jobs:
         EOF
 
     - name: Create GitHub Release
+      if: inputs.publish_spm == true
       env:
         VERSION: ${{ steps.version.outputs.version }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release create "$VERSION" \
-          --title "Apple $VERSION" \
-          --latest \
-          --notes-file /tmp/release-notes.md
+        if gh release view "$VERSION" >/dev/null 2>&1; then
+          echo "ℹ️ Release $VERSION already exists. Skipping creation."
+        else
+          gh release create "$VERSION" \
+            --title "Apple $VERSION" \
+            --latest \
+            --notes-file /tmp/release-notes.md
+        fi
