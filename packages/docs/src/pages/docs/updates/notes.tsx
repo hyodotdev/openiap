@@ -1,34 +1,35 @@
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import CodeBlock from '../../../components/CodeBlock';
+import Pagination from '../../../components/Pagination';
+
+const noteCardStyle = {
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border-color)',
+  borderRadius: '0.5rem',
+  padding: '1rem',
+  marginBottom: '1.5rem',
+};
+
+const noteTitleStyle = { marginTop: 0, color: 'var(--text-primary)' };
+
+interface Note {
+  id: string;
+  date: Date;
+  element: React.ReactNode;
+}
 
 function Notes() {
   useScrollToHash();
 
-  return (
-    <div className="doc-page">
-      <SEO
-        title="Notes"
-        description="Important changes and deprecations in IAP libraries and platforms - API changes, breaking changes, validateReceipt to verifyPurchase migration, and guides."
-        path="/docs/updates/notes"
-        keywords="IAP updates, validateReceipt, verifyPurchase, receipt validation, purchase verification, migration guide"
-      />
-      <h1>Notes</h1>
-      <p>Important changes and deprecations in IAP libraries and platforms.</p>
-
-      <section>
-        <h2>📝 API & Terminology Changes</h2>
-
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+  const allNotes: Note[] = [
+    // v1.3.5 Tag Management - Dec 16, 2025
+    {
+      id: 'v1.3.5-tag',
+      date: new Date('2025-12-16'),
+      element: (
+        <div key="v1.3.5-tag" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap-gql v1.3.5 / openiap-apple v1.3.5 - GitHub Release Tag
             Management Update
           </h4>
@@ -36,8 +37,9 @@ function Notes() {
             <strong>GitHub Release Tag Naming Convention:</strong>
           </p>
           <p>
-            No API changes in this release. This update focuses on GitHub release
-            tag management for better Swift Package Manager (SPM) compatibility.
+            No API changes in this release. This update focuses on GitHub
+            release tag management for better Swift Package Manager (SPM)
+            compatibility.
           </p>
           <ul>
             <li>
@@ -71,17 +73,16 @@ function Notes() {
             <code>apple-v1.3.5</code>).
           </p>
         </div>
+      ),
+    },
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // v1.3.4 Platform-Specific Verification - Dec 10, 2025
+    {
+      id: 'v1.3.4-verify',
+      date: new Date('2025-12-10'),
+      element: (
+        <div key="v1.3.4-verify" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple v1.3.2
             - Platform-Specific Verification Options
           </h4>
@@ -142,8 +143,8 @@ verifyPurchase({
           </p>
           <ul>
             <li>
-              <code>sku</code> removed from <code>VerifyPurchaseProps</code>{' '}
-              root level → Now inside each platform options
+              <code>sku</code> removed from <code>VerifyPurchaseProps</code> root
+              level → Now inside each platform options
             </li>
             <li>
               <code>androidOptions</code> completely removed → Use{' '}
@@ -151,22 +152,20 @@ verifyPurchase({
             </li>
           </ul>
           <p>
-            See:{' '}
-            <a href="/docs/apis#verify-purchase">verifyPurchase API</a>,{' '}
+            See: <a href="/docs/apis#verify-purchase">verifyPurchase API</a>,{' '}
             <a href="/docs/types#verify-purchase-props">VerifyPurchaseProps</a>
           </p>
         </div>
+      ),
+    },
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // v1.3.12 Billing Programs API - Dec 5, 2025
+    {
+      id: 'v1.3.12-billing',
+      date: new Date('2025-12-05'),
+      element: (
+        <div key="v1.3.12-billing" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap-google v1.3.12 / openiap-gql v1.3.2 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-2-0"
@@ -210,99 +209,6 @@ verifyPurchase({
             </li>
           </ul>
           <p>
-            <strong>New Types:</strong> (See{' '}
-            <a href="/docs/types#billing-program-android">Types Reference</a>)
-          </p>
-          <ul>
-            <li>
-              <strong>
-                <a href="/docs/types#billing-program-android">
-                  <code>BillingProgramAndroid</code>
-                </a>
-              </strong>{' '}
-              - Enum: <code>ExternalContentLink</code>, <code>ExternalOffer</code>
-            </li>
-            <li>
-              <strong>
-                <a href="/docs/types#launch-external-link-params-android">
-                  <code>LaunchExternalLinkParamsAndroid</code>
-                </a>
-              </strong>{' '}
-              - Parameters for launching external links
-            </li>
-            <li>
-              <strong>
-                <a href="/docs/types#external-link-launch-mode-android">
-                  <code>ExternalLinkLaunchModeAndroid</code>
-                </a>
-              </strong>{' '}
-              - Launch mode options
-            </li>
-            <li>
-              <strong>
-                <a href="/docs/types#external-link-type-android">
-                  <code>ExternalLinkTypeAndroid</code>
-                </a>
-              </strong>{' '}
-              - Link type options
-            </li>
-          </ul>
-          <p>
-            <strong>Google Play Billing 8.1.0 Support:</strong> (See{' '}
-            <a href="/docs/features/subscription-upgrade-downgrade#replacement-modes">
-              Subscription Upgrade/Downgrade
-            </a>)
-          </p>
-          <ul>
-            <li>
-              <strong>
-                <a href="/docs/types#subscription-product-replacement-params-android">
-                  <code>SubscriptionProductReplacementParamsAndroid</code>
-                </a>
-              </strong>{' '}
-              - Per-product subscription replacement configuration
-            </li>
-            <li>
-              <strong>
-                <a href="/docs/types#subscription-replacement-mode-android">
-                  <code>SubscriptionReplacementModeAndroid.KeepExisting</code>
-                </a>
-              </strong>{' '}
-              - New replacement mode to keep existing payment schedule
-            </li>
-          </ul>
-          <CodeBlock language="kotlin">
-            {`// Billing Programs API (8.2.0+) - Recommended approach
-val iapStore = OpenIapStore(context)
-
-// Step 0: Enable billing program BEFORE initConnection
-iapStore.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
-iapStore.initConnection(null)
-
-// Step 1: Check availability
-val result = iapStore.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)
-if (!result.isAvailable) return
-
-// Step 2: Launch external link
-val launched = iapStore.launchExternalLink(
-    activity,
-    LaunchExternalLinkParamsAndroid(
-        billingProgram = BillingProgramAndroid.ExternalOffer,
-        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
-        linkUri = "https://your-payment-site.com/checkout"
-    )
-)
-
-// Step 3: Process payment with your backend...
-
-// Step 4: Create reporting details
-val reportingDetails = iapStore.createBillingProgramReportingDetails(
-    BillingProgramAndroid.ExternalOffer
-)
-// Send reportingDetails.externalTransactionToken to Google within 24h`}
-          </CodeBlock>
-          <p>
             <strong>Deprecated APIs:</strong>
           </p>
           <ul>
@@ -328,17 +234,16 @@ val reportingDetails = iapStore.createBillingProgramReportingDetails(
             </a>
           </p>
         </div>
+      ),
+    },
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // v1.3.11 Billing 8.1.0 Support - Nov 15, 2025
+    {
+      id: 'v1.3.11-billing',
+      date: new Date('2025-11-15'),
+      element: (
+        <div key="v1.3.11-billing" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap-google v1.3.11 / openiap-gql v1.3.1 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
@@ -354,16 +259,8 @@ val reportingDetails = iapStore.createBillingProgramReportingDetails(
           </p>
           <ul>
             <li>
-              <strong>
-                <a
-                  href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Billing Library 8.0.0 → 8.1.0
-                </a>
-              </strong>{' '}
-              - Upgraded to latest Google Play Billing Library
+              <strong>Billing Library 8.0.0 → 8.1.0</strong> - Upgraded to latest
+              Google Play Billing Library
             </li>
             <li>
               <strong>minSdk 21 → 23</strong> - Minimum SDK increased to Android
@@ -381,58 +278,33 @@ val reportingDetails = iapStore.createBillingProgramReportingDetails(
             <li>
               <strong>isSuspendedAndroid</strong> - New field on{' '}
               <code>PurchaseAndroid</code> to detect suspended subscriptions due
-              to payment failures. Suspended subscriptions should NOT grant
-              entitlements - direct users to the subscription center to resolve
-              payment issues.
+              to payment failures.
             </li>
             <li>
               <strong>PreorderDetailsAndroid</strong> - New type for pre-order
-              products. Contains <code>preorderPresaleEndTimeMillis</code> and{' '}
-              <code>preorderReleaseTimeMillis</code> for scheduling pre-order
-              availability.
+              products.
             </li>
             <li>
               <strong>oneTimePurchaseOfferDetailsAndroid</strong> - Changed from
-              single object to array type. Now returns{' '}
-              <code>[ProductAndroidOneTimePurchaseOfferDetail]</code> to support
-              multiple offers per product (discounts, time-limited offers,
-              etc.).
+              single object to array type.
             </li>
           </ul>
-          <CodeBlock language="kotlin">
-            {`// Handling suspended subscriptions
-val purchase = getAvailablePurchases()
-if (purchase.isSuspendedAndroid == true) {
-    // ❌ Do NOT grant entitlements
-    // ✅ Direct user to subscription center
-    showMessage("Payment issue detected. Please update your payment method.")
-    deepLinkToSubscriptions()
-}
-
-// Pre-order details (oneTimePurchaseOfferDetailsAndroid is now an array)
-val product = fetchProducts(skus)
-product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()?.preorderDetailsAndroid?.let {
-    val releaseTime = it.preorderReleaseTimeMillis.toLong()
-    val presaleEndTime = it.preorderPresaleEndTimeMillis.toLong()
-}`}
-          </CodeBlock>
           <p>
             See:{' '}
-            <a href="/docs/types#purchase-platform">Purchase Platform Fields</a>
-            , <a href="/docs/types#product-platform">Product Platform Fields</a>
+            <a href="/docs/types#purchase-platform">Purchase Platform Fields</a>,{' '}
+            <a href="/docs/types#product-platform">Product Platform Fields</a>
           </p>
         </div>
+      ),
+    },
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // v1.3.0 Platform Props - Oct 15, 2025
+    {
+      id: 'v1.3.0-platform',
+      date: new Date('2025-10-15'),
+      element: (
+        <div key="v1.3.0-platform" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap v1.3.0 - Platform Props & Store Field Updates
           </h4>
           <p>
@@ -442,8 +314,8 @@ product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()?.preorderDetailsAndroi
             <li>
               <strong>Purchase.platform → Purchase.store</strong> - The{' '}
               <code>platform</code> field is deprecated. Use <code>store</code>{' '}
-              instead which returns <code>'apple'</code> or{' '}
-              <code>'google'</code>.
+              instead which returns <code>'apple'</code> or <code>'google'</code>
+              .
             </li>
             <li>
               <strong>requestPurchase props</strong> - The <code>ios</code> and{' '}
@@ -457,34 +329,9 @@ product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()?.preorderDetailsAndroi
           <ul>
             <li>
               <strong>verifyPurchaseWithProvider</strong> - New API for purchase
-              verification with external providers like IAPKit. Supports both
-              Apple App Store and Google Play Store.
+              verification with external providers like IAPKit.
             </li>
           </ul>
-          <p>
-            <strong>Migration:</strong>
-          </p>
-          <CodeBlock language="typescript">
-            {`// Before (deprecated)
-requestPurchase({
-  requestPurchase: {
-    ios: { sku: 'product_id' },
-    android: { skus: ['product_id'] }
-  }
-})
-
-// After (recommended)
-requestPurchase({
-  requestPurchase: {
-    apple: { sku: 'product_id' },
-    google: { skus: ['product_id'] }
-  }
-})
-
-// Purchase store field
-purchase.store  // 'apple' | 'google'
-purchase.platform  // deprecated`}
-          </CodeBlock>
           <p>
             See:{' '}
             <a href="/docs/apis#verify-purchase-with-provider">
@@ -492,24 +339,21 @@ purchase.platform  // deprecated`}
             </a>
           </p>
         </div>
+      ),
+    },
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // v1.2.6 validateReceipt → verifyPurchase - Sep 20, 2025
+    {
+      id: 'v1.2.6-verify',
+      date: new Date('2025-09-20'),
+      element: (
+        <div key="v1.2.6-verify" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap v1.2.6 - validateReceipt → verifyPurchase
           </h4>
           <p>
             Starting from <strong>openiap v1.2.6</strong>, the{' '}
-            <code style={{ textDecoration: 'line-through' }}>
-              validateReceipt
-            </code>{' '}
+            <code style={{ textDecoration: 'line-through' }}>validateReceipt</code>{' '}
             API is deprecated in favor of <code>verifyPurchase</code>.
           </p>
           <p>
@@ -518,32 +362,15 @@ purchase.platform  // deprecated`}
           <ul>
             <li>
               <strong>Terminology alignment</strong> - "Receipt Validation" was
-              Apple's legacy term from StoreKit 1. With StoreKit 2 (iOS 15+),
-              Apple moved away from this terminology. "Purchase Verification" is
-              a more accurate, platform-neutral term.
+              Apple's legacy term from StoreKit 1.
             </li>
             <li>
               <strong>Cross-platform consistency</strong> - Android never used
-              "receipt" terminology. Using "purchase verification" better
-              represents what the API does on both platforms.
+              "receipt" terminology.
             </li>
             <li>
-              <strong>Modern API design</strong> - The new{' '}
-              <code>verifyPurchase</code> API provides a unified interface that
-              works consistently across iOS and Android.
-            </li>
-          </ul>
-          <p>
-            <strong>Migration:</strong>
-          </p>
-          <ul>
-            <li>
-              Replace <code>validateReceipt()</code> with{' '}
-              <code>verifyPurchase()</code>
-            </li>
-            <li>
-              Replace <code>validateReceiptIOS()</code> with{' '}
-              <code>verifyPurchase()</code>
+              <strong>Modern API design</strong> - Unified interface that works
+              consistently across iOS and Android.
             </li>
           </ul>
           <p>
@@ -554,17 +381,16 @@ purchase.platform  // deprecated`}
             , <a href="/docs/apis#verify-purchase">verifyPurchase API</a>
           </p>
         </div>
+      ),
+    },
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // v1.2.0 Version Alignment - Sep 1, 2025
+    {
+      id: 'v1.2.0-alignment',
+      date: new Date('2025-09-01'),
+      element: (
+        <div key="v1.2.0-alignment" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap v1.2.0 - Version Alignment & Alternative Billing
           </h4>
           <p>
@@ -574,8 +400,8 @@ purchase.platform  // deprecated`}
           </p>
           <ul>
             <li>
-              <strong>iOS External Purchase</strong> - StoreKit External
-              Purchase API support
+              <strong>iOS External Purchase</strong> - StoreKit External Purchase
+              API support
             </li>
             <li>
               <strong>Android Alternative Billing</strong> - Google Play
@@ -584,26 +410,19 @@ purchase.platform  // deprecated`}
           </ul>
           <p style={{ margin: 0 }}>
             See:{' '}
-            <a href="/docs/features/external-purchase">
-              External Purchase Guide
-            </a>
+            <a href="/docs/features/external-purchase">External Purchase Guide</a>
           </p>
         </div>
-      </section>
+      ),
+    },
 
-      <section>
-        <h2>✨ New Features</h2>
-
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // openiap-gql 1.0.12 - External Purchase Support - Aug 25, 2025
+    {
+      id: 'gql-1.0.12-external',
+      date: new Date('2025-08-25'),
+      element: (
+        <div key="gql-1.0.12-external" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 openiap-gql 1.0.12 - External Purchase Support
           </h4>
           <p>
@@ -611,8 +430,8 @@ purchase.platform  // deprecated`}
           </p>
           <ul>
             <li>
-              <strong>iOS External Purchase</strong> - StoreKit External
-              Purchase API support (iOS 15.4+, iOS 18.2+ recommended)
+              <strong>iOS External Purchase</strong> - StoreKit External Purchase
+              API support (iOS 15.4+, iOS 18.2+ recommended)
             </li>
             <li>
               <strong>Android Alternative Billing</strong> - Google Play
@@ -623,39 +442,26 @@ purchase.platform  // deprecated`}
               <code>presentExternalPurchaseNoticeSheetIOS()</code>,{' '}
               <code>presentExternalPurchaseLinkIOS()</code> - iOS 18.2+ APIs
             </li>
-            <li>
-              <code>checkAlternativeBillingAvailability()</code>,{' '}
-              <code>showAlternativeBillingInformationDialog()</code>,{' '}
-              <code>createAlternativeBillingReportingToken()</code> - Android
-              APIs
-            </li>
-            <li>
-              <code>userChoiceBillingListenerAndroid</code> - Event listener for
-              User Choice Billing
-            </li>
           </ul>
           <p>
             See:{' '}
-            <a href="/docs/features/external-purchase">
-              External Purchase Guide
-            </a>
+            <a href="/docs/features/external-purchase">External Purchase Guide</a>
             ,{' '}
             <a href="/docs/events#user-choice-billing-event-android">
               User Choice Billing Event
             </a>
           </p>
         </div>
+      ),
+    },
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // Subscription Status APIs - Aug 15, 2025
+    {
+      id: 'subscription-status-apis',
+      date: new Date('2025-08-15'),
+      element: (
+        <div key="subscription-status-apis" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 August 2025 - Subscription Status APIs
           </h4>
           <p>
@@ -680,28 +486,17 @@ purchase.platform  // deprecated`}
               auto-renewal status)
             </li>
           </ul>
-          <p>
-            See:{' '}
-            <a href="#subscription-management">Subscription Management APIs</a>
-          </p>
         </div>
-      </section>
+      ),
+    },
 
-      <section>
-        <h2>⚠️ Breaking Changes</h2>
-
-        <h3>Google Play Billing Library</h3>
-
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+    // Billing Library v5 Deprecated - Aug 31, 2024
+    {
+      id: 'billing-v5-deprecated',
+      date: new Date('2024-08-31'),
+      element: (
+        <div key="billing-v5-deprecated" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
             📅 August 31, 2024 - Billing Library v5 Deprecated
           </h4>
           <p>All apps must use Google Play Billing Library v6.0.1 or later.</p>
@@ -713,308 +508,33 @@ purchase.platform  // deprecated`}
             <li>Existing apps must update before deadline</li>
           </ul>
         </div>
+      ),
+    },
+  ];
 
-        <h3>Static Test Product IDs Deprecated</h3>
-        <p>
-          The following static test product IDs are{' '}
-          <strong>no longer supported</strong> in Play Billing Library v3+:
-        </p>
+  // Sort by date (newest first)
+  const sortedNotes = [...allNotes].sort(
+    (a, b) => b.date.getTime() - a.date.getTime(),
+  );
 
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Deprecated Product ID</th>
-              <th>Previous Behavior</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  android.test.purchased
-                </code>
-              </td>
-              <td>Simulated successful purchase</td>
-              <td>❌ No longer works</td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  android.test.canceled
-                </code>
-              </td>
-              <td>Simulated canceled purchase</td>
-              <td>❌ No longer works</td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  android.test.refunded
-                </code>
-              </td>
-              <td>Simulated refunded purchase</td>
-              <td>❌ No longer works</td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  android.test.item_unavailable
-                </code>
-              </td>
-              <td>Simulated unavailable item</td>
-              <td>❌ No longer works</td>
-            </tr>
-          </tbody>
-        </table>
+  return (
+    <div className="doc-page">
+      <SEO
+        title="Notes"
+        description="Important changes and deprecations in IAP libraries and platforms - API changes, breaking changes, validateReceipt to verifyPurchase migration, and guides."
+        path="/docs/updates/notes"
+        keywords="IAP updates, validateReceipt, verifyPurchase, receipt validation, purchase verification, migration guide"
+      />
+      <h1>Notes</h1>
+      <p>Important changes and deprecations in IAP libraries and platforms.</p>
 
-        <h4>Alternative Testing Methods</h4>
-        <p>Use these methods instead of static test IDs:</p>
-        <ol>
-          <li>
-            <strong>License Testing</strong> - Configure test accounts in Google
-            Play Console
-          </li>
-          <li>
-            <strong>Test Tracks</strong> - Use internal/closed testing tracks
-          </li>
-          <li>
-            <strong>Real Products</strong> - Create actual products and use test
-            accounts
-          </li>
-        </ol>
-      </section>
-
-      <section>
-        <h2>🔄 Migration Guides</h2>
-
-        <h3>Migrating from Static Test IDs</h3>
-
-        <h4>Before (Deprecated):</h4>
-        <CodeBlock language="typescript">
-          {`// ❌ This no longer works
-const testProduct = await fetchProducts(['android.test.purchased'])
-// Returns E_SERVICE_DISCONNECTED error`}
-        </CodeBlock>
-
-        <h4>After (Current approach):</h4>
-        <CodeBlock language="typescript">
-          {`// ✅ Use real product with test account
-// 1. Add test account in Play Console
-// 2. Use real product ID
-const testProduct = await fetchProducts(['your_real_product_id'])
-// Test account won't be charged`}
-        </CodeBlock>
-
-        <h3>Setting Up License Testing</h3>
-        <ol>
-          <li>Go to Google Play Console → Settings → License Testing</li>
-          <li>Add tester email addresses (must be Google accounts)</li>
-          <li>Testers must join your testing program</li>
-          <li>Use real product IDs in your code</li>
-          <li>Test purchases won't charge testers</li>
-        </ol>
-      </section>
-
-      <section>
-        <h2>📊 Version Compatibility</h2>
-
-        <h3>Google Play Billing Library Timeline</h3>
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Version</th>
-              <th>Status</th>
-              <th>Deprecation Date</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>v8.x</td>
-              <td>✅ Current</td>
-              <td>TBD</td>
-              <td>
-                Latest recommended version (requires minSdk 23, Kotlin 2.2.0)
-              </td>
-            </tr>
-            <tr>
-              <td>v7.x</td>
-              <td>✅ Supported</td>
-              <td>August 31, 2025</td>
-              <td>User Choice Billing support</td>
-            </tr>
-            <tr>
-              <td>v6.x</td>
-              <td>✅ Supported</td>
-              <td>August 31, 2025</td>
-              <td>Alternative Billing support</td>
-            </tr>
-            <tr>
-              <td>v5.x</td>
-              <td>❌ Deprecated</td>
-              <td>August 31, 2024</td>
-              <td>No longer accepted</td>
-            </tr>
-            <tr>
-              <td>v4.x</td>
-              <td>❌ Deprecated</td>
-              <td>August 2, 2023</td>
-              <td>No longer accepted</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section>
-        <h2>🆕 Recent Updates</h2>
-
-        <h3>
-          <a
-            href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Google Play Billing Library v8.1
-          </a>{' '}
-          (November 2025)
-        </h3>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Released November 6, 2025
-        </p>
-        <ul>
-          <li>
-            <strong>Suspended Subscriptions</strong> -{' '}
-            <code>Purchase.isSuspended()</code> to detect payment failures
-          </li>
-          <li>
-            <strong>Pre-order Products</strong> - <code>PreorderDetails</code>{' '}
-            for one-time purchase pre-orders
-          </li>
-          <li>
-            <strong>minSdk 23</strong> - Minimum SDK increased to Android 6.0
-          </li>
-          <li>
-            <strong>Kotlin 2.2.0</strong> - Requires Kotlin 2.2.0 or higher
-          </li>
-          <li>
-            <strong>Deprecated API</strong> -{' '}
-            <code>setSubscriptionReplacementMode()</code> deprecated in favor of{' '}
-            <code>SubscriptionProductReplacementParams</code>
-          </li>
-        </ul>
-
-        <h3>Google Play Billing Library v7 (May 2024)</h3>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Released at Google I/O 2024
-        </p>
-        <ul>
-          <li>
-            <strong>Installment Subscriptions</strong> - New monetization model
-            for subscription payments
-          </li>
-          <li>
-            <strong>Enhanced Pending Purchases</strong> - Better handling of
-            pending transactions
-          </li>
-          <li>
-            <strong>Improved Error Codes</strong> - More specific error
-            responses including NETWORK_ERROR
-          </li>
-          <li>
-            <strong>Subscription Management APIs</strong> - Simplified
-            subscription state management
-          </li>
-          <li>
-            <strong>Performance Improvements</strong> - Optimized billing flow
-            and reduced latency
-          </li>
-        </ul>
-        <p
-          style={{
-            fontSize: '0.875rem',
-            color: 'var(--text-secondary)',
-            marginTop: '0.5rem',
-          }}
-        >
-          ⚠️ Deadline: All apps must migrate from v5 by November 1, 2024
-        </p>
-
-        <h3>iOS StoreKit 2 Evolution</h3>
-
-        <h4>WWDC 2024 - StoreKit 1 Deprecation (iOS 18+)</h4>
-        <ul>
-          <li>
-            <strong>⚠️ StoreKit 1 officially deprecated</strong> - Now called
-            "original API"
-          </li>
-          <li>
-            <strong>Promoted purchases API</strong> - New Swift API (iOS 16.4+)
-          </li>
-          <li>
-            <strong>App account token</strong> - Track user accounts across
-            transactions
-          </li>
-          <li>All new features exclusive to StoreKit 2</li>
-        </ul>
-
-        <h4>WWDC 2023 Updates (iOS 17+)</h4>
-        <ul>
-          <li>
-            <strong>Storefront fields</strong> - Access to storefront and
-            country code
-          </li>
-          <li>
-            <strong>Purchase reason</strong> - Distinguish user-initiated vs
-            auto-renewal
-          </li>
-          <li>
-            <strong>nextRenewalDate</strong> - Direct access in RenewalInfo
-            model
-          </li>
-          <li>
-            Most features work retroactively with iOS 15+ when using Xcode 15
-          </li>
-        </ul>
-
-        <h4>WWDC 2022 Updates (iOS 16+)</h4>
-        <ul>
-          <li>
-            <strong>Message API</strong> - App Store notifications to customers
-          </li>
-          <li>
-            <strong>Environment property</strong> - Distinguish
-            sandbox/production purchases
-          </li>
-          <li>
-            <strong>recentSubscriptionStartDate</strong> - Track subscription
-            continuity
-          </li>
-          <li>
-            <strong>originalPurchaseDate</strong> - Support for
-            paid-to-subscription migrations
-          </li>
-        </ul>
-
-        <h4>WWDC 2021 - Initial Release (iOS 15+)</h4>
-        <ul>
-          <li>
-            <strong>Swift async/await API</strong> - Modern concurrency patterns
-          </li>
-          <li>
-            <strong>One-line purchase flow</strong> - Simplified purchase
-            implementation
-          </li>
-          <li>
-            <strong>Built-in receipt validation</strong> - No server-side
-            validation required
-          </li>
-          <li>
-            <strong>Transaction history API</strong> - Easy access to purchase
-            history
-          </li>
-        </ul>
-      </section>
+      <Pagination itemsPerPage={5}>
+        {sortedNotes.map((note) => (
+          <section key={note.id} id={note.id}>
+            {note.element}
+          </section>
+        ))}
+      </Pagination>
     </div>
   );
 }

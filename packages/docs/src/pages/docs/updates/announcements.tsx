@@ -1,41 +1,63 @@
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import Pagination from '../../../components/Pagination';
+
+const cardStyle = {
+  background: 'var(--bg-secondary)',
+  border: '2px solid var(--border-color)',
+  borderRadius: '1rem',
+  padding: '2rem',
+  marginBottom: '2rem',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+  overflow: 'hidden',
+  overflowWrap: 'break-word' as const,
+};
+
+const headerStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '1rem',
+  marginBottom: '1rem',
+  flexWrap: 'wrap' as const,
+};
+
+const dateStyle = {
+  fontSize: '0.9rem',
+  color: 'var(--text-secondary)',
+  marginBottom: '1rem',
+};
+
+const linkIconStyle = {
+  color: 'var(--text-secondary)',
+  textDecoration: 'none',
+  fontSize: '1.2rem',
+};
+
+const calloutStyle = {
+  marginTop: '1.5rem',
+  padding: '1rem',
+  background: 'var(--bg-secondary)',
+  borderRadius: '0.5rem',
+  borderLeft: '4px solid var(--primary-color)',
+};
+
+interface Announcement {
+  id: string;
+  date: Date;
+  element: React.ReactNode;
+}
 
 function Announcements() {
   useScrollToHash();
 
-  return (
-    <div className="doc-page">
-      <SEO
-        title="Announcements"
-        description="Important news and updates about OpenIAP - new features, deprecations, and ecosystem changes."
-        path="/docs/updates/announcements"
-      />
-      <h1>📢 Announcements</h1>
-      <p>Important news and updates about OpenIAP</p>
-
-      <section id="2025-12-09">
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '2px solid var(--border-color)',
-            borderRadius: '1rem',
-            padding: '2rem',
-            marginBottom: '2rem',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            overflow: 'hidden',
-            overflowWrap: 'break-word',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
+  const announcements: Announcement[] = [
+    // 2025-12-09: IAPKit
+    {
+      id: '2025-12-09',
+      date: new Date('2025-12-09'),
+      element: (
+        <div key="2025-12-09" style={cardStyle}>
+          <div style={headerStyle}>
             <img
               src="/iapkit.png"
               alt="IAPKit"
@@ -46,25 +68,13 @@ function Announcements() {
             </h2>
             <a
               href="#2025-12-09"
-              style={{
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                fontSize: '1.2rem',
-              }}
+              style={linkIconStyle}
               title="Link to this announcement"
             >
               🔗
             </a>
           </div>
-          <p
-            style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1rem',
-            }}
-          >
-            December 2025 - v1.3.0
-          </p>
+          <p style={dateStyle}>December 9, 2025 - v1.3.0</p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Starting from <strong>OpenIAP v1.3.0</strong>,{' '}
             <a
@@ -75,9 +85,9 @@ function Announcements() {
             >
               IAPKit
             </a>{' '}
-            is now integrated as the official purchase verification provider. This
-            brings enterprise-grade backend verification to OpenIAP with minimal
-            setup required.
+            is now integrated as the official purchase verification provider.
+            This brings enterprise-grade backend verification to OpenIAP with
+            minimal setup required.
           </p>
           <ul
             style={{
@@ -87,18 +97,18 @@ function Announcements() {
             }}
           >
             <li>
-              <strong>Backend Purchase Verification + Security</strong> - Server-side
-              validation that prevents fraud, tampering, and receipt reuse. More
-              secure than client-only verification.
+              <strong>Backend Purchase Verification + Security</strong> -
+              Server-side validation that prevents fraud, tampering, and receipt
+              reuse. More secure than client-only verification.
             </li>
             <li>
-              <strong>Fast Launch</strong> - Simplified IAP verification process.
-              Start selling in-app products with minimal configuration.
+              <strong>Fast Launch</strong> - Simplified IAP verification
+              process. Start selling in-app products with minimal configuration.
             </li>
             <li>
-              <strong>Flexibility + Easy Maintenance</strong> - Single unified API
-              for both Apple App Store and Google Play. Adding or changing stores
-              is seamless.
+              <strong>Flexibility + Easy Maintenance</strong> - Single unified
+              API for both Apple App Store and Google Play. Adding or changing
+              stores is seamless.
             </li>
           </ul>
           <div
@@ -124,18 +134,10 @@ function Announcements() {
               }}
             />
           </div>
-          <div
-            style={{
-              marginTop: '1.5rem',
-              padding: '1rem',
-              background: 'var(--bg-secondary)',
-              borderRadius: '0.5rem',
-              borderLeft: '4px solid var(--primary-color)',
-            }}
-          >
+          <div style={calloutStyle}>
             <strong>Getting Started:</strong> Use the new{' '}
-            <code>verifyPurchaseWithProvider</code> API with <code>provider: 'iapkit'</code>.
-            See the{' '}
+            <code>verifyPurchaseWithProvider</code> API with{' '}
+            <code>provider: 'iapkit'</code>. See the{' '}
             <a
               href="/docs/apis#verify-purchase-with-provider"
               className="external-link"
@@ -145,30 +147,16 @@ function Announcements() {
             for details.
           </div>
         </div>
-      </section>
+      ),
+    },
 
-      <section id="2025-10-01">
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '2px solid var(--border-color)',
-            borderRadius: '1rem',
-            padding: '2rem',
-            marginBottom: '2rem',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            overflow: 'hidden',
-            overflowWrap: 'break-word',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
+    // 2025-10-01: Meta Horizon OS
+    {
+      id: '2025-10-01',
+      date: new Date('2025-10-01'),
+      element: (
+        <div key="2025-10-01" style={cardStyle}>
+          <div style={headerStyle}>
             <img
               src="/meta.svg"
               alt="Meta Horizon"
@@ -179,25 +167,13 @@ function Announcements() {
             </h2>
             <a
               href="#2025-10-01"
-              style={{
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                fontSize: '1.2rem',
-              }}
+              style={linkIconStyle}
               title="Link to this announcement"
             >
               🔗
             </a>
           </div>
-          <p
-            style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1rem',
-            }}
-          >
-            October 2025
-          </p>
+          <p style={dateStyle}>October 1, 2025</p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             OpenIAP now officially supports{' '}
             <a
@@ -235,75 +211,38 @@ function Announcements() {
               comprehensive error handling
             </li>
           </ul>
-          <div
-            style={{
-              marginTop: '1.5rem',
-              padding: '1rem',
-              background: 'var(--bg-secondary)',
-              borderRadius: '0.5rem',
-              borderLeft: '4px solid var(--primary-color)',
-            }}
-          >
+          <div style={calloutStyle}>
             <strong>Getting Started:</strong> Available in{' '}
             <code>openiap-google@1.3.0</code> and later. Check out the{' '}
-            <a
-              href="/docs/horizon-setup"
-              className="external-link"
-            >
+            <a href="/docs/horizon-setup" className="external-link">
               Horizon OS guide
             </a>{' '}
             for details.
           </div>
         </div>
-      </section>
+      ),
+    },
 
-      <section id="2025-09-15">
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '2px solid var(--border-color)',
-            borderRadius: '1rem',
-            padding: '2rem',
-            marginBottom: '2rem',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            overflow: 'hidden',
-            overflowWrap: 'break-word',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
+    // 2025-09-15: openiap-gql v1.0.0
+    {
+      id: '2025-09-15',
+      date: new Date('2025-09-15'),
+      element: (
+        <div key="2025-09-15" style={cardStyle}>
+          <div style={headerStyle}>
             <span style={{ fontSize: '2rem' }}>📰</span>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               openiap-gql v1.0.0 is live
             </h2>
             <a
               href="#2025-09-15"
-              style={{
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                fontSize: '1.2rem',
-              }}
+              style={linkIconStyle}
               title="Link to this announcement"
             >
               🔗
             </a>
           </div>
-          <p
-            style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1rem',
-            }}
-          >
-            September 2025
-          </p>
+          <p style={dateStyle}>September 15, 2025</p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Our GraphQL gateway for OpenIAP has reached its first stable
             release. Version 1.0.0 delivers a strongly typed schema, realtime
@@ -360,52 +299,29 @@ function Announcements() {
             }}
           />
         </div>
-      </section>
+      ),
+    },
 
-      <section id="2025-09-01">
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '2px solid var(--border-color)',
-            borderRadius: '1rem',
-            padding: '2rem',
-            marginBottom: '2rem',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              marginBottom: '1rem',
-            }}
-          >
+    // 2025-09-01: Official Modules
+    {
+      id: '2025-09-01',
+      date: new Date('2025-09-01'),
+      element: (
+        <div key="2025-09-01" style={cardStyle}>
+          <div style={headerStyle}>
             <span style={{ fontSize: '2rem' }}>🚀</span>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               OpenIAP Official Modules are live
             </h2>
             <a
               href="#2025-09-01"
-              style={{
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                fontSize: '1.2rem',
-              }}
+              style={linkIconStyle}
               title="Link to this announcement"
             >
               🔗
             </a>
           </div>
-          <p
-            style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1rem',
-            }}
-          >
-            September 2025
-          </p>
+          <p style={dateStyle}>September 1, 2025</p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             We are excited to announce the first official OpenIAP modules for
             Apple and Google are now available. These modules provide a clean,
@@ -461,41 +377,26 @@ function Announcements() {
               </div>
             </div>
           </div>
-          <p
-            style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              background: 'var(--bg-secondary)',
-              borderRadius: '0.5rem',
-              borderLeft: '4px solid var(--primary-color)',
-            }}
-          >
+          <p style={calloutStyle}>
             <strong>Next:</strong> We will be publishing quickstart guides and
             API references within the Docs → Modules section.
           </p>
         </div>
-      </section>
+      ),
+    },
 
-      <section id="2025-08-15">
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '2px solid var(--border-color)',
-            borderRadius: '1rem',
-            padding: '2rem',
-            marginBottom: '2rem',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              marginBottom: '1rem',
-            }}
-          >
-            <span style={{ fontSize: '2rem' }}>🎉</span>
+    // 2025-08-15: Meta backing
+    {
+      id: '2025-08-15',
+      date: new Date('2025-08-15'),
+      element: (
+        <div key="2025-08-15" style={cardStyle}>
+          <div style={headerStyle}>
+            <img
+              src="/meta.svg"
+              alt="Meta"
+              style={{ width: '48px', height: '48px' }}
+            />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               We are now backed by{' '}
               <a
@@ -513,46 +414,51 @@ function Announcements() {
             </h2>
             <a
               href="#2025-08-15"
-              style={{
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                fontSize: '1.2rem',
-              }}
+              style={linkIconStyle}
               title="Link to this announcement"
             >
               🔗
             </a>
           </div>
-          <p
-            style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1rem',
-            }}
-          >
-            August 15, 2025
-          </p>
+          <p style={dateStyle}>August 15, 2025</p>
           <p style={{ lineHeight: '1.7', marginBottom: '1.5rem' }}>
             We're thrilled to announce that OpenIAP is now officially backed by
             Meta! This partnership marks a significant milestone in our mission
             to standardize and simplify in-app purchases across all platforms.
           </p>
-          <p
-            style={{
-              marginTop: '1.5rem',
-              padding: '1rem',
-              background: 'var(--bg-secondary)',
-              borderRadius: '0.5rem',
-              borderLeft: '4px solid var(--primary-color)',
-            }}
-          >
+          <p style={calloutStyle}>
             <strong>Note:</strong> OpenIAP will continue to operate
             independently with the same commitment to developer experience and
             cross-platform compatibility. Our core libraries remain MIT licensed
             and free to use.
           </p>
         </div>
-      </section>
+      ),
+    },
+  ];
+
+  // Sort by date (newest first)
+  const sortedAnnouncements = [...announcements].sort(
+    (a, b) => b.date.getTime() - a.date.getTime(),
+  );
+
+  return (
+    <div className="doc-page">
+      <SEO
+        title="Announcements"
+        description="Important news and updates about OpenIAP - new features, deprecations, and ecosystem changes."
+        path="/docs/updates/announcements"
+      />
+      <h1>📢 Announcements</h1>
+      <p>Important news and updates about OpenIAP</p>
+
+      <Pagination itemsPerPage={5}>
+        {sortedAnnouncements.map((a) => (
+          <section key={a.id} id={a.id}>
+            {a.element}
+          </section>
+        ))}
+      </Pagination>
     </div>
   );
 }
