@@ -841,6 +841,294 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                   }}
                 </LanguageTabs>
 
+                <AnchorLink id="android-baseplanid-limitation" level="h3">
+                  basePlanId Limitation
+                </AnchorLink>
+                <div className="alert-card alert-card--warning">
+                  <p>
+                    <strong>⚠️ Google Play Billing API Limitation:</strong> The{' '}
+                    <a
+                      href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Purchase object
+                    </a>{' '}
+                    returned by Google Play Billing does <strong>NOT</strong>{' '}
+                    include <code>basePlanId</code>. This means{' '}
+                    <code>getActiveSubscriptions()</code> and purchase callbacks
+                    cannot reliably determine which specific plan was purchased
+                    within a subscription group.
+                  </p>
+                </div>
+
+                <p>
+                  <strong>Important distinction:</strong>
+                </p>
+                <ul>
+                  <li>
+                    <code>SubscriptionOfferDetailsAndroid</code> (from{' '}
+                    <code>fetchProducts</code>) - ✅ Contains{' '}
+                    <code>basePlanId</code>
+                  </li>
+                  <li>
+                    <code>Purchase</code> object (from purchase callbacks) - ❌
+                    Does NOT contain <code>basePlanId</code>
+                  </li>
+                </ul>
+
+                <p>
+                  When a subscription group has multiple base plans (weekly,
+                  monthly, yearly), there is no way to determine which specific
+                  plan was purchased from the client-side{' '}
+                  <code>Purchase</code> object alone.
+                </p>
+
+                <h4>What This Means</h4>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Field</th>
+                      <th>Accuracy</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>productId</code>
+                      </td>
+                      <td>✅ Correct (subscription group ID)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>purchaseToken</code>
+                      </td>
+                      <td>✅ Correct</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>isActive</code>
+                      </td>
+                      <td>✅ Correct</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>transactionId</code>
+                      </td>
+                      <td>✅ Correct</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>currentPlanId</code> /{' '}
+                        <code>basePlanIdAndroid</code>
+                      </td>
+                      <td>❌ May be incorrect (returns first plan in group)</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h4>Recommended Solution</h4>
+                <p>
+                  Track the <code>basePlanId</code> yourself during the purchase
+                  flow:
+                </p>
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`// 1. Store basePlanId BEFORE calling requestPurchase
+let purchasedBasePlanId: string | null = null;
+
+const handlePurchase = async (basePlanId: string) => {
+  const offers = JSON.parse(product.subscriptionOfferDetailsAndroid || '[]');
+  const offer = offers.find((o: any) => o.basePlanId === basePlanId && !o.offerId);
+
+  // Store it before purchase
+  purchasedBasePlanId = basePlanId;
+
+  await requestPurchase({
+    request: {
+      android: {
+        skus: [subscriptionGroupId],
+        subscriptionOffers: [{ sku: subscriptionGroupId, offerToken: offer.offerToken }],
+      },
+    },
+    type: 'subs',
+  });
+};
+
+// 2. Use YOUR tracked value in onPurchaseSuccess
+onPurchaseSuccess: async (purchase) => {
+  // DON'T use purchase.currentPlanId - it may be wrong!
+  const actualBasePlanId = purchasedBasePlanId;
+
+  // Save to your backend
+  await saveToBackend({
+    purchaseToken: purchase.purchaseToken,
+    basePlanId: actualBasePlanId,  // Use YOUR tracked value
+    productId: purchase.productId,
+  });
+};`}</CodeBlock>
+                    ),
+                    swift: (
+                      <CodeBlock language="swift">{`// Android-only limitation - not applicable to iOS`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`// 1. Store basePlanId BEFORE calling requestPurchase
+var purchasedBasePlanId: String? = null
+
+suspend fun handlePurchase(basePlanId: String) {
+    val offers = subscription.subscriptionOfferDetailsAndroid ?: return
+    val offer = offers.find { it.basePlanId == basePlanId && it.offerId == null }
+
+    // Store it before purchase
+    purchasedBasePlanId = basePlanId
+
+    iapStore.requestPurchase(
+        RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionPropsByPlatforms(
+                    android = RequestSubscriptionAndroidProps(
+                        skus = listOf(subscriptionGroupId),
+                        subscriptionOffers = listOf(
+                            AndroidSubscriptionOfferInput(
+                                sku = subscriptionGroupId,
+                                offerToken = offer?.offerToken ?: ""
+                            )
+                        )
+                    )
+                )
+            ),
+            type = ProductQueryType.Subs
+        )
+    )
+}
+
+// 2. Use YOUR tracked value in purchase callback
+fun onPurchaseSuccess(purchase: PurchaseAndroid) {
+    // DON'T use purchase.currentPlanId - it may be wrong!
+    val actualBasePlanId = purchasedBasePlanId
+
+    // Save to your backend
+    saveToBackend(
+        purchaseToken = purchase.purchaseToken,
+        basePlanId = actualBasePlanId,
+        productId = purchase.productId
+    )
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`// 1. Store basePlanId BEFORE calling requestPurchase
+String? purchasedBasePlanId;
+
+Future<void> handlePurchase(String basePlanId) async {
+  final offers = subscription.subscriptionOfferDetailsAndroid ?? [];
+  final offer = offers.firstWhere(
+    (o) => o.basePlanId == basePlanId && o.offerId == null,
+  );
+
+  // Store it before purchase
+  purchasedBasePlanId = basePlanId;
+
+  await iap.requestSubscription(
+    sku: subscriptionGroupId,
+    subscriptionOffers: [
+      SubscriptionOfferAndroid(
+        sku: subscriptionGroupId,
+        offerToken: offer.offerToken!,
+      ),
+    ],
+  );
+}
+
+// 2. Use YOUR tracked value in purchase callback
+void onPurchaseSuccess(PurchasedItem purchase) {
+  // DON'T use purchase.currentPlanId - it may be wrong!
+  final actualBasePlanId = purchasedBasePlanId;
+
+  // Save to your backend
+  saveToBackend(
+    purchaseToken: purchase.purchaseToken,
+    basePlanId: actualBasePlanId,
+    productId: purchase.productId,
+  );
+}`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
+
+                <h4>Server-Side Verification (Recommended)</h4>
+                <p>
+                  For accurate <code>basePlanId</code> after app restart, use
+                  the{' '}
+                  <a
+                    href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2/get"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Google Play Developer API
+                  </a>{' '}
+                  on your server:
+                </p>
+                <CodeBlock language="typescript">{`// Server-side API endpoint
+// GET https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{packageName}/purchases/subscriptionsv2/tokens/{purchaseToken}`}</CodeBlock>
+                <p>
+                  This returns the actual <code>basePlanId</code> in{' '}
+                  <code>lineItems[].basePlanId</code>.
+                </p>
+
+                <div className="alert-card alert-card--info">
+                  <p>
+                    <strong>💡 Tip:</strong> If you want to simplify server-side
+                    verification, consider using{' '}
+                    <Link to="/docs/updates/announcements#2025-12-09">
+                      IAPKit
+                    </Link>{' '}
+                    which handles all the complexity for you. Use{' '}
+                    <Link to="/docs/apis#verify-purchase-with-provider">
+                      verifyPurchaseWithProvider
+                    </Link>{' '}
+                    to verify purchases with minimal setup.
+                  </p>
+                </div>
+
+                <div className="alert-card alert-card--info">
+                  <p>
+                    <strong>ℹ️ Related Resources:</strong>
+                  </p>
+                  <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                    <li>
+                      <a
+                        href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Purchase class reference
+                      </a>{' '}
+                      - Official Android documentation
+                    </li>
+                    <li>
+                      <a
+                        href="https://developer.android.com/google/play/billing/compatibility"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        May 2022 subscription changes
+                      </a>{' '}
+                      - Migration guide for basePlanId
+                    </li>
+                    <li>
+                      <a
+                        href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2/get"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        subscriptionsv2 API
+                      </a>{' '}
+                      - Server-side verification
+                    </li>
+                  </ul>
+                </div>
+
                 <AnchorLink id="android-select-offer" level="h3">
                   Selecting Specific Offers
                 </AnchorLink>
@@ -1181,7 +1469,15 @@ Future<void> purchaseWithOffer(
         <p>Server-side validation is needed:</p>
         <ul>
           <li>
-            <strong>After purchase</strong> - Verify purchase is legitimate
+            <strong>After purchase</strong> - Verify purchase is legitimate.
+            Consider using{' '}
+            <Link to="/docs/updates/announcements#2025-12-09">IAPKit</Link> to
+            make your life easier - it provides backend verification with
+            minimal setup via{' '}
+            <Link to="/docs/apis#verify-purchase-with-provider">
+              verifyPurchaseWithProvider
+            </Link>
+            .
           </li>
           <li>
             <strong>On restore</strong> - Check current status
@@ -1195,21 +1491,33 @@ Future<void> purchaseWithOffer(
           </li>
         </ul>
 
-        <div className="alert-card alert-card--info">
+        <div className="alert-card alert-card--warning">
           <p>
-            <strong>ℹ️ Android Limitation:</strong> While{' '}
+            <strong>⚠️ Android Limitation:</strong> While{' '}
             <code>getAvailablePurchases()</code> can retrieve purchase history,
             Android clients cannot access expiry time, cancellation status, or
             refund information. For complete subscription management, consider:
           </p>
           <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
             <li>
-              Google Play Developer API - Get expiry, renewal dates, grace
-              periods
+              <a
+                href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2/get"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Google Play Developer API
+              </a>{' '}
+              - Get expiry, renewal dates, grace periods
             </li>
             <li>
-              RTDN (Real-time Developer Notifications) - Instant updates on
-              renewals, cancellations, refunds
+              <a
+                href="https://developer.android.com/google/play/billing/getting-ready#configure-rtdn"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                RTDN (Real-time Developer Notifications)
+              </a>{' '}
+              - Instant updates on renewals, cancellations, refunds
             </li>
             <li>
               Server-side purchase records - Track subscription state history
