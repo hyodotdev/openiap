@@ -29,6 +29,59 @@ function Notes() {
           }}
         >
           <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
+            📅 openiap-gql v1.3.5 / openiap-apple v1.3.5 - GitHub Release Tag
+            Management Update
+          </h4>
+          <p>
+            <strong>GitHub Release Tag Naming Convention:</strong>
+          </p>
+          <p>
+            No API changes in this release. This update focuses on GitHub release
+            tag management for better Swift Package Manager (SPM) compatibility.
+          </p>
+          <ul>
+            <li>
+              <strong>Apple (openiap-apple)</strong>: Uses semantic version tags
+              directly (e.g., <code>1.3.5</code>) - Required for SPM to recognize
+              package versions
+            </li>
+            <li>
+              <strong>GQL (openiap-gql)</strong>: Uses <code>gql-</code> prefix
+              (e.g., <code>gql-1.3.5</code>)
+            </li>
+            <li>
+              <strong>Google (openiap-google)</strong>: Uses <code>google-</code>{' '}
+              prefix (e.g., <code>google-1.3.5</code>)
+            </li>
+          </ul>
+          <p>
+            <strong>Swift Package Manager Integration:</strong>
+          </p>
+          <p>
+            <a
+              href="https://docs.swift.org/swiftpm/documentation/packagemanagerdocs/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              SPM
+            </a>{' '}
+            requires semver-only tags (without prefixes) to properly resolve
+            package versions. The Apple package now uses direct version tags
+            (e.g., <code>1.3.5</code>) instead of prefixed tags (e.g.,{' '}
+            <code>apple-v1.3.5</code>).
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>
             📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple v1.3.2
             - Platform-Specific Verification Options
           </h4>
