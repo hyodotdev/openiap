@@ -4,6 +4,7 @@ import { DarkModeToggle } from './DarkModeToggle';
 import { Menu, X } from 'lucide-react';
 import { FaGithub, FaSearch } from 'react-icons/fa';
 import { openSearchModal } from '../lib/signals';
+import { LOGO_PATH } from '../lib/config';
 
 function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,7 +30,7 @@ function Navigation() {
     <nav className="navigation">
       <div className="nav-container">
         <Link to="/" className="logo">
-          <img src="/logo.webp" alt="OpenIAP" className="logo-image" />
+          <img src={LOGO_PATH} alt="OpenIAP" className="logo-image" />
           <span className="logo-text">OpenIAP</span>
         </Link>
 

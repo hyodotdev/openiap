@@ -313,7 +313,17 @@
   font-size: 0.875rem;
 }
 
-.alert-card p {
+/* Reduce spacing when alert-card follows TL;DR box */
+.doc-page .tldr-box + .alert-card {
+  margin-top: 0 !important;
+}
+
+/* Reduce bottom margin when alert-card is followed by section */
+.alert-card:has(+ section) {
+  margin-bottom: 0;
+}
+
+.doc-page .alert-card p {
   margin: 0;
 }
 

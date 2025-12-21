@@ -1,10 +1,12 @@
+import { LOGO_PATH } from '../lib/config';
+
 function Footer() {
   return (
     <footer className="footer">
       <div className="footer-container">
         <div className="footer-top">
           <div className="footer-brand">
-            <img src="/logo.webp" alt="OpenIAP" className="footer-logo" />
+            <img src={LOGO_PATH} alt="OpenIAP" className="footer-logo" />
             <div>
               <h3>OpenIAP</h3>
               <p>Unified specification for in-app purchases</p>

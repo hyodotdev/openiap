@@ -41,9 +41,15 @@ export function MenuDropdown({
   }, [isActive]);
 
   const handleTitleClick = () => {
-    setIsExpanded(true);
-    navigate(titleTo);
-    onItemClick?.();
+    if (isExpanded) {
+      // If already expanded, toggle (collapse)
+      setIsExpanded(false);
+    } else {
+      // If collapsed, expand and navigate
+      setIsExpanded(true);
+      navigate(titleTo);
+      onItemClick?.();
+    }
   };
 
   const toggleExpanded = () => {
@@ -51,7 +57,7 @@ export function MenuDropdown({
   };
 
   return (
-    <li>
+    <li className="menu-dropdown">
       <div
         style={{
           display: 'flex',

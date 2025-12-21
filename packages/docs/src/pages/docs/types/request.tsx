@@ -1,0 +1,554 @@
+import AnchorLink from '../../../components/AnchorLink';
+import CodeBlock from '../../../components/CodeBlock';
+import LanguageTabs from '../../../components/LanguageTabs';
+import PlatformTabs from '../../../components/PlatformTabs';
+import SEO from '../../../components/SEO';
+import TLDRBox from '../../../components/TLDRBox';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+function TypesRequest() {
+  useScrollToHash();
+
+  return (
+    <div className="doc-page">
+      <SEO
+        title="Request Types"
+        description="OpenIAP Request type definitions - ProductRequest, RequestPurchaseProps, platform-specific purchase parameters for TypeScript, Swift, Kotlin, Dart."
+        path="/docs/types/request"
+        keywords="IAP types, ProductRequest, RequestPurchaseProps, TypeScript, Swift, Kotlin"
+      />
+      <h1>Request Types</h1>
+      <p>
+        Type definitions for requesting products and initiating purchases.
+      </p>
+
+      <TLDRBox>
+        <ul>
+          <li>
+            <code>ProductRequest</code> - Parameters for fetchProducts()
+          </li>
+          <li>
+            <code>RequestPurchaseProps</code> - Top-level arguments for
+            requestPurchase()
+          </li>
+          <li>
+            Platform-specific props for Apple (iOS) and Google (Android)
+          </li>
+          <li>
+            Subscription-specific props with upgrade/downgrade support
+          </li>
+        </ul>
+      </TLDRBox>
+
+      <section>
+        <AnchorLink id="product-request" level="h2">
+          ProductRequest
+        </AnchorLink>
+        <p>
+          Parameters for fetching products from the store via{' '}
+          <code>fetchProducts()</code>.
+        </p>
+
+        <AnchorLink id="product-request-fields" level="h3">
+          Fields
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>skus</code>
+              </td>
+              <td>Array of product identifiers to fetch</td>
+            </tr>
+            <tr>
+              <td>
+                <code>type</code>
+              </td>
+              <td>
+                Product type filter (optional): <code>"in-app"</code> (default),{' '}
+                <code>"subs"</code>, or <code>"all"</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="product-request-example" level="h3">
+          Usage Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Fetch in-app purchases (default)
+const inappProducts = await fetchProducts({ skus: ["product1", "product2"] });
+
+// Fetch only subscriptions
+const subscriptions = await fetchProducts({
+  skus: ["sub1", "sub2"],
+  type: "subs"
+});
+
+// Fetch all products (both in-app and subscriptions)
+const allProducts = await fetchProducts({
+  skus: ["product1", "sub1"],
+  type: "all"
+});`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Fetch in-app purchases (default)
+let inappProducts = try await OpenIapModule.shared.fetchProducts(
+    ProductRequest(skus: ["product1", "product2"])
+)
+
+// Fetch only subscriptions
+let subscriptions = try await OpenIapModule.shared.fetchProducts(
+    ProductRequest(skus: ["sub1", "sub2"], type: .subs)
+)
+
+// Fetch all products (both in-app and subscriptions)
+let allProducts = try await OpenIapModule.shared.fetchProducts(
+    ProductRequest(skus: ["product1", "sub1"], type: .all)
+)`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Fetch in-app purchases (default)
+val inappProducts = openIapStore.fetchProducts(
+    ProductRequest(skus = listOf("product1", "product2"))
+)
+
+// Fetch only subscriptions
+val subscriptions = openIapStore.fetchProducts(
+    ProductRequest(skus = listOf("sub1", "sub2"), type = ProductQueryType.Subs)
+)
+
+// Fetch all products (both in-app and subscriptions)
+val allProducts = openIapStore.fetchProducts(
+    ProductRequest(skus = listOf("product1", "sub1"), type = ProductQueryType.All)
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Fetch in-app purchases (default)
+final inappProducts = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['product1', 'product2'],
+);
+
+// Fetch only subscriptions
+final subscriptions = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['sub1', 'sub2'],
+  type: ProductQueryType.subs,
+);
+
+// Fetch all products (both in-app and subscriptions)
+final allProducts = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['product1', 'sub1'],
+  type: ProductQueryType.all,
+);`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+      </section>
+
+      <section>
+        <AnchorLink id="request-types" level="h2">
+          Request Types
+        </AnchorLink>
+        <p>
+          Types used when initiating purchases via{' '}
+          <code>requestPurchase()</code>.
+        </p>
+
+        <AnchorLink id="request-purchase-props" level="h3">
+          RequestPurchaseProps
+        </AnchorLink>
+        <p>
+          Top-level arguments for <code>requestPurchase()</code>. Wraps
+          platform-specific props with a type discriminator.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>params</code>
+              </td>
+              <td>Platform-specific purchase parameters (see below)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>type</code>
+              </td>
+              <td>
+                Purchase type: <code>"in-app"</code> or <code>"subs"</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="request-purchase-example" level="h4">
+          Usage Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`// Standard in-app purchase
+await requestPurchase({
+  params: {
+    apple: { sku: 'premium' },
+    google: { skus: ['premium'] }
+  },
+  type: 'in-app'
+});
+
+// Subscription purchase
+await requestPurchase({
+  params: {
+    apple: { sku: 'monthly_sub' },
+    google: { skus: ['monthly_sub'] }
+  },
+  type: 'subs'
+});`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`// Standard in-app purchase
+try await OpenIapModule.shared.requestPurchase(
+    RequestPurchaseProps(
+        request: RequestPurchasePropsByPlatforms(
+            apple: RequestPurchaseIosProps(sku: "premium")
+        ),
+        type: .inApp
+    )
+)
+
+// Subscription purchase
+try await OpenIapModule.shared.requestPurchase(
+    RequestPurchaseProps(
+        request: RequestPurchasePropsByPlatforms(
+            apple: RequestPurchaseIosProps(sku: "monthly_sub")
+        ),
+        type: .subs
+    )
+)`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Standard in-app purchase
+openIapStore.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = listOf("premium"))
+        ),
+        type = ProductType.InApp
+    )
+)
+
+// Subscription purchase
+openIapStore.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = listOf("monthly_sub"))
+        ),
+        type = ProductType.Subs
+    )
+)`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Standard in-app purchase
+await FlutterInappPurchase.instance.requestPurchase(
+  RequestPurchaseProps(
+    request: RequestPurchasePropsByPlatforms(
+      apple: RequestPurchaseIosProps(sku: 'premium'),
+      google: RequestPurchaseAndroidProps(skus: ['premium']),
+    ),
+    type: ProductType.inApp,
+  ),
+);
+
+// Subscription purchase
+await FlutterInappPurchase.instance.requestPurchase(
+  RequestPurchaseProps(
+    request: RequestPurchasePropsByPlatforms(
+      apple: RequestPurchaseIosProps(sku: 'monthly_sub'),
+      google: RequestPurchaseAndroidProps(skus: ['monthly_sub']),
+    ),
+    type: ProductType.subs,
+  ),
+);`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <AnchorLink id="request-purchase-props-by-platforms" level="h3">
+          RequestPurchasePropsByPlatforms
+        </AnchorLink>
+        <p>
+          Platform-specific request structure for regular purchases (in-app).
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>apple</code>
+              </td>
+              <td>Apple purchase parameters (RequestPurchaseIosProps)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>google</code>
+              </td>
+              <td>Google purchase parameters (RequestPurchaseAndroidProps)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>ios</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>apple</code> instead</td>
+            </tr>
+            <tr>
+              <td>
+                <code>android</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>google</code> instead</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="request-subscription-props-by-platforms" level="h3">
+          RequestSubscriptionPropsByPlatforms
+        </AnchorLink>
+        <p>Platform-specific request structure for subscriptions.</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>apple</code>
+              </td>
+              <td>Apple subscription parameters (RequestSubscriptionIosProps)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>google</code>
+              </td>
+              <td>
+                Google subscription parameters
+                (RequestSubscriptionAndroidProps)
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>ios</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>apple</code> instead</td>
+            </tr>
+            <tr>
+              <td>
+                <code>android</code>{' '}
+                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                  (deprecated)
+                </span>
+              </td>
+              <td>Use <code>google</code> instead</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="platform-specific-request-props" level="h3">
+          Platform-Specific Request Props
+        </AnchorLink>
+        <PlatformTabs>
+          {{
+            ios: (
+              <>
+                <h4>RequestPurchaseIosProps</h4>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>sku</code>
+                      </td>
+                      <td>Product identifier to purchase (required)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>
+                          andDangerouslyFinishTransactionAutomatically
+                        </code>
+                      </td>
+                      <td>
+                        Auto-finish transaction without validation (use with
+                        caution)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>appAccountToken</code>
+                      </td>
+                      <td>UUID linking purchase to your server's user</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>quantity</code>
+                      </td>
+                      <td>Number of items to purchase</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>withOffer</code>
+                      </td>
+                      <td>
+                        Promotional/discount offer to apply (see DiscountOffer)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>externalPurchaseUrlOnIOS</code>
+                      </td>
+                      <td>
+                        External payment URL (requires alternative billing)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            ),
+            android: (
+              <>
+                <h4>RequestPurchaseAndroidProps</h4>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>skus</code>
+                      </td>
+                      <td>Array of product identifiers (required)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>obfuscatedAccountIdAndroid</code>
+                      </td>
+                      <td>Obfuscated user account ID</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>obfuscatedProfileIdAndroid</code>
+                      </td>
+                      <td>Obfuscated user profile ID</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>isOfferPersonalized</code>
+                      </td>
+                      <td>True if offer is personalized (EU compliance)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            ),
+          }}
+        </PlatformTabs>
+
+        <AnchorLink id="subscription-request-props" level="h3">
+          Subscription Request Props
+        </AnchorLink>
+        <PlatformTabs>
+          {{
+            ios: (
+              <>
+                <h4>RequestSubscriptionIosProps</h4>
+                <p>
+                  iOS subscriptions use the same props as regular purchases
+                  (RequestPurchaseIosProps).
+                </p>
+              </>
+            ),
+            android: (
+              <>
+                <h4>RequestSubscriptionAndroidProps</h4>
+                <p>
+                  Extends RequestPurchaseAndroidProps with subscription-specific
+                  fields:
+                </p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>purchaseTokenAndroid</code>
+                      </td>
+                      <td>Existing subscription token for upgrade/downgrade</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>replacementModeAndroid</code>
+                      </td>
+                      <td>
+                        How to handle subscription change (proration mode)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>subscriptionOffers</code>
+                      </td>
+                      <td>
+                        Array of offers to apply. Each contains:{' '}
+                        <code>sku</code>, <code>offerToken</code>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            ),
+          }}
+        </PlatformTabs>
+      </section>
+    </div>
+  );
+}
+
+export default TypesRequest;

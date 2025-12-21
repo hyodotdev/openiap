@@ -192,86 +192,86 @@ pre code {
   overflow-y: visible;
 }
 
-/* Syntax Highlighting - Light Mode (GitHub Theme) */
+/* Syntax Highlighting - Light Mode (Saturated colors for better visibility) */
 /* Comments */
 .code-block .token.comment,
 .code-snippet .token.comment {
-  color: #6a737d;
+  color: #4a5260;
   font-style: italic;
 }
 
 /* Keywords (type, input, enum, etc) */
 .code-block .token.keyword,
 .code-snippet .token.keyword {
-  color: #d73a49;
-  font-weight: 500;
+  color: #b31d28;
+  font-weight: 600;
 }
 
 /* Strings */
 .code-block .token.string,
 .code-snippet .token.string {
-  color: #032f62;
+  color: #0a3d6a;
 }
 
 /* Type names */
 .code-block .token.type-name,
 .code-snippet .token.type-name {
-  color: #005cc5;
+  color: #0046a5;
 }
 
 /* Field names */
 .code-block .token.field,
 .code-snippet .token.field {
-  color: #e36209;
+  color: #b35c00;
 }
 
 /* Function names */
 .code-block .token.function,
 .code-snippet .token.function {
-  color: #6f42c1;
+  color: #5731a3;
 }
 
 /* Property names */
 .code-block .token.property,
 .code-snippet .token.property {
-  color: #005cc5;
+  color: #0046a5;
 }
 
 /* Punctuation */
 .code-block .token.punctuation,
 .code-snippet .token.punctuation {
-  color: #24292e;
+  color: #1a1f26;
 }
 
 /* Built-in types */
 .code-block .token.builtin-type,
 .code-snippet .token.builtin-type {
-  color: #22863a;
+  color: #116329;
 }
 
 /* Custom types */
 .code-block .token.custom-type,
 .code-snippet .token.custom-type {
-  color: #005cc5;
+  color: #0046a5;
 }
 
 /* Required fields */
 .code-block .token.required,
 .code-snippet .token.required {
-  color: #d73a49;
+  color: #b31d28;
   font-weight: bold;
 }
 
 /* Enum values */
 .code-block .token.enum-value,
 .code-snippet .token.enum-value {
-  color: #e36209;
+  color: #b35c00;
 }
 
 /* Numbers */
 .code-block .token.number,
 .code-snippet .token.number {
-  color: #005cc5;
+  color: #0046a5;
 }
 
 /* Dark Mode Syntax Highlighting (One Dark Pro Theme) */

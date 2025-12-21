@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
+import { LOGO_PATH } from '../lib/config';
 import SEO from '../components/SEO';
 
 function Home() {
@@ -9,7 +10,7 @@ function Home() {
       <section className="hero">
         <div className="hero-container">
           <img
-            src="/logo.webp"
+            src={LOGO_PATH}
             alt="OpenIAP"
             className="hero-logo"
             style={{ width: '120px', height: '120px', marginBottom: '2rem' }}
