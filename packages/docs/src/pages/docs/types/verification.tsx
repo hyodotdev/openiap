@@ -5,6 +5,7 @@ import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 
 function TypesVerification() {
   useScrollToHash();
@@ -285,9 +286,10 @@ function TypesVerification() {
           Input type for <code>verifyPurchaseWithProvider()</code> - used to
           verify purchases through external providers like{' '}
           <a
-            href="https://iapkit.com"
+            href={IAPKIT_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={trackIapKitClick}
           >
             IAPKit
           </a>

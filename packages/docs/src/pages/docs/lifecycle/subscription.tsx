@@ -4,6 +4,7 @@ import Accordion from '../../../components/Accordion';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 
 function Subscription() {
   useScrollToHash();
@@ -228,9 +229,10 @@ function Subscription() {
           <p>
             Setting up server-side verification can be complex. OpenIAP's partner{' '}
             <a
-              href="https://iapkit.com"
+              href={IAPKIT_URL}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={trackIapKitClick}
             >
               IAPKit
             </a>{' '}

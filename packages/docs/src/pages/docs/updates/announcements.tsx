@@ -1,6 +1,7 @@
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
+import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 
 const cardStyle = {
   background: 'var(--bg-secondary)',
@@ -78,10 +79,11 @@ function Announcements() {
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Starting from <strong>OpenIAP v1.3.0</strong>,{' '}
             <a
-              href="https://iapkit.com"
+              href={IAPKIT_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="external-link"
+              onClick={trackIapKitClick}
             >
               IAPKit
             </a>{' '}
@@ -111,8 +113,13 @@ function Announcements() {
               stores is seamless.
             </li>
           </ul>
-          <div
+          <a
+            href={IAPKIT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={trackIapKitClick}
             style={{
+              display: 'block',
               width: '100%',
               maxWidth: '400px',
               height: '220px',
@@ -133,7 +140,7 @@ function Announcements() {
                 objectPosition: 'center',
               }}
             />
-          </div>
+          </a>
           <div style={calloutStyle}>
             <strong>Getting Started:</strong> Use the new{' '}
             <code>verifyPurchaseWithProvider</code> API with{' '}

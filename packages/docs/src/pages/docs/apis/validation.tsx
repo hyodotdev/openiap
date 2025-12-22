@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
+import IapKitBanner from '../../../components/IapKitBanner';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 
 function ValidationAPIs() {
   useScrollToHash();
@@ -121,12 +123,14 @@ if (result.isValid) {
         <AnchorLink id="verify-purchase-with-provider" level="h2">
           verifyPurchaseWithProvider
         </AnchorLink>
+        <IapKitBanner />
         <p>
           Verify a purchase using a provider like{' '}
           <a
-            href="https://iapkit.com"
+            href={IAPKIT_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={trackIapKitClick}
           >
             IAPKit
           </a>

@@ -1,5 +1,6 @@
 import PlatformTabs from '../../components/PlatformTabs';
 import SEO from '../../components/SEO';
+import { IAPKIT_URL, trackIapKitClick } from '../../lib/config';
 
 function Example() {
   return (
@@ -210,10 +211,11 @@ xcodebuild -project Martie.xcodeproj \\
                   <strong>Note:</strong> To use IAPKit verification, get your
                   API key from{' '}
                   <a
-                    href="https://iapkit.com"
+                    href={IAPKIT_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="external-link"
+                    onClick={trackIapKitClick}
                   >
                     iapkit.com
                   </a>{' '}
@@ -562,10 +564,11 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                   <strong>Note:</strong> To use IAPKit verification, get your
                   API key from{' '}
                   <a
-                    href="https://iapkit.com"
+                    href={IAPKIT_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="external-link"
+                    onClick={trackIapKitClick}
                   >
                     iapkit.com
                   </a>{' '}
