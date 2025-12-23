@@ -69,13 +69,14 @@ internal data class AndroidPurchaseArgs(
 internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
     return when (val payload = request) {
         is RequestPurchaseProps.Request.Purchase -> {
-            val android = payload.value.android
-                ?: throw IllegalArgumentException("Android purchase parameters are required")
+            // Prefer 'google' over deprecated 'android' field
+            val params = payload.value.google ?: payload.value.android
+                ?: throw IllegalArgumentException("Google purchase parameters are required (use 'google' field)")
             AndroidPurchaseArgs(
-                skus = android.skus,
-                isOfferPersonalized = android.isOfferPersonalized,
-                obfuscatedAccountId = android.obfuscatedAccountIdAndroid,
-                obfuscatedProfileId = android.obfuscatedProfileIdAndroid,
+                skus = params.skus,
+                isOfferPersonalized = params.isOfferPersonalized,
+                obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
+                obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
                 purchaseTokenAndroid = null,
                 replacementModeAndroid = null,
                 subscriptionOffers = null,
@@ -85,22 +86,23 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
             )
         }
         is RequestPurchaseProps.Request.Subscription -> {
-            val android = payload.value.android
-                ?: throw IllegalArgumentException("Android subscription parameters are required")
+            // Prefer 'google' over deprecated 'android' field
+            val params = payload.value.google ?: payload.value.android
+                ?: throw IllegalArgumentException("Google subscription parameters are required (use 'google' field)")
 
             // For subscription upgrades/downgrades:
             // - purchaseTokenAndroid: Identifies which existing subscription to upgrade/downgrade
             // - obfuscatedProfileId: Optional user identifier for fraud prevention and attribution
             // Both can be provided together - they serve different purposes and are not mutually exclusive
             AndroidPurchaseArgs(
-                skus = android.skus,
-                isOfferPersonalized = android.isOfferPersonalized,
-                obfuscatedAccountId = android.obfuscatedAccountIdAndroid,
-                obfuscatedProfileId = android.obfuscatedProfileIdAndroid,
-                purchaseTokenAndroid = android.purchaseTokenAndroid,
-                replacementModeAndroid = android.replacementModeAndroid,
-                subscriptionOffers = android.subscriptionOffers,
-                subscriptionProductReplacementParams = android.subscriptionProductReplacementParams,
+                skus = params.skus,
+                isOfferPersonalized = params.isOfferPersonalized,
+                obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
+                obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
+                purchaseTokenAndroid = params.purchaseTokenAndroid,
+                replacementModeAndroid = params.replacementModeAndroid,
+                subscriptionOffers = params.subscriptionOffers,
+                subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
