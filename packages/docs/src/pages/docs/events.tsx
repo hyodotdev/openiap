@@ -452,7 +452,7 @@ const subscription = promotedProductListenerIOS(async (productId) => {
     if (confirmed) {
       // Purchase directly using requestPurchase with the received SKU
       await requestPurchase({
-        params: { apple: { sku: productId } },
+        request: { apple: { sku: productId } },
         type: 'in-app'
       });
     }

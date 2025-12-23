@@ -126,7 +126,7 @@ function Notes() {
             {`// Recommended approach
 promotedProductListenerIOS(async (productId) => {
   await requestPurchase({
-    params: { apple: { sku: productId } },
+    request: { apple: { sku: productId } },
     type: 'in-app'
   });
 });`}
