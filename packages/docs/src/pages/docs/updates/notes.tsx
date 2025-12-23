@@ -30,8 +30,7 @@ function Notes() {
       element: (
         <div key="v1.3.6-advanced-commerce" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.6 / openiap-apple v1.3.6 - Advanced Commerce Data
-            Support (iOS 15+)
+            📅 openiap-gql v1.3.6 / openiap-apple v1.3.6 / openiap-google v1.3.15
           </h4>
           <p>
             <strong>New Feature: Advanced Commerce Data</strong>
@@ -130,6 +129,36 @@ promotedProductListenerIOS(async (productId) => {
     type: 'in-app'
   });
 });`}
+          </CodeBlock>
+          <p>
+            <strong>Android: Support for `google` field (openiap-google v1.3.15)</strong>
+          </p>
+          <p>
+            The Android library now supports the <code>google</code> field in
+            request parameters, with fallback to the deprecated{' '}
+            <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
+            field for backward compatibility.
+          </p>
+          <CodeBlock language="kotlin">
+            {`// Recommended (new)
+requestPurchase(RequestPurchaseProps(
+    request = RequestPurchaseProps.Request.Purchase(
+        RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = listOf("sku_id"))
+        )
+    ),
+    type = ProductQueryType.InApp
+))
+
+// Still supported (deprecated)
+requestPurchase(RequestPurchaseProps(
+    request = RequestPurchaseProps.Request.Purchase(
+        RequestPurchasePropsByPlatforms(
+            android = RequestPurchaseAndroidProps(skus = listOf("sku_id"))
+        )
+    ),
+    type = ProductQueryType.InApp
+))`}
           </CodeBlock>
         </div>
       ),
