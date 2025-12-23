@@ -29,17 +29,24 @@ jobs:
           filters: |
             gql:
               - 'packages/gql/**'
+              - 'scripts/**'
               - 'openiap-versions.json'
+              - '.github/workflows/ci.yml'
             android:
               - 'packages/google/**'
               - 'packages/gql/**'
+              - 'scripts/**'
               - 'openiap-versions.json'
+              - '.github/workflows/ci.yml'
             ios:
               - 'packages/apple/**'
               - 'packages/gql/**'
+              - 'scripts/**'
               - 'openiap-versions.json'
+              - '.github/workflows/ci.yml'
             docs:
               - 'packages/docs/**'
+              - '.github/workflows/ci.yml'
 
   test-gql:
     name: Test GQL Types
