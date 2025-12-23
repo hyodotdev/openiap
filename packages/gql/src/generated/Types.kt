@@ -3500,7 +3500,11 @@ public interface MutationResolver {
      */
     suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult?
     /**
-     * Purchase the promoted product surfaced by the App Store
+     * Purchase the promoted product surfaced by the App Store.
+     * 
+     * @deprecated Use promotedProductListenerIOS to receive the productId,
+     * then call requestPurchase with that SKU instead. In StoreKit 2,
+     * promoted products can be purchased directly via the standard purchase flow.
      */
     suspend fun requestPurchaseOnPromotedProductIOS(): Boolean
     /**

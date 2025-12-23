@@ -1812,7 +1812,11 @@ public protocol MutationResolver {
     func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
     /// Initiate a purchase flow; rely on events for final state
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
-    /// Purchase the promoted product surfaced by the App Store
+    /// Purchase the promoted product surfaced by the App Store.
+    /// 
+    /// @deprecated Use promotedProductListenerIOS to receive the productId,
+    /// then call requestPurchase with that SKU instead. In StoreKit 2,
+    /// promoted products can be purchased directly via the standard purchase flow.
     func requestPurchaseOnPromotedProductIOS() async throws -> Bool
     /// Restore completed purchases across platforms
     func restorePurchases() async throws -> Void
