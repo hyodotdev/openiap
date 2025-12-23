@@ -26,6 +26,7 @@ public protocol OpenIapModuleProtocol {
 
     // Purchase Management
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
+    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
     func requestPurchaseOnPromotedProductIOS() async throws -> Bool
     func restorePurchases() async throws -> Void
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase]

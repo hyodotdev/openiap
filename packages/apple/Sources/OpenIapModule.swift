@@ -451,6 +451,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
+    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
     public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
         throw makePurchaseError(code: .featureNotSupported)
     }
