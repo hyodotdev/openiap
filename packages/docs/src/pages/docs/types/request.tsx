@@ -436,6 +436,23 @@ await FlutterInappPurchase.instance.requestPurchase(
                     </tr>
                     <tr>
                       <td>
+                        <code>advancedCommerceDataIOS</code>
+                      </td>
+                      <td>
+                        Attribution data token for StoreKit 2's{' '}
+                        <a
+                          href="https://developer.apple.com/documentation/storekit/product/purchaseoption/custom(key:value:)"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Product.PurchaseOption.custom
+                        </a>{' '}
+                        API. Used for campaign tokens, affiliate IDs, or other
+                        attribution data. (iOS 15+)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>externalPurchaseUrlOnIOS</code>
                       </td>
                       <td>

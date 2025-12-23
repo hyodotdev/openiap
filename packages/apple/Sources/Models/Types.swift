@@ -1055,6 +1055,11 @@ public struct RequestPurchaseAndroidProps: Codable {
 }
 
 public struct RequestPurchaseIosProps: Codable {
+    /// Advanced commerce data token (iOS 15+).
+    /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+    /// campaign tokens, affiliate IDs, or other attribution data.
+    /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+    public var advancedCommerceDataIOS: String?
     /// Auto-finish transaction (dangerous)
     public var andDangerouslyFinishTransactionAutomatically: Bool?
     /// App account token for user tracking
@@ -1067,12 +1072,14 @@ public struct RequestPurchaseIosProps: Codable {
     public var withOffer: DiscountOfferInputIOS?
 
     public init(
+        advancedCommerceDataIOS: String? = nil,
         andDangerouslyFinishTransactionAutomatically: Bool? = nil,
         appAccountToken: String? = nil,
         quantity: Int? = nil,
         sku: String,
         withOffer: DiscountOfferInputIOS? = nil
     ) {
+        self.advancedCommerceDataIOS = advancedCommerceDataIOS
         self.andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically
         self.appAccountToken = appAccountToken
         self.quantity = quantity
@@ -1222,6 +1229,11 @@ public struct RequestSubscriptionAndroidProps: Codable {
 }
 
 public struct RequestSubscriptionIosProps: Codable {
+    /// Advanced commerce data token (iOS 15+).
+    /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+    /// campaign tokens, affiliate IDs, or other attribution data.
+    /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+    public var advancedCommerceDataIOS: String?
     public var andDangerouslyFinishTransactionAutomatically: Bool?
     public var appAccountToken: String?
     public var quantity: Int?
@@ -1229,12 +1241,14 @@ public struct RequestSubscriptionIosProps: Codable {
     public var withOffer: DiscountOfferInputIOS?
 
     public init(
+        advancedCommerceDataIOS: String? = nil,
         andDangerouslyFinishTransactionAutomatically: Bool? = nil,
         appAccountToken: String? = nil,
         quantity: Int? = nil,
         sku: String,
         withOffer: DiscountOfferInputIOS? = nil
     ) {
+        self.advancedCommerceDataIOS = advancedCommerceDataIOS
         self.andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically
         self.appAccountToken = appAccountToken
         self.quantity = quantity

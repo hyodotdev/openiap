@@ -3209,6 +3209,11 @@ class RequestPurchaseAndroidProps {
 
 class RequestPurchaseIosProps {
   const RequestPurchaseIosProps({
+    /// Advanced commerce data token (iOS 15+).
+    /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+    /// campaign tokens, affiliate IDs, or other attribution data.
+    /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+    this.advancedCommerceDataIOS,
     /// Auto-finish transaction (dangerous)
     this.andDangerouslyFinishTransactionAutomatically,
     /// App account token for user tracking
@@ -3221,6 +3226,11 @@ class RequestPurchaseIosProps {
     this.withOffer,
   });
 
+  /// Advanced commerce data token (iOS 15+).
+  /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+  /// campaign tokens, affiliate IDs, or other attribution data.
+  /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+  final String? advancedCommerceDataIOS;
   /// Auto-finish transaction (dangerous)
   final bool? andDangerouslyFinishTransactionAutomatically;
   /// App account token for user tracking
@@ -3234,6 +3244,7 @@ class RequestPurchaseIosProps {
 
   factory RequestPurchaseIosProps.fromJson(Map<String, dynamic> json) {
     return RequestPurchaseIosProps(
+      advancedCommerceDataIOS: json['advancedCommerceDataIOS'] as String?,
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
       quantity: json['quantity'] as int?,
@@ -3244,6 +3255,7 @@ class RequestPurchaseIosProps {
 
   Map<String, dynamic> toJson() {
     return {
+      'advancedCommerceDataIOS': advancedCommerceDataIOS,
       'andDangerouslyFinishTransactionAutomatically': andDangerouslyFinishTransactionAutomatically,
       'appAccountToken': appAccountToken,
       'quantity': quantity,
@@ -3429,6 +3441,11 @@ class RequestSubscriptionAndroidProps {
 
 class RequestSubscriptionIosProps {
   const RequestSubscriptionIosProps({
+    /// Advanced commerce data token (iOS 15+).
+    /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+    /// campaign tokens, affiliate IDs, or other attribution data.
+    /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+    this.advancedCommerceDataIOS,
     this.andDangerouslyFinishTransactionAutomatically,
     this.appAccountToken,
     this.quantity,
@@ -3436,6 +3453,11 @@ class RequestSubscriptionIosProps {
     this.withOffer,
   });
 
+  /// Advanced commerce data token (iOS 15+).
+  /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+  /// campaign tokens, affiliate IDs, or other attribution data.
+  /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+  final String? advancedCommerceDataIOS;
   final bool? andDangerouslyFinishTransactionAutomatically;
   final String? appAccountToken;
   final int? quantity;
@@ -3444,6 +3466,7 @@ class RequestSubscriptionIosProps {
 
   factory RequestSubscriptionIosProps.fromJson(Map<String, dynamic> json) {
     return RequestSubscriptionIosProps(
+      advancedCommerceDataIOS: json['advancedCommerceDataIOS'] as String?,
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
       quantity: json['quantity'] as int?,
@@ -3454,6 +3477,7 @@ class RequestSubscriptionIosProps {
 
   Map<String, dynamic> toJson() {
     return {
+      'advancedCommerceDataIOS': advancedCommerceDataIOS,
       'andDangerouslyFinishTransactionAutomatically': andDangerouslyFinishTransactionAutomatically,
       'appAccountToken': appAccountToken,
       'quantity': quantity,

@@ -2776,6 +2776,13 @@ public data class RequestPurchaseAndroidProps(
 
 public data class RequestPurchaseIosProps(
     /**
+     * Advanced commerce data token (iOS 15+).
+     * Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+     * campaign tokens, affiliate IDs, or other attribution data.
+     * The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+     */
+    val advancedCommerceDataIOS: String? = null,
+    /**
      * Auto-finish transaction (dangerous)
      */
     val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
@@ -2799,6 +2806,7 @@ public data class RequestPurchaseIosProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseIosProps {
             return RequestPurchaseIosProps(
+                advancedCommerceDataIOS = json["advancedCommerceDataIOS"] as String?,
                 andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as Boolean?,
                 appAccountToken = json["appAccountToken"] as String?,
                 quantity = (json["quantity"] as Number?)?.toInt(),
@@ -2809,6 +2817,7 @@ public data class RequestPurchaseIosProps(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
+        "advancedCommerceDataIOS" to advancedCommerceDataIOS,
         "andDangerouslyFinishTransactionAutomatically" to andDangerouslyFinishTransactionAutomatically,
         "appAccountToken" to appAccountToken,
         "quantity" to quantity,
@@ -2979,6 +2988,13 @@ public data class RequestSubscriptionAndroidProps(
 }
 
 public data class RequestSubscriptionIosProps(
+    /**
+     * Advanced commerce data token (iOS 15+).
+     * Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+     * campaign tokens, affiliate IDs, or other attribution data.
+     * The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+     */
+    val advancedCommerceDataIOS: String? = null,
     val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
     val appAccountToken: String? = null,
     val quantity: Int? = null,
@@ -2988,6 +3004,7 @@ public data class RequestSubscriptionIosProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionIosProps {
             return RequestSubscriptionIosProps(
+                advancedCommerceDataIOS = json["advancedCommerceDataIOS"] as String?,
                 andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as Boolean?,
                 appAccountToken = json["appAccountToken"] as String?,
                 quantity = (json["quantity"] as Number?)?.toInt(),
@@ -2998,6 +3015,7 @@ public data class RequestSubscriptionIosProps(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
+        "advancedCommerceDataIOS" to advancedCommerceDataIOS,
         "andDangerouslyFinishTransactionAutomatically" to andDangerouslyFinishTransactionAutomatically,
         "appAccountToken" to appAccountToken,
         "quantity" to quantity,
