@@ -438,7 +438,7 @@ await FlutterInappPurchase.instance.requestPurchase(
                     </tr>
                     <tr>
                       <td>
-                        <code>advancedCommerceDataIOS</code>
+                        <code>advancedCommerceData</code>
                       </td>
                       <td>
                         Attribution data token for StoreKit 2's{' '}

@@ -299,7 +299,7 @@ final class OpenIapTests: XCTestCase {
 
     func testRequestPurchaseIosPropsWithAdvancedCommerceData() throws {
         let props = RequestPurchaseIosProps(
-            advancedCommerceDataIOS: "campaign_summer_2025",
+            advancedCommerceData: "campaign_summer_2025",
             andDangerouslyFinishTransactionAutomatically: false,
             appAccountToken: "user-uuid",
             quantity: 1,
@@ -308,7 +308,7 @@ final class OpenIapTests: XCTestCase {
         )
 
         XCTAssertEqual(props.sku, "dev.hyo.premium")
-        XCTAssertEqual(props.advancedCommerceDataIOS, "campaign_summer_2025")
+        XCTAssertEqual(props.advancedCommerceData, "campaign_summer_2025")
         XCTAssertEqual(props.appAccountToken, "user-uuid")
         XCTAssertEqual(props.quantity, 1)
         XCTAssertEqual(props.andDangerouslyFinishTransactionAutomatically, false)
@@ -316,13 +316,13 @@ final class OpenIapTests: XCTestCase {
         // Test encoding/decoding
         let data = try JSONEncoder().encode(props)
         let decoded = try JSONDecoder().decode(RequestPurchaseIosProps.self, from: data)
-        XCTAssertEqual(decoded.advancedCommerceDataIOS, "campaign_summer_2025")
+        XCTAssertEqual(decoded.advancedCommerceData, "campaign_summer_2025")
         XCTAssertEqual(decoded.sku, "dev.hyo.premium")
     }
 
     func testRequestSubscriptionIosPropsWithAdvancedCommerceData() throws {
         let props = RequestSubscriptionIosProps(
-            advancedCommerceDataIOS: "affiliate_partner_123",
+            advancedCommerceData: "affiliate_partner_123",
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
             quantity: nil,
@@ -331,17 +331,17 @@ final class OpenIapTests: XCTestCase {
         )
 
         XCTAssertEqual(props.sku, "dev.hyo.subscription.monthly")
-        XCTAssertEqual(props.advancedCommerceDataIOS, "affiliate_partner_123")
+        XCTAssertEqual(props.advancedCommerceData, "affiliate_partner_123")
 
         // Test encoding/decoding
         let data = try JSONEncoder().encode(props)
         let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
-        XCTAssertEqual(decoded.advancedCommerceDataIOS, "affiliate_partner_123")
+        XCTAssertEqual(decoded.advancedCommerceData, "affiliate_partner_123")
     }
 
     func testRequestPurchaseIosPropsWithoutAdvancedCommerceData() throws {
         let props = RequestPurchaseIosProps(
-            advancedCommerceDataIOS: nil,
+            advancedCommerceData: nil,
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
             quantity: nil,
@@ -350,17 +350,17 @@ final class OpenIapTests: XCTestCase {
         )
 
         XCTAssertEqual(props.sku, "dev.hyo.consumable")
-        XCTAssertNil(props.advancedCommerceDataIOS)
+        XCTAssertNil(props.advancedCommerceData)
 
         // Test encoding/decoding
         let data = try JSONEncoder().encode(props)
         let decoded = try JSONDecoder().decode(RequestPurchaseIosProps.self, from: data)
-        XCTAssertNil(decoded.advancedCommerceDataIOS)
+        XCTAssertNil(decoded.advancedCommerceData)
     }
 
     func testAdvancedCommerceDataJSONSerialization() throws {
         let props = RequestPurchaseIosProps(
-            advancedCommerceDataIOS: "promo_code_abc",
+            advancedCommerceData: "promo_code_abc",
             andDangerouslyFinishTransactionAutomatically: nil,
             appAccountToken: nil,
             quantity: nil,
@@ -371,7 +371,7 @@ final class OpenIapTests: XCTestCase {
         let data = try JSONEncoder().encode(props)
         let jsonString = String(data: data, encoding: .utf8)!
 
-        XCTAssertTrue(jsonString.contains("advancedCommerceDataIOS"))
+        XCTAssertTrue(jsonString.contains("advancedCommerceData"))
         XCTAssertTrue(jsonString.contains("promo_code_abc"))
     }
 

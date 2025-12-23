@@ -49,7 +49,7 @@ function Notes() {
           <ul>
             <li>
               <strong>
-                <code>advancedCommerceDataIOS</code>
+                <code>advancedCommerceData</code>
               </strong>{' '}
               - New optional field in <code>RequestPurchaseIosProps</code> and{' '}
               <code>RequestSubscriptionIosProps</code>
@@ -71,7 +71,7 @@ function Notes() {
   request: {
     apple: {
       sku: 'com.example.premium',
-      advancedCommerceDataIOS: 'campaign_summer_2025',
+      advancedCommerceData: 'campaign_summer_2025',
     }
   },
   type: 'in-app'

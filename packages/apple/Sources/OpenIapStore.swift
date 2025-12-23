@@ -252,12 +252,12 @@ public final class OpenIapStore: ObservableObject {
         quantity: Int? = nil,
         appAccountToken: String? = nil,
         withOffer: DiscountOfferInputIOS? = nil,
-        advancedCommerceDataIOS: String? = nil
+        advancedCommerceData: String? = nil
     ) async throws -> OpenIAP.Purchase? {
         switch type {
         case .subs:
             let iosProps = RequestSubscriptionIosProps(
-                advancedCommerceDataIOS: advancedCommerceDataIOS,
+                advancedCommerceData: advancedCommerceData,
                 andDangerouslyFinishTransactionAutomatically: autoFinish,
                 appAccountToken: appAccountToken,
                 quantity: quantity,
@@ -271,7 +271,7 @@ public final class OpenIapStore: ObservableObject {
             return try await requestPurchase(request)
         default:
             let iosProps = RequestPurchaseIosProps(
-                advancedCommerceDataIOS: advancedCommerceDataIOS,
+                advancedCommerceData: advancedCommerceData,
                 andDangerouslyFinishTransactionAutomatically: autoFinish,
                 appAccountToken: appAccountToken,
                 quantity: quantity,

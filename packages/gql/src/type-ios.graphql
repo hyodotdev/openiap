@@ -198,7 +198,7 @@ input RequestPurchaseIosProps {
   campaign tokens, affiliate IDs, or other attribution data.
   The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
   """
-  advancedCommerceDataIOS: String
+  advancedCommerceData: String
 }
 
 # iOS uses the same props for subscriptions
@@ -214,7 +214,7 @@ input RequestSubscriptionIosProps {
   campaign tokens, affiliate IDs, or other attribution data.
   The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
   """
-  advancedCommerceDataIOS: String
+  advancedCommerceData: String
 }
 
 # iOS Discount Offer (input)

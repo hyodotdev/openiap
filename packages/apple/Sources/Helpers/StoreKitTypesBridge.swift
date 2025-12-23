@@ -376,7 +376,7 @@ enum StoreKitTypesBridge {
         // Advanced Commerce Data (iOS 15+)
         // Used with StoreKit 2's Product.PurchaseOption.custom API for passing
         // campaign tokens, affiliate IDs, or other attribution data
-        if let advancedCommerceData = props.advancedCommerceDataIOS, !advancedCommerceData.isEmpty {
+        if let advancedCommerceData = props.advancedCommerceData, !advancedCommerceData.isEmpty {
             let payload: [String: Any] = ["signatureInfo": ["token": advancedCommerceData]]
             do {
                 let jsonData = try JSONSerialization.data(withJSONObject: payload)
