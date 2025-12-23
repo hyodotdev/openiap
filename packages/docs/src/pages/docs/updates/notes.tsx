@@ -23,6 +23,128 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // v1.3.16 Billing Library 8.2.1 - Dec 24, 2025
+    {
+      id: 'v1.3.16-billing-821',
+      date: new Date('2025-12-24'),
+      element: (
+        <div key="v1.3.16-billing-821" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
+            📅 openiap-google v1.3.16 -{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#8-2-1"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Play Billing 8.2.1
+            </a>
+          </h4>
+          <p>
+            <strong>Billing Library Upgrade: 8.1.0 → 8.2.1</strong>
+          </p>
+          <p>
+            Upgraded to Google Play Billing Library 8.2.1 which includes the new
+            Billing Programs API and bug fixes.
+          </p>
+          <p>
+            <strong>Why 8.2.1 instead of 8.2.0?</strong>
+          </p>
+          <p>
+            Version 8.2.0 had a bug in <code>isBillingProgramAvailableAsync</code>{' '}
+            and <code>createBillingProgramReportingDetailsAsync</code>. This was
+            fixed in 8.2.1 (released 2025-12-15).
+          </p>
+          <p>
+            <strong>New APIs for External Content Links and External Offers:</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <code>enableBillingProgram()</code>
+              </strong>{' '}
+              - Setup BillingClient for billing programs before{' '}
+              <code>initConnection()</code>
+            </li>
+            <li>
+              <strong>
+                <code>isBillingProgramAvailableAsync()</code>
+              </strong>{' '}
+              - Determine user eligibility for the billing program
+            </li>
+            <li>
+              <strong>
+                <code>createBillingProgramReportingDetailsAsync()</code>
+              </strong>{' '}
+              - Create external transaction token for reporting
+            </li>
+            <li>
+              <strong>
+                <code>launchExternalLink()</code>
+              </strong>{' '}
+              - Initiate external link to digital content offer or app download
+            </li>
+          </ul>
+          <p>
+            <strong>Deprecated External Offers APIs:</strong>
+          </p>
+          <ul>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>
+                enableExternalOffer()
+              </code>{' '}
+              → Use <code>enableBillingProgram(BillingProgramAndroid.ExternalOffer)</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>
+                isExternalOfferAvailableAsync()
+              </code>{' '}
+              → Use <code>isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>
+                createExternalOfferReportingDetailsAsync()
+              </code>{' '}
+              → Use <code>createBillingProgramReportingDetails()</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>
+                showExternalOfferInformationDialog()
+              </code>{' '}
+              → Use <code>launchExternalLink()</code>
+            </li>
+          </ul>
+          <p>
+            <strong>References:</strong>
+          </p>
+          <ul>
+            <li>
+              <a
+                href="https://developer.android.com/google/play/billing/release-notes#8-2-0"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Billing Library 8.2.0 Release Notes
+              </a>{' '}
+              - New Billing Programs API
+            </li>
+            <li>
+              <a
+                href="https://developer.android.com/google/play/billing/release-notes#8-2-1"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Billing Library 8.2.1 Release Notes
+              </a>{' '}
+              - Bug fixes for isBillingProgramAvailableAsync and createBillingProgramReportingDetailsAsync
+            </li>
+            <li>
+              <a href="/docs/features/external-purchase">External Purchase Guide</a>
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+
     // v1.3.8 Kotlin null-safe casting - Dec 24, 2025
     {
       id: 'v1.3.8-kotlin-null-safe',

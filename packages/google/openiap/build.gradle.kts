@@ -86,8 +86,8 @@ dependencies {
     // - Horizon flavor uses Meta Horizon Billing Compatibility Library
 
     // Play flavor: Google Play Billing API (compile + runtime)
-    add("playCompileOnly", "com.android.billingclient:billing-ktx:8.1.0")
-    add("playApi", "com.android.billingclient:billing-ktx:8.1.0")
+    add("playCompileOnly", "com.android.billingclient:billing-ktx:8.2.1")
+    add("playApi", "com.android.billingclient:billing-ktx:8.2.1")
 
     // Horizon flavor: Meta Horizon Platform SDK and Billing Compatibility Library (compile + runtime)
     add("horizonCompileOnly", "com.meta.horizon.platform.ovr:android-platform-sdk:77.0.1")
@@ -112,7 +112,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     // Add Google Play Billing for tests (all flavors need it for OpenIapErrorTest)
-    testImplementation("com.android.billingclient:billing-ktx:8.1.0")
+    testImplementation("com.android.billingclient:billing-ktx:8.2.1")
 
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
