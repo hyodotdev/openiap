@@ -314,7 +314,7 @@ await FlutterInappPurchase.instance.requestPurchase(
             </tr>
             <tr>
               <td>
-                <code>ios</code>{' '}
+                <code style={{ textDecoration: 'line-through' }}>ios</code>{' '}
                 <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
                   (deprecated)
                 </span>
@@ -323,7 +323,7 @@ await FlutterInappPurchase.instance.requestPurchase(
             </tr>
             <tr>
               <td>
-                <code>android</code>{' '}
+                <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
                 <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
                   (deprecated)
                 </span>
@@ -362,7 +362,7 @@ await FlutterInappPurchase.instance.requestPurchase(
             </tr>
             <tr>
               <td>
-                <code>ios</code>{' '}
+                <code style={{ textDecoration: 'line-through' }}>ios</code>{' '}
                 <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
                   (deprecated)
                 </span>
@@ -371,7 +371,7 @@ await FlutterInappPurchase.instance.requestPurchase(
             </tr>
             <tr>
               <td>
-                <code>android</code>{' '}
+                <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
                 <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
                   (deprecated)
                 </span>
