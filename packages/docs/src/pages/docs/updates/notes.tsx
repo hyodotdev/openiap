@@ -23,12 +23,58 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // v1.3.6 Advanced Commerce Data - Dec 23, 2025
+    // v1.3.8 Kotlin null-safe casting - Dec 24, 2025
     {
-      id: 'v1.3.6-advanced-commerce',
+      id: 'v1.3.8-kotlin-null-safe',
+      date: new Date('2025-12-24'),
+      element: (
+        <div key="v1.3.8-kotlin-null-safe" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>📅 openiap-gql v1.3.8</h4>
+          <p>
+            <strong>Kotlin Type Generation: Null-Safe Casting</strong>
+          </p>
+          <p>
+            Fixed potential <code>TypeCastException</code> in generated Kotlin
+            types by using safe casts (<code>as?</code>) instead of unsafe casts
+            (<code>as</code>).
+          </p>
+          <ul>
+            <li>
+              Lists now use <code>mapNotNull</code> with safe element casting
+            </li>
+            <li>
+              Non-nullable fields provide sensible defaults (empty string,
+              false, 0, emptyList)
+            </li>
+            <li>
+              Prevents crashes when JSON keys are missing or contain unexpected
+              null values
+            </li>
+          </ul>
+          <p>
+            <strong>Before (unsafe):</strong>
+          </p>
+          <CodeBlock language="kotlin">
+            {`offerTags = (json["offerTags"] as List<*>).map { it as String }
+offerToken = json["offerToken"] as String`}
+          </CodeBlock>
+          <p>
+            <strong>After (null-safe):</strong>
+          </p>
+          <CodeBlock language="kotlin">
+            {`offerTags = (json["offerTags"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+offerToken = json["offerToken"] as? String ?: ""`}
+          </CodeBlock>
+        </div>
+      ),
+    },
+
+    // v1.3.7 Advanced Commerce Data - Dec 23, 2025
+    {
+      id: 'v1.3.7-advanced-commerce',
       date: new Date('2025-12-23'),
       element: (
-        <div key="v1.3.6-advanced-commerce" style={noteCardStyle}>
+        <div key="v1.3.7-advanced-commerce" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
             📅 openiap-gql v1.3.7 / openiap-apple v1.3.7 / openiap-google
             v1.3.15

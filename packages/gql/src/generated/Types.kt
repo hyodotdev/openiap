@@ -807,20 +807,20 @@ public data class ActiveSubscription(
     companion object {
         fun fromJson(json: Map<String, Any?>): ActiveSubscription {
             return ActiveSubscription(
-                autoRenewingAndroid = json["autoRenewingAndroid"] as Boolean?,
-                basePlanIdAndroid = json["basePlanIdAndroid"] as String?,
-                currentPlanId = json["currentPlanId"] as String?,
-                daysUntilExpirationIOS = (json["daysUntilExpirationIOS"] as Number?)?.toDouble(),
-                environmentIOS = json["environmentIOS"] as String?,
-                expirationDateIOS = (json["expirationDateIOS"] as Number?)?.toDouble(),
-                isActive = json["isActive"] as Boolean,
-                productId = json["productId"] as String,
-                purchaseToken = json["purchaseToken"] as String?,
-                purchaseTokenAndroid = json["purchaseTokenAndroid"] as String?,
-                renewalInfoIOS = (json["renewalInfoIOS"] as Map<String, Any?>?)?.let { RenewalInfoIOS.fromJson(it) },
-                transactionDate = (json["transactionDate"] as Number).toDouble(),
-                transactionId = json["transactionId"] as String,
-                willExpireSoon = json["willExpireSoon"] as Boolean?,
+                autoRenewingAndroid = json["autoRenewingAndroid"] as? Boolean,
+                basePlanIdAndroid = json["basePlanIdAndroid"] as? String,
+                currentPlanId = json["currentPlanId"] as? String,
+                daysUntilExpirationIOS = (json["daysUntilExpirationIOS"] as? Number)?.toDouble(),
+                environmentIOS = json["environmentIOS"] as? String,
+                expirationDateIOS = (json["expirationDateIOS"] as? Number)?.toDouble(),
+                isActive = json["isActive"] as? Boolean ?: false,
+                productId = json["productId"] as? String ?: "",
+                purchaseToken = json["purchaseToken"] as? String,
+                purchaseTokenAndroid = json["purchaseTokenAndroid"] as? String,
+                renewalInfoIOS = (json["renewalInfoIOS"] as? Map<String, Any?>)?.let { RenewalInfoIOS.fromJson(it) },
+                transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
+                transactionId = json["transactionId"] as? String ?: "",
+                willExpireSoon = json["willExpireSoon"] as? Boolean,
             )
         }
     }
@@ -863,19 +863,19 @@ public data class AppTransaction(
     companion object {
         fun fromJson(json: Map<String, Any?>): AppTransaction {
             return AppTransaction(
-                appId = (json["appId"] as Number).toDouble(),
-                appTransactionId = json["appTransactionId"] as String?,
-                appVersion = json["appVersion"] as String,
-                appVersionId = (json["appVersionId"] as Number).toDouble(),
-                bundleId = json["bundleId"] as String,
-                deviceVerification = json["deviceVerification"] as String,
-                deviceVerificationNonce = json["deviceVerificationNonce"] as String,
-                environment = json["environment"] as String,
-                originalAppVersion = json["originalAppVersion"] as String,
-                originalPlatform = json["originalPlatform"] as String?,
-                originalPurchaseDate = (json["originalPurchaseDate"] as Number).toDouble(),
-                preorderDate = (json["preorderDate"] as Number?)?.toDouble(),
-                signedDate = (json["signedDate"] as Number).toDouble(),
+                appId = (json["appId"] as? Number)?.toDouble() ?: 0.0,
+                appTransactionId = json["appTransactionId"] as? String,
+                appVersion = json["appVersion"] as? String ?: "",
+                appVersionId = (json["appVersionId"] as? Number)?.toDouble() ?: 0.0,
+                bundleId = json["bundleId"] as? String ?: "",
+                deviceVerification = json["deviceVerification"] as? String ?: "",
+                deviceVerificationNonce = json["deviceVerificationNonce"] as? String ?: "",
+                environment = json["environment"] as? String ?: "",
+                originalAppVersion = json["originalAppVersion"] as? String ?: "",
+                originalPlatform = json["originalPlatform"] as? String,
+                originalPurchaseDate = (json["originalPurchaseDate"] as? Number)?.toDouble() ?: 0.0,
+                preorderDate = (json["preorderDate"] as? Number)?.toDouble(),
+                signedDate = (json["signedDate"] as? Number)?.toDouble() ?: 0.0,
             )
         }
     }
@@ -916,8 +916,8 @@ public data class BillingProgramAvailabilityResultAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): BillingProgramAvailabilityResultAndroid {
             return BillingProgramAvailabilityResultAndroid(
-                billingProgram = BillingProgramAndroid.fromJson(json["billingProgram"] as String),
-                isAvailable = json["isAvailable"] as Boolean,
+                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
+                isAvailable = json["isAvailable"] as? Boolean ?: false,
             )
         }
     }
@@ -949,8 +949,8 @@ public data class BillingProgramReportingDetailsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): BillingProgramReportingDetailsAndroid {
             return BillingProgramReportingDetailsAndroid(
-                billingProgram = BillingProgramAndroid.fromJson(json["billingProgram"] as String),
-                externalTransactionToken = json["externalTransactionToken"] as String,
+                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
+                externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
             )
         }
     }
@@ -980,8 +980,8 @@ public data class DiscountAmountAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): DiscountAmountAndroid {
             return DiscountAmountAndroid(
-                discountAmountMicros = json["discountAmountMicros"] as String,
-                formattedDiscountAmount = json["formattedDiscountAmount"] as String,
+                discountAmountMicros = json["discountAmountMicros"] as? String ?: "",
+                formattedDiscountAmount = json["formattedDiscountAmount"] as? String ?: "",
             )
         }
     }
@@ -1013,8 +1013,8 @@ public data class DiscountDisplayInfoAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): DiscountDisplayInfoAndroid {
             return DiscountDisplayInfoAndroid(
-                discountAmount = (json["discountAmount"] as Map<String, Any?>?)?.let { DiscountAmountAndroid.fromJson(it) },
-                percentageDiscount = (json["percentageDiscount"] as Number?)?.toInt(),
+                discountAmount = (json["discountAmount"] as? Map<String, Any?>)?.let { DiscountAmountAndroid.fromJson(it) },
+                percentageDiscount = (json["percentageDiscount"] as? Number)?.toInt(),
             )
         }
     }
@@ -1040,14 +1040,14 @@ public data class DiscountIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): DiscountIOS {
             return DiscountIOS(
-                identifier = json["identifier"] as String,
-                localizedPrice = json["localizedPrice"] as String?,
-                numberOfPeriods = (json["numberOfPeriods"] as Number).toInt(),
-                paymentMode = (json["paymentMode"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
-                price = json["price"] as String,
-                priceAmount = (json["priceAmount"] as Number).toDouble(),
-                subscriptionPeriod = json["subscriptionPeriod"] as String,
-                type = json["type"] as String,
+                identifier = json["identifier"] as? String ?: "",
+                localizedPrice = json["localizedPrice"] as? String,
+                numberOfPeriods = (json["numberOfPeriods"] as? Number)?.toInt() ?: 0,
+                paymentMode = (json["paymentMode"] as? String)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
+                price = json["price"] as? String ?: "",
+                priceAmount = (json["priceAmount"] as? Number)?.toDouble() ?: 0.0,
+                subscriptionPeriod = json["subscriptionPeriod"] as? String ?: "",
+                type = json["type"] as? String ?: "",
             )
         }
     }
@@ -1091,11 +1091,11 @@ public data class DiscountOfferIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): DiscountOfferIOS {
             return DiscountOfferIOS(
-                identifier = json["identifier"] as String,
-                keyIdentifier = json["keyIdentifier"] as String,
-                nonce = json["nonce"] as String,
-                signature = json["signature"] as String,
-                timestamp = (json["timestamp"] as Number).toDouble(),
+                identifier = json["identifier"] as? String ?: "",
+                keyIdentifier = json["keyIdentifier"] as? String ?: "",
+                nonce = json["nonce"] as? String ?: "",
+                signature = json["signature"] as? String ?: "",
+                timestamp = (json["timestamp"] as? Number)?.toDouble() ?: 0.0,
             )
         }
     }
@@ -1119,9 +1119,9 @@ public data class EntitlementIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): EntitlementIOS {
             return EntitlementIOS(
-                jsonRepresentation = json["jsonRepresentation"] as String,
-                sku = json["sku"] as String,
-                transactionId = json["transactionId"] as String,
+                jsonRepresentation = json["jsonRepresentation"] as? String ?: "",
+                sku = json["sku"] as? String ?: "",
+                transactionId = json["transactionId"] as? String ?: "",
             )
         }
     }
@@ -1149,7 +1149,7 @@ public data class ExternalOfferAvailabilityResultAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): ExternalOfferAvailabilityResultAndroid {
             return ExternalOfferAvailabilityResultAndroid(
-                isAvailable = json["isAvailable"] as Boolean,
+                isAvailable = json["isAvailable"] as? Boolean ?: false,
             )
         }
     }
@@ -1175,7 +1175,7 @@ public data class ExternalOfferReportingDetailsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): ExternalOfferReportingDetailsAndroid {
             return ExternalOfferReportingDetailsAndroid(
-                externalTransactionToken = json["externalTransactionToken"] as String,
+                externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
             )
         }
     }
@@ -1203,8 +1203,8 @@ public data class ExternalPurchaseLinkResultIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkResultIOS {
             return ExternalPurchaseLinkResultIOS(
-                error = json["error"] as String?,
-                success = json["success"] as Boolean,
+                error = json["error"] as? String,
+                success = json["success"] as? Boolean ?: false,
             )
         }
     }
@@ -1233,8 +1233,8 @@ public data class ExternalPurchaseNoticeResultIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): ExternalPurchaseNoticeResultIOS {
             return ExternalPurchaseNoticeResultIOS(
-                error = json["error"] as String?,
-                result = ExternalPurchaseNoticeAction.fromJson(json["result"] as String),
+                error = json["error"] as? String,
+                result = (json["result"] as? String)?.let { ExternalPurchaseNoticeAction.fromJson(it) } ?: ExternalPurchaseNoticeAction.Continue,
             )
         }
     }
@@ -1272,8 +1272,8 @@ public data class LimitedQuantityInfoAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): LimitedQuantityInfoAndroid {
             return LimitedQuantityInfoAndroid(
-                maximumQuantity = (json["maximumQuantity"] as Number).toInt(),
-                remainingQuantity = (json["remainingQuantity"] as Number).toInt(),
+                maximumQuantity = (json["maximumQuantity"] as? Number)?.toInt() ?: 0,
+                remainingQuantity = (json["remainingQuantity"] as? Number)?.toInt() ?: 0,
             )
         }
     }
@@ -1305,8 +1305,8 @@ public data class PreorderDetailsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): PreorderDetailsAndroid {
             return PreorderDetailsAndroid(
-                preorderPresaleEndTimeMillis = json["preorderPresaleEndTimeMillis"] as String,
-                preorderReleaseTimeMillis = json["preorderReleaseTimeMillis"] as String,
+                preorderPresaleEndTimeMillis = json["preorderPresaleEndTimeMillis"] as? String ?: "",
+                preorderReleaseTimeMillis = json["preorderReleaseTimeMillis"] as? String ?: "",
             )
         }
     }
@@ -1330,12 +1330,12 @@ public data class PricingPhaseAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): PricingPhaseAndroid {
             return PricingPhaseAndroid(
-                billingCycleCount = (json["billingCycleCount"] as Number).toInt(),
-                billingPeriod = json["billingPeriod"] as String,
-                formattedPrice = json["formattedPrice"] as String,
-                priceAmountMicros = json["priceAmountMicros"] as String,
-                priceCurrencyCode = json["priceCurrencyCode"] as String,
-                recurrenceMode = (json["recurrenceMode"] as Number).toInt(),
+                billingCycleCount = (json["billingCycleCount"] as? Number)?.toInt() ?: 0,
+                billingPeriod = json["billingPeriod"] as? String ?: "",
+                formattedPrice = json["formattedPrice"] as? String ?: "",
+                priceAmountMicros = json["priceAmountMicros"] as? String ?: "",
+                priceCurrencyCode = json["priceCurrencyCode"] as? String ?: "",
+                recurrenceMode = (json["recurrenceMode"] as? Number)?.toInt() ?: 0,
             )
         }
     }
@@ -1358,7 +1358,7 @@ public data class PricingPhasesAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): PricingPhasesAndroid {
             return PricingPhasesAndroid(
-                pricingPhaseList = (json["pricingPhaseList"] as List<*>).map { PricingPhaseAndroid.fromJson((it as Map<String, Any?>)) },
+                pricingPhaseList = (json["pricingPhaseList"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { PricingPhaseAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for PricingPhaseAndroid") } ?: emptyList(),
             )
         }
     }
@@ -1392,19 +1392,19 @@ public data class ProductAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductAndroid {
             return ProductAndroid(
-                currency = json["currency"] as String,
-                debugDescription = json["debugDescription"] as String?,
-                description = json["description"] as String,
-                displayName = json["displayName"] as String?,
-                displayPrice = json["displayPrice"] as String,
-                id = json["id"] as String,
-                nameAndroid = json["nameAndroid"] as String,
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as List<*>?)?.map { ProductAndroidOneTimePurchaseOfferDetail.fromJson((it as Map<String, Any?>)) },
-                platform = IapPlatform.fromJson(json["platform"] as String),
-                price = (json["price"] as Number?)?.toDouble(),
-                subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>?)?.map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
-                title = json["title"] as String,
-                type = ProductType.fromJson(json["type"] as String),
+                currency = json["currency"] as? String ?: "",
+                debugDescription = json["debugDescription"] as? String,
+                description = json["description"] as? String ?: "",
+                displayName = json["displayName"] as? String,
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                nameAndroid = json["nameAndroid"] as? String ?: "",
+                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductAndroidOneTimePurchaseOfferDetail") },
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                price = (json["price"] as? Number)?.toDouble(),
+                subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") },
+                title = json["title"] as? String ?: "",
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
             )
         }
     }
@@ -1479,18 +1479,18 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductAndroidOneTimePurchaseOfferDetail {
             return ProductAndroidOneTimePurchaseOfferDetail(
-                discountDisplayInfo = (json["discountDisplayInfo"] as Map<String, Any?>?)?.let { DiscountDisplayInfoAndroid.fromJson(it) },
-                formattedPrice = json["formattedPrice"] as String,
-                fullPriceMicros = json["fullPriceMicros"] as String?,
-                limitedQuantityInfo = (json["limitedQuantityInfo"] as Map<String, Any?>?)?.let { LimitedQuantityInfoAndroid.fromJson(it) },
-                offerId = json["offerId"] as String?,
-                offerTags = (json["offerTags"] as List<*>).map { it as String },
-                offerToken = json["offerToken"] as String,
-                preorderDetailsAndroid = (json["preorderDetailsAndroid"] as Map<String, Any?>?)?.let { PreorderDetailsAndroid.fromJson(it) },
-                priceAmountMicros = json["priceAmountMicros"] as String,
-                priceCurrencyCode = json["priceCurrencyCode"] as String,
-                rentalDetailsAndroid = (json["rentalDetailsAndroid"] as Map<String, Any?>?)?.let { RentalDetailsAndroid.fromJson(it) },
-                validTimeWindow = (json["validTimeWindow"] as Map<String, Any?>?)?.let { ValidTimeWindowAndroid.fromJson(it) },
+                discountDisplayInfo = (json["discountDisplayInfo"] as? Map<String, Any?>)?.let { DiscountDisplayInfoAndroid.fromJson(it) },
+                formattedPrice = json["formattedPrice"] as? String ?: "",
+                fullPriceMicros = json["fullPriceMicros"] as? String,
+                limitedQuantityInfo = (json["limitedQuantityInfo"] as? Map<String, Any?>)?.let { LimitedQuantityInfoAndroid.fromJson(it) },
+                offerId = json["offerId"] as? String,
+                offerTags = (json["offerTags"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                offerToken = json["offerToken"] as? String ?: "",
+                preorderDetailsAndroid = (json["preorderDetailsAndroid"] as? Map<String, Any?>)?.let { PreorderDetailsAndroid.fromJson(it) },
+                priceAmountMicros = json["priceAmountMicros"] as? String ?: "",
+                priceCurrencyCode = json["priceCurrencyCode"] as? String ?: "",
+                rentalDetailsAndroid = (json["rentalDetailsAndroid"] as? Map<String, Any?>)?.let { RentalDetailsAndroid.fromJson(it) },
+                validTimeWindow = (json["validTimeWindow"] as? Map<String, Any?>)?.let { ValidTimeWindowAndroid.fromJson(it) },
             )
         }
     }
@@ -1533,21 +1533,21 @@ public data class ProductIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductIOS {
             return ProductIOS(
-                currency = json["currency"] as String,
-                debugDescription = json["debugDescription"] as String?,
-                description = json["description"] as String,
-                displayName = json["displayName"] as String?,
-                displayNameIOS = json["displayNameIOS"] as String,
-                displayPrice = json["displayPrice"] as String,
-                id = json["id"] as String,
-                isFamilyShareableIOS = json["isFamilyShareableIOS"] as Boolean,
-                jsonRepresentationIOS = json["jsonRepresentationIOS"] as String,
-                platform = IapPlatform.fromJson(json["platform"] as String),
-                price = (json["price"] as Number?)?.toDouble(),
-                subscriptionInfoIOS = (json["subscriptionInfoIOS"] as Map<String, Any?>?)?.let { SubscriptionInfoIOS.fromJson(it) },
-                title = json["title"] as String,
-                type = ProductType.fromJson(json["type"] as String),
-                typeIOS = ProductTypeIOS.fromJson(json["typeIOS"] as String),
+                currency = json["currency"] as? String ?: "",
+                debugDescription = json["debugDescription"] as? String,
+                description = json["description"] as? String ?: "",
+                displayName = json["displayName"] as? String,
+                displayNameIOS = json["displayNameIOS"] as? String ?: "",
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                isFamilyShareableIOS = json["isFamilyShareableIOS"] as? Boolean ?: false,
+                jsonRepresentationIOS = json["jsonRepresentationIOS"] as? String ?: "",
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                price = (json["price"] as? Number)?.toDouble(),
+                subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
+                title = json["title"] as? String ?: "",
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
+                typeIOS = (json["typeIOS"] as? String)?.let { ProductTypeIOS.fromJson(it) } ?: ProductTypeIOS.Consumable,
             )
         }
     }
@@ -1595,19 +1595,19 @@ public data class ProductSubscriptionAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductSubscriptionAndroid {
             return ProductSubscriptionAndroid(
-                currency = json["currency"] as String,
-                debugDescription = json["debugDescription"] as String?,
-                description = json["description"] as String,
-                displayName = json["displayName"] as String?,
-                displayPrice = json["displayPrice"] as String,
-                id = json["id"] as String,
-                nameAndroid = json["nameAndroid"] as String,
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as List<*>?)?.map { ProductAndroidOneTimePurchaseOfferDetail.fromJson((it as Map<String, Any?>)) },
-                platform = IapPlatform.fromJson(json["platform"] as String),
-                price = (json["price"] as Number?)?.toDouble(),
-                subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>).map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
-                title = json["title"] as String,
-                type = ProductType.fromJson(json["type"] as String),
+                currency = json["currency"] as? String ?: "",
+                debugDescription = json["debugDescription"] as? String,
+                description = json["description"] as? String ?: "",
+                displayName = json["displayName"] as? String,
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                nameAndroid = json["nameAndroid"] as? String ?: "",
+                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductAndroidOneTimePurchaseOfferDetail") },
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                price = (json["price"] as? Number)?.toDouble(),
+                subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") } ?: emptyList(),
+                title = json["title"] as? String ?: "",
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
             )
         }
     }
@@ -1641,11 +1641,11 @@ public data class ProductSubscriptionAndroidOfferDetails(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductSubscriptionAndroidOfferDetails {
             return ProductSubscriptionAndroidOfferDetails(
-                basePlanId = json["basePlanId"] as String,
-                offerId = json["offerId"] as String?,
-                offerTags = (json["offerTags"] as List<*>).map { it as String },
-                offerToken = json["offerToken"] as String,
-                pricingPhases = PricingPhasesAndroid.fromJson((json["pricingPhases"] as Map<String, Any?>)),
+                basePlanId = json["basePlanId"] as? String ?: "",
+                offerId = json["offerId"] as? String,
+                offerTags = (json["offerTags"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                offerToken = json["offerToken"] as? String ?: "",
+                pricingPhases = (json["pricingPhases"] as? Map<String, Any?>)?.let { PricingPhasesAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for PricingPhasesAndroid"),
             )
         }
     }
@@ -1689,29 +1689,29 @@ public data class ProductSubscriptionIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductSubscriptionIOS {
             return ProductSubscriptionIOS(
-                currency = json["currency"] as String,
-                debugDescription = json["debugDescription"] as String?,
-                description = json["description"] as String,
-                discountsIOS = (json["discountsIOS"] as List<*>?)?.map { DiscountIOS.fromJson((it as Map<String, Any?>)) },
-                displayName = json["displayName"] as String?,
-                displayNameIOS = json["displayNameIOS"] as String,
-                displayPrice = json["displayPrice"] as String,
-                id = json["id"] as String,
-                introductoryPriceAsAmountIOS = json["introductoryPriceAsAmountIOS"] as String?,
-                introductoryPriceIOS = json["introductoryPriceIOS"] as String?,
-                introductoryPriceNumberOfPeriodsIOS = json["introductoryPriceNumberOfPeriodsIOS"] as String?,
-                introductoryPricePaymentModeIOS = (json["introductoryPricePaymentModeIOS"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
-                introductoryPriceSubscriptionPeriodIOS = (json["introductoryPriceSubscriptionPeriodIOS"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) },
-                isFamilyShareableIOS = json["isFamilyShareableIOS"] as Boolean,
-                jsonRepresentationIOS = json["jsonRepresentationIOS"] as String,
-                platform = IapPlatform.fromJson(json["platform"] as String),
-                price = (json["price"] as Number?)?.toDouble(),
-                subscriptionInfoIOS = (json["subscriptionInfoIOS"] as Map<String, Any?>?)?.let { SubscriptionInfoIOS.fromJson(it) },
-                subscriptionPeriodNumberIOS = json["subscriptionPeriodNumberIOS"] as String?,
-                subscriptionPeriodUnitIOS = (json["subscriptionPeriodUnitIOS"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) },
-                title = json["title"] as String,
-                type = ProductType.fromJson(json["type"] as String),
-                typeIOS = ProductTypeIOS.fromJson(json["typeIOS"] as String),
+                currency = json["currency"] as? String ?: "",
+                debugDescription = json["debugDescription"] as? String,
+                description = json["description"] as? String ?: "",
+                discountsIOS = (json["discountsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DiscountIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DiscountIOS") },
+                displayName = json["displayName"] as? String,
+                displayNameIOS = json["displayNameIOS"] as? String ?: "",
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                introductoryPriceAsAmountIOS = json["introductoryPriceAsAmountIOS"] as? String,
+                introductoryPriceIOS = json["introductoryPriceIOS"] as? String,
+                introductoryPriceNumberOfPeriodsIOS = json["introductoryPriceNumberOfPeriodsIOS"] as? String,
+                introductoryPricePaymentModeIOS = (json["introductoryPricePaymentModeIOS"] as? String)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
+                introductoryPriceSubscriptionPeriodIOS = (json["introductoryPriceSubscriptionPeriodIOS"] as? String)?.let { SubscriptionPeriodIOS.fromJson(it) },
+                isFamilyShareableIOS = json["isFamilyShareableIOS"] as? Boolean ?: false,
+                jsonRepresentationIOS = json["jsonRepresentationIOS"] as? String ?: "",
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                price = (json["price"] as? Number)?.toDouble(),
+                subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
+                subscriptionPeriodNumberIOS = json["subscriptionPeriodNumberIOS"] as? String,
+                subscriptionPeriodUnitIOS = (json["subscriptionPeriodUnitIOS"] as? String)?.let { SubscriptionPeriodIOS.fromJson(it) },
+                title = json["title"] as? String ?: "",
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
+                typeIOS = (json["typeIOS"] as? String)?.let { ProductTypeIOS.fromJson(it) } ?: ProductTypeIOS.Consumable,
             )
         }
     }
@@ -1781,27 +1781,27 @@ public data class PurchaseAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseAndroid {
             return PurchaseAndroid(
-                autoRenewingAndroid = json["autoRenewingAndroid"] as Boolean?,
-                currentPlanId = json["currentPlanId"] as String?,
-                dataAndroid = json["dataAndroid"] as String?,
-                developerPayloadAndroid = json["developerPayloadAndroid"] as String?,
-                id = json["id"] as String,
-                ids = (json["ids"] as List<*>?)?.map { it as String },
-                isAcknowledgedAndroid = json["isAcknowledgedAndroid"] as Boolean?,
-                isAutoRenewing = json["isAutoRenewing"] as Boolean,
-                isSuspendedAndroid = json["isSuspendedAndroid"] as Boolean?,
-                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as String?,
-                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as String?,
-                packageNameAndroid = json["packageNameAndroid"] as String?,
-                platform = IapPlatform.fromJson(json["platform"] as String),
-                productId = json["productId"] as String,
-                purchaseState = PurchaseState.fromJson(json["purchaseState"] as String),
-                purchaseToken = json["purchaseToken"] as String?,
-                quantity = (json["quantity"] as Number).toInt(),
-                signatureAndroid = json["signatureAndroid"] as String?,
-                store = IapStore.fromJson(json["store"] as String),
-                transactionDate = (json["transactionDate"] as Number).toDouble(),
-                transactionId = json["transactionId"] as String?,
+                autoRenewingAndroid = json["autoRenewingAndroid"] as? Boolean,
+                currentPlanId = json["currentPlanId"] as? String,
+                dataAndroid = json["dataAndroid"] as? String,
+                developerPayloadAndroid = json["developerPayloadAndroid"] as? String,
+                id = json["id"] as? String ?: "",
+                ids = (json["ids"] as? List<*>)?.mapNotNull { it as? String },
+                isAcknowledgedAndroid = json["isAcknowledgedAndroid"] as? Boolean,
+                isAutoRenewing = json["isAutoRenewing"] as? Boolean ?: false,
+                isSuspendedAndroid = json["isSuspendedAndroid"] as? Boolean,
+                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
+                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
+                packageNameAndroid = json["packageNameAndroid"] as? String,
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                productId = json["productId"] as? String ?: "",
+                purchaseState = (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } ?: PurchaseState.Pending,
+                purchaseToken = json["purchaseToken"] as? String,
+                quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
+                signatureAndroid = json["signatureAndroid"] as? String,
+                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
+                transactionId = json["transactionId"] as? String,
             )
         }
     }
@@ -1841,9 +1841,9 @@ public data class PurchaseError(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseError {
             return PurchaseError(
-                code = ErrorCode.fromJson(json["code"] as String),
-                message = json["message"] as String,
-                productId = json["productId"] as String?,
+                code = (json["code"] as? String)?.let { ErrorCode.fromJson(it) } ?: ErrorCode.Unknown,
+                message = json["message"] as? String ?: "",
+                productId = json["productId"] as? String,
             )
         }
     }
@@ -1899,40 +1899,40 @@ public data class PurchaseIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseIOS {
             return PurchaseIOS(
-                appAccountToken = json["appAccountToken"] as String?,
-                appBundleIdIOS = json["appBundleIdIOS"] as String?,
-                countryCodeIOS = json["countryCodeIOS"] as String?,
-                currencyCodeIOS = json["currencyCodeIOS"] as String?,
-                currencySymbolIOS = json["currencySymbolIOS"] as String?,
-                currentPlanId = json["currentPlanId"] as String?,
-                environmentIOS = json["environmentIOS"] as String?,
-                expirationDateIOS = (json["expirationDateIOS"] as Number?)?.toDouble(),
-                id = json["id"] as String,
-                ids = (json["ids"] as List<*>?)?.map { it as String },
-                isAutoRenewing = json["isAutoRenewing"] as Boolean,
-                isUpgradedIOS = json["isUpgradedIOS"] as Boolean?,
-                offerIOS = (json["offerIOS"] as Map<String, Any?>?)?.let { PurchaseOfferIOS.fromJson(it) },
-                originalTransactionDateIOS = (json["originalTransactionDateIOS"] as Number?)?.toDouble(),
-                originalTransactionIdentifierIOS = json["originalTransactionIdentifierIOS"] as String?,
-                ownershipTypeIOS = json["ownershipTypeIOS"] as String?,
-                platform = IapPlatform.fromJson(json["platform"] as String),
-                productId = json["productId"] as String,
-                purchaseState = PurchaseState.fromJson(json["purchaseState"] as String),
-                purchaseToken = json["purchaseToken"] as String?,
-                quantity = (json["quantity"] as Number).toInt(),
-                quantityIOS = (json["quantityIOS"] as Number?)?.toInt(),
-                reasonIOS = json["reasonIOS"] as String?,
-                reasonStringRepresentationIOS = json["reasonStringRepresentationIOS"] as String?,
-                renewalInfoIOS = (json["renewalInfoIOS"] as Map<String, Any?>?)?.let { RenewalInfoIOS.fromJson(it) },
-                revocationDateIOS = (json["revocationDateIOS"] as Number?)?.toDouble(),
-                revocationReasonIOS = json["revocationReasonIOS"] as String?,
-                store = IapStore.fromJson(json["store"] as String),
-                storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as String?,
-                subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as String?,
-                transactionDate = (json["transactionDate"] as Number).toDouble(),
-                transactionId = json["transactionId"] as String,
-                transactionReasonIOS = json["transactionReasonIOS"] as String?,
-                webOrderLineItemIdIOS = json["webOrderLineItemIdIOS"] as String?,
+                appAccountToken = json["appAccountToken"] as? String,
+                appBundleIdIOS = json["appBundleIdIOS"] as? String,
+                countryCodeIOS = json["countryCodeIOS"] as? String,
+                currencyCodeIOS = json["currencyCodeIOS"] as? String,
+                currencySymbolIOS = json["currencySymbolIOS"] as? String,
+                currentPlanId = json["currentPlanId"] as? String,
+                environmentIOS = json["environmentIOS"] as? String,
+                expirationDateIOS = (json["expirationDateIOS"] as? Number)?.toDouble(),
+                id = json["id"] as? String ?: "",
+                ids = (json["ids"] as? List<*>)?.mapNotNull { it as? String },
+                isAutoRenewing = json["isAutoRenewing"] as? Boolean ?: false,
+                isUpgradedIOS = json["isUpgradedIOS"] as? Boolean,
+                offerIOS = (json["offerIOS"] as? Map<String, Any?>)?.let { PurchaseOfferIOS.fromJson(it) },
+                originalTransactionDateIOS = (json["originalTransactionDateIOS"] as? Number)?.toDouble(),
+                originalTransactionIdentifierIOS = json["originalTransactionIdentifierIOS"] as? String,
+                ownershipTypeIOS = json["ownershipTypeIOS"] as? String,
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                productId = json["productId"] as? String ?: "",
+                purchaseState = (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } ?: PurchaseState.Pending,
+                purchaseToken = json["purchaseToken"] as? String,
+                quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
+                quantityIOS = (json["quantityIOS"] as? Number)?.toInt(),
+                reasonIOS = json["reasonIOS"] as? String,
+                reasonStringRepresentationIOS = json["reasonStringRepresentationIOS"] as? String,
+                renewalInfoIOS = (json["renewalInfoIOS"] as? Map<String, Any?>)?.let { RenewalInfoIOS.fromJson(it) },
+                revocationDateIOS = (json["revocationDateIOS"] as? Number)?.toDouble(),
+                revocationReasonIOS = json["revocationReasonIOS"] as? String,
+                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as? String,
+                subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
+                transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
+                transactionId = json["transactionId"] as? String ?: "",
+                transactionReasonIOS = json["transactionReasonIOS"] as? String,
+                webOrderLineItemIdIOS = json["webOrderLineItemIdIOS"] as? String,
             )
         }
     }
@@ -1985,9 +1985,9 @@ public data class PurchaseOfferIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseOfferIOS {
             return PurchaseOfferIOS(
-                id = json["id"] as String,
-                paymentMode = json["paymentMode"] as String,
-                type = json["type"] as String,
+                id = json["id"] as? String ?: "",
+                paymentMode = json["paymentMode"] as? String ?: "",
+                type = json["type"] as? String ?: "",
             )
         }
     }
@@ -2008,8 +2008,8 @@ public data class RefundResultIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): RefundResultIOS {
             return RefundResultIOS(
-                message = json["message"] as String?,
-                status = json["status"] as String,
+                message = json["message"] as? String,
+                status = json["status"] as? String ?: "",
             )
         }
     }
@@ -2073,17 +2073,17 @@ public data class RenewalInfoIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): RenewalInfoIOS {
             return RenewalInfoIOS(
-                autoRenewPreference = json["autoRenewPreference"] as String?,
-                expirationReason = json["expirationReason"] as String?,
-                gracePeriodExpirationDate = (json["gracePeriodExpirationDate"] as Number?)?.toDouble(),
-                isInBillingRetry = json["isInBillingRetry"] as Boolean?,
-                jsonRepresentation = json["jsonRepresentation"] as String?,
-                pendingUpgradeProductId = json["pendingUpgradeProductId"] as String?,
-                priceIncreaseStatus = json["priceIncreaseStatus"] as String?,
-                renewalDate = (json["renewalDate"] as Number?)?.toDouble(),
-                renewalOfferId = json["renewalOfferId"] as String?,
-                renewalOfferType = json["renewalOfferType"] as String?,
-                willAutoRenew = json["willAutoRenew"] as Boolean,
+                autoRenewPreference = json["autoRenewPreference"] as? String,
+                expirationReason = json["expirationReason"] as? String,
+                gracePeriodExpirationDate = (json["gracePeriodExpirationDate"] as? Number)?.toDouble(),
+                isInBillingRetry = json["isInBillingRetry"] as? Boolean,
+                jsonRepresentation = json["jsonRepresentation"] as? String,
+                pendingUpgradeProductId = json["pendingUpgradeProductId"] as? String,
+                priceIncreaseStatus = json["priceIncreaseStatus"] as? String,
+                renewalDate = (json["renewalDate"] as? Number)?.toDouble(),
+                renewalOfferId = json["renewalOfferId"] as? String,
+                renewalOfferType = json["renewalOfferType"] as? String,
+                willAutoRenew = json["willAutoRenew"] as? Boolean ?: false,
             )
         }
     }
@@ -2123,8 +2123,8 @@ public data class RentalDetailsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): RentalDetailsAndroid {
             return RentalDetailsAndroid(
-                rentalExpirationPeriod = json["rentalExpirationPeriod"] as String?,
-                rentalPeriod = json["rentalPeriod"] as String,
+                rentalExpirationPeriod = json["rentalExpirationPeriod"] as? String,
+                rentalPeriod = json["rentalPeriod"] as? String ?: "",
             )
         }
     }
@@ -2157,9 +2157,9 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
             return RequestVerifyPurchaseWithIapkitResult(
-                isValid = json["isValid"] as Boolean,
-                state = IapkitPurchaseState.fromJson(json["state"] as String),
-                store = IapStore.fromJson(json["store"] as String),
+                isValid = json["isValid"] as? Boolean ?: false,
+                state = (json["state"] as? String)?.let { IapkitPurchaseState.fromJson(it) } ?: IapkitPurchaseState.Entitled,
+                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
             )
         }
     }
@@ -2182,10 +2182,10 @@ public data class SubscriptionInfoIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionInfoIOS {
             return SubscriptionInfoIOS(
-                introductoryOffer = (json["introductoryOffer"] as Map<String, Any?>?)?.let { SubscriptionOfferIOS.fromJson(it) },
-                promotionalOffers = (json["promotionalOffers"] as List<*>?)?.map { SubscriptionOfferIOS.fromJson((it as Map<String, Any?>)) },
-                subscriptionGroupId = json["subscriptionGroupId"] as String,
-                subscriptionPeriod = SubscriptionPeriodValueIOS.fromJson((json["subscriptionPeriod"] as Map<String, Any?>)),
+                introductoryOffer = (json["introductoryOffer"] as? Map<String, Any?>)?.let { SubscriptionOfferIOS.fromJson(it) },
+                promotionalOffers = (json["promotionalOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOfferIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOfferIOS") },
+                subscriptionGroupId = json["subscriptionGroupId"] as? String ?: "",
+                subscriptionPeriod = (json["subscriptionPeriod"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
             )
         }
     }
@@ -2212,13 +2212,13 @@ public data class SubscriptionOfferIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionOfferIOS {
             return SubscriptionOfferIOS(
-                displayPrice = json["displayPrice"] as String,
-                id = json["id"] as String,
-                paymentMode = (json["paymentMode"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
-                period = SubscriptionPeriodValueIOS.fromJson((json["period"] as Map<String, Any?>)),
-                periodCount = (json["periodCount"] as Number).toInt(),
-                price = (json["price"] as Number).toDouble(),
-                type = SubscriptionOfferTypeIOS.fromJson(json["type"] as String),
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                paymentMode = (json["paymentMode"] as? String)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
+                period = (json["period"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
+                periodCount = (json["periodCount"] as? Number)?.toInt() ?: 0,
+                price = (json["price"] as? Number)?.toDouble() ?: 0.0,
+                type = (json["type"] as? String)?.let { SubscriptionOfferTypeIOS.fromJson(it) } ?: SubscriptionOfferTypeIOS.Introductory,
             )
         }
     }
@@ -2243,8 +2243,8 @@ public data class SubscriptionPeriodValueIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionPeriodValueIOS {
             return SubscriptionPeriodValueIOS(
-                unit = (json["unit"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) } ?: SubscriptionPeriodIOS.Empty,
-                value = (json["value"] as Number).toInt(),
+                unit = (json["unit"] as? String)?.let { SubscriptionPeriodIOS.fromJson(it) } ?: SubscriptionPeriodIOS.Empty,
+                value = (json["value"] as? Number)?.toInt() ?: 0,
             )
         }
     }
@@ -2264,8 +2264,8 @@ public data class SubscriptionStatusIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionStatusIOS {
             return SubscriptionStatusIOS(
-                renewalInfo = (json["renewalInfo"] as Map<String, Any?>?)?.let { RenewalInfoIOS.fromJson(it) },
-                state = json["state"] as String,
+                renewalInfo = (json["renewalInfo"] as? Map<String, Any?>)?.let { RenewalInfoIOS.fromJson(it) },
+                state = json["state"] as? String ?: "",
             )
         }
     }
@@ -2295,8 +2295,8 @@ public data class UserChoiceBillingDetails(
     companion object {
         fun fromJson(json: Map<String, Any?>): UserChoiceBillingDetails {
             return UserChoiceBillingDetails(
-                externalTransactionToken = json["externalTransactionToken"] as String,
-                products = (json["products"] as List<*>).map { it as String },
+                externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
+                products = (json["products"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
             )
         }
     }
@@ -2326,8 +2326,8 @@ public data class ValidTimeWindowAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): ValidTimeWindowAndroid {
             return ValidTimeWindowAndroid(
-                endTimeMillis = json["endTimeMillis"] as String,
-                startTimeMillis = json["startTimeMillis"] as String,
+                endTimeMillis = json["endTimeMillis"] as? String ?: "",
+                startTimeMillis = json["startTimeMillis"] as? String ?: "",
             )
         }
     }
@@ -2363,24 +2363,24 @@ public data class VerifyPurchaseResultAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultAndroid {
             return VerifyPurchaseResultAndroid(
-                autoRenewing = json["autoRenewing"] as Boolean,
-                betaProduct = json["betaProduct"] as Boolean,
-                cancelDate = (json["cancelDate"] as Number?)?.toDouble(),
-                cancelReason = json["cancelReason"] as String?,
-                deferredDate = (json["deferredDate"] as Number?)?.toDouble(),
-                deferredSku = json["deferredSku"] as String?,
-                freeTrialEndDate = (json["freeTrialEndDate"] as Number).toDouble(),
-                gracePeriodEndDate = (json["gracePeriodEndDate"] as Number).toDouble(),
-                parentProductId = json["parentProductId"] as String,
-                productId = json["productId"] as String,
-                productType = json["productType"] as String,
-                purchaseDate = (json["purchaseDate"] as Number).toDouble(),
-                quantity = (json["quantity"] as Number).toInt(),
-                receiptId = json["receiptId"] as String,
-                renewalDate = (json["renewalDate"] as Number).toDouble(),
-                term = json["term"] as String,
-                termSku = json["termSku"] as String,
-                testTransaction = json["testTransaction"] as Boolean,
+                autoRenewing = json["autoRenewing"] as? Boolean ?: false,
+                betaProduct = json["betaProduct"] as? Boolean ?: false,
+                cancelDate = (json["cancelDate"] as? Number)?.toDouble(),
+                cancelReason = json["cancelReason"] as? String,
+                deferredDate = (json["deferredDate"] as? Number)?.toDouble(),
+                deferredSku = json["deferredSku"] as? String,
+                freeTrialEndDate = (json["freeTrialEndDate"] as? Number)?.toDouble() ?: 0.0,
+                gracePeriodEndDate = (json["gracePeriodEndDate"] as? Number)?.toDouble() ?: 0.0,
+                parentProductId = json["parentProductId"] as? String ?: "",
+                productId = json["productId"] as? String ?: "",
+                productType = json["productType"] as? String ?: "",
+                purchaseDate = (json["purchaseDate"] as? Number)?.toDouble() ?: 0.0,
+                quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
+                receiptId = json["receiptId"] as? String ?: "",
+                renewalDate = (json["renewalDate"] as? Number)?.toDouble() ?: 0.0,
+                term = json["term"] as? String ?: "",
+                termSku = json["termSku"] as? String ?: "",
+                testTransaction = json["testTransaction"] as? Boolean ?: false,
             )
         }
     }
@@ -2426,8 +2426,8 @@ public data class VerifyPurchaseResultHorizon(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultHorizon {
             return VerifyPurchaseResultHorizon(
-                grantTime = (json["grantTime"] as Number?)?.toDouble(),
-                success = json["success"] as Boolean,
+                grantTime = (json["grantTime"] as? Number)?.toDouble(),
+                success = json["success"] as? Boolean ?: false,
             )
         }
     }
@@ -2461,10 +2461,10 @@ public data class VerifyPurchaseResultIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultIOS {
             return VerifyPurchaseResultIOS(
-                isValid = json["isValid"] as Boolean,
-                jwsRepresentation = json["jwsRepresentation"] as String,
-                latestTransaction = (json["latestTransaction"] as Map<String, Any?>?)?.let { Purchase.fromJson(it) },
-                receiptData = json["receiptData"] as String,
+                isValid = json["isValid"] as? Boolean ?: false,
+                jwsRepresentation = json["jwsRepresentation"] as? String ?: "",
+                latestTransaction = (json["latestTransaction"] as? Map<String, Any?>)?.let { Purchase.fromJson(it) },
+                receiptData = json["receiptData"] as? String ?: "",
             )
         }
     }
@@ -2486,8 +2486,8 @@ public data class VerifyPurchaseWithProviderError(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderError {
             return VerifyPurchaseWithProviderError(
-                code = json["code"] as String?,
-                message = json["message"] as String,
+                code = json["code"] as? String,
+                message = json["message"] as? String ?: "",
             )
         }
     }
@@ -2514,9 +2514,9 @@ public data class VerifyPurchaseWithProviderResult(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderResult {
             return VerifyPurchaseWithProviderResult(
-                errors = (json["errors"] as List<*>?)?.map { VerifyPurchaseWithProviderError.fromJson((it as Map<String, Any?>)) },
-                iapkit = (json["iapkit"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitResult.fromJson(it) },
-                provider = PurchaseVerificationProvider.fromJson(json["provider"] as String),
+                errors = (json["errors"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { VerifyPurchaseWithProviderError.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for VerifyPurchaseWithProviderError") },
+                iapkit = (json["iapkit"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitResult.fromJson(it) },
+                provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: PurchaseVerificationProvider.Iapkit,
             )
         }
     }
@@ -2546,8 +2546,8 @@ public data class AndroidSubscriptionOfferInput(
     companion object {
         fun fromJson(json: Map<String, Any?>): AndroidSubscriptionOfferInput {
             return AndroidSubscriptionOfferInput(
-                offerToken = json["offerToken"] as String,
-                sku = json["sku"] as String,
+                offerToken = json["offerToken"] as? String ?: "",
+                sku = json["sku"] as? String ?: "",
             )
         }
     }
@@ -2571,8 +2571,8 @@ public data class DeepLinkOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): DeepLinkOptions {
             return DeepLinkOptions(
-                packageNameAndroid = json["packageNameAndroid"] as String?,
-                skuAndroid = json["skuAndroid"] as String?,
+                packageNameAndroid = json["packageNameAndroid"] as? String,
+                skuAndroid = json["skuAndroid"] as? String,
             )
         }
     }
@@ -2608,11 +2608,11 @@ public data class DiscountOfferInputIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): DiscountOfferInputIOS {
             return DiscountOfferInputIOS(
-                identifier = json["identifier"] as String,
-                keyIdentifier = json["keyIdentifier"] as String,
-                nonce = json["nonce"] as String,
-                signature = json["signature"] as String,
-                timestamp = (json["timestamp"] as Number).toDouble(),
+                identifier = json["identifier"] as? String ?: "",
+                keyIdentifier = json["keyIdentifier"] as? String ?: "",
+                nonce = json["nonce"] as? String ?: "",
+                signature = json["signature"] as? String ?: "",
+                timestamp = (json["timestamp"] as? Number)?.toDouble() ?: 0.0,
             )
         }
     }
@@ -2639,7 +2639,7 @@ public data class InitConnectionConfig(
     companion object {
         fun fromJson(json: Map<String, Any?>): InitConnectionConfig {
             return InitConnectionConfig(
-                alternativeBillingModeAndroid = (json["alternativeBillingModeAndroid"] as String?)?.let { AlternativeBillingModeAndroid.fromJson(it) },
+                alternativeBillingModeAndroid = (json["alternativeBillingModeAndroid"] as? String)?.let { AlternativeBillingModeAndroid.fromJson(it) },
             )
         }
     }
@@ -2675,10 +2675,10 @@ public data class LaunchExternalLinkParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParamsAndroid {
             return LaunchExternalLinkParamsAndroid(
-                billingProgram = BillingProgramAndroid.fromJson(json["billingProgram"] as String),
-                launchMode = ExternalLinkLaunchModeAndroid.fromJson(json["launchMode"] as String),
-                linkType = ExternalLinkTypeAndroid.fromJson(json["linkType"] as String),
-                linkUri = json["linkUri"] as String,
+                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
+                launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: ExternalLinkLaunchModeAndroid.Unspecified,
+                linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: ExternalLinkTypeAndroid.Unspecified,
+                linkUri = json["linkUri"] as? String ?: "",
             )
         }
     }
@@ -2698,8 +2698,8 @@ public data class ProductRequest(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductRequest {
             return ProductRequest(
-                skus = (json["skus"] as List<*>).map { it as String },
-                type = (json["type"] as String?)?.let { ProductQueryType.fromJson(it) },
+                skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                type = (json["type"] as? String)?.let { ProductQueryType.fromJson(it) },
             )
         }
     }
@@ -2725,8 +2725,8 @@ public data class PurchaseOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseOptions {
             return PurchaseOptions(
-                alsoPublishToEventListenerIOS = json["alsoPublishToEventListenerIOS"] as Boolean?,
-                onlyIncludeActiveItemsIOS = json["onlyIncludeActiveItemsIOS"] as Boolean?,
+                alsoPublishToEventListenerIOS = json["alsoPublishToEventListenerIOS"] as? Boolean,
+                onlyIncludeActiveItemsIOS = json["onlyIncludeActiveItemsIOS"] as? Boolean,
             )
         }
     }
@@ -2758,10 +2758,10 @@ public data class RequestPurchaseAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps {
             return RequestPurchaseAndroidProps(
-                isOfferPersonalized = json["isOfferPersonalized"] as Boolean?,
-                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as String?,
-                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as String?,
-                skus = (json["skus"] as List<*>).map { it as String },
+                isOfferPersonalized = json["isOfferPersonalized"] as? Boolean,
+                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
+                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
+                skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
             )
         }
     }
@@ -2806,12 +2806,12 @@ public data class RequestPurchaseIosProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseIosProps {
             return RequestPurchaseIosProps(
-                advancedCommerceData = json["advancedCommerceData"] as String?,
-                andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as Boolean?,
-                appAccountToken = json["appAccountToken"] as String?,
-                quantity = (json["quantity"] as Number?)?.toInt(),
-                sku = json["sku"] as String,
-                withOffer = (json["withOffer"] as Map<String, Any?>?)?.let { DiscountOfferInputIOS.fromJson(it) },
+                advancedCommerceData = json["advancedCommerceData"] as? String,
+                andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean,
+                appAccountToken = json["appAccountToken"] as? String,
+                quantity = (json["quantity"] as? Number)?.toInt(),
+                sku = json["sku"] as? String ?: "",
+                withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) },
             )
         }
     }
@@ -2908,10 +2908,10 @@ public data class RequestPurchasePropsByPlatforms(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchasePropsByPlatforms {
             return RequestPurchasePropsByPlatforms(
-                android = (json["android"] as Map<String, Any?>?)?.let { RequestPurchaseAndroidProps.fromJson(it) },
-                apple = (json["apple"] as Map<String, Any?>?)?.let { RequestPurchaseIosProps.fromJson(it) },
-                google = (json["google"] as Map<String, Any?>?)?.let { RequestPurchaseAndroidProps.fromJson(it) },
-                ios = (json["ios"] as Map<String, Any?>?)?.let { RequestPurchaseIosProps.fromJson(it) },
+                android = (json["android"] as? Map<String, Any?>)?.let { RequestPurchaseAndroidProps.fromJson(it) },
+                apple = (json["apple"] as? Map<String, Any?>)?.let { RequestPurchaseIosProps.fromJson(it) },
+                google = (json["google"] as? Map<String, Any?>)?.let { RequestPurchaseAndroidProps.fromJson(it) },
+                ios = (json["ios"] as? Map<String, Any?>)?.let { RequestPurchaseIosProps.fromJson(it) },
             )
         }
     }
@@ -2963,14 +2963,14 @@ public data class RequestSubscriptionAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps {
             return RequestSubscriptionAndroidProps(
-                isOfferPersonalized = json["isOfferPersonalized"] as Boolean?,
-                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as String?,
-                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as String?,
-                purchaseTokenAndroid = json["purchaseTokenAndroid"] as String?,
-                replacementModeAndroid = (json["replacementModeAndroid"] as Number?)?.toInt(),
-                skus = (json["skus"] as List<*>).map { it as String },
-                subscriptionOffers = (json["subscriptionOffers"] as List<*>?)?.map { AndroidSubscriptionOfferInput.fromJson((it as Map<String, Any?>)) },
-                subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as Map<String, Any?>?)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) },
+                isOfferPersonalized = json["isOfferPersonalized"] as? Boolean,
+                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
+                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
+                purchaseTokenAndroid = json["purchaseTokenAndroid"] as? String,
+                replacementModeAndroid = (json["replacementModeAndroid"] as? Number)?.toInt(),
+                skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for AndroidSubscriptionOfferInput") },
+                subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) },
             )
         }
     }
@@ -3004,12 +3004,12 @@ public data class RequestSubscriptionIosProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionIosProps {
             return RequestSubscriptionIosProps(
-                advancedCommerceData = json["advancedCommerceData"] as String?,
-                andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as Boolean?,
-                appAccountToken = json["appAccountToken"] as String?,
-                quantity = (json["quantity"] as Number?)?.toInt(),
-                sku = json["sku"] as String,
-                withOffer = (json["withOffer"] as Map<String, Any?>?)?.let { DiscountOfferInputIOS.fromJson(it) },
+                advancedCommerceData = json["advancedCommerceData"] as? String,
+                andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean,
+                appAccountToken = json["appAccountToken"] as? String,
+                quantity = (json["quantity"] as? Number)?.toInt(),
+                sku = json["sku"] as? String ?: "",
+                withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) },
             )
         }
     }
@@ -3053,10 +3053,10 @@ public data class RequestSubscriptionPropsByPlatforms(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionPropsByPlatforms {
             return RequestSubscriptionPropsByPlatforms(
-                android = (json["android"] as Map<String, Any?>?)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
-                apple = (json["apple"] as Map<String, Any?>?)?.let { RequestSubscriptionIosProps.fromJson(it) },
-                google = (json["google"] as Map<String, Any?>?)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
-                ios = (json["ios"] as Map<String, Any?>?)?.let { RequestSubscriptionIosProps.fromJson(it) },
+                android = (json["android"] as? Map<String, Any?>)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
+                apple = (json["apple"] as? Map<String, Any?>)?.let { RequestSubscriptionIosProps.fromJson(it) },
+                google = (json["google"] as? Map<String, Any?>)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
+                ios = (json["ios"] as? Map<String, Any?>)?.let { RequestSubscriptionIosProps.fromJson(it) },
             )
         }
     }
@@ -3078,7 +3078,7 @@ public data class RequestVerifyPurchaseWithIapkitAppleProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAppleProps {
             return RequestVerifyPurchaseWithIapkitAppleProps(
-                jws = json["jws"] as String,
+                jws = json["jws"] as? String ?: "",
             )
         }
     }
@@ -3097,7 +3097,7 @@ public data class RequestVerifyPurchaseWithIapkitGoogleProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitGoogleProps {
             return RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = json["purchaseToken"] as String,
+                purchaseToken = json["purchaseToken"] as? String ?: "",
             )
         }
     }
@@ -3130,9 +3130,9 @@ public data class RequestVerifyPurchaseWithIapkitProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
             return RequestVerifyPurchaseWithIapkitProps(
-                apiKey = json["apiKey"] as String?,
-                apple = (json["apple"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
-                google = (json["google"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
+                apiKey = json["apiKey"] as? String,
+                apple = (json["apple"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
+                google = (json["google"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
             )
         }
     }
@@ -3162,8 +3162,8 @@ public data class SubscriptionProductReplacementParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionProductReplacementParamsAndroid {
             return SubscriptionProductReplacementParamsAndroid(
-                oldProductId = json["oldProductId"] as String,
-                replacementMode = SubscriptionReplacementModeAndroid.fromJson(json["replacementMode"] as String),
+                oldProductId = json["oldProductId"] as? String ?: "",
+                replacementMode = (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJson(it) } ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode,
             )
         }
     }
@@ -3187,7 +3187,7 @@ public data class VerifyPurchaseAppleOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseAppleOptions {
             return VerifyPurchaseAppleOptions(
-                sku = json["sku"] as String,
+                sku = json["sku"] as? String ?: "",
             )
         }
     }
@@ -3230,11 +3230,11 @@ public data class VerifyPurchaseGoogleOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseGoogleOptions {
             return VerifyPurchaseGoogleOptions(
-                accessToken = json["accessToken"] as String,
-                isSub = json["isSub"] as Boolean?,
-                packageName = json["packageName"] as String,
-                purchaseToken = json["purchaseToken"] as String,
-                sku = json["sku"] as String,
+                accessToken = json["accessToken"] as? String ?: "",
+                isSub = json["isSub"] as? Boolean,
+                packageName = json["packageName"] as? String ?: "",
+                purchaseToken = json["purchaseToken"] as? String ?: "",
+                sku = json["sku"] as? String ?: "",
             )
         }
     }
@@ -3273,9 +3273,9 @@ public data class VerifyPurchaseHorizonOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseHorizonOptions {
             return VerifyPurchaseHorizonOptions(
-                accessToken = json["accessToken"] as String,
-                sku = json["sku"] as String,
-                userId = json["userId"] as String,
+                accessToken = json["accessToken"] as? String ?: "",
+                sku = json["sku"] as? String ?: "",
+                userId = json["userId"] as? String ?: "",
             )
         }
     }
@@ -3311,9 +3311,9 @@ public data class VerifyPurchaseProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
             return VerifyPurchaseProps(
-                apple = (json["apple"] as Map<String, Any?>?)?.let { VerifyPurchaseAppleOptions.fromJson(it) },
-                google = (json["google"] as Map<String, Any?>?)?.let { VerifyPurchaseGoogleOptions.fromJson(it) },
-                horizon = (json["horizon"] as Map<String, Any?>?)?.let { VerifyPurchaseHorizonOptions.fromJson(it) },
+                apple = (json["apple"] as? Map<String, Any?>)?.let { VerifyPurchaseAppleOptions.fromJson(it) },
+                google = (json["google"] as? Map<String, Any?>)?.let { VerifyPurchaseGoogleOptions.fromJson(it) },
+                horizon = (json["horizon"] as? Map<String, Any?>)?.let { VerifyPurchaseHorizonOptions.fromJson(it) },
             )
         }
     }
@@ -3332,8 +3332,8 @@ public data class VerifyPurchaseWithProviderProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderProps {
             return VerifyPurchaseWithProviderProps(
-                iapkit = (json["iapkit"] as Map<String, Any?>?)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) },
-                provider = PurchaseVerificationProvider.fromJson(json["provider"] as String),
+                iapkit = (json["iapkit"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) },
+                provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: PurchaseVerificationProvider.Iapkit,
             )
         }
     }

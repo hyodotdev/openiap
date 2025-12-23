@@ -330,40 +330,42 @@ const getOperationReturnType = (graphqlType) => {
   };
 };
 
-const buildFromJsonExpression = (metadata, sourceExpression) => {
+const buildFromJsonExpression = (metadata, sourceExpression, isListElement = false) => {
   if (metadata.kind === 'list') {
-    const element = buildFromJsonExpression(metadata.elementType, 'it');
+    const element = buildFromJsonExpression(metadata.elementType, 'it', true);
     if (metadata.nullable) {
-      return `(${sourceExpression} as List<*>?)?.map { ${element} }`;
+      return `(${sourceExpression} as? List<*>)?.mapNotNull { ${element} }`;
     }
-    return `(${sourceExpression} as List<*>).map { ${element} }`;
+    return `(${sourceExpression} as? List<*>)?.mapNotNull { ${element} } ?: emptyList()`;
   }
   if (metadata.kind === 'scalar') {
+    // When inside mapNotNull, return nullable expression (null elements are filtered out)
+    const useNullable = metadata.nullable || isListElement;
     switch (metadata.name) {
       case 'Float':
-        return metadata.nullable
-          ? `(${sourceExpression} as Number?)?.toDouble()`
-          : `(${sourceExpression} as Number).toDouble()`;
+        return useNullable
+          ? `(${sourceExpression} as? Number)?.toDouble()`
+          : `(${sourceExpression} as? Number)?.toDouble() ?: 0.0`;
       case 'Int':
-        return metadata.nullable
-          ? `(${sourceExpression} as Number?)?.toInt()`
-          : `(${sourceExpression} as Number).toInt()`;
+        return useNullable
+          ? `(${sourceExpression} as? Number)?.toInt()`
+          : `(${sourceExpression} as? Number)?.toInt() ?: 0`;
       case 'Boolean':
-        return metadata.nullable
-          ? `${sourceExpression} as Boolean?`
-          : `${sourceExpression} as Boolean`;
+        return useNullable
+          ? `${sourceExpression} as? Boolean`
+          : `${sourceExpression} as? Boolean ?: false`;
       case 'ID':
       case 'String':
-        return metadata.nullable
-          ? `${sourceExpression} as String?`
-          : `${sourceExpression} as String`;
+        return useNullable
+          ? `${sourceExpression} as? String`
+          : `${sourceExpression} as? String ?: ""`;
       default:
-        return metadata.nullable ? `${sourceExpression}` : `${sourceExpression}`;
+        return useNullable ? `${sourceExpression}` : `${sourceExpression}`;
     }
   }
   if (metadata.kind === 'enum') {
     if (metadata.nullable) {
-      return `(${sourceExpression} as String?)?.let { ${metadata.name}.fromJson(it) }`;
+      return `(${sourceExpression} as? String)?.let { ${metadata.name}.fromJson(it) }`;
     }
     // For non-nullable enums, use safe cast and fallback to .Empty if the enum has it
     // This handles cases where the JSON might not have the value but the schema requires it
@@ -372,18 +374,20 @@ const buildFromJsonExpression = (metadata, sourceExpression) => {
       enumType.getValues().some(v => v.name.toLowerCase() === 'empty');
 
     if (hasEmptyValue) {
-      return `(${sourceExpression} as String?)?.let { ${metadata.name}.fromJson(it) } ?: ${metadata.name}.Empty`;
+      return `(${sourceExpression} as? String)?.let { ${metadata.name}.fromJson(it) } ?: ${metadata.name}.Empty`;
     }
-    return `${metadata.name}.fromJson(${sourceExpression} as String)`;
+    // For enums without Empty, get first value as fallback
+    const firstValue = enumType && isEnumType(enumType) ? enumType.getValues()[0] : null;
+    const fallback = firstValue ? `${metadata.name}.${escapeKotlinName(pascalCase(firstValue.name))}` : `throw IllegalArgumentException("Missing required enum value for ${metadata.name}")`;
+    return `(${sourceExpression} as? String)?.let { ${metadata.name}.fromJson(it) } ?: ${fallback}`;
   }
   if (['object', 'input', 'interface', 'union'].includes(metadata.kind)) {
-    const cast = metadata.nullable
-      ? `(${sourceExpression} as Map<String, Any?>?)`
-      : `(${sourceExpression} as Map<String, Any?>)`;
     const callTarget = metadata.name ?? metadata.kotlinType;
-    return metadata.nullable
-      ? `${cast}?.let { ${callTarget}.fromJson(it) }`
-      : `${callTarget}.fromJson(${cast})`;
+    if (metadata.nullable) {
+      return `(${sourceExpression} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) }`;
+    }
+    // For non-nullable objects, still use safe cast but throw if null
+    return `(${sourceExpression} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ${callTarget}")`;
   }
   return metadata.nullable ? `${sourceExpression}` : `${sourceExpression}`;
 };
