@@ -30,7 +30,8 @@ function Notes() {
       element: (
         <div key="v1.3.6-advanced-commerce" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.6 / openiap-apple v1.3.6 / openiap-google v1.3.15
+            📅 openiap-gql v1.3.7 / openiap-apple v1.3.7 / openiap-google
+            v1.3.15
           </h4>
           <p>
             <strong>New Feature: Advanced Commerce Data</strong>
@@ -131,7 +132,9 @@ promotedProductListenerIOS(async (productId) => {
 });`}
           </CodeBlock>
           <p>
-            <strong>Android: Support for `google` field (openiap-google v1.3.15)</strong>
+            <strong>
+              Android: Support for `google` field (openiap-google v1.3.15)
+            </strong>
           </p>
           <p>
             The Android library now supports the <code>google</code> field in
@@ -185,16 +188,16 @@ requestPurchase(RequestPurchaseProps(
           <ul>
             <li>
               <strong>Apple (openiap-apple)</strong>: Uses semantic version tags
-              directly (e.g., <code>1.3.5</code>) - Required for SPM to recognize
-              package versions
+              directly (e.g., <code>1.3.5</code>) - Required for SPM to
+              recognize package versions
             </li>
             <li>
               <strong>GQL (openiap-gql)</strong>: Uses <code>gql-</code> prefix
               (e.g., <code>gql-1.3.5</code>)
             </li>
             <li>
-              <strong>Google (openiap-google)</strong>: Uses <code>google-</code>{' '}
-              prefix (e.g., <code>google-1.3.5</code>)
+              <strong>Google (openiap-google)</strong>: Uses{' '}
+              <code>google-</code> prefix (e.g., <code>google-1.3.5</code>)
             </li>
           </ul>
           <p>
@@ -224,8 +227,8 @@ requestPurchase(RequestPurchaseProps(
       element: (
         <div key="v1.3.4-verify" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple v1.3.2
-            - Platform-Specific Verification Options
+            📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple
+            v1.3.2 - Platform-Specific Verification Options
           </h4>
           <p>
             <strong>verifyPurchase API Refactored (Breaking Change):</strong>
@@ -284,8 +287,8 @@ verifyPurchase({
           </p>
           <ul>
             <li>
-              <code>sku</code> removed from <code>VerifyPurchaseProps</code> root
-              level → Now inside each platform options
+              <code>sku</code> removed from <code>VerifyPurchaseProps</code>{' '}
+              root level → Now inside each platform options
             </li>
             <li>
               <code>androidOptions</code> completely removed → Use{' '}
@@ -374,7 +377,9 @@ verifyPurchase({
           </ul>
           <p>
             See:{' '}
-            <a href="/docs/features/external-purchase">External Purchase Guide</a>
+            <a href="/docs/features/external-purchase">
+              External Purchase Guide
+            </a>
             ,{' '}
             <a href="/docs/features/subscription-upgrade-downgrade">
               Subscription Upgrade/Downgrade
@@ -406,8 +411,8 @@ verifyPurchase({
           </p>
           <ul>
             <li>
-              <strong>Billing Library 8.0.0 → 8.1.0</strong> - Upgraded to latest
-              Google Play Billing Library
+              <strong>Billing Library 8.0.0 → 8.1.0</strong> - Upgraded to
+              latest Google Play Billing Library
             </li>
             <li>
               <strong>minSdk 21 → 23</strong> - Minimum SDK increased to Android
@@ -438,8 +443,8 @@ verifyPurchase({
           </ul>
           <p>
             See:{' '}
-            <a href="/docs/types#purchase-platform">Purchase Platform Fields</a>,{' '}
-            <a href="/docs/types#product-platform">Product Platform Fields</a>
+            <a href="/docs/types#purchase-platform">Purchase Platform Fields</a>
+            , <a href="/docs/types#product-platform">Product Platform Fields</a>
           </p>
         </div>
       ),
@@ -508,7 +513,9 @@ verifyPurchase({
           </h4>
           <p>
             Starting from <strong>openiap v1.2.6</strong>, the{' '}
-            <code style={{ textDecoration: 'line-through' }}>validateReceipt</code>{' '}
+            <code style={{ textDecoration: 'line-through' }}>
+              validateReceipt
+            </code>{' '}
             API is deprecated in favor of <code>verifyPurchase</code>.
           </p>
           <p>
@@ -555,8 +562,8 @@ verifyPurchase({
           </p>
           <ul>
             <li>
-              <strong>iOS External Purchase</strong> - StoreKit External Purchase
-              API support
+              <strong>iOS External Purchase</strong> - StoreKit External
+              Purchase API support
             </li>
             <li>
               <strong>Android Alternative Billing</strong> - Google Play
@@ -565,7 +572,9 @@ verifyPurchase({
           </ul>
           <p style={{ margin: 0 }}>
             See:{' '}
-            <a href="/docs/features/external-purchase">External Purchase Guide</a>
+            <a href="/docs/features/external-purchase">
+              External Purchase Guide
+            </a>
           </p>
         </div>
       ),
@@ -585,8 +594,8 @@ verifyPurchase({
           </p>
           <ul>
             <li>
-              <strong>iOS External Purchase</strong> - StoreKit External Purchase
-              API support (iOS 15.4+, iOS 18.2+ recommended)
+              <strong>iOS External Purchase</strong> - StoreKit External
+              Purchase API support (iOS 15.4+, iOS 18.2+ recommended)
             </li>
             <li>
               <strong>Android Alternative Billing</strong> - Google Play
@@ -600,7 +609,9 @@ verifyPurchase({
           </ul>
           <p>
             See:{' '}
-            <a href="/docs/features/external-purchase">External Purchase Guide</a>
+            <a href="/docs/features/external-purchase">
+              External Purchase Guide
+            </a>
             ,{' '}
             <a href="/docs/events#user-choice-billing-event-android">
               User Choice Billing Event
@@ -669,7 +680,7 @@ verifyPurchase({
 
   // Sort by date (newest first)
   const sortedNotes = [...allNotes].sort(
-    (a, b) => b.date.getTime() - a.date.getTime(),
+    (a, b) => b.date.getTime() - a.date.getTime()
   );
 
   return (
