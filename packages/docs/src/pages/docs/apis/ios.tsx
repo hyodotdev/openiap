@@ -298,7 +298,7 @@ let subscription = promotedProductListenerIOS { productId in
     // Call requestPurchase with the received productId
     try await requestPurchase(RequestPurchaseProps(
         request: .purchase(RequestPurchasePropsByPlatforms(
-            ios: RequestPurchaseIosProps(sku: productId)
+            apple: RequestPurchaseIosProps(sku: productId)
         )),
         type: .inApp
     ))

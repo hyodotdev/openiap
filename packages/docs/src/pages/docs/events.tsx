@@ -482,7 +482,7 @@ Task {
                 try await OpenIapModule.shared.requestPurchase(
                     RequestPurchaseProps(
                         request: .purchase(RequestPurchasePropsByPlatforms(
-                            ios: RequestPurchaseIosProps(sku: productId)
+                            apple: RequestPurchaseIosProps(sku: productId)
                         )),
                         type: .inApp
                     )
