@@ -5,7 +5,7 @@ import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-function iOSAPIs() {
+function IOSAPIs() {
   useScrollToHash();
 
   return (
@@ -72,7 +72,12 @@ function iOSAPIs() {
         </AnchorLink>
 
         <AnchorLink id="get-storefront-ios" level="h3">
-          getStorefrontIOS
+          <span style={{ textDecoration: 'line-through' }}>
+            getStorefrontIOS
+          </span>{' '}
+          <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+            (deprecated)
+          </span>
         </AnchorLink>
         <p>
           <strong>Deprecated.</strong> Use{' '}
@@ -87,12 +92,6 @@ func getStorefrontIOS() async throws -> String`}</CodeBlock>
         </AnchorLink>
         <p>Get the currently promoted product from App Store (iOS 11+).</p>
         <CodeBlock language="swift">{`func getPromotedProductIOS() async throws -> Product?`}</CodeBlock>
-
-        <AnchorLink id="request-purchase-on-promoted-product-ios" level="h3">
-          requestPurchaseOnPromotedProductIOS
-        </AnchorLink>
-        <p>Purchase the promoted product (iOS 11+).</p>
-        <CodeBlock language="swift">{`func requestPurchaseOnPromotedProductIOS() async throws -> Bool`}</CodeBlock>
       </section>
 
       <section>
@@ -269,8 +268,49 @@ let result = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(
           Deprecated APIs
         </AnchorLink>
 
+        <AnchorLink id="request-purchase-on-promoted-product-ios" level="h3">
+          <span style={{ textDecoration: 'line-through' }}>
+            requestPurchaseOnPromotedProductIOS
+          </span>{' '}
+          <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+            (deprecated)
+          </span>
+        </AnchorLink>
+        <p>
+          <strong>Deprecated.</strong> Use{' '}
+          <Link to="/docs/events#promoted-product-event-ios">
+            promotedProductListenerIOS
+          </Link>{' '}
+          to receive the product ID, then call{' '}
+          <Link to="/docs/apis/purchase#request-purchase">requestPurchase</Link>{' '}
+          with that SKU instead.
+        </p>
+        <CodeBlock language="swift">{`@available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
+func requestPurchaseOnPromotedProductIOS() async throws -> Bool`}</CodeBlock>
+        <p>
+          In StoreKit 2, promoted products can be purchased directly via the
+          standard purchase flow. When a user taps a promoted product in the App
+          Store, the <code>promotedProductListenerIOS</code> event fires with the
+          product ID. Use this ID to call <code>requestPurchase()</code> directly.
+        </p>
+        <CodeBlock language="swift">{`// Recommended approach
+let subscription = promotedProductListenerIOS { productId in
+    // Call requestPurchase with the received productId
+    try await requestPurchase(RequestPurchaseProps(
+        request: .purchase(RequestPurchasePropsByPlatforms(
+            apple: RequestPurchaseIosProps(sku: productId)
+        )),
+        type: .inApp
+    ))
+}`}</CodeBlock>
+
         <AnchorLink id="validate-receipt-ios" level="h3">
-          validateReceiptIOS
+          <span style={{ textDecoration: 'line-through' }}>
+            validateReceiptIOS
+          </span>{' '}
+          <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+            (deprecated)
+          </span>
         </AnchorLink>
         <p>
           <strong>Deprecated.</strong> Use{' '}
@@ -284,4 +324,4 @@ func validateReceiptIOS(options: PurchaseVerificationProps) async throws -> Purc
   );
 }
 
-export default iOSAPIs;
+export default IOSAPIs;

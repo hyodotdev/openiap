@@ -433,7 +433,7 @@ var promotedProductPublisher: AnyPublisher<String, Never>`}</CodeBlock>
               <CodeBlock language="typescript">{`import {
   promotedProductListenerIOS,
   fetchProducts,
-  requestPurchaseOnPromotedProductIOS
+  requestPurchase
 } from 'expo-iap';
 
 const subscription = promotedProductListenerIOS(async (productId) => {
@@ -450,7 +450,11 @@ const subscription = promotedProductListenerIOS(async (productId) => {
     const confirmed = await showPurchaseConfirmation(products[0]);
 
     if (confirmed) {
-      await requestPurchaseOnPromotedProductIOS();
+      // Purchase directly using requestPurchase with the received SKU
+      await requestPurchase({
+        params: { apple: { sku: productId } },
+        type: 'in-app'
+      });
     }
   }
 });
@@ -474,7 +478,15 @@ Task {
         if let product = products.first {
             // Show product info to user and confirm purchase
             if await showPurchaseConfirmation(product) {
-                try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
+                // Purchase directly using requestPurchase with the received SKU
+                try await OpenIapModule.shared.requestPurchase(
+                    RequestPurchaseProps(
+                        request: .purchase(RequestPurchasePropsByPlatforms(
+                            apple: RequestPurchaseIosProps(sku: productId)
+                        )),
+                        type: .inApp
+                    )
+                )
             }
         }
     }
@@ -504,7 +516,15 @@ final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) 
     final confirmed = await showPurchaseConfirmation(products.first);
 
     if (confirmed) {
-      await FlutterInappPurchase.instance.requestPurchaseOnPromotedProductIOS();
+      // Purchase directly using requestPurchase with the received SKU
+      await FlutterInappPurchase.instance.requestPurchase(
+        RequestPurchaseProps(
+          request: RequestPurchasePropsByPlatforms(
+            apple: RequestPurchaseIosProps(sku: productId!),
+          ),
+          type: ProductType.inApp,
+        ),
+      );
     }
   }
 });
@@ -525,19 +545,30 @@ subscription.cancel();`}</CodeBlock>
           <li>Display product information to user</li>
           <li>
             Call{' '}
-            <Link to="/docs/apis#request-purchase-on-promoted-product-ios">
-              requestPurchaseOnPromotedProductIOS
+            <Link to="/docs/apis/purchase#request-purchase">
+              requestPurchase
             </Link>{' '}
-            if user confirms
+            with the received SKU if user confirms
           </li>
         </ol>
         <p>
           Also check{' '}
-          <Link to="/docs/apis#get-promoted-product-ios">
+          <Link to="/docs/apis/ios#get-promoted-product-ios">
             getPromotedProductIOS
           </Link>{' '}
           on app launch for pending promoted products.
         </p>
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>Note:</strong> In StoreKit 2, promoted products can be
+            purchased directly via the standard <code>requestPurchase()</code>{' '}
+            flow. The deprecated{' '}
+            <code style={{ textDecoration: 'line-through' }}>
+              requestPurchaseOnPromotedProductIOS()
+            </code>{' '}
+            API is no longer needed.
+          </p>
+        </div>
       </section>
 
       <section>

@@ -4058,7 +4058,11 @@ abstract class MutationResolver {
   Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();
   /// Initiate a purchase flow; rely on events for final state
   Future<RequestPurchaseResult?> requestPurchase(RequestPurchaseProps params);
-  /// Purchase the promoted product surfaced by the App Store
+  /// Purchase the promoted product surfaced by the App Store.
+  /// 
+  /// @deprecated Use promotedProductListenerIOS to receive the productId,
+  /// then call requestPurchase with that SKU instead. In StoreKit 2,
+  /// promoted products can be purchased directly via the standard purchase flow.
   Future<bool> requestPurchaseOnPromotedProductIOS();
   /// Restore completed purchases across platforms
   Future<void> restorePurchases();

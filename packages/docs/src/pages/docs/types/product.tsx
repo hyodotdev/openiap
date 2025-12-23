@@ -123,7 +123,7 @@ function TypesProduct() {
             </tr>
             <tr>
               <td>
-                <code>platform</code>{' '}
+                <code style={{ textDecoration: 'line-through' }}>platform</code>{' '}
                 <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
                   (deprecated)
                 </span>

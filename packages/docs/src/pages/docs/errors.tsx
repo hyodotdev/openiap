@@ -304,7 +304,7 @@ function Errors() {
           <tbody>
             <tr>
               <td>
-                <code>ReceiptFailed</code>
+                <code style={{ textDecoration: 'line-through' }}>ReceiptFailed</code>
               </td>
               <td>
                 <code>PurchaseVerificationFailed</code>
@@ -312,7 +312,7 @@ function Errors() {
             </tr>
             <tr>
               <td>
-                <code>ReceiptFinished</code>
+                <code style={{ textDecoration: 'line-through' }}>ReceiptFinished</code>
               </td>
               <td>
                 <code>PurchaseVerificationFinished</code>
@@ -320,7 +320,7 @@ function Errors() {
             </tr>
             <tr>
               <td>
-                <code>ReceiptFinishedFailed</code>
+                <code style={{ textDecoration: 'line-through' }}>ReceiptFinishedFailed</code>
               </td>
               <td>
                 <code>PurchaseVerificationFinishFailed</code>

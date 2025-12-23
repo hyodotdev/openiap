@@ -96,6 +96,41 @@ function Notes() {
               react-native-iap PR #3106
             </a>
           </p>
+          <p>
+            <strong>
+              Deprecated:{' '}
+              <code style={{ textDecoration: 'line-through' }}>
+                requestPurchaseOnPromotedProductIOS()
+              </code>
+            </strong>
+          </p>
+          <p>
+            The{' '}
+            <code style={{ textDecoration: 'line-through' }}>
+              requestPurchaseOnPromotedProductIOS()
+            </code>{' '}
+            API is now deprecated. In StoreKit 2, promoted products can be
+            purchased directly via the standard <code>requestPurchase()</code>{' '}
+            flow.
+          </p>
+          <ul>
+            <li>
+              Use <code>promotedProductListenerIOS</code> to receive the product
+              ID when a user taps a promoted product in the App Store
+            </li>
+            <li>
+              Call <code>requestPurchase()</code> with the received SKU directly
+            </li>
+          </ul>
+          <CodeBlock language="typescript">
+            {`// Recommended approach
+promotedProductListenerIOS(async (productId) => {
+  await requestPurchase({
+    params: { apple: { sku: productId } },
+    type: 'in-app'
+  });
+});`}
+          </CodeBlock>
         </div>
       ),
     },
@@ -290,16 +325,22 @@ verifyPurchase({
           </p>
           <ul>
             <li>
-              <code>checkAlternativeBillingAvailability()</code> → Use{' '}
-              <code>isBillingProgramAvailable()</code>
+              <code style={{ textDecoration: 'line-through' }}>
+                checkAlternativeBillingAvailability()
+              </code>{' '}
+              → Use <code>isBillingProgramAvailable()</code>
             </li>
             <li>
-              <code>showAlternativeBillingInformationDialog()</code> → Use{' '}
-              <code>launchExternalLink()</code>
+              <code style={{ textDecoration: 'line-through' }}>
+                showAlternativeBillingInformationDialog()
+              </code>{' '}
+              → Use <code>launchExternalLink()</code>
             </li>
             <li>
-              <code>createAlternativeBillingReportingToken()</code> → Use{' '}
-              <code>createBillingProgramReportingDetails()</code>
+              <code style={{ textDecoration: 'line-through' }}>
+                createAlternativeBillingReportingToken()
+              </code>{' '}
+              → Use <code>createBillingProgramReportingDetails()</code>
             </li>
           </ul>
           <p>
@@ -389,15 +430,23 @@ verifyPurchase({
           </p>
           <ul>
             <li>
-              <strong>Purchase.platform → Purchase.store</strong> - The{' '}
-              <code>platform</code> field is deprecated. Use <code>store</code>{' '}
-              instead which returns <code>'apple'</code> or <code>'google'</code>
-              .
+              <strong>
+                <code style={{ textDecoration: 'line-through' }}>
+                  Purchase.platform
+                </code>{' '}
+                → Purchase.store
+              </strong>{' '}
+              - The{' '}
+              <code style={{ textDecoration: 'line-through' }}>platform</code>{' '}
+              field is deprecated. Use <code>store</code> instead which returns{' '}
+              <code>'apple'</code> or <code>'google'</code>.
             </li>
             <li>
-              <strong>requestPurchase props</strong> - The <code>ios</code> and{' '}
-              <code>android</code> props are deprecated. Use <code>apple</code>{' '}
-              and <code>google</code> instead.
+              <strong>requestPurchase props</strong> - The{' '}
+              <code style={{ textDecoration: 'line-through' }}>ios</code> and{' '}
+              <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
+              props are deprecated. Use <code>apple</code> and{' '}
+              <code>google</code> instead.
             </li>
           </ul>
           <p>
