@@ -454,6 +454,50 @@ Version is managed in `openiap-versions.json`:
 
 This package generates types for all platforms from the GraphQL schema.
 
+### Promise/Future Return Type Convention
+
+**CRITICAL**: All async/Promise-returning operations in the GraphQL schema MUST include `# Future` comment above the field definition.
+
+The `# Future` comment tells the type generator to wrap the return type in `Promise<T>` (TypeScript), `async` (Swift), `suspend` (Kotlin), etc.
+
+**✅ Correct - Async operation with `# Future`:**
+
+```graphql
+"""
+Check if a billing program is available for the current user
+Returns availability result with isAvailable flag
+"""
+# Future
+isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgramAvailabilityResultAndroid!
+```
+
+Generated TypeScript:
+```typescript
+isBillingProgramAvailableAndroid: Promise<BillingProgramAvailabilityResultAndroid>;
+```
+
+**❌ Incorrect - Missing `# Future` for async operation:**
+
+```graphql
+"""
+Check if a billing program is available for the current user
+"""
+isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgramAvailabilityResultAndroid!
+```
+
+This generates a **synchronous** return type (missing `Promise`):
+```typescript
+isBillingProgramAvailableAndroid: BillingProgramAvailabilityResultAndroid;  // WRONG!
+```
+
+**Rule**: If the operation:
+- Makes a network call
+- Accesses native APIs (billing, store, etc.)
+- Returns data asynchronously
+- Has "Returns", "Throws" in the JSDoc
+
+Then it MUST have `# Future` comment.
+
 #### Generating Types
 
 ```bash

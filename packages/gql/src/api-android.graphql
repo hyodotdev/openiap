@@ -53,6 +53,7 @@ extend type Mutation {
   Returns availability result with isAvailable flag
   Throws OpenIapError.NotPrepared if billing client not ready
   """
+  # Future
   isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgramAvailabilityResultAndroid!
 
   """
@@ -63,6 +64,7 @@ extend type Mutation {
   Returns external transaction token needed for reporting external transactions
   Throws OpenIapError.NotPrepared if billing client not ready
   """
+  # Future
   createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid!): BillingProgramReportingDetailsAndroid!
 
   """
@@ -73,5 +75,6 @@ extend type Mutation {
   Shows Play Store dialog and optionally launches external URL
   Throws OpenIapError.NotPrepared if billing client not ready
   """
+  # Future
   launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid!): Boolean!
 }
