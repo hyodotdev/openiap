@@ -248,6 +248,297 @@ if (paymentSuccess) {
             for backend integration details.
           </p>
         </div>
+
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Deprecated:</strong> The above APIs are deprecated in Google
+            Play Billing Library 8.2.0+. For new implementations, use the{' '}
+            <a href="#billing-programs-api">Billing Programs API</a> below.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <AnchorLink id="billing-programs-api" level="h2">
+          Billing Programs API (8.2.0+)
+        </AnchorLink>
+        <p>
+          Google Play Billing Library 8.2.0 introduces the new Billing Programs
+          API which replaces the legacy alternative billing APIs. This provides
+          better support for External Content Links and External Offers.
+        </p>
+
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>Recommended:</strong> Use Billing Library 8.2.1+ as version
+            8.2.0 had bugs in <code>isBillingProgramAvailableAsync</code> and{' '}
+            <code>createBillingProgramReportingDetailsAsync</code>.
+          </p>
+        </div>
+
+        <AnchorLink id="enable-billing-program-android" level="h3">
+          enableBillingProgramAndroid
+        </AnchorLink>
+        <p>
+          <strong>Step 0:</strong> Enable a billing program before calling{' '}
+          <code>initConnection()</code>. Must be called during BillingClient
+          setup.
+        </p>
+        <CodeBlock language="kotlin">{`// Call BEFORE initConnection()
+// program: BillingProgramAndroid.ExternalOffer or BillingProgramAndroid.ExternalContentLink
+fun enableBillingProgram(program: BillingProgramAndroid)`}</CodeBlock>
+
+        <AnchorLink id="is-billing-program-available-android" level="h3">
+          isBillingProgramAvailableAndroid
+        </AnchorLink>
+        <p>
+          <strong>Step 1:</strong> Check if a billing program is available for
+          the current user.
+        </p>
+        <CodeBlock language="kotlin">{`// Returns BillingProgramAvailabilityResultAndroid with isAvailable flag
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun isBillingProgramAvailable(
+    program: BillingProgramAndroid
+): BillingProgramAvailabilityResultAndroid`}</CodeBlock>
+
+        <AnchorLink id="launch-external-link-android" level="h3">
+          launchExternalLinkAndroid
+        </AnchorLink>
+        <p>
+          <strong>Step 2:</strong> Launch external link flow. Shows Play Store
+          dialog and optionally launches external URL.
+        </p>
+        <CodeBlock language="kotlin">{`// Returns true if launched successfully
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun launchExternalLink(
+    activity: Activity,
+    params: LaunchExternalLinkParamsAndroid
+): Boolean
+
+// LaunchExternalLinkParamsAndroid:
+// - billingProgram: BillingProgramAndroid (ExternalOffer or ExternalContentLink)
+// - launchMode: ExternalLinkLaunchModeAndroid
+// - linkType: ExternalLinkTypeAndroid
+// - linkUri: String (your external URL)`}</CodeBlock>
+
+        <AnchorLink id="create-billing-program-reporting-details-android" level="h3">
+          createBillingProgramReportingDetailsAndroid
+        </AnchorLink>
+        <p>
+          <strong>Step 3:</strong> Create reporting details after successful
+          payment. Returns external transaction token for reporting.
+        </p>
+        <CodeBlock language="kotlin">{`// Returns BillingProgramReportingDetailsAndroid with externalTransactionToken
+// Token must be reported to Google Play backend within 24 hours
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun createBillingProgramReportingDetails(
+    program: BillingProgramAndroid
+): BillingProgramReportingDetailsAndroid`}</CodeBlock>
+      </section>
+
+      <section>
+        <AnchorLink id="billing-programs-example" level="h2">
+          Billing Programs Flow Example
+        </AnchorLink>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import {
+  enableBillingProgramAndroid,
+  isBillingProgramAvailableAndroid,
+  launchExternalLinkAndroid,
+  createBillingProgramReportingDetailsAndroid,
+  initConnection,
+} from 'expo-iap';
+
+// Step 0: Enable billing program BEFORE initConnection
+enableBillingProgramAndroid('EXTERNAL_OFFER');
+
+await initConnection();
+
+async function handleExternalPurchase() {
+  // Step 1: Check availability
+  const result = await isBillingProgramAvailableAndroid('EXTERNAL_OFFER');
+  if (!result.isAvailable) {
+    return; // Not available for this user
+  }
+
+  // Step 2: Launch external link
+  const launched = await launchExternalLinkAndroid({
+    billingProgram: 'EXTERNAL_OFFER',
+    launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
+    linkType: 'LINK_TO_DIGITAL_CONTENT_OFFER',
+    linkUri: 'https://your-payment-site.com/checkout',
+  });
+
+  if (!launched) {
+    return; // Failed to launch
+  }
+
+  // Process payment in your payment system
+  const paymentSuccess = await processPaymentInYourSystem();
+
+  if (paymentSuccess) {
+    // Step 3: Create reporting details
+    const details = await createBillingProgramReportingDetailsAndroid('EXTERNAL_OFFER');
+
+    // Report token to Google Play backend within 24 hours
+    await reportTokenToGooglePlay(details.externalTransactionToken);
+  }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`// Step 0: Enable billing program BEFORE initConnection
+openIapStore.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
+
+openIapStore.initConnection(null)
+
+suspend fun handleExternalPurchase() {
+    // Step 1: Check availability
+    val result = openIapStore.isBillingProgramAvailable(
+        BillingProgramAndroid.ExternalOffer
+    )
+    if (!result.isAvailable) {
+        return // Not available for this user
+    }
+
+    // Step 2: Launch external link
+    val launched = openIapStore.launchExternalLink(
+        activity,
+        LaunchExternalLinkParamsAndroid(
+            billingProgram = BillingProgramAndroid.ExternalOffer,
+            launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+            linkUri = "https://your-payment-site.com/checkout"
+        )
+    )
+
+    if (!launched) {
+        return // Failed to launch
+    }
+
+    // Process payment in your payment system
+    val paymentSuccess = processPaymentInYourSystem()
+
+    if (paymentSuccess) {
+        // Step 3: Create reporting details
+        val details = openIapStore.createBillingProgramReportingDetails(
+            BillingProgramAndroid.ExternalOffer
+        )
+
+        // Report token to Google Play backend within 24 hours
+        reportTokenToGooglePlay(details.externalTransactionToken)
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`// Step 0: Enable billing program BEFORE initConnection
+FlutterInappPurchase.instance.enableBillingProgramAndroid(
+  BillingProgramAndroid.externalOffer,
+);
+
+await FlutterInappPurchase.instance.initConnection();
+
+Future<void> handleExternalPurchase() async {
+  // Step 1: Check availability
+  final result = await FlutterInappPurchase.instance
+      .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalOffer);
+  if (!result.isAvailable) {
+    return; // Not available for this user
+  }
+
+  // Step 2: Launch external link
+  final launched = await FlutterInappPurchase.instance.launchExternalLinkAndroid(
+    LaunchExternalLinkParamsAndroid(
+      billingProgram: BillingProgramAndroid.externalOffer,
+      launchMode: ExternalLinkLaunchModeAndroid.launchInExternalBrowserOrApp,
+      linkType: ExternalLinkTypeAndroid.linkToDigitalContentOffer,
+      linkUri: 'https://your-payment-site.com/checkout',
+    ),
+  );
+
+  if (!launched) {
+    return; // Failed to launch
+  }
+
+  // Process payment in your payment system
+  final paymentSuccess = await processPaymentInYourSystem();
+
+  if (paymentSuccess) {
+    // Step 3: Create reporting details
+    final details = await FlutterInappPurchase.instance
+        .createBillingProgramReportingDetailsAndroid(
+          BillingProgramAndroid.externalOffer,
+        );
+
+    // Report token to Google Play backend within 24 hours
+    await reportTokenToGooglePlay(details.externalTransactionToken);
+  }
+}`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+      </section>
+
+      <section>
+        <AnchorLink id="api-migration" level="h2">
+          API Migration Guide
+        </AnchorLink>
+        <p>
+          Migrate from legacy Alternative Billing APIs to Billing Programs API:
+        </p>
+        <table className="error-table">
+          <thead>
+            <tr>
+              <th>Legacy API (6.2+)</th>
+              <th>New API (8.2.0+)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>checkAlternativeBillingAvailability()</code>
+              </td>
+              <td>
+                <code>isBillingProgramAvailable(program)</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>showAlternativeBillingInformationDialog()</code>
+              </td>
+              <td>
+                <code>launchExternalLink(activity, params)</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>createAlternativeBillingReportingToken()</code>
+              </td>
+              <td>
+                <code>createBillingProgramReportingDetails(program)</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>enableAlternativeBillingOnly()</code>
+              </td>
+              <td>
+                <code>enableBillingProgram(program)</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>See Also:</strong>{' '}
+            <Link to="/docs/features/external-purchase">
+              External Purchase Guide
+            </Link>{' '}
+            for complete implementation details and examples.
+          </p>
+        </div>
       </section>
     </div>
   );

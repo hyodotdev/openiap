@@ -1796,6 +1796,13 @@ public protocol MutationResolver {
     /// Returns token string, or null if creation failed
     /// Throws OpenIapError.NotPrepared if billing client not ready
     func createAlternativeBillingTokenAndroid() async throws -> String?
+    /// Create reporting details for a billing program
+    /// Replaces the deprecated createExternalOfferReportingDetailsAsync API
+    /// 
+    /// Available in Google Play Billing Library 8.2.0+
+    /// Returns external transaction token needed for reporting external transactions
+    /// Throws OpenIapError.NotPrepared if billing client not ready
+    func createBillingProgramReportingDetailsAndroid(_ program: BillingProgramAndroid) async throws -> BillingProgramReportingDetailsAndroid
     /// Open the native subscription management surface
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void
     /// Close the platform billing connection
@@ -1804,6 +1811,20 @@ public protocol MutationResolver {
     func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void
     /// Establish the platform billing connection
     func initConnection(_ config: InitConnectionConfig?) async throws -> Bool
+    /// Check if a billing program is available for the current user
+    /// Replaces the deprecated isExternalOfferAvailableAsync API
+    /// 
+    /// Available in Google Play Billing Library 8.2.0+
+    /// Returns availability result with isAvailable flag
+    /// Throws OpenIapError.NotPrepared if billing client not ready
+    func isBillingProgramAvailableAndroid(_ program: BillingProgramAndroid) async throws -> BillingProgramAvailabilityResultAndroid
+    /// Launch external link flow for external billing programs
+    /// Replaces the deprecated showExternalOfferInformationDialog API
+    /// 
+    /// Available in Google Play Billing Library 8.2.0+
+    /// Shows Play Store dialog and optionally launches external URL
+    /// Throws OpenIapError.NotPrepared if billing client not ready
+    func launchExternalLinkAndroid(_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
     /// Present the App Store code redemption sheet
     func presentCodeRedemptionSheetIOS() async throws -> Bool
     /// Present external purchase custom link with StoreKit UI (iOS 18.2+)
@@ -1902,10 +1923,13 @@ public typealias MutationCheckAlternativeBillingAvailabilityAndroidHandler = () 
 public typealias MutationClearTransactionIOSHandler = () async throws -> Bool
 public typealias MutationConsumePurchaseAndroidHandler = (_ purchaseToken: String) async throws -> Bool
 public typealias MutationCreateAlternativeBillingTokenAndroidHandler = () async throws -> String?
+public typealias MutationCreateBillingProgramReportingDetailsAndroidHandler = (_ program: BillingProgramAndroid) async throws -> BillingProgramReportingDetailsAndroid
 public typealias MutationDeepLinkToSubscriptionsHandler = (_ options: DeepLinkOptions?) async throws -> Void
 public typealias MutationEndConnectionHandler = () async throws -> Bool
 public typealias MutationFinishTransactionHandler = (_ purchase: PurchaseInput, _ isConsumable: Bool?) async throws -> Void
 public typealias MutationInitConnectionHandler = (_ config: InitConnectionConfig?) async throws -> Bool
+public typealias MutationIsBillingProgramAvailableAndroidHandler = (_ program: BillingProgramAndroid) async throws -> BillingProgramAvailabilityResultAndroid
+public typealias MutationLaunchExternalLinkAndroidHandler = (_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
 public typealias MutationPresentCodeRedemptionSheetIOSHandler = () async throws -> Bool
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = (_ url: String) async throws -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = () async throws -> ExternalPurchaseNoticeResultIOS
@@ -1926,10 +1950,13 @@ public struct MutationHandlers {
     public var clearTransactionIOS: MutationClearTransactionIOSHandler?
     public var consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler?
     public var createAlternativeBillingTokenAndroid: MutationCreateAlternativeBillingTokenAndroidHandler?
+    public var createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidHandler?
     public var deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler?
     public var endConnection: MutationEndConnectionHandler?
     public var finishTransaction: MutationFinishTransactionHandler?
     public var initConnection: MutationInitConnectionHandler?
+    public var isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler?
+    public var launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler?
     public var presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler?
     public var presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler?
     public var presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler?
@@ -1950,10 +1977,13 @@ public struct MutationHandlers {
         clearTransactionIOS: MutationClearTransactionIOSHandler? = nil,
         consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler? = nil,
         createAlternativeBillingTokenAndroid: MutationCreateAlternativeBillingTokenAndroidHandler? = nil,
+        createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidHandler? = nil,
         deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler? = nil,
         endConnection: MutationEndConnectionHandler? = nil,
         finishTransaction: MutationFinishTransactionHandler? = nil,
         initConnection: MutationInitConnectionHandler? = nil,
+        isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = nil,
+        launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = nil,
         presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = nil,
         presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = nil,
         presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = nil,
@@ -1973,10 +2003,13 @@ public struct MutationHandlers {
         self.clearTransactionIOS = clearTransactionIOS
         self.consumePurchaseAndroid = consumePurchaseAndroid
         self.createAlternativeBillingTokenAndroid = createAlternativeBillingTokenAndroid
+        self.createBillingProgramReportingDetailsAndroid = createBillingProgramReportingDetailsAndroid
         self.deepLinkToSubscriptions = deepLinkToSubscriptions
         self.endConnection = endConnection
         self.finishTransaction = finishTransaction
         self.initConnection = initConnection
+        self.isBillingProgramAvailableAndroid = isBillingProgramAvailableAndroid
+        self.launchExternalLinkAndroid = launchExternalLinkAndroid
         self.presentCodeRedemptionSheetIOS = presentCodeRedemptionSheetIOS
         self.presentExternalPurchaseLinkIOS = presentExternalPurchaseLinkIOS
         self.presentExternalPurchaseNoticeSheetIOS = presentExternalPurchaseNoticeSheetIOS

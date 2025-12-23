@@ -43,4 +43,35 @@ extend type Mutation {
   """
   # Future
   createAlternativeBillingTokenAndroid: String
+
+  # Billing Programs API (Google Play Billing Library 8.2.0+)
+  """
+  Check if a billing program is available for the current user
+  Replaces the deprecated isExternalOfferAvailableAsync API
+
+  Available in Google Play Billing Library 8.2.0+
+  Returns availability result with isAvailable flag
+  Throws OpenIapError.NotPrepared if billing client not ready
+  """
+  isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgramAvailabilityResultAndroid!
+
+  """
+  Create reporting details for a billing program
+  Replaces the deprecated createExternalOfferReportingDetailsAsync API
+
+  Available in Google Play Billing Library 8.2.0+
+  Returns external transaction token needed for reporting external transactions
+  Throws OpenIapError.NotPrepared if billing client not ready
+  """
+  createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid!): BillingProgramReportingDetailsAndroid!
+
+  """
+  Launch external link flow for external billing programs
+  Replaces the deprecated showExternalOfferInformationDialog API
+
+  Available in Google Play Billing Library 8.2.0+
+  Shows Play Store dialog and optionally launches external URL
+  Throws OpenIapError.NotPrepared if billing client not ready
+  """
+  launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid!): Boolean!
 }

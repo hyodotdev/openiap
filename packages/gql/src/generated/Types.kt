@@ -3468,6 +3468,15 @@ public interface MutationResolver {
      */
     suspend fun createAlternativeBillingTokenAndroid(): String?
     /**
+     * Create reporting details for a billing program
+     * Replaces the deprecated createExternalOfferReportingDetailsAsync API
+     * 
+     * Available in Google Play Billing Library 8.2.0+
+     * Returns external transaction token needed for reporting external transactions
+     * Throws OpenIapError.NotPrepared if billing client not ready
+     */
+    suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid
+    /**
      * Open the native subscription management surface
      */
     suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null): Unit
@@ -3483,6 +3492,24 @@ public interface MutationResolver {
      * Establish the platform billing connection
      */
     suspend fun initConnection(config: InitConnectionConfig? = null): Boolean
+    /**
+     * Check if a billing program is available for the current user
+     * Replaces the deprecated isExternalOfferAvailableAsync API
+     * 
+     * Available in Google Play Billing Library 8.2.0+
+     * Returns availability result with isAvailable flag
+     * Throws OpenIapError.NotPrepared if billing client not ready
+     */
+    suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid
+    /**
+     * Launch external link flow for external billing programs
+     * Replaces the deprecated showExternalOfferInformationDialog API
+     * 
+     * Available in Google Play Billing Library 8.2.0+
+     * Shows Play Store dialog and optionally launches external URL
+     * Throws OpenIapError.NotPrepared if billing client not ready
+     */
+    suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean
     /**
      * Present the App Store code redemption sheet
      */
@@ -3653,10 +3680,13 @@ public typealias MutationCheckAlternativeBillingAvailabilityAndroidHandler = sus
 public typealias MutationClearTransactionIOSHandler = suspend () -> Boolean
 public typealias MutationConsumePurchaseAndroidHandler = suspend (purchaseToken: String) -> Boolean
 public typealias MutationCreateAlternativeBillingTokenAndroidHandler = suspend () -> String?
+public typealias MutationCreateBillingProgramReportingDetailsAndroidHandler = suspend (program: BillingProgramAndroid) -> BillingProgramReportingDetailsAndroid
 public typealias MutationDeepLinkToSubscriptionsHandler = suspend (options: DeepLinkOptions?) -> Unit
 public typealias MutationEndConnectionHandler = suspend () -> Boolean
 public typealias MutationFinishTransactionHandler = suspend (purchase: PurchaseInput, isConsumable: Boolean?) -> Unit
 public typealias MutationInitConnectionHandler = suspend (config: InitConnectionConfig?) -> Boolean
+public typealias MutationIsBillingProgramAvailableAndroidHandler = suspend (program: BillingProgramAndroid) -> BillingProgramAvailabilityResultAndroid
+public typealias MutationLaunchExternalLinkAndroidHandler = suspend (params: LaunchExternalLinkParamsAndroid) -> Boolean
 public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> Boolean
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: String) -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = suspend () -> ExternalPurchaseNoticeResultIOS
@@ -3677,10 +3707,13 @@ public data class MutationHandlers(
     val clearTransactionIOS: MutationClearTransactionIOSHandler? = null,
     val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler? = null,
     val createAlternativeBillingTokenAndroid: MutationCreateAlternativeBillingTokenAndroidHandler? = null,
+    val createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidHandler? = null,
     val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler? = null,
     val endConnection: MutationEndConnectionHandler? = null,
     val finishTransaction: MutationFinishTransactionHandler? = null,
     val initConnection: MutationInitConnectionHandler? = null,
+    val isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = null,
+    val launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = null,
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,
     val presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = null,
     val presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,
