@@ -219,6 +219,9 @@ function TypesPurchase() {
           {{
             ios: (
               <>
+                <AnchorLink id="purchase-ios" level="h4">
+                  PurchaseIOS
+                </AnchorLink>
                 <p>Additional fields available on iOS:</p>
                 <table className="doc-table">
                   <thead>
@@ -464,6 +467,9 @@ function TypesPurchase() {
             ),
             android: (
               <>
+                <AnchorLink id="purchase-android" level="h4">
+                  PurchaseAndroid
+                </AnchorLink>
                 <p>Additional fields available on Android:</p>
                 <table className="doc-table">
                   <thead>
@@ -645,80 +651,90 @@ function TypesPurchase() {
         <PlatformTabs>
           {{
             ios: (
-              <table className="doc-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Summary</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <code>expirationDateIOS</code>
-                    </td>
-                    <td>Expiration timestamp (epoch ms)</td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code>environmentIOS</code>
-                    </td>
-                    <td>Environment: "Sandbox" or "Production"</td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code>daysUntilExpirationIOS</code>
-                    </td>
-                    <td>Days until expiration</td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code>renewalInfoIOS</code>
-                    </td>
-                    <td>
-                      Subscription renewal details (see{' '}
-                      <a href="#renewal-info-ios">RenewalInfoIOS</a>)
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <>
+                <AnchorLink id="active-subscription-ios" level="h4">
+                  ActiveSubscriptionIOS
+                </AnchorLink>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>expirationDateIOS</code>
+                      </td>
+                      <td>Expiration timestamp (epoch ms)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>environmentIOS</code>
+                      </td>
+                      <td>Environment: "Sandbox" or "Production"</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>daysUntilExpirationIOS</code>
+                      </td>
+                      <td>Days until expiration</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>renewalInfoIOS</code>
+                      </td>
+                      <td>
+                        Subscription renewal details (see{' '}
+                        <a href="#renewal-info-ios">RenewalInfoIOS</a>)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
             ),
             android: (
-              <table className="doc-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Summary</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <code>autoRenewingAndroid</code>
-                    </td>
-                    <td>Whether subscription will auto-renew</td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code>basePlanIdAndroid</code>
-                    </td>
-                    <td>
-                      Base plan identifier. <strong>⚠️</strong> May be
-                      inaccurate for multi-plan subscriptions. See{' '}
-                      <a href="/docs/apis/debugging#android-baseplanid-limitation">
-                        limitation
-                      </a>
-                      .
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code>purchaseTokenAndroid</code>
-                    </td>
-                    <td>Purchase token for upgrade/downgrade operations</td>
-                  </tr>
-                </tbody>
-              </table>
+              <>
+                <AnchorLink id="active-subscription-android" level="h4">
+                  ActiveSubscriptionAndroid
+                </AnchorLink>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>autoRenewingAndroid</code>
+                      </td>
+                      <td>Whether subscription will auto-renew</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>basePlanIdAndroid</code>
+                      </td>
+                      <td>
+                        Base plan identifier. <strong>⚠️</strong> May be
+                        inaccurate for multi-plan subscriptions. See{' '}
+                        <a href="/docs/apis/debugging#android-baseplanid-limitation">
+                          limitation
+                        </a>
+                        .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>purchaseTokenAndroid</code>
+                      </td>
+                      <td>Purchase token for upgrade/downgrade operations</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
             ),
           }}
         </PlatformTabs>

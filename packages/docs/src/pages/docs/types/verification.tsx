@@ -109,7 +109,9 @@ function TypesVerification() {
           {{
             ios: (
               <>
-                <h4>VerifyPurchaseResultIOS</h4>
+                <AnchorLink id="verify-purchase-result-ios" level="h4">
+                  VerifyPurchaseResultIOS
+                </AnchorLink>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -148,7 +150,9 @@ function TypesVerification() {
             ),
             android: (
               <>
-                <h4>VerifyPurchaseResultAndroid (Google Play)</h4>
+                <AnchorLink id="verify-purchase-result-android" level="h4">
+                  VerifyPurchaseResultAndroid (Google Play)
+                </AnchorLink>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -244,10 +248,10 @@ function TypesVerification() {
                   </tbody>
                 </table>
 
-                <h4 style={{ marginTop: '2rem' }}>
+                <AnchorLink id="verify-purchase-result-horizon" level="h4">
                   VerifyPurchaseResultHorizon (Meta Quest)
-                </h4>
-                <table className="doc-table">
+                </AnchorLink>
+                <table className="doc-table" style={{ marginTop: '0.5rem' }}>
                   <thead>
                     <tr>
                       <th>Name</th>

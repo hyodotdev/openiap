@@ -142,6 +142,9 @@ function TypesProduct() {
           {{
             ios: (
               <>
+                <AnchorLink id="product-ios" level="h4">
+                  ProductIOS
+                </AnchorLink>
                 <p>Additional fields available on iOS:</p>
                 <table className="doc-table">
                   <thead>
@@ -192,6 +195,9 @@ function TypesProduct() {
             ),
             android: (
               <>
+                <AnchorLink id="product-android" level="h4">
+                  ProductAndroid
+                </AnchorLink>
                 <p>Additional fields available on Android:</p>
                 <table className="doc-table">
                   <thead>
@@ -295,6 +301,9 @@ function TypesProduct() {
           {{
             ios: (
               <>
+                <AnchorLink id="subscription-product-ios" level="h4">
+                  SubscriptionProductIOS
+                </AnchorLink>
                 <p>Additional fields available on iOS subscriptions:</p>
                 <table className="doc-table">
                   <thead>
@@ -369,6 +378,9 @@ function TypesProduct() {
             ),
             android: (
               <>
+                <AnchorLink id="subscription-product-android" level="h4">
+                  SubscriptionProductAndroid
+                </AnchorLink>
                 <p>Additional fields available on Android subscriptions:</p>
                 <table className="doc-table">
                   <thead>

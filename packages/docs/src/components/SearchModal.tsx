@@ -405,6 +405,27 @@ const apiData: ApiItem[] = [
     path: '/docs/types/product',
   },
   {
+    id: 'product',
+    title: 'Product',
+    category: 'Types',
+    description: 'Base product type: id, title, description, price, currency, type',
+    path: '/docs/types/product#product',
+  },
+  {
+    id: 'subscription-product',
+    title: 'SubscriptionProduct',
+    category: 'Types',
+    description: 'Subscription product with pricing phases, intro offers, billing periods',
+    path: '/docs/types/product#product-subscription',
+  },
+  {
+    id: 'storefront',
+    title: 'Storefront',
+    category: 'Types',
+    description: 'Store region info: countryCode returned by getStorefront()',
+    path: '/docs/types/product#storefront',
+  },
+  {
     id: 'types-purchase',
     title: 'Purchase Types',
     category: 'Types',
@@ -412,18 +433,32 @@ const apiData: ApiItem[] = [
     path: '/docs/types/purchase',
   },
   {
+    id: 'purchase',
+    title: 'Purchase',
+    category: 'Types',
+    description: 'Purchase transaction: id, productId, transactionDate, transactionReceipt',
+    path: '/docs/types/purchase#purchase',
+  },
+  {
+    id: 'purchase-state',
+    title: 'PurchaseState',
+    category: 'Types',
+    description: 'Purchase state enum: purchased, pending, failed, restored, deferred',
+    path: '/docs/types/purchase#purchase-state',
+  },
+  {
+    id: 'active-subscription',
+    title: 'ActiveSubscription',
+    category: 'Types',
+    description: 'Active subscription: id, productId, isActive from getActiveSubscriptions()',
+    path: '/docs/types/purchase#active-subscription',
+  },
+  {
     id: 'types-request',
     title: 'Request Types',
     category: 'Types',
     description: 'ProductRequest, RequestPurchaseProps, platform-specific request types',
     path: '/docs/types/request',
-  },
-  {
-    id: 'types-alternative',
-    title: 'Alternative Billing Types',
-    category: 'Types',
-    description: 'AlternativeBillingModeAndroid, External Purchase Link types',
-    path: '/docs/types/alternative',
   },
   {
     id: 'types-verification',
@@ -446,6 +481,224 @@ const apiData: ApiItem[] = [
     description: 'SubscriptionOffer, PricingPhase, PricingPhasesAndroid',
     path: '/docs/types/android',
   },
+  {
+    id: 'types-alternative',
+    title: 'Alternative Billing Types',
+    category: 'Types',
+    description: 'AlternativeBillingModeAndroid, InitConnectionConfig, External Purchase Link',
+    path: '/docs/types/alternative',
+  },
+
+  // iOS-Specific Types (from types/ios.tsx)
+  {
+    id: 'discount-offer',
+    title: 'DiscountOffer',
+    category: 'Types (iOS)',
+    description: 'iOS promotional offer for purchase: identifier, keyIdentifier, nonce, signature, timestamp',
+    path: '/docs/types/ios#discount-offer',
+  },
+  {
+    id: 'discount',
+    title: 'Discount',
+    category: 'Types (iOS)',
+    description: 'iOS discount info: identifier, type, numberOfPeriods, price, paymentMode, subscriptionPeriod',
+    path: '/docs/types/ios#discount',
+  },
+  {
+    id: 'subscription-period-ios',
+    title: 'SubscriptionPeriodIOS',
+    category: 'Types (iOS)',
+    description: 'iOS subscription period units: Day, Week, Month, Year',
+    path: '/docs/types/ios#subscription-period-ios',
+  },
+  {
+    id: 'payment-mode',
+    title: 'PaymentMode',
+    category: 'Types (iOS)',
+    description: 'iOS payment mode for offers: FreeTrial, PayAsYouGo, PayUpFront',
+    path: '/docs/types/ios#payment-mode',
+  },
+  {
+    id: 'subscription-status-ios',
+    title: 'SubscriptionStatusIOS',
+    category: 'Types (iOS)',
+    description: 'iOS subscription status from StoreKit 2: state, renewalInfo',
+    path: '/docs/types/ios#subscription-status-ios',
+  },
+  {
+    id: 'app-transaction',
+    title: 'AppTransaction',
+    category: 'Types (iOS)',
+    description: 'iOS app transaction info: bundleId, appVersion, originalAppVersion, environment',
+    path: '/docs/types/ios#app-transaction',
+  },
+
+  // Android-Specific Types (from types/android.tsx)
+  {
+    id: 'subscription-offer',
+    title: 'SubscriptionOffer',
+    category: 'Types (Android)',
+    description: 'Android subscription offer: sku, offerToken for Play Billing purchases',
+    path: '/docs/types/android#subscription-offer',
+  },
+  {
+    id: 'pricing-phase',
+    title: 'PricingPhase',
+    category: 'Types (Android)',
+    description: 'Android pricing phase: billingPeriod, formattedPrice, priceAmountMicros, recurrenceMode',
+    path: '/docs/types/android#pricing-phase',
+  },
+  {
+    id: 'pricing-phases-android',
+    title: 'PricingPhasesAndroid',
+    category: 'Types (Android)',
+    description: 'Android pricing phases container: pricingPhaseList array',
+    path: '/docs/types/android#pricing-phases-android',
+  },
+
+  // Alternative Billing Types (from types/alternative.tsx)
+  {
+    id: 'alternative-billing-mode-android',
+    title: 'AlternativeBillingModeAndroid',
+    category: 'Types (Android)',
+    description: 'Android billing mode: NONE, USER_CHOICE, ALTERNATIVE_ONLY',
+    path: '/docs/types/alternative#alternative-billing-mode-android',
+  },
+  {
+    id: 'init-connection-config',
+    title: 'InitConnectionConfig',
+    category: 'Types',
+    description: 'Configuration for initConnection: alternativeBillingModeAndroid',
+    path: '/docs/types/alternative#init-connection-config',
+  },
+  {
+    id: 'external-purchase-link-ios',
+    title: 'External Purchase Link (iOS)',
+    category: 'Types (iOS)',
+    description: 'iOS external purchase APIs: canPresent, presentNoticeSheet, presentLink (iOS 15.4+)',
+    path: '/docs/types/alternative#external-purchase-link',
+  },
+
+  // Platform-Specific Request Types
+  {
+    id: 'request-purchase-ios-props',
+    title: 'RequestPurchaseIosProps',
+    category: 'Types (iOS)',
+    description: 'iOS purchase request parameters: sku, appAccountToken, quantity, withOffer',
+    path: '/docs/types/request#request-purchase-ios-props',
+  },
+  {
+    id: 'request-purchase-android-props',
+    title: 'RequestPurchaseAndroidProps',
+    category: 'Types (Android)',
+    description: 'Android purchase request parameters: skus, obfuscatedAccountId, isOfferPersonalized',
+    path: '/docs/types/request#request-purchase-android-props',
+  },
+  {
+    id: 'request-subscription-ios-props',
+    title: 'RequestSubscriptionIosProps',
+    category: 'Types (iOS)',
+    description: 'iOS subscription request parameters (same as RequestPurchaseIosProps)',
+    path: '/docs/types/request#request-subscription-ios-props',
+  },
+  {
+    id: 'request-subscription-android-props',
+    title: 'RequestSubscriptionAndroidProps',
+    category: 'Types (Android)',
+    description: 'Android subscription request: purchaseToken, replacementMode, subscriptionOffers',
+    path: '/docs/types/request#request-subscription-android-props',
+  },
+
+  // Platform-Specific Product Types
+  {
+    id: 'product-ios',
+    title: 'ProductIOS',
+    category: 'Types (iOS)',
+    description: 'iOS product fields: typeIOS, isFamilyShareableIOS, subscriptionInfoIOS',
+    path: '/docs/types/product#product-ios',
+  },
+  {
+    id: 'product-android',
+    title: 'ProductAndroid',
+    category: 'Types (Android)',
+    description: 'Android product fields: nameAndroid, oneTimePurchaseOfferDetailsAndroid, subscriptionOfferDetailsAndroid',
+    path: '/docs/types/product#product-android',
+  },
+  {
+    id: 'subscription-product-ios',
+    title: 'SubscriptionProductIOS',
+    category: 'Types (iOS)',
+    description: 'iOS subscription fields: discountsIOS, introductoryPriceIOS, subscriptionPeriodUnitIOS',
+    path: '/docs/types/product#subscription-product-ios',
+  },
+  {
+    id: 'subscription-product-android',
+    title: 'SubscriptionProductAndroid',
+    category: 'Types (Android)',
+    description: 'Android subscription fields: subscriptionOfferDetailsAndroid',
+    path: '/docs/types/product#subscription-product-android',
+  },
+
+  // Platform-Specific Purchase Types
+  {
+    id: 'purchase-ios',
+    title: 'PurchaseIOS',
+    category: 'Types (iOS)',
+    description: 'iOS purchase fields: originalTransactionDateIOS, expirationDateIOS, renewalInfoIOS',
+    path: '/docs/types/purchase#purchase-ios',
+  },
+  {
+    id: 'purchase-android',
+    title: 'PurchaseAndroid',
+    category: 'Types (Android)',
+    description: 'Android purchase fields: dataAndroid, signatureAndroid, isAcknowledgedAndroid',
+    path: '/docs/types/purchase#purchase-android',
+  },
+  {
+    id: 'renewal-info-ios',
+    title: 'RenewalInfoIOS',
+    category: 'Types (iOS)',
+    description: 'iOS subscription renewal info: willAutoRenew, expirationReason, gracePeriodExpirationDate',
+    path: '/docs/types/purchase#renewal-info-ios',
+  },
+  {
+    id: 'active-subscription-ios',
+    title: 'ActiveSubscriptionIOS',
+    category: 'Types (iOS)',
+    description: 'iOS active subscription: expirationDateIOS, environmentIOS, daysUntilExpirationIOS',
+    path: '/docs/types/purchase#active-subscription-ios',
+  },
+  {
+    id: 'active-subscription-android',
+    title: 'ActiveSubscriptionAndroid',
+    category: 'Types (Android)',
+    description: 'Android active subscription: autoRenewingAndroid, basePlanIdAndroid, purchaseTokenAndroid',
+    path: '/docs/types/purchase#active-subscription-android',
+  },
+
+  // Platform-Specific Verification Types
+  {
+    id: 'verify-purchase-result-ios',
+    title: 'VerifyPurchaseResultIOS',
+    category: 'Types (iOS)',
+    description: 'iOS verification result: isValid, receiptData, jwsRepresentation, latestTransaction',
+    path: '/docs/types/verification#verify-purchase-result-ios',
+  },
+  {
+    id: 'verify-purchase-result-android',
+    title: 'VerifyPurchaseResultAndroid',
+    category: 'Types (Android)',
+    description: 'Android verification result: autoRenewing, cancelDate, renewalDate, transactionId',
+    path: '/docs/types/verification#verify-purchase-result-android',
+  },
+  {
+    id: 'verify-purchase-result-horizon',
+    title: 'VerifyPurchaseResultHorizon',
+    category: 'Types (Horizon)',
+    description: 'Meta Quest verification result: success, grantTime',
+    path: '/docs/types/verification#verify-purchase-result-horizon',
+  },
+
   {
     id: 'apis-page',
     title: 'APIs',

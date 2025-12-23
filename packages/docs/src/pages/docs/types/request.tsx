@@ -388,7 +388,9 @@ await FlutterInappPurchase.instance.requestPurchase(
           {{
             ios: (
               <>
-                <h4>RequestPurchaseIosProps</h4>
+                <AnchorLink id="request-purchase-ios-props" level="h4">
+                  RequestPurchaseIosProps
+                </AnchorLink>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -465,7 +467,9 @@ await FlutterInappPurchase.instance.requestPurchase(
             ),
             android: (
               <>
-                <h4>RequestPurchaseAndroidProps</h4>
+                <AnchorLink id="request-purchase-android-props" level="h4">
+                  RequestPurchaseAndroidProps
+                </AnchorLink>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -512,7 +516,9 @@ await FlutterInappPurchase.instance.requestPurchase(
           {{
             ios: (
               <>
-                <h4>RequestSubscriptionIosProps</h4>
+                <AnchorLink id="request-subscription-ios-props" level="h4">
+                  RequestSubscriptionIosProps
+                </AnchorLink>
                 <p>
                   iOS subscriptions use the same props as regular purchases
                   (RequestPurchaseIosProps).
@@ -521,7 +527,9 @@ await FlutterInappPurchase.instance.requestPurchase(
             ),
             android: (
               <>
-                <h4>RequestSubscriptionAndroidProps</h4>
+                <AnchorLink id="request-subscription-android-props" level="h4">
+                  RequestSubscriptionAndroidProps
+                </AnchorLink>
                 <p>
                   Extends RequestPurchaseAndroidProps with subscription-specific
                   fields:
