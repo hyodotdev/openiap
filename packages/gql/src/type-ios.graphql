@@ -192,6 +192,13 @@ input RequestPurchaseIosProps {
   Discount offer to apply
   """
   withOffer: DiscountOfferInputIOS
+  """
+  Advanced commerce data token (iOS 15+).
+  Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+  campaign tokens, affiliate IDs, or other attribution data.
+  The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+  """
+  advancedCommerceDataIOS: String
 }
 
 # iOS uses the same props for subscriptions
@@ -201,6 +208,13 @@ input RequestSubscriptionIosProps {
   appAccountToken: String
   quantity: Int
   withOffer: DiscountOfferInputIOS
+  """
+  Advanced commerce data token (iOS 15+).
+  Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+  campaign tokens, affiliate IDs, or other attribution data.
+  The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+  """
+  advancedCommerceDataIOS: String
 }
 
 # iOS Discount Offer (input)

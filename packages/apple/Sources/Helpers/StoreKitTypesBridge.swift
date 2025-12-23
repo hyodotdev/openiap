@@ -373,6 +373,24 @@ enum StoreKitTypesBridge {
             }
             options.insert(option)
         }
+        // Advanced Commerce Data (iOS 15+)
+        // Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+        // campaign tokens, affiliate IDs, or other attribution data
+        if let advancedCommerceData = props.advancedCommerceDataIOS, !advancedCommerceData.isEmpty {
+            let payload: [String: Any] = ["signatureInfo": ["token": advancedCommerceData]]
+            do {
+                let jsonData = try JSONSerialization.data(withJSONObject: payload)
+                options.insert(.custom(key: "advancedCommerceData", value: jsonData))
+                OpenIapLog.debug("✅ Added advancedCommerceData purchase option")
+            } catch {
+                OpenIapLog.error("❌ Failed to serialize advancedCommerceData: \(error.localizedDescription)")
+                throw PurchaseError.make(
+                    code: .developerError,
+                    productId: props.sku,
+                    message: "Failed to serialize advancedCommerceData: \(error.localizedDescription)"
+                )
+            }
+        }
         return options
     }
 }

@@ -1250,6 +1250,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         case let .subscription(platforms):
             if let ios = platforms.ios {
                 return RequestPurchaseIosProps(
+                    advancedCommerceDataIOS: ios.advancedCommerceDataIOS,
                     andDangerouslyFinishTransactionAutomatically: ios.andDangerouslyFinishTransactionAutomatically,
                     appAccountToken: ios.appAccountToken,
                     quantity: ios.quantity,

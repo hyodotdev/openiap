@@ -23,6 +23,83 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // v1.3.6 Advanced Commerce Data - Dec 23, 2025
+    {
+      id: 'v1.3.6-advanced-commerce',
+      date: new Date('2025-12-23'),
+      element: (
+        <div key="v1.3.6-advanced-commerce" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
+            📅 openiap-gql v1.3.6 / openiap-apple v1.3.6 - Advanced Commerce Data
+            Support (iOS 15+)
+          </h4>
+          <p>
+            <strong>New Feature: Advanced Commerce Data</strong>
+          </p>
+          <p>
+            Added support for{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/product/purchaseoption/custom(key:value:)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit 2's Product.PurchaseOption.custom API
+            </a>{' '}
+            to pass attribution data during purchases.
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <code>advancedCommerceDataIOS</code>
+              </strong>{' '}
+              - New optional field in <code>RequestPurchaseIosProps</code> and{' '}
+              <code>RequestSubscriptionIosProps</code>
+            </li>
+            <li>
+              Enables passing campaign tokens, affiliate IDs, and other
+              attribution data to StoreKit during purchase
+            </li>
+            <li>
+              Data is formatted as JSON:{' '}
+              <code>{`{"signatureInfo": {"token": "<value>"}}`}</code>
+            </li>
+          </ul>
+          <p>
+            <strong>Usage:</strong>
+          </p>
+          <CodeBlock language="typescript">
+            {`requestPurchase({
+  request: {
+    apple: {
+      sku: 'com.example.premium',
+      advancedCommerceDataIOS: 'campaign_summer_2025',
+    }
+  },
+  type: 'in-app'
+});`}
+          </CodeBlock>
+          <p>
+            <strong>Use Cases:</strong>
+          </p>
+          <ul>
+            <li>Campaign attribution tracking</li>
+            <li>Affiliate marketing integration</li>
+            <li>Promotional code tracking</li>
+          </ul>
+          <p>
+            Reference:{' '}
+            <a
+              href="https://github.com/hyochan/react-native-iap/pull/3106"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              react-native-iap PR #3106
+            </a>
+          </p>
+        </div>
+      ),
+    },
+
     // v1.3.5 Tag Management - Dec 16, 2025
     {
       id: 'v1.3.5-tag',

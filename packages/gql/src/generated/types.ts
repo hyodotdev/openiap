@@ -889,6 +889,13 @@ export interface RequestPurchaseAndroidProps {
 }
 
 export interface RequestPurchaseIosProps {
+  /**
+   * Advanced commerce data token (iOS 15+).
+   * Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+   * campaign tokens, affiliate IDs, or other attribution data.
+   * The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+   */
+  advancedCommerceDataIOS?: (string | null);
   /** Auto-finish transaction (dangerous) */
   andDangerouslyFinishTransactionAutomatically?: (boolean | null);
   /** App account token for user tracking */
@@ -964,6 +971,13 @@ export interface RequestSubscriptionAndroidProps {
 }
 
 export interface RequestSubscriptionIosProps {
+  /**
+   * Advanced commerce data token (iOS 15+).
+   * Used with StoreKit 2's Product.PurchaseOption.custom API for passing
+   * campaign tokens, affiliate IDs, or other attribution data.
+   * The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
+   */
+  advancedCommerceDataIOS?: (string | null);
   andDangerouslyFinishTransactionAutomatically?: (boolean | null);
   appAccountToken?: (string | null);
   quantity?: (number | null);

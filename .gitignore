@@ -42,3 +42,4 @@ coverage/
 # Temp
 tmp/
 temp/
+.build

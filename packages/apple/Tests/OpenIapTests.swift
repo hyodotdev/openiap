@@ -295,6 +295,86 @@ final class OpenIapTests: XCTestCase {
         XCTAssertNil(ErrorCode(rawValue: "nonexistent"))
     }
 
+    // MARK: - Advanced Commerce Data Tests
+
+    func testRequestPurchaseIosPropsWithAdvancedCommerceData() throws {
+        let props = RequestPurchaseIosProps(
+            advancedCommerceDataIOS: "campaign_summer_2025",
+            andDangerouslyFinishTransactionAutomatically: false,
+            appAccountToken: "user-uuid",
+            quantity: 1,
+            sku: "dev.hyo.premium",
+            withOffer: nil
+        )
+
+        XCTAssertEqual(props.sku, "dev.hyo.premium")
+        XCTAssertEqual(props.advancedCommerceDataIOS, "campaign_summer_2025")
+        XCTAssertEqual(props.appAccountToken, "user-uuid")
+        XCTAssertEqual(props.quantity, 1)
+        XCTAssertEqual(props.andDangerouslyFinishTransactionAutomatically, false)
+
+        // Test encoding/decoding
+        let data = try JSONEncoder().encode(props)
+        let decoded = try JSONDecoder().decode(RequestPurchaseIosProps.self, from: data)
+        XCTAssertEqual(decoded.advancedCommerceDataIOS, "campaign_summer_2025")
+        XCTAssertEqual(decoded.sku, "dev.hyo.premium")
+    }
+
+    func testRequestSubscriptionIosPropsWithAdvancedCommerceData() throws {
+        let props = RequestSubscriptionIosProps(
+            advancedCommerceDataIOS: "affiliate_partner_123",
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            quantity: nil,
+            sku: "dev.hyo.subscription.monthly",
+            withOffer: nil
+        )
+
+        XCTAssertEqual(props.sku, "dev.hyo.subscription.monthly")
+        XCTAssertEqual(props.advancedCommerceDataIOS, "affiliate_partner_123")
+
+        // Test encoding/decoding
+        let data = try JSONEncoder().encode(props)
+        let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
+        XCTAssertEqual(decoded.advancedCommerceDataIOS, "affiliate_partner_123")
+    }
+
+    func testRequestPurchaseIosPropsWithoutAdvancedCommerceData() throws {
+        let props = RequestPurchaseIosProps(
+            advancedCommerceDataIOS: nil,
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            quantity: nil,
+            sku: "dev.hyo.consumable",
+            withOffer: nil
+        )
+
+        XCTAssertEqual(props.sku, "dev.hyo.consumable")
+        XCTAssertNil(props.advancedCommerceDataIOS)
+
+        // Test encoding/decoding
+        let data = try JSONEncoder().encode(props)
+        let decoded = try JSONDecoder().decode(RequestPurchaseIosProps.self, from: data)
+        XCTAssertNil(decoded.advancedCommerceDataIOS)
+    }
+
+    func testAdvancedCommerceDataJSONSerialization() throws {
+        let props = RequestPurchaseIosProps(
+            advancedCommerceDataIOS: "promo_code_abc",
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            quantity: nil,
+            sku: "dev.hyo.premium",
+            withOffer: nil
+        )
+
+        let data = try JSONEncoder().encode(props)
+        let jsonString = String(data: data, encoding: .utf8)!
+
+        XCTAssertTrue(jsonString.contains("advancedCommerceDataIOS"))
+        XCTAssertTrue(jsonString.contains("promo_code_abc"))
+    }
+
     func testErrorCodeJSONDecoding() throws {
         // Test decoding from JSON with camelCase (react-native-iap format)
         let jsonCamel = """
