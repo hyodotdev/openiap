@@ -111,6 +111,31 @@ jobs:
           zip -j artifacts/openiap-kotlin.zip packages/gql/src/generated/Types.kt
           zip -j artifacts/openiap-swift.zip packages/gql/src/generated/Types.swift
 
+      - name: Delete existing tag and release if re-releasing same version
+        if: github.event.inputs.version == 'current'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_NAME="gql-$VERSION"
+
+          # Delete existing release if it exists
+          if gh release view "$TAG_NAME" &>/dev/null; then
+            echo "Deleting existing release: $TAG_NAME"
+            gh release delete "$TAG_NAME" --yes
+          fi
+
+          # Delete existing tag if it exists (both local and remote)
+          if git rev-parse "$TAG_NAME" &>/dev/null; then
+            echo "Deleting existing local tag: $TAG_NAME"
+            git tag -d "$TAG_NAME" || true
+          fi
+
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
+            echo "Deleting existing remote tag: $TAG_NAME"
+            git push origin --delete "$TAG_NAME" || true
+          fi
+
       - name: Create Git tag
         env:
           VERSION: ${{ steps.version.outputs.version }}

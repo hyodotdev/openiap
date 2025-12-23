@@ -856,10 +856,6 @@ class ActiveSubscription {
   const ActiveSubscription({
     this.autoRenewingAndroid,
     this.basePlanIdAndroid,
-    /// The current plan identifier. This is:
-    /// - On Android: the basePlanId (e.g., "premium", "premium-year")
-    /// - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly")
-    /// This provides a unified way to identify which specific plan/tier the user is subscribed to.
     this.currentPlanId,
     this.daysUntilExpirationIOS,
     this.environmentIOS,
@@ -867,16 +863,10 @@ class ActiveSubscription {
     required this.isActive,
     required this.productId,
     this.purchaseToken,
-    /// Required for subscription upgrade/downgrade on Android
     this.purchaseTokenAndroid,
-    /// Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,
-    /// pending upgrades/downgrades, and auto-renewal preferences.
     this.renewalInfoIOS,
     required this.transactionDate,
     required this.transactionId,
-    /// @deprecated iOS only - use daysUntilExpirationIOS instead.
-    /// Whether the subscription will expire soon (within 7 days).
-    /// Consider using daysUntilExpirationIOS for more precise control.
     this.willExpireSoon,
   });
 
@@ -1018,9 +1008,7 @@ class AppTransaction {
 /// Available in Google Play Billing Library 8.2.0+
 class BillingProgramAvailabilityResultAndroid {
   const BillingProgramAvailabilityResultAndroid({
-    /// The billing program that was checked
     required this.billingProgram,
-    /// Whether the billing program is available for the user
     required this.isAvailable,
   });
 
@@ -1050,10 +1038,7 @@ class BillingProgramAvailabilityResultAndroid {
 /// Available in Google Play Billing Library 8.2.0+
 class BillingProgramReportingDetailsAndroid {
   const BillingProgramReportingDetailsAndroid({
-    /// The billing program that the reporting details are associated with
     required this.billingProgram,
-    /// External transaction token used to report transactions made outside of Google Play Billing.
-    /// This token must be used when reporting the external transaction to Google.
     required this.externalTransactionToken,
   });
 
@@ -1083,9 +1068,7 @@ class BillingProgramReportingDetailsAndroid {
 /// Available in Google Play Billing Library 7.0+
 class DiscountAmountAndroid {
   const DiscountAmountAndroid({
-    /// Discount amount in micro-units (1,000,000 = 1 unit of currency)
     required this.discountAmountMicros,
-    /// Formatted discount amount with currency sign (e.g., "$4.99")
     required this.formattedDiscountAmount,
   });
 
@@ -1114,11 +1097,7 @@ class DiscountAmountAndroid {
 /// Available in Google Play Billing Library 7.0+
 class DiscountDisplayInfoAndroid {
   const DiscountDisplayInfoAndroid({
-    /// Absolute discount amount details
-    /// Only returned for fixed amount discounts
     this.discountAmount,
-    /// Percentage discount (e.g., 33 for 33% off)
-    /// Only returned for percentage-based discounts
     this.percentageDiscount,
   });
 
@@ -1196,15 +1175,10 @@ class DiscountIOS {
 
 class DiscountOfferIOS {
   const DiscountOfferIOS({
-    /// Discount identifier
     required this.identifier,
-    /// Key identifier for validation
     required this.keyIdentifier,
-    /// Cryptographic nonce
     required this.nonce,
-    /// Signature for validation
     required this.signature,
-    /// Timestamp of discount offer
     required this.timestamp,
   });
 
@@ -1275,7 +1249,6 @@ class EntitlementIOS {
 /// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferAvailabilityResultAndroid {
   const ExternalOfferAvailabilityResultAndroid({
-    /// Whether external offers are available for the user
     required this.isAvailable,
   });
 
@@ -1301,7 +1274,6 @@ class ExternalOfferAvailabilityResultAndroid {
 /// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferReportingDetailsAndroid {
   const ExternalOfferReportingDetailsAndroid({
-    /// External transaction token for reporting external offer transactions
     required this.externalTransactionToken,
   });
 
@@ -1325,9 +1297,7 @@ class ExternalOfferReportingDetailsAndroid {
 /// Result of presenting an external purchase link (iOS 18.2+)
 class ExternalPurchaseLinkResultIOS {
   const ExternalPurchaseLinkResultIOS({
-    /// Optional error message if the presentation failed
     this.error,
-    /// Whether the user completed the external purchase flow
     required this.success,
   });
 
@@ -1355,9 +1325,7 @@ class ExternalPurchaseLinkResultIOS {
 /// Result of presenting external purchase notice sheet (iOS 18.2+)
 class ExternalPurchaseNoticeResultIOS {
   const ExternalPurchaseNoticeResultIOS({
-    /// Optional error message if the presentation failed
     this.error,
-    /// Notice result indicating user action
     required this.result,
   });
 
@@ -1405,9 +1373,7 @@ class FetchProductsResultSubscriptions extends FetchProductsResult {
 /// Available in Google Play Billing Library 7.0+
 class LimitedQuantityInfoAndroid {
   const LimitedQuantityInfoAndroid({
-    /// Maximum quantity a user can purchase
     required this.maximumQuantity,
-    /// Remaining quantity the user can still purchase
     required this.remainingQuantity,
   });
 
@@ -1436,11 +1402,7 @@ class LimitedQuantityInfoAndroid {
 /// Available in Google Play Billing Library 8.1.0+
 class PreorderDetailsAndroid {
   const PreorderDetailsAndroid({
-    /// Pre-order presale end time in milliseconds since epoch.
-    /// This is when the presale period ends and the product will be released.
     required this.preorderPresaleEndTimeMillis,
-    /// Pre-order release time in milliseconds since epoch.
-    /// This is when the product will be available to users who pre-ordered.
     required this.preorderReleaseTimeMillis,
   });
 
@@ -1538,8 +1500,6 @@ class ProductAndroid extends Product implements ProductCommon {
     required this.displayPrice,
     required this.id,
     required this.nameAndroid,
-    /// One-time purchase offer details including discounts (Android)
-    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
     this.oneTimePurchaseOfferDetailsAndroid,
     this.platform = IapPlatform.Android,
     this.price,
@@ -1607,29 +1567,17 @@ class ProductAndroid extends Product implements ProductCommon {
 /// Available in Google Play Billing Library 7.0+
 class ProductAndroidOneTimePurchaseOfferDetail {
   const ProductAndroidOneTimePurchaseOfferDetail({
-    /// Discount display information
-    /// Only available for discounted offers
     this.discountDisplayInfo,
     required this.formattedPrice,
-    /// Full (non-discounted) price in micro-units
-    /// Only available for discounted offers
     this.fullPriceMicros,
-    /// Limited quantity information
     this.limitedQuantityInfo,
-    /// Offer ID
     this.offerId,
-    /// List of offer tags
     required this.offerTags,
-    /// Offer token for use in BillingFlowParams when purchasing
     required this.offerToken,
-    /// Pre-order details for products available for pre-order
-    /// Available in Google Play Billing Library 8.1.0+
     this.preorderDetailsAndroid,
     required this.priceAmountMicros,
     required this.priceCurrencyCode,
-    /// Rental details for rental offers
     this.rentalDetailsAndroid,
-    /// Valid time window for the offer
     this.validTimeWindow,
   });
 
@@ -1781,8 +1729,6 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
     required this.displayPrice,
     required this.id,
     required this.nameAndroid,
-    /// One-time purchase offer details including discounts (Android)
-    /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
     this.oneTimePurchaseOfferDetailsAndroid,
     this.platform = IapPlatform.Android,
     this.price,
@@ -2003,11 +1949,6 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     this.ids,
     this.isAcknowledgedAndroid,
     required this.isAutoRenewing,
-    /// Whether the subscription is suspended (Android)
-    /// A suspended subscription means the user's payment method failed and they need to fix it.
-    /// Users should be directed to the subscription center to resolve the issue.
-    /// Do NOT grant entitlements for suspended subscriptions.
-    /// Available in Google Play Billing Library 8.1.0+
     this.isSuspendedAndroid,
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
@@ -2018,7 +1959,6 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     this.purchaseToken,
     required this.quantity,
     this.signatureAndroid,
-    /// Store where purchase was made
     required this.store,
     required this.transactionDate,
     this.transactionId,
@@ -2169,7 +2109,6 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.renewalInfoIOS,
     this.revocationDateIOS,
     this.revocationReasonIOS,
-    /// Store where purchase was made
     required this.store,
     this.storefrontCountryCodeIOS,
     this.subscriptionGroupIdIOS,
@@ -2359,29 +2298,14 @@ class RefundResultIOS {
 class RenewalInfoIOS {
   const RenewalInfoIOS({
     this.autoRenewPreference,
-    /// When subscription expires due to cancellation/billing issue
-    /// Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
     this.expirationReason,
-    /// Grace period expiration date (milliseconds since epoch)
-    /// When set, subscription is in grace period (billing issue but still has access)
     this.gracePeriodExpirationDate,
-    /// True if subscription failed to renew due to billing issue and is retrying
-    /// Note: Not directly available in RenewalInfo, available in Status
     this.isInBillingRetry,
     this.jsonRepresentation,
-    /// Product ID that will be used on next renewal (when user upgrades/downgrades)
-    /// If set and different from current productId, subscription will change on expiration
     this.pendingUpgradeProductId,
-    /// User's response to subscription price increase
-    /// Possible values: "AGREED", "PENDING", null (no price increase)
     this.priceIncreaseStatus,
-    /// Expected renewal date (milliseconds since epoch)
-    /// For active subscriptions, when the next renewal/charge will occur
     this.renewalDate,
-    /// Offer ID applied to next renewal (promotional offer, subscription offer code, etc.)
     this.renewalOfferId,
-    /// Type of offer applied to next renewal
-    /// Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
     this.renewalOfferType,
     required this.willAutoRenew,
   });
@@ -2451,10 +2375,7 @@ class RenewalInfoIOS {
 /// Available in Google Play Billing Library 7.0+
 class RentalDetailsAndroid {
   const RentalDetailsAndroid({
-    /// Rental expiration period in ISO 8601 format
-    /// Time after rental period ends when user can still extend
     this.rentalExpirationPeriod,
-    /// Rental period in ISO 8601 format (e.g., P7D for 7 days)
     required this.rentalPeriod,
   });
 
@@ -2496,9 +2417,7 @@ class RequestPurchaseResultPurchases extends RequestPurchaseResult {
 
 class RequestVerifyPurchaseWithIapkitResult {
   const RequestVerifyPurchaseWithIapkitResult({
-    /// Whether the purchase is valid (not falsified).
     required this.isValid,
-    /// The current state of the purchase.
     required this.state,
     required this.store,
   });
@@ -2659,9 +2578,7 @@ class SubscriptionStatusIOS {
 /// Fired when a user selects alternative billing in the User Choice Billing dialog
 class UserChoiceBillingDetails {
   const UserChoiceBillingDetails({
-    /// Token that must be reported to Google Play within 24 hours
     required this.externalTransactionToken,
-    /// List of product IDs selected by the user
     required this.products,
   });
 
@@ -2690,9 +2607,7 @@ class UserChoiceBillingDetails {
 /// Available in Google Play Billing Library 7.0+
 class ValidTimeWindowAndroid {
   const ValidTimeWindowAndroid({
-    /// End time in milliseconds since epoch
     required this.endTimeMillis,
-    /// Start time in milliseconds since epoch
     required this.startTimeMillis,
   });
 
@@ -2811,9 +2726,7 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
 /// Returns verification status and grant time for the entitlement.
 class VerifyPurchaseResultHorizon extends VerifyPurchaseResult {
   const VerifyPurchaseResultHorizon({
-    /// Unix timestamp (seconds) when the entitlement was granted.
     this.grantTime,
-    /// Whether the entitlement verification succeeded.
     required this.success,
   });
 
@@ -2841,13 +2754,9 @@ class VerifyPurchaseResultHorizon extends VerifyPurchaseResult {
 
 class VerifyPurchaseResultIOS extends VerifyPurchaseResult {
   const VerifyPurchaseResultIOS({
-    /// Whether the receipt is valid
     required this.isValid,
-    /// JWS representation
     required this.jwsRepresentation,
-    /// Latest transaction if available
     this.latestTransaction,
-    /// Receipt data string
     required this.receiptData,
   });
 
@@ -2908,9 +2817,7 @@ class VerifyPurchaseWithProviderError {
 
 class VerifyPurchaseWithProviderResult {
   const VerifyPurchaseWithProviderResult({
-    /// Error details if verification failed
     this.errors,
-    /// IAPKit verification result
     this.iapkit,
     required this.provider,
   });
@@ -2945,9 +2852,7 @@ typedef VoidResult = void;
 
 class AndroidSubscriptionOfferInput {
   const AndroidSubscriptionOfferInput({
-    /// Offer token
     required this.offerToken,
-    /// Product SKU
     required this.sku,
   });
 
@@ -2973,9 +2878,7 @@ class AndroidSubscriptionOfferInput {
 
 class DeepLinkOptions {
   const DeepLinkOptions({
-    /// Android package name to target (required on Android)
     this.packageNameAndroid,
-    /// Android SKU to open (required on Android)
     this.skuAndroid,
   });
 
@@ -3001,15 +2904,10 @@ class DeepLinkOptions {
 
 class DiscountOfferInputIOS {
   const DiscountOfferInputIOS({
-    /// Discount identifier
     required this.identifier,
-    /// Key identifier for validation
     required this.keyIdentifier,
-    /// Cryptographic nonce
     required this.nonce,
-    /// Signature for validation
     required this.signature,
-    /// Timestamp of discount offer
     required this.timestamp,
   });
 
@@ -3048,8 +2946,6 @@ class DiscountOfferInputIOS {
 /// Connection initialization configuration
 class InitConnectionConfig {
   const InitConnectionConfig({
-    /// Alternative billing mode for Android
-    /// If not specified, defaults to NONE (standard Google Play billing)
     this.alternativeBillingModeAndroid,
   });
 
@@ -3075,13 +2971,9 @@ class InitConnectionConfig {
 /// Available in Google Play Billing Library 8.2.0+
 class LaunchExternalLinkParamsAndroid {
   const LaunchExternalLinkParamsAndroid({
-    /// The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
     required this.billingProgram,
-    /// The external link launch mode
     required this.launchMode,
-    /// The type of the external link
     required this.linkType,
-    /// The URI where the content will be accessed from
     required this.linkUri,
   });
 
@@ -3141,9 +3033,7 @@ typedef PurchaseInput = Purchase;
 
 class PurchaseOptions {
   const PurchaseOptions({
-    /// Also emit results through the iOS event listeners
     this.alsoPublishToEventListenerIOS,
-    /// Limit to currently active items on iOS
     this.onlyIncludeActiveItemsIOS,
   });
 
@@ -3169,13 +3059,9 @@ class PurchaseOptions {
 
 class RequestPurchaseAndroidProps {
   const RequestPurchaseAndroidProps({
-    /// Personalized offer flag
     this.isOfferPersonalized,
-    /// Obfuscated account ID
     this.obfuscatedAccountIdAndroid,
-    /// Obfuscated profile ID
     this.obfuscatedProfileIdAndroid,
-    /// List of product SKUs
     required this.skus,
   });
 
@@ -3209,20 +3095,11 @@ class RequestPurchaseAndroidProps {
 
 class RequestPurchaseIosProps {
   const RequestPurchaseIosProps({
-    /// Advanced commerce data token (iOS 15+).
-    /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
-    /// campaign tokens, affiliate IDs, or other attribution data.
-    /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
     this.advancedCommerceData,
-    /// Auto-finish transaction (dangerous)
     this.andDangerouslyFinishTransactionAutomatically,
-    /// App account token for user tracking
     this.appAccountToken,
-    /// Purchase quantity
     this.quantity,
-    /// Product SKU
     required this.sku,
-    /// Discount offer to apply
     this.withOffer,
   });
 
@@ -3333,13 +3210,9 @@ class _SubsPurchase extends RequestPurchaseProps {
 ///   (determined at build time, not runtime)
 class RequestPurchasePropsByPlatforms {
   const RequestPurchasePropsByPlatforms({
-    /// @deprecated Use google instead
     this.android,
-    /// Apple-specific purchase parameters
     this.apple,
-    /// Google-specific purchase parameters
     this.google,
-    /// @deprecated Use apple instead
     this.ios,
   });
 
@@ -3373,23 +3246,13 @@ class RequestPurchasePropsByPlatforms {
 
 class RequestSubscriptionAndroidProps {
   const RequestSubscriptionAndroidProps({
-    /// Personalized offer flag
     this.isOfferPersonalized,
-    /// Obfuscated account ID
     this.obfuscatedAccountIdAndroid,
-    /// Obfuscated profile ID
     this.obfuscatedProfileIdAndroid,
-    /// Purchase token for upgrades/downgrades
     this.purchaseTokenAndroid,
-    /// Replacement mode for subscription changes
-    /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
     this.replacementModeAndroid,
-    /// List of subscription SKUs
     required this.skus,
-    /// Subscription offers
     this.subscriptionOffers,
-    /// Product-level replacement parameters (8.1.0+)
-    /// Use this instead of replacementModeAndroid for item-level replacement
     this.subscriptionProductReplacementParams,
   });
 
@@ -3441,10 +3304,6 @@ class RequestSubscriptionAndroidProps {
 
 class RequestSubscriptionIosProps {
   const RequestSubscriptionIosProps({
-    /// Advanced commerce data token (iOS 15+).
-    /// Used with StoreKit 2's Product.PurchaseOption.custom API for passing
-    /// campaign tokens, affiliate IDs, or other attribution data.
-    /// The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
     this.advancedCommerceData,
     this.andDangerouslyFinishTransactionAutomatically,
     this.appAccountToken,
@@ -3495,13 +3354,9 @@ class RequestSubscriptionIosProps {
 ///   (determined at build time, not runtime)
 class RequestSubscriptionPropsByPlatforms {
   const RequestSubscriptionPropsByPlatforms({
-    /// @deprecated Use google instead
     this.android,
-    /// Apple-specific subscription parameters
     this.apple,
-    /// Google-specific subscription parameters
     this.google,
-    /// @deprecated Use apple instead
     this.ios,
   });
 
@@ -3535,7 +3390,6 @@ class RequestSubscriptionPropsByPlatforms {
 
 class RequestVerifyPurchaseWithIapkitAppleProps {
   const RequestVerifyPurchaseWithIapkitAppleProps({
-    /// The JWS token returned with the purchase response.
     required this.jws,
   });
 
@@ -3557,7 +3411,6 @@ class RequestVerifyPurchaseWithIapkitAppleProps {
 
 class RequestVerifyPurchaseWithIapkitGoogleProps {
   const RequestVerifyPurchaseWithIapkitGoogleProps({
-    /// The token provided to the user's device when the product or subscription was purchased.
     required this.purchaseToken,
   });
 
@@ -3583,11 +3436,8 @@ class RequestVerifyPurchaseWithIapkitGoogleProps {
 /// - google: Verifies via Play Store (purchase token)
 class RequestVerifyPurchaseWithIapkitProps {
   const RequestVerifyPurchaseWithIapkitProps({
-    /// API key used for the Authorization header (Bearer {apiKey}).
     this.apiKey,
-    /// Apple App Store verification parameters.
     this.apple,
-    /// Google Play Store verification parameters.
     this.google,
   });
 
@@ -3620,9 +3470,7 @@ class RequestVerifyPurchaseWithIapkitProps {
 /// Available in Google Play Billing Library 8.1.0+
 class SubscriptionProductReplacementParamsAndroid {
   const SubscriptionProductReplacementParamsAndroid({
-    /// The old product ID that needs to be replaced
     required this.oldProductId,
-    /// The replacement mode for this product change
     required this.replacementMode,
   });
 
@@ -3650,7 +3498,6 @@ class SubscriptionProductReplacementParamsAndroid {
 /// Used for server-side receipt validation via App Store Server API.
 class VerifyPurchaseAppleOptions {
   const VerifyPurchaseAppleOptions({
-    /// Product SKU to validate
     required this.sku,
   });
 
@@ -3676,17 +3523,10 @@ class VerifyPurchaseAppleOptions {
 /// ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
 class VerifyPurchaseGoogleOptions {
   const VerifyPurchaseGoogleOptions({
-    /// Google OAuth2 access token for API authentication.
-    /// ⚠️ Sensitive: Do not log this value.
     required this.accessToken,
-    /// Whether this is a subscription purchase (affects API endpoint used)
     this.isSub,
-    /// Android package name (e.g., com.example.app)
     required this.packageName,
-    /// Purchase token from the purchase response.
-    /// ⚠️ Sensitive: Do not log this value.
     required this.purchaseToken,
-    /// Product SKU to validate
     required this.sku,
   });
 
@@ -3731,12 +3571,8 @@ class VerifyPurchaseGoogleOptions {
 /// ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
 class VerifyPurchaseHorizonOptions {
   const VerifyPurchaseHorizonOptions({
-    /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
-    /// ⚠️ Sensitive: Do not log this value.
     required this.accessToken,
-    /// The SKU for the add-on item, defined in Meta Developer Dashboard
     required this.sku,
-    /// The user ID of the user whose purchase you want to verify
     required this.userId,
   });
 
@@ -3772,11 +3608,8 @@ class VerifyPurchaseHorizonOptions {
 /// - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 class VerifyPurchaseProps {
   const VerifyPurchaseProps({
-    /// Apple App Store verification parameters.
     this.apple,
-    /// Google Play Store verification parameters.
     this.google,
-    /// Meta Horizon (Quest) verification parameters.
     this.horizon,
   });
 

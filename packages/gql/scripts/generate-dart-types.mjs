@@ -489,8 +489,9 @@ const printObject = (objectType) => {
     return { field, fieldName, type, nullable, metadata };
   });
 
-  fieldInfos.forEach(({ field, nullable, fieldName }) => {
-    addDocComment(lines, field.description, '    ');
+  fieldInfos.forEach(({ nullable, fieldName }) => {
+    // Don't add doc comments here - they're added on the field definition below
+    // Dart analyzer will associate field docs with constructor params automatically
     const line = `    ${nullable ? '' : 'required '}this.${fieldName},`;
     lines.push(line);
   });
@@ -629,8 +630,9 @@ const printInput = (inputType) => {
     const fieldName = escapeDartName(field.name);
     return { field, fieldName, type, nullable, metadata };
   });
-  fieldInfos.forEach(({ field, nullable, fieldName }) => {
-    addDocComment(lines, field.description, '    ');
+  fieldInfos.forEach(({ nullable, fieldName }) => {
+    // Don't add doc comments here - they're added on the field definition below
+    // Dart analyzer will associate field docs with constructor params automatically
     const line = `    ${nullable ? '' : 'required '}this.${fieldName},`;
     lines.push(line);
   });
