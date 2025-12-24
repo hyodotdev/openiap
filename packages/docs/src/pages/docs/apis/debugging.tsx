@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
+import IapKitBanner from '../../../components/IapKitBanner';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
@@ -175,22 +176,27 @@ onPurchaseSuccess: async (purchase) => {
   });
 }`}</CodeBlock>
 
-        <h4>2. Backend Validation (Recommended for production)</h4>
+        <h4>2. IAPKit Backend Validation (Recommended)</h4>
+        <IapKitBanner />
         <p>
-          Use Google Play Developer API for accurate basePlanId:
+          Use{' '}
+          <code>verifyPurchaseWithProvider</code> with IAPKit to get accurate{' '}
+          <code>basePlanId</code> from Google Play Developer API. The response
+          includes <code>offerDetails.basePlanId</code>:
         </p>
-        <CodeBlock language="typescript">{`// GET https://androidpublisher.googleapis.com/androidpublisher/v3/
-//     applications/{packageName}/purchases/subscriptionsv2/tokens/{token}
-//
-// Response includes:
-// {
-//   "lineItems": [{
-//     "offerDetails": {
-//       "basePlanId": "premium-annual",  // Accurate!
-//       "offerId": "intro-offer"
-//     }
-//   }]
-// }`}</CodeBlock>
+        <CodeBlock language="typescript">{`import { verifyPurchaseWithProvider } from 'expo-iap';
+
+const result = await verifyPurchaseWithProvider({
+  provider: 'iapkit',
+  iapkit: {
+    apiKey: 'your-iapkit-api-key',
+    google: { purchaseToken: purchase.purchaseToken },
+  },
+});
+
+// Access basePlanId from the response
+const basePlanId = result.iapkit?.google?.lineItems?.[0]?.offerDetails?.basePlanId;
+console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
 
         <h4>3. Single Base Plan Per Subscription Group</h4>
         <p>

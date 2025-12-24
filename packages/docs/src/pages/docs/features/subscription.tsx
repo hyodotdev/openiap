@@ -858,7 +858,11 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                     include <code>basePlanId</code>. This means{' '}
                     <code>getActiveSubscriptions()</code> and purchase callbacks
                     cannot reliably determine which specific plan was purchased
-                    within a subscription group.
+                    within a subscription group. See{' '}
+                    <Link to="/docs/apis/debugging#android-baseplanid-limitation">
+                      detailed limitation and solutions
+                    </Link>
+                    .
                   </p>
                 </div>
 
