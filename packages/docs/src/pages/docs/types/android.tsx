@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -357,6 +358,11 @@ if (subscription is ProductSubscriptionAndroid) {
           <strong>Important:</strong> While Google Play Console allows creating
           multiple base plans for a single subscription product, the{' '}
           <code>basePlanId</code> is not exposed by the Play Billing Library.
+          See{' '}
+          <Link to="/docs/apis/debugging#android-baseplanid-limitation">
+            detailed limitation and solutions
+          </Link>
+          .
         </p>
         <p>
           When you have multiple base plans (e.g., monthly and yearly), each
