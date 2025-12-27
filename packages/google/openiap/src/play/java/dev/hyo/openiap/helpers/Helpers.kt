@@ -4,6 +4,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryPurchasesParams
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductQueryType
@@ -101,6 +102,7 @@ internal data class AndroidPurchaseArgs(
     val replacementModeAndroid: Int?,
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>?,
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
+    val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
     val type: ProductQueryType,
     val useAlternativeBilling: Boolean?
 )
@@ -120,6 +122,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 replacementModeAndroid = null,
                 subscriptionOffers = null,
                 subscriptionProductReplacementParams = null,
+                developerBillingOption = params.developerBillingOption,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
@@ -142,6 +145,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 replacementModeAndroid = params.replacementModeAndroid,
                 subscriptionOffers = params.subscriptionOffers,
                 subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,
+                developerBillingOption = params.developerBillingOption,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )

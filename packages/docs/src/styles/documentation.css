@@ -55,18 +55,17 @@
 }
 
 .docs-nav li {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .docs-nav li.menu-dropdown {
-  margin-bottom: 1rem;
-  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .docs-nav a {
   color: var(--text-primary);
   text-decoration: none;
-  padding: 0.5rem 0;
+  padding: 0.4rem 0;
   display: block;
   transition: color 0.2s;
 }

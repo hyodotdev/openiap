@@ -1,5 +1,6 @@
 package dev.hyo.openiap.listener
 
+import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.UserChoiceBillingDetails
@@ -36,6 +37,19 @@ fun interface OpenIapUserChoiceBillingListener {
      * @param details The user choice billing details
      */
     fun onUserChoiceBilling(details: UserChoiceBillingDetails)
+}
+
+/**
+ * Listener for Developer Provided Billing selection (Android)
+ * Fires when user selects developer-provided billing option in the external payments flow.
+ * Available in Google Play Billing Library 8.3.0+
+ */
+fun interface OpenIapDeveloperProvidedBillingListener {
+    /**
+     * Called when user selects developer-provided billing
+     * @param details The developer provided billing details containing the external transaction token
+     */
+    fun onDeveloperProvidedBilling(details: DeveloperProvidedBillingDetailsAndroid)
 }
 
 /**

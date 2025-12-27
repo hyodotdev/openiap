@@ -267,6 +267,12 @@ input RequestPurchaseAndroidProps {
   Personalized offer flag
   """
   isOfferPersonalized: Boolean
+  """
+  Developer billing option parameters for external payments flow (8.3.0+).
+  When provided, the purchase flow will show a side-by-side choice between
+  Google Play Billing and the developer's external payment option.
+  """
+  developerBillingOption: DeveloperBillingOptionParamsAndroid
 }
 
 input RequestSubscriptionAndroidProps {
@@ -304,6 +310,12 @@ input RequestSubscriptionAndroidProps {
   Use this instead of replacementModeAndroid for item-level replacement
   """
   subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid
+  """
+  Developer billing option parameters for external payments flow (8.3.0+).
+  When provided, the purchase flow will show a side-by-side choice between
+  Google Play Billing and the developer's external payment option.
+  """
+  developerBillingOption: DeveloperBillingOptionParamsAndroid
 }
 
 # Subscription Replacement (Google Play Billing Library 8.1.0+)
@@ -502,8 +514,8 @@ type UserChoiceBillingDetails {
 
 # External Billing Programs (Google Play Billing Library 8.2.0+)
 """
-Billing program types for external content links and external offers (Android)
-Available in Google Play Billing Library 8.2.0+
+Billing program types for external content links, external offers, and external payments (Android)
+Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0
 """
 enum BillingProgramAndroid {
   """
@@ -520,6 +532,13 @@ enum BillingProgramAndroid {
   Allows offering digital content purchases outside the app.
   """
   EXTERNAL_OFFER
+  """
+  External Payments program (Japan only).
+  Allows presenting a side-by-side choice between Google Play Billing and developer's external payment option.
+  Users can choose to complete the purchase on the developer's website.
+  Available in Google Play Billing Library 8.3.0+
+  """
+  EXTERNAL_PAYMENTS
 }
 
 """
@@ -614,6 +633,77 @@ type BillingProgramAvailabilityResultAndroid {
   isAvailable: Boolean!
   """
   The billing program that was checked
+  """
+  billingProgram: BillingProgramAndroid!
+}
+
+# External Payments Program (Google Play Billing Library 8.3.0+)
+# See: https://developer.android.com/google/play/billing/externalpaymentlinks
+
+"""
+Launch mode for developer billing option (Android)
+Determines how the external payment URL is launched
+Available in Google Play Billing Library 8.3.0+
+"""
+enum DeveloperBillingLaunchModeAndroid {
+  """
+  Unspecified launch mode. Do not use.
+  """
+  UNSPECIFIED
+  """
+  Google Play will launch the link in an external browser or eligible app.
+  Use this when you want Play to handle launching the external payment URL.
+  """
+  LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+  """
+  The caller app will launch the link after Play returns control.
+  Use this when you want to handle launching the external payment URL yourself.
+  """
+  CALLER_WILL_LAUNCH_LINK
+}
+
+"""
+Parameters for developer billing option in purchase flow (Android)
+Used with BillingFlowParams to enable external payments flow
+Available in Google Play Billing Library 8.3.0+
+"""
+input DeveloperBillingOptionParamsAndroid {
+  """
+  The billing program (should be EXTERNAL_PAYMENTS for external payments flow)
+  """
+  billingProgram: BillingProgramAndroid!
+  """
+  The URI where the external payment will be processed
+  """
+  linkUri: String!
+  """
+  The launch mode for the external payment link
+  """
+  launchMode: DeveloperBillingLaunchModeAndroid!
+}
+
+"""
+Details provided when user selects developer billing option (Android)
+Received via DeveloperProvidedBillingListener callback
+Available in Google Play Billing Library 8.3.0+
+"""
+type DeveloperProvidedBillingDetailsAndroid {
+  """
+  External transaction token used to report transactions made through developer billing.
+  This token must be used when reporting the external transaction to Google Play.
+  Must be reported within 24 hours of the transaction.
+  """
+  externalTransactionToken: String!
+}
+
+"""
+Parameters for creating billing program reporting details (Android)
+Used with createBillingProgramReportingDetailsAsync
+Available in Google Play Billing Library 8.3.0+
+"""
+input BillingProgramReportingDetailsParamsAndroid {
+  """
+  The billing program to create reporting details for
   """
   billingProgram: BillingProgramAndroid!
 }

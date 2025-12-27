@@ -44,8 +44,8 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
 }
 
 /**
- * Billing program types for external content links and external offers (Android)
- * Available in Google Play Billing Library 8.2.0+
+ * Billing program types for external content links, external offers, and external payments (Android)
+ * Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0
  */
 public enum class BillingProgramAndroid(val rawValue: String) {
     /**
@@ -61,7 +61,14 @@ public enum class BillingProgramAndroid(val rawValue: String) {
      * External Offers program.
      * Allows offering digital content purchases outside the app.
      */
-    ExternalOffer("external-offer");
+    ExternalOffer("external-offer"),
+    /**
+     * External Payments program (Japan only).
+     * Allows presenting a side-by-side choice between Google Play Billing and developer's external payment option.
+     * Users can choose to complete the purchase on the developer's website.
+     * Available in Google Play Billing Library 8.3.0+
+     */
+    ExternalPayments("external-payments");
 
     companion object {
         fun fromJson(value: String): BillingProgramAndroid = when (value) {
@@ -71,7 +78,45 @@ public enum class BillingProgramAndroid(val rawValue: String) {
             "ExternalContentLink" -> BillingProgramAndroid.ExternalContentLink
             "external-offer" -> BillingProgramAndroid.ExternalOffer
             "ExternalOffer" -> BillingProgramAndroid.ExternalOffer
+            "external-payments" -> BillingProgramAndroid.ExternalPayments
+            "ExternalPayments" -> BillingProgramAndroid.ExternalPayments
             else -> throw IllegalArgumentException("Unknown BillingProgramAndroid value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Launch mode for developer billing option (Android)
+ * Determines how the external payment URL is launched
+ * Available in Google Play Billing Library 8.3.0+
+ */
+public enum class DeveloperBillingLaunchModeAndroid(val rawValue: String) {
+    /**
+     * Unspecified launch mode. Do not use.
+     */
+    Unspecified("unspecified"),
+    /**
+     * Google Play will launch the link in an external browser or eligible app.
+     * Use this when you want Play to handle launching the external payment URL.
+     */
+    LaunchInExternalBrowserOrApp("launch-in-external-browser-or-app"),
+    /**
+     * The caller app will launch the link after Play returns control.
+     * Use this when you want to handle launching the external payment URL yourself.
+     */
+    CallerWillLaunchLink("caller-will-launch-link");
+
+    companion object {
+        fun fromJson(value: String): DeveloperBillingLaunchModeAndroid = when (value) {
+            "unspecified" -> DeveloperBillingLaunchModeAndroid.Unspecified
+            "Unspecified" -> DeveloperBillingLaunchModeAndroid.Unspecified
+            "launch-in-external-browser-or-app" -> DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
+            "LaunchInExternalBrowserOrApp" -> DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
+            "caller-will-launch-link" -> DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink
+            "CallerWillLaunchLink" -> DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink
+            else -> throw IllegalArgumentException("Unknown DeveloperBillingLaunchModeAndroid value: $value")
         }
     }
 
@@ -298,7 +343,12 @@ public enum class IapEvent(val rawValue: String) {
     PurchaseUpdated("purchase-updated"),
     PurchaseError("purchase-error"),
     PromotedProductIos("promoted-product-ios"),
-    UserChoiceBillingAndroid("user-choice-billing-android");
+    UserChoiceBillingAndroid("user-choice-billing-android"),
+    /**
+     * Fired when user selects developer-provided billing option in external payments flow.
+     * Available on Android with Google Play Billing Library 8.3.0+
+     */
+    DeveloperProvidedBillingAndroid("developer-provided-billing-android");
 
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
@@ -311,6 +361,8 @@ public enum class IapEvent(val rawValue: String) {
             "PromotedProductIOS" -> IapEvent.PromotedProductIos
             "user-choice-billing-android" -> IapEvent.UserChoiceBillingAndroid
             "UserChoiceBillingAndroid" -> IapEvent.UserChoiceBillingAndroid
+            "developer-provided-billing-android" -> IapEvent.DeveloperProvidedBillingAndroid
+            "DeveloperProvidedBillingAndroid" -> IapEvent.DeveloperProvidedBillingAndroid
             else -> throw IllegalArgumentException("Unknown IapEvent value: $value")
         }
     }
@@ -886,6 +938,34 @@ public data class BillingProgramReportingDetailsAndroid(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "BillingProgramReportingDetailsAndroid",
         "billingProgram" to billingProgram.toJson(),
+        "externalTransactionToken" to externalTransactionToken,
+    )
+}
+
+/**
+ * Details provided when user selects developer billing option (Android)
+ * Received via DeveloperProvidedBillingListener callback
+ * Available in Google Play Billing Library 8.3.0+
+ */
+public data class DeveloperProvidedBillingDetailsAndroid(
+    /**
+     * External transaction token used to report transactions made through developer billing.
+     * This token must be used when reporting the external transaction to Google Play.
+     * Must be reported within 24 hours of the transaction.
+     */
+    val externalTransactionToken: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DeveloperProvidedBillingDetailsAndroid {
+            return DeveloperProvidedBillingDetailsAndroid(
+                externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "DeveloperProvidedBillingDetailsAndroid",
         "externalTransactionToken" to externalTransactionToken,
     )
 }
@@ -2486,6 +2566,30 @@ public data class AndroidSubscriptionOfferInput(
     )
 }
 
+/**
+ * Parameters for creating billing program reporting details (Android)
+ * Used with createBillingProgramReportingDetailsAsync
+ * Available in Google Play Billing Library 8.3.0+
+ */
+public data class BillingProgramReportingDetailsParamsAndroid(
+    /**
+     * The billing program to create reporting details for
+     */
+    val billingProgram: BillingProgramAndroid
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BillingProgramReportingDetailsParamsAndroid {
+            return BillingProgramReportingDetailsParamsAndroid(
+                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "billingProgram" to billingProgram.toJson(),
+    )
+}
+
 public data class DeepLinkOptions(
     /**
      * Android package name to target (required on Android)
@@ -2508,6 +2612,42 @@ public data class DeepLinkOptions(
     fun toJson(): Map<String, Any?> = mapOf(
         "packageNameAndroid" to packageNameAndroid,
         "skuAndroid" to skuAndroid,
+    )
+}
+
+/**
+ * Parameters for developer billing option in purchase flow (Android)
+ * Used with BillingFlowParams to enable external payments flow
+ * Available in Google Play Billing Library 8.3.0+
+ */
+public data class DeveloperBillingOptionParamsAndroid(
+    /**
+     * The billing program (should be EXTERNAL_PAYMENTS for external payments flow)
+     */
+    val billingProgram: BillingProgramAndroid,
+    /**
+     * The launch mode for the external payment link
+     */
+    val launchMode: DeveloperBillingLaunchModeAndroid,
+    /**
+     * The URI where the external payment will be processed
+     */
+    val linkUri: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DeveloperBillingOptionParamsAndroid {
+            return DeveloperBillingOptionParamsAndroid(
+                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
+                launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) } ?: DeveloperBillingLaunchModeAndroid.Unspecified,
+                linkUri = json["linkUri"] as? String ?: "",
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "billingProgram" to billingProgram.toJson(),
+        "launchMode" to launchMode.toJson(),
+        "linkUri" to linkUri,
     )
 }
 
@@ -2667,6 +2807,12 @@ public data class PurchaseOptions(
 
 public data class RequestPurchaseAndroidProps(
     /**
+     * Developer billing option parameters for external payments flow (8.3.0+).
+     * When provided, the purchase flow will show a side-by-side choice between
+     * Google Play Billing and the developer's external payment option.
+     */
+    val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
+    /**
      * Personalized offer flag
      */
     val isOfferPersonalized: Boolean? = null,
@@ -2686,6 +2832,7 @@ public data class RequestPurchaseAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps {
             return RequestPurchaseAndroidProps(
+                developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) },
                 isOfferPersonalized = json["isOfferPersonalized"] as? Boolean,
                 obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
                 obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
@@ -2695,6 +2842,7 @@ public data class RequestPurchaseAndroidProps(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
+        "developerBillingOption" to developerBillingOption?.toJson(),
         "isOfferPersonalized" to isOfferPersonalized,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
@@ -2854,6 +3002,12 @@ public data class RequestPurchasePropsByPlatforms(
 
 public data class RequestSubscriptionAndroidProps(
     /**
+     * Developer billing option parameters for external payments flow (8.3.0+).
+     * When provided, the purchase flow will show a side-by-side choice between
+     * Google Play Billing and the developer's external payment option.
+     */
+    val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
+    /**
      * Personalized offer flag
      */
     val isOfferPersonalized: Boolean? = null,
@@ -2891,6 +3045,7 @@ public data class RequestSubscriptionAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps {
             return RequestSubscriptionAndroidProps(
+                developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) },
                 isOfferPersonalized = json["isOfferPersonalized"] as? Boolean,
                 obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
                 obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
@@ -2904,6 +3059,7 @@ public data class RequestSubscriptionAndroidProps(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
+        "developerBillingOption" to developerBillingOption?.toJson(),
         "isOfferPersonalized" to isOfferPersonalized,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,

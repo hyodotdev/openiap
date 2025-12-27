@@ -28,6 +28,11 @@ enum IapEvent {
   PurchaseError
   PromotedProductIOS
   UserChoiceBillingAndroid
+  """
+  Fired when user selects developer-provided billing option in external payments flow.
+  Available on Android with Google Play Billing Library 8.3.0+
+  """
+  DeveloperProvidedBillingAndroid
 }
 
 # Purchase verification providers

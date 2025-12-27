@@ -53,6 +53,7 @@ import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryPurchases
 import dev.hyo.openiap.helpers.restorePurchases as restorePurchasesHelper
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
@@ -83,7 +84,8 @@ import java.lang.ref.WeakReference
 class OpenIapModule(
     private val context: Context,
     private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
-    private var userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null
+    private var userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null,
+    private var developerProvidedBillingListener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener? = null
 ) : OpenIapProtocol, PurchasesUpdatedListener {
 
     companion object {
@@ -106,9 +108,10 @@ class OpenIapModule(
     private val purchaseUpdateListeners = mutableSetOf<OpenIapPurchaseUpdateListener>()
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
+    private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
 
-    // Billing programs enabled via enableBillingProgram (8.2.0+)
+    // Billing programs enabled via enableBillingProgram (8.2.0+, EXTERNAL_PAYMENTS in 8.3.0+)
     private val enabledBillingPrograms = mutableSetOf<BillingProgramAndroid>()
 
     override val initConnection: MutationInitConnectionHandler = { config ->
@@ -422,6 +425,7 @@ class OpenIapModule(
         val billingProgramConstant = when (program) {
             BillingProgramAndroid.ExternalContentLink -> 1 // EXTERNAL_CONTENT_LINK
             BillingProgramAndroid.ExternalOffer -> 3 // EXTERNAL_OFFER
+            BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
             BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot check availability for UNSPECIFIED program")
         }
 
@@ -490,6 +494,7 @@ class OpenIapModule(
         val billingProgramConstant = when (program) {
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
+            BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
             BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot create reporting details for UNSPECIFIED program")
         }
 
@@ -564,6 +569,7 @@ class OpenIapModule(
         val billingProgramConstant = when (params.billingProgram) {
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
+            BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
             BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot launch with UNSPECIFIED program")
         }
 
@@ -926,6 +932,11 @@ class OpenIapModule(
                         }
                     }
 
+                    // Apply developer billing option for external payments flow (8.3.0+)
+                    androidArgs.developerBillingOption?.let { developerBillingOption ->
+                        applyDeveloperBillingOption(flowBuilder, developerBillingOption)
+                    }
+
                     val result = client.launchBillingFlow(activity, flowBuilder.build())
                     OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -1182,6 +1193,14 @@ class OpenIapModule(
         userChoiceBillingListeners.remove(listener)
     }
 
+    override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
+        developerProvidedBillingListeners.add(listener)
+    }
+
+    override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
+        developerProvidedBillingListeners.remove(listener)
+    }
+
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<BillingPurchase>?) {
         OpenIapLog.d("onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}", TAG)
         if (purchases != null) {
@@ -1374,23 +1393,38 @@ class OpenIapModule(
             }
         }
 
-        // Enable billing programs (8.2.0+) for external content links and external offers
+        // Enable billing programs (8.2.0+, EXTERNAL_PAYMENTS in 8.3.0+)
         if (enabledBillingPrograms.isNotEmpty()) {
-            OpenIapLog.d("=== BILLING PROGRAMS INITIALIZATION (8.2.0+) ===", TAG)
+            OpenIapLog.d("=== BILLING PROGRAMS INITIALIZATION ===", TAG)
             for (program in enabledBillingPrograms) {
                 val programConstant = when (program) {
                     BillingProgramAndroid.ExternalContentLink -> 1
                     BillingProgramAndroid.ExternalOffer -> 3
+                    BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
                     BillingProgramAndroid.Unspecified -> continue
                 }
-                try {
-                    val method = builder.javaClass.getMethod("enableBillingProgram", Int::class.javaPrimitiveType)
-                    method.invoke(builder, programConstant)
-                    OpenIapLog.d("✓ Billing program enabled: $program (constant=$programConstant)", TAG)
-                } catch (e: NoSuchMethodException) {
-                    OpenIapLog.w("✗ enableBillingProgram not found. Requires Billing Library 8.2.0+", TAG)
-                } catch (e: Exception) {
-                    OpenIapLog.w("✗ Failed to enable billing program $program: ${e.message}", TAG)
+
+                // For EXTERNAL_PAYMENTS, we need to use EnableBillingProgramParams with DeveloperProvidedBillingListener
+                if (program == BillingProgramAndroid.ExternalPayments) {
+                    try {
+                        enableExternalPaymentsProgram(builder)
+                        OpenIapLog.d("✓ External Payments program enabled (8.3.0+)", TAG)
+                    } catch (e: NoSuchMethodException) {
+                        OpenIapLog.w("✗ EXTERNAL_PAYMENTS not found. Requires Billing Library 8.3.0+", TAG)
+                    } catch (e: Exception) {
+                        OpenIapLog.w("✗ Failed to enable EXTERNAL_PAYMENTS: ${e.message}", TAG)
+                    }
+                } else {
+                    // For other programs, use the simpler enableBillingProgram method
+                    try {
+                        val method = builder.javaClass.getMethod("enableBillingProgram", Int::class.javaPrimitiveType)
+                        method.invoke(builder, programConstant)
+                        OpenIapLog.d("✓ Billing program enabled: $program (constant=$programConstant)", TAG)
+                    } catch (e: NoSuchMethodException) {
+                        OpenIapLog.w("✗ enableBillingProgram not found. Requires Billing Library 8.2.0+", TAG)
+                    } catch (e: Exception) {
+                        OpenIapLog.w("✗ Failed to enable billing program $program: ${e.message}", TAG)
+                    }
                 }
             }
             OpenIapLog.d("=== END BILLING PROGRAMS INITIALIZATION ===", TAG)
@@ -1443,6 +1477,14 @@ class OpenIapModule(
      */
     override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
         userChoiceBillingListener = listener
+    }
+
+    /**
+     * Set legacy-style developer-provided billing listener for External Payments (8.3.0+ Japan only).
+     * @param listener Developer-provided billing listener or null to remove
+     */
+    override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
+        developerProvidedBillingListener = listener
     }
 
     /**
@@ -1506,6 +1548,155 @@ class OpenIapModule(
             OpenIapLog.w("SubscriptionProductReplacementParams class not found. Requires Billing Library 8.1.0+.", TAG)
         } catch (e: Exception) {
             OpenIapLog.e("Failed to apply SubscriptionProductReplacementParams: ${e.message}", e, TAG)
+        }
+    }
+
+    /**
+     * Enable EXTERNAL_PAYMENTS billing program with DeveloperProvidedBillingListener.
+     * This is the new API in Billing Library 8.3.0 for external payments (Japan only).
+     *
+     * @param builder The BillingClient.Builder to configure
+     */
+    private fun enableExternalPaymentsProgram(builder: BillingClient.Builder) {
+        OpenIapLog.d("=== EXTERNAL PAYMENTS INITIALIZATION (8.3.0+) ===", TAG)
+
+        // Create DeveloperProvidedBillingListener via reflection
+        val listenerClass = Class.forName("com.android.billingclient.api.DeveloperProvidedBillingListener")
+        val developerBillingListener = java.lang.reflect.Proxy.newProxyInstance(
+            listenerClass.classLoader,
+            arrayOf(listenerClass)
+        ) { _, method, args ->
+            if (method.name == "onUserSelectedDeveloperBilling") {
+                OpenIapLog.d("=== USER SELECTED DEVELOPER PROVIDED BILLING ===", TAG)
+                val billingDetails = args?.get(0)
+                OpenIapLog.d("DeveloperProvidedBillingDetails: $billingDetails", TAG)
+
+                // Extract external transaction token
+                try {
+                    val detailsClass = billingDetails?.javaClass
+                    val tokenMethod = detailsClass?.getMethod("getExternalTransactionToken")
+                    val externalToken = tokenMethod?.invoke(billingDetails) as? String
+
+                    if (externalToken != null) {
+                        OpenIapLog.d("External transaction token: $externalToken", TAG)
+
+                        // Create DeveloperProvidedBillingDetailsAndroid for the event
+                        val details = DeveloperProvidedBillingDetailsAndroid(
+                            externalTransactionToken = externalToken
+                        )
+
+                        // Notify all DeveloperProvidedBilling listeners
+                        for (listener in developerProvidedBillingListeners) {
+                            try {
+                                listener.onDeveloperProvidedBilling(details)
+                            } catch (e: Exception) {
+                                OpenIapLog.w("DeveloperProvidedBilling listener error: ${e.message}", TAG)
+                            }
+                        }
+                    } else {
+                        OpenIapLog.w("Failed to extract external transaction token", TAG)
+                    }
+                } catch (e: Exception) {
+                    OpenIapLog.w("Error processing developer billing details: ${e.message}", TAG)
+                    e.printStackTrace()
+                }
+                OpenIapLog.d("==========================================", TAG)
+            }
+            null
+        }
+
+        // Build EnableBillingProgramParams
+        val enableParamsClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams")
+        val enableParamsBuilderClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams\$Builder")
+
+        val newBuilderMethod = enableParamsClass.getMethod("newBuilder")
+        val enableBuilder = newBuilderMethod.invoke(null)
+
+        // Set billing program to EXTERNAL_PAYMENTS (constant = 4)
+        val setBillingProgramMethod = enableParamsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+        setBillingProgramMethod.invoke(enableBuilder, 4) // EXTERNAL_PAYMENTS
+
+        // Set developer provided billing listener
+        val setListenerMethod = enableParamsBuilderClass.getMethod("setDeveloperProvidedBillingListener", listenerClass)
+        setListenerMethod.invoke(enableBuilder, developerBillingListener)
+
+        // Build the params
+        val buildMethod = enableParamsBuilderClass.getMethod("build")
+        val enableParams = buildMethod.invoke(enableBuilder)
+
+        // Call enableBillingProgram on builder
+        val enableMethod = builder.javaClass.getMethod("enableBillingProgram", enableParamsClass)
+        enableMethod.invoke(builder, enableParams)
+
+        OpenIapLog.d("✓ DeveloperProvidedBillingListener registered", TAG)
+        OpenIapLog.d("=== END EXTERNAL PAYMENTS INITIALIZATION ===", TAG)
+    }
+
+    /**
+     * Apply DeveloperBillingOptionParams to BillingFlowParams builder.
+     * This enables the side-by-side choice between Google Play and developer billing.
+     *
+     * @param flowBuilder The BillingFlowParams.Builder to configure
+     * @param params The developer billing option parameters
+     */
+    private fun applyDeveloperBillingOption(
+        flowBuilder: BillingFlowParams.Builder,
+        params: DeveloperBillingOptionParamsAndroid
+    ) {
+        try {
+            OpenIapLog.d("Applying DeveloperBillingOption: program=${params.billingProgram}, launchMode=${params.launchMode}, uri=${params.linkUri}", TAG)
+
+            // Convert enums to constants
+            val billingProgramConstant = when (params.billingProgram) {
+                BillingProgramAndroid.ExternalPayments -> 4
+                BillingProgramAndroid.ExternalContentLink -> 1
+                BillingProgramAndroid.ExternalOffer -> 3
+                BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot use UNSPECIFIED billing program")
+            }
+
+            val launchModeConstant = when (params.launchMode) {
+                DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp -> 1
+                DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink -> 2
+                DeveloperBillingLaunchModeAndroid.Unspecified -> throw IllegalArgumentException("Cannot use UNSPECIFIED launch mode")
+            }
+
+            // Build DeveloperBillingOptionParams using reflection
+            val developerBillingParamsClass = Class.forName("com.android.billingclient.api.DeveloperBillingOptionParams")
+            val developerBillingBuilderClass = Class.forName("com.android.billingclient.api.DeveloperBillingOptionParams\$Builder")
+
+            val newBuilderMethod = developerBillingParamsClass.getMethod("newBuilder")
+            val developerBillingBuilder = newBuilderMethod.invoke(null)
+
+            // Set billing program
+            val setBillingProgramMethod = developerBillingBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+            setBillingProgramMethod.invoke(developerBillingBuilder, billingProgramConstant)
+
+            // Set link URI
+            val setLinkUriMethod = developerBillingBuilderClass.getMethod("setLinkUri", String::class.java)
+            setLinkUriMethod.invoke(developerBillingBuilder, params.linkUri)
+
+            // Set launch mode
+            val setLaunchModeMethod = developerBillingBuilderClass.getMethod("setLaunchMode", Int::class.javaPrimitiveType)
+            setLaunchModeMethod.invoke(developerBillingBuilder, launchModeConstant)
+
+            // Build the developer billing params
+            val buildMethod = developerBillingBuilderClass.getMethod("build")
+            val developerBillingParams = buildMethod.invoke(developerBillingBuilder)
+
+            // Apply to BillingFlowParams builder
+            val enableDeveloperBillingMethod = flowBuilder.javaClass.getMethod(
+                "enableDeveloperBillingOption",
+                developerBillingParamsClass
+            )
+            enableDeveloperBillingMethod.invoke(flowBuilder, developerBillingParams)
+
+            OpenIapLog.d("✓ DeveloperBillingOption applied successfully", TAG)
+        } catch (e: NoSuchMethodException) {
+            OpenIapLog.w("DeveloperBillingOption not found. Requires Billing Library 8.3.0+", TAG)
+        } catch (e: ClassNotFoundException) {
+            OpenIapLog.w("DeveloperBillingOptionParams class not found. Requires Billing Library 8.3.0+", TAG)
+        } catch (e: Exception) {
+            OpenIapLog.e("Failed to apply DeveloperBillingOption: ${e.message}", e, TAG)
         }
     }
 }

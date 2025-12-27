@@ -39,6 +39,10 @@ import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid
 import dev.hyo.openiap.ExternalLinkTypeAndroid
+import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
+import dev.hyo.openiap.DeveloperBillingLaunchModeAndroid
+import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.martie.util.findActivity
 import kotlinx.coroutines.delay
 
@@ -46,7 +50,8 @@ import kotlinx.coroutines.delay
 private enum class BillingModeOption {
     ALTERNATIVE_ONLY,       // Legacy 6.2+ API
     USER_CHOICE,           // Legacy 7.0+ API
-    BILLING_PROGRAMS       // New 8.2.0+ API (recommended)
+    BILLING_PROGRAMS,      // New 8.2.0+ API (recommended)
+    EXTERNAL_PAYMENTS      // New 8.3.0+ API (Japan only)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,6 +100,34 @@ fun AlternativeBillingScreen(navController: NavController) {
         } else {
             // Remove listener when not in USER_CHOICE mode
             iapStore.setUserChoiceBillingListener(null)
+        }
+    }
+
+    // Set up Developer Provided Billing listener for External Payments (8.3.0+)
+    LaunchedEffect(selectedMode) {
+        if (selectedMode == BillingModeOption.EXTERNAL_PAYMENTS) {
+            iapStore.addDeveloperProvidedBillingListener { details ->
+                android.util.Log.d("DeveloperBillingEvent", "=== Developer Provided Billing Event ===")
+                android.util.Log.d("DeveloperBillingEvent", "External Token: ${details.externalTransactionToken}")
+                android.util.Log.d("DeveloperBillingEvent", "========================================")
+
+                // Show result in UI
+                iapStore.postStatusMessage(
+                    message = "User selected developer billing (External Payments)\n\n" +
+                            "Token: ${details.externalTransactionToken.take(30)}...\n\n" +
+                            "⚠️ Next steps:\n" +
+                            "1. Process payment with your payment gateway\n" +
+                            "2. Report token to Google within 24 hours",
+                    status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
+                    productId = null
+                )
+
+                // TODO: Process payment with your payment system
+                // Then report externalTransactionToken to Google within 24 hours
+            }
+        } else {
+            // Remove listener when not in EXTERNAL_PAYMENTS mode
+            iapStore.setDeveloperProvidedBillingListener(null)
         }
     }
 
@@ -148,6 +181,12 @@ fun AlternativeBillingScreen(navController: NavController) {
                     // For 8.2.0+ Billing Programs, enable the program before connection
                     android.util.Log.d("AlternativeBillingScreen", "Enabling billing program: $selectedBillingProgram")
                     iapStore.enableBillingProgram(selectedBillingProgram)
+                    null // No special config needed, program is enabled separately
+                }
+                BillingModeOption.EXTERNAL_PAYMENTS -> {
+                    // For 8.3.0+ External Payments (Japan only), enable the program before connection
+                    android.util.Log.d("AlternativeBillingScreen", "Enabling External Payments program")
+                    iapStore.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
                     null // No special config needed, program is enabled separately
                 }
             }
@@ -275,6 +314,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                     BillingModeOption.ALTERNATIVE_ONLY -> "Alternative Billing Only (Legacy)"
                                     BillingModeOption.USER_CHOICE -> "User Choice Billing (Legacy)"
                                     BillingModeOption.BILLING_PROGRAMS -> "Billing Programs (8.2.0+)"
+                                    BillingModeOption.EXTERNAL_PAYMENTS -> "External Payments (8.3.0+ Japan)"
                                 },
                                 onValueChange = {},
                                 readOnly = true,
@@ -351,6 +391,26 @@ fun AlternativeBillingScreen(navController: NavController) {
                                         Icon(Icons.Default.Person, contentDescription = null)
                                     }
                                 )
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text("External Payments (8.3.0+)")
+                                            Text(
+                                                "Japan only - Side-by-side choice",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = AppColors.primary
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedProduct = null
+                                        selectedMode = BillingModeOption.EXTERNAL_PAYMENTS
+                                        isModeDropdownExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Language, contentDescription = null, tint = AppColors.primary)
+                                    }
+                                )
                             }
                         }
 
@@ -400,15 +460,24 @@ fun AlternativeBillingScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                if (selectedMode == BillingModeOption.BILLING_PROGRAMS) Icons.Default.Star else Icons.Default.Info,
+                                when (selectedMode) {
+                                    BillingModeOption.BILLING_PROGRAMS -> Icons.Default.Star
+                                    BillingModeOption.EXTERNAL_PAYMENTS -> Icons.Default.Language
+                                    else -> Icons.Default.Info
+                                },
                                 contentDescription = null,
-                                tint = if (selectedMode == BillingModeOption.BILLING_PROGRAMS) AppColors.success else AppColors.warning
+                                tint = when (selectedMode) {
+                                    BillingModeOption.BILLING_PROGRAMS -> AppColors.success
+                                    BillingModeOption.EXTERNAL_PAYMENTS -> AppColors.primary
+                                    else -> AppColors.warning
+                                }
                             )
                             Text(
                                 when (selectedMode) {
                                     BillingModeOption.BILLING_PROGRAMS -> "Billing Programs (8.2.0+)"
                                     BillingModeOption.ALTERNATIVE_ONLY -> "Alternative Billing Only (Legacy)"
                                     BillingModeOption.USER_CHOICE -> "User Choice Billing (Legacy)"
+                                    BillingModeOption.EXTERNAL_PAYMENTS -> "External Payments (8.3.0+ Japan)"
                                 },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
@@ -455,6 +524,23 @@ fun AlternativeBillingScreen(navController: NavController) {
                                     "  → UserChoiceBillingListener callback\n" +
                                     "  → Process payment → Report to Google"
                                 }
+                                BillingModeOption.EXTERNAL_PAYMENTS -> {
+                                    "External Payments (8.3.0+ Japan Only):\n\n" +
+                                    "🇯🇵 NEW: Japan-only program\n\n" +
+                                    "• Side-by-side choice in purchase dialog\n" +
+                                    "• Different from User Choice Billing:\n" +
+                                    "  - Shows during requestPurchase()\n" +
+                                    "  - Not a separate dialog\n\n" +
+                                    "• Flow:\n" +
+                                    "  1. enableBillingProgram(ExternalPayments)\n" +
+                                    "  2. addDeveloperProvidedBillingListener()\n" +
+                                    "  3. requestPurchase(developerBillingOption)\n" +
+                                    "  4. User sees side-by-side choice\n" +
+                                    "  5a. Google Play → onPurchaseSuccess\n" +
+                                    "  5b. Developer → DeveloperProvidedBillingListener\n" +
+                                    "  6. Process payment with your gateway\n" +
+                                    "  7. Report token to Google within 24h"
+                                }
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = AppColors.textSecondary
@@ -497,6 +583,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                         BillingModeOption.BILLING_PROGRAMS -> "Billing Programs"
                                         BillingModeOption.ALTERNATIVE_ONLY -> "Alternative Only"
                                         BillingModeOption.USER_CHOICE -> "User Choice"
+                                        BillingModeOption.EXTERNAL_PAYMENTS -> "External Payments"
                                     }})"
                                 } else "Disconnected",
                                 style = MaterialTheme.typography.bodySmall,
@@ -834,6 +921,85 @@ fun AlternativeBillingScreen(navController: NavController) {
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Text("Buy (Legacy User Choice)")
+                                }
+                            }
+
+                            BillingModeOption.EXTERNAL_PAYMENTS -> {
+                                // External Payments Button (8.3.0+ Japan only)
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            try {
+                                                iapStore.setActivity(activity)
+
+                                                // Step 1: Check if External Payments is available (Japan only)
+                                                val availabilityResult = iapStore.isBillingProgramAvailable(
+                                                    BillingProgramAndroid.ExternalPayments
+                                                )
+                                                if (!availabilityResult.isAvailable) {
+                                                    iapStore.postStatusMessage(
+                                                        "External Payments not available\n\n" +
+                                                        "Possible causes:\n" +
+                                                        "• Requires Billing Library 8.3.0+\n" +
+                                                        "• Only available in Japan\n" +
+                                                        "• Not configured in Play Console",
+                                                        PurchaseResultStatus.Error
+                                                    )
+                                                    return@launch
+                                                }
+
+                                                // Step 2: Request purchase with developerBillingOption
+                                                // User will see side-by-side choice dialog
+                                                val props = RequestPurchaseProps(
+                                                    request = RequestPurchaseProps.Request.Purchase(
+                                                        RequestPurchasePropsByPlatforms(
+                                                            google = RequestPurchaseAndroidProps(
+                                                                skus = listOf(selectedProduct!!.id),
+                                                                developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                                                                    billingProgram = BillingProgramAndroid.ExternalPayments,
+                                                                    linkUri = "https://example.com/checkout?product=${selectedProduct!!.id}",
+                                                                    launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
+                                                                )
+                                                            )
+                                                        )
+                                                    ),
+                                                    type = ProductQueryType.InApp
+                                                )
+
+                                                android.util.Log.d("ExternalPayments", "Launching purchase with External Payments option")
+                                                iapStore.requestPurchase(props)
+
+                                                // If user selects Google Play → onPurchaseSuccess callback
+                                                // If user selects Developer billing → DeveloperProvidedBillingListener callback
+                                                iapStore.postStatusMessage(
+                                                    "Purchase dialog launched with External Payments option\n\n" +
+                                                    "• If user selects Google Play → Normal purchase flow\n" +
+                                                    "• If user selects Developer billing → DeveloperProvidedBillingListener fires",
+                                                    PurchaseResultStatus.Info,
+                                                    selectedProduct!!.id
+                                                )
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("ExternalPayments", "External Payments error: ${e.message}", e)
+                                                iapStore.postStatusMessage(
+                                                    "External Payments failed: ${e.message}",
+                                                    PurchaseResultStatus.Error
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !status.isLoading && connectionStatus,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppColors.primary
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Language,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Buy (External Payments 8.3.0+)")
                                 }
                             }
                         }

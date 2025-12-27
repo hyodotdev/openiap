@@ -23,6 +23,145 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // External Payments 8.3.0 Support - Dec 27, 2025
+    {
+      id: 'external-payments-830',
+      date: new Date('2025-12-27'),
+      element: (
+        <div key="external-payments-830" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
+            📅 openiap-google v1.3.17 -{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#8-3-0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Play Billing 8.3.0 External Payments
+            </a>
+          </h4>
+          <p>
+            <strong>New External Payments Program (Japan Only):</strong>
+          </p>
+          <p>
+            Google Play Billing Library 8.3.0 introduces the External Payments
+            program, which presents a side-by-side choice between Google Play
+            Billing and the developer's external payment option directly in the
+            purchase flow.
+          </p>
+          <p>
+            <strong>New APIs:</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <code>BillingProgramAndroid.EXTERNAL_PAYMENTS</code>
+              </strong>{' '}
+              - New billing program type for external payments
+            </li>
+            <li>
+              <strong>
+                <code>DeveloperBillingOptionParamsAndroid</code>
+              </strong>{' '}
+              - Configure external payment option in purchase flow
+            </li>
+            <li>
+              <strong>
+                <code>DeveloperBillingLaunchModeAndroid</code>
+              </strong>{' '}
+              - How to launch the external payment link
+            </li>
+            <li>
+              <strong>
+                <code>DeveloperProvidedBillingDetailsAndroid</code>
+              </strong>{' '}
+              - Contains externalTransactionToken when user selects developer billing
+            </li>
+            <li>
+              <strong>
+                <code>addDeveloperProvidedBillingListener()</code>
+              </strong>{' '}
+              - New listener for when user selects developer billing
+            </li>
+            <li>
+              <strong>
+                <code>developerBillingOption</code>
+              </strong>{' '}
+              - New field in RequestPurchaseAndroidProps and RequestSubscriptionAndroidProps
+            </li>
+          </ul>
+          <p>
+            <strong>New Event:</strong>
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <code>IapEvent.DeveloperProvidedBillingAndroid</code>
+              </strong>{' '}
+              - Fired when user selects developer billing in External Payments flow
+            </li>
+          </ul>
+          <p>
+            <strong>Key Differences from User Choice Billing:</strong>
+          </p>
+          <table style={{ width: '100%', fontSize: '0.875rem' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '0.25rem' }}>Feature</th>
+                <th style={{ textAlign: 'left', padding: '0.25rem' }}>User Choice Billing</th>
+                <th style={{ textAlign: 'left', padding: '0.25rem' }}>External Payments</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '0.25rem' }}>Billing Library</td>
+                <td style={{ padding: '0.25rem' }}>7.0+</td>
+                <td style={{ padding: '0.25rem' }}>8.3.0+</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '0.25rem' }}>Availability</td>
+                <td style={{ padding: '0.25rem' }}>Eligible regions</td>
+                <td style={{ padding: '0.25rem' }}>Japan only</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '0.25rem' }}>UI</td>
+                <td style={{ padding: '0.25rem' }}>Separate dialog</td>
+                <td style={{ padding: '0.25rem' }}>Side-by-side in purchase dialog</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            <strong>References:</strong>
+          </p>
+          <ul>
+            <li>
+              <a
+                href="https://developer.android.com/google/play/billing/externalpaymentlinks"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                External Payment Links Documentation
+              </a>
+            </li>
+            <li>
+              <a href="/docs/features/external-purchase#external-payments-830---japan-only">
+                External Payments Implementation Guide
+              </a>
+            </li>
+            <li>
+              <a href="/docs/events#developer-provided-billing-event-android">
+                DeveloperProvidedBilling Event
+              </a>
+            </li>
+            <li>
+              <a href="/docs/types/alternative#billing-programs">
+                Billing Programs Types
+              </a>
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+
     // v1.3.16 Billing Library 8.2.1 - Dec 24, 2025
     {
       id: 'v1.3.16-billing-821',
