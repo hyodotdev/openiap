@@ -781,7 +781,7 @@ Future<void> handleAlternativeBillingPurchase(String productId) async {
   initConnection,
   requestPurchase,
   purchaseUpdatedListener,
-  userChoiceBillingListener,
+  userChoiceBillingListenerAndroid,
   type UserChoiceBillingDetails,
   type Purchase,
 } from 'expo-iap';
@@ -792,7 +792,7 @@ await initConnection({
 });
 
 // Set user choice billing listener (for alternative billing selection)
-const userChoiceSubscription = userChoiceBillingListener(
+const userChoiceSubscription = userChoiceBillingListenerAndroid(
   async (details: UserChoiceBillingDetails) => {
     console.log('User selected alternative billing');
     console.log('Token:', details.externalTransactionToken);
@@ -836,7 +836,7 @@ async function handleUserChoicePurchase(productId: string) {
     });
 
     // If user selects Google Play → purchaseUpdatedListener callback
-    // If user selects alternative → userChoiceBillingListener callback
+    // If user selects alternative → userChoiceBillingListenerAndroid callback
   } catch (error) {
     console.error('Purchase error:', error);
   }

@@ -1671,9 +1671,9 @@ class OpenIapModule(
             val setBillingProgramMethod = developerBillingBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
             setBillingProgramMethod.invoke(developerBillingBuilder, billingProgramConstant)
 
-            // Set link URI
-            val setLinkUriMethod = developerBillingBuilderClass.getMethod("setLinkUri", String::class.java)
-            setLinkUriMethod.invoke(developerBillingBuilder, params.linkUri)
+            // Set link URI (must use android.net.Uri, not String)
+            val setLinkUriMethod = developerBillingBuilderClass.getMethod("setLinkUri", android.net.Uri::class.java)
+            setLinkUriMethod.invoke(developerBillingBuilder, android.net.Uri.parse(params.linkUri))
 
             // Set launch mode
             val setLaunchModeMethod = developerBillingBuilderClass.getMethod("setLaunchMode", Int::class.javaPrimitiveType)

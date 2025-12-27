@@ -204,14 +204,14 @@ await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
             typescript: (
               <CodeBlock language="typescript">{`import {
   initConnection,
-  userChoiceBillingListener,
+  userChoiceBillingListenerAndroid,
   fetchProducts,
   requestPurchase,
   createAlternativeBillingToken,
 } from 'expo-iap';
 
 // Step 1: Set up listener for when user selects alternative billing
-const userChoiceSubscription = userChoiceBillingListener(async (details) => {
+const userChoiceSubscription = userChoiceBillingListenerAndroid(async (details) => {
   console.log('User chose alternative billing');
   console.log('Products:', details.products.map(p => p.productId));
   console.log('External Transaction Token:', details.externalTransactionToken);
@@ -247,7 +247,7 @@ await requestPurchase({
 });
 
 // If user selects Google Play → purchaseUpdatedListener fires
-// If user selects alternative → userChoiceBillingListener fires
+// If user selects alternative → userChoiceBillingListenerAndroid fires
 
 // Cleanup
 userChoiceSubscription.remove();`}</CodeBlock>

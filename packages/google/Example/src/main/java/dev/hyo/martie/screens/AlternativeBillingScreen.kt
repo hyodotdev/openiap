@@ -78,56 +78,68 @@ fun AlternativeBillingScreen(navController: NavController) {
         OpenIapStore(appContext)
     }
 
-    // Set up User Choice Billing listener when mode changes
-    LaunchedEffect(selectedMode) {
-        if (selectedMode == BillingModeOption.USER_CHOICE) {
-            iapStore.addUserChoiceBillingListener { details ->
-                android.util.Log.d("UserChoiceEvent", "=== User Choice Billing Event ===")
-                android.util.Log.d("UserChoiceEvent", "External Token: ${details.externalTransactionToken}")
-                android.util.Log.d("UserChoiceEvent", "Products: ${details.products}")
-                android.util.Log.d("UserChoiceEvent", "==============================")
+    // User Choice Billing listener (remembered to properly add/remove)
+    val userChoiceListener = remember {
+        dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener { details ->
+            android.util.Log.d("UserChoiceEvent", "=== User Choice Billing Event ===")
+            android.util.Log.d("UserChoiceEvent", "External Token: ${details.externalTransactionToken}")
+            android.util.Log.d("UserChoiceEvent", "Products: ${details.products}")
+            android.util.Log.d("UserChoiceEvent", "==============================")
 
-                // Show result in UI
-                iapStore.postStatusMessage(
-                    message = "User selected alternative billing\nToken: ${details.externalTransactionToken.take(20)}...\nProducts: ${details.products.joinToString()}",
-                    status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
-                    productId = details.products.firstOrNull()
-                )
+            // Show result in UI
+            iapStore.postStatusMessage(
+                message = "User selected alternative billing\nToken: ${details.externalTransactionToken.take(20)}...\nProducts: ${details.products.joinToString()}",
+                status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
+                productId = details.products.firstOrNull()
+            )
 
-                // TODO: Process payment with your payment system
-                // Then create token and report to backend
-            }
-        } else {
-            // Remove listener when not in USER_CHOICE mode
-            iapStore.setUserChoiceBillingListener(null)
+            // TODO: Process payment with your payment system
+            // Then create token and report to backend
         }
     }
 
-    // Set up Developer Provided Billing listener for External Payments (8.3.0+)
+    // Developer Provided Billing listener (remembered to properly add/remove)
+    val developerBillingListener = remember {
+        dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener { details ->
+            android.util.Log.d("DeveloperBillingEvent", "=== Developer Provided Billing Event ===")
+            android.util.Log.d("DeveloperBillingEvent", "External Token: ${details.externalTransactionToken}")
+            android.util.Log.d("DeveloperBillingEvent", "========================================")
+
+            // Show result in UI
+            iapStore.postStatusMessage(
+                message = "User selected developer billing (External Payments)\n\n" +
+                        "Token: ${details.externalTransactionToken.take(30)}...\n\n" +
+                        "⚠️ Next steps:\n" +
+                        "1. Process payment with your payment gateway\n" +
+                        "2. Report token to Google within 24 hours",
+                status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
+                productId = null
+            )
+
+            // TODO: Process payment with your payment system
+            // Then report externalTransactionToken to Google within 24 hours
+        }
+    }
+
+    // Set up User Choice Billing listener when mode changes (Play only)
     LaunchedEffect(selectedMode) {
-        if (selectedMode == BillingModeOption.EXTERNAL_PAYMENTS) {
-            iapStore.addDeveloperProvidedBillingListener { details ->
-                android.util.Log.d("DeveloperBillingEvent", "=== Developer Provided Billing Event ===")
-                android.util.Log.d("DeveloperBillingEvent", "External Token: ${details.externalTransactionToken}")
-                android.util.Log.d("DeveloperBillingEvent", "========================================")
+        if (isHorizon) return@LaunchedEffect // These listeners are not supported on Horizon
 
-                // Show result in UI
-                iapStore.postStatusMessage(
-                    message = "User selected developer billing (External Payments)\n\n" +
-                            "Token: ${details.externalTransactionToken.take(30)}...\n\n" +
-                            "⚠️ Next steps:\n" +
-                            "1. Process payment with your payment gateway\n" +
-                            "2. Report token to Google within 24 hours",
-                    status = dev.hyo.openiap.store.PurchaseResultStatus.Info,
-                    productId = null
-                )
-
-                // TODO: Process payment with your payment system
-                // Then report externalTransactionToken to Google within 24 hours
-            }
+        if (selectedMode == BillingModeOption.USER_CHOICE) {
+            iapStore.addUserChoiceBillingListener(userChoiceListener)
         } else {
-            // Remove listener when not in EXTERNAL_PAYMENTS mode
-            iapStore.setDeveloperProvidedBillingListener(null)
+            iapStore.removeUserChoiceBillingListener(userChoiceListener)
+        }
+    }
+
+    // Set up Developer Provided Billing listener for External Payments (8.3.0+, Play only)
+    LaunchedEffect(selectedMode) {
+        if (isHorizon) return@LaunchedEffect // External Payments is not supported on Horizon
+
+        if (selectedMode == BillingModeOption.EXTERNAL_PAYMENTS) {
+            iapStore.addDeveloperProvidedBillingListener(developerBillingListener)
+        } else {
+            iapStore.removeDeveloperProvidedBillingListener(developerBillingListener)
         }
     }
 
