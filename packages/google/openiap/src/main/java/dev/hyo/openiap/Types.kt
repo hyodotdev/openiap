@@ -3736,6 +3736,14 @@ public interface QueryResolver {
  */
 public interface SubscriptionResolver {
     /**
+     * Fires when a user selects developer billing in the External Payments flow (Android only)
+     * Triggered when the user chooses to pay via the developer's external payment option
+     * instead of Google Play Billing in the side-by-side choice dialog.
+     * Contains the externalTransactionToken needed to report the transaction.
+     * Available in Google Play Billing Library 8.3.0+
+     */
+    suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid
+    /**
      * Fires when the App Store surfaces a promoted product (iOS only)
      */
     suspend fun promotedProductIOS(): String
@@ -3856,12 +3864,14 @@ public data class QueryHandlers(
 
 // MARK: - Subscription Helpers
 
+public typealias SubscriptionDeveloperProvidedBillingAndroidHandler = suspend () -> DeveloperProvidedBillingDetailsAndroid
 public typealias SubscriptionPromotedProductIOSHandler = suspend () -> String
 public typealias SubscriptionPurchaseErrorHandler = suspend () -> PurchaseError
 public typealias SubscriptionPurchaseUpdatedHandler = suspend () -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = suspend () -> UserChoiceBillingDetails
 
 public data class SubscriptionHandlers(
+    val developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler? = null,
     val promotedProductIOS: SubscriptionPromotedProductIOSHandler? = null,
     val purchaseError: SubscriptionPurchaseErrorHandler? = null,
     val purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = null,

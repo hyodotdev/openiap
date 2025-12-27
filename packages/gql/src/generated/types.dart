@@ -4155,6 +4155,12 @@ abstract class QueryResolver {
 
 /// GraphQL root subscription operations.
 abstract class SubscriptionResolver {
+  /// Fires when a user selects developer billing in the External Payments flow (Android only)
+  /// Triggered when the user chooses to pay via the developer's external payment option
+  /// instead of Google Play Billing in the side-by-side choice dialog.
+  /// Contains the externalTransactionToken needed to report the transaction.
+  /// Available in Google Play Billing Library 8.3.0+
+  Future<DeveloperProvidedBillingDetailsAndroid> developerProvidedBillingAndroid();
   /// Fires when the App Store surfaces a promoted product (iOS only)
   Future<String> promotedProductIOS();
   /// Fires when a purchase fails or is cancelled
@@ -4351,6 +4357,7 @@ class QueryHandlers {
 
 // MARK: - Subscription Helpers
 
+typedef SubscriptionDeveloperProvidedBillingAndroidHandler = Future<DeveloperProvidedBillingDetailsAndroid> Function();
 typedef SubscriptionPromotedProductIOSHandler = Future<String> Function();
 typedef SubscriptionPurchaseErrorHandler = Future<PurchaseError> Function();
 typedef SubscriptionPurchaseUpdatedHandler = Future<Purchase> Function();
@@ -4358,12 +4365,14 @@ typedef SubscriptionUserChoiceBillingAndroidHandler = Future<UserChoiceBillingDe
 
 class SubscriptionHandlers {
   const SubscriptionHandlers({
+    this.developerProvidedBillingAndroid,
     this.promotedProductIOS,
     this.purchaseError,
     this.purchaseUpdated,
     this.userChoiceBillingAndroid,
   });
 
+  final SubscriptionDeveloperProvidedBillingAndroidHandler? developerProvidedBillingAndroid;
   final SubscriptionPromotedProductIOSHandler? promotedProductIOS;
   final SubscriptionPurchaseErrorHandler? purchaseError;
   final SubscriptionPurchaseUpdatedHandler? purchaseUpdated;

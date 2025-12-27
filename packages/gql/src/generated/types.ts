@@ -1135,6 +1135,14 @@ export interface RequestVerifyPurchaseWithIapkitResult {
 }
 
 export interface Subscription {
+  /**
+   * Fires when a user selects developer billing in the External Payments flow (Android only)
+   * Triggered when the user chooses to pay via the developer's external payment option
+   * instead of Google Play Billing in the side-by-side choice dialog.
+   * Contains the externalTransactionToken needed to report the transaction.
+   * Available in Google Play Billing Library 8.3.0+
+   */
+  developerProvidedBillingAndroid: DeveloperProvidedBillingDetailsAndroid;
   /** Fires when the App Store surfaces a promoted product (iOS only) */
   promotedProductIOS: string;
   /** Fires when a purchase fails or is cancelled */
@@ -1432,6 +1440,7 @@ export type MutationFieldMap = {
 
 // -- Subscription helper types (auto-generated)
 export type SubscriptionArgsMap = {
+  developerProvidedBillingAndroid: never;
   promotedProductIOS: never;
   purchaseError: never;
   purchaseUpdated: never;

@@ -1982,6 +1982,12 @@ public protocol QueryResolver {
 
 /// GraphQL root subscription operations.
 public protocol SubscriptionResolver {
+    /// Fires when a user selects developer billing in the External Payments flow (Android only)
+    /// Triggered when the user chooses to pay via the developer's external payment option
+    /// instead of Google Play Billing in the side-by-side choice dialog.
+    /// Contains the externalTransactionToken needed to report the transaction.
+    /// Available in Google Play Billing Library 8.3.0+
+    func developerProvidedBillingAndroid() async throws -> DeveloperProvidedBillingDetailsAndroid
     /// Fires when the App Store surfaces a promoted product (iOS only)
     func promotedProductIOS() async throws -> String
     /// Fires when a purchase fails or is cancelled
@@ -2189,23 +2195,27 @@ public struct QueryHandlers {
 
 // MARK: - Subscription Helpers
 
+public typealias SubscriptionDeveloperProvidedBillingAndroidHandler = () async throws -> DeveloperProvidedBillingDetailsAndroid
 public typealias SubscriptionPromotedProductIOSHandler = () async throws -> String
 public typealias SubscriptionPurchaseErrorHandler = () async throws -> PurchaseError
 public typealias SubscriptionPurchaseUpdatedHandler = () async throws -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = () async throws -> UserChoiceBillingDetails
 
 public struct SubscriptionHandlers {
+    public var developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler?
     public var promotedProductIOS: SubscriptionPromotedProductIOSHandler?
     public var purchaseError: SubscriptionPurchaseErrorHandler?
     public var purchaseUpdated: SubscriptionPurchaseUpdatedHandler?
     public var userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler?
 
     public init(
+        developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler? = nil,
         promotedProductIOS: SubscriptionPromotedProductIOSHandler? = nil,
         purchaseError: SubscriptionPurchaseErrorHandler? = nil,
         purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = nil,
         userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = nil
     ) {
+        self.developerProvidedBillingAndroid = developerProvidedBillingAndroid
         self.promotedProductIOS = promotedProductIOS
         self.purchaseError = purchaseError
         self.purchaseUpdated = purchaseUpdated
