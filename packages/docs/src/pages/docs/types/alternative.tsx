@@ -710,7 +710,7 @@ if (paymentResult.success) {
   enableBillingProgramAndroid,
   isBillingProgramAvailableAndroid,
   requestPurchase,
-  developerProvidedBillingListener,
+  developerProvidedBillingListenerAndroid,
 } from 'expo-iap';
 
 // Enable External Payments before initConnection
@@ -719,7 +719,7 @@ enableBillingProgramAndroid('EXTERNAL_PAYMENTS');
 await initConnection();
 
 // Listen for developer billing selection
-developerProvidedBillingListener((details) => {
+developerProvidedBillingListenerAndroid((details) => {
   console.log('Token:', details.externalTransactionToken);
   // Report token to Google via your backend within 24 hours
 });

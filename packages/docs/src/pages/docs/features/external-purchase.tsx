@@ -1305,7 +1305,7 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
   isBillingProgramAvailableAndroid,
   requestPurchase,
   createBillingProgramReportingDetailsAndroid,
-  developerProvidedBillingListener,
+  developerProvidedBillingListenerAndroid,
   type DeveloperProvidedBillingDetails,
 } from 'expo-iap';
 
@@ -1315,7 +1315,7 @@ enableBillingProgramAndroid('EXTERNAL_PAYMENTS');
 await initConnection();
 
 // Step 1: Set up listener for when user selects developer billing
-const developerBillingSubscription = developerProvidedBillingListener(
+const developerBillingSubscription = developerProvidedBillingListenerAndroid(
   async (details: DeveloperProvidedBillingDetails) => {
     console.log('User selected developer billing');
     console.log('External transaction token:', details.externalTransactionToken);
@@ -1370,7 +1370,7 @@ async function handlePurchaseWithExternalPayments(productId: string) {
     });
 
     // If user selects Google Play → purchaseUpdatedListener callback
-    // If user selects developer billing → developerProvidedBillingListener callback
+    // If user selects developer billing → developerProvidedBillingListenerAndroid callback
   } catch (error) {
     console.error('Purchase error:', error);
   }

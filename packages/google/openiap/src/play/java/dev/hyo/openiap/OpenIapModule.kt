@@ -1329,7 +1329,21 @@ class OpenIapModule(
                                         products = productIds
                                     )
 
-                                    // Notify all UserChoiceBilling listeners
+                                    // Notify legacy-style listener (set via constructor or setUserChoiceBillingListener)
+                                    userChoiceBillingListener?.let { legacyListener ->
+                                        try {
+                                            legacyListener.onUserSelectedAlternativeBilling(
+                                                dev.hyo.openiap.listener.UserChoiceDetails(
+                                                    externalTransactionToken = externalToken,
+                                                    products = productIds
+                                                )
+                                            )
+                                        } catch (e: Exception) {
+                                            OpenIapLog.w("Legacy UserChoiceBilling listener error: ${e.message}", TAG)
+                                        }
+                                    }
+
+                                    // Notify all UserChoiceBilling listeners (added via addUserChoiceBillingListener)
                                     for (listener in userChoiceBillingListeners) {
                                         try {
                                             listener.onUserChoiceBilling(billingDetails)
@@ -1585,7 +1599,20 @@ class OpenIapModule(
                             externalTransactionToken = externalToken
                         )
 
-                        // Notify all DeveloperProvidedBilling listeners
+                        // Notify legacy-style listener (set via constructor or setDeveloperProvidedBillingListener)
+                        developerProvidedBillingListener?.let { legacyListener ->
+                            try {
+                                legacyListener.onUserSelectedDeveloperBilling(
+                                    dev.hyo.openiap.listener.DeveloperProvidedBillingDetails(
+                                        externalTransactionToken = externalToken
+                                    )
+                                )
+                            } catch (e: Exception) {
+                                OpenIapLog.w("Legacy DeveloperProvidedBilling listener error: ${e.message}", TAG)
+                            }
+                        }
+
+                        // Notify all DeveloperProvidedBilling listeners (added via addDeveloperProvidedBillingListener)
                         for (listener in developerProvidedBillingListeners) {
                             try {
                                 listener.onDeveloperProvidedBilling(details)
