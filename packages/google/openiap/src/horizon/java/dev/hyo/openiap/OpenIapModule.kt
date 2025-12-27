@@ -18,6 +18,7 @@ import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
 import com.meta.horizon.billingclient.api.PurchasesUpdatedListener
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams
 import com.meta.horizon.billingclient.api.QueryPurchasesParams
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
@@ -103,6 +104,8 @@ class OpenIapModule(
 
     private val purchaseUpdateListeners = mutableSetOf<OpenIapPurchaseUpdateListener>()
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
+    private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
+    private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
 
     init {
         // DO NOT build BillingClient here - React Native context doesn't have Activity yet
@@ -1015,18 +1018,30 @@ class OpenIapModule(
     }
 
     override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
-        // Not supported on Horizon
+        throw UnsupportedOperationException("setUserChoiceBillingListener is not supported on Meta Horizon. User Choice Billing is a Google Play feature.")
+    }
+
+    override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
+        throw UnsupportedOperationException("setDeveloperProvidedBillingListener is not supported on Meta Horizon. External Payments is a Google Play 8.3.0+ feature (Japan only).")
     }
 
     override fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
-        // Not supported on Horizon
+        throw UnsupportedOperationException("addUserChoiceBillingListener is not supported on Meta Horizon. User Choice Billing is a Google Play feature.")
     }
 
     override fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
-        // Not supported on Horizon
+        throw UnsupportedOperationException("removeUserChoiceBillingListener is not supported on Meta Horizon. User Choice Billing is a Google Play feature.")
     }
 
-    // Billing Programs (8.2.0+) - Not supported on Horizon
+    override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
+        throw UnsupportedOperationException("addDeveloperProvidedBillingListener is not supported on Meta Horizon. External Payments is a Google Play 8.3.0+ feature (Japan only).")
+    }
+
+    override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
+        throw UnsupportedOperationException("removeDeveloperProvidedBillingListener is not supported on Meta Horizon. External Payments is a Google Play 8.3.0+ feature (Japan only).")
+    }
+
+    // Billing Programs (8.2.0+, EXTERNAL_PAYMENTS 8.3.0+) - Not supported on Horizon
     override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
         OpenIapLog.w("isBillingProgramAvailable not supported on Horizon", TAG)
         return BillingProgramAvailabilityResultAndroid(

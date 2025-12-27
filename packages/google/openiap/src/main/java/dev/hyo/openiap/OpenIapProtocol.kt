@@ -1,6 +1,8 @@
 package dev.hyo.openiap
 
 import android.app.Activity
+import dev.hyo.openiap.listener.DeveloperProvidedBillingListener
+import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
@@ -50,6 +52,21 @@ interface OpenIapProtocol {
     fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?)
     fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
     fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
+
+    // Developer Provided Billing (Google Play Billing Library 8.3.0+)
+    /**
+     * Set a legacy-style developer-provided billing listener for External Payments (8.3.0+ Japan only).
+     * This is called when user selects developer billing in the side-by-side choice dialog.
+     *
+     * @param listener Developer-provided billing listener or null to remove
+     */
+    fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?)
+    /**
+     * Add listener for developer-provided billing selection events.
+     * Called when user selects the developer's billing option in external payments flow.
+     */
+    fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
+    fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
 
     // Billing Programs (Google Play Billing Library 8.2.0+)
     /**

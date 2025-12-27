@@ -184,6 +184,16 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         module.setUserChoiceBillingListener(listener)
     }
 
+    /**
+     * Set a developer-provided billing listener for External Payments (8.3.0+ Japan only).
+     * This is called when user selects developer billing in the side-by-side choice dialog.
+     *
+     * @param listener Developer-provided billing listener or null to remove
+     */
+    fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
+        module.setDeveloperProvidedBillingListener(listener)
+    }
+
     // Expose a way to set the current Activity for purchase flows
     fun setActivity(activity: Activity?) {
         module.setActivity(activity)
@@ -492,6 +502,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) = module.removePurchaseErrorListener(listener)
     fun addUserChoiceBillingListener(listener: dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener) = module.addUserChoiceBillingListener(listener)
     fun removeUserChoiceBillingListener(listener: dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener) = module.removeUserChoiceBillingListener(listener)
+    fun addDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener) = module.addDeveloperProvidedBillingListener(listener)
+    fun removeDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener) = module.removeDeveloperProvidedBillingListener(listener)
 
     // -------------------------------------------------------------------------
     // Status helpers

@@ -63,6 +63,7 @@ export function MenuDropdown({
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
+          padding: '0.4rem 0',
         }}
       >
         <button

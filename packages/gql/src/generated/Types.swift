@@ -20,8 +20,8 @@ public enum AlternativeBillingModeAndroid: String, Codable, CaseIterable {
     case alternativeOnly = "alternative-only"
 }
 
-/// Billing program types for external content links and external offers (Android)
-/// Available in Google Play Billing Library 8.2.0+
+/// Billing program types for external content links, external offers, and external payments (Android)
+/// Available in Google Play Billing Library 8.2.0+, EXTERNAL_PAYMENTS added in 8.3.0
 public enum BillingProgramAndroid: String, Codable, CaseIterable {
     /// Unspecified billing program. Do not use.
     case unspecified = "unspecified"
@@ -31,6 +31,25 @@ public enum BillingProgramAndroid: String, Codable, CaseIterable {
     /// External Offers program.
     /// Allows offering digital content purchases outside the app.
     case externalOffer = "external-offer"
+    /// External Payments program (Japan only).
+    /// Allows presenting a side-by-side choice between Google Play Billing and developer's external payment option.
+    /// Users can choose to complete the purchase on the developer's website.
+    /// Available in Google Play Billing Library 8.3.0+
+    case externalPayments = "external-payments"
+}
+
+/// Launch mode for developer billing option (Android)
+/// Determines how the external payment URL is launched
+/// Available in Google Play Billing Library 8.3.0+
+public enum DeveloperBillingLaunchModeAndroid: String, Codable, CaseIterable {
+    /// Unspecified launch mode. Do not use.
+    case unspecified = "unspecified"
+    /// Google Play will launch the link in an external browser or eligible app.
+    /// Use this when you want Play to handle launching the external payment URL.
+    case launchInExternalBrowserOrApp = "launch-in-external-browser-or-app"
+    /// The caller app will launch the link after Play returns control.
+    /// Use this when you want to handle launching the external payment URL yourself.
+    case callerWillLaunchLink = "caller-will-launch-link"
 }
 
 public enum ErrorCode: String, Codable, CaseIterable {
@@ -194,6 +213,9 @@ public enum IapEvent: String, Codable, CaseIterable {
     case purchaseError = "purchase-error"
     case promotedProductIos = "promoted-product-ios"
     case userChoiceBillingAndroid = "user-choice-billing-android"
+    /// Fired when user selects developer-provided billing option in external payments flow.
+    /// Available on Android with Google Play Billing Library 8.3.0+
+    case developerProvidedBillingAndroid = "developer-provided-billing-android"
 }
 
 /// Unified purchase states from IAPKit verification response.
@@ -398,6 +420,16 @@ public struct BillingProgramReportingDetailsAndroid: Codable {
     public var billingProgram: BillingProgramAndroid
     /// External transaction token used to report transactions made outside of Google Play Billing.
     /// This token must be used when reporting the external transaction to Google.
+    public var externalTransactionToken: String
+}
+
+/// Details provided when user selects developer billing option (Android)
+/// Received via DeveloperProvidedBillingListener callback
+/// Available in Google Play Billing Library 8.3.0+
+public struct DeveloperProvidedBillingDetailsAndroid: Codable {
+    /// External transaction token used to report transactions made through developer billing.
+    /// This token must be used when reporting the external transaction to Google Play.
+    /// Must be reported within 24 hours of the transaction.
     public var externalTransactionToken: String
 }
 
@@ -896,6 +928,20 @@ public struct AndroidSubscriptionOfferInput: Codable {
     }
 }
 
+/// Parameters for creating billing program reporting details (Android)
+/// Used with createBillingProgramReportingDetailsAsync
+/// Available in Google Play Billing Library 8.3.0+
+public struct BillingProgramReportingDetailsParamsAndroid: Codable {
+    /// The billing program to create reporting details for
+    public var billingProgram: BillingProgramAndroid
+
+    public init(
+        billingProgram: BillingProgramAndroid
+    ) {
+        self.billingProgram = billingProgram
+    }
+}
+
 public struct DeepLinkOptions: Codable {
     /// Android package name to target (required on Android)
     public var packageNameAndroid: String?
@@ -908,6 +954,28 @@ public struct DeepLinkOptions: Codable {
     ) {
         self.packageNameAndroid = packageNameAndroid
         self.skuAndroid = skuAndroid
+    }
+}
+
+/// Parameters for developer billing option in purchase flow (Android)
+/// Used with BillingFlowParams to enable external payments flow
+/// Available in Google Play Billing Library 8.3.0+
+public struct DeveloperBillingOptionParamsAndroid: Codable {
+    /// The billing program (should be EXTERNAL_PAYMENTS for external payments flow)
+    public var billingProgram: BillingProgramAndroid
+    /// The launch mode for the external payment link
+    public var launchMode: DeveloperBillingLaunchModeAndroid
+    /// The URI where the external payment will be processed
+    public var linkUri: String
+
+    public init(
+        billingProgram: BillingProgramAndroid,
+        launchMode: DeveloperBillingLaunchModeAndroid,
+        linkUri: String
+    ) {
+        self.billingProgram = billingProgram
+        self.launchMode = launchMode
+        self.linkUri = linkUri
     }
 }
 
@@ -1032,6 +1100,10 @@ public struct PurchaseOptions: Codable {
 }
 
 public struct RequestPurchaseAndroidProps: Codable {
+    /// Developer billing option parameters for external payments flow (8.3.0+).
+    /// When provided, the purchase flow will show a side-by-side choice between
+    /// Google Play Billing and the developer's external payment option.
+    public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
     /// Personalized offer flag
     public var isOfferPersonalized: Bool?
     /// Obfuscated account ID
@@ -1042,11 +1114,13 @@ public struct RequestPurchaseAndroidProps: Codable {
     public var skus: [String]
 
     public init(
+        developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
         isOfferPersonalized: Bool? = nil,
         obfuscatedAccountIdAndroid: String? = nil,
         obfuscatedProfileIdAndroid: String? = nil,
         skus: [String]
     ) {
+        self.developerBillingOption = developerBillingOption
         self.isOfferPersonalized = isOfferPersonalized
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
         self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
@@ -1188,6 +1262,10 @@ public struct RequestPurchasePropsByPlatforms: Codable {
 }
 
 public struct RequestSubscriptionAndroidProps: Codable {
+    /// Developer billing option parameters for external payments flow (8.3.0+).
+    /// When provided, the purchase flow will show a side-by-side choice between
+    /// Google Play Billing and the developer's external payment option.
+    public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
     /// Personalized offer flag
     public var isOfferPersonalized: Bool?
     /// Obfuscated account ID
@@ -1208,6 +1286,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
     public var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?
 
     public init(
+        developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
         isOfferPersonalized: Bool? = nil,
         obfuscatedAccountIdAndroid: String? = nil,
         obfuscatedProfileIdAndroid: String? = nil,
@@ -1217,6 +1296,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
         subscriptionOffers: [AndroidSubscriptionOfferInput]? = nil,
         subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = nil
     ) {
+        self.developerBillingOption = developerBillingOption
         self.isOfferPersonalized = isOfferPersonalized
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
         self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid

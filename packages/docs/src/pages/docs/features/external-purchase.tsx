@@ -59,7 +59,7 @@ function ExternalPurchase() {
               <td>Android</td>
               <td>Alternative Billing / Billing Programs</td>
               <td>Android 6.0+ (API 23)</td>
-              <td>Google Play Billing 6.2+ (legacy), 8.2.0+ (recommended)</td>
+              <td>Google Play Billing 6.2+ (legacy), 8.2.0+ (recommended), 8.3.0+ (External Payments)</td>
             </tr>
           </tbody>
         </table>
@@ -781,7 +781,7 @@ Future<void> handleAlternativeBillingPurchase(String productId) async {
   initConnection,
   requestPurchase,
   purchaseUpdatedListener,
-  userChoiceBillingListener,
+  userChoiceBillingListenerAndroid,
   type UserChoiceBillingDetails,
   type Purchase,
 } from 'expo-iap';
@@ -792,7 +792,7 @@ await initConnection({
 });
 
 // Set user choice billing listener (for alternative billing selection)
-const userChoiceSubscription = userChoiceBillingListener(
+const userChoiceSubscription = userChoiceBillingListenerAndroid(
   async (details: UserChoiceBillingDetails) => {
     console.log('User selected alternative billing');
     console.log('Token:', details.externalTransactionToken);
@@ -836,7 +836,7 @@ async function handleUserChoicePurchase(productId: string) {
     });
 
     // If user selects Google Play → purchaseUpdatedListener callback
-    // If user selects alternative → userChoiceBillingListener callback
+    // If user selects alternative → userChoiceBillingListenerAndroid callback
   } catch (error) {
     console.error('Purchase error:', error);
   }
@@ -1253,6 +1253,387 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
                     <tr>
                       <td><code>enableAlternativeBillingOnly()</code></td>
                       <td><code>enableBillingProgram(program)</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h4>External Payments (8.3.0+ - Japan Only)</h4>
+                <p>
+                  Google Play Billing Library 8.3.0 introduces the{' '}
+                  <strong>External Payments</strong> program, currently available
+                  only in Japan. This presents a side-by-side choice between Google
+                  Play Billing and the developer's external payment option directly
+                  in the purchase flow.
+                </p>
+
+                <div className="alert-card alert-card--info">
+                  <p>
+                    <strong>ℹ️ Availability:</strong> The External Payments program
+                    is currently only available in Japan. Users in other regions
+                    will not see the developer billing option. Check{' '}
+                    <code>isBillingProgramAvailable(EXTERNAL_PAYMENTS)</code> to
+                    verify availability.
+                  </p>
+                </div>
+
+                <h5>Key Differences from Other Programs</h5>
+                <ul>
+                  <li>
+                    <strong>Side-by-side choice:</strong> User sees both Google Play
+                    and developer payment options in the same purchase dialog
+                  </li>
+                  <li>
+                    <strong>DeveloperProvidedBillingListener:</strong> New callback
+                    when user selects developer billing (different from UserChoiceBillingListener)
+                  </li>
+                  <li>
+                    <strong>DeveloperBillingOptionParams:</strong> Configure the
+                    developer billing option in BillingFlowParams
+                  </li>
+                  <li>
+                    <strong>EnableBillingProgramParams:</strong> Required to enable
+                    EXTERNAL_PAYMENTS with DeveloperProvidedBillingListener
+                  </li>
+                </ul>
+
+                <LanguageTabs>
+                  {{
+                    typescript: (
+                      <CodeBlock language="typescript">{`import {
+  initConnection,
+  enableBillingProgramAndroid,
+  isBillingProgramAvailableAndroid,
+  requestPurchase,
+  createBillingProgramReportingDetailsAndroid,
+  developerProvidedBillingListenerAndroid,
+  type DeveloperProvidedBillingDetails,
+} from 'expo-iap';
+
+// Step 0: Enable External Payments program BEFORE initConnection
+enableBillingProgramAndroid('EXTERNAL_PAYMENTS');
+
+await initConnection();
+
+// Step 1: Set up listener for when user selects developer billing
+const developerBillingSubscription = developerProvidedBillingListenerAndroid(
+  async (details: DeveloperProvidedBillingDetails) => {
+    console.log('User selected developer billing');
+    console.log('External transaction token:', details.externalTransactionToken);
+
+    try {
+      // Step 2: Process payment with your backend
+      const paymentResult = await yourBackend.createPayment({
+        productId: currentProductId,
+        userId,
+        amount: productPrice,
+      });
+
+      if (paymentResult.success) {
+        // Step 3: Report the external transaction token to Google
+        // This must be done within 24 hours
+        await yourBackend.reportExternalTransaction({
+          token: details.externalTransactionToken,
+          orderId: paymentResult.orderId,
+          productId: currentProductId,
+        });
+
+        console.log('External payment completed and reported!');
+      }
+    } catch (error) {
+      console.error('External payment error:', error);
+    }
+  }
+);
+
+// Purchase flow with External Payments
+async function handlePurchaseWithExternalPayments(productId: string) {
+  try {
+    // Check if External Payments is available (Japan only)
+    const result = await isBillingProgramAvailableAndroid('EXTERNAL_PAYMENTS');
+    if (!result.isAvailable) {
+      console.log('External Payments not available (not in Japan)');
+      // Fall back to standard Google Play purchase
+      return;
+    }
+
+    // Launch purchase with developer billing option
+    // User will see side-by-side choice dialog
+    await requestPurchase({
+      google: {
+        skus: [productId],
+        developerBillingOption: {
+          billingProgram: 'EXTERNAL_PAYMENTS',
+          linkUri: 'https://your-payment-site.com/checkout',
+          launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
+        },
+      },
+    });
+
+    // If user selects Google Play → purchaseUpdatedListener callback
+    // If user selects developer billing → developerProvidedBillingListenerAndroid callback
+  } catch (error) {
+    console.error('Purchase error:', error);
+  }
+}
+
+// Clean up when done
+// developerBillingSubscription.remove();`}</CodeBlock>
+                    ),
+                    kotlin: (
+                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
+import dev.hyo.openiap.BillingProgramAndroid
+import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
+import dev.hyo.openiap.DeveloperBillingLaunchModeAndroid
+import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
+import dev.hyo.openiap.RequestPurchaseProps
+import dev.hyo.openiap.ProductQueryType
+
+// Initialize store
+val iapStore = OpenIapStore(context = applicationContext)
+
+// Step 0: Enable External Payments program BEFORE initConnection
+iapStore.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
+
+iapStore.initConnection(null)
+
+// Step 1: Set up listener for when user selects developer billing
+iapStore.addDeveloperProvidedBillingListener { details ->
+    Log.d("IAP", "User selected developer billing")
+    Log.d("IAP", "External transaction token: \${details.externalTransactionToken}")
+
+    // Step 2: Process payment with your backend
+    lifecycleScope.launch {
+        try {
+            val paymentResult = yourBackend.createPayment(
+                productId = currentProductId,
+                userId = userId,
+                amount = productPrice
+            )
+
+            if (paymentResult.success) {
+                // Step 3: Report the external transaction token to Google
+                // This must be done within 24 hours
+                yourBackend.reportExternalTransaction(
+                    token = details.externalTransactionToken,
+                    orderId = paymentResult.orderId,
+                    productId = currentProductId
+                )
+
+                Log.d("IAP", "External payment completed and reported!")
+            }
+        } catch (e: Exception) {
+            Log.e("IAP", "External payment error: \${e.message}")
+        }
+    }
+}
+
+// Purchase flow with External Payments
+suspend fun handlePurchaseWithExternalPayments(productId: String) {
+    try {
+        // Check if External Payments is available (Japan only)
+        val result = iapStore.isBillingProgramAvailable(
+            BillingProgramAndroid.ExternalPayments
+        )
+        if (!result.isAvailable) {
+            Log.w("IAP", "External Payments not available (not in Japan)")
+            // Fall back to standard Google Play purchase
+            return
+        }
+
+        iapStore.setActivity(activity)
+
+        // Launch purchase with developer billing option
+        // User will see side-by-side choice dialog
+        val props = RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(
+                        skus = listOf(productId),
+                        developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                            billingProgram = BillingProgramAndroid.ExternalPayments,
+                            linkUri = "https://your-payment-site.com/checkout",
+                            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
+                        )
+                    )
+                )
+            ),
+            type = ProductQueryType.InApp
+        )
+
+        iapStore.requestPurchase(props)
+
+        // If user selects Google Play → onPurchaseSuccess callback
+        // If user selects developer billing → DeveloperProvidedBillingListener callback
+    } catch (e: Exception) {
+        Log.e("IAP", "Purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
+                    dart: (
+                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+// Step 0: Enable External Payments program BEFORE initConnection
+FlutterInappPurchase.instance.enableBillingProgramAndroid(
+  BillingProgramAndroid.externalPayments,
+);
+
+await FlutterInappPurchase.instance.initConnection();
+
+// Step 1: Set up listener for when user selects developer billing
+FlutterInappPurchase.developerProvidedBillingStream.listen((details) async {
+  print('User selected developer billing');
+  print('External transaction token: \${details.externalTransactionToken}');
+
+  try {
+    // Step 2: Process payment with your backend
+    final paymentResult = await yourBackend.createPayment(
+      productId: currentProductId,
+      userId: userId,
+      amount: productPrice,
+    );
+
+    if (paymentResult.success) {
+      // Step 3: Report the external transaction token to Google
+      // This must be done within 24 hours
+      await yourBackend.reportExternalTransaction(
+        token: details.externalTransactionToken,
+        orderId: paymentResult.orderId,
+        productId: currentProductId,
+      );
+
+      print('External payment completed and reported!');
+    }
+  } catch (e) {
+    print('External payment error: \$e');
+  }
+});
+
+// Purchase flow with External Payments
+Future<void> handlePurchaseWithExternalPayments(String productId) async {
+  try {
+    // Check if External Payments is available (Japan only)
+    final result = await FlutterInappPurchase.instance
+        .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalPayments);
+    if (!result.isAvailable) {
+      print('External Payments not available (not in Japan)');
+      // Fall back to standard Google Play purchase
+      return;
+    }
+
+    // Launch purchase with developer billing option
+    // User will see side-by-side choice dialog
+    await FlutterInappPurchase.instance.requestPurchase(
+      productId,
+      developerBillingOption: DeveloperBillingOptionParamsAndroid(
+        billingProgram: BillingProgramAndroid.externalPayments,
+        linkUri: 'https://your-payment-site.com/checkout',
+        launchMode: DeveloperBillingLaunchModeAndroid.launchInExternalBrowserOrApp,
+      ),
+    );
+
+    // If user selects Google Play → purchaseUpdatedStream callback
+    // If user selects developer billing → developerProvidedBillingStream callback
+  } catch (e) {
+    print('Purchase error: \$e');
+  }
+}`}</CodeBlock>
+                    ),
+                  }}
+                </LanguageTabs>
+
+                <h5>External Payments Flow Diagram</h5>
+                <table className="error-table">
+                  <thead>
+                    <tr>
+                      <th>Step</th>
+                      <th>API / Action</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>0</td>
+                      <td><code>enableBillingProgram(EXTERNAL_PAYMENTS)</code></td>
+                      <td>Enable External Payments program BEFORE initConnection</td>
+                    </tr>
+                    <tr>
+                      <td>1</td>
+                      <td><code>addDeveloperProvidedBillingListener()</code></td>
+                      <td>Register callback for when user selects developer billing</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td><code>isBillingProgramAvailable(EXTERNAL_PAYMENTS)</code></td>
+                      <td>Check if available (Japan only)</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td><code>requestPurchase(developerBillingOption: ...)</code></td>
+                      <td>Launch purchase with developer billing option configured</td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td>User Choice Dialog</td>
+                      <td>User sees side-by-side choice: Google Play or Developer Billing</td>
+                    </tr>
+                    <tr>
+                      <td>5a</td>
+                      <td>If Google Play: <code>onPurchaseSuccess</code></td>
+                      <td>Normal Google Play purchase flow</td>
+                    </tr>
+                    <tr>
+                      <td>5b</td>
+                      <td>If Developer: <code>DeveloperProvidedBillingListener</code></td>
+                      <td>Callback receives externalTransactionToken</td>
+                    </tr>
+                    <tr>
+                      <td>6</td>
+                      <td>Process Payment</td>
+                      <td>Process payment with your payment gateway</td>
+                    </tr>
+                    <tr>
+                      <td>7</td>
+                      <td>Report Token</td>
+                      <td>Report externalTransactionToken to Google within 24 hours</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div className="alert-card alert-card--warning">
+                  <p>
+                    <strong>⚠️ Token Reporting Requirement:</strong> When a user
+                    completes a purchase through developer billing, you{' '}
+                    <strong>must report the externalTransactionToken</strong> to
+                    Google Play within 24 hours. Failure to report may result in
+                    account suspension. Use the Google Play Developer API's{' '}
+                    <code>externaltransactions.createexternaltransaction</code>{' '}
+                    endpoint to report the token.
+                  </p>
+                </div>
+
+                <h5>DeveloperBillingLaunchMode Options</h5>
+                <table className="error-table">
+                  <thead>
+                    <tr>
+                      <th>Mode</th>
+                      <th>Behavior</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>LAUNCH_IN_EXTERNAL_BROWSER_OR_APP</code></td>
+                      <td>
+                        Google Play will launch the linkUri in an external browser
+                        or eligible app. Use this for web-based payment flows.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>CALLER_WILL_LAUNCH_LINK</code></td>
+                      <td>
+                        Google Play returns control to your app without launching.
+                        Your app handles launching the payment flow. Use this for
+                        in-app payment experiences.
+                      </td>
                     </tr>
                   </tbody>
                 </table>
