@@ -30,7 +30,7 @@ function Notes() {
       element: (
         <div key="external-payments-830" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.9 / openiap-google v1.3.17 -{' '}
+            📅 openiap-gql v1.3.9 / openiap-google v1.3.18 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-3-0"
               target="_blank"
