@@ -1035,11 +1035,17 @@ public struct InitConnectionConfig: Codable {
     /// Alternative billing mode for Android
     /// If not specified, defaults to NONE (standard Google Play billing)
     public var alternativeBillingModeAndroid: AlternativeBillingModeAndroid?
+    /// Enable a specific billing program for Android (8.2.0+)
+    /// When set, enables the specified billing program for external transactions.
+    /// Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
+    public var enableBillingProgramAndroid: BillingProgramAndroid?
 
     public init(
-        alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = nil
+        alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = nil,
+        enableBillingProgramAndroid: BillingProgramAndroid? = nil
     ) {
         self.alternativeBillingModeAndroid = alternativeBillingModeAndroid
+        self.enableBillingProgramAndroid = enableBillingProgramAndroid
     }
 }
 

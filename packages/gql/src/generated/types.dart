@@ -3081,21 +3081,28 @@ class DiscountOfferInputIOS {
 class InitConnectionConfig {
   const InitConnectionConfig({
     this.alternativeBillingModeAndroid,
+    this.enableBillingProgramAndroid,
   });
 
   /// Alternative billing mode for Android
   /// If not specified, defaults to NONE (standard Google Play billing)
   final AlternativeBillingModeAndroid? alternativeBillingModeAndroid;
+  /// Enable a specific billing program for Android (8.2.0+)
+  /// When set, enables the specified billing program for external transactions.
+  /// Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
+  final BillingProgramAndroid? enableBillingProgramAndroid;
 
   factory InitConnectionConfig.fromJson(Map<String, dynamic> json) {
     return InitConnectionConfig(
       alternativeBillingModeAndroid: json['alternativeBillingModeAndroid'] != null ? AlternativeBillingModeAndroid.fromJson(json['alternativeBillingModeAndroid'] as String) : null,
+      enableBillingProgramAndroid: json['enableBillingProgramAndroid'] != null ? BillingProgramAndroid.fromJson(json['enableBillingProgramAndroid'] as String) : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'alternativeBillingModeAndroid': alternativeBillingModeAndroid?.toJson(),
+      'enableBillingProgramAndroid': enableBillingProgramAndroid?.toJson(),
     };
   }
 }
@@ -4037,6 +4044,7 @@ abstract class MutationResolver {
   /// Establish the platform billing connection
   Future<bool> initConnection({
     AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
+    BillingProgramAndroid? enableBillingProgramAndroid,
   });
   /// Check if a billing program is available for the current user
   /// Replaces the deprecated isExternalOfferAvailableAsync API
@@ -4194,6 +4202,7 @@ typedef MutationFinishTransactionHandler = Future<void> Function({
 });
 typedef MutationInitConnectionHandler = Future<bool> Function({
   AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
+  BillingProgramAndroid? enableBillingProgramAndroid,
 });
 typedef MutationIsBillingProgramAvailableAndroidHandler = Future<BillingProgramAvailabilityResultAndroid> Function(BillingProgramAndroid program);
 typedef MutationLaunchExternalLinkAndroidHandler = Future<bool> Function({

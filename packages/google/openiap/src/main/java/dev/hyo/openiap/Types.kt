@@ -2702,18 +2702,26 @@ public data class InitConnectionConfig(
      * Alternative billing mode for Android
      * If not specified, defaults to NONE (standard Google Play billing)
      */
-    val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null
+    val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null,
+    /**
+     * Enable a specific billing program for Android (8.2.0+)
+     * When set, enables the specified billing program for external transactions.
+     * Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
+     */
+    val enableBillingProgramAndroid: BillingProgramAndroid? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): InitConnectionConfig {
             return InitConnectionConfig(
                 alternativeBillingModeAndroid = (json["alternativeBillingModeAndroid"] as? String)?.let { AlternativeBillingModeAndroid.fromJson(it) },
+                enableBillingProgramAndroid = (json["enableBillingProgramAndroid"] as? String)?.let { BillingProgramAndroid.fromJson(it) },
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
         "alternativeBillingModeAndroid" to alternativeBillingModeAndroid?.toJson(),
+        "enableBillingProgramAndroid" to enableBillingProgramAndroid?.toJson(),
     )
 }
 

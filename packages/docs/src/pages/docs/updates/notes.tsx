@@ -23,14 +23,14 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // External Payments 8.3.0 Support - Dec 27, 2025
+    // Combined Release - Dec 28, 2025
     {
-      id: 'external-payments-830',
-      date: new Date('2025-12-27'),
+      id: 'release-dec-28-2025',
+      date: new Date('2025-12-28'),
       element: (
-        <div key="external-payments-830" style={noteCardStyle}>
+        <div key="release-dec-28-2025" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.9 / openiap-google v1.3.18 -{' '}
+            📅 openiap-gql v1.3.10 / openiap-google v1.3.19 / openiap-apple v1.3.8 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-3-0"
               target="_blank"
@@ -39,8 +39,81 @@ function Notes() {
               Google Play Billing 8.3.0 External Payments
             </a>
           </h4>
+
+          {/* GQL 1.3.10 */}
           <p>
-            <strong>New External Payments Program (Japan Only):</strong>
+            <strong>GQL v1.3.10 - InitConnectionConfig Enhancement:</strong>
+          </p>
+          <p>
+            Added <code>enableBillingProgramAndroid</code> field to{' '}
+            <code>InitConnectionConfig</code> for easier billing program setup during connection initialization.
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <code>enableBillingProgramAndroid: BillingProgramAndroid</code>
+              </strong>{' '}
+              - Enable a specific billing program during <code>initConnection()</code>
+            </li>
+          </ul>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Enable External Payments during connection
+val config = InitConnectionConfig(
+    enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+)
+iapStore.initConnection(config)`}
+          </pre>
+          <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            This provides a cleaner alternative to calling <code>enableBillingProgram()</code>{' '}
+            separately before <code>initConnection()</code>.
+          </p>
+
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
+
+          {/* Apple 1.3.8 */}
+          <p>
+            <strong>Apple v1.3.8 - Auto Connection Management:</strong>
+          </p>
+          <p>
+            All API methods now automatically call <code>initConnection()</code> internally
+            if the connection hasn't been established yet. This eliminates the need to
+            manually call <code>initConnection()</code> before using any API.
+          </p>
+          <ul>
+            <li>
+              <strong><code>ensureConnection()</code></strong> - New internal helper that automatically initializes the connection when needed
+            </li>
+            <li>
+              All public API methods (<code>fetchProducts</code>, <code>requestPurchase</code>,{' '}
+              <code>finishTransaction</code>, etc.) now use <code>ensureConnection()</code>
+            </li>
+            <li>
+              <strong>Backward Compatible</strong> - Existing code that calls{' '}
+              <code>initConnection()</code> explicitly will continue to work
+            </li>
+          </ul>
+          <p><strong>Before (v1.3.7):</strong></p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Must call initConnection first
+try await OpenIapModule.shared.initConnection()
+let products = try await OpenIapModule.shared.fetchProducts(request)`}
+          </pre>
+          <p><strong>After (v1.3.8):</strong></p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Just call the API directly - connection is handled automatically
+let products = try await OpenIapModule.shared.fetchProducts(request)`}
+          </pre>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Note: While explicit <code>initConnection()</code> is no longer required,
+            you may still want to call it during app startup to pre-initialize the
+            StoreKit connection for faster subsequent API calls.
+          </p>
+
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
+
+          {/* Google 1.3.19 - External Payments */}
+          <p>
+            <strong>Google v1.3.19 - External Payments Program (Japan Only):</strong>
           </p>
           <p>
             Google Play Billing Library 8.3.0 introduces the External Payments
@@ -48,61 +121,41 @@ function Notes() {
             Billing and the developer's external payment option directly in the
             purchase flow.
           </p>
-          <p>
-            <strong>New APIs:</strong>
-          </p>
+          <p><strong>New APIs:</strong></p>
           <ul>
             <li>
-              <strong>
-                <code>BillingProgramAndroid.EXTERNAL_PAYMENTS</code>
-              </strong>{' '}
+              <strong><code>BillingProgramAndroid.EXTERNAL_PAYMENTS</code></strong>{' '}
               - New billing program type for external payments
             </li>
             <li>
-              <strong>
-                <code>DeveloperBillingOptionParamsAndroid</code>
-              </strong>{' '}
+              <strong><code>DeveloperBillingOptionParamsAndroid</code></strong>{' '}
               - Configure external payment option in purchase flow
             </li>
             <li>
-              <strong>
-                <code>DeveloperBillingLaunchModeAndroid</code>
-              </strong>{' '}
+              <strong><code>DeveloperBillingLaunchModeAndroid</code></strong>{' '}
               - How to launch the external payment link
             </li>
             <li>
-              <strong>
-                <code>DeveloperProvidedBillingDetailsAndroid</code>
-              </strong>{' '}
+              <strong><code>DeveloperProvidedBillingDetailsAndroid</code></strong>{' '}
               - Contains externalTransactionToken when user selects developer billing
             </li>
             <li>
-              <strong>
-                <code>developerProvidedBillingListenerAndroid</code>
-              </strong>{' '}
+              <strong><code>developerProvidedBillingListenerAndroid</code></strong>{' '}
               - New listener for when user selects developer billing
             </li>
             <li>
-              <strong>
-                <code>developerBillingOption</code>
-              </strong>{' '}
+              <strong><code>developerBillingOption</code></strong>{' '}
               - New field in RequestPurchaseAndroidProps and RequestSubscriptionAndroidProps
             </li>
           </ul>
-          <p>
-            <strong>New Event:</strong>
-          </p>
+          <p><strong>New Event:</strong></p>
           <ul>
             <li>
-              <strong>
-                <code>IapEvent.DeveloperProvidedBillingAndroid</code>
-              </strong>{' '}
+              <strong><code>IapEvent.DeveloperProvidedBillingAndroid</code></strong>{' '}
               - Fired when user selects developer billing in External Payments flow
             </li>
           </ul>
-          <p>
-            <strong>Key Differences from User Choice Billing:</strong>
-          </p>
+          <p><strong>Key Differences from User Choice Billing:</strong></p>
           <table style={{ width: '100%', fontSize: '0.875rem' }}>
             <thead>
               <tr>
@@ -129,9 +182,7 @@ function Notes() {
               </tr>
             </tbody>
           </table>
-          <p>
-            <strong>References:</strong>
-          </p>
+          <p><strong>References:</strong></p>
           <ul>
             <li>
               <a

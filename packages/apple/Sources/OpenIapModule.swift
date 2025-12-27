@@ -491,6 +491,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - Transaction Management
 
     public func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void {
+        try await ensureConnection()
         let identifier = purchase.id
 
         if let pending = await state.getPending(id: identifier) {
@@ -535,6 +536,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func getPendingTransactionsIOS() async throws -> [PurchaseIOS] {
+        try await ensureConnection()
         let snapshot = await state.pendingSnapshot()
         var purchases: [PurchaseIOS] = []
         for transaction in snapshot {
@@ -544,6 +546,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func clearTransactionIOS() async throws -> Bool {
+        try await ensureConnection()
         for await result in Transaction.unfinished {
             do {
                 let transaction = try checkVerified(result)
@@ -557,6 +560,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func isTransactionVerifiedIOS(sku: String) async throws -> Bool {
+        try await ensureConnection()
         let product = try await storeProduct(for: sku)
         guard let result = await product.latestTransaction else { return false }
         do {
@@ -568,6 +572,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func getTransactionJwsIOS(sku: String) async throws -> String? {
+        try await ensureConnection()
         let product = try await storeProduct(for: sku)
         guard let result = await product.latestTransaction else {
             let error = makePurchaseError(code: .skuNotFound, productId: sku)
@@ -633,11 +638,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
+        try await ensureConnection()
         let iosResult = try await performVerifyPurchaseIOS(props)
         return .verifyPurchaseResultIos(iosResult)
     }
 
     public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
+        try await ensureConnection()
         guard props.provider == .iapkit else {
             throw makePurchaseError(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")
         }
@@ -804,6 +811,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - Store Information
 
     public func getStorefrontIOS() async throws -> String {
+        try await ensureConnection()
         guard let storefront = await Storefront.current else {
             let error = makePurchaseError(code: .unknown)
             emitPurchaseError(error)
@@ -817,6 +825,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/apptransaction
     @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     public func getAppTransactionIOS() async throws -> AppTransaction? {
+        try await ensureConnection()
         let verification = try await StoreKit.AppTransaction.shared
         switch verification {
         case .verified(let transaction):
@@ -829,6 +838,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - Subscription Management
 
     public func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription] {
+        try await ensureConnection()
         var allSubscriptions: [ActiveSubscription] = []
         for await verification in Transaction.currentEntitlements {
             do {
@@ -896,6 +906,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 14.0+, visionOS 1.0+. Not available on tvOS (subscriptions are managed in Settings > Accounts) or watchOS.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)
     public func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {
+        try await ensureConnection()
         // tvOS: AppStore.showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
         // watchOS: No window scene UI for showManageSubscriptions
         #if !os(tvOS) && !os(watchOS)
@@ -918,6 +929,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS] {
+        try await ensureConnection()
         let product = try await storeProduct(for: sku)
         guard let subscription = product.subscription else {
             let error = makePurchaseError(code: .skuNotFound, productId: sku)
@@ -953,6 +965,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func currentEntitlementIOS(sku: String) async throws -> PurchaseIOS? {
+        try await ensureConnection()
         let product = try await storeProduct(for: sku)
         guard let result = await product.currentEntitlement else { return nil }
         do {
@@ -966,6 +979,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func latestTransactionIOS(sku: String) async throws -> PurchaseIOS? {
+        try await ensureConnection()
         let product = try await storeProduct(for: sku)
         guard let result = await product.latestTransaction else { return nil }
         do {
@@ -984,6 +998,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 12.0+, visionOS 1.0+. Not available on tvOS or watchOS.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/transaction/3803220-beginrefundrequest
     public func beginRefundRequestIOS(sku: String) async throws -> String? {
+        try await ensureConnection()
         // tvOS: Transaction.beginRefundRequest not available on tvOS
         // watchOS: Transaction.beginRefundRequest not available on watchOS
         #if !os(tvOS) && !os(watchOS)
@@ -1029,12 +1044,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Check if the user is eligible for an introductory offer for a subscription group
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer(for:)
     public func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool {
-        await StoreKit.Product.SubscriptionInfo.isEligibleForIntroOffer(for: groupID)
+        try await ensureConnection()
+        return await StoreKit.Product.SubscriptionInfo.isEligibleForIntroOffer(for: groupID)
     }
 
     /// Sync the user's in-app purchases with the App Store
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/sync()
     public func syncIOS() async throws -> Bool {
+        try await ensureConnection()
         do {
             try await AppStore.sync()
             return true
@@ -1047,6 +1064,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Only available on iOS 14.0+ and Mac Catalyst. Not available on tvOS, macOS, or watchOS
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/skpaymentqueue/3566726-presentcoderedemptionsheet
     public func presentCodeRedemptionSheetIOS() async throws -> Bool {
+        try await ensureConnection()
         // tvOS: SKPaymentQueue.presentCodeRedemptionSheet explicitly unavailable on tvOS
         #if canImport(UIKit) && !os(tvOS)
         await MainActor.run {
@@ -1066,6 +1084,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // MARK: - External Purchase (iOS 15.4+, macOS 14.4+, tvOS 17.4+)
 
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
+        try await ensureConnection()
         // iOS 17.4+, macOS 15.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.canPresent
         // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/canpresent
         if #available(iOS 17.4, macOS 15.4, tvOS 17.4, watchOS 10.4, *) {
@@ -1076,6 +1095,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
+        try await ensureConnection()
         // iOS 15.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.presentNoticeSheet
         // Note: canPresent is iOS 17.4+, so we check it conditionally
         // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
@@ -1126,6 +1146,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
+        try await ensureConnection()
         // UIKit platforms: Open external link using UIApplication.open
         // Reference: https://developer.apple.com/documentation/uikit/uiapplication/1648685-open
         #if canImport(UIKit)
