@@ -23,21 +23,23 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // GQL 1.3.11 - Dec 28, 2025
+    // GQL 1.3.11 / Google 1.3.20 - Dec 28, 2025
     {
-      id: 'gql-1-3-11',
+      id: 'gql-1-3-11-google-1-3-20',
       date: new Date('2025-12-28'),
       element: (
-        <div key="gql-1-3-11" style={noteCardStyle}>
+        <div key="gql-1-3-11-google-1-3-20" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.11 - Deprecate AlternativeBillingModeAndroid
+            📅 openiap-gql v1.3.11 / openiap-google v1.3.20 - Deprecate AlternativeBillingModeAndroid
           </h4>
           <p>
             <strong>API Consolidation:</strong> Deprecated{' '}
             <code>AlternativeBillingModeAndroid</code> in favor of unified{' '}
             <code>BillingProgramAndroid</code> enum.
           </p>
-          <p><strong>Changes:</strong></p>
+
+          {/* GQL 1.3.11 Changes */}
+          <p><strong>GQL v1.3.11 Changes:</strong></p>
           <ul>
             <li>
               <strong><code>BillingProgramAndroid.USER_CHOICE_BILLING</code></strong>{' '}
@@ -50,6 +52,25 @@ function Notes() {
               <code>InitConnectionConfig.alternativeBillingModeAndroid</code> - <strong>Deprecated</strong>
             </li>
           </ul>
+
+          {/* Google 1.3.20 Changes */}
+          <p><strong>Google v1.3.20 Changes:</strong></p>
+          <ul>
+            <li>
+              Updated <code>OpenIapModule.initConnection()</code> to handle{' '}
+              <code>enableBillingProgramAndroid</code> config
+            </li>
+            <li>
+              Maps <code>USER_CHOICE_BILLING</code> to internal AlternativeBillingMode.USER_CHOICE
+            </li>
+            <li>
+              Maps <code>EXTERNAL_OFFER</code> to internal AlternativeBillingMode.ALTERNATIVE_ONLY
+            </li>
+            <li>
+              Example app updated to use new API
+            </li>
+          </ul>
+
           <p><strong>Migration Guide:</strong></p>
           <table style={{ width: '100%', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
             <thead>
