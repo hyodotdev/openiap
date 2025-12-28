@@ -32,8 +32,6 @@ import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.RequestPurchaseAndroidProps
 import dev.hyo.openiap.RequestPurchasePropsByPlatforms
 import dev.hyo.openiap.PurchaseInput
-import dev.hyo.openiap.AlternativeBillingMode
-import dev.hyo.openiap.AlternativeBillingModeAndroid
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
@@ -182,25 +180,20 @@ fun AlternativeBillingScreen(navController: NavController) {
             iapStore.setActivity(activity)
 
             // Create config based on selected mode
+            // Uses enableBillingProgramAndroid (recommended) instead of deprecated alternativeBillingModeAndroid
             val config = when (selectedMode) {
                 BillingModeOption.USER_CHOICE -> InitConnectionConfig(
-                    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+                    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
                 )
                 BillingModeOption.ALTERNATIVE_ONLY -> InitConnectionConfig(
-                    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+                    enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
                 )
-                BillingModeOption.BILLING_PROGRAMS -> {
-                    // For 8.2.0+ Billing Programs, enable the program before connection
-                    android.util.Log.d("AlternativeBillingScreen", "Enabling billing program: $selectedBillingProgram")
-                    iapStore.enableBillingProgram(selectedBillingProgram)
-                    null // No special config needed, program is enabled separately
-                }
-                BillingModeOption.EXTERNAL_PAYMENTS -> {
-                    // For 8.3.0+ External Payments (Japan only), enable the program before connection
-                    android.util.Log.d("AlternativeBillingScreen", "Enabling External Payments program")
-                    iapStore.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
-                    null // No special config needed, program is enabled separately
-                }
+                BillingModeOption.BILLING_PROGRAMS -> InitConnectionConfig(
+                    enableBillingProgramAndroid = selectedBillingProgram
+                )
+                BillingModeOption.EXTERNAL_PAYMENTS -> InitConnectionConfig(
+                    enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+                )
             }
 
             android.util.Log.d("AlternativeBillingScreen", "Reconnecting with config: $config")

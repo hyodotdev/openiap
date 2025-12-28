@@ -26,20 +26,18 @@ function TypesAlternative() {
       <TLDRBox>
         <ul>
           <li>
-            <code>AlternativeBillingModeAndroid</code> - NONE, USER_CHOICE,
-            ALTERNATIVE_ONLY
+            <code>BillingProgramAndroid</code> - USER_CHOICE_BILLING (7.0+),
+            EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, EXTERNAL_PAYMENTS (8.2.0+, 8.3.0+)
           </li>
           <li>
-            <code>BillingProgramAndroid</code> - EXTERNAL_CONTENT_LINK,
-            EXTERNAL_OFFER, EXTERNAL_PAYMENTS (8.2.0+, 8.3.0+)
+            <code>InitConnectionConfig.enableBillingProgramAndroid</code> - Recommended way to enable billing programs
           </li>
           <li>
             <code>DeveloperBillingOptionParamsAndroid</code> - Configure
             external payments in purchase flow (8.3.0+)
           </li>
           <li>
-            <code>InitConnectionConfig</code> - Configuration for
-            initConnection()
+            <s><code>AlternativeBillingModeAndroid</code></s> - <strong>Deprecated:</strong> Use <code>BillingProgramAndroid</code> instead
           </li>
           <li>
             External Purchase Link APIs for iOS 15.4+ and 18.2+
@@ -63,8 +61,15 @@ function TypesAlternative() {
         </p>
 
         <AnchorLink id="alternative-billing-mode-android" level="h3">
-          AlternativeBillingModeAndroid
+          AlternativeBillingModeAndroid <span style={{ color: 'var(--text-warning)', fontSize: '0.875rem' }}>(Deprecated)</span>
         </AnchorLink>
+        <div className="warning-box" style={{ marginBottom: '1rem' }}>
+          <strong>Deprecated:</strong> Use <code>enableBillingProgramAndroid</code> with <code>BillingProgramAndroid</code> instead.
+          <ul style={{ marginBottom: 0 }}>
+            <li><code>USER_CHOICE</code> → <code>BillingProgramAndroid.USER_CHOICE_BILLING</code></li>
+            <li><code>ALTERNATIVE_ONLY</code> → <code>BillingProgramAndroid.EXTERNAL_OFFER</code></li>
+          </ul>
+        </div>
         <p>
           Enum controlling which billing system is used during{' '}
           <code>initConnection()</code>:
@@ -120,30 +125,45 @@ function TypesAlternative() {
           <tbody>
             <tr>
               <td>
+                <code>enableBillingProgramAndroid</code>
+              </td>
+              <td>
+                <strong>(Recommended)</strong> Enable a specific billing program during connection.
+                Use <code>USER_CHOICE_BILLING</code> for user choice, <code>EXTERNAL_OFFER</code> for alternative only,
+                or <code>EXTERNAL_PAYMENTS</code> for Japan external payments (8.3.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <code>alternativeBillingModeAndroid</code>
               </td>
               <td>
-                (Android only) Which billing mode to use. Defaults to{' '}
-                <code>NONE</code>.
+                <span style={{ color: 'var(--text-warning)' }}>(Deprecated)</span>{' '}
+                Use <code>enableBillingProgramAndroid</code> instead.
               </td>
             </tr>
           </tbody>
         </table>
 
         <AnchorLink id="init-connection-example" level="h4">
-          Basic Usage
+          Basic Usage (Recommended)
         </AnchorLink>
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`// Initialize with user choice billing
+              <CodeBlock language="typescript">{`// Initialize with user choice billing (7.0+)
 await initConnection({
-  alternativeBillingModeAndroid: 'user-choice'
+  enableBillingProgramAndroid: 'user-choice-billing'
 });
 
-// Initialize with alternative billing only
+// Initialize with external offer (alternative only)
 await initConnection({
-  alternativeBillingModeAndroid: 'alternative-only'
+  enableBillingProgramAndroid: 'external-offer'
+});
+
+// Initialize with external payments (Japan only, 8.3.0+)
+await initConnection({
+  enableBillingProgramAndroid: 'external-payments'
 });
 
 // Standard billing (default)
@@ -158,17 +178,24 @@ try await OpenIapModule.shared.initConnection()
 let isConnected = try await OpenIapModule.shared.initConnection()`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`// Initialize with user choice billing
+              <CodeBlock language="kotlin">{`// Initialize with user choice billing (7.0+)
 openIapStore.initConnection(
     InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+        enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
     )
 )
 
-// Initialize with alternative billing only
+// Initialize with external offer (alternative only)
 openIapStore.initConnection(
     InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)
+
+// Initialize with external payments (Japan only, 8.3.0+)
+openIapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
     )
 )
 
@@ -176,14 +203,19 @@ openIapStore.initConnection(
 openIapStore.initConnection()`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`// Initialize with user choice billing
+              <CodeBlock language="dart">{`// Initialize with user choice billing (7.0+)
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.UserChoice,
+  enableBillingProgramAndroid: BillingProgramAndroid.UserChoiceBilling,
 );
 
-// Initialize with alternative billing only
+// Initialize with external offer (alternative only)
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.AlternativeOnly,
+  enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
+);
+
+// Initialize with external payments (Japan only, 8.3.0+)
+await FlutterInappPurchase.instance.initConnection(
+  enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
 );
 
 // Standard billing (default)
@@ -227,9 +259,9 @@ const userChoiceSubscription = userChoiceBillingListenerAndroid(async (details) 
   }
 });
 
-// Step 2: Initialize with user choice billing
+// Step 2: Initialize with user choice billing (recommended)
 await initConnection({
-  alternativeBillingModeAndroid: 'user-choice',
+  enableBillingProgramAndroid: 'user-choice-billing',
 });
 
 // Step 3: Fetch products and purchase as normal
@@ -255,7 +287,7 @@ userChoiceSubscription.remove();`}</CodeBlock>
             kotlin: (
               <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.InitConnectionConfig
-import dev.hyo.openiap.AlternativeBillingModeAndroid
+import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 
 val iapStore = OpenIapStore(context)
@@ -281,10 +313,10 @@ iapStore.addUserChoiceBillingListener(object : OpenIapUserChoiceBillingListener 
     }
 })
 
-// Step 2: Initialize with user choice billing
+// Step 2: Initialize with user choice billing (recommended)
 iapStore.initConnection(
     InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+        enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
     )
 )
 
@@ -333,9 +365,9 @@ final userChoiceSubscription = FlutterInappPurchase.userChoiceBillingStream
   }
 });
 
-// Step 2: Initialize with user choice billing
+// Step 2: Initialize with user choice billing (recommended)
 await FlutterInappPurchase.instance.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.UserChoice,
+  enableBillingProgramAndroid: BillingProgramAndroid.UserChoiceBilling,
 );
 
 // Step 3: Fetch products and purchase as normal
@@ -361,7 +393,7 @@ userChoiceSubscription.cancel();`}</CodeBlock>
           Alternative Billing Only Complete Example
         </AnchorLink>
         <p>
-          With Alternative Only mode (6.2+), all purchases go through your
+          With External Offer mode (replaces Alternative Only), all purchases go through your
           alternative payment system. Google Play is not shown:
         </p>
         <LanguageTabs>
@@ -375,9 +407,9 @@ userChoiceSubscription.cancel();`}</CodeBlock>
   createAlternativeBillingToken,
 } from 'expo-iap';
 
-// Step 1: Initialize with alternative billing only
+// Step 1: Initialize with external offer (recommended)
 await initConnection({
-  alternativeBillingModeAndroid: 'alternative-only',
+  enableBillingProgramAndroid: 'external-offer',
 });
 
 // Step 2: Check if alternative billing is available
@@ -421,14 +453,14 @@ if (paymentResult.success) {
             kotlin: (
               <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.InitConnectionConfig
-import dev.hyo.openiap.AlternativeBillingModeAndroid
+import dev.hyo.openiap.BillingProgramAndroid
 
 val iapStore = OpenIapStore(context)
 
-// Step 1: Initialize with alternative billing only
+// Step 1: Initialize with external offer (recommended)
 iapStore.initConnection(
     InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
     )
 )
 
@@ -478,9 +510,9 @@ lifecycleScope.launch {
 
 final iap = FlutterInappPurchase.instance;
 
-// Step 1: Initialize with alternative billing only
+// Step 1: Initialize with external offer (recommended)
 await iap.initConnection(
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid.AlternativeOnly,
+  enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
 );
 
 // Step 2: Check if alternative billing is available
@@ -546,7 +578,7 @@ if (paymentResult.success) {
           BillingProgramAndroid
         </AnchorLink>
         <p>
-          Enum for different billing program types:
+          Enum for different billing program types. Use with <code>enableBillingProgramAndroid</code> in <code>InitConnectionConfig</code>:
         </p>
         <table className="doc-table">
           <thead>
@@ -557,6 +589,15 @@ if (paymentResult.success) {
             </tr>
           </thead>
           <tbody>
+            <tr>
+              <td>
+                <code>USER_CHOICE_BILLING</code>
+              </td>
+              <td>
+                User can select between Google Play or alternative billing
+              </td>
+              <td>7.0+</td>
+            </tr>
             <tr>
               <td>
                 <code>EXTERNAL_CONTENT_LINK</code>
@@ -571,7 +612,7 @@ if (paymentResult.success) {
                 <code>EXTERNAL_OFFER</code>
               </td>
               <td>
-                For apps offering alternative payment options
+                For apps offering alternative payment options (replaces ALTERNATIVE_ONLY)
               </td>
               <td>8.2.0+</td>
             </tr>

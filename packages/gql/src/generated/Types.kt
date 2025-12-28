@@ -10,6 +10,8 @@
 /**
  * Alternative billing mode for Android
  * Controls which billing system is used
+ * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
+ * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
  */
 public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
@@ -19,11 +21,13 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
      * User choice billing - user can select between Google Play or alternative
      * Requires Google Play Billing Library 7.0+
+     * @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
      */
     UserChoice("user-choice"),
     /**
      * Alternative billing only - no Google Play billing option
      * Requires Google Play Billing Library 6.2+
+     * @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
      */
     AlternativeOnly("alternative-only")
 
@@ -52,13 +56,21 @@ public enum class BillingProgramAndroid(val rawValue: String) {
      */
     Unspecified("unspecified"),
     /**
+     * User Choice Billing program.
+     * User can select between Google Play Billing or alternative billing.
+     * Available in Google Play Billing Library 7.0+
+     */
+    UserChoiceBilling("user-choice-billing"),
+    /**
      * External Content Links program.
      * Allows linking to external content outside the app.
+     * Available in Google Play Billing Library 8.2.0+
      */
     ExternalContentLink("external-content-link"),
     /**
      * External Offers program.
      * Allows offering digital content purchases outside the app.
+     * Available in Google Play Billing Library 8.2.0+
      */
     ExternalOffer("external-offer"),
     /**
@@ -73,6 +85,8 @@ public enum class BillingProgramAndroid(val rawValue: String) {
         fun fromJson(value: String): BillingProgramAndroid = when (value) {
             "unspecified" -> BillingProgramAndroid.Unspecified
             "UNSPECIFIED" -> BillingProgramAndroid.Unspecified
+            "user-choice-billing" -> BillingProgramAndroid.UserChoiceBilling
+            "USER_CHOICE_BILLING" -> BillingProgramAndroid.UserChoiceBilling
             "external-content-link" -> BillingProgramAndroid.ExternalContentLink
             "EXTERNAL_CONTENT_LINK" -> BillingProgramAndroid.ExternalContentLink
             "external-offer" -> BillingProgramAndroid.ExternalOffer
@@ -2750,12 +2764,17 @@ public data class InitConnectionConfig(
     /**
      * Alternative billing mode for Android
      * If not specified, defaults to NONE (standard Google Play billing)
+     * @deprecated Use enableBillingProgramAndroid instead.
+     * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
      */
     val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null,
     /**
-     * Enable a specific billing program for Android (8.2.0+)
+     * Enable a specific billing program for Android (7.0+)
      * When set, enables the specified billing program for external transactions.
-     * Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
+     * - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+)
+     * - EXTERNAL_CONTENT_LINK: Link to external content (8.2.0+)
+     * - EXTERNAL_OFFER: External offers for digital content (8.2.0+)
+     * - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
      */
     val enableBillingProgramAndroid: BillingProgramAndroid? = null
 ) {

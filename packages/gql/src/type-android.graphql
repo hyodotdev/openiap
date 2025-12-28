@@ -472,10 +472,12 @@ type VerifyPurchaseResultAndroid {
   testTransaction: Boolean!
 }
 
-# Alternative Billing
+# Alternative Billing (Deprecated)
 """
 Alternative billing mode for Android
 Controls which billing system is used
+@deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
+Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
 """
 enum AlternativeBillingModeAndroid {
   """
@@ -486,12 +488,14 @@ enum AlternativeBillingModeAndroid {
   """
   User choice billing - user can select between Google Play or alternative
   Requires Google Play Billing Library 7.0+
+  @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
   """
   USER_CHOICE
 
   """
   Alternative billing only - no Google Play billing option
   Requires Google Play Billing Library 6.2+
+  @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
   """
   ALTERNATIVE_ONLY
 }
@@ -523,13 +527,21 @@ enum BillingProgramAndroid {
   """
   UNSPECIFIED
   """
+  User Choice Billing program.
+  User can select between Google Play Billing or alternative billing.
+  Available in Google Play Billing Library 7.0+
+  """
+  USER_CHOICE_BILLING
+  """
   External Content Links program.
   Allows linking to external content outside the app.
+  Available in Google Play Billing Library 8.2.0+
   """
   EXTERNAL_CONTENT_LINK
   """
   External Offers program.
   Allows offering digital content purchases outside the app.
+  Available in Google Play Billing Library 8.2.0+
   """
   EXTERNAL_OFFER
   """

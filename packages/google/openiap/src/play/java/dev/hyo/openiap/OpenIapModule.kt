@@ -115,9 +115,25 @@ class OpenIapModule(
     private val enabledBillingPrograms = mutableSetOf<BillingProgramAndroid>()
 
     override val initConnection: MutationInitConnectionHandler = { config ->
-        // Update alternativeBillingMode if provided in config
+        // Handle enableBillingProgramAndroid (recommended, replaces alternativeBillingModeAndroid)
+        config?.enableBillingProgramAndroid?.let { program ->
+            OpenIapLog.d("Setting billing program from config: $program", TAG)
+            enabledBillingPrograms.add(program)
+            // Map USER_CHOICE_BILLING to AlternativeBillingMode for backward compatibility
+            when (program) {
+                BillingProgramAndroid.UserChoiceBilling -> {
+                    alternativeBillingMode = AlternativeBillingMode.USER_CHOICE
+                }
+                BillingProgramAndroid.ExternalOffer -> {
+                    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
+                }
+                else -> { /* Other programs don't affect alternativeBillingMode */ }
+            }
+        }
+
+        // Handle alternativeBillingModeAndroid (deprecated, for backward compatibility)
         config?.alternativeBillingModeAndroid?.let { modeAndroid ->
-            OpenIapLog.d("Setting alternative billing mode from config: $modeAndroid", TAG)
+            OpenIapLog.d("Setting alternative billing mode from config (deprecated): $modeAndroid", TAG)
             // Map AlternativeBillingModeAndroid to AlternativeBillingMode
             alternativeBillingMode = when (modeAndroid) {
                 AlternativeBillingModeAndroid.None -> AlternativeBillingMode.NONE
@@ -426,6 +442,7 @@ class OpenIapModule(
             BillingProgramAndroid.ExternalContentLink -> 1 // EXTERNAL_CONTENT_LINK
             BillingProgramAndroid.ExternalOffer -> 3 // EXTERNAL_OFFER
             BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
+            BillingProgramAndroid.UserChoiceBilling -> throw IllegalArgumentException("USER_CHOICE_BILLING uses AlternativeBillingMode, not BillingProgram API")
             BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot check availability for UNSPECIFIED program")
         }
 
@@ -495,6 +512,7 @@ class OpenIapModule(
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
             BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
+            BillingProgramAndroid.UserChoiceBilling -> throw IllegalArgumentException("USER_CHOICE_BILLING uses AlternativeBillingMode, not BillingProgram API")
             BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot create reporting details for UNSPECIFIED program")
         }
 
@@ -570,6 +588,7 @@ class OpenIapModule(
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
             BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
+            BillingProgramAndroid.UserChoiceBilling -> throw IllegalArgumentException("USER_CHOICE_BILLING does not use external links")
             BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot launch with UNSPECIFIED program")
         }
 
@@ -1411,10 +1430,17 @@ class OpenIapModule(
         if (enabledBillingPrograms.isNotEmpty()) {
             OpenIapLog.d("=== BILLING PROGRAMS INITIALIZATION ===", TAG)
             for (program in enabledBillingPrograms) {
+                // USER_CHOICE_BILLING is handled via AlternativeBillingMode, skip here
+                if (program == BillingProgramAndroid.UserChoiceBilling) {
+                    OpenIapLog.d("✓ User Choice Billing handled via AlternativeBillingMode", TAG)
+                    continue
+                }
+
                 val programConstant = when (program) {
                     BillingProgramAndroid.ExternalContentLink -> 1
                     BillingProgramAndroid.ExternalOffer -> 3
                     BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
+                    BillingProgramAndroid.UserChoiceBilling -> continue // Already handled above
                     BillingProgramAndroid.Unspecified -> continue
                 }
 
@@ -1678,6 +1704,7 @@ class OpenIapModule(
                 BillingProgramAndroid.ExternalPayments -> 4
                 BillingProgramAndroid.ExternalContentLink -> 1
                 BillingProgramAndroid.ExternalOffer -> 3
+                BillingProgramAndroid.UserChoiceBilling -> throw IllegalArgumentException("USER_CHOICE_BILLING does not use DeveloperBillingOption")
                 BillingProgramAndroid.Unspecified -> throw IllegalArgumentException("Cannot use UNSPECIFIED billing program")
             }
 

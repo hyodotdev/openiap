@@ -23,6 +23,66 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // GQL 1.3.11 - Dec 28, 2025
+    {
+      id: 'gql-1-3-11',
+      date: new Date('2025-12-28'),
+      element: (
+        <div key="gql-1-3-11" style={noteCardStyle}>
+          <h4 style={noteTitleStyle}>
+            📅 openiap-gql v1.3.11 - Deprecate AlternativeBillingModeAndroid
+          </h4>
+          <p>
+            <strong>API Consolidation:</strong> Deprecated{' '}
+            <code>AlternativeBillingModeAndroid</code> in favor of unified{' '}
+            <code>BillingProgramAndroid</code> enum.
+          </p>
+          <p><strong>Changes:</strong></p>
+          <ul>
+            <li>
+              <strong><code>BillingProgramAndroid.USER_CHOICE_BILLING</code></strong>{' '}
+              - New enum value for User Choice Billing (7.0+)
+            </li>
+            <li>
+              <code>AlternativeBillingModeAndroid</code> - <strong>Deprecated</strong>
+            </li>
+            <li>
+              <code>InitConnectionConfig.alternativeBillingModeAndroid</code> - <strong>Deprecated</strong>
+            </li>
+          </ul>
+          <p><strong>Migration Guide:</strong></p>
+          <table style={{ width: '100%', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '0.25rem' }}>Before (Deprecated)</th>
+                <th style={{ textAlign: 'left', padding: '0.25rem' }}>After (Recommended)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '0.25rem' }}><code>alternativeBillingModeAndroid: USER_CHOICE</code></td>
+                <td style={{ padding: '0.25rem' }}><code>enableBillingProgramAndroid: USER_CHOICE_BILLING</code></td>
+              </tr>
+              <tr>
+                <td style={{ padding: '0.25rem' }}><code>alternativeBillingModeAndroid: ALTERNATIVE_ONLY</code></td>
+                <td style={{ padding: '0.25rem' }}><code>enableBillingProgramAndroid: EXTERNAL_OFFER</code></td>
+              </tr>
+            </tbody>
+          </table>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Before (deprecated)
+val config = InitConnectionConfig(
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+)
+
+// After (recommended)
+val config = InitConnectionConfig(
+    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
+)`}
+          </pre>
+        </div>
+      ),
+    },
     // Combined Release - Dec 28, 2025
     {
       id: 'release-dec-28-2025',

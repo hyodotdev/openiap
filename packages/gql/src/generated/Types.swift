@@ -9,14 +9,18 @@ import Foundation
 
 /// Alternative billing mode for Android
 /// Controls which billing system is used
+/// @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
+/// Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
 public enum AlternativeBillingModeAndroid: String, Codable, CaseIterable {
     /// Standard Google Play billing (default)
     case none = "none"
     /// User choice billing - user can select between Google Play or alternative
     /// Requires Google Play Billing Library 7.0+
+    /// @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
     case userChoice = "user-choice"
     /// Alternative billing only - no Google Play billing option
     /// Requires Google Play Billing Library 6.2+
+    /// @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
     case alternativeOnly = "alternative-only"
 }
 
@@ -25,11 +29,17 @@ public enum AlternativeBillingModeAndroid: String, Codable, CaseIterable {
 public enum BillingProgramAndroid: String, Codable, CaseIterable {
     /// Unspecified billing program. Do not use.
     case unspecified = "unspecified"
+    /// User Choice Billing program.
+    /// User can select between Google Play Billing or alternative billing.
+    /// Available in Google Play Billing Library 7.0+
+    case userChoiceBilling = "user-choice-billing"
     /// External Content Links program.
     /// Allows linking to external content outside the app.
+    /// Available in Google Play Billing Library 8.2.0+
     case externalContentLink = "external-content-link"
     /// External Offers program.
     /// Allows offering digital content purchases outside the app.
+    /// Available in Google Play Billing Library 8.2.0+
     case externalOffer = "external-offer"
     /// External Payments program (Japan only).
     /// Allows presenting a side-by-side choice between Google Play Billing and developer's external payment option.
@@ -1020,10 +1030,15 @@ public struct DiscountOfferInputIOS: Codable {
 public struct InitConnectionConfig: Codable {
     /// Alternative billing mode for Android
     /// If not specified, defaults to NONE (standard Google Play billing)
+    /// @deprecated Use enableBillingProgramAndroid instead.
+    /// Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
     public var alternativeBillingModeAndroid: AlternativeBillingModeAndroid?
-    /// Enable a specific billing program for Android (8.2.0+)
+    /// Enable a specific billing program for Android (7.0+)
     /// When set, enables the specified billing program for external transactions.
-    /// Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
+    /// - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+)
+    /// - EXTERNAL_CONTENT_LINK: Link to external content (8.2.0+)
+    /// - EXTERNAL_OFFER: External offers for digital content (8.2.0+)
+    /// - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
     public var enableBillingProgramAndroid: BillingProgramAndroid?
 
     public init(
