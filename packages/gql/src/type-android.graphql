@@ -696,18 +696,6 @@ type DeveloperProvidedBillingDetailsAndroid {
   externalTransactionToken: String!
 }
 
-"""
-Parameters for creating billing program reporting details (Android)
-Used with createBillingProgramReportingDetailsAsync
-Available in Google Play Billing Library 8.3.0+
-"""
-input BillingProgramReportingDetailsParamsAndroid {
-  """
-  The billing program to create reporting details for
-  """
-  billingProgram: BillingProgramAndroid!
-}
-
 # Deprecated External Offers APIs (Google Play Billing Library 8.2.0)
 # These APIs are deprecated in favor of the new BillingProgram APIs above
 

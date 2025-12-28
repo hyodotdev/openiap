@@ -2566,30 +2566,6 @@ public data class AndroidSubscriptionOfferInput(
     )
 }
 
-/**
- * Parameters for creating billing program reporting details (Android)
- * Used with createBillingProgramReportingDetailsAsync
- * Available in Google Play Billing Library 8.3.0+
- */
-public data class BillingProgramReportingDetailsParamsAndroid(
-    /**
-     * The billing program to create reporting details for
-     */
-    val billingProgram: BillingProgramAndroid
-) {
-    companion object {
-        fun fromJson(json: Map<String, Any?>): BillingProgramReportingDetailsParamsAndroid {
-            return BillingProgramReportingDetailsParamsAndroid(
-                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "billingProgram" to billingProgram.toJson(),
-    )
-}
-
 public data class DeepLinkOptions(
     /**
      * Android package name to target (required on Android)

@@ -97,16 +97,6 @@ export interface BillingProgramReportingDetailsAndroid {
   externalTransactionToken: string;
 }
 
-/**
- * Parameters for creating billing program reporting details (Android)
- * Used with createBillingProgramReportingDetailsAsync
- * Available in Google Play Billing Library 8.3.0+
- */
-export interface BillingProgramReportingDetailsParamsAndroid {
-  /** The billing program to create reporting details for */
-  billingProgram: BillingProgramAndroid;
-}
-
 export interface DeepLinkOptions {
   /** Android package name to target (required on Android) */
   packageNameAndroid?: (string | null);

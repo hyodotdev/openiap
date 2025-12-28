@@ -928,20 +928,6 @@ public struct AndroidSubscriptionOfferInput: Codable {
     }
 }
 
-/// Parameters for creating billing program reporting details (Android)
-/// Used with createBillingProgramReportingDetailsAsync
-/// Available in Google Play Billing Library 8.3.0+
-public struct BillingProgramReportingDetailsParamsAndroid: Codable {
-    /// The billing program to create reporting details for
-    public var billingProgram: BillingProgramAndroid
-
-    public init(
-        billingProgram: BillingProgramAndroid
-    ) {
-        self.billingProgram = billingProgram
-    }
-}
-
 public struct DeepLinkOptions: Codable {
     /// Android package name to target (required on Android)
     public var packageNameAndroid: String?

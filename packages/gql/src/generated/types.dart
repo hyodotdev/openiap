@@ -2952,30 +2952,6 @@ class AndroidSubscriptionOfferInput {
   }
 }
 
-/// Parameters for creating billing program reporting details (Android)
-/// Used with createBillingProgramReportingDetailsAsync
-/// Available in Google Play Billing Library 8.3.0+
-class BillingProgramReportingDetailsParamsAndroid {
-  const BillingProgramReportingDetailsParamsAndroid({
-    required this.billingProgram,
-  });
-
-  /// The billing program to create reporting details for
-  final BillingProgramAndroid billingProgram;
-
-  factory BillingProgramReportingDetailsParamsAndroid.fromJson(Map<String, dynamic> json) {
-    return BillingProgramReportingDetailsParamsAndroid(
-      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'billingProgram': billingProgram.toJson(),
-    };
-  }
-}
-
 class DeepLinkOptions {
   const DeepLinkOptions({
     this.packageNameAndroid,
