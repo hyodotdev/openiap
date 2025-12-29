@@ -206,6 +206,7 @@ class OpenIapErrorTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun `toJSON returns correct map for all error types`() {
         val errors = listOf(
             OpenIapError.ProductNotFound("test"),
@@ -269,6 +270,7 @@ class OpenIapErrorTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun `getAllErrorCodes returns all error codes and messages`() {
         val allCodes = OpenIapError.getAllErrorCodes()
 

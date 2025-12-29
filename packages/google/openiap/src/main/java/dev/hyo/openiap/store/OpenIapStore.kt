@@ -416,7 +416,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     /**
      * Step 1: Check if alternative billing is available for this user/device
      * @return true if available, false otherwise
+     * @deprecated Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead
      */
+    @Deprecated("Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead")
+    @Suppress("DEPRECATION")
     suspend fun checkAlternativeBillingAvailability(): Boolean = module.checkAlternativeBillingAvailability()
 
     /**
@@ -424,7 +427,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * Must be called BEFORE processing payment
      * @param activity Current activity context
      * @return true if user accepted, false if canceled
+     * @deprecated Use launchExternalLink instead
      */
+    @Deprecated("Use launchExternalLink instead")
+    @Suppress("DEPRECATION")
     suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean =
         module.showAlternativeBillingInformationDialog(activity)
 
@@ -436,6 +442,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @deprecated Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead
      */
     @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
+    @Suppress("DEPRECATION")
     suspend fun createAlternativeBillingReportingToken(): String? =
         module.createAlternativeBillingReportingToken()
 
