@@ -26,15 +26,15 @@ function SubscriptionAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            <code>getActiveSubscriptions</code>: Get all active subscriptions
+            <a href="#get-active-subscriptions"><code>getActiveSubscriptions</code></a>: Get all active subscriptions
             with renewal info
           </li>
           <li>
-            <code>hasActiveSubscriptions</code>: Quick check if user has any
+            <a href="#has-active-subscriptions"><code>hasActiveSubscriptions</code></a>: Quick check if user has any
             active subscription
           </li>
           <li>
-            <code>deepLinkToSubscriptions</code>: Open native subscription
+            <a href="#deep-link-to-subscriptions"><code>deepLinkToSubscriptions</code></a>: Open native subscription
             management
           </li>
         </ul>

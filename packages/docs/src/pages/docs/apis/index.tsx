@@ -105,22 +105,25 @@ function APIsIndex() {
       <TLDRBox title="API Categories">
         <ul>
           <li>
-            <strong>Connection</strong>: Initialize and manage store connection
+            <Link to="/docs/apis/connection"><strong>Connection</strong></Link>: Initialize and manage store connection
           </li>
           <li>
-            <strong>Products</strong>: Fetch product information
+            <Link to="/docs/apis/products"><strong>Products</strong></Link>: Fetch product information
           </li>
           <li>
-            <strong>Purchase</strong>: Request and complete purchases
+            <Link to="/docs/apis/purchase"><strong>Purchase</strong></Link>: Request and complete purchases
           </li>
           <li>
-            <strong>Subscription</strong>: Manage subscriptions
+            <Link to="/docs/apis/subscription"><strong>Subscription</strong></Link>: Manage subscriptions
           </li>
           <li>
-            <strong>Validation</strong>: Verify purchases server-side
+            <Link to="/docs/apis/validation"><strong>Validation</strong></Link>: Verify purchases server-side
           </li>
           <li>
-            <strong>Platform-Specific</strong>: iOS and Android only APIs
+            <Link to="/docs/apis/ios"><strong>iOS APIs</strong></Link> | <Link to="/docs/apis/android"><strong>Android APIs</strong></Link>
+          </li>
+          <li>
+            <Link to="/docs/apis/debugging"><strong>Debugging</strong></Link>: Error handling and troubleshooting
           </li>
         </ul>
       </TLDRBox>

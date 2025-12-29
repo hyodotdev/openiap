@@ -23,15 +23,97 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // GQL 1.3.11 / Google 1.3.20 - Dec 28, 2025
+    // GQL 1.3.11 / Google 1.3.20 / Apple 1.3.9 - Dec 28, 2025
     {
-      id: 'gql-1-3-11-google-1-3-20',
+      id: 'gql-1-3-11-google-1-3-20-apple-1-3-9',
       date: new Date('2025-12-28'),
       element: (
-        <div key="gql-1-3-11-google-1-3-20" style={noteCardStyle}>
+        <div key="gql-1-3-11-google-1-3-20-apple-1-3-9" style={noteCardStyle}>
           <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.11 / openiap-google v1.3.20 - Deprecate AlternativeBillingModeAndroid
+            📅 openiap-gql v1.3.11 / openiap-google v1.3.20 / openiap-apple v1.3.9 - PurchaseState Cleanup
           </h4>
+
+          {/* PurchaseState Changes */}
+          <p><strong>PurchaseState Simplified:</strong></p>
+          <p>
+            Removed unused <code>Failed</code>, <code>Restored</code>, and{' '}
+            <code>Deferred</code> states from <code>PurchaseState</code> enum.
+          </p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Before
+enum PurchaseState {
+  Pending, Purchased, Failed, Restored, Deferred, Unknown
+}
+
+// After
+enum PurchaseState {
+  Pending, Purchased, Unknown
+}`}
+          </pre>
+          <p><strong>Why removed?</strong></p>
+          <ul>
+            <li>
+              <code>Failed</code> - Both platforms return errors instead of Purchase objects on failure
+            </li>
+            <li>
+              <code>Restored</code> - Restored purchases return as <code>Purchased</code> state
+            </li>
+            <li>
+              <code>Deferred</code> - iOS StoreKit 2 has no transaction state; Android uses <code>Pending</code>
+            </li>
+          </ul>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Note: Apple StoreKit 1's{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/skpaymenttransactionstate"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              SKPaymentTransactionState
+            </a>{' '}
+            (purchasing, purchased, failed, restored, deferred) is fully deprecated. StoreKit 2 uses{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/product/purchaseresult"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Product.PurchaseResult
+            </a>{' '}
+            instead, which only provides a <code>Transaction</code> on success.
+          </p>
+          <p><strong>References:</strong></p>
+          <ul>
+            <li>
+              <a
+                href="https://developer.android.com/reference/com/android/billingclient/api/Purchase.PurchaseState"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Google Play Billing - Purchase.PurchaseState
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://developer.apple.com/documentation/storekit/product/purchaseresult"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Apple StoreKit 2 - Product.PurchaseResult
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://developer.apple.com/documentation/storekit/skpaymenttransactionstate"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Apple StoreKit 1 - SKPaymentTransactionState (Deprecated)
+              </a>
+            </li>
+          </ul>
+
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
+
           <p>
             <strong>API Consolidation:</strong> Deprecated{' '}
             <code>AlternativeBillingModeAndroid</code> in favor of unified{' '}
@@ -39,7 +121,7 @@ function Notes() {
           </p>
 
           {/* GQL 1.3.11 Changes */}
-          <p><strong>GQL v1.3.11 Changes:</strong></p>
+          <p><strong>GQL v1.3.11 Other Changes:</strong></p>
           <ul>
             <li>
               <strong><code>BillingProgramAndroid.USER_CHOICE_BILLING</code></strong>{' '}

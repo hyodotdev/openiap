@@ -579,9 +579,6 @@ public enum class ProductTypeIOS(val rawValue: String) {
 public enum class PurchaseState(val rawValue: String) {
     Pending("pending"),
     Purchased("purchased"),
-    Failed("failed"),
-    Restored("restored"),
-    Deferred("deferred"),
     Unknown("unknown");
 
     companion object {
@@ -590,12 +587,6 @@ public enum class PurchaseState(val rawValue: String) {
             "Pending" -> PurchaseState.Pending
             "purchased" -> PurchaseState.Purchased
             "Purchased" -> PurchaseState.Purchased
-            "failed" -> PurchaseState.Failed
-            "Failed" -> PurchaseState.Failed
-            "restored" -> PurchaseState.Restored
-            "Restored" -> PurchaseState.Restored
-            "deferred" -> PurchaseState.Deferred
-            "Deferred" -> PurchaseState.Deferred
             "unknown" -> PurchaseState.Unknown
             "Unknown" -> PurchaseState.Unknown
             else -> throw IllegalArgumentException("Unknown PurchaseState value: $value")

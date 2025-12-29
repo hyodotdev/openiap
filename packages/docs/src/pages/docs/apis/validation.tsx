@@ -32,10 +32,10 @@ function ValidationAPIs() {
             entitlements
           </li>
           <li>
-            <code>verifyPurchase</code>: Send to your own validation server
+            <a href="#verify-purchase"><code>verifyPurchase</code></a>: Send to your own validation server
           </li>
           <li>
-            <code>verifyPurchaseWithProvider</code>: Use IAPKit for managed
+            <a href="#verify-purchase-with-provider"><code>verifyPurchaseWithProvider</code></a>: Use IAPKit for managed
             validation
           </li>
           <li>

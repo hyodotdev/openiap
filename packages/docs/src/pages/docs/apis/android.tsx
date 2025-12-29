@@ -26,14 +26,14 @@ function AndroidAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            <code>acknowledgePurchaseAndroid</code>: Acknowledge non-consumable
+            <a href="#acknowledge-purchase-android"><code>acknowledgePurchaseAndroid</code></a>: Acknowledge non-consumable
             purchases
           </li>
           <li>
-            <code>consumePurchaseAndroid</code>: Consume consumable purchases
+            <a href="#consume-purchase-android"><code>consumePurchaseAndroid</code></a>: Consume consumable purchases
           </li>
           <li>
-            <strong>Alternative Billing:</strong> 3-step flow for external
+            <a href="#alternative-billing-android"><strong>Alternative Billing</strong></a>: 3-step flow for external
             payment processing
           </li>
         </ul>

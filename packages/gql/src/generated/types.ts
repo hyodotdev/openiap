@@ -826,7 +826,7 @@ export interface PurchaseOptions {
   onlyIncludeActiveItemsIOS?: (boolean | null);
 }
 
-export type PurchaseState = 'pending' | 'purchased' | 'failed' | 'restored' | 'deferred' | 'unknown';
+export type PurchaseState = 'pending' | 'purchased' | 'unknown';
 
 export type PurchaseVerificationProvider = 'iapkit';
 

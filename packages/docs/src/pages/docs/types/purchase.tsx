@@ -25,17 +25,16 @@ function TypesPurchase() {
       <TLDRBox>
         <ul>
           <li>
-            <code>Purchase</code> - Union of PurchaseIOS and PurchaseAndroid
+            <a href="#purchase"><code>Purchase</code></a> - Union of PurchaseIOS and PurchaseAndroid
           </li>
           <li>
-            <code>PurchaseState</code> - Pending, Purchased, Failed, Restored,
-            Deferred, Unknown
+            <a href="#purchase-state"><code>PurchaseState</code></a> - Pending, Purchased, Unknown
           </li>
           <li>
-            <code>ActiveSubscription</code> - Unified subscription status view
+            <a href="#active-subscription"><code>ActiveSubscription</code></a> - Unified subscription status view
           </li>
           <li>
-            <code>renewalInfoIOS</code> - iOS renewal details (auto-renew,
+            <a href="#renewal-info-ios"><code>renewalInfoIOS</code></a> - iOS renewal details (auto-renew,
             expiration reason)
           </li>
         </ul>
@@ -60,6 +59,7 @@ function TypesPurchase() {
             <tr>
               <th>Name</th>
               <th>Summary</th>
+              <th>Platform</th>
             </tr>
           </thead>
           <tbody>
@@ -68,39 +68,29 @@ function TypesPurchase() {
                 <code>Pending</code>
               </td>
               <td>Purchase initiated, awaiting completion</td>
+              <td>Android</td>
             </tr>
             <tr>
               <td>
                 <code>Purchased</code>
               </td>
               <td>Payment successful, needs validation</td>
-            </tr>
-            <tr>
-              <td>
-                <code>Failed</code>
-              </td>
-              <td>Purchase failed or was cancelled</td>
-            </tr>
-            <tr>
-              <td>
-                <code>Restored</code>
-              </td>
-              <td>Previous purchase restored</td>
-            </tr>
-            <tr>
-              <td>
-                <code>Deferred</code>
-              </td>
-              <td>Awaiting approval (e.g., parental consent)</td>
+              <td>iOS, Android</td>
             </tr>
             <tr>
               <td>
                 <code>Unknown</code>
               </td>
               <td>State could not be determined</td>
+              <td>Android</td>
             </tr>
           </tbody>
         </table>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+          Note: iOS StoreKit 2 only returns <code>Transaction</code> objects on successful purchases,
+          so iOS purchases always have <code>Purchased</code> state. See{' '}
+          <a href="/docs/updates/notes#gql-1-3-11-google-1-3-20">release notes</a> for details.
+        </p>
 
         <AnchorLink id="purchase-common" level="h3">
           Common Fields

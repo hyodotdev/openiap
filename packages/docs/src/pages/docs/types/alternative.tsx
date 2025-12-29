@@ -26,21 +26,21 @@ function TypesAlternative() {
       <TLDRBox>
         <ul>
           <li>
-            <code>BillingProgramAndroid</code> - USER_CHOICE_BILLING (7.0+),
+            <a href="#billing-programs"><code>BillingProgramAndroid</code></a> - USER_CHOICE_BILLING (7.0+),
             EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, EXTERNAL_PAYMENTS (8.2.0+, 8.3.0+)
           </li>
           <li>
-            <code>InitConnectionConfig.enableBillingProgramAndroid</code> - Recommended way to enable billing programs
+            <a href="#init-connection-config"><code>InitConnectionConfig.enableBillingProgramAndroid</code></a> - Recommended way to enable billing programs
           </li>
           <li>
-            <code>DeveloperBillingOptionParamsAndroid</code> - Configure
+            <a href="#developer-billing-option"><code>DeveloperBillingOptionParamsAndroid</code></a> - Configure
             external payments in purchase flow (8.3.0+)
           </li>
           <li>
             <s><code>AlternativeBillingModeAndroid</code></s> - <strong>Deprecated:</strong> Use <code>BillingProgramAndroid</code> instead
           </li>
           <li>
-            External Purchase Link APIs for iOS 15.4+ and 18.2+
+            <a href="#external-purchase-link-ios">External Purchase Link APIs</a> for iOS 15.4+ and 18.2+
           </li>
           <li>
             For Android alternative billing, use the{' '}

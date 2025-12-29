@@ -27,19 +27,19 @@ function TypesVerification() {
       <TLDRBox>
         <ul>
           <li>
-            <code>VerifyPurchaseProps</code> - Input for verifyPurchase() with
+            <a href="#verify-purchase-props"><code>VerifyPurchaseProps</code></a> - Input for verifyPurchase() with
             platform-specific params
           </li>
           <li>
-            <code>VerifyPurchaseResult</code> - Platform-specific verification
+            <a href="#verify-purchase-result"><code>VerifyPurchaseResult</code></a> - Platform-specific verification
             results
           </li>
           <li>
-            <code>VerifyPurchaseWithProviderProps</code> - IAPKit integration
+            <a href="#verify-purchase-with-provider-props"><code>VerifyPurchaseWithProviderProps</code></a> - IAPKit integration
             input
           </li>
           <li>
-            <code>IapkitPurchaseState</code> - Unified purchase states from
+            <a href="#iapkit-purchase-state"><code>IapkitPurchaseState</code></a> - Unified purchase states from
             IAPKit
           </li>
         </ul>

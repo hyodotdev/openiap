@@ -290,9 +290,6 @@ public enum ProductTypeIOS: String, Codable, CaseIterable {
 public enum PurchaseState: String, Codable, CaseIterable {
     case pending = "pending"
     case purchased = "purchased"
-    case failed = "failed"
-    case restored = "restored"
-    case deferred = "deferred"
     case unknown = "unknown"
 }
 

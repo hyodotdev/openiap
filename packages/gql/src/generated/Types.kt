@@ -638,9 +638,6 @@ public enum class ProductTypeIOS(val rawValue: String) {
 public enum class PurchaseState(val rawValue: String) {
     Pending("pending"),
     Purchased("purchased"),
-    Failed("failed"),
-    Restored("restored"),
-    Deferred("deferred"),
     Unknown("unknown")
 
     companion object {
@@ -651,15 +648,6 @@ public enum class PurchaseState(val rawValue: String) {
             "purchased" -> PurchaseState.Purchased
             "PURCHASED" -> PurchaseState.Purchased
             "Purchased" -> PurchaseState.Purchased
-            "failed" -> PurchaseState.Failed
-            "FAILED" -> PurchaseState.Failed
-            "Failed" -> PurchaseState.Failed
-            "restored" -> PurchaseState.Restored
-            "RESTORED" -> PurchaseState.Restored
-            "Restored" -> PurchaseState.Restored
-            "deferred" -> PurchaseState.Deferred
-            "DEFERRED" -> PurchaseState.Deferred
-            "Deferred" -> PurchaseState.Deferred
             "unknown" -> PurchaseState.Unknown
             "UNKNOWN" -> PurchaseState.Unknown
             "Unknown" -> PurchaseState.Unknown

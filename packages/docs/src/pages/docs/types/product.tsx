@@ -24,17 +24,17 @@ function TypesProduct() {
       <TLDRBox>
         <ul>
           <li>
-            <code>Product</code> - Union of ProductIOS and ProductAndroid
+            <a href="#product"><code>Product</code></a> - Union of ProductIOS and ProductAndroid
           </li>
           <li>
-            <code>SubscriptionProduct</code> - Extends Product with subscription
+            <a href="#product-subscription"><code>SubscriptionProduct</code></a> - Extends Product with subscription
             fields
           </li>
           <li>
-            <code>store</code> discriminator: "apple", "google", or "horizon"
+            <a href="#store-discriminators"><code>store</code></a> discriminator: "apple", "google", or "horizon"
           </li>
           <li>
-            <code>Storefront</code> - User's store region (ISO 3166-1 alpha-2)
+            <a href="#storefront"><code>Storefront</code></a> - User's store region (ISO 3166-1 alpha-2)
           </li>
         </ul>
       </TLDRBox>

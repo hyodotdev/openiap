@@ -25,18 +25,18 @@ function IOSAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            <strong>Transaction Management:</strong> clearTransactionIOS,
+            <a href="#transaction-management"><strong>Transaction Management</strong></a>: clearTransactionIOS,
             getPendingTransactionsIOS
           </li>
           <li>
-            <strong>Subscription:</strong> subscriptionStatusIOS,
+            <a href="#subscription-management"><strong>Subscription</strong></a>: subscriptionStatusIOS,
             showManageSubscriptionsIOS
           </li>
           <li>
-            <strong>External Purchase:</strong> iOS 17.4+ external purchase flow
+            <a href="#external-purchase-ios"><strong>External Purchase</strong></a>: iOS 17.4+ external purchase flow
           </li>
           <li>
-            <strong>Verification:</strong> isTransactionVerifiedIOS,
+            <a href="#verification-ios"><strong>Verification</strong></a>: isTransactionVerifiedIOS,
             getTransactionJwsIOS
           </li>
         </ul>

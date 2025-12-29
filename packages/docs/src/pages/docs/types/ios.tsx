@@ -25,15 +25,15 @@ function TypesIOS() {
       <TLDRBox>
         <ul>
           <li>
-            <strong>Discounts</strong>: DiscountOffer (for purchasing), Discount
+            <a href="#discount-offer"><strong>Discounts</strong></a>: DiscountOffer (for purchasing), Discount
             (product info)
           </li>
           <li>
-            <strong>Subscription</strong>: SubscriptionStatusIOS,
+            <a href="#subscription-status-ios"><strong>Subscription</strong></a>: SubscriptionStatusIOS,
             SubscriptionPeriodIOS, PaymentMode
           </li>
           <li>
-            <code>AppTransaction</code> - App purchase/installation metadata
+            <a href="#app-transaction"><code>AppTransaction</code></a> - App purchase/installation metadata
           </li>
         </ul>
       </TLDRBox>

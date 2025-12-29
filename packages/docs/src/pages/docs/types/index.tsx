@@ -304,27 +304,27 @@ function TypesIndex() {
       <TLDRBox title="Type Categories">
         <ul>
           <li>
-            <strong>Product</strong>: Product, SubscriptionProduct, Storefront
+            <a href="/docs/types/product"><strong>Product</strong></a>: Product, SubscriptionProduct, Storefront
           </li>
           <li>
-            <strong>Purchase</strong>: Purchase, ActiveSubscription
+            <a href="/docs/types/purchase"><strong>Purchase</strong></a>: Purchase, ActiveSubscription
           </li>
           <li>
-            <strong>Request</strong>: ProductRequest, RequestPurchaseProps
+            <a href="/docs/types/request"><strong>Request</strong></a>: ProductRequest, RequestPurchaseProps
           </li>
           <li>
-            <strong>Alternative Billing</strong>: External purchase and billing
+            <a href="/docs/types/alternative"><strong>Alternative Billing</strong></a>: External purchase and billing
             modes
           </li>
           <li>
-            <strong>Verification</strong>: Purchase verification types
+            <a href="/docs/types/verification"><strong>Verification</strong></a>: Purchase verification types
           </li>
           <li>
-            <strong>iOS</strong>: DiscountOffer, SubscriptionStatusIOS,
+            <a href="/docs/types/ios"><strong>iOS</strong></a>: DiscountOffer, SubscriptionStatusIOS,
             AppTransaction
           </li>
           <li>
-            <strong>Android</strong>: SubscriptionOffer, PricingPhase
+            <a href="/docs/types/android"><strong>Android</strong></a>: SubscriptionOffer, PricingPhase
           </li>
         </ul>
       </TLDRBox>

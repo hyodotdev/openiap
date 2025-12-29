@@ -513,7 +513,6 @@ public final class OpenIapStore: ObservableObject {
             } else {
                 isActive = iosPurchase.isAutoRenewing
                     || iosPurchase.purchaseState == .purchased
-                    || iosPurchase.purchaseState == .restored
             }
 
             guard isActive else {

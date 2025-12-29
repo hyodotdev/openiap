@@ -28,10 +28,10 @@ function DebuggingAPIs() {
         <ul>
           <li>Logging is disabled by default in production</li>
           <li>
-            Enable with <code>OpenIapLog.enable(true)</code>
+            <a href="#enable-logging">Enable with <code>OpenIapLog.enable(true)</code></a>
           </li>
           <li>
-            Android basePlanId limitation: Use client-side tracking or backend
+            <a href="#common-warnings">Android basePlanId limitation</a>: Use client-side tracking or backend
             validation
           </li>
         </ul>

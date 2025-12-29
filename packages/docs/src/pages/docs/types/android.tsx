@@ -26,15 +26,15 @@ function TypesAndroid() {
       <TLDRBox>
         <ul>
           <li>
-            <code>SubscriptionOffer</code> - Offer details with offerToken for
+            <a href="#subscription-offer"><code>SubscriptionOffer</code></a> - Offer details with offerToken for
             purchases
           </li>
           <li>
-            <code>PricingPhase</code> - Individual pricing phase (trial, intro,
+            <a href="#pricing-phase"><code>PricingPhase</code></a> - Individual pricing phase (trial, intro,
             regular)
           </li>
           <li>
-            <code>PricingPhasesAndroid</code> - Container for pricing phase list
+            <a href="#pricing-phases-android"><code>PricingPhasesAndroid</code></a> - Container for pricing phase list
           </li>
         </ul>
       </TLDRBox>

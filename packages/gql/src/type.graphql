@@ -16,9 +16,6 @@ enum ProductType {
 enum PurchaseState {
   Pending
   Purchased
-  Failed
-  Restored
-  Deferred
   Unknown
 }
 

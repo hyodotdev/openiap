@@ -26,11 +26,11 @@ function ProductsAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            <code>fetchProducts</code>: Get product details (price, title,
+            <a href="#fetch-products"><code>fetchProducts</code></a>: Get product details (price, title,
             description)
           </li>
           <li>
-            <code>getAvailablePurchases</code>: Get user's unfinished purchases
+            <a href="#get-available-purchases"><code>getAvailablePurchases</code></a>: Get user's unfinished purchases
           </li>
           <li>
             Use <code>type: 'subs'</code> for subscriptions,{' '}

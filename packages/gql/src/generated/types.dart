@@ -702,9 +702,6 @@ enum ProductTypeIOS {
 enum PurchaseState {
   Pending('pending'),
   Purchased('purchased'),
-  Failed('failed'),
-  Restored('restored'),
-  Deferred('deferred'),
   Unknown('unknown');
 
   const PurchaseState(this.value);
@@ -720,18 +717,6 @@ enum PurchaseState {
       case 'PURCHASED':
       case 'Purchased':
         return PurchaseState.Purchased;
-      case 'failed':
-      case 'FAILED':
-      case 'Failed':
-        return PurchaseState.Failed;
-      case 'restored':
-      case 'RESTORED':
-      case 'Restored':
-        return PurchaseState.Restored;
-      case 'deferred':
-      case 'DEFERRED':
-      case 'Deferred':
-        return PurchaseState.Deferred;
       case 'unknown':
       case 'UNKNOWN':
       case 'Unknown':

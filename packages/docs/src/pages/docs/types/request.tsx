@@ -25,17 +25,17 @@ function TypesRequest() {
       <TLDRBox>
         <ul>
           <li>
-            <code>ProductRequest</code> - Parameters for fetchProducts()
+            <a href="#product-request"><code>ProductRequest</code></a> - Parameters for fetchProducts()
           </li>
           <li>
-            <code>RequestPurchaseProps</code> - Top-level arguments for
+            <a href="#request-purchase-props"><code>RequestPurchaseProps</code></a> - Top-level arguments for
             requestPurchase()
           </li>
           <li>
-            Platform-specific props for Apple (iOS) and Google (Android)
+            <a href="#platform-specific-request-props">Platform-specific props</a> for Apple (iOS) and Google (Android)
           </li>
           <li>
-            Subscription-specific props with upgrade/downgrade support
+            <a href="#subscription-request-props">Subscription-specific props</a> with upgrade/downgrade support
           </li>
         </ul>
       </TLDRBox>
