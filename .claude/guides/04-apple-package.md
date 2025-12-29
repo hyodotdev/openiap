@@ -83,6 +83,32 @@ swift test
 swift build
 ```
 
+## Android No-Op Events
+
+Android-specific events are **no-ops** on iOS. When removing listeners for these events:
+
+- Log an info message with `os_log(.info, ...)`
+- Simply return without action
+
+| Event | Behavior on iOS |
+|-------|-----------------|
+| `userChoiceBillingAndroid` | No-op, logs info |
+| `developerProvidedBillingAndroid` | No-op, logs info |
+
+### Guidelines for No-Op Implementations
+
+When implementing no-ops for Android-only features:
+
+1. **Use `os_log(.info, ...)`** so messages appear in system logs
+2. **Include "(no-op)" suffix** in log message for clarity
+3. **Format**: `os_log(.info, "featureName is not supported on iOS (no-op)")`
+
+```swift
+// Correct - visible in Console.app
+case .userChoiceBillingAndroid:
+    os_log(.info, "userChoiceBillingAndroid is not supported on iOS (no-op)")
+```
+
 ## Deployment
 
 Via GitHub Actions "Apple Release" workflow:

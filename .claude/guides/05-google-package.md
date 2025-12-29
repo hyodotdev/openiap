@@ -74,6 +74,46 @@ fun consumePurchase()
 fun acknowledgePurchaseAndroid()
 ```
 
+## Horizon No-Op Functions
+
+Google Play-specific features are **no-ops** on Horizon. These functions:
+
+- Log a warning with `Log.w()` (visible in Logcat at app level)
+- Return safe default values instead of throwing exceptions
+
+| Function | Behavior on Horizon |
+|----------|---------------------|
+| `setUserChoiceBillingListener` | No-op, logs warning |
+| `setDeveloperProvidedBillingListener` | No-op, logs warning |
+| `addUserChoiceBillingListener` | No-op, logs warning |
+| `removeUserChoiceBillingListener` | No-op, logs warning |
+| `addDeveloperProvidedBillingListener` | No-op, logs warning |
+| `removeDeveloperProvidedBillingListener` | No-op, logs warning |
+| `isBillingProgramAvailable` | Returns `isAvailable: false` |
+| `createBillingProgramReportingDetails` | Returns empty token |
+| `launchExternalLink` | Returns `false` |
+
+### Guidelines for No-Op Implementations
+
+When implementing no-ops for unsupported features:
+
+1. **Use `Log.w()`** (not `OpenIapLog.d()`) so warnings appear in application logs
+2. **Never throw exceptions** - return safe defaults instead
+3. **Include "(no-op)" suffix** in log message for clarity
+4. **Format**: `Log.w(TAG, "functionName is not supported on Meta Horizon (no-op)")`
+
+```kotlin
+// Correct - visible in Logcat
+override fun someUnsupportedFunction() {
+    Log.w(TAG, "someUnsupportedFunction is not supported on Meta Horizon (no-op)")
+}
+
+// Wrong - only visible when OpenIapLog is enabled
+override fun someUnsupportedFunction() {
+    OpenIapLog.d("someUnsupportedFunction is a no-op", TAG)
+}
+```
+
 ## Deployment
 
 Via GitHub Actions "Google Release" workflow → Maven Central

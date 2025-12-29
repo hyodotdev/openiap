@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 import StoreKit
 
 @available(iOS 15.0, macOS 14.0, *)
@@ -50,8 +51,11 @@ actor IapState {
         case .promotedProductIos:
             promotedProductListeners.removeAll { $0.id == id }
         case .userChoiceBillingAndroid:
-            // Android-only event, no-op on iOS
-            break
+            // No-op: User Choice Billing is an Android-only feature
+            os_log(.info, "userChoiceBillingAndroid is not supported on iOS (no-op)")
+        case .developerProvidedBillingAndroid:
+            // No-op: Developer Provided Billing is an Android-only feature (Google Play 8.3.0+)
+            os_log(.info, "developerProvidedBillingAndroid is not supported on iOS (no-op)")
         @unknown default:
             break
         }

@@ -1018,32 +1018,39 @@ class OpenIapModule(
     }
 
     override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
-        throw UnsupportedOperationException("setUserChoiceBillingListener is not supported on Meta Horizon. User Choice Billing is a Google Play feature.")
+        // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
+        Log.w(TAG, "setUserChoiceBillingListener is not supported on Meta Horizon (no-op)")
     }
 
     override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
-        throw UnsupportedOperationException("setDeveloperProvidedBillingListener is not supported on Meta Horizon. External Payments is a Google Play 8.3.0+ feature (Japan only).")
+        // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
+        Log.w(TAG, "setDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)")
     }
 
     override fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
-        throw UnsupportedOperationException("addUserChoiceBillingListener is not supported on Meta Horizon. User Choice Billing is a Google Play feature.")
+        // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
+        Log.w(TAG, "addUserChoiceBillingListener is not supported on Meta Horizon (no-op)")
     }
 
     override fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
-        throw UnsupportedOperationException("removeUserChoiceBillingListener is not supported on Meta Horizon. User Choice Billing is a Google Play feature.")
+        // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
+        Log.w(TAG, "removeUserChoiceBillingListener is not supported on Meta Horizon (no-op)")
     }
 
     override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
-        throw UnsupportedOperationException("addDeveloperProvidedBillingListener is not supported on Meta Horizon. External Payments is a Google Play 8.3.0+ feature (Japan only).")
+        // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
+        Log.w(TAG, "addDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)")
     }
 
     override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
-        throw UnsupportedOperationException("removeDeveloperProvidedBillingListener is not supported on Meta Horizon. External Payments is a Google Play 8.3.0+ feature (Japan only).")
+        // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
+        Log.w(TAG, "removeDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)")
     }
 
     // Billing Programs (8.2.0+, EXTERNAL_PAYMENTS 8.3.0+) - Not supported on Horizon
     override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
-        OpenIapLog.w("isBillingProgramAvailable not supported on Horizon", TAG)
+        // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
+        Log.w(TAG, "isBillingProgramAvailable is not supported on Meta Horizon (no-op)")
         return BillingProgramAvailabilityResultAndroid(
             billingProgram = program,
             isAvailable = false
@@ -1051,12 +1058,17 @@ class OpenIapModule(
     }
 
     override suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
-        OpenIapLog.w("createBillingProgramReportingDetails not supported on Horizon", TAG)
-        throw OpenIapError.FeatureNotSupported
+        // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
+        Log.w(TAG, "createBillingProgramReportingDetails is not supported on Meta Horizon (no-op)")
+        return BillingProgramReportingDetailsAndroid(
+            billingProgram = program,
+            externalTransactionToken = ""
+        )
     }
 
     override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean {
-        OpenIapLog.w("launchExternalLink not supported on Horizon", TAG)
+        // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
+        Log.w(TAG, "launchExternalLink is not supported on Meta Horizon (no-op)")
         return false
     }
 }

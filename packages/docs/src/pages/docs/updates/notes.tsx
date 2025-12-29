@@ -31,9 +31,9 @@ function Notes() {
       id: 'gql-1-3-11-google-1-3-20-apple-1-3-9',
       date: new Date('2025-12-28'),
       element: (
-        <div key="gql-1-3-11-google-1-3-20-apple-1-3-9" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-11-google-1-3-20-apple-1-3-9" level="h4">
-            📅 openiap-gql v1.3.11 / openiap-google v1.3.20 / openiap-apple v1.3.9 - PurchaseState Cleanup
+        <div key="gql-1-3-11-google-1-3-21-apple-1-3-9" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-11-google-1-3-21-apple-1-3-9" level="h4">
+            📅 openiap-gql v1.3.11 / openiap-google v1.3.21 / openiap-apple v1.3.9 - PurchaseState Cleanup
           </AnchorLink>
 
           {/* PurchaseState Changes */}
