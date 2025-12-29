@@ -5,14 +5,16 @@ interface PaginationProps {
   children: ReactNode;
   itemsPerPage?: number;
   showPageNumbers?: boolean;
+  initialPage?: number;
 }
 
 function Pagination({
   children,
   itemsPerPage = 5,
   showPageNumbers = true,
+  initialPage = 1,
 }: PaginationProps) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const childArray = Children.toArray(children);
   const totalPages = Math.ceil(childArray.length / itemsPerPage);
 

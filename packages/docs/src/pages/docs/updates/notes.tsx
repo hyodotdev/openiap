@@ -1,7 +1,12 @@
+import { useMemo } from 'react';
 import SEO from '../../../components/SEO';
-import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import {
+  useScrollToHash,
+  getHashId,
+} from '../../../hooks/useScrollToHash';
 import CodeBlock from '../../../components/CodeBlock';
 import Pagination from '../../../components/Pagination';
+import AnchorLink from '../../../components/AnchorLink';
 
 const noteCardStyle = {
   background: 'var(--bg-secondary)',
@@ -10,8 +15,6 @@ const noteCardStyle = {
   padding: '1rem',
   marginBottom: '1.5rem',
 };
-
-const noteTitleStyle = { marginTop: 0, color: 'var(--text-primary)' };
 
 interface Note {
   id: string;
@@ -29,9 +32,9 @@ function Notes() {
       date: new Date('2025-12-28'),
       element: (
         <div key="gql-1-3-11-google-1-3-20-apple-1-3-9" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="gql-1-3-11-google-1-3-20-apple-1-3-9" level="h4">
             📅 openiap-gql v1.3.11 / openiap-google v1.3.20 / openiap-apple v1.3.9 - PurchaseState Cleanup
-          </h4>
+          </AnchorLink>
 
           {/* PurchaseState Changes */}
           <p><strong>PurchaseState Simplified:</strong></p>
@@ -192,7 +195,7 @@ val config = InitConnectionConfig(
       date: new Date('2025-12-28'),
       element: (
         <div key="release-dec-28-2025" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="release-dec-28-2025" level="h4">
             📅 openiap-gql v1.3.10 / openiap-google v1.3.19 / openiap-apple v1.3.8 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-3-0"
@@ -201,7 +204,7 @@ val config = InitConnectionConfig(
             >
               Google Play Billing 8.3.0 External Payments
             </a>
-          </h4>
+          </AnchorLink>
 
           {/* GQL 1.3.10 */}
           <p>
@@ -382,7 +385,7 @@ let products = try await OpenIapModule.shared.fetchProducts(request)`}
       date: new Date('2025-12-24'),
       element: (
         <div key="v1.3.16-billing-821" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="v1.3.16-billing-821" level="h4">
             📅 openiap-google v1.3.16 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-2-1"
@@ -391,7 +394,7 @@ let products = try await OpenIapModule.shared.fetchProducts(request)`}
             >
               Google Play Billing 8.2.1
             </a>
-          </h4>
+          </AnchorLink>
           <p>
             <strong>Billing Library Upgrade: 8.1.0 → 8.2.1</strong>
           </p>
@@ -504,7 +507,9 @@ let products = try await OpenIapModule.shared.fetchProducts(request)`}
       date: new Date('2025-12-24'),
       element: (
         <div key="v1.3.8-kotlin-null-safe" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>📅 openiap-gql v1.3.8</h4>
+          <AnchorLink id="v1.3.8-kotlin-null-safe" level="h4">
+            📅 openiap-gql v1.3.8
+          </AnchorLink>
           <p>
             <strong>Kotlin Type Generation: Null-Safe Casting</strong>
           </p>
@@ -550,10 +555,9 @@ offerToken = json["offerToken"] as? String ?: ""`}
       date: new Date('2025-12-23'),
       element: (
         <div key="v1.3.7-advanced-commerce" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.7 / openiap-apple v1.3.7 / openiap-google
-            v1.3.15
-          </h4>
+          <AnchorLink id="v1.3.7-advanced-commerce" level="h4">
+            📅 openiap-gql v1.3.7 / openiap-apple v1.3.7 / openiap-google v1.3.15
+          </AnchorLink>
           <p>
             <strong>New Feature: Advanced Commerce Data</strong>
           </p>
@@ -694,10 +698,9 @@ requestPurchase(RequestPurchaseProps(
       date: new Date('2025-12-16'),
       element: (
         <div key="v1.3.5-tag" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.5 / openiap-apple v1.3.5 - GitHub Release Tag
-            Management Update
-          </h4>
+          <AnchorLink id="v1.3.5-tag" level="h4">
+            📅 openiap-gql v1.3.5 / openiap-apple v1.3.5 - GitHub Release Tag Management Update
+          </AnchorLink>
           <p>
             <strong>GitHub Release Tag Naming Convention:</strong>
           </p>
@@ -747,10 +750,9 @@ requestPurchase(RequestPurchaseProps(
       date: new Date('2025-12-10'),
       element: (
         <div key="v1.3.4-verify" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
-            📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple
-            v1.3.2 - Platform-Specific Verification Options
-          </h4>
+          <AnchorLink id="v1.3.4-verify" level="h4">
+            📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple v1.3.2 - Platform-Specific Verification Options
+          </AnchorLink>
           <p>
             <strong>verifyPurchase API Refactored (Breaking Change):</strong>
           </p>
@@ -830,7 +832,7 @@ verifyPurchase({
       date: new Date('2025-12-05'),
       element: (
         <div key="v1.3.12-billing" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="v1.3.12-billing" level="h4">
             📅 openiap-google v1.3.12 / openiap-gql v1.3.2 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-2-0"
@@ -840,7 +842,7 @@ verifyPurchase({
               Google Play Billing 8.2.0
             </a>{' '}
             Billing Programs API
-          </h4>
+          </AnchorLink>
           <p>
             <strong>New Billing Programs API (8.2.0+):</strong>
           </p>
@@ -916,7 +918,7 @@ verifyPurchase({
       date: new Date('2025-11-15'),
       element: (
         <div key="v1.3.11-billing" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="v1.3.11-billing" level="h4">
             📅 openiap-google v1.3.11 / openiap-gql v1.3.1 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
@@ -926,7 +928,7 @@ verifyPurchase({
               Google Play Billing 8.1.0
             </a>{' '}
             Support
-          </h4>
+          </AnchorLink>
           <p>
             <strong>Google Play Billing Library Upgrade:</strong>
           </p>
@@ -977,9 +979,9 @@ verifyPurchase({
       date: new Date('2025-10-15'),
       element: (
         <div key="v1.3.0-platform" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="v1.3.0-platform" level="h4">
             📅 openiap v1.3.0 - Platform Props & Store Field Updates
-          </h4>
+          </AnchorLink>
           <p>
             <strong>Breaking Changes:</strong>
           </p>
@@ -1029,9 +1031,9 @@ verifyPurchase({
       date: new Date('2025-09-20'),
       element: (
         <div key="v1.2.6-verify" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="v1.2.6-verify" level="h4">
             📅 openiap v1.2.6 - validateReceipt → verifyPurchase
-          </h4>
+          </AnchorLink>
           <p>
             Starting from <strong>openiap v1.2.6</strong>, the{' '}
             <code style={{ textDecoration: 'line-through' }}>
@@ -1073,9 +1075,9 @@ verifyPurchase({
       date: new Date('2025-09-01'),
       element: (
         <div key="v1.2.0-alignment" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="v1.2.0-alignment" level="h4">
             📅 openiap v1.2.0 - Version Alignment & Alternative Billing
-          </h4>
+          </AnchorLink>
           <p>
             Version jumped directly from <strong>1.0.12</strong> to{' '}
             <strong>1.2.0</strong> to align with native libraries (iOS/Android)
@@ -1107,9 +1109,9 @@ verifyPurchase({
       date: new Date('2025-08-25'),
       element: (
         <div key="gql-1.0.12-external" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="gql-1.0.12-external" level="h4">
             📅 openiap-gql 1.0.12 - External Purchase Support
-          </h4>
+          </AnchorLink>
           <p>
             External purchase/alternative billing support for iOS and Android.
           </p>
@@ -1148,9 +1150,9 @@ verifyPurchase({
       date: new Date('2025-08-15'),
       element: (
         <div key="subscription-status-apis" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="subscription-status-apis" level="h4">
             📅 August 2025 - Subscription Status APIs
-          </h4>
+          </AnchorLink>
           <p>
             New standardized APIs for checking subscription status across
             platforms.
@@ -1183,9 +1185,9 @@ verifyPurchase({
       date: new Date('2024-08-31'),
       element: (
         <div key="billing-v5-deprecated" style={noteCardStyle}>
-          <h4 style={noteTitleStyle}>
+          <AnchorLink id="billing-v5-deprecated" level="h4">
             📅 August 31, 2024 - Billing Library v5 Deprecated
-          </h4>
+          </AnchorLink>
           <p>All apps must use Google Play Billing Library v6.0.1 or later.</p>
           <ul>
             <li>
@@ -1204,6 +1206,19 @@ verifyPurchase({
     (a, b) => b.date.getTime() - a.date.getTime()
   );
 
+  const itemsPerPage = 5;
+
+  // Calculate initial page based on URL hash
+  const initialPage = useMemo(() => {
+    const hashId = getHashId();
+    if (!hashId) return 1;
+
+    const noteIndex = sortedNotes.findIndex((note) => note.id === hashId);
+    if (noteIndex === -1) return 1;
+
+    return Math.floor(noteIndex / itemsPerPage) + 1;
+  }, [sortedNotes]);
+
   return (
     <div className="doc-page">
       <SEO
@@ -1215,11 +1230,9 @@ verifyPurchase({
       <h1>Notes</h1>
       <p>Important changes and deprecations in IAP libraries and platforms.</p>
 
-      <Pagination itemsPerPage={5}>
+      <Pagination itemsPerPage={itemsPerPage} initialPage={initialPage}>
         {sortedNotes.map((note) => (
-          <section key={note.id} id={note.id}>
-            {note.element}
-          </section>
+          <section key={note.id}>{note.element}</section>
         ))}
       </Pagination>
     </div>

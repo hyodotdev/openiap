@@ -218,8 +218,7 @@
 .anchor-heading {
   position: relative;
   scroll-margin-top: 80px;
-  display: flex;
-  align-items: center;
+  margin-top: 0;
 }
 
 .anchor-link {
