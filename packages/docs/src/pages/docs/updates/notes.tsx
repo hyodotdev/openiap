@@ -136,6 +136,10 @@ enum PurchaseState {
             <li>
               <code>InitConnectionConfig.alternativeBillingModeAndroid</code> - <strong>Deprecated</strong>
             </li>
+            <li>
+              <code>RequestPurchaseProps.useAlternativeBilling</code> - <strong>Deprecated</strong>{' '}
+              (only logged debug info, had no effect on purchase flow)
+            </li>
           </ul>
 
           {/* Google 1.3.20 Changes */}

@@ -152,7 +152,8 @@ input RequestPurchaseProps {
   """
   type: ProductQueryType = InApp
   """
-  Use alternative billing (Google Play alternative billing, Apple external purchase link)
+  @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+  This flag only logs debug info and has no effect on the purchase flow.
   """
   useAlternativeBilling: Boolean
 }
