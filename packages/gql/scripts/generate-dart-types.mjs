@@ -553,19 +553,47 @@ const printInput = (inputType) => {
   if (inputType.name === 'RequestPurchaseProps') {
     addDocComment(lines, inputType.description);
 
+    // Get field names from schema (prefer apple/google over deprecated ios/android)
+    const purchaseByPlatformsType = typeMap['RequestPurchasePropsByPlatforms'];
+    const subsByPlatformsType = typeMap['RequestSubscriptionPropsByPlatforms'];
+    const purchaseFields = purchaseByPlatformsType ? Object.values(purchaseByPlatformsType.getFields()) : [];
+    const subsFields = subsByPlatformsType ? Object.values(subsByPlatformsType.getFields()) : [];
+
+    // Find apple/google fields (non-deprecated), fallback to ios/android
+    const findField = (fields, preferred, fallback) => {
+      const preferredField = fields.find((f) => f.name === preferred);
+      if (preferredField) return { name: preferred, type: getDartType(preferredField.type).type };
+      const fallbackField = fields.find((f) => f.name === fallback);
+      if (fallbackField) return { name: fallback, type: getDartType(fallbackField.type).type };
+      return null;
+    };
+
+    const appleField = findField(purchaseFields, 'apple', 'ios');
+    const googleField = findField(purchaseFields, 'google', 'android');
+    const appleSubsField = findField(subsFields, 'apple', 'ios');
+    const googleSubsField = findField(subsFields, 'google', 'android');
+
+    // Use schema field names
+    const appleName = appleField?.name || 'apple';
+    const googleName = googleField?.name || 'google';
+    const appleType = appleField?.type || 'RequestPurchaseIosProps';
+    const googleType = googleField?.type || 'RequestPurchaseAndroidProps';
+    const appleSubsType = appleSubsField?.type || 'RequestSubscriptionIosProps';
+    const googleSubsType = googleSubsField?.type || 'RequestSubscriptionAndroidProps';
+
     // Sealed class for compile-time type safety
     lines.push('sealed class RequestPurchaseProps {');
     lines.push('  const RequestPurchaseProps._();');
     lines.push('');
     lines.push('  const factory RequestPurchaseProps.inApp(({');
-    lines.push('    RequestPurchaseIosProps? ios,');
-    lines.push('    RequestPurchaseAndroidProps? android,');
+    lines.push(`    ${appleType}? ${appleName},`);
+    lines.push(`    ${googleType}? ${googleName},`);
     lines.push('    bool? useAlternativeBilling,');
     lines.push('  }) props) = _InAppPurchase;');
     lines.push('');
     lines.push('  const factory RequestPurchaseProps.subs(({');
-    lines.push('    RequestSubscriptionIosProps? ios,');
-    lines.push('    RequestSubscriptionAndroidProps? android,');
+    lines.push(`    ${appleSubsType}? ${appleName},`);
+    lines.push(`    ${googleSubsType}? ${googleName},`);
     lines.push('    bool? useAlternativeBilling,');
     lines.push('  }) props) = _SubsPurchase;');
     lines.push('');
@@ -577,8 +605,8 @@ const printInput = (inputType) => {
     lines.push('class _InAppPurchase extends RequestPurchaseProps {');
     lines.push('  const _InAppPurchase(this.props) : super._();');
     lines.push('  final ({');
-    lines.push('    RequestPurchaseIosProps? ios,');
-    lines.push('    RequestPurchaseAndroidProps? android,');
+    lines.push(`    ${appleType}? ${appleName},`);
+    lines.push(`    ${googleType}? ${googleName},`);
     lines.push('    bool? useAlternativeBilling,');
     lines.push('  }) props;');
     lines.push('');
@@ -586,8 +614,8 @@ const printInput = (inputType) => {
     lines.push('  Map<String, dynamic> toJson() {');
     lines.push('    return {');
     lines.push("      'requestPurchase': {");
-    lines.push("        if (props.ios != null) 'ios': props.ios!.toJson(),");
-    lines.push("        if (props.android != null) 'android': props.android!.toJson(),");
+    lines.push(`        if (props.${appleName} != null) 'ios': props.${appleName}!.toJson(),`);
+    lines.push(`        if (props.${googleName} != null) 'android': props.${googleName}!.toJson(),`);
     lines.push('      },');
     lines.push("      'type': ProductQueryType.InApp.toJson(),");
     lines.push("      if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,");
@@ -600,8 +628,8 @@ const printInput = (inputType) => {
     lines.push('class _SubsPurchase extends RequestPurchaseProps {');
     lines.push('  const _SubsPurchase(this.props) : super._();');
     lines.push('  final ({');
-    lines.push('    RequestSubscriptionIosProps? ios,');
-    lines.push('    RequestSubscriptionAndroidProps? android,');
+    lines.push(`    ${appleSubsType}? ${appleName},`);
+    lines.push(`    ${googleSubsType}? ${googleName},`);
     lines.push('    bool? useAlternativeBilling,');
     lines.push('  }) props;');
     lines.push('');
@@ -609,8 +637,8 @@ const printInput = (inputType) => {
     lines.push('  Map<String, dynamic> toJson() {');
     lines.push('    return {');
     lines.push("      'requestSubscription': {");
-    lines.push("        if (props.ios != null) 'ios': props.ios!.toJson(),");
-    lines.push("        if (props.android != null) 'android': props.android!.toJson(),");
+    lines.push(`        if (props.${appleName} != null) 'ios': props.${appleName}!.toJson(),`);
+    lines.push(`        if (props.${googleName} != null) 'android': props.${googleName}!.toJson(),`);
     lines.push('      },');
     lines.push("      'type': ProductQueryType.Subs.toJson(),");
     lines.push("      if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,");
