@@ -81,8 +81,8 @@ struct AvailablePurchasesScreen: View {
     
     private var uniqueActivePurchases: [OpenIapPurchase] {
         let allActivePurchases = iapStore.iosAvailablePurchases.filter { purchase in
-            // Show active purchases (purchased or restored state)
-            purchase.purchaseState == .purchased || purchase.purchaseState == .restored
+            // Show active purchases (purchased state)
+            purchase.purchaseState == .purchased
         }.filter { purchase in
             if purchase.isSubscription {
                 // Active subscriptions: check auto-renewing or expiry time

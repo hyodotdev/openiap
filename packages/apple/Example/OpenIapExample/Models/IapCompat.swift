@@ -14,7 +14,7 @@ typealias OpenIapActiveSubscription = ActiveSubscription
 extension PurchaseState {
     var isAcknowledged: Bool {
         switch self {
-        case .purchased, .restored:
+        case .purchased:
             return true
         default:
             return false

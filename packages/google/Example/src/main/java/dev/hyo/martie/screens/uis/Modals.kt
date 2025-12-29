@@ -331,18 +331,12 @@ fun PurchaseDetailModal(
                         when (purchase.purchaseState) {
                             PurchaseState.Purchased -> Icons.Default.CheckCircle
                             PurchaseState.Pending -> Icons.Default.Schedule
-                            PurchaseState.Failed -> Icons.Default.Error
-                            PurchaseState.Restored -> Icons.Default.Restore
-                            PurchaseState.Deferred -> Icons.Default.Schedule
                             PurchaseState.Unknown -> Icons.Default.Info
                         },
                         contentDescription = null,
                         tint = when (purchase.purchaseState) {
                             PurchaseState.Purchased -> AppColors.success
                             PurchaseState.Pending -> AppColors.warning
-                            PurchaseState.Failed -> AppColors.danger
-                            PurchaseState.Restored -> AppColors.info
-                            PurchaseState.Deferred -> AppColors.warning
                             PurchaseState.Unknown -> AppColors.textSecondary
                         },
                         modifier = Modifier.size(32.dp)

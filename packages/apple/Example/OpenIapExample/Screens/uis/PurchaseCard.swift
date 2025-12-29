@@ -16,29 +16,17 @@ struct PurchaseCard: View {
             return AppColors.success
         case .pending:
             return AppColors.warning
-        case .failed:
-            return AppColors.error
-        case .restored:
-            return AppColors.primary
-        case .deferred:
-            return AppColors.secondary
         case .unknown:
             return AppColors.secondary
         }
     }
-    
+
     private var statusText: String {
         switch purchase.purchaseState {
         case .purchased:
             return "Purchased"
         case .pending:
             return "Pending"
-        case .failed:
-            return "Failed"
-        case .restored:
-            return "Restored"
-        case .deferred:
-            return "Deferred"
         case .unknown:
             return "Unknown"
         }
