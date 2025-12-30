@@ -710,15 +710,18 @@ private fun loadHorizonModule(context: Context): OpenIapProtocol {
  */
 private fun loadPlayModule(context: Context): OpenIapProtocol {
     return try {
-        // Try to load OpenIapModule with default parameters (Context, NONE mode, null listener)
+        // Try to load OpenIapModule with default parameters
+        // Constructor: (Context, AlternativeBillingMode, UserChoiceBillingListener?, DeveloperProvidedBillingListener?)
         val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
         val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
         val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
+        val developerProvidedBillingListenerClass = Class.forName("dev.hyo.openiap.listener.DeveloperProvidedBillingListener")
 
         val constructor = clazz.getConstructor(
             Context::class.java,
             alternativeBillingModeClass,
-            userChoiceBillingListenerClass
+            userChoiceBillingListenerClass,
+            developerProvidedBillingListenerClass
         )
 
         // Get NONE enum value
@@ -726,7 +729,7 @@ private fun loadPlayModule(context: Context): OpenIapProtocol {
             (it as Enum<*>).name == "NONE"
         }
 
-        constructor.newInstance(context, noneMode, null) as OpenIapProtocol
+        constructor.newInstance(context, noneMode, null, null) as OpenIapProtocol
     } catch (e: Throwable) {
         throw IllegalStateException("Failed to load OpenIapModule. Make sure you're using the Play flavor.", e)
     }
