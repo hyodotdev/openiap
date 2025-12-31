@@ -73,6 +73,9 @@ function ValidationAPIs() {
             dart: (
               <CodeBlock language="dart">{`Future<VerifyPurchaseResult> verifyPurchase(VerifyPurchaseProps options);`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func verify_purchase(options: VerifyPurchaseProps) -> VerifyPurchaseResult`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -107,6 +110,17 @@ if (result.isValid) {
   purchase: purchase,
   serverUrl: 'https://your-server.com/api/verify',
 );`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`var options = VerifyPurchaseProps.new()
+options.purchase = purchase
+options.server_url = "https://your-server.com/api/verify"
+
+var result = await iap.verify_purchase(options)
+
+if result.is_valid:
+    await grant_entitlement(purchase.product_id)
+    await iap.finish_transaction(purchase, false)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -194,6 +208,22 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
     ),
   ),
 );`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`var iapkit_props = RequestVerifyPurchaseWithIapkitProps.new()
+iapkit_props.api_key = "your-iapkit-api-key"
+iapkit_props.google = RequestVerifyPurchaseWithIapkitGoogleProps.new()
+iapkit_props.google.purchase_token = purchase.purchase_token
+
+var props = VerifyPurchaseWithProviderProps.new()
+props.provider = PurchaseVerificationProvider.IAPKIT
+props.iapkit = iapkit_props
+
+var result = await iap.verify_purchase_with_provider(props)
+
+if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLED:
+    await grant_entitlement(purchase.product_id)
+    await iap.finish_transaction(purchase, false)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

@@ -55,6 +55,13 @@ function Errors() {
   final String? productId; // Related product SKU (if applicable)
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`class_name PurchaseError
+
+var code: String          # Error code constant
+var message: String       # Human-readable message
+var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -721,6 +728,44 @@ function Errors() {
   billingUnavailable,
   featureNotSupported,
   emptySkuList,
+}`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`enum OpenIapError {
+    UNKNOWN,
+    USER_CANCELLED,
+    USER_ERROR,
+    ITEM_UNAVAILABLE,
+    REMOTE_ERROR,
+    NETWORK_ERROR,
+    SERVICE_ERROR,
+    PURCHASE_VERIFICATION_FAILED,
+    PURCHASE_VERIFICATION_FINISHED,
+    PURCHASE_VERIFICATION_FINISH_FAILED,
+    NOT_PREPARED,
+    NOT_ENDED,
+    ALREADY_OWNED,
+    DEVELOPER_ERROR,
+    BILLING_RESPONSE_JSON_PARSE_ERROR,
+    DEFERRED_PAYMENT,
+    INTERRUPTED,
+    IAP_NOT_AVAILABLE,
+    PURCHASE_ERROR,
+    SYNC_ERROR,
+    TRANSACTION_VALIDATION_FAILED,
+    ACTIVITY_UNAVAILABLE,
+    ALREADY_PREPARED,
+    PENDING,
+    CONNECTION_CLOSED,
+    INIT_CONNECTION,
+    SERVICE_DISCONNECTED,
+    QUERY_PRODUCT,
+    SKU_NOT_FOUND,
+    SKU_OFFER_MISMATCH,
+    ITEM_NOT_OWNED,
+    BILLING_UNAVAILABLE,
+    FEATURE_NOT_SUPPORTED,
+    EMPTY_SKU_LIST,
 }`}</CodeBlock>
             ),
           }}

@@ -231,6 +231,31 @@ if (paymentSuccess) {
   }
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func handle_alternative_purchase():
+    # Step 1: Check availability
+    var is_available = await iap.check_alternative_billing_availability_android()
+    if not is_available:
+        # Fall back to standard billing
+        return
+
+    # Step 2: Show dialog to user
+    var user_accepted = await iap.show_alternative_billing_dialog_android()
+    if not user_accepted:
+        # User canceled
+        return
+
+    # Process payment in your payment system
+    var payment_success = await process_payment_in_your_system()
+
+    if payment_success:
+        # Step 3: Create token and report to Google Play
+        var token = await iap.create_alternative_billing_token_android()
+
+        if token:
+            # Report token to Google Play backend within 24 hours
+            await report_token_to_google_play(token)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -475,6 +500,44 @@ Future<void> handleExternalPurchase() async {
     await reportTokenToGooglePlay(details.externalTransactionToken);
   }
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Step 0: Enable billing program BEFORE initConnection
+iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_OFFER)
+
+await iap.init_connection()
+
+func handle_external_purchase():
+    # Step 1: Check availability
+    var result = await iap.is_billing_program_available_android(
+        BillingProgramAndroid.EXTERNAL_OFFER
+    )
+    if not result.is_available:
+        return  # Not available for this user
+
+    # Step 2: Launch external link
+    var params = LaunchExternalLinkParamsAndroid.new()
+    params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
+    params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    params.link_type = ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
+    params.link_uri = "https://your-payment-site.com/checkout"
+
+    var launched = await iap.launch_external_link_android(params)
+
+    if not launched:
+        return  # Failed to launch
+
+    # Process payment in your payment system
+    var payment_success = await process_payment_in_your_system()
+
+    if payment_success:
+        # Step 3: Create reporting details
+        var details = await iap.create_billing_program_reporting_details_android(
+            BillingProgramAndroid.EXTERNAL_OFFER
+        )
+
+        # Report token to Google Play backend within 24 hours
+        await report_token_to_google_play(details.external_transaction_token)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
