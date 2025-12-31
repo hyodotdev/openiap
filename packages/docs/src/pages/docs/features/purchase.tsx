@@ -250,6 +250,37 @@ class PurchaseManager {
   }
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`extends Node
+
+var iap: OpenIap
+
+func _ready() -> void:
+    setup_listeners()
+
+func setup_listeners() -> void:
+    # 1. Setup purchase success listener
+    iap.purchase_updated.connect(_on_purchase_received)
+
+    # 2. Setup error listener
+    iap.purchase_error.connect(_on_purchase_error)
+
+    # 3. Initialize connection
+    var connected = await iap.init_connection(null)
+    if connected:
+        print("Store connection established")
+
+func _on_purchase_received(purchase: Purchase) -> void:
+    print("Purchase received: %s" % purchase.product_id)
+    handle_purchase(purchase)
+
+func _on_purchase_error(error: PurchaseError) -> void:
+    print("Purchase error: %s" % error.message)
+    handle_purchase_error(error)
+
+func _exit_tree() -> void:
+    await iap.end_connection()`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -354,6 +385,23 @@ Future<void> purchaseProduct(String productId) async {
 
 // Example usage
 await purchaseProduct('com.app.coins_100');`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Purchase a one-time product (consumable or non-consumable)
+func purchase_product(product_id: String) -> void:
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.apple = RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
+    props.type = ProductType.IN_APP  # IN_APP for consumables/non-consumables
+
+    # Purchase result will be delivered to purchase_updated signal
+    await iap.request_purchase(props)
+
+# Example usage
+await purchase_product("com.app.coins_100")`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -470,6 +518,26 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
     return false;
   }
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func verify_on_server(purchase: Purchase) -> bool:
+    var props = VerifyPurchaseProps.new()
+    props.purchase = purchase
+
+    # Use platform-specific server URL
+    if OS.get_name() == "iOS":
+        props.server_url = "https://your-server.com/api/verify-ios"
+    else:
+        props.server_url = "https://your-server.com/api/verify-android"
+
+    var result = await iap.verify_purchase(props)
+
+    if result.is_valid:
+        print("Purchase verified!")
+        return true
+
+    print("Verification failed")
+    return false`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -693,6 +761,29 @@ Future<void> handlePurchase(ProductPurchase purchase) async {
   final isConsumable = purchase.productId?.contains('consumable') ?? false;
   await completePurchase(purchase, isConsumable);
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func complete_purchase(purchase: Purchase, is_consumable: bool) -> void:
+    # Finish the transaction
+    # - is_consumable: true = consume the purchase (can buy again)
+    # - is_consumable: false = acknowledge only (one-time purchase)
+    await iap.finish_transaction(purchase, is_consumable)
+    print("Transaction finished successfully")
+
+# Complete purchase flow in listener
+func handle_purchase(purchase: Purchase) -> void:
+    # 1. Verify on server
+    var is_valid = await verify_on_server(purchase)
+    if not is_valid:
+        print("Invalid purchase")
+        return
+
+    # 2. Grant the product to user
+    await grant_product_to_user(purchase.product_id)
+
+    # 3. Finish the transaction
+    var is_consumable = "consumable" in purchase.product_id
+    await complete_purchase(purchase, is_consumable)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -1068,6 +1159,75 @@ class PurchaseManager extends ChangeNotifier {
   }
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Complete example: Purchase Manager (Godot)
+extends Node
+
+signal products_loaded
+signal processing_changed
+
+var iap: OpenIap
+var products: Array[Product] = []
+var is_processing: bool = false:
+    set(value):
+        is_processing = value
+        processing_changed.emit()
+
+const PRODUCT_IDS = ["com.app.premium", "com.app.coins_100"]
+
+func _ready() -> void:
+    setup_listeners()
+    await load_products()
+
+func setup_listeners() -> void:
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+    await iap.init_connection(null)
+
+func load_products() -> void:
+    var request = ProductRequest.new()
+    request.skus = PRODUCT_IDS
+    request.type = ProductQueryType.IN_APP
+    products = await iap.fetch_products(request)
+    products_loaded.emit()
+
+func purchase(product_id: String) -> void:
+    is_processing = true
+
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.apple = RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
+    props.type = ProductType.IN_APP
+
+    await iap.request_purchase(props)
+
+func _on_purchase_updated(purchase: Purchase) -> void:
+    # Step 1: Verify
+    var is_valid = await verify_on_server(purchase)
+    if not is_valid:
+        print("Verification failed")
+        is_processing = false
+        return
+
+    # Step 2: Grant product
+    await grant_product_to_user(purchase.product_id)
+
+    # Step 3: Finish
+    var is_consumable = "coins" in purchase.product_id
+    await iap.finish_transaction(purchase, is_consumable)
+    print("Purchase completed!")
+    is_processing = false
+
+func _on_purchase_error(error: PurchaseError) -> void:
+    print("Purchase error: %s" % error.message)
+    is_processing = false
+
+func _exit_tree() -> void:
+    await iap.end_connection()`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -1196,6 +1356,21 @@ useEffect(() => {
     await _handlePurchase(purchase);
   }
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func check_pending_purchases() -> void:
+    var purchases = await iap.get_available_purchases()
+
+    for purchase in purchases:
+        # Process each pending purchase
+        await handle_purchase(purchase)
+
+# Call on app launch after setting up listeners
+func _ready() -> void:
+    setup_listeners()
+
+    # Then check for pending purchases
+    await check_pending_purchases()`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

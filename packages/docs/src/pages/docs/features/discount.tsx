@@ -168,6 +168,48 @@ data class LimitedQuantityInfoAndroid(
     val remainingQuantity: Int
 )`}</CodeBlock>
             ),
+            dart: (
+              <CodeBlock language="dart">{`class ProductAndroidOneTimePurchaseOfferDetail {
+  // Offer identification
+  final String? offerId;
+  final String offerToken;
+  final List<String> offerTags;
+
+  // Pricing
+  final String formattedPrice;      // "\$4.99"
+  final String priceCurrencyCode;   // "USD"
+  final String priceAmountMicros;   // "4990000"
+
+  // Discount information (only for discounted offers)
+  final String? fullPriceMicros;           // Original price: "9990000"
+  final DiscountDisplayInfoAndroid? discountDisplayInfo;
+
+  // Time and quantity limits
+  final ValidTimeWindowAndroid? validTimeWindow;
+  final LimitedQuantityInfoAndroid? limitedQuantityInfo;
+}`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`class_name ProductAndroidOneTimePurchaseOfferDetail
+
+# Offer identification
+var offer_id: String          # May be empty
+var offer_token: String       # Required for purchase
+var offer_tags: Array[String] # Tags for categorization
+
+# Pricing
+var formatted_price: String       # "$4.99"
+var price_currency_code: String   # "USD"
+var price_amount_micros: String   # "4990000"
+
+# Discount information (only for discounted offers)
+var full_price_micros: String     # Original price: "9990000"
+var discount_display_info: DiscountDisplayInfoAndroid
+
+# Time and quantity limits
+var valid_time_window: ValidTimeWindowAndroid
+var limited_quantity_info: LimitedQuantityInfoAndroid`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -248,6 +290,56 @@ products.forEach { product ->
         }
     }
 }`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.getProducts(
+  ['premium_feature', 'coins_100'],
+);
+
+for (final product in products) {
+  final offers = product.oneTimePurchaseOfferDetailsAndroid;
+
+  if (offers != null && offers.isNotEmpty) {
+    final firstOffer = offers.first;
+    final hasDiscount = firstOffer.discountDisplayInfo != null;
+
+    print('Product: \${product.productId}');
+    print('Display Price: \${product.localizedPrice}');
+
+    if (hasDiscount) {
+      final discount = firstOffer.discountDisplayInfo!;
+      final fullPriceMicros = int.tryParse(firstOffer.fullPriceMicros ?? '0') ?? 0;
+      final fullPrice = fullPriceMicros / 1000000;
+
+      print('Original Price: $fullPrice');
+      print('Discount: \${discount.percentageDiscount}% OFF');
+    }
+  }
+}`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`var request = ProductRequest.new()
+request.skus = ["premium_feature", "coins_100"]
+request.type = ProductQueryType.IN_APP
+var products = await iap.fetch_products(request)
+
+for product in products:
+    var offers = product.one_time_purchase_offer_details_android
+
+    if offers and offers.size() > 0:
+        var first_offer = offers[0]
+        var has_discount = first_offer.discount_display_info != null
+
+        print("Product: %s" % product.id)
+        print("Display Price: %s" % product.display_price)
+
+        if has_discount:
+            var discount = first_offer.discount_display_info
+            var full_price_micros = int(first_offer.full_price_micros) if first_offer.full_price_micros else 0
+            var full_price = full_price_micros / 1000000.0
+
+            print("Original Price: %.2f" % full_price)
+            print("Discount: %d%% OFF" % discount.percentage_discount)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -465,6 +557,55 @@ fun ProductCard(
     }
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Product card with discount display (Godot Control)
+extends PanelContainer
+
+@onready var title_label = $VBox/TitleLabel
+@onready var price_label = $VBox/PriceContainer/PriceLabel
+@onready var original_price_label = $VBox/PriceContainer/OriginalPriceLabel
+@onready var discount_badge = $VBox/PriceContainer/DiscountBadge
+@onready var buy_button = $VBox/BuyButton
+
+var product: ProductAndroid
+
+func setup(p: ProductAndroid) -> void:
+    product = p
+
+    var offers = product.one_time_purchase_offer_details_android
+    var first_offer = offers[0] if offers and offers.size() > 0 else null
+    var discount = first_offer.discount_display_info if first_offer else null
+    var has_discount = discount != null
+
+    title_label.text = product.title
+    price_label.text = product.display_price
+
+    if has_discount and first_offer.full_price_micros:
+        var full_price_micros = int(first_offer.full_price_micros)
+        var full_price = full_price_micros / 1000000.0
+        original_price_label.text = "%s %.2f" % [first_offer.price_currency_code, full_price]
+        original_price_label.visible = true
+
+        # Set discount badge text
+        if discount.percentage_discount:
+            discount_badge.text = "%d%% OFF" % discount.percentage_discount
+        elif discount.discount_amount:
+            discount_badge.text = "%s OFF" % discount.discount_amount.formatted_discount_amount
+        else:
+            discount_badge.text = "SALE"
+        discount_badge.visible = true
+
+        # Green color for discounted price
+        price_label.modulate = Color(0.2, 0.78, 0.35)
+    else:
+        original_price_label.visible = false
+        discount_badge.visible = false
+
+func _on_buy_button_pressed() -> void:
+    var offers = product.one_time_purchase_offer_details_android
+    if offers and offers.size() > 0:
+        emit_signal("purchase_requested", product, offers[0].offer_token)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -552,6 +693,36 @@ fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferVa
     }
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func check_offer_validity(offer: ProductAndroidOneTimePurchaseOfferDetail) -> Dictionary:
+    var time_window = offer.valid_time_window
+
+    if not time_window:
+        return {"is_valid": true, "message": "Always available"}
+
+    var now = Time.get_unix_time_from_system() * 1000
+    var start_time = int(time_window.start_time_millis)
+    var end_time = int(time_window.end_time_millis)
+
+    if now < start_time:
+        var starts_in = Time.get_datetime_dict_from_unix_time(start_time / 1000)
+        return {
+            "is_valid": false,
+            "message": "Starts on %04d-%02d-%02d" % [starts_in.year, starts_in.month, starts_in.day]
+        }
+
+    if now > end_time:
+        return {"is_valid": false, "message": "Offer expired"}
+
+    var ends_in = end_time - now
+    var hours_left = int(ends_in / (1000 * 60 * 60))
+    var days_left = hours_left / 24
+
+    if days_left > 0:
+        return {"is_valid": true, "message": "Ends in %d days" % days_left}
+
+    return {"is_valid": true, "message": "Ends in %d hours" % hours_left}`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -623,6 +794,24 @@ fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): 
     return QuantityAvailability(true, "$remainingQuantity of $maximumQuantity available")
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func check_quantity_availability(offer: ProductAndroidOneTimePurchaseOfferDetail) -> Dictionary:
+    var quantity_info = offer.limited_quantity_info
+
+    if not quantity_info:
+        return {"is_available": true, "message": null}
+
+    var maximum_quantity = quantity_info.maximum_quantity
+    var remaining_quantity = quantity_info.remaining_quantity
+
+    if remaining_quantity <= 0:
+        return {"is_available": false, "message": "Sold out - limit reached"}
+
+    if remaining_quantity <= 3:
+        return {"is_available": true, "message": "Only %d left!" % remaining_quantity}
+
+    return {"is_available": true, "message": "%d of %d available" % [remaining_quantity, maximum_quantity]}`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -692,6 +881,29 @@ async function purchaseWithOffer(
         )
     )
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func purchase_with_offer(product: ProductAndroid, offer_index: int = 0) -> void:
+    var offers = product.one_time_purchase_offer_details_android
+
+    if not offers or offers.size() == 0:
+        push_error("No offers available for this product")
+        return
+
+    if offer_index >= offers.size():
+        push_error("Invalid offer index")
+        return
+
+    var selected_offer = offers[offer_index]
+
+    var props = RequestPurchaseProps.new()
+    props.type = ProductType.IN_APP
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product.id]
+    props.request.google.offer_token = selected_offer.offer_token
+
+    await iap.request_purchase(props)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

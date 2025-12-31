@@ -159,6 +159,14 @@ Future<void> redeemCode() async {
   }
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`func redeem_code() -> void:
+    var result = await iap.present_code_redemption_sheet_ios()
+    if result:
+        print("Code redemption sheet presented successfully")
+        # The system handles the redemption process
+        # Listen for purchase updates via purchase_updated signal`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -319,6 +327,32 @@ class RedemptionManager {
   }
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`extends Node
+
+var iap: OpenIap
+
+func _ready() -> void:
+    iap = OpenIap.new()
+    add_child(iap)
+
+    # Listen for purchases from code redemption
+    iap.purchase_updated.connect(_on_purchase_updated)
+
+func _on_purchase_updated(purchase: Purchase) -> void:
+    print("Purchase from code redemption: ", purchase.product_id)
+
+    # Verify and finish the transaction
+    var is_valid = await verify_purchase_on_server(purchase)
+    if is_valid:
+        await iap.finish_transaction(purchase, false)
+        print("Redemption completed successfully")
+
+func redeem_code() -> void:
+    var result = await iap.present_code_redemption_sheet_ios()
+    if not result:
+        print("Error presenting code redemption sheet")`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -417,6 +451,16 @@ Future<void> redeemWithCode(String code) async {
     await launchUrl(url);
   }
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Open Play Store redemption page
+func open_redeem_page() -> void:
+    OS.shell_open("https://play.google.com/redeem")
+
+# Open with pre-filled code
+func redeem_with_code(code: String) -> void:
+    var url = "https://play.google.com/redeem?code=" + code
+    OS.shell_open(url)`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
