@@ -52,6 +52,110 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2025-12-31: godot-iap
+    {
+      id: '2025-12-31',
+      date: new Date('2025-12-31'),
+      element: (
+        <div key="2025-12-31" style={cardStyle}>
+          <div style={headerStyle}>
+            <img
+              src="https://github.com/user-attachments/assets/cc7f363a-43a9-470c-bde7-2f63985a9f46"
+              alt="godot-iap"
+              style={{ width: '48px', height: '48px', borderRadius: '10px' }}
+            />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              godot-iap is Now Available!
+            </h2>
+            <a
+              href="#2025-12-31"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>December 31, 2025 - openiap-gql v1.3.11</p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            We're excited to announce{' '}
+            <a
+              href="https://github.com/hyochan/godot-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              godot-iap
+            </a>
+            , an official OpenIAP implementation for the Godot game engine!
+            Starting from <strong>openiap-gql v1.3.11</strong>, GDScript type
+            definitions are now included in our type generation pipeline.
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Native GDScript API</strong> - Godot-friendly interface
+              following OpenIAP specification
+            </li>
+            <li>
+              <strong>Cross-platform</strong> - Supports iOS and Android from a
+              single codebase
+            </li>
+            <li>
+              <strong>Type-safe</strong> - Generated GDScript types for better
+              IDE support and fewer runtime errors
+            </li>
+          </ul>
+          <a
+            href="https://github.com/hyochan/godot-iap"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: '400px',
+              borderRadius: '0.75rem',
+              margin: '1.5rem auto 0',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/announcements/godot.png"
+              alt="OpenIAP + Godot"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
+          </a>
+          <div style={calloutStyle}>
+            <strong>Getting Started:</strong> Download GDScript type definitions
+            from the{' '}
+            <a href="/docs/types" className="external-link">
+              Types page
+            </a>{' '}
+            or check out the{' '}
+            <a
+              href="https://github.com/hyochan/godot-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              godot-iap repository
+            </a>{' '}
+            for full documentation.
+          </div>
+        </div>
+      ),
+    },
+
     // 2025-12-09: IAPKit
     {
       id: '2025-12-09',

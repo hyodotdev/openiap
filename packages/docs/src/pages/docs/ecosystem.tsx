@@ -164,6 +164,16 @@ function Ecosystem() {
             </a>
             : Kotlin Multiplatform library for in-app purchases.
           </li>
+          <li style={{ marginBottom: '1rem' }}>
+            <a
+              href="https://github.com/hyochan/godot-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <strong>godot-iap</strong>
+            </a>
+            : Godot plugin for in-app purchases using GDScript.
+          </li>
         </ul>
       </section>
 

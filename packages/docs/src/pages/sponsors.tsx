@@ -1,4 +1,5 @@
 import SEO from '../components/SEO';
+import { LIBRARIES } from '../lib/images';
 
 function Sponsors() {
   return (
@@ -121,98 +122,32 @@ function Sponsors() {
                 alignItems: 'center',
               }}
             >
-              <a
-                href="https://github.com/dooboolab-community/react-native-iap"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <img
-                  src="https://hyochan.github.io/react-native-iap/img/logo.png"
-                  alt="react-native-iap"
+              {LIBRARIES.map((lib) => (
+                <a
+                  key={lib.name}
+                  href={lib.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    objectFit: 'contain',
+                    color: 'var(--primary-color)',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                   }}
-                />
-                <span>react-native-iap</span>
-              </a>
-              <a
-                href="https://github.com/hyochan/expo-iap"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <img
-                  src="https://hyochan.github.io/expo-iap/img/icon.png"
-                  alt="expo-iap"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    objectFit: 'contain',
-                  }}
-                />
-                <span>expo-iap</span>
-              </a>
-              <a
-                href="https://github.com/hyochan/flutter_inapp_purchase"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <img
-                  src="https://hyochan.github.io/flutter_inapp_purchase/img/logo.png"
-                  alt="flutter_inapp_purchase"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    objectFit: 'contain',
-                  }}
-                />
-                <span>flutter_inapp_purchase</span>
-              </a>
-              <a
-                href="https://github.com/hyochan/kmp-iap"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <img
-                  src="https://hyochan.github.io/kmp-iap/img/logo.png"
-                  alt="kmp-iap"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    objectFit: 'contain',
-                  }}
-                />
-                <span>kmp-iap</span>
-              </a>
+                >
+                  <img
+                    src={lib.image}
+                    alt={lib.displayName}
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      objectFit: 'contain',
+                    }}
+                  />
+                  <span>{lib.displayName}</span>
+                </a>
+              ))}
             </div>
             <p style={{ color: 'var(--text-secondary, #666)' }}>
               Every contribution, no matter the size, helps us dedicate more

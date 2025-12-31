@@ -1,4 +1,5 @@
 import SEO from '../components/SEO';
+import { LIBRARY_IMAGES } from '../lib/images';
 
 function Languages() {
   return (
@@ -70,7 +71,7 @@ function Languages() {
         <div className="languages-grid">
           <div className="language-card">
             <img
-              src="https://hyochan.github.io/react-native-iap/img/logo.png"
+              src={LIBRARY_IMAGES['react-native-iap']}
               alt="React Native IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -103,7 +104,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="https://hyochan.github.io/expo-iap/img/icon.png"
+              src={LIBRARY_IMAGES['expo-iap']}
               alt="Expo IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -136,7 +137,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="https://hyochan.github.io/flutter_inapp_purchase/img/logo.png"
+              src={LIBRARY_IMAGES['flutter_inapp_purchase']}
               alt="Flutter IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -166,7 +167,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="https://hyochan.github.io/kmp-iap/img/logo.png"
+              src={LIBRARY_IMAGES['kmp-iap']}
               alt="KMP IAP"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -185,6 +186,46 @@ function Languages() {
               </a>
               <a
                 href="https://hyochan.github.io/kmp-iap"
+                className="learn-more"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Documentation →
+              </a>
+            </div>
+          </div>
+
+          <div className="language-card">
+            <img
+              src={LIBRARY_IMAGES['godot-iap']}
+              alt="Godot IAP"
+              className="language-logo"
+              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
+            />
+            <h3>godot-iap</h3>
+            <p>Godot implementation of OpenIAP specification (GDScript)</p>
+            <pre className="code-snippet">
+              Download from{' '}
+              <a
+                href="https://github.com/hyochan/godot-iap/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--primary-color)' }}
+              >
+                GitHub Releases
+              </a>
+            </pre>
+            <div className="language-links">
+              <a
+                href="https://github.com/hyochan/godot-iap"
+                className="learn-more"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View on GitHub →
+              </a>
+              <a
+                href="https://github.com/hyochan/godot-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"

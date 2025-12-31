@@ -142,8 +142,8 @@ enum PurchaseState {
             </li>
           </ul>
 
-          {/* Google 1.3.20 Changes */}
-          <p><strong>Google v1.3.20 Changes:</strong></p>
+          {/* Google 1.3.21 Changes */}
+          <p><strong>Google v1.3.21 Changes:</strong></p>
           <ul>
             <li>
               Updated <code>OpenIapModule.initConnection()</code> to handle{' '}

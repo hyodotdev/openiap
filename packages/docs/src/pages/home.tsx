@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
 import { LOGO_PATH } from '../lib/config';
+import { LIBRARIES } from '../lib/images';
 import SEO from '../components/SEO';
 
 function Home() {
@@ -316,73 +317,25 @@ function Home() {
             Leading IAP libraries implementing the OpenIAP specification
           </p>
           <div className="implementations-grid">
-            <a
-              href="https://hyochan.github.io/react-native-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="implementation-card"
-            >
-              <img
-                src="https://hyochan.github.io/react-native-iap/img/logo.png"
-                alt="React Native IAP"
-                className="implementation-logo"
-              />
-              <div>
-                <h3>react-native-iap</h3>
-                <p>React Native & Expo (Nitro Modules)</p>
-              </div>
-            </a>
-
-            <a
-              href="https://hyochan.github.io/expo-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="implementation-card"
-            >
-              <img
-                src="https://hyochan.github.io/expo-iap/img/icon.png"
-                alt="Expo IAP"
-                className="implementation-logo"
-              />
-              <div>
-                <h3>expo-iap</h3>
-                <p>React Native & Expo (Expo Modules)</p>
-              </div>
-            </a>
-
-            <a
-              href="https://hyochan.github.io/flutter_inapp_purchase"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="implementation-card"
-            >
-              <img
-                src="https://hyochan.github.io/flutter_inapp_purchase/img/logo.png"
-                alt="Flutter IAP"
-                className="implementation-logo"
-              />
-              <div>
-                <h3>flutter_inapp_purchase</h3>
-                <p>Flutter</p>
-              </div>
-            </a>
-
-            <a
-              href="https://hyochan.github.io/kmp-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="implementation-card"
-            >
-              <img
-                src="https://hyochan.github.io/kmp-iap/img/logo.png"
-                alt="KMP IAP"
-                className="implementation-logo"
-              />
-              <div>
-                <h3>kmp-iap</h3>
-                <p>Kotlin Multiplatform</p>
-              </div>
-            </a>
+            {LIBRARIES.map((lib) => (
+              <a
+                key={lib.name}
+                href={lib.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="implementation-card"
+              >
+                <img
+                  src={lib.image}
+                  alt={lib.displayName}
+                  className="implementation-logo"
+                />
+                <div>
+                  <h3>{lib.displayName}</h3>
+                  <p>{lib.description}</p>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </section>
