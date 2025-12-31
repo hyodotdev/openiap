@@ -9,7 +9,8 @@ interface CodeBlockProps {
     | 'swift'
     | 'kotlin'
     | 'dart'
-    | 'xml';
+    | 'xml'
+    | 'gdscript';
 }
 
 function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
@@ -46,6 +47,8 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
         return 'dart';
       case 'xml':
         return 'xml';
+      case 'gdscript':
+        return 'gd';
       default:
         return null;
     }
@@ -160,7 +163,7 @@ function highlightCode(element: HTMLElement, language: string) {
     });
 
     element.innerHTML = highlightedLines.join('\n');
-  } else if (language === 'swift' || language === 'kotlin' || language === 'dart') {
+  } else if (language === 'swift' || language === 'kotlin' || language === 'dart' || language === 'gdscript') {
     // Swift, Kotlin, and Dart syntax highlighting
     const lines = text.split('\n');
     const highlightedLines = lines.map((line) => {
@@ -169,7 +172,7 @@ function highlightCode(element: HTMLElement, language: string) {
       let stringChar = '';
 
       // Check if line is a comment
-      if (line.trim().startsWith('//')) {
+      if (line.trim().startsWith('//') || line.trim().startsWith('#')) {
         return `<span class="token comment">${escapeHtml(line)}</span>`;
       }
 
@@ -217,6 +220,9 @@ function highlightCode(element: HTMLElement, language: string) {
             keywords = 'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|@available';
           } else if (language === 'kotlin') {
             keywords = 'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where';
+          } else if (language === 'gdscript') {
+            // GDScript keywords
+            keywords = 'func|var|const|class|class_name|extends|signal|enum|static|onready|export|preload|load|if|elif|else|for|while|match|break|continue|pass|return|await|yield|true|false|null|self|void|int|float|bool|String|Array|Dictionary|Vector2|Vector3|Object|Node|and|or|not|in|is|as';
           } else {
             // Dart keywords
             keywords = 'import|export|library|part|show|hide|as|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|rethrow|assert|class|abstract|extends|implements|with|mixin|enum|typedef|static|final|const|late|required|covariant|get|set|operator|factory|async|await|yield|sync|true|false|null|this|super|new|void|dynamic|var|Function|Future|Stream';

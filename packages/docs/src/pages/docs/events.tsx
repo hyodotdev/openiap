@@ -62,6 +62,15 @@ function Events() {
   developerProvidedBillingAndroid, // 8.3.0+
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`enum IapEvent {
+    PURCHASE_UPDATED = 0,
+    PURCHASE_ERROR = 1,
+    PROMOTED_PRODUCT_IOS = 2,
+    USER_CHOICE_BILLING_ANDROID = 3,
+    DEVELOPER_PROVIDED_BILLING_ANDROID = 4, # 8.3.0+
+}`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -96,6 +105,9 @@ val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`Stream<Purchase> get purchaseUpdatedStream;`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`signal purchase_updated(purchase: Purchase)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -188,6 +200,27 @@ final subscription = FlutterInappPurchase.purchaseUpdated.listen((purchase) asyn
 
 // Cleanup when done
 subscription.cancel();`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Connect to the signal
+iap.purchase_updated.connect(_on_purchase_updated)
+
+func _on_purchase_updated(purchase: Purchase):
+    print("Purchase updated: %s" % purchase.product_id)
+
+    # Validate the receipt
+    var is_valid = await validate_receipt(purchase)
+
+    if is_valid:
+        # Deliver content to user
+        await deliver_product(purchase.product_id)
+
+        # Finish the transaction
+        await iap.finish_transaction(purchase, false)
+
+# Cleanup when done
+func _exit_tree():
+    iap.purchase_updated.disconnect(_on_purchase_updated)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

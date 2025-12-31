@@ -272,6 +272,35 @@ Future<void> handleExternalPurchaseFlow() async {
   }
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# iOS 18.2+ External Purchase Flow
+func handle_external_purchase_flow() -> void:
+    var external_url = "https://your-payment-site.com/checkout"
+
+    # Step 1: Check if notice sheet can be presented
+    var can_present = await iap.can_present_external_purchase_notice_ios()
+
+    if not can_present:
+        print("External purchase notice sheet not available")
+        return
+
+    # Step 2: Present notice sheet (Apple's info sheet)
+    var notice_result = await iap.present_external_purchase_notice_sheet_ios()
+
+    if notice_result.result == ExternalPurchaseNoticeAction.CONTINUE:
+        # Step 3: Present external purchase link
+        var link_result = await iap.present_external_purchase_link_ios(external_url)
+
+        if link_result.success:
+            print("User acknowledged external purchase")
+            # User approved external purchase
+            # Call your backend API to initiate purchase
+            # await your_backend.create_purchase(product_id, user_id)
+        else:
+            print("External purchase link failed: %s" % (link_result.error if link_result.error else ""))
+    else:
+        print("User dismissed notice sheet")`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -752,6 +781,49 @@ Future<void> handleAlternativeBillingPurchase(String productId) async {
   }
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Initialize with Alternative Billing Only mode
+func _ready() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
+    await iap.init_connection(config)
+
+# Purchase flow
+func handle_alternative_billing_purchase(product_id: String) -> void:
+    # Step 1: Check availability
+    var is_available = await iap.check_alternative_billing_availability_android()
+    if not is_available:
+        print("Alternative billing not available")
+        return
+
+    # Step 2: Show Google's information dialog
+    var dialog_accepted = await iap.show_alternative_billing_dialog_android()
+    if not dialog_accepted:
+        print("User canceled")
+        return
+
+    # Step 3: Process payment with your backend API
+    var payment_result = await your_backend.create_payment(
+        product_id,
+        user_id,
+        product_price
+    )
+
+    if not payment_result.success:
+        print("Payment failed: %s" % payment_result.error)
+        return
+
+    # Step 4: Create reporting token (after successful payment)
+    var token = await iap.create_alternative_billing_token_android()
+    if token:
+        print("Token created: %s..." % token.substr(0, 20))
+
+        # Step 5: Send token to your backend server
+        # Backend will report token to Google Play within 24 hours
+        await your_backend.report_token(token, payment_result.order_id, product_id)
+
+    print("Purchase completed!")`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -981,6 +1053,54 @@ Future<void> handleUserChoicePurchase(String productId) async {
     print('Purchase error: $e');
   }
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Initialize with User Choice mode
+func _ready() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
+    await iap.init_connection(config)
+
+    # Set user choice billing listener (for alternative billing selection)
+    iap.user_choice_billing.connect(_on_user_choice_billing)
+    iap.purchase_updated.connect(_on_purchase_updated)
+
+func _on_user_choice_billing(details: UserChoiceBillingDetails) -> void:
+    print("User selected alternative billing")
+    print("Token: %s" % details.external_transaction_token)
+    print("Products: %s" % details.products)
+
+    var payment_result = await your_backend.create_payment(
+        details.products[0],
+        user_id,
+        product_price
+    )
+
+    if payment_result.success:
+        # Report token to backend (backend will send to Google Play)
+        await your_backend.report_token(
+            details.external_transaction_token,
+            payment_result.order_id,
+            details.products[0]
+        )
+        print("Alternative billing purchase completed")
+
+func _on_purchase_updated(purchase: Purchase) -> void:
+    print("Google Play purchase: %s" % purchase.product_id)
+    # Handle Google Play purchase
+
+# Purchase flow - Google shows selection dialog automatically
+func handle_user_choice_purchase(product_id: String) -> void:
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
+    props.type = ProductType.IN_APP
+
+    await iap.request_purchase(props)
+
+    # If user selects Google Play -> purchase_updated signal
+    # If user selects alternative -> user_choice_billing signal`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -1225,6 +1345,63 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
     print('Purchase error: $e');
   }
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Step 0: Enable billing program BEFORE initConnection
+func _ready() -> void:
+    iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_OFFER)
+    # or BillingProgramAndroid.EXTERNAL_CONTENT_LINK
+    await iap.init_connection(null)
+
+# Purchase flow with Billing Programs API (8.2.0+)
+func handle_external_purchase_with_billing_programs(product_id: String) -> void:
+    # Step 1: Check if billing program is available
+    var result = await iap.is_billing_program_available_android(
+        BillingProgramAndroid.EXTERNAL_OFFER
+    )
+    if not result.is_available:
+        print("External offer program not available")
+        return
+
+    # Step 2: Launch external link (replaces showAlternativeBillingDialog)
+    var params = LaunchExternalLinkParamsAndroid.new()
+    params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
+    params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    params.link_type = ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
+    params.link_uri = "https://your-payment-site.com/checkout"
+
+    var launched = await iap.launch_external_link_android(params)
+
+    if not launched:
+        print("Failed to launch external link")
+        return
+
+    # Step 3: Process payment with your backend API
+    var payment_result = await your_backend.create_payment(
+        product_id,
+        user_id,
+        product_price
+    )
+
+    if not payment_result.success:
+        print("Payment failed: %s" % payment_result.error)
+        return
+
+    # Step 4: Create reporting details (replaces createAlternativeBillingToken)
+    var reporting_details = await iap.create_billing_program_reporting_details_android(
+        BillingProgramAndroid.EXTERNAL_OFFER
+    )
+    if reporting_details and reporting_details.external_transaction_token:
+        print("Token created: %s..." % reporting_details.external_transaction_token.substr(0, 20))
+
+        # Step 5: Send token to your backend server
+        await your_backend.report_token(
+            reporting_details.external_transaction_token,
+            payment_result.order_id,
+            product_id
+        )
+
+        print("Purchase completed!")`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -1538,6 +1715,65 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
   }
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Step 0: Enable External Payments program BEFORE initConnection
+func _ready() -> void:
+    iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_PAYMENTS)
+    await iap.init_connection(null)
+
+    # Step 1: Set up listener for when user selects developer billing
+    iap.developer_provided_billing.connect(_on_developer_provided_billing)
+    iap.purchase_updated.connect(_on_purchase_updated)
+
+func _on_developer_provided_billing(details: DeveloperProvidedBillingDetails) -> void:
+    print("User selected developer billing")
+    print("External transaction token: %s" % details.external_transaction_token)
+
+    # Step 2: Process payment with your backend
+    var payment_result = await your_backend.create_payment(
+        current_product_id,
+        user_id,
+        product_price
+    )
+
+    if payment_result.success:
+        # Step 3: Report the external transaction token to Google
+        # This must be done within 24 hours
+        await your_backend.report_external_transaction(
+            details.external_transaction_token,
+            payment_result.order_id,
+            current_product_id
+        )
+        print("External payment completed and reported!")
+
+# Purchase flow with External Payments
+func handle_purchase_with_external_payments(product_id: String) -> void:
+    # Check if External Payments is available (Japan only)
+    var result = await iap.is_billing_program_available_android(
+        BillingProgramAndroid.EXTERNAL_PAYMENTS
+    )
+    if not result.is_available:
+        print("External Payments not available (not in Japan)")
+        # Fall back to standard Google Play purchase
+        return
+
+    # Launch purchase with developer billing option
+    # User will see side-by-side choice dialog
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
+    props.request.google.developer_billing_option = DeveloperBillingOptionParamsAndroid.new()
+    props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
+    props.request.google.developer_billing_option.link_uri = "https://your-payment-site.com/checkout"
+    props.request.google.developer_billing_option.launch_mode = DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    props.type = ProductType.IN_APP
+
+    await iap.request_purchase(props)
+
+    # If user selects Google Play -> purchase_updated signal
+    # If user selects developer billing -> developer_provided_billing signal`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -1705,6 +1941,19 @@ await FlutterInappPurchase.instance.initConnection(
 await FlutterInappPurchase.instance.initConnection(
   alternativeBillingModeAndroid: AlternativeBillingModeAndroid.userChoice,
 );`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Alternative Billing Only mode
+func _ready_alternative_only() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
+    await iap.init_connection(config)
+
+# Or User Choice mode
+func _ready_user_choice() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
+    await iap.init_connection(config)`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>

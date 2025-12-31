@@ -7,14 +7,16 @@
     ".": "./src/generated/types.ts",
     "./swift": "./src/generated/Types.swift",
     "./kotlin": "./src/generated/Types.kt",
-    "./dart": "./src/generated/types.dart"
+    "./dart": "./src/generated/types.dart",
+    "./gdscript": "./src/generated/types.gd"
   },
   "scripts": {
-    "generate": "bun run generate:ts && bun run generate:swift && bun run generate:kotlin && bun run generate:dart && bun run sync",
+    "generate": "bun run generate:ts && bun run generate:swift && bun run generate:kotlin && bun run generate:dart && bun run generate:gdscript && bun run sync",
     "generate:ts": "graphql-codegen --config codegen.ts && bun scripts/fix-generated-types.mjs",
     "generate:swift": "bun scripts/generate-swift-types.mjs",
     "generate:kotlin": "bun scripts/generate-kotlin-types.mjs",
     "generate:dart": "bun scripts/generate-dart-types.mjs",
+    "generate:gdscript": "bun scripts/generate-gdscript-types.mjs",
     "sync": "bun scripts/sync-to-platforms.mjs"
   },
   "keywords": [

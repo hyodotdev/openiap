@@ -79,6 +79,9 @@ type RequestPurchaseProps =
             dart: (
               <CodeBlock language="dart">{`Future<Purchase?> requestPurchase(RequestPurchaseProps props);`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func request_purchase(props: RequestPurchaseProps) -> Purchase`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -135,6 +138,18 @@ await requestPurchase({
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase('com.app.premium');`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Purchase a one-time product
+var props = RequestPurchaseProps.new()
+props.request = RequestPurchasePropsByPlatforms.new()
+props.request.apple = RequestPurchaseIosProps.new()
+props.request.apple.sku = "com.app.premium"
+props.request.google = RequestPurchaseAndroidProps.new()
+props.request.google.skus = ["com.app.premium"]
+props.type = ProductType.IN_APP
+
+await iap.request_purchase(props)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -169,6 +184,9 @@ await requestPurchase({
             ),
             dart: (
               <CodeBlock language="dart">{`Future<void> finishTransaction(Purchase purchase, {bool isConsumable = false});`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func finish_transaction(purchase: Purchase, is_consumable: bool = false) -> void`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -235,6 +253,21 @@ purchaseUpdatedListener(async (purchase) => {
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.finishTransaction(purchase);`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Handle purchase update
+func _on_purchase_updated(purchase: Purchase):
+    # 1. Verify on your server
+    var verified = await verify_on_server(purchase)
+    if not verified:
+        return
+
+    # 2. Grant entitlement to user
+    await grant_product(purchase.product_id)
+
+    # 3. Finish the transaction
+    var is_consumable = "coins" in purchase.product_id
+    await iap.finish_transaction(purchase, is_consumable)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -271,6 +304,9 @@ purchaseUpdatedListener(async (purchase) => {
             dart: (
               <CodeBlock language="dart">{`Future<void> restorePurchases();`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func restore_purchases() -> void`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -299,6 +335,15 @@ const handleRestore = async () => {
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.restorePurchases();`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func _on_restore_pressed():
+    await iap.restore_purchases()
+    var purchases = await iap.get_available_purchases()
+
+    for purchase in purchases:
+        # Re-grant entitlements
+        await grant_product(purchase.product_id)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -324,6 +369,9 @@ const handleRestore = async () => {
             dart: (
               <CodeBlock language="dart">{`Future<String> getStorefront();`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func get_storefront() -> String`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -344,6 +392,10 @@ console.log(countryCode); // "US", "JP", "GB", etc.`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`final countryCode = await FlutterInappPurchase.instance.getStorefront();`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`var country_code = await iap.get_storefront()
+print(country_code)  # "US", "JP", "GB", etc.`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

@@ -216,6 +216,32 @@ if (subscription.discountsIOS != null) {
   }
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Fetch subscription products
+var request = ProductRequest.new()
+request.skus = ["premium_monthly"]
+request.type = ProductQueryType.SUBS
+var subscriptions = await iap.fetch_products(request)
+
+var subscription = null
+for s in subscriptions:
+    if s.id == "premium_monthly":
+        subscription = s
+        break
+
+# Check for introductory offer (iOS)
+if subscription and subscription.subscription_info_ios:
+    var intro = subscription.subscription_info_ios.introductory_offer
+    if intro:
+        print("Intro offer: %s" % intro.display_price)
+        print("Payment mode: %s" % intro.payment_mode)
+        print("Period: %s x %d" % [intro.period.unit, intro.period_count])
+
+# Check for promotional offers (iOS)
+if subscription and subscription.discounts_ios:
+    for discount in subscription.discounts_ios:
+        print("Promo: %s - %s" % [discount.identifier, discount.localized_price])`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -312,6 +338,26 @@ final isEligible = await iap.isEligibleForIntroOfferIOS('premium_monthly');
 if (isEligible) {
   print(displayIntroOffer(subscription));
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`func display_intro_offer(subscription: ProductIOS) -> String:
+    var offer = subscription.subscription_info_ios.introductory_offer if subscription.subscription_info_ios else null
+    if not offer:
+        return ""
+
+    match offer.payment_mode:
+        "free-trial":
+            return "%d %s(s) free trial" % [offer.period_count, offer.period.unit.to_lower()]
+        "pay-as-you-go":
+            return "%s for %d %s(s)" % [offer.display_price, offer.period_count, offer.period.unit.to_lower()]
+        "pay-up-front":
+            return "%s for first %d %s(s)" % [offer.display_price, offer.period_count, offer.period.unit.to_lower()]
+    return ""
+
+# Check eligibility
+var is_eligible = await iap.is_eligible_for_intro_offer_ios("premium_monthly")
+if is_eligible:
+    print(display_intro_offer(subscription))`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -470,6 +516,43 @@ suspend fun purchaseWithPromoOffer(
   );
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`func purchase_with_promo_offer(subscription_id: String, offer_id: String) -> void:
+    # 1. Generate signature on your backend
+    var nonce = generate_uuid()
+    var timestamp = Time.get_unix_time_from_system() * 1000
+
+    var http_request = HTTPRequest.new()
+    add_child(http_request)
+    http_request.request(
+        "https://your-server.com/generate-signature",
+        ["Content-Type: application/json"],
+        HTTPClient.METHOD_POST,
+        JSON.stringify({
+            "productId": subscription_id,
+            "offerId": offer_id,
+            "nonce": nonce,
+            "timestamp": timestamp
+        })
+    )
+    var response = await http_request.request_completed
+    var signature = JSON.parse_string(response[3].get_string_from_utf8())
+
+    # 2. Purchase with the promotional offer
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.apple = RequestPurchaseIosProps.new()
+    props.request.apple.sku = subscription_id
+    props.request.apple.with_offer = DiscountOfferInputIOS.new()
+    props.request.apple.with_offer.identifier = offer_id
+    props.request.apple.with_offer.key_identifier = signature["keyIdentifier"]
+    props.request.apple.with_offer.nonce = nonce
+    props.request.apple.with_offer.signature = signature["signature"]
+    props.request.apple.with_offer.timestamp = timestamp
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -530,6 +613,18 @@ suspend fun purchaseSubscription(subscriptionId: String) {
   // Intro offer is applied automatically when eligible
   await iap.requestSubscription(sku: subscriptionId);
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`func purchase_subscription(subscription_id: String) -> void:
+    # iOS: Simply request purchase
+    # Intro offer is applied automatically when eligible
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.apple = RequestPurchaseIosProps.new()
+    props.request.apple.sku = subscription_id
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -615,6 +710,23 @@ data class PricingPhaseAndroid(
   final String offerToken;      // Required for purchase
   final PricingPhasesAndroid pricingPhases;
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`class_name SubscriptionOfferDetailsAndroid
+
+var base_plan_id: String      # Base plan identifier
+var offer_id: String          # Offer ID (empty for base plan)
+var offer_tags: Array[String] # Tags for categorization
+var offer_token: String       # Required for purchase
+var pricing_phases: PricingPhasesAndroid
+
+class PricingPhaseAndroid:
+    var formatted_price: String       # e.g., "$9.99"
+    var price_amount_micros: int      # Price in micros
+    var price_currency_code: String   # e.g., "USD"
+    var billing_period: String        # e.g., "P1M" (1 month)
+    var billing_cycle_count: int      # Number of cycles
+    var recurrence_mode: int          # 1=infinite, 2=finite, 3=non-recurring`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -725,6 +837,35 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
     }
   }
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Fetch subscription products
+var request = ProductRequest.new()
+request.skus = ["premium_monthly"]
+request.type = ProductQueryType.SUBS
+var subscriptions = await iap.fetch_products(request)
+
+var subscription = null
+for s in subscriptions:
+    if s.id == "premium_monthly":
+        subscription = s
+        break
+
+# Access Android offer details
+if subscription and subscription.subscription_offer_details_android:
+    for offer in subscription.subscription_offer_details_android:
+        print("Base Plan: %s" % offer.base_plan_id)
+        print("Offer ID: %s" % (offer.offer_id if offer.offer_id else "Base plan"))
+        print("Offer Token: %s" % offer.offer_token)
+
+        # Check pricing phases
+        for phase in offer.pricing_phases.pricing_phase_list:
+            if phase.price_amount_micros == 0:
+                print("Free trial: %s" % phase.billing_period)
+            elif phase.recurrence_mode == 2:
+                print("Intro: %s for %s" % [phase.formatted_price, phase.billing_period])
+            else:
+                print("Regular: %s per %s" % [phase.formatted_price, phase.billing_period])`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -837,6 +978,45 @@ suspend fun purchaseSubscription(subscriptionId: String) {
     subscriptionOffers: subscriptionOffers, // Required
   );
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`func purchase_subscription(subscription_id: String) -> void:
+    var request = ProductRequest.new()
+    request.skus = [subscription_id]
+    request.type = ProductQueryType.SUBS
+    var subscriptions = await iap.fetch_products(request)
+
+    var subscription = null
+    for s in subscriptions:
+        if s.id == subscription_id:
+            subscription = s
+            break
+
+    if not subscription:
+        return
+
+    # Build subscription_offers from fetched data
+    var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
+    if subscription.subscription_offer_details_android:
+        for offer in subscription.subscription_offer_details_android:
+            if offer.offer_token:
+                var offer_input = AndroidSubscriptionOfferInput.new()
+                offer_input.sku = subscription_id
+                offer_input.offer_token = offer.offer_token
+                subscription_offers.append(offer_input)
+
+    if subscription_offers.is_empty():
+        print("No subscription offers available")
+        return
+
+    var props = RequestPurchaseProps.new()
+    props.request = RequestSubscriptionPropsByPlatforms.new()
+    props.request.google = RequestSubscriptionAndroidProps.new()
+    props.request.google.skus = [subscription_id]
+    props.request.google.subscription_offers = subscription_offers  # Required
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -1056,6 +1236,48 @@ void onPurchaseSuccess(PurchasedItem purchase) {
     productId: purchase.productId,
   );
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# 1. Store base_plan_id BEFORE calling request_purchase
+var purchased_base_plan_id: String = ""
+
+func handle_purchase(base_plan_id: String) -> void:
+    var offers = subscription.subscription_offer_details_android
+    if not offers:
+        return
+
+    var offer = null
+    for o in offers:
+        if o.base_plan_id == base_plan_id and o.offer_id == "":
+            offer = o
+            break
+
+    # Store it before purchase
+    purchased_base_plan_id = base_plan_id
+
+    var props = RequestPurchaseProps.new()
+    props.request = RequestSubscriptionPropsByPlatforms.new()
+    props.request.google = RequestSubscriptionAndroidProps.new()
+    props.request.google.skus = [subscription_group_id]
+    var offer_input = AndroidSubscriptionOfferInput.new()
+    offer_input.sku = subscription_group_id
+    offer_input.offer_token = offer.offer_token
+    props.request.google.subscription_offers = [offer_input]
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)
+
+# 2. Use YOUR tracked value in purchase callback
+func _on_purchase_success(purchase: PurchaseAndroid) -> void:
+    # DON'T use purchase.current_plan_id - it may be wrong!
+    var actual_base_plan_id = purchased_base_plan_id
+
+    # Save to your backend
+    save_to_backend(
+        purchase.purchase_token,
+        actual_base_plan_id,
+        purchase.product_id
+    )`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -1317,6 +1539,67 @@ Future<void> purchaseWithOffer(
     ],
   );
 }`}</CodeBlock>
+                    ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`enum OfferType { BASE, INTRODUCTORY, PROMOTIONAL }
+
+func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> SubscriptionOfferDetailsAndroid:
+    var offers = subscription.subscription_offer_details_android
+    if not offers:
+        return null
+
+    match offer_type:
+        OfferType.BASE:
+            for offer in offers:
+                if offer.offer_id == "":
+                    return offer
+            return offers[0] if offers.size() > 0 else null
+
+        OfferType.INTRODUCTORY:
+            for offer in offers:
+                for phase in offer.pricing_phases.pricing_phase_list:
+                    if phase.price_amount_micros == 0 or phase.recurrence_mode == 2:
+                        return offer
+            return null
+
+        OfferType.PROMOTIONAL:
+            for offer in offers:
+                for tag in offer.offer_tags:
+                    if "promo" in tag.to_lower():
+                        return offer
+            return null
+
+    return null
+
+# Purchase with selected offer
+func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
+    var request = ProductRequest.new()
+    request.skus = [subscription_id]
+    request.type = ProductQueryType.SUBS
+    var subscriptions = await iap.fetch_products(request)
+
+    var subscription = null
+    for s in subscriptions:
+        if s.id == subscription_id:
+            subscription = s
+            break
+
+    var selected_offer = select_offer(subscription, offer_type)
+    if not selected_offer:
+        print("Selected offer not found")
+        return
+
+    var props = RequestPurchaseProps.new()
+    props.request = RequestSubscriptionPropsByPlatforms.new()
+    props.request.google = RequestSubscriptionAndroidProps.new()
+    props.request.google.skus = [subscription_id]
+    var offer_input = AndroidSubscriptionOfferInput.new()
+    offer_input.sku = subscription_id
+    offer_input.offer_token = selected_offer.offer_token
+    props.request.google.subscription_offers = [offer_input]
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -1614,6 +1897,25 @@ Future<bool> verifySubscription(ProductPurchase purchase) async {
   }
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func verify_subscription(purchase: Purchase) -> bool:
+    var props = VerifyPurchaseProps.new()
+    props.purchase = purchase
+
+    # Use platform-specific server URL
+    if OS.get_name() == "iOS":
+        props.server_url = "https://your-server.com/api/verify-ios"
+    else:
+        props.server_url = "https://your-server.com/api/verify-android"
+
+    var result = await iap.verify_purchase(props)
+
+    if result.is_valid:
+        return true
+
+    print("Verification error")
+    return false`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -1696,6 +1998,19 @@ for (final subscription in activeSubscriptions) {
     print('Expires: \${subscription.expirationDate}');
   }
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Check if user has any active subscription
+var has_active = await iap.has_active_subscriptions()
+if has_active:
+    print("User has premium access")
+
+# Get all active subscriptions
+var active_subscriptions = await iap.get_active_subscriptions()
+for subscription in active_subscriptions:
+    print("Active subscription: %s" % subscription.product_id)
+    if subscription.expiration_date:
+        print("Expires: %s" % subscription.expiration_date)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -2034,6 +2349,60 @@ Future<void> checkFromActiveSubscriptions() async {
   }
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Method 1: Using subscription_status_ios for detailed state
+func check_subscription_status(sku: String) -> Dictionary:
+    var statuses = await iap.subscription_status_ios(sku)
+
+    for status in statuses:
+        match status.state:
+            "subscribed":
+                print("Active subscription")
+                return {"has_access": true, "status": "active"}
+
+            "expired":
+                print("Subscription expired")
+                return {"has_access": false, "status": "expired"}
+
+            "revoked":
+                print("Subscription was refunded")
+                return {"has_access": false, "status": "refunded"}
+
+            "inGracePeriod":
+                print("Billing issue - grace period active")
+                return {"has_access": true, "status": "grace_period"}
+
+            "inBillingRetryPeriod":
+                print("Billing retry in progress")
+                return {"has_access": true, "status": "billing_retry"}
+
+    return {"has_access": false, "status": "unknown"}
+
+# Method 2: Using ActiveSubscription for quick checks
+func check_from_active_subscriptions() -> void:
+    var subs = await iap.get_active_subscriptions()
+
+    for sub in subs:
+        var renewal_info = sub.renewal_info_ios
+
+        # Check if cancelled (will not auto-renew)
+        var is_cancelled = renewal_info.will_auto_renew == false if renewal_info else false
+
+        # Check expiration reason
+        var expiration_reason = renewal_info.expiration_reason if renewal_info else ""
+
+        # Check if expired
+        var is_expired = false
+        if sub.expiration_date_ios:
+            is_expired = sub.expiration_date_ios < Time.get_unix_time_from_system() * 1000
+
+        print("Product: %s" % sub.product_id)
+        print("  Active: %s" % sub.is_active)
+        print("  Cancelled: %s" % is_cancelled)
+        print("  Expired: %s" % is_expired)
+        if expiration_reason:
+            print("  Expiration Reason: %s" % expiration_reason)`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -2234,6 +2603,58 @@ Future<Map<String, dynamic>> checkAndroidSubscription() async {
   };
 }`}</CodeBlock>
                     ),
+                    gdscript: (
+                      <CodeBlock language="gdscript">{`# Client-side: Can only check if purchase exists
+func check_android_subscription() -> Dictionary:
+    var purchases = await iap.get_available_purchases()
+
+    var subscription_purchases: Array = []
+    for p in purchases:
+        if "subscription" in p.product_id:
+            subscription_purchases.append(p)
+
+    if subscription_purchases.is_empty():
+        print("No subscription purchases found")
+        return {"has_access": false}
+
+    # Purchase exists, but client cannot determine:
+    # - If it's expired
+    # - If it's been refunded
+    # - If it's cancelled
+    # Must verify on server for accurate status
+
+    var purchase = subscription_purchases[0]
+    print("Purchase found: %s" % purchase.product_id)
+    print("Purchase token: %s" % purchase.purchase_token)
+
+    # Send to server for verification
+    var http_request = HTTPRequest.new()
+    add_child(http_request)
+    http_request.request(
+        "https://your-server.com/api/verify-android",
+        ["Content-Type: application/json"],
+        HTTPClient.METHOD_POST,
+        JSON.stringify({
+            "purchaseToken": purchase.purchase_token,
+            "productId": purchase.product_id,
+            "packageName": purchase.package_name_android
+        })
+    )
+    var response = await http_request.request_completed
+    var server_result = JSON.parse_string(response[3].get_string_from_utf8())
+
+    # Server uses Google Play Developer API to get:
+    # - expiryTimeMillis
+    # - cancelReason (0=user, 1=system, 2=replaced, 3=developer)
+    # - paymentState
+    # - acknowledgementState
+
+    return {
+        "has_access": server_result["isActive"],
+        "status": server_result["status"],
+        "expires_at": server_result["expiryTimeMillis"]
+    }`}</CodeBlock>
+                    ),
                   }}
                 </LanguageTabs>
 
@@ -2403,6 +2824,11 @@ final iap = FlutterInappPurchase.instance;
 Future<void> manageSubscriptions() async {
   await iap.deepLinkToSubscriptions();
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Open subscription management page
+func manage_subscriptions() -> void:
+    await iap.deep_link_to_subscriptions()`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

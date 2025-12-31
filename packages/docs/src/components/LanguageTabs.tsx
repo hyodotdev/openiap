@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
-type Language = 'typescript' | 'swift' | 'kotlin' | 'dart';
+type Language = 'typescript' | 'swift' | 'kotlin' | 'dart' | 'gdscript';
 
 interface LanguageTabsProps {
   children: {
@@ -8,6 +8,7 @@ interface LanguageTabsProps {
     swift?: ReactNode;
     kotlin?: ReactNode;
     dart?: ReactNode;
+    gdscript?: ReactNode;
   };
 }
 
@@ -16,6 +17,7 @@ const LANGUAGE_LABELS: Record<Language, string> = {
   swift: 'Swift',
   kotlin: 'Kotlin',
   dart: 'Dart',
+  gdscript: 'GDScript',
 };
 
 function LanguageTabs({ children }: LanguageTabsProps) {

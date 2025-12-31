@@ -542,6 +542,24 @@ function TypesIOS() {
   });
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`class_name AppTransaction
+
+var bundle_id: String
+var app_version: String
+var original_app_version: String
+var original_purchase_date: int  # epoch ms
+var device_verification: String
+var device_verification_nonce: String
+var environment: String  # "Sandbox" | "Production"
+var signed_date: int  # epoch ms
+var app_id: int
+var app_version_id: int
+var preorder_date: int  # optional, epoch ms
+# iOS 18.4+ properties
+var app_transaction_id: String  # optional
+var original_platform: String  # optional`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -617,6 +635,19 @@ if (appTransaction != null) {
     print('Originally purchased on: \${appTransaction.originalPlatform}');
   }
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Get app transaction (iOS only)
+var app_transaction = await iap.get_app_transaction_ios()
+
+if app_transaction != null:
+    print("Bundle ID: %s" % app_transaction.bundle_id)
+    print("Original version: %s" % app_transaction.original_app_version)
+    print("Environment: %s" % app_transaction.environment)
+
+    # Check if user originally purchased on a different platform (iOS 18.4+)
+    if app_transaction.original_platform != "":
+        print("Originally purchased on: %s" % app_transaction.original_platform)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

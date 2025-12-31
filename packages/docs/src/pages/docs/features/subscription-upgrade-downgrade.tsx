@@ -336,6 +336,21 @@ for (final sub in subscriptions) {
   }
 }`}</CodeBlock>
                       ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Detecting upgrades with pending_upgrade_product_id
+var subscriptions = await iap.get_active_subscriptions()
+
+for sub in subscriptions:
+    var renewal_info = sub.renewal_info_ios
+    var pending_upgrade = renewal_info.pending_upgrade_product_id if renewal_info else ""
+
+    if pending_upgrade != "" and pending_upgrade != sub.product_id:
+        print("UPGRADE IN PROGRESS")
+        print("  Current: %s" % sub.product_id)
+        print("  Upgrading to: %s" % pending_upgrade)
+
+        # Show UI: "Upgrade processing..."`}</CodeBlock>
+                      ),
                     }}
                   </LanguageTabs>
                 </Accordion>
@@ -455,6 +470,21 @@ for (final sub in subscriptions) {
   }
 }`}</CodeBlock>
                       ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Detecting downgrades
+var subscriptions = await iap.get_active_subscriptions()
+
+for sub in subscriptions:
+    var renewal_info = sub.renewal_info_ios
+    var auto_renew_pref = renewal_info.auto_renew_preference if renewal_info else ""
+
+    if auto_renew_pref != "" and auto_renew_pref != sub.product_id and renewal_info.will_auto_renew:
+        print("DOWNGRADE SCHEDULED")
+        print("  Current (until %s): %s" % [sub.expiration_date_ios, sub.product_id])
+        print("  Next: %s" % auto_renew_pref)
+
+        # Show UI: "Your plan will change to [tier] on [date]"`}</CodeBlock>
+                      ),
                     }}
                   </LanguageTabs>
                 </Accordion>
@@ -563,6 +593,22 @@ for (final sub in subscriptions) {
   }
 }`}</CodeBlock>
                       ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`var subscriptions = await iap.get_active_subscriptions()
+
+for sub in subscriptions:
+    var pending = ""
+    if sub.renewal_info_ios:
+        pending = sub.renewal_info_ios.pending_upgrade_product_id
+
+    if pending != "":
+        var current = sub.product_id
+
+        print("Upgrading from %s to %s" % [current, pending])
+
+        # Show upgrade-in-progress UI
+        show_upgrade_in_progress_ui(current, pending)`}</CodeBlock>
+                      ),
                     }}
                   </LanguageTabs>
                 </Accordion>
@@ -623,6 +669,17 @@ final effectiveTier = renewalInfo?.pendingUpgradeProductId ?? subscription.produ
 
 // ❌ Wrong - may show outdated tier immediately after upgrade
 final currentTier = subscription.productId;`}</CodeBlock>
+                      ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Correct approach
+var effective_tier = ""
+if renewal_info and renewal_info.pending_upgrade_product_id != "":
+    effective_tier = renewal_info.pending_upgrade_product_id
+else:
+    effective_tier = subscription.product_id
+
+# Wrong - may show outdated tier immediately after upgrade
+var current_tier = subscription.product_id`}</CodeBlock>
                       ),
                     }}
                   </LanguageTabs>
@@ -879,6 +936,58 @@ class _SubscriptionStatusState extends State<SubscriptionStatus> {
       ? DateTime.fromMillisecondsSinceEpoch(timestamp).toLocal().toString()
       : 'N/A';
 }`}</CodeBlock>
+                      ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Complete example: Subscription status (Godot)
+extends Control
+
+var subscription: ActiveSubscription = null
+
+func _ready() -> void:
+    load_subscription()
+
+func load_subscription() -> void:
+    var subs = await iap.get_active_subscriptions()
+    if subs.size() > 0:
+        subscription = subs[0]
+    update_ui()
+
+func update_ui() -> void:
+    if not subscription:
+        $Label.text = "Loading..."
+        return
+
+    var renewal_info = subscription.renewal_info_ios
+    var pending = renewal_info.pending_upgrade_product_id if renewal_info else ""
+
+    # Upgrade in progress
+    if pending != "" and pending != subscription.product_id:
+        $Label.text = "Upgrading to %s...\nCurrent: %s" % [pending, subscription.product_id]
+        return
+
+    # Downgrade scheduled
+    if renewal_info:
+        var auto_renew_pref = renewal_info.auto_renew_preference
+        if auto_renew_pref != subscription.product_id and renewal_info.will_auto_renew:
+            $Label.text = "Current: %s\nWill change to %s on %s" % [
+                subscription.product_id,
+                auto_renew_pref,
+                format_date(subscription.expiration_date_ios)
+            ]
+            return
+
+    # Normal active subscription
+    var renewal_date = renewal_info.renewal_date if renewal_info else 0
+    $Label.text = "Active: %s\nRenews: %s" % [
+        subscription.product_id,
+        format_date(renewal_date)
+    ]
+
+func format_date(timestamp: int) -> String:
+    if timestamp == 0:
+        return "N/A"
+    var datetime = Time.get_datetime_dict_from_unix_time(timestamp / 1000)
+    return "%04d-%02d-%02d" % [datetime.year, datetime.month, datetime.day]`}</CodeBlock>
                       ),
                     }}
                   </LanguageTabs>
@@ -1156,6 +1265,31 @@ if (currentSub != null) {
   print('✅ Upgrade initiated');
 }`}</CodeBlock>
                       ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Android upgrade with proration
+
+# Get current subscription
+var purchases = await iap.get_available_purchases()
+var current_sub = null
+for p in purchases:
+    if p.product_id == "basic_monthly":
+        current_sub = p
+        break
+
+if current_sub:
+    # Upgrade to premium with time proration
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = ["premium_monthly"]
+    props.request.google.purchase_token = current_sub.purchase_token
+    props.request.google.replacement_mode = 1  # WITH_TIME_PRORATION
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)
+
+    print("Upgrade initiated")`}</CodeBlock>
+                      ),
                     }}
                   </LanguageTabs>
                 </Accordion>
@@ -1298,6 +1432,32 @@ if (premiumPurchase != null) {
   // Note: Purchase callback will complete with empty list - this is expected!
 }`}</CodeBlock>
                       ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Android downgrade with deferred replacement
+
+# Get current subscription
+var purchases = await iap.get_available_purchases()
+var premium_purchase = null
+for p in purchases:
+    if p.product_id == "premium_monthly":
+        premium_purchase = p
+        break
+
+if premium_purchase:
+    # Downgrade - takes effect at next billing cycle
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = ["basic_monthly"]
+    props.request.google.purchase_token = premium_purchase.purchase_token
+    props.request.google.replacement_mode = 6  # DEFERRED - Change at renewal
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)
+
+    print("Downgrade scheduled for next billing cycle")
+    # Note: Purchase callback will complete with empty list - this is expected!`}</CodeBlock>
+                      ),
                     }}
                   </LanguageTabs>
                 </Accordion>
@@ -1392,6 +1552,33 @@ if (currentSub != null) {
   print('✅ Upgrade initiated with per-product replacement');
 }`}</CodeBlock>
                       ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Android subscription replacement with 8.1.0+ API
+
+# Get current subscription
+var purchases = await iap.get_available_purchases()
+var current_sub = null
+for p in purchases:
+    if p.product_id == "premium_monthly":
+        current_sub = p
+        break
+
+if current_sub:
+    # Upgrade using the new per-product replacement params
+    var props = RequestPurchaseProps.new()
+    props.request = RequestSubscriptionPropsByPlatforms.new()
+    props.request.google = RequestSubscriptionAndroidProps.new()
+    props.request.google.skus = ["premium_yearly"]
+    props.request.google.subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.new()
+    props.request.google.subscription_product_replacement_params.old_product_id = current_sub.product_id
+    props.request.google.subscription_product_replacement_params.replacement_mode = SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION
+    # or SubscriptionReplacementModeAndroid.KEEP_EXISTING (8.1.0+ only)
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)
+
+    print("Upgrade initiated with per-product replacement")`}</CodeBlock>
+                      ),
                     }}
                   </LanguageTabs>
                 </Accordion>
@@ -1456,6 +1643,17 @@ for (final purchase in purchases) {
   // If using DEFERRED mode, the change is scheduled but not yet reflected
   // You'll need to track this in your backend or check purchase history
 }`}</CodeBlock>
+                      ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Android - check if subscription will change
+var purchases = await iap.get_available_purchases()
+
+for purchase in purchases:
+    # On Android, the current purchase reflects the active subscription
+    print("Active subscription: %s" % purchase.product_id)
+
+    # If using DEFERRED mode, the change is scheduled but not yet reflected
+    # You'll need to track this in your backend or check purchase history`}</CodeBlock>
                       ),
                     }}
                   </LanguageTabs>
@@ -1691,6 +1889,52 @@ Future<void> changeSubscription(
     print('Subscription change failed: $e');
   }
 }`}</CodeBlock>
+                      ),
+                      gdscript: (
+                        <CodeBlock language="gdscript">{`# Complete Android example: Subscription change
+func change_subscription(new_sku: String, is_upgrade: bool) -> void:
+    # Get current subscription
+    var purchases = await iap.get_available_purchases()
+    var current_sub = null
+    for p in purchases:
+        if "subscription" in p.product_id:
+            current_sub = p
+            break
+
+    if not current_sub:
+        print("No active subscription found")
+        return
+
+    # Choose appropriate replacement mode
+    var replacement_mode = 1 if is_upgrade else 6
+    # 1 = WITH_TIME_PRORATION - Upgrade: give credit
+    # 6 = DEFERRED - Downgrade: change at renewal
+
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [new_sku]
+    props.request.google.purchase_token = current_sub.purchase_token
+    props.request.google.replacement_mode = replacement_mode
+    props.type = ProductType.SUBS
+
+    await iap.request_purchase(props)
+
+    # If DEFERRED, store pending change in your backend
+    if not is_upgrade:
+        var http_request = HTTPRequest.new()
+        add_child(http_request)
+        http_request.request(
+            "/api/subscriptions/pending-change",
+            ["Content-Type: application/json"],
+            HTTPClient.METHOD_POST,
+            JSON.stringify({
+                "userId": "user123",
+                "currentSku": current_sub.product_id,
+                "newSku": new_sku,
+                "effectiveDate": current_sub.expiration_date
+            })
+        )`}</CodeBlock>
                       ),
                     }}
                   </LanguageTabs>

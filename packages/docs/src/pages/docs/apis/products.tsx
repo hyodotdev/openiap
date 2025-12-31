@@ -65,6 +65,9 @@ interface ProductRequest {
             dart: (
               <CodeBlock language="dart">{`Future<List<Product>> fetchProducts(ProductRequest request);`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func fetch_products(request: ProductRequest) -> Array[Product]`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -106,6 +109,23 @@ products.forEach(product => {
   ['com.app.premium'],
 );`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Fetch one-time products
+var request = ProductRequest.new()
+request.skus = ["com.app.coins_100", "com.app.premium"]
+request.type = ProductQueryType.IN_APP
+var products = await iap.fetch_products(request)
+
+# Fetch subscriptions
+var subs_request = ProductRequest.new()
+subs_request.skus = ["com.app.monthly", "com.app.yearly"]
+subs_request.type = ProductQueryType.SUBS
+var subscriptions = await iap.fetch_products(subs_request)
+
+# Display to user
+for product in products:
+    print("%s: %s" % [product.title, product.display_price])`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -143,6 +163,9 @@ interface PurchaseOptions {
             ),
             dart: (
               <CodeBlock language="dart">{`Future<List<Purchase>> getAvailablePurchases({PurchaseOptions? options});`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -185,6 +208,16 @@ for (const purchase of purchases) {
             ),
             dart: (
               <CodeBlock language="dart">{`final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Check for pending purchases on app launch
+var purchases = await iap.get_available_purchases()
+
+for purchase in purchases:
+    # Verify and finish each pending purchase
+    var verified = await verify_on_server(purchase)
+    if verified:
+        await iap.finish_transaction(purchase, false)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

@@ -221,6 +221,23 @@ await FlutterInappPurchase.instance.initConnection(
 // Standard billing (default)
 await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Initialize with user choice billing (7.0+)
+var config = InitConnectionConfig.new()
+config.enable_billing_program_android = BillingProgramAndroid.USER_CHOICE_BILLING
+await iap.init_connection(config)
+
+# Initialize with external offer (alternative only)
+config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+await iap.init_connection(config)
+
+# Initialize with external payments (Japan only, 8.3.0+)
+config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
+await iap.init_connection(config)
+
+# Standard billing (default)
+await iap.init_connection()`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -386,6 +403,49 @@ await FlutterInappPurchase.instance.requestSubscription(
 // Cleanup
 userChoiceSubscription.cancel();`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Step 1: Set up listener for when user selects alternative billing
+func _on_user_choice_billing(details: UserChoiceBillingDetails):
+    print("User chose alternative billing")
+    var product_ids = []
+    for p in details.products:
+        product_ids.append(p.product_id)
+    print("Products: %s" % str(product_ids))
+    print("Token: %s" % details.external_transaction_token)
+
+    # Process payment with your backend using the token
+    var payment_result = await your_backend.process_payment(
+        details.products,
+        details.external_transaction_token
+    )
+
+    if payment_result.success:
+        grant_user_access()
+
+iap.user_choice_billing.connect(_on_user_choice_billing)
+
+# Step 2: Initialize with user choice billing (recommended)
+var config = InitConnectionConfig.new()
+config.enable_billing_program_android = BillingProgramAndroid.USER_CHOICE_BILLING
+await iap.init_connection(config)
+
+# Step 3: Fetch products and purchase as normal
+var request = ProductRequest.new()
+request.skus = ["premium_subscription"]
+request.type = ProductQueryType.SUBS
+var products = await iap.fetch_products(request)
+
+# Step 4: Request purchase - dialog will show both options
+var props = RequestPurchaseProps.new()
+props.request = RequestSubscriptionPropsByPlatforms.new()
+props.request.google = RequestSubscriptionAndroidProps.new()
+props.request.google.skus = ["premium_subscription"]
+props.type = ProductType.SUBS
+await iap.request_purchase(props)
+
+# If user selects Google Play → purchase_updated signal fires
+# If user selects alternative → user_choice_billing signal fires`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -549,6 +609,47 @@ if (paymentResult.success) {
   await yourBackend.reportExternalTransaction(token, paymentResult.orderId);
   grantUserAccess();
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Step 1: Initialize with external offer (recommended)
+var config = InitConnectionConfig.new()
+config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+await iap.init_connection(config)
+
+# Step 2: Check if alternative billing is available
+var availability = await iap.check_alternative_billing_availability()
+if not availability.is_available:
+    print("Alternative billing not available in this region")
+    # Fall back to standard Google Play billing
+    return
+
+# Step 3: Fetch products (still needed to show prices)
+var request = ProductRequest.new()
+request.skus = ["premium_subscription"]
+request.type = ProductQueryType.SUBS
+var products = await iap.fetch_products(request)
+
+# Step 4: Show required Google Play disclosure dialog
+var dialog_result = await iap.show_alternative_billing_dialog()
+if dialog_result.response_code != 0:
+    print("User did not accept alternative billing")
+    return
+
+# Step 5: Create token for this transaction
+var token = await iap.create_alternative_billing_token(products[0].id)
+
+# Step 6: Process purchase with your backend
+var payment_result = await your_backend.process_alternative_purchase(
+    products[0].id,
+    products[0].price,
+    token,
+    current_user_id
+)
+
+if payment_result.success:
+    # Report transaction to Google (required)
+    await your_backend.report_external_transaction(token, payment_result.order_id)
+    grant_user_access()`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -853,6 +954,36 @@ if (result.isAvailable) {
   );
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Enable External Payments before initConnection
+iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_PAYMENTS)
+
+await iap.init_connection()
+
+# Listen for developer billing selection
+func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndroid):
+    print("Token: %s" % details.external_transaction_token)
+    # Report token to Google via your backend within 24 hours
+
+iap.developer_provided_billing.connect(_on_developer_provided_billing)
+
+# Check availability (Japan only)
+var result = await iap.is_billing_program_available_android(
+    BillingProgramAndroid.EXTERNAL_PAYMENTS
+)
+if result.is_available:
+    # Purchase with developer billing option
+    var props = RequestPurchaseProps.new()
+    props.request = RequestPurchasePropsByPlatforms.new()
+    props.request.google = RequestPurchaseAndroidProps.new()
+    props.request.google.skus = ["product_id"]
+    props.request.google.developer_billing_option = DeveloperBillingOptionParamsAndroid.new()
+    props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
+    props.request.google.developer_billing_option.link_uri = "https://your-site.com/checkout"
+    props.request.google.developer_billing_option.launch_mode = DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    props.type = ProductType.IN_APP
+    await iap.request_purchase(props)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -1003,6 +1134,23 @@ class ExternalPurchaseNoticeResultIOS {
 enum ExternalPurchaseNoticeAction {
   \`continue\`('continue'),
   dismissed('dismissed');
+}`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Result from presenting external purchase link
+class_name ExternalPurchaseLinkResultIOS
+var error: String  # optional
+var success: bool
+
+# Result from presenting notice sheet
+class_name ExternalPurchaseNoticeResultIOS
+var error: String  # optional
+var result: int  # ExternalPurchaseNoticeAction
+
+# User action on notice sheet
+enum ExternalPurchaseNoticeAction {
+    CONTINUE,
+    DISMISSED
 }`}</CodeBlock>
             ),
           }}
@@ -1158,6 +1306,28 @@ Future<void> handleExternalPurchase(String externalUrl) async {
     print('Failed: \${linkResult.error}');
   }
 }`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func handle_external_purchase(external_url: String):
+    # Step 1: Check if external purchase is available
+    var can_present = await iap.can_present_external_purchase_notice_ios()
+    if not can_present:
+        print("External purchase not available on this device")
+        return
+
+    # Step 2: Present Apple's compliance notice sheet
+    var notice_result = await iap.present_external_purchase_notice_sheet_ios()
+    if notice_result.result == ExternalPurchaseNoticeAction.DISMISSED:
+        print("User dismissed the notice sheet")
+        return
+
+    # Step 3: Open external purchase link
+    var link_result = await iap.present_external_purchase_link_ios(external_url)
+    if link_result.success:
+        print("User redirected to external payment")
+        # Implement deep linking to handle return from payment
+    else:
+        print("Failed: %s" % link_result.error)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

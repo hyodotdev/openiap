@@ -63,6 +63,9 @@ function SubscriptionAPIs() {
             dart: (
               <CodeBlock language="dart">{`Future<List<ActiveSubscription>> getActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array[ActiveSubscription]`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -113,6 +116,21 @@ for (sub in subscriptions) {
             ),
             dart: (
               <CodeBlock language="dart">{`final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Get all active subscriptions
+var subscriptions = await iap.get_active_subscriptions()
+
+# Or filter by specific IDs
+var premium_subs = await iap.get_active_subscriptions(["premium_monthly", "premium_yearly"])
+
+for sub in subscriptions:
+    print("Product: %s" % sub.product_id)
+    print("Expires: %s" % sub.expiration_date_ios)
+
+    # Check renewal status (Android)
+    if not sub.auto_renewing_android:
+        print("Subscription cancelled, will not renew")`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -166,6 +184,9 @@ for (sub in subscriptions) {
             dart: (
               <CodeBlock language="dart">{`Future<bool> hasActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -193,6 +214,17 @@ if (isPremium) {
             ),
             dart: (
               <CodeBlock language="dart">{`final isPremium = await FlutterInappPurchase.instance.hasActiveSubscriptions();`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Check any subscription
+var is_premium = await iap.has_active_subscriptions()
+
+# Check specific subscriptions
+var has_pro_plan = await iap.has_active_subscriptions(["pro_monthly", "pro_yearly"])
+
+if is_premium:
+    # Show premium features
+    pass`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -226,6 +258,9 @@ interface DeepLinkOptions {
             ),
             dart: (
               <CodeBlock language="dart">{`Future<void> deepLinkToSubscriptions({String? skuAndroid, String? packageNameAndroid});`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> void`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -262,6 +297,13 @@ try await OpenIapModule.shared.deepLinkToSubscriptions()`}</CodeBlock>
   skuAndroid: 'com.app.premium',
   packageNameAndroid: 'com.yourcompany.app',
 );`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Open subscription management (Android)
+var options = DeepLinkOptions.new()
+options.sku_android = "com.app.premium"
+options.package_name_android = "com.yourcompany.app"
+await iap.deep_link_to_subscriptions(options)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

@@ -63,6 +63,9 @@ interface InitConnectionConfig {
             dart: (
               <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func init_connection(config: InitConnectionConfig = null) -> bool`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -99,6 +102,15 @@ openIapStore.initConnection(
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Standard connection
+var success = await iap.init_connection()
+
+# With alternative billing (Android)
+var config = InitConnectionConfig.new()
+config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
+var success = await iap.init_connection(config)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -134,6 +146,9 @@ openIapStore.initConnection(
             dart: (
               <CodeBlock language="dart">{`Future<bool> endConnection();`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func end_connection() -> bool`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
 
@@ -160,6 +175,11 @@ useEffect(() => {
             ),
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.endConnection();`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# In _exit_tree or cleanup
+func _exit_tree():
+    await iap.end_connection()`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
