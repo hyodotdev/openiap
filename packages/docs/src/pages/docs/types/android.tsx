@@ -346,6 +346,50 @@ if (subscription is ProductSubscriptionAndroid) {
   );
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Fetch subscription products
+var request = ProductRequest.new()
+request.skus = ["premium_monthly"]
+request.type = ProductQueryType.SUBS
+var subscriptions = await iap.fetch_products(request)
+
+var subscription = subscriptions[0]
+
+# Access Android subscription offers
+var offers = subscription.subscription_offer_details_android
+
+for i in range(offers.size()):
+    var offer = offers[i]
+    print("Offer %d: %s" % [i + 1, offer.base_plan_id])
+    print("  Token: %s" % offer.offer_token)
+
+    # Iterate through pricing phases
+    var phases = offer.pricing_phases.pricing_phase_list
+    for j in range(phases.size()):
+        var phase = phases[j]
+        print("  Phase %d:" % [j + 1])
+        print("    Period: %s" % phase.billing_period)
+        print("    Price: %s" % phase.formatted_price)
+        print("    Recurrence: %d" % phase.recurrence_mode)
+
+# Build subscription offers for purchase
+var subscription_offers = []
+for offer in offers:
+    if offer.offer_token != "":
+        var sub_offer = SubscriptionOfferAndroid.new()
+        sub_offer.sku = subscription.id
+        sub_offer.offer_token = offer.offer_token
+        subscription_offers.append(sub_offer)
+
+# Purchase with offerToken (required for Android subscriptions)
+var props = RequestPurchaseProps.new()
+props.request = RequestSubscriptionPropsByPlatforms.new()
+props.request.google = RequestSubscriptionAndroidProps.new()
+props.request.google.skus = [subscription.id]
+props.request.google.subscription_offers = subscription_offers
+props.type = ProductType.SUBS
+await iap.request_purchase(props)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>

@@ -778,6 +778,17 @@ if (subscription.renewalInfoIOS?.willAutoRenew == false) {
   print('Subscription will not auto-renew');
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Check for pending upgrades
+if subscription.renewal_info_ios != null:
+    if subscription.renewal_info_ios.pending_upgrade_product_id != "":
+        print("Upgrade pending to: %s" % subscription.renewal_info_ios.pending_upgrade_product_id)
+
+# Check if subscription is cancelled
+if subscription.renewal_info_ios != null:
+    if subscription.renewal_info_ios.will_auto_renew == false:
+        print("Subscription will not auto-renew")`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>

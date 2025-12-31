@@ -149,6 +149,24 @@ final allProducts = await FlutterInappPurchase.instance.fetchProducts(
   type: ProductQueryType.all,
 );`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Fetch in-app purchases (default)
+var request = ProductRequest.new()
+request.skus = ["product1", "product2"]
+var inapp_products = await iap.fetch_products(request)
+
+# Fetch only subscriptions
+var subs_request = ProductRequest.new()
+subs_request.skus = ["sub1", "sub2"]
+subs_request.type = ProductQueryType.SUBS
+var subscriptions = await iap.fetch_products(subs_request)
+
+# Fetch all products (both in-app and subscriptions)
+var all_request = ProductRequest.new()
+all_request.skus = ["product1", "sub1"]
+all_request.type = ProductQueryType.ALL
+var all_products = await iap.fetch_products(all_request)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
@@ -282,6 +300,27 @@ await FlutterInappPurchase.instance.requestPurchase(
     type: ProductType.subs,
   ),
 );`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Standard in-app purchase
+var props = RequestPurchaseProps.new()
+props.request = RequestPurchasePropsByPlatforms.new()
+props.request.apple = RequestPurchaseIosProps.new()
+props.request.apple.sku = "premium"
+props.request.google = RequestPurchaseAndroidProps.new()
+props.request.google.skus = ["premium"]
+props.type = ProductType.IN_APP
+await iap.request_purchase(props)
+
+# Subscription purchase
+var subs_props = RequestPurchaseProps.new()
+subs_props.request = RequestSubscriptionPropsByPlatforms.new()
+subs_props.request.apple = RequestSubscriptionIosProps.new()
+subs_props.request.apple.sku = "monthly_sub"
+subs_props.request.google = RequestSubscriptionAndroidProps.new()
+subs_props.request.google.skus = ["monthly_sub"]
+subs_props.type = ProductType.SUBS
+await iap.request_purchase(subs_props)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

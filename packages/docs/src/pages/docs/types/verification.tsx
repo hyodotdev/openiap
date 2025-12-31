@@ -762,6 +762,24 @@ if (iapkit != null && iapkit.isValid && iapkit.state == IapkitPurchaseState.enti
   print('Valid purchase from \${iapkit.store}');
 }`}</CodeBlock>
             ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`# Create verification props for iOS
+var props = VerifyPurchaseWithProviderProps.new()
+props.provider = PurchaseVerificationProvider.IAPKIT
+props.iapkit = RequestVerifyPurchaseWithIapkitProps.new()
+props.iapkit.api_key = "your-iapkit-api-key"
+props.iapkit.apple = RequestVerifyPurchaseWithIapkitAppleProps.new()
+props.iapkit.apple.jws = purchase.jws_representation_ios
+
+# Verify purchase
+var result = await iap.verify_purchase_with_provider(props)
+
+# Check result
+var iapkit = result.iapkit
+if iapkit != null and iapkit.is_valid and iapkit.state == IapkitPurchaseState.ENTITLED:
+    # Grant entitlement to user
+    print("Valid purchase from %s" % iapkit.store)`}</CodeBlock>
+            ),
           }}
         </LanguageTabs>
       </section>
