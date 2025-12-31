@@ -208,6 +208,32 @@ const toGdscriptType = (graphqlType, nullable = true, seenUnions = new Set()) =>
   return 'Variant';
 };
 
+// Get the base type info for from_dict deserialization
+const getFieldTypeInfo = (graphqlType) => {
+  let isArray = false;
+  let baseType = graphqlType;
+
+  // Unwrap NonNull
+  if (baseType instanceof GraphQLNonNull) {
+    baseType = baseType.ofType;
+  }
+
+  // Check if it's an array
+  if (baseType instanceof GraphQLList) {
+    isArray = true;
+    baseType = baseType.ofType;
+    // Unwrap NonNull inside array
+    if (baseType instanceof GraphQLNonNull) {
+      baseType = baseType.ofType;
+    }
+  }
+
+  const typeName = baseType.name;
+  const isObjectOrInput = objectNames.has(typeName) || inputNames.has(typeName);
+
+  return { isArray, isObjectOrInput, typeName };
+};
+
 // Generate GDScript output
 const outputLines = [];
 
@@ -284,24 +310,64 @@ for (const objectType of objects) {
     outputLines.push('\tstatic func from_dict(data: Dictionary) -> ' + objectType.name + ':');
     outputLines.push('\t\tvar obj = ' + objectType.name + '.new()');
     for (const fieldName of Object.keys(fields)) {
+      const field = fields[fieldName];
       const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
-      outputLines.push(`\t\tif data.has("${fieldName}"):`);
-      outputLines.push(`\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
+      const typeInfo = getFieldTypeInfo(field.type);
+
+      outputLines.push(`\t\tif data.has("${fieldName}") and data["${fieldName}"] != null:`);
+
+      if (typeInfo.isObjectOrInput && typeInfo.isArray) {
+        // Array of objects - need to convert each element
+        outputLines.push(`\t\t\tvar arr = []`);
+        outputLines.push(`\t\t\tfor item in data["${fieldName}"]:`);
+        outputLines.push(`\t\t\t\tif item is Dictionary:`);
+        outputLines.push(`\t\t\t\t\tarr.append(${typeInfo.typeName}.from_dict(item))`);
+        outputLines.push(`\t\t\t\telse:`);
+        outputLines.push(`\t\t\t\t\tarr.append(item)`);
+        outputLines.push(`\t\t\tobj.${snakeCaseName} = arr`);
+      } else if (typeInfo.isObjectOrInput) {
+        // Single object - convert from dictionary
+        outputLines.push(`\t\t\tif data["${fieldName}"] is Dictionary:`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = ${typeInfo.typeName}.from_dict(data["${fieldName}"])`);
+        outputLines.push(`\t\t\telse:`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
+      } else {
+        // Scalar or enum - direct assignment
+        outputLines.push(`\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
+      }
     }
     outputLines.push('\t\treturn obj');
 
     // Add to_dict method
     outputLines.push('');
     outputLines.push('\tfunc to_dict() -> Dictionary:');
-    outputLines.push('\t\treturn {');
-    const fieldNames = Object.keys(fields);
-    for (let i = 0; i < fieldNames.length; i++) {
-      const fieldName = fieldNames[i];
+    outputLines.push('\t\tvar result = {}');
+    for (const fieldName of Object.keys(fields)) {
+      const field = fields[fieldName];
       const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
-      const comma = i < fieldNames.length - 1 ? ',' : '';
-      outputLines.push(`\t\t\t"${fieldName}": ${snakeCaseName}${comma}`);
+      const typeInfo = getFieldTypeInfo(field.type);
+
+      if (typeInfo.isObjectOrInput && typeInfo.isArray) {
+        outputLines.push(`\t\tif ${snakeCaseName} != null:`);
+        outputLines.push(`\t\t\tvar arr = []`);
+        outputLines.push(`\t\t\tfor item in ${snakeCaseName}:`);
+        outputLines.push(`\t\t\t\tif item != null and item.has_method("to_dict"):`);
+        outputLines.push(`\t\t\t\t\tarr.append(item.to_dict())`);
+        outputLines.push(`\t\t\t\telse:`);
+        outputLines.push(`\t\t\t\t\tarr.append(item)`);
+        outputLines.push(`\t\t\tresult["${fieldName}"] = arr`);
+        outputLines.push(`\t\telse:`);
+        outputLines.push(`\t\t\tresult["${fieldName}"] = null`);
+      } else if (typeInfo.isObjectOrInput) {
+        outputLines.push(`\t\tif ${snakeCaseName} != null and ${snakeCaseName}.has_method("to_dict"):`);
+        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}.to_dict()`);
+        outputLines.push(`\t\telse:`);
+        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+      } else {
+        outputLines.push(`\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+      }
     }
-    outputLines.push('\t\t}');
+    outputLines.push('\t\treturn result');
   }
   outputLines.push('');
 }
@@ -322,14 +388,63 @@ for (const inputType of inputs) {
   } else {
     generateClassFields(inputType, outputLines);
 
+    // Add from_dict method for inputs
+    outputLines.push('');
+    outputLines.push('\tstatic func from_dict(data: Dictionary) -> ' + inputType.name + ':');
+    outputLines.push('\t\tvar obj = ' + inputType.name + '.new()');
+    for (const fieldName of Object.keys(fields)) {
+      const field = fields[fieldName];
+      const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
+      const typeInfo = getFieldTypeInfo(field.type);
+
+      outputLines.push(`\t\tif data.has("${fieldName}") and data["${fieldName}"] != null:`);
+
+      if (typeInfo.isObjectOrInput && typeInfo.isArray) {
+        outputLines.push(`\t\t\tvar arr = []`);
+        outputLines.push(`\t\t\tfor item in data["${fieldName}"]:`);
+        outputLines.push(`\t\t\t\tif item is Dictionary:`);
+        outputLines.push(`\t\t\t\t\tarr.append(${typeInfo.typeName}.from_dict(item))`);
+        outputLines.push(`\t\t\t\telse:`);
+        outputLines.push(`\t\t\t\t\tarr.append(item)`);
+        outputLines.push(`\t\t\tobj.${snakeCaseName} = arr`);
+      } else if (typeInfo.isObjectOrInput) {
+        outputLines.push(`\t\t\tif data["${fieldName}"] is Dictionary:`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = ${typeInfo.typeName}.from_dict(data["${fieldName}"])`);
+        outputLines.push(`\t\t\telse:`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
+      } else {
+        outputLines.push(`\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
+      }
+    }
+    outputLines.push('\t\treturn obj');
+
     // Add to_dict method for inputs
     outputLines.push('');
     outputLines.push('\tfunc to_dict() -> Dictionary:');
     outputLines.push('\t\tvar result = {}');
     for (const fieldName of Object.keys(fields)) {
+      const field = fields[fieldName];
       const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
+      const typeInfo = getFieldTypeInfo(field.type);
+
       outputLines.push(`\t\tif ${snakeCaseName} != null:`);
-      outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+
+      if (typeInfo.isObjectOrInput && typeInfo.isArray) {
+        outputLines.push(`\t\t\tvar arr = []`);
+        outputLines.push(`\t\t\tfor item in ${snakeCaseName}:`);
+        outputLines.push(`\t\t\t\tif item.has_method("to_dict"):`);
+        outputLines.push(`\t\t\t\t\tarr.append(item.to_dict())`);
+        outputLines.push(`\t\t\t\telse:`);
+        outputLines.push(`\t\t\t\t\tarr.append(item)`);
+        outputLines.push(`\t\t\tresult["${fieldName}"] = arr`);
+      } else if (typeInfo.isObjectOrInput) {
+        outputLines.push(`\t\t\tif ${snakeCaseName}.has_method("to_dict"):`);
+        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}.to_dict()`);
+        outputLines.push(`\t\t\telse:`);
+        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+      } else {
+        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+      }
     }
     outputLines.push('\t\treturn result');
   }

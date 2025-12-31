@@ -248,53 +248,59 @@ class ActiveSubscription:
 
 	static func from_dict(data: Dictionary) -> ActiveSubscription:
 		var obj = ActiveSubscription.new()
-		if data.has("productId"):
+		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
-		if data.has("isActive"):
+		if data.has("isActive") and data["isActive"] != null:
 			obj.is_active = data["isActive"]
-		if data.has("expirationDateIOS"):
+		if data.has("expirationDateIOS") and data["expirationDateIOS"] != null:
 			obj.expiration_date_ios = data["expirationDateIOS"]
-		if data.has("autoRenewingAndroid"):
+		if data.has("autoRenewingAndroid") and data["autoRenewingAndroid"] != null:
 			obj.auto_renewing_android = data["autoRenewingAndroid"]
-		if data.has("environmentIOS"):
+		if data.has("environmentIOS") and data["environmentIOS"] != null:
 			obj.environment_ios = data["environmentIOS"]
-		if data.has("willExpireSoon"):
+		if data.has("willExpireSoon") and data["willExpireSoon"] != null:
 			obj.will_expire_soon = data["willExpireSoon"]
-		if data.has("daysUntilExpirationIOS"):
+		if data.has("daysUntilExpirationIOS") and data["daysUntilExpirationIOS"] != null:
 			obj.days_until_expiration_ios = data["daysUntilExpirationIOS"]
-		if data.has("transactionId"):
+		if data.has("transactionId") and data["transactionId"] != null:
 			obj.transaction_id = data["transactionId"]
-		if data.has("purchaseToken"):
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
-		if data.has("transactionDate"):
+		if data.has("transactionDate") and data["transactionDate"] != null:
 			obj.transaction_date = data["transactionDate"]
-		if data.has("basePlanIdAndroid"):
+		if data.has("basePlanIdAndroid") and data["basePlanIdAndroid"] != null:
 			obj.base_plan_id_android = data["basePlanIdAndroid"]
-		if data.has("purchaseTokenAndroid"):
+		if data.has("purchaseTokenAndroid") and data["purchaseTokenAndroid"] != null:
 			obj.purchase_token_android = data["purchaseTokenAndroid"]
-		if data.has("currentPlanId"):
+		if data.has("currentPlanId") and data["currentPlanId"] != null:
 			obj.current_plan_id = data["currentPlanId"]
-		if data.has("renewalInfoIOS"):
-			obj.renewal_info_ios = data["renewalInfoIOS"]
+		if data.has("renewalInfoIOS") and data["renewalInfoIOS"] != null:
+			if data["renewalInfoIOS"] is Dictionary:
+				obj.renewal_info_ios = RenewalInfoIOS.from_dict(data["renewalInfoIOS"])
+			else:
+				obj.renewal_info_ios = data["renewalInfoIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"productId": product_id,
-			"isActive": is_active,
-			"expirationDateIOS": expiration_date_ios,
-			"autoRenewingAndroid": auto_renewing_android,
-			"environmentIOS": environment_ios,
-			"willExpireSoon": will_expire_soon,
-			"daysUntilExpirationIOS": days_until_expiration_ios,
-			"transactionId": transaction_id,
-			"purchaseToken": purchase_token,
-			"transactionDate": transaction_date,
-			"basePlanIdAndroid": base_plan_id_android,
-			"purchaseTokenAndroid": purchase_token_android,
-			"currentPlanId": current_plan_id,
-			"renewalInfoIOS": renewal_info_ios
-		}
+		var result = {}
+		result["productId"] = product_id
+		result["isActive"] = is_active
+		result["expirationDateIOS"] = expiration_date_ios
+		result["autoRenewingAndroid"] = auto_renewing_android
+		result["environmentIOS"] = environment_ios
+		result["willExpireSoon"] = will_expire_soon
+		result["daysUntilExpirationIOS"] = days_until_expiration_ios
+		result["transactionId"] = transaction_id
+		result["purchaseToken"] = purchase_token
+		result["transactionDate"] = transaction_date
+		result["basePlanIdAndroid"] = base_plan_id_android
+		result["purchaseTokenAndroid"] = purchase_token_android
+		result["currentPlanId"] = current_plan_id
+		if renewal_info_ios != null and renewal_info_ios.has_method("to_dict"):
+			result["renewalInfoIOS"] = renewal_info_ios.to_dict()
+		else:
+			result["renewalInfoIOS"] = renewal_info_ios
+		return result
 
 class AppTransaction:
 	var bundle_id: String
@@ -313,50 +319,50 @@ class AppTransaction:
 
 	static func from_dict(data: Dictionary) -> AppTransaction:
 		var obj = AppTransaction.new()
-		if data.has("bundleId"):
+		if data.has("bundleId") and data["bundleId"] != null:
 			obj.bundle_id = data["bundleId"]
-		if data.has("appVersion"):
+		if data.has("appVersion") and data["appVersion"] != null:
 			obj.app_version = data["appVersion"]
-		if data.has("originalAppVersion"):
+		if data.has("originalAppVersion") and data["originalAppVersion"] != null:
 			obj.original_app_version = data["originalAppVersion"]
-		if data.has("originalPurchaseDate"):
+		if data.has("originalPurchaseDate") and data["originalPurchaseDate"] != null:
 			obj.original_purchase_date = data["originalPurchaseDate"]
-		if data.has("deviceVerification"):
+		if data.has("deviceVerification") and data["deviceVerification"] != null:
 			obj.device_verification = data["deviceVerification"]
-		if data.has("deviceVerificationNonce"):
+		if data.has("deviceVerificationNonce") and data["deviceVerificationNonce"] != null:
 			obj.device_verification_nonce = data["deviceVerificationNonce"]
-		if data.has("environment"):
+		if data.has("environment") and data["environment"] != null:
 			obj.environment = data["environment"]
-		if data.has("signedDate"):
+		if data.has("signedDate") and data["signedDate"] != null:
 			obj.signed_date = data["signedDate"]
-		if data.has("appId"):
+		if data.has("appId") and data["appId"] != null:
 			obj.app_id = data["appId"]
-		if data.has("appVersionId"):
+		if data.has("appVersionId") and data["appVersionId"] != null:
 			obj.app_version_id = data["appVersionId"]
-		if data.has("preorderDate"):
+		if data.has("preorderDate") and data["preorderDate"] != null:
 			obj.preorder_date = data["preorderDate"]
-		if data.has("appTransactionId"):
+		if data.has("appTransactionId") and data["appTransactionId"] != null:
 			obj.app_transaction_id = data["appTransactionId"]
-		if data.has("originalPlatform"):
+		if data.has("originalPlatform") and data["originalPlatform"] != null:
 			obj.original_platform = data["originalPlatform"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"bundleId": bundle_id,
-			"appVersion": app_version,
-			"originalAppVersion": original_app_version,
-			"originalPurchaseDate": original_purchase_date,
-			"deviceVerification": device_verification,
-			"deviceVerificationNonce": device_verification_nonce,
-			"environment": environment,
-			"signedDate": signed_date,
-			"appId": app_id,
-			"appVersionId": app_version_id,
-			"preorderDate": preorder_date,
-			"appTransactionId": app_transaction_id,
-			"originalPlatform": original_platform
-		}
+		var result = {}
+		result["bundleId"] = bundle_id
+		result["appVersion"] = app_version
+		result["originalAppVersion"] = original_app_version
+		result["originalPurchaseDate"] = original_purchase_date
+		result["deviceVerification"] = device_verification
+		result["deviceVerificationNonce"] = device_verification_nonce
+		result["environment"] = environment
+		result["signedDate"] = signed_date
+		result["appId"] = app_id
+		result["appVersionId"] = app_version_id
+		result["preorderDate"] = preorder_date
+		result["appTransactionId"] = app_transaction_id
+		result["originalPlatform"] = original_platform
+		return result
 
 ## Result of checking billing program availability (Android) Available in Google Play Billing Library 8.2.0+
 class BillingProgramAvailabilityResultAndroid:
@@ -367,17 +373,17 @@ class BillingProgramAvailabilityResultAndroid:
 
 	static func from_dict(data: Dictionary) -> BillingProgramAvailabilityResultAndroid:
 		var obj = BillingProgramAvailabilityResultAndroid.new()
-		if data.has("isAvailable"):
+		if data.has("isAvailable") and data["isAvailable"] != null:
 			obj.is_available = data["isAvailable"]
-		if data.has("billingProgram"):
+		if data.has("billingProgram") and data["billingProgram"] != null:
 			obj.billing_program = data["billingProgram"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"isAvailable": is_available,
-			"billingProgram": billing_program
-		}
+		var result = {}
+		result["isAvailable"] = is_available
+		result["billingProgram"] = billing_program
+		return result
 
 ## Reporting details for transactions made outside of Google Play Billing (Android) Contains the external transaction token needed for reporting Available in Google Play Billing Library 8.2.0+
 class BillingProgramReportingDetailsAndroid:
@@ -388,17 +394,17 @@ class BillingProgramReportingDetailsAndroid:
 
 	static func from_dict(data: Dictionary) -> BillingProgramReportingDetailsAndroid:
 		var obj = BillingProgramReportingDetailsAndroid.new()
-		if data.has("billingProgram"):
+		if data.has("billingProgram") and data["billingProgram"] != null:
 			obj.billing_program = data["billingProgram"]
-		if data.has("externalTransactionToken"):
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"billingProgram": billing_program,
-			"externalTransactionToken": external_transaction_token
-		}
+		var result = {}
+		result["billingProgram"] = billing_program
+		result["externalTransactionToken"] = external_transaction_token
+		return result
 
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
 class DeveloperProvidedBillingDetailsAndroid:
@@ -407,14 +413,14 @@ class DeveloperProvidedBillingDetailsAndroid:
 
 	static func from_dict(data: Dictionary) -> DeveloperProvidedBillingDetailsAndroid:
 		var obj = DeveloperProvidedBillingDetailsAndroid.new()
-		if data.has("externalTransactionToken"):
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"externalTransactionToken": external_transaction_token
-		}
+		var result = {}
+		result["externalTransactionToken"] = external_transaction_token
+		return result
 
 ## Discount amount details for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class DiscountAmountAndroid:
@@ -425,17 +431,17 @@ class DiscountAmountAndroid:
 
 	static func from_dict(data: Dictionary) -> DiscountAmountAndroid:
 		var obj = DiscountAmountAndroid.new()
-		if data.has("discountAmountMicros"):
+		if data.has("discountAmountMicros") and data["discountAmountMicros"] != null:
 			obj.discount_amount_micros = data["discountAmountMicros"]
-		if data.has("formattedDiscountAmount"):
+		if data.has("formattedDiscountAmount") and data["formattedDiscountAmount"] != null:
 			obj.formatted_discount_amount = data["formattedDiscountAmount"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"discountAmountMicros": discount_amount_micros,
-			"formattedDiscountAmount": formatted_discount_amount
-		}
+		var result = {}
+		result["discountAmountMicros"] = discount_amount_micros
+		result["formattedDiscountAmount"] = formatted_discount_amount
+		return result
 
 ## Discount display information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class DiscountDisplayInfoAndroid:
@@ -446,17 +452,23 @@ class DiscountDisplayInfoAndroid:
 
 	static func from_dict(data: Dictionary) -> DiscountDisplayInfoAndroid:
 		var obj = DiscountDisplayInfoAndroid.new()
-		if data.has("percentageDiscount"):
+		if data.has("percentageDiscount") and data["percentageDiscount"] != null:
 			obj.percentage_discount = data["percentageDiscount"]
-		if data.has("discountAmount"):
-			obj.discount_amount = data["discountAmount"]
+		if data.has("discountAmount") and data["discountAmount"] != null:
+			if data["discountAmount"] is Dictionary:
+				obj.discount_amount = DiscountAmountAndroid.from_dict(data["discountAmount"])
+			else:
+				obj.discount_amount = data["discountAmount"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"percentageDiscount": percentage_discount,
-			"discountAmount": discount_amount
-		}
+		var result = {}
+		result["percentageDiscount"] = percentage_discount
+		if discount_amount != null and discount_amount.has_method("to_dict"):
+			result["discountAmount"] = discount_amount.to_dict()
+		else:
+			result["discountAmount"] = discount_amount
+		return result
 
 class DiscountIOS:
 	var identifier: String
@@ -470,35 +482,35 @@ class DiscountIOS:
 
 	static func from_dict(data: Dictionary) -> DiscountIOS:
 		var obj = DiscountIOS.new()
-		if data.has("identifier"):
+		if data.has("identifier") and data["identifier"] != null:
 			obj.identifier = data["identifier"]
-		if data.has("type"):
+		if data.has("type") and data["type"] != null:
 			obj.type = data["type"]
-		if data.has("numberOfPeriods"):
+		if data.has("numberOfPeriods") and data["numberOfPeriods"] != null:
 			obj.number_of_periods = data["numberOfPeriods"]
-		if data.has("price"):
+		if data.has("price") and data["price"] != null:
 			obj.price = data["price"]
-		if data.has("priceAmount"):
+		if data.has("priceAmount") and data["priceAmount"] != null:
 			obj.price_amount = data["priceAmount"]
-		if data.has("paymentMode"):
+		if data.has("paymentMode") and data["paymentMode"] != null:
 			obj.payment_mode = data["paymentMode"]
-		if data.has("subscriptionPeriod"):
+		if data.has("subscriptionPeriod") and data["subscriptionPeriod"] != null:
 			obj.subscription_period = data["subscriptionPeriod"]
-		if data.has("localizedPrice"):
+		if data.has("localizedPrice") and data["localizedPrice"] != null:
 			obj.localized_price = data["localizedPrice"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"identifier": identifier,
-			"type": type,
-			"numberOfPeriods": number_of_periods,
-			"price": price,
-			"priceAmount": price_amount,
-			"paymentMode": payment_mode,
-			"subscriptionPeriod": subscription_period,
-			"localizedPrice": localized_price
-		}
+		var result = {}
+		result["identifier"] = identifier
+		result["type"] = type
+		result["numberOfPeriods"] = number_of_periods
+		result["price"] = price
+		result["priceAmount"] = price_amount
+		result["paymentMode"] = payment_mode
+		result["subscriptionPeriod"] = subscription_period
+		result["localizedPrice"] = localized_price
+		return result
 
 class DiscountOfferIOS:
 	## Discount identifier
@@ -514,26 +526,26 @@ class DiscountOfferIOS:
 
 	static func from_dict(data: Dictionary) -> DiscountOfferIOS:
 		var obj = DiscountOfferIOS.new()
-		if data.has("identifier"):
+		if data.has("identifier") and data["identifier"] != null:
 			obj.identifier = data["identifier"]
-		if data.has("keyIdentifier"):
+		if data.has("keyIdentifier") and data["keyIdentifier"] != null:
 			obj.key_identifier = data["keyIdentifier"]
-		if data.has("nonce"):
+		if data.has("nonce") and data["nonce"] != null:
 			obj.nonce = data["nonce"]
-		if data.has("signature"):
+		if data.has("signature") and data["signature"] != null:
 			obj.signature = data["signature"]
-		if data.has("timestamp"):
+		if data.has("timestamp") and data["timestamp"] != null:
 			obj.timestamp = data["timestamp"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"identifier": identifier,
-			"keyIdentifier": key_identifier,
-			"nonce": nonce,
-			"signature": signature,
-			"timestamp": timestamp
-		}
+		var result = {}
+		result["identifier"] = identifier
+		result["keyIdentifier"] = key_identifier
+		result["nonce"] = nonce
+		result["signature"] = signature
+		result["timestamp"] = timestamp
+		return result
 
 class EntitlementIOS:
 	var sku: String
@@ -542,20 +554,20 @@ class EntitlementIOS:
 
 	static func from_dict(data: Dictionary) -> EntitlementIOS:
 		var obj = EntitlementIOS.new()
-		if data.has("sku"):
+		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
-		if data.has("transactionId"):
+		if data.has("transactionId") and data["transactionId"] != null:
 			obj.transaction_id = data["transactionId"]
-		if data.has("jsonRepresentation"):
+		if data.has("jsonRepresentation") and data["jsonRepresentation"] != null:
 			obj.json_representation = data["jsonRepresentation"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"sku": sku,
-			"transactionId": transaction_id,
-			"jsonRepresentation": json_representation
-		}
+		var result = {}
+		result["sku"] = sku
+		result["transactionId"] = transaction_id
+		result["jsonRepresentation"] = json_representation
+		return result
 
 ## External offer availability result (Android) @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferAvailabilityResultAndroid:
@@ -564,14 +576,14 @@ class ExternalOfferAvailabilityResultAndroid:
 
 	static func from_dict(data: Dictionary) -> ExternalOfferAvailabilityResultAndroid:
 		var obj = ExternalOfferAvailabilityResultAndroid.new()
-		if data.has("isAvailable"):
+		if data.has("isAvailable") and data["isAvailable"] != null:
 			obj.is_available = data["isAvailable"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"isAvailable": is_available
-		}
+		var result = {}
+		result["isAvailable"] = is_available
+		return result
 
 ## External offer reporting details (Android) @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferReportingDetailsAndroid:
@@ -580,14 +592,14 @@ class ExternalOfferReportingDetailsAndroid:
 
 	static func from_dict(data: Dictionary) -> ExternalOfferReportingDetailsAndroid:
 		var obj = ExternalOfferReportingDetailsAndroid.new()
-		if data.has("externalTransactionToken"):
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"externalTransactionToken": external_transaction_token
-		}
+		var result = {}
+		result["externalTransactionToken"] = external_transaction_token
+		return result
 
 ## Result of presenting an external purchase link (iOS 18.2+)
 class ExternalPurchaseLinkResultIOS:
@@ -598,17 +610,17 @@ class ExternalPurchaseLinkResultIOS:
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseLinkResultIOS:
 		var obj = ExternalPurchaseLinkResultIOS.new()
-		if data.has("success"):
+		if data.has("success") and data["success"] != null:
 			obj.success = data["success"]
-		if data.has("error"):
+		if data.has("error") and data["error"] != null:
 			obj.error = data["error"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"success": success,
-			"error": error
-		}
+		var result = {}
+		result["success"] = success
+		result["error"] = error
+		return result
 
 ## Result of presenting external purchase notice sheet (iOS 18.2+)
 class ExternalPurchaseNoticeResultIOS:
@@ -619,17 +631,17 @@ class ExternalPurchaseNoticeResultIOS:
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseNoticeResultIOS:
 		var obj = ExternalPurchaseNoticeResultIOS.new()
-		if data.has("result"):
+		if data.has("result") and data["result"] != null:
 			obj.result = data["result"]
-		if data.has("error"):
+		if data.has("error") and data["error"] != null:
 			obj.error = data["error"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"result": result,
-			"error": error
-		}
+		var result = {}
+		result["result"] = result
+		result["error"] = error
+		return result
 
 ## Limited quantity information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class LimitedQuantityInfoAndroid:
@@ -640,17 +652,17 @@ class LimitedQuantityInfoAndroid:
 
 	static func from_dict(data: Dictionary) -> LimitedQuantityInfoAndroid:
 		var obj = LimitedQuantityInfoAndroid.new()
-		if data.has("maximumQuantity"):
+		if data.has("maximumQuantity") and data["maximumQuantity"] != null:
 			obj.maximum_quantity = data["maximumQuantity"]
-		if data.has("remainingQuantity"):
+		if data.has("remainingQuantity") and data["remainingQuantity"] != null:
 			obj.remaining_quantity = data["remainingQuantity"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"maximumQuantity": maximum_quantity,
-			"remainingQuantity": remaining_quantity
-		}
+		var result = {}
+		result["maximumQuantity"] = maximum_quantity
+		result["remainingQuantity"] = remaining_quantity
+		return result
 
 ## Pre-order details for one-time purchase products (Android) Available in Google Play Billing Library 8.1.0+
 class PreorderDetailsAndroid:
@@ -661,17 +673,17 @@ class PreorderDetailsAndroid:
 
 	static func from_dict(data: Dictionary) -> PreorderDetailsAndroid:
 		var obj = PreorderDetailsAndroid.new()
-		if data.has("preorderPresaleEndTimeMillis"):
+		if data.has("preorderPresaleEndTimeMillis") and data["preorderPresaleEndTimeMillis"] != null:
 			obj.preorder_presale_end_time_millis = data["preorderPresaleEndTimeMillis"]
-		if data.has("preorderReleaseTimeMillis"):
+		if data.has("preorderReleaseTimeMillis") and data["preorderReleaseTimeMillis"] != null:
 			obj.preorder_release_time_millis = data["preorderReleaseTimeMillis"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"preorderPresaleEndTimeMillis": preorder_presale_end_time_millis,
-			"preorderReleaseTimeMillis": preorder_release_time_millis
-		}
+		var result = {}
+		result["preorderPresaleEndTimeMillis"] = preorder_presale_end_time_millis
+		result["preorderReleaseTimeMillis"] = preorder_release_time_millis
+		return result
 
 class PricingPhaseAndroid:
 	var formatted_price: String
@@ -683,43 +695,58 @@ class PricingPhaseAndroid:
 
 	static func from_dict(data: Dictionary) -> PricingPhaseAndroid:
 		var obj = PricingPhaseAndroid.new()
-		if data.has("formattedPrice"):
+		if data.has("formattedPrice") and data["formattedPrice"] != null:
 			obj.formatted_price = data["formattedPrice"]
-		if data.has("priceCurrencyCode"):
+		if data.has("priceCurrencyCode") and data["priceCurrencyCode"] != null:
 			obj.price_currency_code = data["priceCurrencyCode"]
-		if data.has("billingPeriod"):
+		if data.has("billingPeriod") and data["billingPeriod"] != null:
 			obj.billing_period = data["billingPeriod"]
-		if data.has("billingCycleCount"):
+		if data.has("billingCycleCount") and data["billingCycleCount"] != null:
 			obj.billing_cycle_count = data["billingCycleCount"]
-		if data.has("priceAmountMicros"):
+		if data.has("priceAmountMicros") and data["priceAmountMicros"] != null:
 			obj.price_amount_micros = data["priceAmountMicros"]
-		if data.has("recurrenceMode"):
+		if data.has("recurrenceMode") and data["recurrenceMode"] != null:
 			obj.recurrence_mode = data["recurrenceMode"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"formattedPrice": formatted_price,
-			"priceCurrencyCode": price_currency_code,
-			"billingPeriod": billing_period,
-			"billingCycleCount": billing_cycle_count,
-			"priceAmountMicros": price_amount_micros,
-			"recurrenceMode": recurrence_mode
-		}
+		var result = {}
+		result["formattedPrice"] = formatted_price
+		result["priceCurrencyCode"] = price_currency_code
+		result["billingPeriod"] = billing_period
+		result["billingCycleCount"] = billing_cycle_count
+		result["priceAmountMicros"] = price_amount_micros
+		result["recurrenceMode"] = recurrence_mode
+		return result
 
 class PricingPhasesAndroid:
 	var pricing_phase_list: Array[PricingPhaseAndroid]
 
 	static func from_dict(data: Dictionary) -> PricingPhasesAndroid:
 		var obj = PricingPhasesAndroid.new()
-		if data.has("pricingPhaseList"):
-			obj.pricing_phase_list = data["pricingPhaseList"]
+		if data.has("pricingPhaseList") and data["pricingPhaseList"] != null:
+			var arr = []
+			for item in data["pricingPhaseList"]:
+				if item is Dictionary:
+					arr.append(PricingPhaseAndroid.from_dict(item))
+				else:
+					arr.append(item)
+			obj.pricing_phase_list = arr
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"pricingPhaseList": pricing_phase_list
-		}
+		var result = {}
+		if pricing_phase_list != null:
+			var arr = []
+			for item in pricing_phase_list:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["pricingPhaseList"] = arr
+		else:
+			result["pricingPhaseList"] = null
+		return result
 
 class ProductAndroid:
 	var id: String
@@ -739,50 +766,80 @@ class ProductAndroid:
 
 	static func from_dict(data: Dictionary) -> ProductAndroid:
 		var obj = ProductAndroid.new()
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("title"):
+		if data.has("title") and data["title"] != null:
 			obj.title = data["title"]
-		if data.has("description"):
+		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
-		if data.has("type"):
+		if data.has("type") and data["type"] != null:
 			obj.type = data["type"]
-		if data.has("displayName"):
+		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
-		if data.has("displayPrice"):
+		if data.has("displayPrice") and data["displayPrice"] != null:
 			obj.display_price = data["displayPrice"]
-		if data.has("currency"):
+		if data.has("currency") and data["currency"] != null:
 			obj.currency = data["currency"]
-		if data.has("price"):
+		if data.has("price") and data["price"] != null:
 			obj.price = data["price"]
-		if data.has("debugDescription"):
+		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
-		if data.has("platform"):
+		if data.has("platform") and data["platform"] != null:
 			obj.platform = data["platform"]
-		if data.has("nameAndroid"):
+		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
-		if data.has("oneTimePurchaseOfferDetailsAndroid"):
-			obj.one_time_purchase_offer_details_android = data["oneTimePurchaseOfferDetailsAndroid"]
-		if data.has("subscriptionOfferDetailsAndroid"):
-			obj.subscription_offer_details_android = data["subscriptionOfferDetailsAndroid"]
+		if data.has("oneTimePurchaseOfferDetailsAndroid") and data["oneTimePurchaseOfferDetailsAndroid"] != null:
+			var arr = []
+			for item in data["oneTimePurchaseOfferDetailsAndroid"]:
+				if item is Dictionary:
+					arr.append(ProductAndroidOneTimePurchaseOfferDetail.from_dict(item))
+				else:
+					arr.append(item)
+			obj.one_time_purchase_offer_details_android = arr
+		if data.has("subscriptionOfferDetailsAndroid") and data["subscriptionOfferDetailsAndroid"] != null:
+			var arr = []
+			for item in data["subscriptionOfferDetailsAndroid"]:
+				if item is Dictionary:
+					arr.append(ProductSubscriptionAndroidOfferDetails.from_dict(item))
+				else:
+					arr.append(item)
+			obj.subscription_offer_details_android = arr
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"id": id,
-			"title": title,
-			"description": description,
-			"type": type,
-			"displayName": display_name,
-			"displayPrice": display_price,
-			"currency": currency,
-			"price": price,
-			"debugDescription": debug_description,
-			"platform": platform,
-			"nameAndroid": name_android,
-			"oneTimePurchaseOfferDetailsAndroid": one_time_purchase_offer_details_android,
-			"subscriptionOfferDetailsAndroid": subscription_offer_details_android
-		}
+		var result = {}
+		result["id"] = id
+		result["title"] = title
+		result["description"] = description
+		result["type"] = type
+		result["displayName"] = display_name
+		result["displayPrice"] = display_price
+		result["currency"] = currency
+		result["price"] = price
+		result["debugDescription"] = debug_description
+		result["platform"] = platform
+		result["nameAndroid"] = name_android
+		if one_time_purchase_offer_details_android != null:
+			var arr = []
+			for item in one_time_purchase_offer_details_android:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["oneTimePurchaseOfferDetailsAndroid"] = arr
+		else:
+			result["oneTimePurchaseOfferDetailsAndroid"] = null
+		if subscription_offer_details_android != null:
+			var arr = []
+			for item in subscription_offer_details_android:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["subscriptionOfferDetailsAndroid"] = arr
+		else:
+			result["subscriptionOfferDetailsAndroid"] = null
+		return result
 
 ## One-time purchase offer details (Android) Available in Google Play Billing Library 7.0+
 class ProductAndroidOneTimePurchaseOfferDetail:
@@ -810,47 +867,77 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 
 	static func from_dict(data: Dictionary) -> ProductAndroidOneTimePurchaseOfferDetail:
 		var obj = ProductAndroidOneTimePurchaseOfferDetail.new()
-		if data.has("offerId"):
+		if data.has("offerId") and data["offerId"] != null:
 			obj.offer_id = data["offerId"]
-		if data.has("offerToken"):
+		if data.has("offerToken") and data["offerToken"] != null:
 			obj.offer_token = data["offerToken"]
-		if data.has("offerTags"):
+		if data.has("offerTags") and data["offerTags"] != null:
 			obj.offer_tags = data["offerTags"]
-		if data.has("priceCurrencyCode"):
+		if data.has("priceCurrencyCode") and data["priceCurrencyCode"] != null:
 			obj.price_currency_code = data["priceCurrencyCode"]
-		if data.has("formattedPrice"):
+		if data.has("formattedPrice") and data["formattedPrice"] != null:
 			obj.formatted_price = data["formattedPrice"]
-		if data.has("priceAmountMicros"):
+		if data.has("priceAmountMicros") and data["priceAmountMicros"] != null:
 			obj.price_amount_micros = data["priceAmountMicros"]
-		if data.has("fullPriceMicros"):
+		if data.has("fullPriceMicros") and data["fullPriceMicros"] != null:
 			obj.full_price_micros = data["fullPriceMicros"]
-		if data.has("discountDisplayInfo"):
-			obj.discount_display_info = data["discountDisplayInfo"]
-		if data.has("validTimeWindow"):
-			obj.valid_time_window = data["validTimeWindow"]
-		if data.has("limitedQuantityInfo"):
-			obj.limited_quantity_info = data["limitedQuantityInfo"]
-		if data.has("preorderDetailsAndroid"):
-			obj.preorder_details_android = data["preorderDetailsAndroid"]
-		if data.has("rentalDetailsAndroid"):
-			obj.rental_details_android = data["rentalDetailsAndroid"]
+		if data.has("discountDisplayInfo") and data["discountDisplayInfo"] != null:
+			if data["discountDisplayInfo"] is Dictionary:
+				obj.discount_display_info = DiscountDisplayInfoAndroid.from_dict(data["discountDisplayInfo"])
+			else:
+				obj.discount_display_info = data["discountDisplayInfo"]
+		if data.has("validTimeWindow") and data["validTimeWindow"] != null:
+			if data["validTimeWindow"] is Dictionary:
+				obj.valid_time_window = ValidTimeWindowAndroid.from_dict(data["validTimeWindow"])
+			else:
+				obj.valid_time_window = data["validTimeWindow"]
+		if data.has("limitedQuantityInfo") and data["limitedQuantityInfo"] != null:
+			if data["limitedQuantityInfo"] is Dictionary:
+				obj.limited_quantity_info = LimitedQuantityInfoAndroid.from_dict(data["limitedQuantityInfo"])
+			else:
+				obj.limited_quantity_info = data["limitedQuantityInfo"]
+		if data.has("preorderDetailsAndroid") and data["preorderDetailsAndroid"] != null:
+			if data["preorderDetailsAndroid"] is Dictionary:
+				obj.preorder_details_android = PreorderDetailsAndroid.from_dict(data["preorderDetailsAndroid"])
+			else:
+				obj.preorder_details_android = data["preorderDetailsAndroid"]
+		if data.has("rentalDetailsAndroid") and data["rentalDetailsAndroid"] != null:
+			if data["rentalDetailsAndroid"] is Dictionary:
+				obj.rental_details_android = RentalDetailsAndroid.from_dict(data["rentalDetailsAndroid"])
+			else:
+				obj.rental_details_android = data["rentalDetailsAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"offerId": offer_id,
-			"offerToken": offer_token,
-			"offerTags": offer_tags,
-			"priceCurrencyCode": price_currency_code,
-			"formattedPrice": formatted_price,
-			"priceAmountMicros": price_amount_micros,
-			"fullPriceMicros": full_price_micros,
-			"discountDisplayInfo": discount_display_info,
-			"validTimeWindow": valid_time_window,
-			"limitedQuantityInfo": limited_quantity_info,
-			"preorderDetailsAndroid": preorder_details_android,
-			"rentalDetailsAndroid": rental_details_android
-		}
+		var result = {}
+		result["offerId"] = offer_id
+		result["offerToken"] = offer_token
+		result["offerTags"] = offer_tags
+		result["priceCurrencyCode"] = price_currency_code
+		result["formattedPrice"] = formatted_price
+		result["priceAmountMicros"] = price_amount_micros
+		result["fullPriceMicros"] = full_price_micros
+		if discount_display_info != null and discount_display_info.has_method("to_dict"):
+			result["discountDisplayInfo"] = discount_display_info.to_dict()
+		else:
+			result["discountDisplayInfo"] = discount_display_info
+		if valid_time_window != null and valid_time_window.has_method("to_dict"):
+			result["validTimeWindow"] = valid_time_window.to_dict()
+		else:
+			result["validTimeWindow"] = valid_time_window
+		if limited_quantity_info != null and limited_quantity_info.has_method("to_dict"):
+			result["limitedQuantityInfo"] = limited_quantity_info.to_dict()
+		else:
+			result["limitedQuantityInfo"] = limited_quantity_info
+		if preorder_details_android != null and preorder_details_android.has_method("to_dict"):
+			result["preorderDetailsAndroid"] = preorder_details_android.to_dict()
+		else:
+			result["preorderDetailsAndroid"] = preorder_details_android
+		if rental_details_android != null and rental_details_android.has_method("to_dict"):
+			result["rentalDetailsAndroid"] = rental_details_android.to_dict()
+		else:
+			result["rentalDetailsAndroid"] = rental_details_android
+		return result
 
 class ProductIOS:
 	var id: String
@@ -871,56 +958,62 @@ class ProductIOS:
 
 	static func from_dict(data: Dictionary) -> ProductIOS:
 		var obj = ProductIOS.new()
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("title"):
+		if data.has("title") and data["title"] != null:
 			obj.title = data["title"]
-		if data.has("description"):
+		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
-		if data.has("type"):
+		if data.has("type") and data["type"] != null:
 			obj.type = data["type"]
-		if data.has("displayName"):
+		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
-		if data.has("displayPrice"):
+		if data.has("displayPrice") and data["displayPrice"] != null:
 			obj.display_price = data["displayPrice"]
-		if data.has("currency"):
+		if data.has("currency") and data["currency"] != null:
 			obj.currency = data["currency"]
-		if data.has("price"):
+		if data.has("price") and data["price"] != null:
 			obj.price = data["price"]
-		if data.has("debugDescription"):
+		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
-		if data.has("platform"):
+		if data.has("platform") and data["platform"] != null:
 			obj.platform = data["platform"]
-		if data.has("displayNameIOS"):
+		if data.has("displayNameIOS") and data["displayNameIOS"] != null:
 			obj.display_name_ios = data["displayNameIOS"]
-		if data.has("isFamilyShareableIOS"):
+		if data.has("isFamilyShareableIOS") and data["isFamilyShareableIOS"] != null:
 			obj.is_family_shareable_ios = data["isFamilyShareableIOS"]
-		if data.has("jsonRepresentationIOS"):
+		if data.has("jsonRepresentationIOS") and data["jsonRepresentationIOS"] != null:
 			obj.json_representation_ios = data["jsonRepresentationIOS"]
-		if data.has("subscriptionInfoIOS"):
-			obj.subscription_info_ios = data["subscriptionInfoIOS"]
-		if data.has("typeIOS"):
+		if data.has("subscriptionInfoIOS") and data["subscriptionInfoIOS"] != null:
+			if data["subscriptionInfoIOS"] is Dictionary:
+				obj.subscription_info_ios = SubscriptionInfoIOS.from_dict(data["subscriptionInfoIOS"])
+			else:
+				obj.subscription_info_ios = data["subscriptionInfoIOS"]
+		if data.has("typeIOS") and data["typeIOS"] != null:
 			obj.type_ios = data["typeIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"id": id,
-			"title": title,
-			"description": description,
-			"type": type,
-			"displayName": display_name,
-			"displayPrice": display_price,
-			"currency": currency,
-			"price": price,
-			"debugDescription": debug_description,
-			"platform": platform,
-			"displayNameIOS": display_name_ios,
-			"isFamilyShareableIOS": is_family_shareable_ios,
-			"jsonRepresentationIOS": json_representation_ios,
-			"subscriptionInfoIOS": subscription_info_ios,
-			"typeIOS": type_ios
-		}
+		var result = {}
+		result["id"] = id
+		result["title"] = title
+		result["description"] = description
+		result["type"] = type
+		result["displayName"] = display_name
+		result["displayPrice"] = display_price
+		result["currency"] = currency
+		result["price"] = price
+		result["debugDescription"] = debug_description
+		result["platform"] = platform
+		result["displayNameIOS"] = display_name_ios
+		result["isFamilyShareableIOS"] = is_family_shareable_ios
+		result["jsonRepresentationIOS"] = json_representation_ios
+		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
+			result["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		else:
+			result["subscriptionInfoIOS"] = subscription_info_ios
+		result["typeIOS"] = type_ios
+		return result
 
 class ProductSubscriptionAndroid:
 	var id: String
@@ -940,50 +1033,80 @@ class ProductSubscriptionAndroid:
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionAndroid:
 		var obj = ProductSubscriptionAndroid.new()
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("title"):
+		if data.has("title") and data["title"] != null:
 			obj.title = data["title"]
-		if data.has("description"):
+		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
-		if data.has("type"):
+		if data.has("type") and data["type"] != null:
 			obj.type = data["type"]
-		if data.has("displayName"):
+		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
-		if data.has("displayPrice"):
+		if data.has("displayPrice") and data["displayPrice"] != null:
 			obj.display_price = data["displayPrice"]
-		if data.has("currency"):
+		if data.has("currency") and data["currency"] != null:
 			obj.currency = data["currency"]
-		if data.has("price"):
+		if data.has("price") and data["price"] != null:
 			obj.price = data["price"]
-		if data.has("debugDescription"):
+		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
-		if data.has("platform"):
+		if data.has("platform") and data["platform"] != null:
 			obj.platform = data["platform"]
-		if data.has("nameAndroid"):
+		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
-		if data.has("oneTimePurchaseOfferDetailsAndroid"):
-			obj.one_time_purchase_offer_details_android = data["oneTimePurchaseOfferDetailsAndroid"]
-		if data.has("subscriptionOfferDetailsAndroid"):
-			obj.subscription_offer_details_android = data["subscriptionOfferDetailsAndroid"]
+		if data.has("oneTimePurchaseOfferDetailsAndroid") and data["oneTimePurchaseOfferDetailsAndroid"] != null:
+			var arr = []
+			for item in data["oneTimePurchaseOfferDetailsAndroid"]:
+				if item is Dictionary:
+					arr.append(ProductAndroidOneTimePurchaseOfferDetail.from_dict(item))
+				else:
+					arr.append(item)
+			obj.one_time_purchase_offer_details_android = arr
+		if data.has("subscriptionOfferDetailsAndroid") and data["subscriptionOfferDetailsAndroid"] != null:
+			var arr = []
+			for item in data["subscriptionOfferDetailsAndroid"]:
+				if item is Dictionary:
+					arr.append(ProductSubscriptionAndroidOfferDetails.from_dict(item))
+				else:
+					arr.append(item)
+			obj.subscription_offer_details_android = arr
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"id": id,
-			"title": title,
-			"description": description,
-			"type": type,
-			"displayName": display_name,
-			"displayPrice": display_price,
-			"currency": currency,
-			"price": price,
-			"debugDescription": debug_description,
-			"platform": platform,
-			"nameAndroid": name_android,
-			"oneTimePurchaseOfferDetailsAndroid": one_time_purchase_offer_details_android,
-			"subscriptionOfferDetailsAndroid": subscription_offer_details_android
-		}
+		var result = {}
+		result["id"] = id
+		result["title"] = title
+		result["description"] = description
+		result["type"] = type
+		result["displayName"] = display_name
+		result["displayPrice"] = display_price
+		result["currency"] = currency
+		result["price"] = price
+		result["debugDescription"] = debug_description
+		result["platform"] = platform
+		result["nameAndroid"] = name_android
+		if one_time_purchase_offer_details_android != null:
+			var arr = []
+			for item in one_time_purchase_offer_details_android:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["oneTimePurchaseOfferDetailsAndroid"] = arr
+		else:
+			result["oneTimePurchaseOfferDetailsAndroid"] = null
+		if subscription_offer_details_android != null:
+			var arr = []
+			for item in subscription_offer_details_android:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["subscriptionOfferDetailsAndroid"] = arr
+		else:
+			result["subscriptionOfferDetailsAndroid"] = null
+		return result
 
 class ProductSubscriptionAndroidOfferDetails:
 	var base_plan_id: String
@@ -994,26 +1117,32 @@ class ProductSubscriptionAndroidOfferDetails:
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionAndroidOfferDetails:
 		var obj = ProductSubscriptionAndroidOfferDetails.new()
-		if data.has("basePlanId"):
+		if data.has("basePlanId") and data["basePlanId"] != null:
 			obj.base_plan_id = data["basePlanId"]
-		if data.has("offerId"):
+		if data.has("offerId") and data["offerId"] != null:
 			obj.offer_id = data["offerId"]
-		if data.has("offerToken"):
+		if data.has("offerToken") and data["offerToken"] != null:
 			obj.offer_token = data["offerToken"]
-		if data.has("offerTags"):
+		if data.has("offerTags") and data["offerTags"] != null:
 			obj.offer_tags = data["offerTags"]
-		if data.has("pricingPhases"):
-			obj.pricing_phases = data["pricingPhases"]
+		if data.has("pricingPhases") and data["pricingPhases"] != null:
+			if data["pricingPhases"] is Dictionary:
+				obj.pricing_phases = PricingPhasesAndroid.from_dict(data["pricingPhases"])
+			else:
+				obj.pricing_phases = data["pricingPhases"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"basePlanId": base_plan_id,
-			"offerId": offer_id,
-			"offerToken": offer_token,
-			"offerTags": offer_tags,
-			"pricingPhases": pricing_phases
-		}
+		var result = {}
+		result["basePlanId"] = base_plan_id
+		result["offerId"] = offer_id
+		result["offerToken"] = offer_token
+		result["offerTags"] = offer_tags
+		if pricing_phases != null and pricing_phases.has_method("to_dict"):
+			result["pricingPhases"] = pricing_phases.to_dict()
+		else:
+			result["pricingPhases"] = pricing_phases
+		return result
 
 class ProductSubscriptionIOS:
 	var id: String
@@ -1042,80 +1171,101 @@ class ProductSubscriptionIOS:
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionIOS:
 		var obj = ProductSubscriptionIOS.new()
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("title"):
+		if data.has("title") and data["title"] != null:
 			obj.title = data["title"]
-		if data.has("description"):
+		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
-		if data.has("type"):
+		if data.has("type") and data["type"] != null:
 			obj.type = data["type"]
-		if data.has("displayName"):
+		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
-		if data.has("displayPrice"):
+		if data.has("displayPrice") and data["displayPrice"] != null:
 			obj.display_price = data["displayPrice"]
-		if data.has("currency"):
+		if data.has("currency") and data["currency"] != null:
 			obj.currency = data["currency"]
-		if data.has("price"):
+		if data.has("price") and data["price"] != null:
 			obj.price = data["price"]
-		if data.has("debugDescription"):
+		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
-		if data.has("platform"):
+		if data.has("platform") and data["platform"] != null:
 			obj.platform = data["platform"]
-		if data.has("displayNameIOS"):
+		if data.has("displayNameIOS") and data["displayNameIOS"] != null:
 			obj.display_name_ios = data["displayNameIOS"]
-		if data.has("isFamilyShareableIOS"):
+		if data.has("isFamilyShareableIOS") and data["isFamilyShareableIOS"] != null:
 			obj.is_family_shareable_ios = data["isFamilyShareableIOS"]
-		if data.has("jsonRepresentationIOS"):
+		if data.has("jsonRepresentationIOS") and data["jsonRepresentationIOS"] != null:
 			obj.json_representation_ios = data["jsonRepresentationIOS"]
-		if data.has("subscriptionInfoIOS"):
-			obj.subscription_info_ios = data["subscriptionInfoIOS"]
-		if data.has("typeIOS"):
+		if data.has("subscriptionInfoIOS") and data["subscriptionInfoIOS"] != null:
+			if data["subscriptionInfoIOS"] is Dictionary:
+				obj.subscription_info_ios = SubscriptionInfoIOS.from_dict(data["subscriptionInfoIOS"])
+			else:
+				obj.subscription_info_ios = data["subscriptionInfoIOS"]
+		if data.has("typeIOS") and data["typeIOS"] != null:
 			obj.type_ios = data["typeIOS"]
-		if data.has("discountsIOS"):
-			obj.discounts_ios = data["discountsIOS"]
-		if data.has("introductoryPriceIOS"):
+		if data.has("discountsIOS") and data["discountsIOS"] != null:
+			var arr = []
+			for item in data["discountsIOS"]:
+				if item is Dictionary:
+					arr.append(DiscountIOS.from_dict(item))
+				else:
+					arr.append(item)
+			obj.discounts_ios = arr
+		if data.has("introductoryPriceIOS") and data["introductoryPriceIOS"] != null:
 			obj.introductory_price_ios = data["introductoryPriceIOS"]
-		if data.has("introductoryPriceAsAmountIOS"):
+		if data.has("introductoryPriceAsAmountIOS") and data["introductoryPriceAsAmountIOS"] != null:
 			obj.introductory_price_as_amount_ios = data["introductoryPriceAsAmountIOS"]
-		if data.has("introductoryPricePaymentModeIOS"):
+		if data.has("introductoryPricePaymentModeIOS") and data["introductoryPricePaymentModeIOS"] != null:
 			obj.introductory_price_payment_mode_ios = data["introductoryPricePaymentModeIOS"]
-		if data.has("introductoryPriceNumberOfPeriodsIOS"):
+		if data.has("introductoryPriceNumberOfPeriodsIOS") and data["introductoryPriceNumberOfPeriodsIOS"] != null:
 			obj.introductory_price_number_of_periods_ios = data["introductoryPriceNumberOfPeriodsIOS"]
-		if data.has("introductoryPriceSubscriptionPeriodIOS"):
+		if data.has("introductoryPriceSubscriptionPeriodIOS") and data["introductoryPriceSubscriptionPeriodIOS"] != null:
 			obj.introductory_price_subscription_period_ios = data["introductoryPriceSubscriptionPeriodIOS"]
-		if data.has("subscriptionPeriodNumberIOS"):
+		if data.has("subscriptionPeriodNumberIOS") and data["subscriptionPeriodNumberIOS"] != null:
 			obj.subscription_period_number_ios = data["subscriptionPeriodNumberIOS"]
-		if data.has("subscriptionPeriodUnitIOS"):
+		if data.has("subscriptionPeriodUnitIOS") and data["subscriptionPeriodUnitIOS"] != null:
 			obj.subscription_period_unit_ios = data["subscriptionPeriodUnitIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"id": id,
-			"title": title,
-			"description": description,
-			"type": type,
-			"displayName": display_name,
-			"displayPrice": display_price,
-			"currency": currency,
-			"price": price,
-			"debugDescription": debug_description,
-			"platform": platform,
-			"displayNameIOS": display_name_ios,
-			"isFamilyShareableIOS": is_family_shareable_ios,
-			"jsonRepresentationIOS": json_representation_ios,
-			"subscriptionInfoIOS": subscription_info_ios,
-			"typeIOS": type_ios,
-			"discountsIOS": discounts_ios,
-			"introductoryPriceIOS": introductory_price_ios,
-			"introductoryPriceAsAmountIOS": introductory_price_as_amount_ios,
-			"introductoryPricePaymentModeIOS": introductory_price_payment_mode_ios,
-			"introductoryPriceNumberOfPeriodsIOS": introductory_price_number_of_periods_ios,
-			"introductoryPriceSubscriptionPeriodIOS": introductory_price_subscription_period_ios,
-			"subscriptionPeriodNumberIOS": subscription_period_number_ios,
-			"subscriptionPeriodUnitIOS": subscription_period_unit_ios
-		}
+		var result = {}
+		result["id"] = id
+		result["title"] = title
+		result["description"] = description
+		result["type"] = type
+		result["displayName"] = display_name
+		result["displayPrice"] = display_price
+		result["currency"] = currency
+		result["price"] = price
+		result["debugDescription"] = debug_description
+		result["platform"] = platform
+		result["displayNameIOS"] = display_name_ios
+		result["isFamilyShareableIOS"] = is_family_shareable_ios
+		result["jsonRepresentationIOS"] = json_representation_ios
+		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
+			result["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		else:
+			result["subscriptionInfoIOS"] = subscription_info_ios
+		result["typeIOS"] = type_ios
+		if discounts_ios != null:
+			var arr = []
+			for item in discounts_ios:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["discountsIOS"] = arr
+		else:
+			result["discountsIOS"] = null
+		result["introductoryPriceIOS"] = introductory_price_ios
+		result["introductoryPriceAsAmountIOS"] = introductory_price_as_amount_ios
+		result["introductoryPricePaymentModeIOS"] = introductory_price_payment_mode_ios
+		result["introductoryPriceNumberOfPeriodsIOS"] = introductory_price_number_of_periods_ios
+		result["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
+		result["subscriptionPeriodNumberIOS"] = subscription_period_number_ios
+		result["subscriptionPeriodUnitIOS"] = subscription_period_unit_ios
+		return result
 
 class PurchaseAndroid:
 	var id: String
@@ -1144,74 +1294,74 @@ class PurchaseAndroid:
 
 	static func from_dict(data: Dictionary) -> PurchaseAndroid:
 		var obj = PurchaseAndroid.new()
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("productId"):
+		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
-		if data.has("ids"):
+		if data.has("ids") and data["ids"] != null:
 			obj.ids = data["ids"]
-		if data.has("transactionId"):
+		if data.has("transactionId") and data["transactionId"] != null:
 			obj.transaction_id = data["transactionId"]
-		if data.has("transactionDate"):
+		if data.has("transactionDate") and data["transactionDate"] != null:
 			obj.transaction_date = data["transactionDate"]
-		if data.has("purchaseToken"):
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
-		if data.has("store"):
+		if data.has("store") and data["store"] != null:
 			obj.store = data["store"]
-		if data.has("platform"):
+		if data.has("platform") and data["platform"] != null:
 			obj.platform = data["platform"]
-		if data.has("quantity"):
+		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
-		if data.has("purchaseState"):
+		if data.has("purchaseState") and data["purchaseState"] != null:
 			obj.purchase_state = data["purchaseState"]
-		if data.has("isAutoRenewing"):
+		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
-		if data.has("currentPlanId"):
+		if data.has("currentPlanId") and data["currentPlanId"] != null:
 			obj.current_plan_id = data["currentPlanId"]
-		if data.has("dataAndroid"):
+		if data.has("dataAndroid") and data["dataAndroid"] != null:
 			obj.data_android = data["dataAndroid"]
-		if data.has("signatureAndroid"):
+		if data.has("signatureAndroid") and data["signatureAndroid"] != null:
 			obj.signature_android = data["signatureAndroid"]
-		if data.has("autoRenewingAndroid"):
+		if data.has("autoRenewingAndroid") and data["autoRenewingAndroid"] != null:
 			obj.auto_renewing_android = data["autoRenewingAndroid"]
-		if data.has("isAcknowledgedAndroid"):
+		if data.has("isAcknowledgedAndroid") and data["isAcknowledgedAndroid"] != null:
 			obj.is_acknowledged_android = data["isAcknowledgedAndroid"]
-		if data.has("packageNameAndroid"):
+		if data.has("packageNameAndroid") and data["packageNameAndroid"] != null:
 			obj.package_name_android = data["packageNameAndroid"]
-		if data.has("developerPayloadAndroid"):
+		if data.has("developerPayloadAndroid") and data["developerPayloadAndroid"] != null:
 			obj.developer_payload_android = data["developerPayloadAndroid"]
-		if data.has("obfuscatedAccountIdAndroid"):
+		if data.has("obfuscatedAccountIdAndroid") and data["obfuscatedAccountIdAndroid"] != null:
 			obj.obfuscated_account_id_android = data["obfuscatedAccountIdAndroid"]
-		if data.has("obfuscatedProfileIdAndroid"):
+		if data.has("obfuscatedProfileIdAndroid") and data["obfuscatedProfileIdAndroid"] != null:
 			obj.obfuscated_profile_id_android = data["obfuscatedProfileIdAndroid"]
-		if data.has("isSuspendedAndroid"):
+		if data.has("isSuspendedAndroid") and data["isSuspendedAndroid"] != null:
 			obj.is_suspended_android = data["isSuspendedAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"id": id,
-			"productId": product_id,
-			"ids": ids,
-			"transactionId": transaction_id,
-			"transactionDate": transaction_date,
-			"purchaseToken": purchase_token,
-			"store": store,
-			"platform": platform,
-			"quantity": quantity,
-			"purchaseState": purchase_state,
-			"isAutoRenewing": is_auto_renewing,
-			"currentPlanId": current_plan_id,
-			"dataAndroid": data_android,
-			"signatureAndroid": signature_android,
-			"autoRenewingAndroid": auto_renewing_android,
-			"isAcknowledgedAndroid": is_acknowledged_android,
-			"packageNameAndroid": package_name_android,
-			"developerPayloadAndroid": developer_payload_android,
-			"obfuscatedAccountIdAndroid": obfuscated_account_id_android,
-			"obfuscatedProfileIdAndroid": obfuscated_profile_id_android,
-			"isSuspendedAndroid": is_suspended_android
-		}
+		var result = {}
+		result["id"] = id
+		result["productId"] = product_id
+		result["ids"] = ids
+		result["transactionId"] = transaction_id
+		result["transactionDate"] = transaction_date
+		result["purchaseToken"] = purchase_token
+		result["store"] = store
+		result["platform"] = platform
+		result["quantity"] = quantity
+		result["purchaseState"] = purchase_state
+		result["isAutoRenewing"] = is_auto_renewing
+		result["currentPlanId"] = current_plan_id
+		result["dataAndroid"] = data_android
+		result["signatureAndroid"] = signature_android
+		result["autoRenewingAndroid"] = auto_renewing_android
+		result["isAcknowledgedAndroid"] = is_acknowledged_android
+		result["packageNameAndroid"] = package_name_android
+		result["developerPayloadAndroid"] = developer_payload_android
+		result["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
+		result["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
+		result["isSuspendedAndroid"] = is_suspended_android
+		return result
 
 class PurchaseError:
 	var code: ErrorCode
@@ -1220,20 +1370,20 @@ class PurchaseError:
 
 	static func from_dict(data: Dictionary) -> PurchaseError:
 		var obj = PurchaseError.new()
-		if data.has("code"):
+		if data.has("code") and data["code"] != null:
 			obj.code = data["code"]
-		if data.has("message"):
+		if data.has("message") and data["message"] != null:
 			obj.message = data["message"]
-		if data.has("productId"):
+		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"code": code,
-			"message": message,
-			"productId": product_id
-		}
+		var result = {}
+		result["code"] = code
+		result["message"] = message
+		result["productId"] = product_id
+		return result
 
 class PurchaseIOS:
 	var id: String
@@ -1274,113 +1424,125 @@ class PurchaseIOS:
 
 	static func from_dict(data: Dictionary) -> PurchaseIOS:
 		var obj = PurchaseIOS.new()
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("productId"):
+		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
-		if data.has("ids"):
+		if data.has("ids") and data["ids"] != null:
 			obj.ids = data["ids"]
-		if data.has("transactionDate"):
+		if data.has("transactionDate") and data["transactionDate"] != null:
 			obj.transaction_date = data["transactionDate"]
-		if data.has("purchaseToken"):
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
-		if data.has("store"):
+		if data.has("store") and data["store"] != null:
 			obj.store = data["store"]
-		if data.has("platform"):
+		if data.has("platform") and data["platform"] != null:
 			obj.platform = data["platform"]
-		if data.has("quantity"):
+		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
-		if data.has("purchaseState"):
+		if data.has("purchaseState") and data["purchaseState"] != null:
 			obj.purchase_state = data["purchaseState"]
-		if data.has("isAutoRenewing"):
+		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
-		if data.has("currentPlanId"):
+		if data.has("currentPlanId") and data["currentPlanId"] != null:
 			obj.current_plan_id = data["currentPlanId"]
-		if data.has("transactionId"):
+		if data.has("transactionId") and data["transactionId"] != null:
 			obj.transaction_id = data["transactionId"]
-		if data.has("quantityIOS"):
+		if data.has("quantityIOS") and data["quantityIOS"] != null:
 			obj.quantity_ios = data["quantityIOS"]
-		if data.has("originalTransactionDateIOS"):
+		if data.has("originalTransactionDateIOS") and data["originalTransactionDateIOS"] != null:
 			obj.original_transaction_date_ios = data["originalTransactionDateIOS"]
-		if data.has("originalTransactionIdentifierIOS"):
+		if data.has("originalTransactionIdentifierIOS") and data["originalTransactionIdentifierIOS"] != null:
 			obj.original_transaction_identifier_ios = data["originalTransactionIdentifierIOS"]
-		if data.has("appAccountToken"):
+		if data.has("appAccountToken") and data["appAccountToken"] != null:
 			obj.app_account_token = data["appAccountToken"]
-		if data.has("expirationDateIOS"):
+		if data.has("expirationDateIOS") and data["expirationDateIOS"] != null:
 			obj.expiration_date_ios = data["expirationDateIOS"]
-		if data.has("webOrderLineItemIdIOS"):
+		if data.has("webOrderLineItemIdIOS") and data["webOrderLineItemIdIOS"] != null:
 			obj.web_order_line_item_id_ios = data["webOrderLineItemIdIOS"]
-		if data.has("environmentIOS"):
+		if data.has("environmentIOS") and data["environmentIOS"] != null:
 			obj.environment_ios = data["environmentIOS"]
-		if data.has("storefrontCountryCodeIOS"):
+		if data.has("storefrontCountryCodeIOS") and data["storefrontCountryCodeIOS"] != null:
 			obj.storefront_country_code_ios = data["storefrontCountryCodeIOS"]
-		if data.has("appBundleIdIOS"):
+		if data.has("appBundleIdIOS") and data["appBundleIdIOS"] != null:
 			obj.app_bundle_id_ios = data["appBundleIdIOS"]
-		if data.has("subscriptionGroupIdIOS"):
+		if data.has("subscriptionGroupIdIOS") and data["subscriptionGroupIdIOS"] != null:
 			obj.subscription_group_id_ios = data["subscriptionGroupIdIOS"]
-		if data.has("isUpgradedIOS"):
+		if data.has("isUpgradedIOS") and data["isUpgradedIOS"] != null:
 			obj.is_upgraded_ios = data["isUpgradedIOS"]
-		if data.has("ownershipTypeIOS"):
+		if data.has("ownershipTypeIOS") and data["ownershipTypeIOS"] != null:
 			obj.ownership_type_ios = data["ownershipTypeIOS"]
-		if data.has("reasonIOS"):
+		if data.has("reasonIOS") and data["reasonIOS"] != null:
 			obj.reason_ios = data["reasonIOS"]
-		if data.has("reasonStringRepresentationIOS"):
+		if data.has("reasonStringRepresentationIOS") and data["reasonStringRepresentationIOS"] != null:
 			obj.reason_string_representation_ios = data["reasonStringRepresentationIOS"]
-		if data.has("transactionReasonIOS"):
+		if data.has("transactionReasonIOS") and data["transactionReasonIOS"] != null:
 			obj.transaction_reason_ios = data["transactionReasonIOS"]
-		if data.has("revocationDateIOS"):
+		if data.has("revocationDateIOS") and data["revocationDateIOS"] != null:
 			obj.revocation_date_ios = data["revocationDateIOS"]
-		if data.has("revocationReasonIOS"):
+		if data.has("revocationReasonIOS") and data["revocationReasonIOS"] != null:
 			obj.revocation_reason_ios = data["revocationReasonIOS"]
-		if data.has("offerIOS"):
-			obj.offer_ios = data["offerIOS"]
-		if data.has("currencyCodeIOS"):
+		if data.has("offerIOS") and data["offerIOS"] != null:
+			if data["offerIOS"] is Dictionary:
+				obj.offer_ios = PurchaseOfferIOS.from_dict(data["offerIOS"])
+			else:
+				obj.offer_ios = data["offerIOS"]
+		if data.has("currencyCodeIOS") and data["currencyCodeIOS"] != null:
 			obj.currency_code_ios = data["currencyCodeIOS"]
-		if data.has("currencySymbolIOS"):
+		if data.has("currencySymbolIOS") and data["currencySymbolIOS"] != null:
 			obj.currency_symbol_ios = data["currencySymbolIOS"]
-		if data.has("countryCodeIOS"):
+		if data.has("countryCodeIOS") and data["countryCodeIOS"] != null:
 			obj.country_code_ios = data["countryCodeIOS"]
-		if data.has("renewalInfoIOS"):
-			obj.renewal_info_ios = data["renewalInfoIOS"]
+		if data.has("renewalInfoIOS") and data["renewalInfoIOS"] != null:
+			if data["renewalInfoIOS"] is Dictionary:
+				obj.renewal_info_ios = RenewalInfoIOS.from_dict(data["renewalInfoIOS"])
+			else:
+				obj.renewal_info_ios = data["renewalInfoIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"id": id,
-			"productId": product_id,
-			"ids": ids,
-			"transactionDate": transaction_date,
-			"purchaseToken": purchase_token,
-			"store": store,
-			"platform": platform,
-			"quantity": quantity,
-			"purchaseState": purchase_state,
-			"isAutoRenewing": is_auto_renewing,
-			"currentPlanId": current_plan_id,
-			"transactionId": transaction_id,
-			"quantityIOS": quantity_ios,
-			"originalTransactionDateIOS": original_transaction_date_ios,
-			"originalTransactionIdentifierIOS": original_transaction_identifier_ios,
-			"appAccountToken": app_account_token,
-			"expirationDateIOS": expiration_date_ios,
-			"webOrderLineItemIdIOS": web_order_line_item_id_ios,
-			"environmentIOS": environment_ios,
-			"storefrontCountryCodeIOS": storefront_country_code_ios,
-			"appBundleIdIOS": app_bundle_id_ios,
-			"subscriptionGroupIdIOS": subscription_group_id_ios,
-			"isUpgradedIOS": is_upgraded_ios,
-			"ownershipTypeIOS": ownership_type_ios,
-			"reasonIOS": reason_ios,
-			"reasonStringRepresentationIOS": reason_string_representation_ios,
-			"transactionReasonIOS": transaction_reason_ios,
-			"revocationDateIOS": revocation_date_ios,
-			"revocationReasonIOS": revocation_reason_ios,
-			"offerIOS": offer_ios,
-			"currencyCodeIOS": currency_code_ios,
-			"currencySymbolIOS": currency_symbol_ios,
-			"countryCodeIOS": country_code_ios,
-			"renewalInfoIOS": renewal_info_ios
-		}
+		var result = {}
+		result["id"] = id
+		result["productId"] = product_id
+		result["ids"] = ids
+		result["transactionDate"] = transaction_date
+		result["purchaseToken"] = purchase_token
+		result["store"] = store
+		result["platform"] = platform
+		result["quantity"] = quantity
+		result["purchaseState"] = purchase_state
+		result["isAutoRenewing"] = is_auto_renewing
+		result["currentPlanId"] = current_plan_id
+		result["transactionId"] = transaction_id
+		result["quantityIOS"] = quantity_ios
+		result["originalTransactionDateIOS"] = original_transaction_date_ios
+		result["originalTransactionIdentifierIOS"] = original_transaction_identifier_ios
+		result["appAccountToken"] = app_account_token
+		result["expirationDateIOS"] = expiration_date_ios
+		result["webOrderLineItemIdIOS"] = web_order_line_item_id_ios
+		result["environmentIOS"] = environment_ios
+		result["storefrontCountryCodeIOS"] = storefront_country_code_ios
+		result["appBundleIdIOS"] = app_bundle_id_ios
+		result["subscriptionGroupIdIOS"] = subscription_group_id_ios
+		result["isUpgradedIOS"] = is_upgraded_ios
+		result["ownershipTypeIOS"] = ownership_type_ios
+		result["reasonIOS"] = reason_ios
+		result["reasonStringRepresentationIOS"] = reason_string_representation_ios
+		result["transactionReasonIOS"] = transaction_reason_ios
+		result["revocationDateIOS"] = revocation_date_ios
+		result["revocationReasonIOS"] = revocation_reason_ios
+		if offer_ios != null and offer_ios.has_method("to_dict"):
+			result["offerIOS"] = offer_ios.to_dict()
+		else:
+			result["offerIOS"] = offer_ios
+		result["currencyCodeIOS"] = currency_code_ios
+		result["currencySymbolIOS"] = currency_symbol_ios
+		result["countryCodeIOS"] = country_code_ios
+		if renewal_info_ios != null and renewal_info_ios.has_method("to_dict"):
+			result["renewalInfoIOS"] = renewal_info_ios.to_dict()
+		else:
+			result["renewalInfoIOS"] = renewal_info_ios
+		return result
 
 class PurchaseOfferIOS:
 	var id: String
@@ -1389,20 +1551,20 @@ class PurchaseOfferIOS:
 
 	static func from_dict(data: Dictionary) -> PurchaseOfferIOS:
 		var obj = PurchaseOfferIOS.new()
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("type"):
+		if data.has("type") and data["type"] != null:
 			obj.type = data["type"]
-		if data.has("paymentMode"):
+		if data.has("paymentMode") and data["paymentMode"] != null:
 			obj.payment_mode = data["paymentMode"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"id": id,
-			"type": type,
-			"paymentMode": payment_mode
-		}
+		var result = {}
+		result["id"] = id
+		result["type"] = type
+		result["paymentMode"] = payment_mode
+		return result
 
 class RefundResultIOS:
 	var status: String
@@ -1410,17 +1572,17 @@ class RefundResultIOS:
 
 	static func from_dict(data: Dictionary) -> RefundResultIOS:
 		var obj = RefundResultIOS.new()
-		if data.has("status"):
+		if data.has("status") and data["status"] != null:
 			obj.status = data["status"]
-		if data.has("message"):
+		if data.has("message") and data["message"] != null:
 			obj.message = data["message"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"status": status,
-			"message": message
-		}
+		var result = {}
+		result["status"] = status
+		result["message"] = message
+		return result
 
 ## Subscription renewal information from Product.SubscriptionInfo.RenewalInfo https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 class RenewalInfoIOS:
@@ -1446,44 +1608,44 @@ class RenewalInfoIOS:
 
 	static func from_dict(data: Dictionary) -> RenewalInfoIOS:
 		var obj = RenewalInfoIOS.new()
-		if data.has("jsonRepresentation"):
+		if data.has("jsonRepresentation") and data["jsonRepresentation"] != null:
 			obj.json_representation = data["jsonRepresentation"]
-		if data.has("willAutoRenew"):
+		if data.has("willAutoRenew") and data["willAutoRenew"] != null:
 			obj.will_auto_renew = data["willAutoRenew"]
-		if data.has("autoRenewPreference"):
+		if data.has("autoRenewPreference") and data["autoRenewPreference"] != null:
 			obj.auto_renew_preference = data["autoRenewPreference"]
-		if data.has("expirationReason"):
+		if data.has("expirationReason") and data["expirationReason"] != null:
 			obj.expiration_reason = data["expirationReason"]
-		if data.has("gracePeriodExpirationDate"):
+		if data.has("gracePeriodExpirationDate") and data["gracePeriodExpirationDate"] != null:
 			obj.grace_period_expiration_date = data["gracePeriodExpirationDate"]
-		if data.has("isInBillingRetry"):
+		if data.has("isInBillingRetry") and data["isInBillingRetry"] != null:
 			obj.is_in_billing_retry = data["isInBillingRetry"]
-		if data.has("pendingUpgradeProductId"):
+		if data.has("pendingUpgradeProductId") and data["pendingUpgradeProductId"] != null:
 			obj.pending_upgrade_product_id = data["pendingUpgradeProductId"]
-		if data.has("priceIncreaseStatus"):
+		if data.has("priceIncreaseStatus") and data["priceIncreaseStatus"] != null:
 			obj.price_increase_status = data["priceIncreaseStatus"]
-		if data.has("renewalDate"):
+		if data.has("renewalDate") and data["renewalDate"] != null:
 			obj.renewal_date = data["renewalDate"]
-		if data.has("renewalOfferId"):
+		if data.has("renewalOfferId") and data["renewalOfferId"] != null:
 			obj.renewal_offer_id = data["renewalOfferId"]
-		if data.has("renewalOfferType"):
+		if data.has("renewalOfferType") and data["renewalOfferType"] != null:
 			obj.renewal_offer_type = data["renewalOfferType"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"jsonRepresentation": json_representation,
-			"willAutoRenew": will_auto_renew,
-			"autoRenewPreference": auto_renew_preference,
-			"expirationReason": expiration_reason,
-			"gracePeriodExpirationDate": grace_period_expiration_date,
-			"isInBillingRetry": is_in_billing_retry,
-			"pendingUpgradeProductId": pending_upgrade_product_id,
-			"priceIncreaseStatus": price_increase_status,
-			"renewalDate": renewal_date,
-			"renewalOfferId": renewal_offer_id,
-			"renewalOfferType": renewal_offer_type
-		}
+		var result = {}
+		result["jsonRepresentation"] = json_representation
+		result["willAutoRenew"] = will_auto_renew
+		result["autoRenewPreference"] = auto_renew_preference
+		result["expirationReason"] = expiration_reason
+		result["gracePeriodExpirationDate"] = grace_period_expiration_date
+		result["isInBillingRetry"] = is_in_billing_retry
+		result["pendingUpgradeProductId"] = pending_upgrade_product_id
+		result["priceIncreaseStatus"] = price_increase_status
+		result["renewalDate"] = renewal_date
+		result["renewalOfferId"] = renewal_offer_id
+		result["renewalOfferType"] = renewal_offer_type
+		return result
 
 ## Rental details for one-time purchase products that can be rented (Android) Available in Google Play Billing Library 7.0+
 class RentalDetailsAndroid:
@@ -1494,17 +1656,17 @@ class RentalDetailsAndroid:
 
 	static func from_dict(data: Dictionary) -> RentalDetailsAndroid:
 		var obj = RentalDetailsAndroid.new()
-		if data.has("rentalPeriod"):
+		if data.has("rentalPeriod") and data["rentalPeriod"] != null:
 			obj.rental_period = data["rentalPeriod"]
-		if data.has("rentalExpirationPeriod"):
+		if data.has("rentalExpirationPeriod") and data["rentalExpirationPeriod"] != null:
 			obj.rental_expiration_period = data["rentalExpirationPeriod"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"rentalPeriod": rental_period,
-			"rentalExpirationPeriod": rental_expiration_period
-		}
+		var result = {}
+		result["rentalPeriod"] = rental_period
+		result["rentalExpirationPeriod"] = rental_expiration_period
+		return result
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
@@ -1515,20 +1677,20 @@ class RequestVerifyPurchaseWithIapkitResult:
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitResult:
 		var obj = RequestVerifyPurchaseWithIapkitResult.new()
-		if data.has("store"):
+		if data.has("store") and data["store"] != null:
 			obj.store = data["store"]
-		if data.has("isValid"):
+		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
-		if data.has("state"):
+		if data.has("state") and data["state"] != null:
 			obj.state = data["state"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"store": store,
-			"isValid": is_valid,
-			"state": state
-		}
+		var result = {}
+		result["store"] = store
+		result["isValid"] = is_valid
+		result["state"] = state
+		return result
 
 class SubscriptionInfoIOS:
 	var introductory_offer: SubscriptionOfferIOS
@@ -1538,23 +1700,50 @@ class SubscriptionInfoIOS:
 
 	static func from_dict(data: Dictionary) -> SubscriptionInfoIOS:
 		var obj = SubscriptionInfoIOS.new()
-		if data.has("introductoryOffer"):
-			obj.introductory_offer = data["introductoryOffer"]
-		if data.has("promotionalOffers"):
-			obj.promotional_offers = data["promotionalOffers"]
-		if data.has("subscriptionGroupId"):
+		if data.has("introductoryOffer") and data["introductoryOffer"] != null:
+			if data["introductoryOffer"] is Dictionary:
+				obj.introductory_offer = SubscriptionOfferIOS.from_dict(data["introductoryOffer"])
+			else:
+				obj.introductory_offer = data["introductoryOffer"]
+		if data.has("promotionalOffers") and data["promotionalOffers"] != null:
+			var arr = []
+			for item in data["promotionalOffers"]:
+				if item is Dictionary:
+					arr.append(SubscriptionOfferIOS.from_dict(item))
+				else:
+					arr.append(item)
+			obj.promotional_offers = arr
+		if data.has("subscriptionGroupId") and data["subscriptionGroupId"] != null:
 			obj.subscription_group_id = data["subscriptionGroupId"]
-		if data.has("subscriptionPeriod"):
-			obj.subscription_period = data["subscriptionPeriod"]
+		if data.has("subscriptionPeriod") and data["subscriptionPeriod"] != null:
+			if data["subscriptionPeriod"] is Dictionary:
+				obj.subscription_period = SubscriptionPeriodValueIOS.from_dict(data["subscriptionPeriod"])
+			else:
+				obj.subscription_period = data["subscriptionPeriod"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"introductoryOffer": introductory_offer,
-			"promotionalOffers": promotional_offers,
-			"subscriptionGroupId": subscription_group_id,
-			"subscriptionPeriod": subscription_period
-		}
+		var result = {}
+		if introductory_offer != null and introductory_offer.has_method("to_dict"):
+			result["introductoryOffer"] = introductory_offer.to_dict()
+		else:
+			result["introductoryOffer"] = introductory_offer
+		if promotional_offers != null:
+			var arr = []
+			for item in promotional_offers:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["promotionalOffers"] = arr
+		else:
+			result["promotionalOffers"] = null
+		result["subscriptionGroupId"] = subscription_group_id
+		if subscription_period != null and subscription_period.has_method("to_dict"):
+			result["subscriptionPeriod"] = subscription_period.to_dict()
+		else:
+			result["subscriptionPeriod"] = subscription_period
+		return result
 
 class SubscriptionOfferIOS:
 	var display_price: String
@@ -1567,32 +1756,38 @@ class SubscriptionOfferIOS:
 
 	static func from_dict(data: Dictionary) -> SubscriptionOfferIOS:
 		var obj = SubscriptionOfferIOS.new()
-		if data.has("displayPrice"):
+		if data.has("displayPrice") and data["displayPrice"] != null:
 			obj.display_price = data["displayPrice"]
-		if data.has("id"):
+		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
-		if data.has("paymentMode"):
+		if data.has("paymentMode") and data["paymentMode"] != null:
 			obj.payment_mode = data["paymentMode"]
-		if data.has("period"):
-			obj.period = data["period"]
-		if data.has("periodCount"):
+		if data.has("period") and data["period"] != null:
+			if data["period"] is Dictionary:
+				obj.period = SubscriptionPeriodValueIOS.from_dict(data["period"])
+			else:
+				obj.period = data["period"]
+		if data.has("periodCount") and data["periodCount"] != null:
 			obj.period_count = data["periodCount"]
-		if data.has("price"):
+		if data.has("price") and data["price"] != null:
 			obj.price = data["price"]
-		if data.has("type"):
+		if data.has("type") and data["type"] != null:
 			obj.type = data["type"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"displayPrice": display_price,
-			"id": id,
-			"paymentMode": payment_mode,
-			"period": period,
-			"periodCount": period_count,
-			"price": price,
-			"type": type
-		}
+		var result = {}
+		result["displayPrice"] = display_price
+		result["id"] = id
+		result["paymentMode"] = payment_mode
+		if period != null and period.has_method("to_dict"):
+			result["period"] = period.to_dict()
+		else:
+			result["period"] = period
+		result["periodCount"] = period_count
+		result["price"] = price
+		result["type"] = type
+		return result
 
 class SubscriptionPeriodValueIOS:
 	var unit: SubscriptionPeriodIOS
@@ -1600,17 +1795,17 @@ class SubscriptionPeriodValueIOS:
 
 	static func from_dict(data: Dictionary) -> SubscriptionPeriodValueIOS:
 		var obj = SubscriptionPeriodValueIOS.new()
-		if data.has("unit"):
+		if data.has("unit") and data["unit"] != null:
 			obj.unit = data["unit"]
-		if data.has("value"):
+		if data.has("value") and data["value"] != null:
 			obj.value = data["value"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"unit": unit,
-			"value": value
-		}
+		var result = {}
+		result["unit"] = unit
+		result["value"] = value
+		return result
 
 class SubscriptionStatusIOS:
 	var state: String
@@ -1618,17 +1813,23 @@ class SubscriptionStatusIOS:
 
 	static func from_dict(data: Dictionary) -> SubscriptionStatusIOS:
 		var obj = SubscriptionStatusIOS.new()
-		if data.has("state"):
+		if data.has("state") and data["state"] != null:
 			obj.state = data["state"]
-		if data.has("renewalInfo"):
-			obj.renewal_info = data["renewalInfo"]
+		if data.has("renewalInfo") and data["renewalInfo"] != null:
+			if data["renewalInfo"] is Dictionary:
+				obj.renewal_info = RenewalInfoIOS.from_dict(data["renewalInfo"])
+			else:
+				obj.renewal_info = data["renewalInfo"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"state": state,
-			"renewalInfo": renewal_info
-		}
+		var result = {}
+		result["state"] = state
+		if renewal_info != null and renewal_info.has_method("to_dict"):
+			result["renewalInfo"] = renewal_info.to_dict()
+		else:
+			result["renewalInfo"] = renewal_info
+		return result
 
 ## User Choice Billing event details (Android) Fired when a user selects alternative billing in the User Choice Billing dialog
 class UserChoiceBillingDetails:
@@ -1639,17 +1840,17 @@ class UserChoiceBillingDetails:
 
 	static func from_dict(data: Dictionary) -> UserChoiceBillingDetails:
 		var obj = UserChoiceBillingDetails.new()
-		if data.has("externalTransactionToken"):
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
-		if data.has("products"):
+		if data.has("products") and data["products"] != null:
 			obj.products = data["products"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"externalTransactionToken": external_transaction_token,
-			"products": products
-		}
+		var result = {}
+		result["externalTransactionToken"] = external_transaction_token
+		result["products"] = products
+		return result
 
 ## Valid time window for when an offer is available (Android) Available in Google Play Billing Library 7.0+
 class ValidTimeWindowAndroid:
@@ -1660,17 +1861,17 @@ class ValidTimeWindowAndroid:
 
 	static func from_dict(data: Dictionary) -> ValidTimeWindowAndroid:
 		var obj = ValidTimeWindowAndroid.new()
-		if data.has("startTimeMillis"):
+		if data.has("startTimeMillis") and data["startTimeMillis"] != null:
 			obj.start_time_millis = data["startTimeMillis"]
-		if data.has("endTimeMillis"):
+		if data.has("endTimeMillis") and data["endTimeMillis"] != null:
 			obj.end_time_millis = data["endTimeMillis"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"startTimeMillis": start_time_millis,
-			"endTimeMillis": end_time_millis
-		}
+		var result = {}
+		result["startTimeMillis"] = start_time_millis
+		result["endTimeMillis"] = end_time_millis
+		return result
 
 class VerifyPurchaseResultAndroid:
 	var auto_renewing: bool
@@ -1694,65 +1895,65 @@ class VerifyPurchaseResultAndroid:
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultAndroid:
 		var obj = VerifyPurchaseResultAndroid.new()
-		if data.has("autoRenewing"):
+		if data.has("autoRenewing") and data["autoRenewing"] != null:
 			obj.auto_renewing = data["autoRenewing"]
-		if data.has("betaProduct"):
+		if data.has("betaProduct") and data["betaProduct"] != null:
 			obj.beta_product = data["betaProduct"]
-		if data.has("cancelDate"):
+		if data.has("cancelDate") and data["cancelDate"] != null:
 			obj.cancel_date = data["cancelDate"]
-		if data.has("cancelReason"):
+		if data.has("cancelReason") and data["cancelReason"] != null:
 			obj.cancel_reason = data["cancelReason"]
-		if data.has("deferredDate"):
+		if data.has("deferredDate") and data["deferredDate"] != null:
 			obj.deferred_date = data["deferredDate"]
-		if data.has("deferredSku"):
+		if data.has("deferredSku") and data["deferredSku"] != null:
 			obj.deferred_sku = data["deferredSku"]
-		if data.has("freeTrialEndDate"):
+		if data.has("freeTrialEndDate") and data["freeTrialEndDate"] != null:
 			obj.free_trial_end_date = data["freeTrialEndDate"]
-		if data.has("gracePeriodEndDate"):
+		if data.has("gracePeriodEndDate") and data["gracePeriodEndDate"] != null:
 			obj.grace_period_end_date = data["gracePeriodEndDate"]
-		if data.has("parentProductId"):
+		if data.has("parentProductId") and data["parentProductId"] != null:
 			obj.parent_product_id = data["parentProductId"]
-		if data.has("productId"):
+		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
-		if data.has("productType"):
+		if data.has("productType") and data["productType"] != null:
 			obj.product_type = data["productType"]
-		if data.has("purchaseDate"):
+		if data.has("purchaseDate") and data["purchaseDate"] != null:
 			obj.purchase_date = data["purchaseDate"]
-		if data.has("quantity"):
+		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
-		if data.has("receiptId"):
+		if data.has("receiptId") and data["receiptId"] != null:
 			obj.receipt_id = data["receiptId"]
-		if data.has("renewalDate"):
+		if data.has("renewalDate") and data["renewalDate"] != null:
 			obj.renewal_date = data["renewalDate"]
-		if data.has("term"):
+		if data.has("term") and data["term"] != null:
 			obj.term = data["term"]
-		if data.has("termSku"):
+		if data.has("termSku") and data["termSku"] != null:
 			obj.term_sku = data["termSku"]
-		if data.has("testTransaction"):
+		if data.has("testTransaction") and data["testTransaction"] != null:
 			obj.test_transaction = data["testTransaction"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"autoRenewing": auto_renewing,
-			"betaProduct": beta_product,
-			"cancelDate": cancel_date,
-			"cancelReason": cancel_reason,
-			"deferredDate": deferred_date,
-			"deferredSku": deferred_sku,
-			"freeTrialEndDate": free_trial_end_date,
-			"gracePeriodEndDate": grace_period_end_date,
-			"parentProductId": parent_product_id,
-			"productId": product_id,
-			"productType": product_type,
-			"purchaseDate": purchase_date,
-			"quantity": quantity,
-			"receiptId": receipt_id,
-			"renewalDate": renewal_date,
-			"term": term,
-			"termSku": term_sku,
-			"testTransaction": test_transaction
-		}
+		var result = {}
+		result["autoRenewing"] = auto_renewing
+		result["betaProduct"] = beta_product
+		result["cancelDate"] = cancel_date
+		result["cancelReason"] = cancel_reason
+		result["deferredDate"] = deferred_date
+		result["deferredSku"] = deferred_sku
+		result["freeTrialEndDate"] = free_trial_end_date
+		result["gracePeriodEndDate"] = grace_period_end_date
+		result["parentProductId"] = parent_product_id
+		result["productId"] = product_id
+		result["productType"] = product_type
+		result["purchaseDate"] = purchase_date
+		result["quantity"] = quantity
+		result["receiptId"] = receipt_id
+		result["renewalDate"] = renewal_date
+		result["term"] = term
+		result["termSku"] = term_sku
+		result["testTransaction"] = test_transaction
+		return result
 
 ## Result from Meta Horizon verify_entitlement API. Returns verification status and grant time for the entitlement.
 class VerifyPurchaseResultHorizon:
@@ -1763,17 +1964,17 @@ class VerifyPurchaseResultHorizon:
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultHorizon:
 		var obj = VerifyPurchaseResultHorizon.new()
-		if data.has("success"):
+		if data.has("success") and data["success"] != null:
 			obj.success = data["success"]
-		if data.has("grantTime"):
+		if data.has("grantTime") and data["grantTime"] != null:
 			obj.grant_time = data["grantTime"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"success": success,
-			"grantTime": grant_time
-		}
+		var result = {}
+		result["success"] = success
+		result["grantTime"] = grant_time
+		return result
 
 class VerifyPurchaseResultIOS:
 	## Whether the receipt is valid
@@ -1787,23 +1988,23 @@ class VerifyPurchaseResultIOS:
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultIOS:
 		var obj = VerifyPurchaseResultIOS.new()
-		if data.has("isValid"):
+		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
-		if data.has("receiptData"):
+		if data.has("receiptData") and data["receiptData"] != null:
 			obj.receipt_data = data["receiptData"]
-		if data.has("jwsRepresentation"):
+		if data.has("jwsRepresentation") and data["jwsRepresentation"] != null:
 			obj.jws_representation = data["jwsRepresentation"]
-		if data.has("latestTransaction"):
+		if data.has("latestTransaction") and data["latestTransaction"] != null:
 			obj.latest_transaction = data["latestTransaction"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"isValid": is_valid,
-			"receiptData": receipt_data,
-			"jwsRepresentation": jws_representation,
-			"latestTransaction": latest_transaction
-		}
+		var result = {}
+		result["isValid"] = is_valid
+		result["receiptData"] = receipt_data
+		result["jwsRepresentation"] = jws_representation
+		result["latestTransaction"] = latest_transaction
+		return result
 
 class VerifyPurchaseWithProviderError:
 	var message: String
@@ -1811,17 +2012,17 @@ class VerifyPurchaseWithProviderError:
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderError:
 		var obj = VerifyPurchaseWithProviderError.new()
-		if data.has("message"):
+		if data.has("message") and data["message"] != null:
 			obj.message = data["message"]
-		if data.has("code"):
+		if data.has("code") and data["code"] != null:
 			obj.code = data["code"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"message": message,
-			"code": code
-		}
+		var result = {}
+		result["message"] = message
+		result["code"] = code
+		return result
 
 class VerifyPurchaseWithProviderResult:
 	var provider: PurchaseVerificationProvider
@@ -1832,34 +2033,55 @@ class VerifyPurchaseWithProviderResult:
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderResult:
 		var obj = VerifyPurchaseWithProviderResult.new()
-		if data.has("provider"):
+		if data.has("provider") and data["provider"] != null:
 			obj.provider = data["provider"]
-		if data.has("iapkit"):
-			obj.iapkit = data["iapkit"]
-		if data.has("errors"):
-			obj.errors = data["errors"]
+		if data.has("iapkit") and data["iapkit"] != null:
+			if data["iapkit"] is Dictionary:
+				obj.iapkit = RequestVerifyPurchaseWithIapkitResult.from_dict(data["iapkit"])
+			else:
+				obj.iapkit = data["iapkit"]
+		if data.has("errors") and data["errors"] != null:
+			var arr = []
+			for item in data["errors"]:
+				if item is Dictionary:
+					arr.append(VerifyPurchaseWithProviderError.from_dict(item))
+				else:
+					arr.append(item)
+			obj.errors = arr
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"provider": provider,
-			"iapkit": iapkit,
-			"errors": errors
-		}
+		var result = {}
+		result["provider"] = provider
+		if iapkit != null and iapkit.has_method("to_dict"):
+			result["iapkit"] = iapkit.to_dict()
+		else:
+			result["iapkit"] = iapkit
+		if errors != null:
+			var arr = []
+			for item in errors:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["errors"] = arr
+		else:
+			result["errors"] = null
+		return result
 
 class VoidResult:
 	var success: bool
 
 	static func from_dict(data: Dictionary) -> VoidResult:
 		var obj = VoidResult.new()
-		if data.has("success"):
+		if data.has("success") and data["success"] != null:
 			obj.success = data["success"]
 		return obj
 
 	func to_dict() -> Dictionary:
-		return {
-			"success": success
-		}
+		var result = {}
+		result["success"] = success
+		return result
 
 # ============================================================================
 # Input Types
@@ -1870,6 +2092,14 @@ class AndroidSubscriptionOfferInput:
 	var sku: String
 	## Offer token
 	var offer_token: String
+
+	static func from_dict(data: Dictionary) -> AndroidSubscriptionOfferInput:
+		var obj = AndroidSubscriptionOfferInput.new()
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		if data.has("offerToken") and data["offerToken"] != null:
+			obj.offer_token = data["offerToken"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -1884,6 +2114,14 @@ class DeepLinkOptions:
 	var sku_android: String
 	## Android package name to target (required on Android)
 	var package_name_android: String
+
+	static func from_dict(data: Dictionary) -> DeepLinkOptions:
+		var obj = DeepLinkOptions.new()
+		if data.has("skuAndroid") and data["skuAndroid"] != null:
+			obj.sku_android = data["skuAndroid"]
+		if data.has("packageNameAndroid") and data["packageNameAndroid"] != null:
+			obj.package_name_android = data["packageNameAndroid"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -1901,6 +2139,16 @@ class DeveloperBillingOptionParamsAndroid:
 	var link_uri: String
 	## The launch mode for the external payment link
 	var launch_mode: DeveloperBillingLaunchModeAndroid
+
+	static func from_dict(data: Dictionary) -> DeveloperBillingOptionParamsAndroid:
+		var obj = DeveloperBillingOptionParamsAndroid.new()
+		if data.has("billingProgram") and data["billingProgram"] != null:
+			obj.billing_program = data["billingProgram"]
+		if data.has("linkUri") and data["linkUri"] != null:
+			obj.link_uri = data["linkUri"]
+		if data.has("launchMode") and data["launchMode"] != null:
+			obj.launch_mode = data["launchMode"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -1924,6 +2172,20 @@ class DiscountOfferInputIOS:
 	## Timestamp of discount offer
 	var timestamp: float
 
+	static func from_dict(data: Dictionary) -> DiscountOfferInputIOS:
+		var obj = DiscountOfferInputIOS.new()
+		if data.has("identifier") and data["identifier"] != null:
+			obj.identifier = data["identifier"]
+		if data.has("keyIdentifier") and data["keyIdentifier"] != null:
+			obj.key_identifier = data["keyIdentifier"]
+		if data.has("nonce") and data["nonce"] != null:
+			obj.nonce = data["nonce"]
+		if data.has("signature") and data["signature"] != null:
+			obj.signature = data["signature"]
+		if data.has("timestamp") and data["timestamp"] != null:
+			obj.timestamp = data["timestamp"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if identifier != null:
@@ -1945,6 +2207,14 @@ class InitConnectionConfig:
 	## Enable a specific billing program for Android (7.0+)
 	var enable_billing_program_android: BillingProgramAndroid
 
+	static func from_dict(data: Dictionary) -> InitConnectionConfig:
+		var obj = InitConnectionConfig.new()
+		if data.has("alternativeBillingModeAndroid") and data["alternativeBillingModeAndroid"] != null:
+			obj.alternative_billing_mode_android = data["alternativeBillingModeAndroid"]
+		if data.has("enableBillingProgramAndroid") and data["enableBillingProgramAndroid"] != null:
+			obj.enable_billing_program_android = data["enableBillingProgramAndroid"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if alternative_billing_mode_android != null:
@@ -1964,6 +2234,18 @@ class LaunchExternalLinkParamsAndroid:
 	## The URI where the content will be accessed from
 	var link_uri: String
 
+	static func from_dict(data: Dictionary) -> LaunchExternalLinkParamsAndroid:
+		var obj = LaunchExternalLinkParamsAndroid.new()
+		if data.has("billingProgram") and data["billingProgram"] != null:
+			obj.billing_program = data["billingProgram"]
+		if data.has("launchMode") and data["launchMode"] != null:
+			obj.launch_mode = data["launchMode"]
+		if data.has("linkType") and data["linkType"] != null:
+			obj.link_type = data["linkType"]
+		if data.has("linkUri") and data["linkUri"] != null:
+			obj.link_uri = data["linkUri"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if billing_program != null:
@@ -1979,6 +2261,14 @@ class LaunchExternalLinkParamsAndroid:
 class ProductRequest:
 	var skus: Array[String]
 	var type: ProductQueryType
+
+	static func from_dict(data: Dictionary) -> ProductRequest:
+		var obj = ProductRequest.new()
+		if data.has("skus") and data["skus"] != null:
+			obj.skus = data["skus"]
+		if data.has("type") and data["type"] != null:
+			obj.type = data["type"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2001,6 +2291,30 @@ class PurchaseInput:
 	var quantity: int
 	var purchase_state: PurchaseState
 	var is_auto_renewing: bool
+
+	static func from_dict(data: Dictionary) -> PurchaseInput:
+		var obj = PurchaseInput.new()
+		if data.has("id") and data["id"] != null:
+			obj.id = data["id"]
+		if data.has("productId") and data["productId"] != null:
+			obj.product_id = data["productId"]
+		if data.has("ids") and data["ids"] != null:
+			obj.ids = data["ids"]
+		if data.has("transactionDate") and data["transactionDate"] != null:
+			obj.transaction_date = data["transactionDate"]
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
+			obj.purchase_token = data["purchaseToken"]
+		if data.has("store") and data["store"] != null:
+			obj.store = data["store"]
+		if data.has("platform") and data["platform"] != null:
+			obj.platform = data["platform"]
+		if data.has("quantity") and data["quantity"] != null:
+			obj.quantity = data["quantity"]
+		if data.has("purchaseState") and data["purchaseState"] != null:
+			obj.purchase_state = data["purchaseState"]
+		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
+			obj.is_auto_renewing = data["isAutoRenewing"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2032,6 +2346,14 @@ class PurchaseOptions:
 	## Limit to currently active items on iOS
 	var only_include_active_items_ios: bool
 
+	static func from_dict(data: Dictionary) -> PurchaseOptions:
+		var obj = PurchaseOptions.new()
+		if data.has("alsoPublishToEventListenerIOS") and data["alsoPublishToEventListenerIOS"] != null:
+			obj.also_publish_to_event_listener_ios = data["alsoPublishToEventListenerIOS"]
+		if data.has("onlyIncludeActiveItemsIOS") and data["onlyIncludeActiveItemsIOS"] != null:
+			obj.only_include_active_items_ios = data["onlyIncludeActiveItemsIOS"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if also_publish_to_event_listener_ios != null:
@@ -2052,6 +2374,23 @@ class RequestPurchaseAndroidProps:
 	## Developer billing option parameters for external payments flow (8.3.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
+	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
+		var obj = RequestPurchaseAndroidProps.new()
+		if data.has("skus") and data["skus"] != null:
+			obj.skus = data["skus"]
+		if data.has("obfuscatedAccountIdAndroid") and data["obfuscatedAccountIdAndroid"] != null:
+			obj.obfuscated_account_id_android = data["obfuscatedAccountIdAndroid"]
+		if data.has("obfuscatedProfileIdAndroid") and data["obfuscatedProfileIdAndroid"] != null:
+			obj.obfuscated_profile_id_android = data["obfuscatedProfileIdAndroid"]
+		if data.has("isOfferPersonalized") and data["isOfferPersonalized"] != null:
+			obj.is_offer_personalized = data["isOfferPersonalized"]
+		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
+			if data["developerBillingOption"] is Dictionary:
+				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
+			else:
+				obj.developer_billing_option = data["developerBillingOption"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if skus != null:
@@ -2063,7 +2402,10 @@ class RequestPurchaseAndroidProps:
 		if is_offer_personalized != null:
 			result["isOfferPersonalized"] = is_offer_personalized
 		if developer_billing_option != null:
-			result["developerBillingOption"] = developer_billing_option
+			if developer_billing_option.has_method("to_dict"):
+				result["developerBillingOption"] = developer_billing_option.to_dict()
+			else:
+				result["developerBillingOption"] = developer_billing_option
 		return result
 
 class RequestPurchaseIosProps:
@@ -2080,6 +2422,25 @@ class RequestPurchaseIosProps:
 	## Advanced commerce data token (iOS 15+).
 	var advanced_commerce_data: String
 
+	static func from_dict(data: Dictionary) -> RequestPurchaseIosProps:
+		var obj = RequestPurchaseIosProps.new()
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		if data.has("andDangerouslyFinishTransactionAutomatically") and data["andDangerouslyFinishTransactionAutomatically"] != null:
+			obj.and_dangerously_finish_transaction_automatically = data["andDangerouslyFinishTransactionAutomatically"]
+		if data.has("appAccountToken") and data["appAccountToken"] != null:
+			obj.app_account_token = data["appAccountToken"]
+		if data.has("quantity") and data["quantity"] != null:
+			obj.quantity = data["quantity"]
+		if data.has("withOffer") and data["withOffer"] != null:
+			if data["withOffer"] is Dictionary:
+				obj.with_offer = DiscountOfferInputIOS.from_dict(data["withOffer"])
+			else:
+				obj.with_offer = data["withOffer"]
+		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
+			obj.advanced_commerce_data = data["advancedCommerceData"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if sku != null:
@@ -2091,7 +2452,10 @@ class RequestPurchaseIosProps:
 		if quantity != null:
 			result["quantity"] = quantity
 		if with_offer != null:
-			result["withOffer"] = with_offer
+			if with_offer.has_method("to_dict"):
+				result["withOffer"] = with_offer.to_dict()
+			else:
+				result["withOffer"] = with_offer
 		if advanced_commerce_data != null:
 			result["advancedCommerceData"] = advanced_commerce_data
 		return result
@@ -2106,12 +2470,36 @@ class RequestPurchaseProps:
 	## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
 	var use_alternative_billing: bool
 
+	static func from_dict(data: Dictionary) -> RequestPurchaseProps:
+		var obj = RequestPurchaseProps.new()
+		if data.has("requestPurchase") and data["requestPurchase"] != null:
+			if data["requestPurchase"] is Dictionary:
+				obj.request_purchase = RequestPurchasePropsByPlatforms.from_dict(data["requestPurchase"])
+			else:
+				obj.request_purchase = data["requestPurchase"]
+		if data.has("requestSubscription") and data["requestSubscription"] != null:
+			if data["requestSubscription"] is Dictionary:
+				obj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(data["requestSubscription"])
+			else:
+				obj.request_subscription = data["requestSubscription"]
+		if data.has("type") and data["type"] != null:
+			obj.type = data["type"]
+		if data.has("useAlternativeBilling") and data["useAlternativeBilling"] != null:
+			obj.use_alternative_billing = data["useAlternativeBilling"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if request_purchase != null:
-			result["requestPurchase"] = request_purchase
+			if request_purchase.has_method("to_dict"):
+				result["requestPurchase"] = request_purchase.to_dict()
+			else:
+				result["requestPurchase"] = request_purchase
 		if request_subscription != null:
-			result["requestSubscription"] = request_subscription
+			if request_subscription.has_method("to_dict"):
+				result["requestSubscription"] = request_subscription.to_dict()
+			else:
+				result["requestSubscription"] = request_subscription
 		if type != null:
 			result["type"] = type
 		if use_alternative_billing != null:
@@ -2129,16 +2517,52 @@ class RequestPurchasePropsByPlatforms:
 	## @deprecated Use google instead
 	var android: RequestPurchaseAndroidProps
 
+	static func from_dict(data: Dictionary) -> RequestPurchasePropsByPlatforms:
+		var obj = RequestPurchasePropsByPlatforms.new()
+		if data.has("apple") and data["apple"] != null:
+			if data["apple"] is Dictionary:
+				obj.apple = RequestPurchaseIosProps.from_dict(data["apple"])
+			else:
+				obj.apple = data["apple"]
+		if data.has("google") and data["google"] != null:
+			if data["google"] is Dictionary:
+				obj.google = RequestPurchaseAndroidProps.from_dict(data["google"])
+			else:
+				obj.google = data["google"]
+		if data.has("ios") and data["ios"] != null:
+			if data["ios"] is Dictionary:
+				obj.ios = RequestPurchaseIosProps.from_dict(data["ios"])
+			else:
+				obj.ios = data["ios"]
+		if data.has("android") and data["android"] != null:
+			if data["android"] is Dictionary:
+				obj.android = RequestPurchaseAndroidProps.from_dict(data["android"])
+			else:
+				obj.android = data["android"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if apple != null:
-			result["apple"] = apple
+			if apple.has_method("to_dict"):
+				result["apple"] = apple.to_dict()
+			else:
+				result["apple"] = apple
 		if google != null:
-			result["google"] = google
+			if google.has_method("to_dict"):
+				result["google"] = google.to_dict()
+			else:
+				result["google"] = google
 		if ios != null:
-			result["ios"] = ios
+			if ios.has_method("to_dict"):
+				result["ios"] = ios.to_dict()
+			else:
+				result["ios"] = ios
 		if android != null:
-			result["android"] = android
+			if android.has_method("to_dict"):
+				result["android"] = android.to_dict()
+			else:
+				result["android"] = android
 		return result
 
 class RequestSubscriptionAndroidProps:
@@ -2161,6 +2585,40 @@ class RequestSubscriptionAndroidProps:
 	## Developer billing option parameters for external payments flow (8.3.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
+	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
+		var obj = RequestSubscriptionAndroidProps.new()
+		if data.has("skus") and data["skus"] != null:
+			obj.skus = data["skus"]
+		if data.has("obfuscatedAccountIdAndroid") and data["obfuscatedAccountIdAndroid"] != null:
+			obj.obfuscated_account_id_android = data["obfuscatedAccountIdAndroid"]
+		if data.has("obfuscatedProfileIdAndroid") and data["obfuscatedProfileIdAndroid"] != null:
+			obj.obfuscated_profile_id_android = data["obfuscatedProfileIdAndroid"]
+		if data.has("isOfferPersonalized") and data["isOfferPersonalized"] != null:
+			obj.is_offer_personalized = data["isOfferPersonalized"]
+		if data.has("purchaseTokenAndroid") and data["purchaseTokenAndroid"] != null:
+			obj.purchase_token_android = data["purchaseTokenAndroid"]
+		if data.has("replacementModeAndroid") and data["replacementModeAndroid"] != null:
+			obj.replacement_mode_android = data["replacementModeAndroid"]
+		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
+			var arr = []
+			for item in data["subscriptionOffers"]:
+				if item is Dictionary:
+					arr.append(AndroidSubscriptionOfferInput.from_dict(item))
+				else:
+					arr.append(item)
+			obj.subscription_offers = arr
+		if data.has("subscriptionProductReplacementParams") and data["subscriptionProductReplacementParams"] != null:
+			if data["subscriptionProductReplacementParams"] is Dictionary:
+				obj.subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.from_dict(data["subscriptionProductReplacementParams"])
+			else:
+				obj.subscription_product_replacement_params = data["subscriptionProductReplacementParams"]
+		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
+			if data["developerBillingOption"] is Dictionary:
+				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
+			else:
+				obj.developer_billing_option = data["developerBillingOption"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if skus != null:
@@ -2176,11 +2634,23 @@ class RequestSubscriptionAndroidProps:
 		if replacement_mode_android != null:
 			result["replacementModeAndroid"] = replacement_mode_android
 		if subscription_offers != null:
-			result["subscriptionOffers"] = subscription_offers
+			var arr = []
+			for item in subscription_offers:
+				if item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			result["subscriptionOffers"] = arr
 		if subscription_product_replacement_params != null:
-			result["subscriptionProductReplacementParams"] = subscription_product_replacement_params
+			if subscription_product_replacement_params.has_method("to_dict"):
+				result["subscriptionProductReplacementParams"] = subscription_product_replacement_params.to_dict()
+			else:
+				result["subscriptionProductReplacementParams"] = subscription_product_replacement_params
 		if developer_billing_option != null:
-			result["developerBillingOption"] = developer_billing_option
+			if developer_billing_option.has_method("to_dict"):
+				result["developerBillingOption"] = developer_billing_option.to_dict()
+			else:
+				result["developerBillingOption"] = developer_billing_option
 		return result
 
 class RequestSubscriptionIosProps:
@@ -2191,6 +2661,25 @@ class RequestSubscriptionIosProps:
 	var with_offer: DiscountOfferInputIOS
 	## Advanced commerce data token (iOS 15+).
 	var advanced_commerce_data: String
+
+	static func from_dict(data: Dictionary) -> RequestSubscriptionIosProps:
+		var obj = RequestSubscriptionIosProps.new()
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		if data.has("andDangerouslyFinishTransactionAutomatically") and data["andDangerouslyFinishTransactionAutomatically"] != null:
+			obj.and_dangerously_finish_transaction_automatically = data["andDangerouslyFinishTransactionAutomatically"]
+		if data.has("appAccountToken") and data["appAccountToken"] != null:
+			obj.app_account_token = data["appAccountToken"]
+		if data.has("quantity") and data["quantity"] != null:
+			obj.quantity = data["quantity"]
+		if data.has("withOffer") and data["withOffer"] != null:
+			if data["withOffer"] is Dictionary:
+				obj.with_offer = DiscountOfferInputIOS.from_dict(data["withOffer"])
+			else:
+				obj.with_offer = data["withOffer"]
+		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
+			obj.advanced_commerce_data = data["advancedCommerceData"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2203,7 +2692,10 @@ class RequestSubscriptionIosProps:
 		if quantity != null:
 			result["quantity"] = quantity
 		if with_offer != null:
-			result["withOffer"] = with_offer
+			if with_offer.has_method("to_dict"):
+				result["withOffer"] = with_offer.to_dict()
+			else:
+				result["withOffer"] = with_offer
 		if advanced_commerce_data != null:
 			result["advancedCommerceData"] = advanced_commerce_data
 		return result
@@ -2219,21 +2711,63 @@ class RequestSubscriptionPropsByPlatforms:
 	## @deprecated Use google instead
 	var android: RequestSubscriptionAndroidProps
 
+	static func from_dict(data: Dictionary) -> RequestSubscriptionPropsByPlatforms:
+		var obj = RequestSubscriptionPropsByPlatforms.new()
+		if data.has("apple") and data["apple"] != null:
+			if data["apple"] is Dictionary:
+				obj.apple = RequestSubscriptionIosProps.from_dict(data["apple"])
+			else:
+				obj.apple = data["apple"]
+		if data.has("google") and data["google"] != null:
+			if data["google"] is Dictionary:
+				obj.google = RequestSubscriptionAndroidProps.from_dict(data["google"])
+			else:
+				obj.google = data["google"]
+		if data.has("ios") and data["ios"] != null:
+			if data["ios"] is Dictionary:
+				obj.ios = RequestSubscriptionIosProps.from_dict(data["ios"])
+			else:
+				obj.ios = data["ios"]
+		if data.has("android") and data["android"] != null:
+			if data["android"] is Dictionary:
+				obj.android = RequestSubscriptionAndroidProps.from_dict(data["android"])
+			else:
+				obj.android = data["android"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if apple != null:
-			result["apple"] = apple
+			if apple.has_method("to_dict"):
+				result["apple"] = apple.to_dict()
+			else:
+				result["apple"] = apple
 		if google != null:
-			result["google"] = google
+			if google.has_method("to_dict"):
+				result["google"] = google.to_dict()
+			else:
+				result["google"] = google
 		if ios != null:
-			result["ios"] = ios
+			if ios.has_method("to_dict"):
+				result["ios"] = ios.to_dict()
+			else:
+				result["ios"] = ios
 		if android != null:
-			result["android"] = android
+			if android.has_method("to_dict"):
+				result["android"] = android.to_dict()
+			else:
+				result["android"] = android
 		return result
 
 class RequestVerifyPurchaseWithIapkitAppleProps:
 	## The JWS token returned with the purchase response.
 	var jws: String
+
+	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAppleProps:
+		var obj = RequestVerifyPurchaseWithIapkitAppleProps.new()
+		if data.has("jws") and data["jws"] != null:
+			obj.jws = data["jws"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2244,6 +2778,12 @@ class RequestVerifyPurchaseWithIapkitAppleProps:
 class RequestVerifyPurchaseWithIapkitGoogleProps:
 	## The token provided to the user's device when the product or subscription was purchased.
 	var purchase_token: String
+
+	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitGoogleProps:
+		var obj = RequestVerifyPurchaseWithIapkitGoogleProps.new()
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
+			obj.purchase_token = data["purchaseToken"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2260,14 +2800,36 @@ class RequestVerifyPurchaseWithIapkitProps:
 	## Google Play Store verification parameters.
 	var google: RequestVerifyPurchaseWithIapkitGoogleProps
 
+	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitProps:
+		var obj = RequestVerifyPurchaseWithIapkitProps.new()
+		if data.has("apiKey") and data["apiKey"] != null:
+			obj.api_key = data["apiKey"]
+		if data.has("apple") and data["apple"] != null:
+			if data["apple"] is Dictionary:
+				obj.apple = RequestVerifyPurchaseWithIapkitAppleProps.from_dict(data["apple"])
+			else:
+				obj.apple = data["apple"]
+		if data.has("google") and data["google"] != null:
+			if data["google"] is Dictionary:
+				obj.google = RequestVerifyPurchaseWithIapkitGoogleProps.from_dict(data["google"])
+			else:
+				obj.google = data["google"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if api_key != null:
 			result["apiKey"] = api_key
 		if apple != null:
-			result["apple"] = apple
+			if apple.has_method("to_dict"):
+				result["apple"] = apple.to_dict()
+			else:
+				result["apple"] = apple
 		if google != null:
-			result["google"] = google
+			if google.has_method("to_dict"):
+				result["google"] = google.to_dict()
+			else:
+				result["google"] = google
 		return result
 
 ## Product-level subscription replacement parameters (Android) Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams Available in Google Play Billing Library 8.1.0+
@@ -2276,6 +2838,14 @@ class SubscriptionProductReplacementParamsAndroid:
 	var old_product_id: String
 	## The replacement mode for this product change
 	var replacement_mode: SubscriptionReplacementModeAndroid
+
+	static func from_dict(data: Dictionary) -> SubscriptionProductReplacementParamsAndroid:
+		var obj = SubscriptionProductReplacementParamsAndroid.new()
+		if data.has("oldProductId") and data["oldProductId"] != null:
+			obj.old_product_id = data["oldProductId"]
+		if data.has("replacementMode") and data["replacementMode"] != null:
+			obj.replacement_mode = data["replacementMode"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2289,6 +2859,12 @@ class SubscriptionProductReplacementParamsAndroid:
 class VerifyPurchaseAppleOptions:
 	## Product SKU to validate
 	var sku: String
+
+	static func from_dict(data: Dictionary) -> VerifyPurchaseAppleOptions:
+		var obj = VerifyPurchaseAppleOptions.new()
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2308,6 +2884,20 @@ class VerifyPurchaseGoogleOptions:
 	var access_token: String
 	## Whether this is a subscription purchase (affects API endpoint used)
 	var is_sub: bool
+
+	static func from_dict(data: Dictionary) -> VerifyPurchaseGoogleOptions:
+		var obj = VerifyPurchaseGoogleOptions.new()
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		if data.has("packageName") and data["packageName"] != null:
+			obj.package_name = data["packageName"]
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
+			obj.purchase_token = data["purchaseToken"]
+		if data.has("accessToken") and data["accessToken"] != null:
+			obj.access_token = data["accessToken"]
+		if data.has("isSub") and data["isSub"] != null:
+			obj.is_sub = data["isSub"]
+		return obj
 
 	func to_dict() -> Dictionary:
 		var result = {}
@@ -2332,6 +2922,16 @@ class VerifyPurchaseHorizonOptions:
 	## Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
 	var access_token: String
 
+	static func from_dict(data: Dictionary) -> VerifyPurchaseHorizonOptions:
+		var obj = VerifyPurchaseHorizonOptions.new()
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		if data.has("userId") and data["userId"] != null:
+			obj.user_id = data["userId"]
+		if data.has("accessToken") and data["accessToken"] != null:
+			obj.access_token = data["accessToken"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if sku != null:
@@ -2351,26 +2951,68 @@ class VerifyPurchaseProps:
 	## Meta Horizon (Quest) verification parameters.
 	var horizon: VerifyPurchaseHorizonOptions
 
+	static func from_dict(data: Dictionary) -> VerifyPurchaseProps:
+		var obj = VerifyPurchaseProps.new()
+		if data.has("apple") and data["apple"] != null:
+			if data["apple"] is Dictionary:
+				obj.apple = VerifyPurchaseAppleOptions.from_dict(data["apple"])
+			else:
+				obj.apple = data["apple"]
+		if data.has("google") and data["google"] != null:
+			if data["google"] is Dictionary:
+				obj.google = VerifyPurchaseGoogleOptions.from_dict(data["google"])
+			else:
+				obj.google = data["google"]
+		if data.has("horizon") and data["horizon"] != null:
+			if data["horizon"] is Dictionary:
+				obj.horizon = VerifyPurchaseHorizonOptions.from_dict(data["horizon"])
+			else:
+				obj.horizon = data["horizon"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if apple != null:
-			result["apple"] = apple
+			if apple.has_method("to_dict"):
+				result["apple"] = apple.to_dict()
+			else:
+				result["apple"] = apple
 		if google != null:
-			result["google"] = google
+			if google.has_method("to_dict"):
+				result["google"] = google.to_dict()
+			else:
+				result["google"] = google
 		if horizon != null:
-			result["horizon"] = horizon
+			if horizon.has_method("to_dict"):
+				result["horizon"] = horizon.to_dict()
+			else:
+				result["horizon"] = horizon
 		return result
 
 class VerifyPurchaseWithProviderProps:
 	var provider: PurchaseVerificationProvider
 	var iapkit: RequestVerifyPurchaseWithIapkitProps
 
+	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderProps:
+		var obj = VerifyPurchaseWithProviderProps.new()
+		if data.has("provider") and data["provider"] != null:
+			obj.provider = data["provider"]
+		if data.has("iapkit") and data["iapkit"] != null:
+			if data["iapkit"] is Dictionary:
+				obj.iapkit = RequestVerifyPurchaseWithIapkitProps.from_dict(data["iapkit"])
+			else:
+				obj.iapkit = data["iapkit"]
+		return obj
+
 	func to_dict() -> Dictionary:
 		var result = {}
 		if provider != null:
 			result["provider"] = provider
 		if iapkit != null:
-			result["iapkit"] = iapkit
+			if iapkit.has_method("to_dict"):
+				result["iapkit"] = iapkit.to_dict()
+			else:
+				result["iapkit"] = iapkit
 		return result
 
 # ============================================================================
