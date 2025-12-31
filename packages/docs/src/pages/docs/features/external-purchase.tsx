@@ -783,9 +783,10 @@ Future<void> handleAlternativeBillingPurchase(String productId) async {
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Initialize with Alternative Billing Only mode
-var config = InitConnectionConfig.new()
-config.alternative_billing_mode_android = AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
-await iap.init_connection(config)
+func _ready() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
+    await iap.init_connection(config)
 
 # Purchase flow
 func handle_alternative_billing_purchase(product_id: String) -> void:
@@ -814,11 +815,12 @@ func handle_alternative_billing_purchase(product_id: String) -> void:
 
     # Step 4: Create reporting token (after successful payment)
     var token = await iap.create_alternative_billing_token_android()
-    print("Token created: %s..." % token.substr(0, 20))
+    if token:
+        print("Token created: %s..." % token.substr(0, 20))
 
-    # Step 5: Send token to your backend server
-    # Backend will report token to Google Play within 24 hours
-    await your_backend.report_token(token, payment_result.order_id, product_id)
+        # Step 5: Send token to your backend server
+        # Backend will report token to Google Play within 24 hours
+        await your_backend.report_token(token, payment_result.order_id, product_id)
 
     print("Purchase completed!")`}</CodeBlock>
                     ),
@@ -1054,12 +1056,12 @@ Future<void> handleUserChoicePurchase(String productId) async {
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Initialize with User Choice mode
-var config = InitConnectionConfig.new()
-config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
-await iap.init_connection(config)
-
-# Set user choice billing listener (for alternative billing selection)
 func _ready() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
+    await iap.init_connection(config)
+
+    # Set user choice billing listener (for alternative billing selection)
     iap.user_choice_billing.connect(_on_user_choice_billing)
     iap.purchase_updated.connect(_on_purchase_updated)
 
@@ -1346,10 +1348,10 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Step 0: Enable billing program BEFORE initConnection
-iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_OFFER)
-# or BillingProgramAndroid.EXTERNAL_CONTENT_LINK
-
-await iap.init_connection(null)
+func _ready() -> void:
+    iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_OFFER)
+    # or BillingProgramAndroid.EXTERNAL_CONTENT_LINK
+    await iap.init_connection(null)
 
 # Purchase flow with Billing Programs API (8.2.0+)
 func handle_external_purchase_with_billing_programs(product_id: String) -> void:
@@ -1389,16 +1391,17 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
     var reporting_details = await iap.create_billing_program_reporting_details_android(
         BillingProgramAndroid.EXTERNAL_OFFER
     )
-    print("Token created: %s..." % reporting_details.external_transaction_token.substr(0, 20))
+    if reporting_details and reporting_details.external_transaction_token:
+        print("Token created: %s..." % reporting_details.external_transaction_token.substr(0, 20))
 
-    # Step 5: Send token to your backend server
-    await your_backend.report_token(
-        reporting_details.external_transaction_token,
-        payment_result.order_id,
-        product_id
-    )
+        # Step 5: Send token to your backend server
+        await your_backend.report_token(
+            reporting_details.external_transaction_token,
+            payment_result.order_id,
+            product_id
+        )
 
-    print("Purchase completed!")`}</CodeBlock>
+        print("Purchase completed!")`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -1714,12 +1717,11 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Step 0: Enable External Payments program BEFORE initConnection
-iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_PAYMENTS)
-
-await iap.init_connection(null)
-
-# Step 1: Set up listener for when user selects developer billing
 func _ready() -> void:
+    iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_PAYMENTS)
+    await iap.init_connection(null)
+
+    # Step 1: Set up listener for when user selects developer billing
     iap.developer_provided_billing.connect(_on_developer_provided_billing)
     iap.purchase_updated.connect(_on_purchase_updated)
 
@@ -1942,14 +1944,16 @@ await FlutterInappPurchase.instance.initConnection(
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Alternative Billing Only mode
-var config = InitConnectionConfig.new()
-config.alternative_billing_mode_android = AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
-await iap.init_connection(config)
+func _ready_alternative_only() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
+    await iap.init_connection(config)
 
 # Or User Choice mode
-var config = InitConnectionConfig.new()
-config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
-await iap.init_connection(config)`}</CodeBlock>
+func _ready_user_choice() -> void:
+    var config = InitConnectionConfig.new()
+    config.alternative_billing_mode_android = AlternativeBillingModeAndroid.USER_CHOICE
+    await iap.init_connection(config)`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>

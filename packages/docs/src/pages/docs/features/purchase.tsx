@@ -1168,9 +1168,12 @@ signal processing_changed
 
 var iap: OpenIap
 var products: Array[Product] = []
-var is_processing: bool = false:
+var _is_processing: bool = false
+var is_processing: bool:
+    get:
+        return _is_processing
     set(value):
-        is_processing = value
+        _is_processing = value
         processing_changed.emit()
 
 const PRODUCT_IDS = ["com.app.premium", "com.app.coins_100"]

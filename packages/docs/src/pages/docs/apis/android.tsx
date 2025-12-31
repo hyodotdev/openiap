@@ -503,9 +503,9 @@ Future<void> handleExternalPurchase() async {
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Step 0: Enable billing program BEFORE initConnection
-iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_OFFER)
-
-await iap.init_connection()
+func _ready() -> void:
+    iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_OFFER)
+    await iap.init_connection()
 
 func handle_external_purchase():
     # Step 1: Check availability
