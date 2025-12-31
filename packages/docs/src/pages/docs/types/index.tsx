@@ -38,6 +38,12 @@ const SPEC_ARCHIVES = [
     size: '11.9 KB',
     sha256: 'ee89e90a7a8aee3400bd9cc97bf1e9c5bef93a93b27a8da03490f1625b0d125e',
   },
+  {
+    filename: 'openiap-gdscript.zip',
+    label: 'GDScript definitions',
+    size: '36.9 KB',
+    sha256: '',
+  },
 ];
 
 // Redirect map for legacy anchor links
@@ -213,9 +219,9 @@ function TypesIndex() {
     <div className="doc-page">
       <SEO
         title="Types"
-        description="OpenIAP type definitions - Product, Purchase, PurchaseError, SubscriptionPeriod, purchase verification types, and more for TypeScript, Swift, Kotlin."
+        description="OpenIAP type definitions - Product, Purchase, PurchaseError, SubscriptionPeriod, purchase verification types, and more for TypeScript, Swift, Kotlin, Dart, GDScript."
         path="/docs/types"
-        keywords="IAP types, Product, Purchase, PurchaseError, TypeScript, Swift, Kotlin, purchase verification"
+        keywords="IAP types, Product, Purchase, PurchaseError, TypeScript, Swift, Kotlin, Dart, GDScript, Godot, purchase verification"
       />
       <div
         style={{
