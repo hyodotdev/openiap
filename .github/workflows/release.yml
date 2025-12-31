@@ -110,6 +110,7 @@ jobs:
           zip -j artifacts/openiap-dart.zip packages/gql/src/generated/types.dart
           zip -j artifacts/openiap-kotlin.zip packages/gql/src/generated/Types.kt
           zip -j artifacts/openiap-swift.zip packages/gql/src/generated/Types.swift
+          zip -j artifacts/openiap-gdscript.zip packages/gql/src/generated/types.gd
 
       - name: Delete existing tag and release if re-releasing same version
         if: github.event.inputs.version == 'current'
@@ -156,6 +157,7 @@ jobs:
             artifacts/openiap-dart.zip
             artifacts/openiap-kotlin.zip
             artifacts/openiap-swift.zip
+            artifacts/openiap-gdscript.zip
           generate_release_notes: true
           body: |
             ## OpenIAP GQL ${{ steps.version.outputs.version }}
@@ -166,6 +168,7 @@ jobs:
             - **Dart**: `openiap-dart.zip`
             - **Kotlin**: `openiap-kotlin.zip`
             - **Swift**: `openiap-swift.zip`
+            - **GDScript**: `openiap-gdscript.zip`
 
             ### Usage in other projects
             You can download these artifacts and use them in:
