@@ -218,6 +218,29 @@ function Announcements() {
               comprehensive error handling
             </li>
           </ul>
+          <a
+            href="/docs/horizon-setup"
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: '400px',
+              borderRadius: '0.75rem',
+              margin: '1.5rem auto 0',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/announcements/horizon.png"
+              alt="OpenIAP + Meta Horizon OS"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
+          </a>
           <div style={calloutStyle}>
             <strong>Getting Started:</strong> Available in{' '}
             <code>openiap-google@1.3.0</code> and later. Check out the{' '}

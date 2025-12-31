@@ -6,10 +6,10 @@
 // Christmas: '/openiap-santa.png'
 // =============================================================================
 
-export const LOGO_PATH = '/opaniap-santa.png'; // Christmas 2024
+export const LOGO_PATH = '/logo.webp';
 
-// Default logo (uncomment when Christmas is over)
-// export const LOGO_PATH = '/logo.webp';
+// Seasonal logos (uncomment when needed)
+// export const LOGO_PATH = '/openiap-santa.png'; // Christmas
 
 // =============================================================================
 // IAPKit Configuration
