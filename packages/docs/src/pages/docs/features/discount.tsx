@@ -897,7 +897,7 @@ async function purchaseWithOffer(
     var selected_offer = offers[offer_index]
 
     var props = RequestPurchaseProps.new()
-    props.type = ProductType.IN_APP
+    props.type = ProductQueryType.IN_APP
     props.request = RequestPurchasePropsByPlatforms.new()
     props.request.google = RequestPurchaseAndroidProps.new()
     props.request.google.skus = [product.id]

@@ -544,7 +544,7 @@ final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) 
 
   // Fetch product details
   final products = await FlutterInappPurchase.instance.fetchProducts(
-    ProductRequest(skus: [productId!], type: ProductType.inApp),
+    ProductRequest(skus: [productId!], type: ProductQueryType.inApp),
   );
 
   if (products.isNotEmpty) {
@@ -558,7 +558,7 @@ final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) 
           request: RequestPurchasePropsByPlatforms(
             apple: RequestPurchaseIosProps(sku: productId!),
           ),
-          type: ProductType.inApp,
+          type: ProductQueryType.inApp,
         ),
       );
     }

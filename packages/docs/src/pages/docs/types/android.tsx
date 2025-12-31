@@ -265,7 +265,7 @@ import dev.hyo.openiap.types.*
 // Fetch subscription products
 val subscriptions = openIapModule.fetchProducts(
     skus = listOf("premium_monthly"),
-    type = ProductType.Subs
+    type = ProductQueryType.Subs
 )
 
 val subscription = subscriptions.firstOrNull() ?: return

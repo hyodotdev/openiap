@@ -54,6 +54,14 @@ const gdscriptKeywords = new Set([
 
 const escapeGdscriptName = (name) => gdscriptKeywords.has(name.toLowerCase()) ? `_${name}` : name;
 
+// Field name aliases for cleaner API (OpenIAP spec compliance)
+// Maps "TypeName.fieldName" to shorter GDScript property names
+// This allows different aliases per type
+const fieldNameAliases = new Map([
+  ['RequestPurchaseProps.requestPurchase', 'request'],
+  ['RequestSubscriptionProps.requestSubscription', 'request'],
+]);
+
 const toSnakeCase = (value) => value
   .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
   .replace(/([A-Z])([A-Z][a-z])/g, '$1_$2')
@@ -75,6 +83,13 @@ const toConstantCase = (value) => value
   .replace(/([A-Z])([A-Z][a-z])/g, '$1_$2')
   .replace(/[-\s]+/g, '_')
   .toUpperCase();
+
+const toKebabCase = (value) => value
+  .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+  .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+  .replace(/[_\s]+/g, '-')
+  .replace(/-+/g, '-')
+  .toLowerCase();
 
 // GDScript type mapping
 const scalarMap = new Map([
@@ -230,8 +245,9 @@ const getFieldTypeInfo = (graphqlType) => {
 
   const typeName = baseType.name;
   const isObjectOrInput = objectNames.has(typeName) || inputNames.has(typeName);
+  const isEnum = enumNames.has(typeName);
 
-  return { isArray, isObjectOrInput, typeName };
+  return { isArray, isObjectOrInput, isEnum, typeName };
 };
 
 // Generate GDScript output
@@ -276,13 +292,29 @@ outputLines.push('# Types');
 outputLines.push('# ============================================================================');
 outputLines.push('');
 
+// Get the GDScript property name for a GraphQL field
+// typeName is optional - used for type-specific aliases
+const getGdscriptFieldName = (fieldName, typeName = null) => {
+  // Check if there's a type-specific alias for this field
+  if (typeName) {
+    const typeSpecificKey = `${typeName}.${fieldName}`;
+    if (fieldNameAliases.has(typeSpecificKey)) {
+      const aliasedName = fieldNameAliases.get(typeSpecificKey);
+      return toSnakeCase(escapeGdscriptName(aliasedName));
+    }
+  }
+  // Fall back to regular snake_case conversion
+  return toSnakeCase(escapeGdscriptName(fieldName));
+};
+
 // Helper function to generate class fields
 const generateClassFields = (type, lines, indent = '\t') => {
   const fields = type.getFields();
+  const typeName = type.name;
   for (const fieldName of Object.keys(fields)) {
     const field = fields[fieldName];
     const gdscriptType = toGdscriptType(field.type);
-    const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
+    const snakeCaseName = getGdscriptFieldName(fieldName, typeName);
 
     if (field.description) {
       lines.push(`${indent}## ${field.description.split('\n')[0]}`);
@@ -311,7 +343,7 @@ for (const objectType of objects) {
     outputLines.push('\t\tvar obj = ' + objectType.name + '.new()');
     for (const fieldName of Object.keys(fields)) {
       const field = fields[fieldName];
-      const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
+      const snakeCaseName = getGdscriptFieldName(fieldName, objectType.name);
       const typeInfo = getFieldTypeInfo(field.type);
 
       outputLines.push(`\t\tif data.has("${fieldName}") and data["${fieldName}"] != null:`);
@@ -344,8 +376,9 @@ for (const objectType of objects) {
     outputLines.push('\t\tvar result = {}');
     for (const fieldName of Object.keys(fields)) {
       const field = fields[fieldName];
-      const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
+      const snakeCaseName = getGdscriptFieldName(fieldName, objectType.name);
       const typeInfo = getFieldTypeInfo(field.type);
+      const enumConstName = toConstantCase(typeInfo.typeName) + '_VALUES';
 
       if (typeInfo.isObjectOrInput && typeInfo.isArray) {
         outputLines.push(`\t\tif ${snakeCaseName} != null:`);
@@ -361,6 +394,12 @@ for (const objectType of objects) {
       } else if (typeInfo.isObjectOrInput) {
         outputLines.push(`\t\tif ${snakeCaseName} != null and ${snakeCaseName}.has_method("to_dict"):`);
         outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}.to_dict()`);
+        outputLines.push(`\t\telse:`);
+        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+      } else if (typeInfo.isEnum) {
+        // Convert enum to string using the _VALUES constant
+        outputLines.push(`\t\tif ${enumConstName}.has(${snakeCaseName}):`);
+        outputLines.push(`\t\t\tresult["${fieldName}"] = ${enumConstName}[${snakeCaseName}]`);
         outputLines.push(`\t\telse:`);
         outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
       } else {
@@ -394,7 +433,7 @@ for (const inputType of inputs) {
     outputLines.push('\t\tvar obj = ' + inputType.name + '.new()');
     for (const fieldName of Object.keys(fields)) {
       const field = fields[fieldName];
-      const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
+      const snakeCaseName = getGdscriptFieldName(fieldName, inputType.name);
       const typeInfo = getFieldTypeInfo(field.type);
 
       outputLines.push(`\t\tif data.has("${fieldName}") and data["${fieldName}"] != null:`);
@@ -424,8 +463,9 @@ for (const inputType of inputs) {
     outputLines.push('\t\tvar result = {}');
     for (const fieldName of Object.keys(fields)) {
       const field = fields[fieldName];
-      const snakeCaseName = toSnakeCase(escapeGdscriptName(fieldName));
+      const snakeCaseName = getGdscriptFieldName(fieldName, inputType.name);
       const typeInfo = getFieldTypeInfo(field.type);
+      const enumConstName = toConstantCase(typeInfo.typeName) + '_VALUES';
 
       outputLines.push(`\t\tif ${snakeCaseName} != null:`);
 
@@ -440,6 +480,12 @@ for (const inputType of inputs) {
       } else if (typeInfo.isObjectOrInput) {
         outputLines.push(`\t\t\tif ${snakeCaseName}.has_method("to_dict"):`);
         outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}.to_dict()`);
+        outputLines.push(`\t\t\telse:`);
+        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+      } else if (typeInfo.isEnum) {
+        // Convert enum to string using the _VALUES constant
+        outputLines.push(`\t\t\tif ${enumConstName}.has(${snakeCaseName}):`);
+        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${enumConstName}[${snakeCaseName}]`);
         outputLines.push(`\t\t\telse:`);
         outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
       } else {
@@ -463,11 +509,253 @@ for (const enumType of enums) {
   for (let i = 0; i < values.length; i++) {
     const value = values[i];
     const enumValueName = toConstantCase(value.name);
+    const rawValue = toKebabCase(value.name);
     const comma = i < values.length - 1 ? ',' : '';
-    outputLines.push(`\t${enumType.name}.${enumValueName}: "${value.name}"${comma}`);
+    outputLines.push(`\t${enumType.name}.${enumValueName}: "${rawValue}"${comma}`);
   }
   outputLines.push('}');
   outputLines.push('');
+}
+
+// ============================================================================
+// Generate API Operation Types (Query/Mutation fields)
+// ============================================================================
+outputLines.push('# ============================================================================');
+outputLines.push('# Query Types');
+outputLines.push('# ============================================================================');
+outputLines.push('');
+
+// Collect Query operations
+const queryType = operationTypes.find(op => op.name === 'Query');
+const mutationType = operationTypes.find(op => op.name === 'Mutation');
+
+// Generate Query class with typed methods
+if (queryType) {
+  outputLines.push('class Query:');
+  const queryFields = queryType.getFields();
+  const fieldNames = Object.keys(queryFields);
+
+  if (fieldNames.length === 0) {
+    outputLines.push('\tpass');
+  } else {
+    for (const fieldName of fieldNames) {
+      const field = queryFields[fieldName];
+      const returnType = toGdscriptType(field.type);
+      const snakeCaseName = toSnakeCase(fieldName);
+      const args = field.args || [];
+
+      // Add description
+      if (field.description) {
+        outputLines.push(`\t## ${field.description.split('\n')[0]}`);
+      }
+
+      // Generate field info class for each query
+      outputLines.push(`\tclass ${fieldName}Field:`);
+      outputLines.push(`\t\tconst name = "${fieldName}"`);
+      outputLines.push(`\t\tconst snake_name = "${snakeCaseName}"`);
+
+      // Args type
+      if (args.length > 0) {
+        outputLines.push(`\t\tclass Args:`);
+        for (const arg of args) {
+          const argType = toGdscriptType(arg.type);
+          const argSnakeName = toSnakeCase(arg.name);
+          if (arg.description) {
+            outputLines.push(`\t\t\t## ${arg.description.split('\n')[0]}`);
+          }
+          outputLines.push(`\t\t\tvar ${argSnakeName}: ${argType}`);
+        }
+        outputLines.push('');
+        outputLines.push(`\t\t\tstatic func from_dict(data: Dictionary) -> Args:`);
+        outputLines.push(`\t\t\t\tvar obj = Args.new()`);
+        for (const arg of args) {
+          const argSnakeName = toSnakeCase(arg.name);
+          outputLines.push(`\t\t\t\tif data.has("${arg.name}") and data["${arg.name}"] != null:`);
+          outputLines.push(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
+        }
+        outputLines.push(`\t\t\t\treturn obj`);
+        outputLines.push('');
+        outputLines.push(`\t\t\tfunc to_dict() -> Dictionary:`);
+        outputLines.push(`\t\t\t\tvar result = {}`);
+        for (const arg of args) {
+          const argSnakeName = toSnakeCase(arg.name);
+          outputLines.push(`\t\t\t\tresult["${arg.name}"] = ${argSnakeName}`);
+        }
+        outputLines.push(`\t\t\t\treturn result`);
+      } else {
+        outputLines.push(`\t\tclass Args:`);
+        outputLines.push(`\t\t\tpass`);
+      }
+
+      // Return type alias
+      const baseReturnType = getFieldTypeInfo(field.type);
+      outputLines.push(`\t\tconst return_type = "${baseReturnType.typeName}"`);
+      outputLines.push(`\t\tconst is_array = ${baseReturnType.isArray}`);
+      outputLines.push('');
+    }
+  }
+  outputLines.push('');
+}
+
+// Generate Mutation class with typed methods
+outputLines.push('# ============================================================================');
+outputLines.push('# Mutation Types');
+outputLines.push('# ============================================================================');
+outputLines.push('');
+
+if (mutationType) {
+  outputLines.push('class Mutation:');
+  const mutationFields = mutationType.getFields();
+  const fieldNames = Object.keys(mutationFields);
+
+  if (fieldNames.length === 0) {
+    outputLines.push('\tpass');
+  } else {
+    for (const fieldName of fieldNames) {
+      const field = mutationFields[fieldName];
+      const returnType = toGdscriptType(field.type);
+      const snakeCaseName = toSnakeCase(fieldName);
+      const args = field.args || [];
+
+      // Add description
+      if (field.description) {
+        outputLines.push(`\t## ${field.description.split('\n')[0]}`);
+      }
+
+      // Generate field info class for each mutation
+      outputLines.push(`\tclass ${fieldName}Field:`);
+      outputLines.push(`\t\tconst name = "${fieldName}"`);
+      outputLines.push(`\t\tconst snake_name = "${snakeCaseName}"`);
+
+      // Args type
+      if (args.length > 0) {
+        outputLines.push(`\t\tclass Args:`);
+        for (const arg of args) {
+          const argType = toGdscriptType(arg.type);
+          const argSnakeName = toSnakeCase(arg.name);
+          if (arg.description) {
+            outputLines.push(`\t\t\t## ${arg.description.split('\n')[0]}`);
+          }
+          outputLines.push(`\t\t\tvar ${argSnakeName}: ${argType}`);
+        }
+        outputLines.push('');
+        outputLines.push(`\t\t\tstatic func from_dict(data: Dictionary) -> Args:`);
+        outputLines.push(`\t\t\t\tvar obj = Args.new()`);
+        for (const arg of args) {
+          const argSnakeName = toSnakeCase(arg.name);
+          outputLines.push(`\t\t\t\tif data.has("${arg.name}") and data["${arg.name}"] != null:`);
+          outputLines.push(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
+        }
+        outputLines.push(`\t\t\t\treturn obj`);
+        outputLines.push('');
+        outputLines.push(`\t\t\tfunc to_dict() -> Dictionary:`);
+        outputLines.push(`\t\t\t\tvar result = {}`);
+        for (const arg of args) {
+          const argSnakeName = toSnakeCase(arg.name);
+          outputLines.push(`\t\t\t\tresult["${arg.name}"] = ${argSnakeName}`);
+        }
+        outputLines.push(`\t\t\t\treturn result`);
+      } else {
+        outputLines.push(`\t\tclass Args:`);
+        outputLines.push(`\t\t\tpass`);
+      }
+
+      // Return type alias
+      const baseReturnType = getFieldTypeInfo(field.type);
+      outputLines.push(`\t\tconst return_type = "${baseReturnType.typeName}"`);
+      outputLines.push(`\t\tconst is_array = ${baseReturnType.isArray}`);
+      outputLines.push('');
+    }
+  }
+  outputLines.push('');
+}
+
+// ============================================================================
+// Generate API Wrapper Functions
+// These provide typed wrappers that godot-iap can use directly
+// ============================================================================
+outputLines.push('# ============================================================================');
+outputLines.push('# API Wrapper Functions');
+outputLines.push('# These typed functions can be used by godot-iap wrapper');
+outputLines.push('# ============================================================================');
+outputLines.push('');
+
+// Helper to generate function signature
+const generateApiFunction = (fieldName, field, operationType) => {
+  const snakeCaseName = toSnakeCase(fieldName);
+  const args = field.args || [];
+  const returnTypeInfo = getFieldTypeInfo(field.type);
+  let returnType = returnTypeInfo.typeName;
+
+  // Map scalar types
+  if (returnType === 'Boolean') returnType = 'bool';
+  else if (returnType === 'String') returnType = 'String';
+  else if (returnType === 'Int') returnType = 'int';
+  else if (returnType === 'Float') returnType = 'float';
+
+  // Build return type with array wrapper if needed
+  const fullReturnType = returnTypeInfo.isArray ? `Array[${returnType}]` : returnType;
+
+  // Add description
+  if (field.description) {
+    outputLines.push(`## ${field.description.split('\n')[0]}`);
+  }
+
+  // Build function parameters
+  const paramList = [];
+  for (const arg of args) {
+    const argType = toGdscriptType(arg.type);
+    const argSnakeName = toSnakeCase(arg.name);
+    paramList.push(`${argSnakeName}: ${argType}`);
+  }
+
+  // Generate static helper function
+  const params = paramList.length > 0 ? paramList.join(', ') : '';
+  outputLines.push(`static func ${snakeCaseName}_args(${params}) -> Dictionary:`);
+
+  if (args.length > 0) {
+    outputLines.push('\tvar args = {}');
+    for (const arg of args) {
+      const argSnakeName = toSnakeCase(arg.name);
+      const typeInfo = getFieldTypeInfo(arg.type);
+
+      if (typeInfo.isObjectOrInput) {
+        outputLines.push(`\tif ${argSnakeName} != null:`);
+        outputLines.push(`\t\tif ${argSnakeName}.has_method("to_dict"):`);
+        outputLines.push(`\t\t\targs["${arg.name}"] = ${argSnakeName}.to_dict()`);
+        outputLines.push(`\t\telse:`);
+        outputLines.push(`\t\t\targs["${arg.name}"] = ${argSnakeName}`);
+      } else {
+        outputLines.push(`\targs["${arg.name}"] = ${argSnakeName}`);
+      }
+    }
+    outputLines.push('\treturn args');
+  } else {
+    outputLines.push('\treturn {}');
+  }
+  outputLines.push('');
+};
+
+// Generate Query API functions
+if (queryType) {
+  outputLines.push('# Query API helpers');
+  outputLines.push('');
+  const queryFields = queryType.getFields();
+  for (const fieldName of Object.keys(queryFields)) {
+    if (fieldName === '_placeholder') continue;
+    generateApiFunction(fieldName, queryFields[fieldName], 'Query');
+  }
+}
+
+// Generate Mutation API functions
+if (mutationType) {
+  outputLines.push('# Mutation API helpers');
+  outputLines.push('');
+  const mutationFields = mutationType.getFields();
+  for (const fieldName of Object.keys(mutationFields)) {
+    if (fieldName === '_placeholder') continue;
+    generateApiFunction(fieldName, mutationFields[fieldName], 'Mutation');
+  }
 }
 
 // Write output file to src/generated (consistent with other generators)
@@ -477,7 +765,12 @@ mkdirSync(generatedDir, { recursive: true });
 const outputPath = resolve(generatedDir, 'types.gd');
 writeFileSync(outputPath, outputLines.join('\n'), 'utf8');
 
+const queryCount = queryType ? Object.keys(queryType.getFields()).filter(f => f !== '_placeholder').length : 0;
+const mutationCount = mutationType ? Object.keys(mutationType.getFields()).filter(f => f !== '_placeholder').length : 0;
+
 console.log(`✅ Generated GDScript types: ${outputPath}`);
 console.log(`   - ${enums.length} enums`);
 console.log(`   - ${objects.length} types`);
 console.log(`   - ${inputs.length} input types`);
+console.log(`   - ${queryCount} query operations`);
+console.log(`   - ${mutationCount} mutation operations`);

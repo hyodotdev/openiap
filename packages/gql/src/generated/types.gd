@@ -382,7 +382,10 @@ class BillingProgramAvailabilityResultAndroid:
 	func to_dict() -> Dictionary:
 		var result = {}
 		result["isAvailable"] = is_available
-		result["billingProgram"] = billing_program
+		if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+			result["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+		else:
+			result["billingProgram"] = billing_program
 		return result
 
 ## Reporting details for transactions made outside of Google Play Billing (Android) Contains the external transaction token needed for reporting Available in Google Play Billing Library 8.2.0+
@@ -402,7 +405,10 @@ class BillingProgramReportingDetailsAndroid:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		result["billingProgram"] = billing_program
+		if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+			result["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+		else:
+			result["billingProgram"] = billing_program
 		result["externalTransactionToken"] = external_transaction_token
 		return result
 
@@ -507,7 +513,10 @@ class DiscountIOS:
 		result["numberOfPeriods"] = number_of_periods
 		result["price"] = price
 		result["priceAmount"] = price_amount
-		result["paymentMode"] = payment_mode
+		if PAYMENT_MODE_IOS_VALUES.has(payment_mode):
+			result["paymentMode"] = PAYMENT_MODE_IOS_VALUES[payment_mode]
+		else:
+			result["paymentMode"] = payment_mode
 		result["subscriptionPeriod"] = subscription_period
 		result["localizedPrice"] = localized_price
 		return result
@@ -639,7 +648,10 @@ class ExternalPurchaseNoticeResultIOS:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		result["result"] = result
+		if EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES.has(result):
+			result["result"] = EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES[result]
+		else:
+			result["result"] = result
 		result["error"] = error
 		return result
 
@@ -811,13 +823,19 @@ class ProductAndroid:
 		result["id"] = id
 		result["title"] = title
 		result["description"] = description
-		result["type"] = type
+		if PRODUCT_TYPE_VALUES.has(type):
+			result["type"] = PRODUCT_TYPE_VALUES[type]
+		else:
+			result["type"] = type
 		result["displayName"] = display_name
 		result["displayPrice"] = display_price
 		result["currency"] = currency
 		result["price"] = price
 		result["debugDescription"] = debug_description
-		result["platform"] = platform
+		if IAP_PLATFORM_VALUES.has(platform):
+			result["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			result["platform"] = platform
 		result["nameAndroid"] = name_android
 		if one_time_purchase_offer_details_android != null:
 			var arr = []
@@ -998,13 +1016,19 @@ class ProductIOS:
 		result["id"] = id
 		result["title"] = title
 		result["description"] = description
-		result["type"] = type
+		if PRODUCT_TYPE_VALUES.has(type):
+			result["type"] = PRODUCT_TYPE_VALUES[type]
+		else:
+			result["type"] = type
 		result["displayName"] = display_name
 		result["displayPrice"] = display_price
 		result["currency"] = currency
 		result["price"] = price
 		result["debugDescription"] = debug_description
-		result["platform"] = platform
+		if IAP_PLATFORM_VALUES.has(platform):
+			result["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			result["platform"] = platform
 		result["displayNameIOS"] = display_name_ios
 		result["isFamilyShareableIOS"] = is_family_shareable_ios
 		result["jsonRepresentationIOS"] = json_representation_ios
@@ -1012,7 +1036,10 @@ class ProductIOS:
 			result["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
 		else:
 			result["subscriptionInfoIOS"] = subscription_info_ios
-		result["typeIOS"] = type_ios
+		if PRODUCT_TYPE_IOS_VALUES.has(type_ios):
+			result["typeIOS"] = PRODUCT_TYPE_IOS_VALUES[type_ios]
+		else:
+			result["typeIOS"] = type_ios
 		return result
 
 class ProductSubscriptionAndroid:
@@ -1078,13 +1105,19 @@ class ProductSubscriptionAndroid:
 		result["id"] = id
 		result["title"] = title
 		result["description"] = description
-		result["type"] = type
+		if PRODUCT_TYPE_VALUES.has(type):
+			result["type"] = PRODUCT_TYPE_VALUES[type]
+		else:
+			result["type"] = type
 		result["displayName"] = display_name
 		result["displayPrice"] = display_price
 		result["currency"] = currency
 		result["price"] = price
 		result["debugDescription"] = debug_description
-		result["platform"] = platform
+		if IAP_PLATFORM_VALUES.has(platform):
+			result["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			result["platform"] = platform
 		result["nameAndroid"] = name_android
 		if one_time_purchase_offer_details_android != null:
 			var arr = []
@@ -1233,13 +1266,19 @@ class ProductSubscriptionIOS:
 		result["id"] = id
 		result["title"] = title
 		result["description"] = description
-		result["type"] = type
+		if PRODUCT_TYPE_VALUES.has(type):
+			result["type"] = PRODUCT_TYPE_VALUES[type]
+		else:
+			result["type"] = type
 		result["displayName"] = display_name
 		result["displayPrice"] = display_price
 		result["currency"] = currency
 		result["price"] = price
 		result["debugDescription"] = debug_description
-		result["platform"] = platform
+		if IAP_PLATFORM_VALUES.has(platform):
+			result["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			result["platform"] = platform
 		result["displayNameIOS"] = display_name_ios
 		result["isFamilyShareableIOS"] = is_family_shareable_ios
 		result["jsonRepresentationIOS"] = json_representation_ios
@@ -1247,7 +1286,10 @@ class ProductSubscriptionIOS:
 			result["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
 		else:
 			result["subscriptionInfoIOS"] = subscription_info_ios
-		result["typeIOS"] = type_ios
+		if PRODUCT_TYPE_IOS_VALUES.has(type_ios):
+			result["typeIOS"] = PRODUCT_TYPE_IOS_VALUES[type_ios]
+		else:
+			result["typeIOS"] = type_ios
 		if discounts_ios != null:
 			var arr = []
 			for item in discounts_ios:
@@ -1260,11 +1302,20 @@ class ProductSubscriptionIOS:
 			result["discountsIOS"] = null
 		result["introductoryPriceIOS"] = introductory_price_ios
 		result["introductoryPriceAsAmountIOS"] = introductory_price_as_amount_ios
-		result["introductoryPricePaymentModeIOS"] = introductory_price_payment_mode_ios
+		if PAYMENT_MODE_IOS_VALUES.has(introductory_price_payment_mode_ios):
+			result["introductoryPricePaymentModeIOS"] = PAYMENT_MODE_IOS_VALUES[introductory_price_payment_mode_ios]
+		else:
+			result["introductoryPricePaymentModeIOS"] = introductory_price_payment_mode_ios
 		result["introductoryPriceNumberOfPeriodsIOS"] = introductory_price_number_of_periods_ios
-		result["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
+		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(introductory_price_subscription_period_ios):
+			result["introductoryPriceSubscriptionPeriodIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[introductory_price_subscription_period_ios]
+		else:
+			result["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
 		result["subscriptionPeriodNumberIOS"] = subscription_period_number_ios
-		result["subscriptionPeriodUnitIOS"] = subscription_period_unit_ios
+		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(subscription_period_unit_ios):
+			result["subscriptionPeriodUnitIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[subscription_period_unit_ios]
+		else:
+			result["subscriptionPeriodUnitIOS"] = subscription_period_unit_ios
 		return result
 
 class PurchaseAndroid:
@@ -1346,10 +1397,19 @@ class PurchaseAndroid:
 		result["transactionId"] = transaction_id
 		result["transactionDate"] = transaction_date
 		result["purchaseToken"] = purchase_token
-		result["store"] = store
-		result["platform"] = platform
+		if IAP_STORE_VALUES.has(store):
+			result["store"] = IAP_STORE_VALUES[store]
+		else:
+			result["store"] = store
+		if IAP_PLATFORM_VALUES.has(platform):
+			result["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			result["platform"] = platform
 		result["quantity"] = quantity
-		result["purchaseState"] = purchase_state
+		if PURCHASE_STATE_VALUES.has(purchase_state):
+			result["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
+		else:
+			result["purchaseState"] = purchase_state
 		result["isAutoRenewing"] = is_auto_renewing
 		result["currentPlanId"] = current_plan_id
 		result["dataAndroid"] = data_android
@@ -1380,7 +1440,10 @@ class PurchaseError:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		result["code"] = code
+		if ERROR_CODE_VALUES.has(code):
+			result["code"] = ERROR_CODE_VALUES[code]
+		else:
+			result["code"] = code
 		result["message"] = message
 		result["productId"] = product_id
 		return result
@@ -1507,10 +1570,19 @@ class PurchaseIOS:
 		result["ids"] = ids
 		result["transactionDate"] = transaction_date
 		result["purchaseToken"] = purchase_token
-		result["store"] = store
-		result["platform"] = platform
+		if IAP_STORE_VALUES.has(store):
+			result["store"] = IAP_STORE_VALUES[store]
+		else:
+			result["store"] = store
+		if IAP_PLATFORM_VALUES.has(platform):
+			result["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			result["platform"] = platform
 		result["quantity"] = quantity
-		result["purchaseState"] = purchase_state
+		if PURCHASE_STATE_VALUES.has(purchase_state):
+			result["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
+		else:
+			result["purchaseState"] = purchase_state
 		result["isAutoRenewing"] = is_auto_renewing
 		result["currentPlanId"] = current_plan_id
 		result["transactionId"] = transaction_id
@@ -1687,9 +1759,15 @@ class RequestVerifyPurchaseWithIapkitResult:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		result["store"] = store
+		if IAP_STORE_VALUES.has(store):
+			result["store"] = IAP_STORE_VALUES[store]
+		else:
+			result["store"] = store
 		result["isValid"] = is_valid
-		result["state"] = state
+		if IAPKIT_PURCHASE_STATE_VALUES.has(state):
+			result["state"] = IAPKIT_PURCHASE_STATE_VALUES[state]
+		else:
+			result["state"] = state
 		return result
 
 class SubscriptionInfoIOS:
@@ -1779,14 +1857,20 @@ class SubscriptionOfferIOS:
 		var result = {}
 		result["displayPrice"] = display_price
 		result["id"] = id
-		result["paymentMode"] = payment_mode
+		if PAYMENT_MODE_IOS_VALUES.has(payment_mode):
+			result["paymentMode"] = PAYMENT_MODE_IOS_VALUES[payment_mode]
+		else:
+			result["paymentMode"] = payment_mode
 		if period != null and period.has_method("to_dict"):
 			result["period"] = period.to_dict()
 		else:
 			result["period"] = period
 		result["periodCount"] = period_count
 		result["price"] = price
-		result["type"] = type
+		if SUBSCRIPTION_OFFER_TYPE_IOS_VALUES.has(type):
+			result["type"] = SUBSCRIPTION_OFFER_TYPE_IOS_VALUES[type]
+		else:
+			result["type"] = type
 		return result
 
 class SubscriptionPeriodValueIOS:
@@ -1803,7 +1887,10 @@ class SubscriptionPeriodValueIOS:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		result["unit"] = unit
+		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(unit):
+			result["unit"] = SUBSCRIPTION_PERIOD_IOS_VALUES[unit]
+		else:
+			result["unit"] = unit
 		result["value"] = value
 		return result
 
@@ -2052,7 +2139,10 @@ class VerifyPurchaseWithProviderResult:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		result["provider"] = provider
+		if PURCHASE_VERIFICATION_PROVIDER_VALUES.has(provider):
+			result["provider"] = PURCHASE_VERIFICATION_PROVIDER_VALUES[provider]
+		else:
+			result["provider"] = provider
 		if iapkit != null and iapkit.has_method("to_dict"):
 			result["iapkit"] = iapkit.to_dict()
 		else:
@@ -2153,11 +2243,17 @@ class DeveloperBillingOptionParamsAndroid:
 	func to_dict() -> Dictionary:
 		var result = {}
 		if billing_program != null:
-			result["billingProgram"] = billing_program
+			if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+				result["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+			else:
+				result["billingProgram"] = billing_program
 		if link_uri != null:
 			result["linkUri"] = link_uri
 		if launch_mode != null:
-			result["launchMode"] = launch_mode
+			if DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES.has(launch_mode):
+				result["launchMode"] = DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES[launch_mode]
+			else:
+				result["launchMode"] = launch_mode
 		return result
 
 class DiscountOfferInputIOS:
@@ -2218,9 +2314,15 @@ class InitConnectionConfig:
 	func to_dict() -> Dictionary:
 		var result = {}
 		if alternative_billing_mode_android != null:
-			result["alternativeBillingModeAndroid"] = alternative_billing_mode_android
+			if ALTERNATIVE_BILLING_MODE_ANDROID_VALUES.has(alternative_billing_mode_android):
+				result["alternativeBillingModeAndroid"] = ALTERNATIVE_BILLING_MODE_ANDROID_VALUES[alternative_billing_mode_android]
+			else:
+				result["alternativeBillingModeAndroid"] = alternative_billing_mode_android
 		if enable_billing_program_android != null:
-			result["enableBillingProgramAndroid"] = enable_billing_program_android
+			if BILLING_PROGRAM_ANDROID_VALUES.has(enable_billing_program_android):
+				result["enableBillingProgramAndroid"] = BILLING_PROGRAM_ANDROID_VALUES[enable_billing_program_android]
+			else:
+				result["enableBillingProgramAndroid"] = enable_billing_program_android
 		return result
 
 ## Parameters for launching an external link (Android) Used with launchExternalLink to initiate external offer or app install flows Available in Google Play Billing Library 8.2.0+
@@ -2249,11 +2351,20 @@ class LaunchExternalLinkParamsAndroid:
 	func to_dict() -> Dictionary:
 		var result = {}
 		if billing_program != null:
-			result["billingProgram"] = billing_program
+			if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+				result["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+			else:
+				result["billingProgram"] = billing_program
 		if launch_mode != null:
-			result["launchMode"] = launch_mode
+			if EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES.has(launch_mode):
+				result["launchMode"] = EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES[launch_mode]
+			else:
+				result["launchMode"] = launch_mode
 		if link_type != null:
-			result["linkType"] = link_type
+			if EXTERNAL_LINK_TYPE_ANDROID_VALUES.has(link_type):
+				result["linkType"] = EXTERNAL_LINK_TYPE_ANDROID_VALUES[link_type]
+			else:
+				result["linkType"] = link_type
 		if link_uri != null:
 			result["linkUri"] = link_uri
 		return result
@@ -2275,7 +2386,10 @@ class ProductRequest:
 		if skus != null:
 			result["skus"] = skus
 		if type != null:
-			result["type"] = type
+			if PRODUCT_QUERY_TYPE_VALUES.has(type):
+				result["type"] = PRODUCT_QUERY_TYPE_VALUES[type]
+			else:
+				result["type"] = type
 		return result
 
 class PurchaseInput:
@@ -2329,13 +2443,22 @@ class PurchaseInput:
 		if purchase_token != null:
 			result["purchaseToken"] = purchase_token
 		if store != null:
-			result["store"] = store
+			if IAP_STORE_VALUES.has(store):
+				result["store"] = IAP_STORE_VALUES[store]
+			else:
+				result["store"] = store
 		if platform != null:
-			result["platform"] = platform
+			if IAP_PLATFORM_VALUES.has(platform):
+				result["platform"] = IAP_PLATFORM_VALUES[platform]
+			else:
+				result["platform"] = platform
 		if quantity != null:
 			result["quantity"] = quantity
 		if purchase_state != null:
-			result["purchaseState"] = purchase_state
+			if PURCHASE_STATE_VALUES.has(purchase_state):
+				result["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
+			else:
+				result["purchaseState"] = purchase_state
 		if is_auto_renewing != null:
 			result["isAutoRenewing"] = is_auto_renewing
 		return result
@@ -2462,7 +2585,7 @@ class RequestPurchaseIosProps:
 
 class RequestPurchaseProps:
 	## Per-platform purchase request props
-	var request_purchase: RequestPurchasePropsByPlatforms
+	var request: RequestPurchasePropsByPlatforms
 	## Per-platform subscription request props
 	var request_subscription: RequestSubscriptionPropsByPlatforms
 	## Explicit purchase type hint (defaults to in-app)
@@ -2474,9 +2597,9 @@ class RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
 		if data.has("requestPurchase") and data["requestPurchase"] != null:
 			if data["requestPurchase"] is Dictionary:
-				obj.request_purchase = RequestPurchasePropsByPlatforms.from_dict(data["requestPurchase"])
+				obj.request = RequestPurchasePropsByPlatforms.from_dict(data["requestPurchase"])
 			else:
-				obj.request_purchase = data["requestPurchase"]
+				obj.request = data["requestPurchase"]
 		if data.has("requestSubscription") and data["requestSubscription"] != null:
 			if data["requestSubscription"] is Dictionary:
 				obj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(data["requestSubscription"])
@@ -2490,18 +2613,21 @@ class RequestPurchaseProps:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		if request_purchase != null:
-			if request_purchase.has_method("to_dict"):
-				result["requestPurchase"] = request_purchase.to_dict()
+		if request != null:
+			if request.has_method("to_dict"):
+				result["requestPurchase"] = request.to_dict()
 			else:
-				result["requestPurchase"] = request_purchase
+				result["requestPurchase"] = request
 		if request_subscription != null:
 			if request_subscription.has_method("to_dict"):
 				result["requestSubscription"] = request_subscription.to_dict()
 			else:
 				result["requestSubscription"] = request_subscription
 		if type != null:
-			result["type"] = type
+			if PRODUCT_QUERY_TYPE_VALUES.has(type):
+				result["type"] = PRODUCT_QUERY_TYPE_VALUES[type]
+			else:
+				result["type"] = type
 		if use_alternative_billing != null:
 			result["useAlternativeBilling"] = use_alternative_billing
 		return result
@@ -2852,7 +2978,10 @@ class SubscriptionProductReplacementParamsAndroid:
 		if old_product_id != null:
 			result["oldProductId"] = old_product_id
 		if replacement_mode != null:
-			result["replacementMode"] = replacement_mode
+			if SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES.has(replacement_mode):
+				result["replacementMode"] = SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES[replacement_mode]
+			else:
+				result["replacementMode"] = replacement_mode
 		return result
 
 ## Apple App Store verification parameters. Used for server-side receipt validation via App Store Server API.
@@ -3007,7 +3136,10 @@ class VerifyPurchaseWithProviderProps:
 	func to_dict() -> Dictionary:
 		var result = {}
 		if provider != null:
-			result["provider"] = provider
+			if PURCHASE_VERIFICATION_PROVIDER_VALUES.has(provider):
+				result["provider"] = PURCHASE_VERIFICATION_PROVIDER_VALUES[provider]
+			else:
+				result["provider"] = provider
 		if iapkit != null:
 			if iapkit.has_method("to_dict"):
 				result["iapkit"] = iapkit.to_dict()
@@ -3020,168 +3152,1138 @@ class VerifyPurchaseWithProviderProps:
 # ============================================================================
 
 const ALTERNATIVE_BILLING_MODE_ANDROID_VALUES = {
-	AlternativeBillingModeAndroid.NONE: "NONE",
-	AlternativeBillingModeAndroid.USER_CHOICE: "USER_CHOICE",
-	AlternativeBillingModeAndroid.ALTERNATIVE_ONLY: "ALTERNATIVE_ONLY"
+	AlternativeBillingModeAndroid.NONE: "none",
+	AlternativeBillingModeAndroid.USER_CHOICE: "user-choice",
+	AlternativeBillingModeAndroid.ALTERNATIVE_ONLY: "alternative-only"
 }
 
 const BILLING_PROGRAM_ANDROID_VALUES = {
-	BillingProgramAndroid.UNSPECIFIED: "UNSPECIFIED",
-	BillingProgramAndroid.USER_CHOICE_BILLING: "USER_CHOICE_BILLING",
-	BillingProgramAndroid.EXTERNAL_CONTENT_LINK: "EXTERNAL_CONTENT_LINK",
-	BillingProgramAndroid.EXTERNAL_OFFER: "EXTERNAL_OFFER",
-	BillingProgramAndroid.EXTERNAL_PAYMENTS: "EXTERNAL_PAYMENTS"
+	BillingProgramAndroid.UNSPECIFIED: "unspecified",
+	BillingProgramAndroid.USER_CHOICE_BILLING: "user-choice-billing",
+	BillingProgramAndroid.EXTERNAL_CONTENT_LINK: "external-content-link",
+	BillingProgramAndroid.EXTERNAL_OFFER: "external-offer",
+	BillingProgramAndroid.EXTERNAL_PAYMENTS: "external-payments"
 }
 
 const DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES = {
-	DeveloperBillingLaunchModeAndroid.UNSPECIFIED: "UNSPECIFIED",
-	DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP",
-	DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "CALLER_WILL_LAUNCH_LINK"
+	DeveloperBillingLaunchModeAndroid.UNSPECIFIED: "unspecified",
+	DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "launch-in-external-browser-or-app",
+	DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "caller-will-launch-link"
 }
 
 const ERROR_CODE_VALUES = {
-	ErrorCode.UNKNOWN: "Unknown",
-	ErrorCode.USER_CANCELLED: "UserCancelled",
-	ErrorCode.USER_ERROR: "UserError",
-	ErrorCode.ITEM_UNAVAILABLE: "ItemUnavailable",
-	ErrorCode.REMOTE_ERROR: "RemoteError",
-	ErrorCode.NETWORK_ERROR: "NetworkError",
-	ErrorCode.SERVICE_ERROR: "ServiceError",
-	ErrorCode.RECEIPT_FAILED: "ReceiptFailed",
-	ErrorCode.RECEIPT_FINISHED: "ReceiptFinished",
-	ErrorCode.RECEIPT_FINISHED_FAILED: "ReceiptFinishedFailed",
-	ErrorCode.PURCHASE_VERIFICATION_FAILED: "PurchaseVerificationFailed",
-	ErrorCode.PURCHASE_VERIFICATION_FINISHED: "PurchaseVerificationFinished",
-	ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED: "PurchaseVerificationFinishFailed",
-	ErrorCode.NOT_PREPARED: "NotPrepared",
-	ErrorCode.NOT_ENDED: "NotEnded",
-	ErrorCode.ALREADY_OWNED: "AlreadyOwned",
-	ErrorCode.DEVELOPER_ERROR: "DeveloperError",
-	ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR: "BillingResponseJsonParseError",
-	ErrorCode.DEFERRED_PAYMENT: "DeferredPayment",
-	ErrorCode.INTERRUPTED: "Interrupted",
-	ErrorCode.IAP_NOT_AVAILABLE: "IapNotAvailable",
-	ErrorCode.PURCHASE_ERROR: "PurchaseError",
-	ErrorCode.SYNC_ERROR: "SyncError",
-	ErrorCode.TRANSACTION_VALIDATION_FAILED: "TransactionValidationFailed",
-	ErrorCode.ACTIVITY_UNAVAILABLE: "ActivityUnavailable",
-	ErrorCode.ALREADY_PREPARED: "AlreadyPrepared",
-	ErrorCode.PENDING: "Pending",
-	ErrorCode.CONNECTION_CLOSED: "ConnectionClosed",
-	ErrorCode.INIT_CONNECTION: "InitConnection",
-	ErrorCode.SERVICE_DISCONNECTED: "ServiceDisconnected",
-	ErrorCode.QUERY_PRODUCT: "QueryProduct",
-	ErrorCode.SKU_NOT_FOUND: "SkuNotFound",
-	ErrorCode.SKU_OFFER_MISMATCH: "SkuOfferMismatch",
-	ErrorCode.ITEM_NOT_OWNED: "ItemNotOwned",
-	ErrorCode.BILLING_UNAVAILABLE: "BillingUnavailable",
-	ErrorCode.FEATURE_NOT_SUPPORTED: "FeatureNotSupported",
-	ErrorCode.EMPTY_SKU_LIST: "EmptySkuList"
+	ErrorCode.UNKNOWN: "unknown",
+	ErrorCode.USER_CANCELLED: "user-cancelled",
+	ErrorCode.USER_ERROR: "user-error",
+	ErrorCode.ITEM_UNAVAILABLE: "item-unavailable",
+	ErrorCode.REMOTE_ERROR: "remote-error",
+	ErrorCode.NETWORK_ERROR: "network-error",
+	ErrorCode.SERVICE_ERROR: "service-error",
+	ErrorCode.RECEIPT_FAILED: "receipt-failed",
+	ErrorCode.RECEIPT_FINISHED: "receipt-finished",
+	ErrorCode.RECEIPT_FINISHED_FAILED: "receipt-finished-failed",
+	ErrorCode.PURCHASE_VERIFICATION_FAILED: "purchase-verification-failed",
+	ErrorCode.PURCHASE_VERIFICATION_FINISHED: "purchase-verification-finished",
+	ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED: "purchase-verification-finish-failed",
+	ErrorCode.NOT_PREPARED: "not-prepared",
+	ErrorCode.NOT_ENDED: "not-ended",
+	ErrorCode.ALREADY_OWNED: "already-owned",
+	ErrorCode.DEVELOPER_ERROR: "developer-error",
+	ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR: "billing-response-json-parse-error",
+	ErrorCode.DEFERRED_PAYMENT: "deferred-payment",
+	ErrorCode.INTERRUPTED: "interrupted",
+	ErrorCode.IAP_NOT_AVAILABLE: "iap-not-available",
+	ErrorCode.PURCHASE_ERROR: "purchase-error",
+	ErrorCode.SYNC_ERROR: "sync-error",
+	ErrorCode.TRANSACTION_VALIDATION_FAILED: "transaction-validation-failed",
+	ErrorCode.ACTIVITY_UNAVAILABLE: "activity-unavailable",
+	ErrorCode.ALREADY_PREPARED: "already-prepared",
+	ErrorCode.PENDING: "pending",
+	ErrorCode.CONNECTION_CLOSED: "connection-closed",
+	ErrorCode.INIT_CONNECTION: "init-connection",
+	ErrorCode.SERVICE_DISCONNECTED: "service-disconnected",
+	ErrorCode.QUERY_PRODUCT: "query-product",
+	ErrorCode.SKU_NOT_FOUND: "sku-not-found",
+	ErrorCode.SKU_OFFER_MISMATCH: "sku-offer-mismatch",
+	ErrorCode.ITEM_NOT_OWNED: "item-not-owned",
+	ErrorCode.BILLING_UNAVAILABLE: "billing-unavailable",
+	ErrorCode.FEATURE_NOT_SUPPORTED: "feature-not-supported",
+	ErrorCode.EMPTY_SKU_LIST: "empty-sku-list"
 }
 
 const EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES = {
-	ExternalLinkLaunchModeAndroid.UNSPECIFIED: "UNSPECIFIED",
-	ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP",
-	ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "CALLER_WILL_LAUNCH_LINK"
+	ExternalLinkLaunchModeAndroid.UNSPECIFIED: "unspecified",
+	ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "launch-in-external-browser-or-app",
+	ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "caller-will-launch-link"
 }
 
 const EXTERNAL_LINK_TYPE_ANDROID_VALUES = {
-	ExternalLinkTypeAndroid.UNSPECIFIED: "UNSPECIFIED",
-	ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER: "LINK_TO_DIGITAL_CONTENT_OFFER",
-	ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD: "LINK_TO_APP_DOWNLOAD"
+	ExternalLinkTypeAndroid.UNSPECIFIED: "unspecified",
+	ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER: "link-to-digital-content-offer",
+	ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD: "link-to-app-download"
 }
 
 const EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES = {
-	ExternalPurchaseNoticeAction.CONTINUE: "Continue",
-	ExternalPurchaseNoticeAction.DISMISSED: "Dismissed"
+	ExternalPurchaseNoticeAction.CONTINUE: "continue",
+	ExternalPurchaseNoticeAction.DISMISSED: "dismissed"
 }
 
 const IAP_EVENT_VALUES = {
-	IapEvent.PURCHASE_UPDATED: "PurchaseUpdated",
-	IapEvent.PURCHASE_ERROR: "PurchaseError",
-	IapEvent.PROMOTED_PRODUCT_IOS: "PromotedProductIOS",
-	IapEvent.USER_CHOICE_BILLING_ANDROID: "UserChoiceBillingAndroid",
-	IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID: "DeveloperProvidedBillingAndroid"
+	IapEvent.PURCHASE_UPDATED: "purchase-updated",
+	IapEvent.PURCHASE_ERROR: "purchase-error",
+	IapEvent.PROMOTED_PRODUCT_IOS: "promoted-product-ios",
+	IapEvent.USER_CHOICE_BILLING_ANDROID: "user-choice-billing-android",
+	IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID: "developer-provided-billing-android"
 }
 
 const IAPKIT_PURCHASE_STATE_VALUES = {
-	IapkitPurchaseState.ENTITLED: "ENTITLED",
-	IapkitPurchaseState.PENDING_ACKNOWLEDGMENT: "PENDING_ACKNOWLEDGMENT",
-	IapkitPurchaseState.PENDING: "PENDING",
-	IapkitPurchaseState.CANCELED: "CANCELED",
-	IapkitPurchaseState.EXPIRED: "EXPIRED",
-	IapkitPurchaseState.READY_TO_CONSUME: "READY_TO_CONSUME",
-	IapkitPurchaseState.CONSUMED: "CONSUMED",
-	IapkitPurchaseState.UNKNOWN: "UNKNOWN",
-	IapkitPurchaseState.INAUTHENTIC: "INAUTHENTIC"
+	IapkitPurchaseState.ENTITLED: "entitled",
+	IapkitPurchaseState.PENDING_ACKNOWLEDGMENT: "pending-acknowledgment",
+	IapkitPurchaseState.PENDING: "pending",
+	IapkitPurchaseState.CANCELED: "canceled",
+	IapkitPurchaseState.EXPIRED: "expired",
+	IapkitPurchaseState.READY_TO_CONSUME: "ready-to-consume",
+	IapkitPurchaseState.CONSUMED: "consumed",
+	IapkitPurchaseState.UNKNOWN: "unknown",
+	IapkitPurchaseState.INAUTHENTIC: "inauthentic"
 }
 
 const IAP_PLATFORM_VALUES = {
-	IapPlatform.IOS: "IOS",
-	IapPlatform.ANDROID: "Android"
+	IapPlatform.IOS: "ios",
+	IapPlatform.ANDROID: "android"
 }
 
 const IAP_STORE_VALUES = {
-	IapStore.UNKNOWN: "Unknown",
-	IapStore.APPLE: "Apple",
-	IapStore.GOOGLE: "Google",
-	IapStore.HORIZON: "Horizon"
+	IapStore.UNKNOWN: "unknown",
+	IapStore.APPLE: "apple",
+	IapStore.GOOGLE: "google",
+	IapStore.HORIZON: "horizon"
 }
 
 const PAYMENT_MODE_IOS_VALUES = {
-	PaymentModeIOS.EMPTY: "Empty",
-	PaymentModeIOS.FREE_TRIAL: "FreeTrial",
-	PaymentModeIOS.PAY_AS_YOU_GO: "PayAsYouGo",
-	PaymentModeIOS.PAY_UP_FRONT: "PayUpFront"
+	PaymentModeIOS.EMPTY: "empty",
+	PaymentModeIOS.FREE_TRIAL: "free-trial",
+	PaymentModeIOS.PAY_AS_YOU_GO: "pay-as-you-go",
+	PaymentModeIOS.PAY_UP_FRONT: "pay-up-front"
 }
 
 const PRODUCT_QUERY_TYPE_VALUES = {
-	ProductQueryType.IN_APP: "InApp",
-	ProductQueryType.SUBS: "Subs",
-	ProductQueryType.ALL: "All"
+	ProductQueryType.IN_APP: "in-app",
+	ProductQueryType.SUBS: "subs",
+	ProductQueryType.ALL: "all"
 }
 
 const PRODUCT_TYPE_VALUES = {
-	ProductType.IN_APP: "InApp",
-	ProductType.SUBS: "Subs"
+	ProductType.IN_APP: "in-app",
+	ProductType.SUBS: "subs"
 }
 
 const PRODUCT_TYPE_IOS_VALUES = {
-	ProductTypeIOS.CONSUMABLE: "Consumable",
-	ProductTypeIOS.NON_CONSUMABLE: "NonConsumable",
-	ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION: "AutoRenewableSubscription",
-	ProductTypeIOS.NON_RENEWING_SUBSCRIPTION: "NonRenewingSubscription"
+	ProductTypeIOS.CONSUMABLE: "consumable",
+	ProductTypeIOS.NON_CONSUMABLE: "non-consumable",
+	ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION: "auto-renewable-subscription",
+	ProductTypeIOS.NON_RENEWING_SUBSCRIPTION: "non-renewing-subscription"
 }
 
 const PURCHASE_STATE_VALUES = {
-	PurchaseState.PENDING: "Pending",
-	PurchaseState.PURCHASED: "Purchased",
-	PurchaseState.UNKNOWN: "Unknown"
+	PurchaseState.PENDING: "pending",
+	PurchaseState.PURCHASED: "purchased",
+	PurchaseState.UNKNOWN: "unknown"
 }
 
 const PURCHASE_VERIFICATION_PROVIDER_VALUES = {
-	PurchaseVerificationProvider.IAPKIT: "Iapkit"
+	PurchaseVerificationProvider.IAPKIT: "iapkit"
 }
 
 const SUBSCRIPTION_OFFER_TYPE_IOS_VALUES = {
-	SubscriptionOfferTypeIOS.INTRODUCTORY: "Introductory",
-	SubscriptionOfferTypeIOS.PROMOTIONAL: "Promotional"
+	SubscriptionOfferTypeIOS.INTRODUCTORY: "introductory",
+	SubscriptionOfferTypeIOS.PROMOTIONAL: "promotional"
 }
 
 const SUBSCRIPTION_PERIOD_IOS_VALUES = {
-	SubscriptionPeriodIOS.DAY: "Day",
-	SubscriptionPeriodIOS.WEEK: "Week",
-	SubscriptionPeriodIOS.MONTH: "Month",
-	SubscriptionPeriodIOS.YEAR: "Year",
-	SubscriptionPeriodIOS.EMPTY: "Empty"
+	SubscriptionPeriodIOS.DAY: "day",
+	SubscriptionPeriodIOS.WEEK: "week",
+	SubscriptionPeriodIOS.MONTH: "month",
+	SubscriptionPeriodIOS.YEAR: "year",
+	SubscriptionPeriodIOS.EMPTY: "empty"
 }
 
 const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES = {
-	SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE: "UNKNOWN_REPLACEMENT_MODE",
-	SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION: "WITH_TIME_PRORATION",
-	SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE: "CHARGE_PRORATED_PRICE",
-	SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE: "CHARGE_FULL_PRICE",
-	SubscriptionReplacementModeAndroid.WITHOUT_PRORATION: "WITHOUT_PRORATION",
-	SubscriptionReplacementModeAndroid.DEFERRED: "DEFERRED",
-	SubscriptionReplacementModeAndroid.KEEP_EXISTING: "KEEP_EXISTING"
+	SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE: "unknown-replacement-mode",
+	SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION: "with-time-proration",
+	SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE: "charge-prorated-price",
+	SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE: "charge-full-price",
+	SubscriptionReplacementModeAndroid.WITHOUT_PRORATION: "without-proration",
+	SubscriptionReplacementModeAndroid.DEFERRED: "deferred",
+	SubscriptionReplacementModeAndroid.KEEP_EXISTING: "keep-existing"
 }
+
+# ============================================================================
+# Query Types
+# ============================================================================
+
+class Query:
+	class _placeholderField:
+		const name = "_placeholder"
+		const snake_name = "_placeholder"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Retrieve products or subscriptions from the store
+	class fetchProductsField:
+		const name = "fetchProducts"
+		const snake_name = "fetch_products"
+		class Args:
+			var params: ProductRequest
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("params") and data["params"] != null:
+					obj.params = data["params"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["params"] = params
+				return result
+		const return_type = "FetchProductsResult"
+		const is_array = false
+
+	## Get all available purchases for the current user
+	class getAvailablePurchasesField:
+		const name = "getAvailablePurchases"
+		const snake_name = "get_available_purchases"
+		class Args:
+			var options: PurchaseOptions
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "Purchase"
+		const is_array = true
+
+	## Get active subscriptions (filters by subscriptionIds when provided)
+	class getActiveSubscriptionsField:
+		const name = "getActiveSubscriptions"
+		const snake_name = "get_active_subscriptions"
+		class Args:
+			var subscription_ids: Array[String]
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
+					obj.subscription_ids = data["subscriptionIds"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["subscriptionIds"] = subscription_ids
+				return result
+		const return_type = "ActiveSubscription"
+		const is_array = true
+
+	## Check whether the user has active subscriptions
+	class hasActiveSubscriptionsField:
+		const name = "hasActiveSubscriptions"
+		const snake_name = "has_active_subscriptions"
+		class Args:
+			var subscription_ids: Array[String]
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
+					obj.subscription_ids = data["subscriptionIds"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["subscriptionIds"] = subscription_ids
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Get the current storefront country code
+	class getStorefrontField:
+		const name = "getStorefront"
+		const snake_name = "get_storefront"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Get the current App Store storefront country code
+	class getStorefrontIOSField:
+		const name = "getStorefrontIOS"
+		const snake_name = "get_storefront_ios"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Get the currently promoted product (iOS 11+)
+	class getPromotedProductIOSField:
+		const name = "getPromotedProductIOS"
+		const snake_name = "get_promoted_product_ios"
+		class Args:
+			pass
+		const return_type = "ProductIOS"
+		const is_array = false
+
+	## Check if external purchase notice sheet can be presented (iOS 18.2+)
+	class canPresentExternalPurchaseNoticeIOSField:
+		const name = "canPresentExternalPurchaseNoticeIOS"
+		const snake_name = "can_present_external_purchase_notice_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Retrieve all pending transactions in the StoreKit queue
+	class getPendingTransactionsIOSField:
+		const name = "getPendingTransactionsIOS"
+		const snake_name = "get_pending_transactions_ios"
+		class Args:
+			pass
+		const return_type = "PurchaseIOS"
+		const is_array = true
+
+	## Check introductory offer eligibility for a subscription group
+	class isEligibleForIntroOfferIOSField:
+		const name = "isEligibleForIntroOfferIOS"
+		const snake_name = "is_eligible_for_intro_offer_ios"
+		class Args:
+			var group_id: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("groupID") and data["groupID"] != null:
+					obj.group_id = data["groupID"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["groupID"] = group_id
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Get StoreKit 2 subscription status details (iOS 15+)
+	class subscriptionStatusIOSField:
+		const name = "subscriptionStatusIOS"
+		const snake_name = "subscription_status_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "SubscriptionStatusIOS"
+		const is_array = true
+
+	## Get current StoreKit 2 entitlements (iOS 15+)
+	class currentEntitlementIOSField:
+		const name = "currentEntitlementIOS"
+		const snake_name = "current_entitlement_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "PurchaseIOS"
+		const is_array = false
+
+	## Get the latest transaction for a product using StoreKit 2
+	class latestTransactionIOSField:
+		const name = "latestTransactionIOS"
+		const snake_name = "latest_transaction_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "PurchaseIOS"
+		const is_array = false
+
+	## Verify a StoreKit 2 transaction signature
+	class isTransactionVerifiedIOSField:
+		const name = "isTransactionVerifiedIOS"
+		const snake_name = "is_transaction_verified_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Get the transaction JWS (StoreKit 2)
+	class getTransactionJwsIOSField:
+		const name = "getTransactionJwsIOS"
+		const snake_name = "get_transaction_jws_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "String"
+		const is_array = false
+
+	## Get base64-encoded receipt data for validation
+	class getReceiptDataIOSField:
+		const name = "getReceiptDataIOS"
+		const snake_name = "get_receipt_data_ios"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Fetch the current app transaction (iOS 16+)
+	class getAppTransactionIOSField:
+		const name = "getAppTransactionIOS"
+		const snake_name = "get_app_transaction_ios"
+		class Args:
+			pass
+		const return_type = "AppTransaction"
+		const is_array = false
+
+	## Validate a receipt for a specific product
+	class validateReceiptIOSField:
+		const name = "validateReceiptIOS"
+		const snake_name = "validate_receipt_ios"
+		class Args:
+			var options: VerifyPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseResultIOS"
+		const is_array = false
+
+
+# ============================================================================
+# Mutation Types
+# ============================================================================
+
+class Mutation:
+	class _placeholderField:
+		const name = "_placeholder"
+		const snake_name = "_placeholder"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Establish the platform billing connection
+	class initConnectionField:
+		const name = "initConnection"
+		const snake_name = "init_connection"
+		class Args:
+			var config: InitConnectionConfig
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("config") and data["config"] != null:
+					obj.config = data["config"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["config"] = config
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Close the platform billing connection
+	class endConnectionField:
+		const name = "endConnection"
+		const snake_name = "end_connection"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Initiate a purchase flow; rely on events for final state
+	class requestPurchaseField:
+		const name = "requestPurchase"
+		const snake_name = "request_purchase"
+		class Args:
+			var params: RequestPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("params") and data["params"] != null:
+					obj.params = data["params"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["params"] = params
+				return result
+		const return_type = "RequestPurchaseResult"
+		const is_array = false
+
+	## Finish a transaction after validating receipts
+	class finishTransactionField:
+		const name = "finishTransaction"
+		const snake_name = "finish_transaction"
+		class Args:
+			var purchase: PurchaseInput
+			var is_consumable: bool
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("purchase") and data["purchase"] != null:
+					obj.purchase = data["purchase"]
+				if data.has("isConsumable") and data["isConsumable"] != null:
+					obj.is_consumable = data["isConsumable"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["purchase"] = purchase
+				result["isConsumable"] = is_consumable
+				return result
+		const return_type = "VoidResult"
+		const is_array = false
+
+	## Restore completed purchases across platforms
+	class restorePurchasesField:
+		const name = "restorePurchases"
+		const snake_name = "restore_purchases"
+		class Args:
+			pass
+		const return_type = "VoidResult"
+		const is_array = false
+
+	## Open the native subscription management surface
+	class deepLinkToSubscriptionsField:
+		const name = "deepLinkToSubscriptions"
+		const snake_name = "deep_link_to_subscriptions"
+		class Args:
+			var options: DeepLinkOptions
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VoidResult"
+		const is_array = false
+
+	## Validate purchase receipts with the configured providers
+	class validateReceiptField:
+		const name = "validateReceipt"
+		const snake_name = "validate_receipt"
+		class Args:
+			var options: VerifyPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseResult"
+		const is_array = false
+
+	## Verify purchases with the configured providers
+	class verifyPurchaseField:
+		const name = "verifyPurchase"
+		const snake_name = "verify_purchase"
+		class Args:
+			var options: VerifyPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseResult"
+		const is_array = false
+
+	## Verify purchases with a specific provider (e.g., IAPKit)
+	class verifyPurchaseWithProviderField:
+		const name = "verifyPurchaseWithProvider"
+		const snake_name = "verify_purchase_with_provider"
+		class Args:
+			var options: VerifyPurchaseWithProviderProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseWithProviderResult"
+		const is_array = false
+
+	## Clear pending transactions from the StoreKit payment queue
+	class clearTransactionIOSField:
+		const name = "clearTransactionIOS"
+		const snake_name = "clear_transaction_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Purchase the promoted product surfaced by the App Store.
+	class requestPurchaseOnPromotedProductIOSField:
+		const name = "requestPurchaseOnPromotedProductIOS"
+		const snake_name = "request_purchase_on_promoted_product_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Open subscription management UI and return changed purchases (iOS 15+)
+	class showManageSubscriptionsIOSField:
+		const name = "showManageSubscriptionsIOS"
+		const snake_name = "show_manage_subscriptions_ios"
+		class Args:
+			pass
+		const return_type = "PurchaseIOS"
+		const is_array = true
+
+	## Initiate a refund request for a product (iOS 15+)
+	class beginRefundRequestIOSField:
+		const name = "beginRefundRequestIOS"
+		const snake_name = "begin_refund_request_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "String"
+		const is_array = false
+
+	## Force a StoreKit sync for transactions (iOS 15+)
+	class syncIOSField:
+		const name = "syncIOS"
+		const snake_name = "sync_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Present the App Store code redemption sheet
+	class presentCodeRedemptionSheetIOSField:
+		const name = "presentCodeRedemptionSheetIOS"
+		const snake_name = "present_code_redemption_sheet_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Present external purchase notice sheet (iOS 18.2+)
+	class presentExternalPurchaseNoticeSheetIOSField:
+		const name = "presentExternalPurchaseNoticeSheetIOS"
+		const snake_name = "present_external_purchase_notice_sheet_ios"
+		class Args:
+			pass
+		const return_type = "ExternalPurchaseNoticeResultIOS"
+		const is_array = false
+
+	## Present external purchase custom link with StoreKit UI (iOS 18.2+)
+	class presentExternalPurchaseLinkIOSField:
+		const name = "presentExternalPurchaseLinkIOS"
+		const snake_name = "present_external_purchase_link_ios"
+		class Args:
+			var url: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("url") and data["url"] != null:
+					obj.url = data["url"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["url"] = url
+				return result
+		const return_type = "ExternalPurchaseLinkResultIOS"
+		const is_array = false
+
+	## Acknowledge a non-consumable purchase or subscription
+	class acknowledgePurchaseAndroidField:
+		const name = "acknowledgePurchaseAndroid"
+		const snake_name = "acknowledge_purchase_android"
+		class Args:
+			var purchase_token: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("purchaseToken") and data["purchaseToken"] != null:
+					obj.purchase_token = data["purchaseToken"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["purchaseToken"] = purchase_token
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Consume a purchase token so it can be repurchased
+	class consumePurchaseAndroidField:
+		const name = "consumePurchaseAndroid"
+		const snake_name = "consume_purchase_android"
+		class Args:
+			var purchase_token: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("purchaseToken") and data["purchaseToken"] != null:
+					obj.purchase_token = data["purchaseToken"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["purchaseToken"] = purchase_token
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Check if alternative billing is available for this user/device
+	class checkAlternativeBillingAvailabilityAndroidField:
+		const name = "checkAlternativeBillingAvailabilityAndroid"
+		const snake_name = "check_alternative_billing_availability_android"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Show alternative billing information dialog to user
+	class showAlternativeBillingDialogAndroidField:
+		const name = "showAlternativeBillingDialogAndroid"
+		const snake_name = "show_alternative_billing_dialog_android"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Create external transaction token for Google Play reporting
+	class createAlternativeBillingTokenAndroidField:
+		const name = "createAlternativeBillingTokenAndroid"
+		const snake_name = "create_alternative_billing_token_android"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Check if a billing program is available for the current user
+	class isBillingProgramAvailableAndroidField:
+		const name = "isBillingProgramAvailableAndroid"
+		const snake_name = "is_billing_program_available_android"
+		class Args:
+			var program: BillingProgramAndroid
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("program") and data["program"] != null:
+					obj.program = data["program"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["program"] = program
+				return result
+		const return_type = "BillingProgramAvailabilityResultAndroid"
+		const is_array = false
+
+	## Create reporting details for a billing program
+	class createBillingProgramReportingDetailsAndroidField:
+		const name = "createBillingProgramReportingDetailsAndroid"
+		const snake_name = "create_billing_program_reporting_details_android"
+		class Args:
+			var program: BillingProgramAndroid
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("program") and data["program"] != null:
+					obj.program = data["program"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["program"] = program
+				return result
+		const return_type = "BillingProgramReportingDetailsAndroid"
+		const is_array = false
+
+	## Launch external link flow for external billing programs
+	class launchExternalLinkAndroidField:
+		const name = "launchExternalLinkAndroid"
+		const snake_name = "launch_external_link_android"
+		class Args:
+			var params: LaunchExternalLinkParamsAndroid
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("params") and data["params"] != null:
+					obj.params = data["params"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["params"] = params
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+
+# ============================================================================
+# API Wrapper Functions
+# These typed functions can be used by godot-iap wrapper
+# ============================================================================
+
+# Query API helpers
+
+## Retrieve products or subscriptions from the store
+static func fetch_products_args(params: ProductRequest) -> Dictionary:
+	var args = {}
+	if params != null:
+		if params.has_method("to_dict"):
+			args["params"] = params.to_dict()
+		else:
+			args["params"] = params
+	return args
+
+## Get all available purchases for the current user
+static func get_available_purchases_args(options: PurchaseOptions) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Get active subscriptions (filters by subscriptionIds when provided)
+static func get_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
+	var args = {}
+	args["subscriptionIds"] = subscription_ids
+	return args
+
+## Check whether the user has active subscriptions
+static func has_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
+	var args = {}
+	args["subscriptionIds"] = subscription_ids
+	return args
+
+## Get the current storefront country code
+static func get_storefront_args() -> Dictionary:
+	return {}
+
+## Get the current App Store storefront country code
+static func get_storefront_ios_args() -> Dictionary:
+	return {}
+
+## Get the currently promoted product (iOS 11+)
+static func get_promoted_product_ios_args() -> Dictionary:
+	return {}
+
+## Check if external purchase notice sheet can be presented (iOS 18.2+)
+static func can_present_external_purchase_notice_ios_args() -> Dictionary:
+	return {}
+
+## Retrieve all pending transactions in the StoreKit queue
+static func get_pending_transactions_ios_args() -> Dictionary:
+	return {}
+
+## Check introductory offer eligibility for a subscription group
+static func is_eligible_for_intro_offer_ios_args(group_id: String) -> Dictionary:
+	var args = {}
+	args["groupID"] = group_id
+	return args
+
+## Get StoreKit 2 subscription status details (iOS 15+)
+static func subscription_status_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get current StoreKit 2 entitlements (iOS 15+)
+static func current_entitlement_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get the latest transaction for a product using StoreKit 2
+static func latest_transaction_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Verify a StoreKit 2 transaction signature
+static func is_transaction_verified_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get the transaction JWS (StoreKit 2)
+static func get_transaction_jws_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get base64-encoded receipt data for validation
+static func get_receipt_data_ios_args() -> Dictionary:
+	return {}
+
+## Fetch the current app transaction (iOS 16+)
+static func get_app_transaction_ios_args() -> Dictionary:
+	return {}
+
+## Validate a receipt for a specific product
+static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+# Mutation API helpers
+
+## Establish the platform billing connection
+static func init_connection_args(config: InitConnectionConfig) -> Dictionary:
+	var args = {}
+	if config != null:
+		if config.has_method("to_dict"):
+			args["config"] = config.to_dict()
+		else:
+			args["config"] = config
+	return args
+
+## Close the platform billing connection
+static func end_connection_args() -> Dictionary:
+	return {}
+
+## Initiate a purchase flow; rely on events for final state
+static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
+	var args = {}
+	if params != null:
+		if params.has_method("to_dict"):
+			args["params"] = params.to_dict()
+		else:
+			args["params"] = params
+	return args
+
+## Finish a transaction after validating receipts
+static func finish_transaction_args(purchase: PurchaseInput, is_consumable: bool) -> Dictionary:
+	var args = {}
+	if purchase != null:
+		if purchase.has_method("to_dict"):
+			args["purchase"] = purchase.to_dict()
+		else:
+			args["purchase"] = purchase
+	args["isConsumable"] = is_consumable
+	return args
+
+## Restore completed purchases across platforms
+static func restore_purchases_args() -> Dictionary:
+	return {}
+
+## Open the native subscription management surface
+static func deep_link_to_subscriptions_args(options: DeepLinkOptions) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Validate purchase receipts with the configured providers
+static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Verify purchases with the configured providers
+static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Verify purchases with a specific provider (e.g., IAPKit)
+static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProviderProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Clear pending transactions from the StoreKit payment queue
+static func clear_transaction_ios_args() -> Dictionary:
+	return {}
+
+## Purchase the promoted product surfaced by the App Store.
+static func request_purchase_on_promoted_product_ios_args() -> Dictionary:
+	return {}
+
+## Open subscription management UI and return changed purchases (iOS 15+)
+static func show_manage_subscriptions_ios_args() -> Dictionary:
+	return {}
+
+## Initiate a refund request for a product (iOS 15+)
+static func begin_refund_request_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Force a StoreKit sync for transactions (iOS 15+)
+static func sync_ios_args() -> Dictionary:
+	return {}
+
+## Present the App Store code redemption sheet
+static func present_code_redemption_sheet_ios_args() -> Dictionary:
+	return {}
+
+## Present external purchase notice sheet (iOS 18.2+)
+static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
+	return {}
+
+## Present external purchase custom link with StoreKit UI (iOS 18.2+)
+static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
+	var args = {}
+	args["url"] = url
+	return args
+
+## Acknowledge a non-consumable purchase or subscription
+static func acknowledge_purchase_android_args(purchase_token: String) -> Dictionary:
+	var args = {}
+	args["purchaseToken"] = purchase_token
+	return args
+
+## Consume a purchase token so it can be repurchased
+static func consume_purchase_android_args(purchase_token: String) -> Dictionary:
+	var args = {}
+	args["purchaseToken"] = purchase_token
+	return args
+
+## Check if alternative billing is available for this user/device
+static func check_alternative_billing_availability_android_args() -> Dictionary:
+	return {}
+
+## Show alternative billing information dialog to user
+static func show_alternative_billing_dialog_android_args() -> Dictionary:
+	return {}
+
+## Create external transaction token for Google Play reporting
+static func create_alternative_billing_token_android_args() -> Dictionary:
+	return {}
+
+## Check if a billing program is available for the current user
+static func is_billing_program_available_android_args(program: BillingProgramAndroid) -> Dictionary:
+	var args = {}
+	args["program"] = program
+	return args
+
+## Create reporting details for a billing program
+static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid) -> Dictionary:
+	var args = {}
+	args["program"] = program
+	return args
+
+## Launch external link flow for external billing programs
+static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
+	var args = {}
+	if params != null:
+		if params.has_method("to_dict"):
+			args["params"] = params.to_dict()
+		else:
+			args["params"] = params
+	return args

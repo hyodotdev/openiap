@@ -395,7 +395,7 @@ func purchase_product(product_id: String) -> void:
     props.request.apple.sku = product_id
     props.request.google = RequestPurchaseAndroidProps.new()
     props.request.google.skus = [product_id]
-    props.type = ProductType.IN_APP  # IN_APP for consumables/non-consumables
+    props.type = ProductQueryType.IN_APP  # IN_APP for consumables/non-consumables
 
     # Purchase result will be delivered to purchase_updated signal
     await iap.request_purchase(props)
@@ -1203,7 +1203,7 @@ func purchase(product_id: String) -> void:
     props.request.apple.sku = product_id
     props.request.google = RequestPurchaseAndroidProps.new()
     props.request.google.skus = [product_id]
-    props.type = ProductType.IN_APP
+    props.type = ProductQueryType.IN_APP
 
     await iap.request_purchase(props)
 

@@ -1095,7 +1095,7 @@ func handle_user_choice_purchase(product_id: String) -> void:
     props.request = RequestPurchasePropsByPlatforms.new()
     props.request.google = RequestPurchaseAndroidProps.new()
     props.request.google.skus = [product_id]
-    props.type = ProductType.IN_APP
+    props.type = ProductQueryType.IN_APP
 
     await iap.request_purchase(props)
 
@@ -1767,7 +1767,7 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
     props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
     props.request.google.developer_billing_option.link_uri = "https://your-payment-site.com/checkout"
     props.request.google.developer_billing_option.launch_mode = DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
-    props.type = ProductType.IN_APP
+    props.type = ProductQueryType.IN_APP
 
     await iap.request_purchase(props)
 

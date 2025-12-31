@@ -981,7 +981,7 @@ if result.is_available:
     props.request.google.developer_billing_option.billing_program = BillingProgramAndroid.EXTERNAL_PAYMENTS
     props.request.google.developer_billing_option.link_uri = "https://your-site.com/checkout"
     props.request.google.developer_billing_option.launch_mode = DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
-    props.type = ProductType.IN_APP
+    props.type = ProductQueryType.IN_APP
     await iap.request_purchase(props)`}</CodeBlock>
             ),
           }}

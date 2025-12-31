@@ -264,7 +264,7 @@ openIapStore.requestPurchase(
         request = RequestPurchasePropsByPlatforms(
             google = RequestPurchaseAndroidProps(skus = listOf("premium"))
         ),
-        type = ProductType.InApp
+        type = ProductQueryType.InApp
     )
 )
 
@@ -274,7 +274,7 @@ openIapStore.requestPurchase(
         request = RequestPurchasePropsByPlatforms(
             google = RequestPurchaseAndroidProps(skus = listOf("monthly_sub"))
         ),
-        type = ProductType.Subs
+        type = ProductQueryType.Subs
     )
 )`}</CodeBlock>
             ),
@@ -286,7 +286,7 @@ await FlutterInappPurchase.instance.requestPurchase(
       apple: RequestPurchaseIosProps(sku: 'premium'),
       google: RequestPurchaseAndroidProps(skus: ['premium']),
     ),
-    type: ProductType.inApp,
+    type: ProductQueryType.inApp,
   ),
 );
 
@@ -297,7 +297,7 @@ await FlutterInappPurchase.instance.requestPurchase(
       apple: RequestPurchaseIosProps(sku: 'monthly_sub'),
       google: RequestPurchaseAndroidProps(skus: ['monthly_sub']),
     ),
-    type: ProductType.subs,
+    type: ProductQueryType.subs,
   ),
 );`}</CodeBlock>
             ),
@@ -309,7 +309,7 @@ props.request.apple = RequestPurchaseIosProps.new()
 props.request.apple.sku = "premium"
 props.request.google = RequestPurchaseAndroidProps.new()
 props.request.google.skus = ["premium"]
-props.type = ProductType.IN_APP
+props.type = ProductQueryType.IN_APP
 await iap.request_purchase(props)
 
 # Subscription purchase

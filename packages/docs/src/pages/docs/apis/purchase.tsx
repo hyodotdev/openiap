@@ -131,7 +131,7 @@ await requestPurchase({
         request = RequestPurchasePropsByPlatforms(
             google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
         ),
-        type = ProductType.InApp
+        type = ProductQueryType.InApp
     )
 )`}</CodeBlock>
             ),
@@ -146,7 +146,7 @@ props.request.apple = RequestPurchaseIosProps.new()
 props.request.apple.sku = "com.app.premium"
 props.request.google = RequestPurchaseAndroidProps.new()
 props.request.google.skus = ["com.app.premium"]
-props.type = ProductType.IN_APP
+props.type = ProductQueryType.IN_APP
 
 await iap.request_purchase(props)`}</CodeBlock>
             ),
