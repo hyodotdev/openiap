@@ -373,7 +373,7 @@ for (const objectType of objects) {
     // Add to_dict method
     outputLines.push('');
     outputLines.push('\tfunc to_dict() -> Dictionary:');
-    outputLines.push('\t\tvar result = {}');
+    outputLines.push('\t\tvar dict = {}');
     for (const fieldName of Object.keys(fields)) {
       const field = fields[fieldName];
       const snakeCaseName = getGdscriptFieldName(fieldName, objectType.name);
@@ -388,25 +388,25 @@ for (const objectType of objects) {
         outputLines.push(`\t\t\t\t\tarr.append(item.to_dict())`);
         outputLines.push(`\t\t\t\telse:`);
         outputLines.push(`\t\t\t\t\tarr.append(item)`);
-        outputLines.push(`\t\t\tresult["${fieldName}"] = arr`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = arr`);
         outputLines.push(`\t\telse:`);
-        outputLines.push(`\t\t\tresult["${fieldName}"] = null`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = null`);
       } else if (typeInfo.isObjectOrInput) {
         outputLines.push(`\t\tif ${snakeCaseName} != null and ${snakeCaseName}.has_method("to_dict"):`);
-        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}.to_dict()`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = ${snakeCaseName}.to_dict()`);
         outputLines.push(`\t\telse:`);
-        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = ${snakeCaseName}`);
       } else if (typeInfo.isEnum) {
         // Convert enum to string using the _VALUES constant
         outputLines.push(`\t\tif ${enumConstName}.has(${snakeCaseName}):`);
-        outputLines.push(`\t\t\tresult["${fieldName}"] = ${enumConstName}[${snakeCaseName}]`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = ${enumConstName}[${snakeCaseName}]`);
         outputLines.push(`\t\telse:`);
-        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = ${snakeCaseName}`);
       } else {
-        outputLines.push(`\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+        outputLines.push(`\t\tdict["${fieldName}"] = ${snakeCaseName}`);
       }
     }
-    outputLines.push('\t\treturn result');
+    outputLines.push('\t\treturn dict');
   }
   outputLines.push('');
 }
@@ -460,7 +460,7 @@ for (const inputType of inputs) {
     // Add to_dict method for inputs
     outputLines.push('');
     outputLines.push('\tfunc to_dict() -> Dictionary:');
-    outputLines.push('\t\tvar result = {}');
+    outputLines.push('\t\tvar dict = {}');
     for (const fieldName of Object.keys(fields)) {
       const field = fields[fieldName];
       const snakeCaseName = getGdscriptFieldName(fieldName, inputType.name);
@@ -476,23 +476,23 @@ for (const inputType of inputs) {
         outputLines.push(`\t\t\t\t\tarr.append(item.to_dict())`);
         outputLines.push(`\t\t\t\telse:`);
         outputLines.push(`\t\t\t\t\tarr.append(item)`);
-        outputLines.push(`\t\t\tresult["${fieldName}"] = arr`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = arr`);
       } else if (typeInfo.isObjectOrInput) {
         outputLines.push(`\t\t\tif ${snakeCaseName}.has_method("to_dict"):`);
-        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}.to_dict()`);
+        outputLines.push(`\t\t\t\tdict["${fieldName}"] = ${snakeCaseName}.to_dict()`);
         outputLines.push(`\t\t\telse:`);
-        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+        outputLines.push(`\t\t\t\tdict["${fieldName}"] = ${snakeCaseName}`);
       } else if (typeInfo.isEnum) {
         // Convert enum to string using the _VALUES constant
         outputLines.push(`\t\t\tif ${enumConstName}.has(${snakeCaseName}):`);
-        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${enumConstName}[${snakeCaseName}]`);
+        outputLines.push(`\t\t\t\tdict["${fieldName}"] = ${enumConstName}[${snakeCaseName}]`);
         outputLines.push(`\t\t\telse:`);
-        outputLines.push(`\t\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+        outputLines.push(`\t\t\t\tdict["${fieldName}"] = ${snakeCaseName}`);
       } else {
-        outputLines.push(`\t\t\tresult["${fieldName}"] = ${snakeCaseName}`);
+        outputLines.push(`\t\t\tdict["${fieldName}"] = ${snakeCaseName}`);
       }
     }
-    outputLines.push('\t\treturn result');
+    outputLines.push('\t\treturn dict');
   }
   outputLines.push('');
 }
@@ -576,12 +576,12 @@ if (queryType) {
         outputLines.push(`\t\t\t\treturn obj`);
         outputLines.push('');
         outputLines.push(`\t\t\tfunc to_dict() -> Dictionary:`);
-        outputLines.push(`\t\t\t\tvar result = {}`);
+        outputLines.push(`\t\t\t\tvar dict = {}`);
         for (const arg of args) {
           const argSnakeName = toSnakeCase(arg.name);
-          outputLines.push(`\t\t\t\tresult["${arg.name}"] = ${argSnakeName}`);
+          outputLines.push(`\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
         }
-        outputLines.push(`\t\t\t\treturn result`);
+        outputLines.push(`\t\t\t\treturn dict`);
       } else {
         outputLines.push(`\t\tclass Args:`);
         outputLines.push(`\t\t\tpass`);
@@ -649,12 +649,12 @@ if (mutationType) {
         outputLines.push(`\t\t\t\treturn obj`);
         outputLines.push('');
         outputLines.push(`\t\t\tfunc to_dict() -> Dictionary:`);
-        outputLines.push(`\t\t\t\tvar result = {}`);
+        outputLines.push(`\t\t\t\tvar dict = {}`);
         for (const arg of args) {
           const argSnakeName = toSnakeCase(arg.name);
-          outputLines.push(`\t\t\t\tresult["${arg.name}"] = ${argSnakeName}`);
+          outputLines.push(`\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
         }
-        outputLines.push(`\t\t\t\treturn result`);
+        outputLines.push(`\t\t\t\treturn dict`);
       } else {
         outputLines.push(`\t\tclass Args:`);
         outputLines.push(`\t\t\tpass`);
