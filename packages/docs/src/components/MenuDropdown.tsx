@@ -58,47 +58,22 @@ export function MenuDropdown({
 
   return (
     <li className="menu-dropdown">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          padding: '0.4rem 0',
-        }}
-      >
+      <div className={`menu-dropdown-header ${isActive ? 'active' : ''}`}>
         <button
           onClick={handleTitleClick}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className={isActive ? 'active' : ''}
+          className={`menu-dropdown-title ${isActive ? 'active' : ''}`}
           style={{
-            flex: 1,
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 0,
-            textAlign: 'left',
-            font: 'inherit',
             color: isActive || isHovered ? 'var(--primary-color)' : 'inherit',
-            transition: 'color 0.2s',
           }}
         >
           {title}
         </button>
         <button
           onClick={toggleExpanded}
+          className="menu-dropdown-toggle"
           style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '0.25rem',
-            color: 'var(--text-secondary)',
-            fontSize: '0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: '1.5rem',
-            transition: 'transform 0.2s ease',
             transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
           }}
           aria-label={`Toggle ${title} submenu`}
@@ -108,22 +83,22 @@ export function MenuDropdown({
       </div>
       <div
         ref={contentRef}
+        className="menu-dropdown-content"
         style={{
           maxHeight: `${height}px`,
-          overflow: 'hidden',
-          transition: 'max-height 0.3s ease-in-out',
         }}
       >
-        <ul style={{ paddingLeft: '0', marginTop: '0.5rem', listStyle: 'none' }}>
+        <ul className="menu-dropdown-items">
           {items.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
-                className={({ isActive }) => (isActive ? 'active' : '')}
+                className={({ isActive }) =>
+                  `menu-dropdown-item ${isActive ? 'active' : ''}`
+                }
                 onClick={onItemClick}
-                style={{ fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75em' }}>└</span>
+                <span className="menu-dropdown-item-prefix">└</span>
                 {item.label}
               </NavLink>
             </li>

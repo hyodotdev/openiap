@@ -13,15 +13,22 @@
 }
 
 .page-container h1 {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.page-container h2 {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-md);
   color: var(--text-primary);
 }
 
 .page-subtitle {
-  font-size: 1.25rem;
+  font-size: var(--font-size-md);
   color: var(--text-secondary);
-  margin-bottom: 3rem;
+  margin-bottom: var(--spacing-xl);
+  line-height: 1.5;
 }
 
 /* Languages Page */
@@ -49,13 +56,15 @@
 
 .language-card h3 {
   color: var(--primary-color);
-  margin-bottom: 0.75rem;
-  font-size: 1.25rem;
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-lg);
 }
 
 .language-card p {
   color: var(--text-secondary);
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 /* Language card code snippets now use global code-snippet styles from code.css */
@@ -112,28 +121,29 @@
 }
 
 .contribute-section h2 {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-md);
   color: var(--text-primary);
 }
 
 .contribute-section p {
-  font-size: 1.125rem;
+  font-size: var(--font-size-base);
   color: var(--text-secondary);
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-xl);
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+  line-height: 1.5;
 }
 
 /* Resources Page */
 .resources-section {
-  margin-bottom: 3rem;
+  margin-bottom: var(--spacing-2xl);
 }
 
 .resources-section h2 {
-  font-size: 1.75rem;
-  margin-bottom: 1.5rem;
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-lg);
   color: var(--text-primary);
 }
 
@@ -162,23 +172,24 @@
 
 .resource-item h3 {
   color: var(--primary-color);
-  margin-bottom: 0.5rem;
-  font-size: 1.125rem;
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-base);
 }
 
 .resource-item p {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 /* Community Page */
 .community-section {
-  margin-bottom: 3rem;
+  margin-bottom: var(--spacing-2xl);
 }
 
 .community-section h2 {
-  font-size: 1.75rem;
-  margin-bottom: 1.5rem;
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-lg);
   color: var(--text-primary);
 }
 
@@ -214,14 +225,15 @@
 
 .community-card h3 {
   color: var(--primary-color);
-  margin-bottom: 0.5rem;
-  font-size: 1.25rem;
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-base);
 }
 
 .community-card p {
   color: var(--text-secondary);
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 .community-link {
@@ -244,9 +256,9 @@
 }
 
 .stat h3 {
-  font-size: 2rem;
+  font-size: var(--font-size-xl);
   color: var(--primary-color);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--spacing-sm);
 }
 
 .stat p {
@@ -303,28 +315,36 @@
 
 /* Introduction Page */
 .intro-section {
-  margin-bottom: 2.5rem;
+  margin-bottom: var(--spacing-2xl);
 }
 
 .intro-section h2 {
-  font-size: 1.75rem;
-  margin-bottom: 1rem;
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-md);
   color: var(--text-primary);
 }
 
 .intro-section h3 {
-  font-size: 1.25rem;
-  margin: 1.5rem 0 0.75rem;
+  font-size: var(--font-size-lg);
+  margin: var(--spacing-lg) 0 var(--spacing-md);
   color: var(--primary-color);
 }
 
 .intro-section ul {
-  margin-left: 2rem;
+  margin-left: var(--spacing-xl);
   color: var(--text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .intro-section li {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.5;
+}
+
+.intro-section p {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 /* Introduction page links */

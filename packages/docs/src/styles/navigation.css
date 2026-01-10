@@ -1,18 +1,18 @@
-/* Navigation */
+/* Navigation - Expo style compact header */
 .navigation {
   background: var(--bg-primary);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(10px);
-  background: rgba(var(--bg-primary), 0.95);
+  height: 56px;
 }
 
 .nav-container {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 0 var(--spacing-lg);
+  height: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -22,17 +22,17 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-right: 3rem;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: var(--spacing-xl);
   text-decoration: none;
 }
 
 .logo-image {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
 }
 
@@ -45,12 +45,13 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  font-weight: 700;
 }
 
 .nav-menu {
   display: flex;
   list-style: none;
-  gap: 2.5rem;
+  gap: var(--spacing-xl);
   align-items: center;
   flex: 1;
 }
@@ -63,7 +64,7 @@
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
   margin-left: auto;
 }
 
@@ -72,19 +73,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 0.5rem;
-  color: var(--text-primary);
-  transition: all 0.2s;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: all 0.15s;
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: none;
 }
 
 .github-link:hover {
+  color: var(--text-primary);
   background: var(--bg-secondary);
-  border-color: var(--primary-color);
-  color: var(--primary-color);
 }
 
 /* Mobile menu button */
@@ -94,9 +94,9 @@
   border: none;
   color: var(--text-primary);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  transition: background 0.2s;
+  padding: var(--spacing-sm);
+  border-radius: 6px;
+  transition: background 0.15s;
 }
 
 .mobile-menu-button:hover {
@@ -104,14 +104,18 @@
 }
 
 .nav-menu a {
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
   font-weight: 500;
-  transition: color 0.2s;
-  padding: 0.5rem 0;
+  transition: color 0.15s;
+  padding: var(--spacing-sm) 0;
   position: relative;
 }
 
-.nav-menu a:hover,
+.nav-menu a:hover {
+  color: var(--text-primary);
+}
+
 .nav-menu a.active {
   color: var(--primary-color);
 }
@@ -119,11 +123,12 @@
 .nav-menu a.active::after {
   content: '';
   position: absolute;
-  bottom: -1px;
+  bottom: -2px;
   left: 0;
   right: 0;
   height: 2px;
   background: var(--primary-color);
+  border-radius: 1px;
 }
 
 /* Dropdown styles removed - no hover menus */

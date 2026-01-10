@@ -3,19 +3,29 @@
   --primary-color: #c5b19f;
   --primary-dark: #a47465;
   --primary-light: #dccfc2;
-  --bg-primary: #09090b;
-  --bg-secondary: #18181f;
-  --text-primary: #e1e1e6;
-  --text-secondary: #b8bfc7;
-  --border-color: rgba(255, 255, 255, 0.12);
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --text-primary: #e3e3e3;
+  --text-secondary: #a0a0a0;
+  --border-color: rgba(255, 255, 255, 0.1);
   --code-bg: #1e1e26;
   --accent-color: #ff8066;
   --logo-text-filter: invert(1);
+
+  /* Dark mode sidebar (slightly darker than content) */
+  --sidebar-bg: #0d0d0d;
+  --sidebar-text: #e3e3e3;
+  --sidebar-text-muted: #888;
+  --sidebar-active-bg: rgba(197, 177, 159, 0.15);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-section-text: #666;
 }
 
 /* Dark mode specific overrides */
 :root.dark .navigation {
-  background: rgba(9, 9, 11, 0.95);
+  background: var(--bg-primary);
+  border-bottom-color: var(--border-color);
 }
 
 :root.dark .dropdown-menu {
