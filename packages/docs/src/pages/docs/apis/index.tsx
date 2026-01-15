@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import APICard from '../../../components/APICard';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 // Redirect map for legacy anchor links
 const legacyAnchorRedirects: Record<string, string> = {
@@ -66,6 +68,8 @@ const legacyAnchorRedirects: Record<string, string> = {
   'create-alternative-billing-token-android':
     '/docs/apis/android#create-alternative-billing-token-android',
   // Legacy section anchors
+  terminology: '/docs/apis#terminology',
+  'request-apis': '/docs/apis#request-apis',
   'connection-management': '/docs/apis/connection',
   'product-management': '/docs/apis/products',
   'purchase-operations': '/docs/apis/purchase',
@@ -87,6 +91,8 @@ function APIsIndex() {
       navigate(legacyAnchorRedirects[hash], { replace: true });
     }
   }, [location.hash, navigate]);
+
+  useScrollToHash();
 
   return (
     <div className="doc-page">
@@ -220,6 +226,88 @@ function APIsIndex() {
         <p className="type-link">
           See: <Link to="/docs/types">Type Definitions</Link> for complete type
           information.
+        </p>
+      </section>
+
+      <section>
+        <AnchorLink id="terminology" level="h2">
+          Terminology
+        </AnchorLink>
+        <AnchorLink id="request-apis" level="h3">
+          Request APIs
+        </AnchorLink>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Important:</strong> APIs starting with <code>request</code>{' '}
+            are event-based operations, not promise-based.
+          </p>
+          <p>
+            While these APIs return values for various purposes, you should{' '}
+            <strong>
+              not rely on their return values for actual purchase results
+            </strong>
+            . Instead, listen for events through{' '}
+            <code>purchaseUpdatedListener</code> or{' '}
+            <code>purchaseErrorListener</code>.
+          </p>
+          <p>
+            This is because Apple's purchase system is fundamentally
+            event-based, not promise-based. For more details, see this{' '}
+            <a
+              href="https://github.com/hyochan/react-native-iap/issues/307#issuecomment-449208083"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              issue comment
+            </a>
+            .
+          </p>
+          <p>
+            The <code>request</code> prefix indicates that these are event
+            requests - use the appropriate listeners to handle the actual
+            results.
+          </p>
+        </div>
+        <p className="type-link">
+          See: <Link to="/docs/events">Events</Link> for setting up purchase
+          listeners.
+        </p>
+
+        <AnchorLink id="transaction-vs-purchase" level="h3">
+          Transaction vs Purchase
+        </AnchorLink>
+        <p>
+          These terms refer to the same concept - a completed or pending payment
+          record from the store. The terminology differs by platform:
+        </p>
+        <ul>
+          <li>
+            <strong>iOS (StoreKit)</strong>: Uses <code>Transaction</code>
+          </li>
+          <li>
+            <strong>Android (Google Play Billing)</strong>: Uses{' '}
+            <code>Purchase</code>
+          </li>
+        </ul>
+        <p>
+          OpenIAP normalizes this to <code>Purchase</code> in cross-platform
+          APIs for consistency, while platform-specific APIs may use the native
+          terminology.
+        </p>
+
+        <AnchorLink id="receipt-vs-verify-purchase" level="h3">
+          Receipt vs Verify Purchase
+        </AnchorLink>
+        <p>
+          <code>Receipt</code> is a legacy term from Apple's original StoreKit
+          API, where purchase validation involved fetching and verifying a
+          "receipt" blob. Modern StoreKit 2 and Google Play Billing have moved
+          away from this pattern.
+        </p>
+        <p>
+          OpenIAP uses <code>verifyPurchase</code> instead of "receipt
+          validation" to reflect the modern approach: validating individual
+          purchase transactions rather than parsing monolithic receipt data.
         </p>
       </section>
     </div>
