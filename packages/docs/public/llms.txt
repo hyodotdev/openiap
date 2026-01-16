@@ -1,0 +1,199 @@
+# OpenIAP Quick Reference
+
+> OpenIAP: Unified in-app purchase specification for iOS & Android
+> Documentation: https://openiap.dev
+> Full Reference: https://openiap.dev/llms-full.txt
+
+## Installation
+
+### React Native / Expo
+```bash
+# expo-iap (Expo projects)
+npx expo install expo-iap
+
+# react-native-iap (React Native CLI)
+npm install react-native-iap
+```
+
+### Native
+```swift
+// Swift Package Manager
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.0.0")
+```
+
+```kotlin
+// Gradle
+implementation("io.github.hyochan.openiap:openiap-google:1.0.0")
+```
+
+```yaml
+# Flutter
+dependencies:
+  flutter_inapp_purchase: ^5.0.0
+```
+
+## Core APIs
+
+### Connection
+```typescript
+// Initialize (required before any operation)
+await initConnection();
+
+// With alternative billing (Android)
+await initConnection({ alternativeBillingModeAndroid: 'user-choice' });
+
+// Cleanup on unmount
+await endConnection();
+```
+
+### Fetch Products
+```typescript
+const products = await fetchProducts({
+  products: [
+    { id: 'com.app.premium', type: 'inapp' },
+    { id: 'com.app.monthly', type: 'subs' },
+  ],
+});
+```
+
+### Request Purchase
+```typescript
+// IMPORTANT: requestPurchase is event-based, not promise-based
+// Set up purchaseUpdatedListener before calling
+await requestPurchase({
+  request: {
+    apple: { sku: 'com.app.premium' },
+    google: { skus: ['com.app.premium'] },
+  },
+  type: 'inapp', // 'inapp' | 'subs'
+});
+```
+
+### Finish Transaction
+```typescript
+// CRITICAL: Must call after verification
+// Android: purchases auto-refund after 3 days if not acknowledged
+await finishTransaction(purchase, isConsumable);
+```
+
+### Get Available Purchases
+```typescript
+const purchases = await getAvailablePurchases();
+// Returns user's current entitlements
+```
+
+### Restore Purchases
+```typescript
+await restorePurchases();
+const purchases = await getAvailablePurchases();
+```
+
+## Events (React Native/Expo)
+
+```typescript
+import { purchaseUpdatedListener, purchaseErrorListener } from 'expo-iap';
+
+// Set up before any purchase request
+const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
+  // 1. Verify purchase on server
+  // 2. Grant entitlement
+  // 3. Finish transaction
+  await finishTransaction(purchase);
+});
+
+const purchaseErrorSubscription = purchaseErrorListener((error) => {
+  if (error.code === 'UserCancelled') return; // Normal flow
+  console.error('Purchase error:', error.message);
+});
+
+// Cleanup
+purchaseUpdateSubscription.remove();
+purchaseErrorSubscription.remove();
+```
+
+## Core Types
+
+### Product
+```typescript
+interface Product {
+  id: string;           // Product identifier (SKU)
+  title: string;        // Display name
+  description: string;  // Product description
+  price: string;        // Formatted price string
+  priceAmount: number;  // Price as number
+  currency: string;     // ISO 4217 currency code
+  type: 'inapp' | 'subs';
+}
+```
+
+### Purchase
+```typescript
+interface Purchase {
+  productId: string;         // Purchased product ID
+  transactionId: string;     // Platform transaction ID
+  transactionDate: number;   // Purchase timestamp
+  purchaseState: PurchaseState;
+  // iOS specific
+  originalTransactionId?: string;
+  // Android specific
+  purchaseToken?: string;
+  orderId?: string;
+}
+
+type PurchaseState = 'purchased' | 'pending' | 'restored';
+```
+
+### PurchaseError
+```typescript
+interface PurchaseError {
+  code: string;       // Error code
+  message: string;    // Human-readable message
+  productId?: string; // Related SKU
+}
+```
+
+## Common Error Codes
+
+| Code | Description | Action |
+|------|-------------|--------|
+| UserCancelled | User cancelled purchase | No action needed |
+| ItemUnavailable | Product not in store | Check store config |
+| AlreadyOwned | Already purchased | Restore purchases |
+| NetworkError | Network issue | Retry with backoff |
+| ServiceError | Store service error | Retry later |
+| NotPrepared | initConnection not called | Call initConnection first |
+
+## API Naming Convention
+
+- **Cross-platform**: No suffix (fetchProducts, requestPurchase)
+- **iOS-only**: `IOS` suffix (syncIOS, getStorefrontIOS)
+- **Android-only**: `Android` suffix (acknowledgePurchaseAndroid)
+
+## Platform-Specific APIs
+
+### iOS
+- syncIOS() - Sync with App Store
+- presentCodeRedemptionSheetIOS() - Show offer code UI
+- showManageSubscriptionsIOS() - Open subscription management
+- beginRefundRequestIOS() - Start refund flow
+
+### Android
+- acknowledgePurchaseAndroid() - Acknowledge purchase
+- consumePurchaseAndroid() - Consume for re-purchase
+
+## Purchase Flow Summary
+
+1. initConnection()
+2. fetchProducts([...skus])
+3. Set up purchaseUpdatedListener
+4. requestPurchase({ sku })
+5. In listener: verify -> grant -> finishTransaction()
+6. endConnection() on cleanup
+
+## Links
+
+- Docs: https://openiap.dev/docs
+- Types: https://openiap.dev/docs/types
+- APIs: https://openiap.dev/docs/apis
+- Errors: https://openiap.dev/docs/errors
+- GitHub: https://github.com/hyodotdev/openiap

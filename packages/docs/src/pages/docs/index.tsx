@@ -36,6 +36,7 @@ import Example from './example';
 import Announcements from './updates/announcements';
 import Notes from './updates/notes';
 import Versions from './updates/versions';
+import AIAssistants from './guides/ai-assistants';
 import NotFound from '../404';
 
 function Docs() {
@@ -167,6 +168,15 @@ function Docs() {
               items={[{ to: '/docs/horizon-setup', label: 'Horizon OS' }]}
               onItemClick={closeSidebar}
             />
+            <li>
+              <NavLink
+                to="/docs/guides/ai-assistants"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                AI Assistants
+              </NavLink>
+            </li>
             <li>
               <NavLink
                 to="/docs/example"
@@ -313,6 +323,7 @@ function Docs() {
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
           <Route path="example" element={<Example />} />
+          <Route path="guides/ai-assistants" element={<AIAssistants />} />
           <Route path="updates/announcements" element={<Announcements />} />
           <Route path="updates/notes" element={<Notes />} />
           <Route path="updates/versions" element={<Versions />} />
