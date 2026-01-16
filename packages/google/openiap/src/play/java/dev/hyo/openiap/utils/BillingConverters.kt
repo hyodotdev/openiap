@@ -173,8 +173,9 @@ internal object BillingConverters {
      */
     private fun determinePaymentMode(recurrenceMode: Int, priceAmountMicros: Long): PaymentMode {
         return when {
-            recurrenceMode == 3 && priceAmountMicros == 0L -> PaymentMode.FreeTrial
-            recurrenceMode == 2 || recurrenceMode == 3 -> PaymentMode.PayAsYouGo
+            priceAmountMicros == 0L -> PaymentMode.FreeTrial
+            recurrenceMode == 3 -> PaymentMode.PayUpFront
+            recurrenceMode == 2 -> PaymentMode.PayAsYouGo
             recurrenceMode == 1 -> PaymentMode.PayAsYouGo
             else -> PaymentMode.Unknown
         }

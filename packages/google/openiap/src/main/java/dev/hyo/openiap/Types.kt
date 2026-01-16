@@ -159,10 +159,13 @@ public enum class DiscountOfferType(val rawValue: String) {
         fun fromJson(value: String): DiscountOfferType = when (value) {
             "introductory" -> DiscountOfferType.Introductory
             "Introductory" -> DiscountOfferType.Introductory
+            "INTRODUCTORY" -> DiscountOfferType.Introductory
             "promotional" -> DiscountOfferType.Promotional
             "Promotional" -> DiscountOfferType.Promotional
+            "PROMOTIONAL" -> DiscountOfferType.Promotional
             "one-time" -> DiscountOfferType.OneTime
             "OneTime" -> DiscountOfferType.OneTime
+            "ONE_TIME" -> DiscountOfferType.OneTime
             else -> throw IllegalArgumentException("Unknown DiscountOfferType value: $value")
         }
     }
@@ -552,12 +555,16 @@ public enum class PaymentMode(val rawValue: String) {
         fun fromJson(value: String): PaymentMode = when (value) {
             "free-trial" -> PaymentMode.FreeTrial
             "FreeTrial" -> PaymentMode.FreeTrial
+            "FREE_TRIAL" -> PaymentMode.FreeTrial
             "pay-as-you-go" -> PaymentMode.PayAsYouGo
             "PayAsYouGo" -> PaymentMode.PayAsYouGo
+            "PAY_AS_YOU_GO" -> PaymentMode.PayAsYouGo
             "pay-up-front" -> PaymentMode.PayUpFront
             "PayUpFront" -> PaymentMode.PayUpFront
+            "PAY_UP_FRONT" -> PaymentMode.PayUpFront
             "unknown" -> PaymentMode.Unknown
             "Unknown" -> PaymentMode.Unknown
+            "UNKNOWN" -> PaymentMode.Unknown
             else -> throw IllegalArgumentException("Unknown PaymentMode value: $value")
         }
     }
@@ -739,14 +746,19 @@ public enum class SubscriptionPeriodUnit(val rawValue: String) {
         fun fromJson(value: String): SubscriptionPeriodUnit = when (value) {
             "day" -> SubscriptionPeriodUnit.Day
             "Day" -> SubscriptionPeriodUnit.Day
+            "DAY" -> SubscriptionPeriodUnit.Day
             "week" -> SubscriptionPeriodUnit.Week
             "Week" -> SubscriptionPeriodUnit.Week
+            "WEEK" -> SubscriptionPeriodUnit.Week
             "month" -> SubscriptionPeriodUnit.Month
             "Month" -> SubscriptionPeriodUnit.Month
+            "MONTH" -> SubscriptionPeriodUnit.Month
             "year" -> SubscriptionPeriodUnit.Year
             "Year" -> SubscriptionPeriodUnit.Year
+            "YEAR" -> SubscriptionPeriodUnit.Year
             "unknown" -> SubscriptionPeriodUnit.Unknown
             "Unknown" -> SubscriptionPeriodUnit.Unknown
+            "UNKNOWN" -> SubscriptionPeriodUnit.Unknown
             else -> throw IllegalArgumentException("Unknown SubscriptionPeriodUnit value: $value")
         }
     }

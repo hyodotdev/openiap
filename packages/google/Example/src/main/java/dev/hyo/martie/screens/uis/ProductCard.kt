@@ -129,7 +129,7 @@ fun ProductCard(
                         val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
                         val currencyCode = standardizedDiscount?.currency ?: legacyOffer?.priceCurrencyCode ?: ""
                         Text(
-                            "$currencyCode ${String.format("%.2f", fullPrice)}",
+                            "$currencyCode ${String.format(Locale.getDefault(), "%.2f", fullPrice)}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = AppColors.textSecondary,
                             textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
@@ -151,12 +151,12 @@ fun ProductCard(
                         standardizedDiscount?.percentageDiscountAndroid != null ->
                             "${standardizedDiscount.percentageDiscountAndroid}% OFF"
                         standardizedDiscount?.formattedDiscountAmountAndroid != null ->
-                            "${standardizedDiscount.formattedDiscountAmountAndroid} OFF"
+                            standardizedDiscount.formattedDiscountAmountAndroid
                         // Fall back to legacy discountDisplayInfo
                         discountInfo?.percentageDiscount != null ->
                             "${discountInfo.percentageDiscount}% OFF"
                         discountInfo?.discountAmount != null ->
-                            "${discountInfo.discountAmount?.formattedDiscountAmount} OFF"
+                            discountInfo.discountAmount?.formattedDiscountAmount ?: "SALE"
                         else -> "SALE"
                     }
                     Surface(

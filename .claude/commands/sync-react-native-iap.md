@@ -192,7 +192,7 @@ Key screens to update:
 
 **Expo Example:** `example-expo/app/`
 
-### 5. Update Tests
+### 6. Update Tests
 
 **Location:** `src/__tests__/`
 
@@ -203,13 +203,13 @@ yarn test:ci           # CI environment
 yarn test:plugin       # Expo plugin tests
 ```
 
-### 6. Update Documentation
+### 7. Update Documentation
 
 **Location:** `docs/`
 - Docusaurus site
 - Package manager: Bun
 
-### 7. Update llms.txt Files
+### 8. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -235,7 +235,7 @@ Update AI-friendly documentation files when APIs or types change:
 5. Platform-specific APIs (iOS/Android suffixes)
 6. Error handling examples
 
-### 8. Pre-commit Checklist
+### 9. Pre-commit Checklist
 
 ```bash
 yarn typecheck        # TypeScript

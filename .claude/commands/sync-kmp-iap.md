@@ -183,14 +183,14 @@ cd /Users/hyo/Github/hyochan/kmp-iap
 ./gradlew publishToMavenLocal
 ```
 
-### 3. Update Type Aliases
+### 4. Update Type Aliases
 
 If new types added, update `KmpIap.kt`:
 ```kotlin
 typealias NewType = io.github.hyochan.kmpiap.openiap.NewType
 ```
 
-### 4. Update DSL Builders
+### 5. Update DSL Builders
 
 If new request types added, update `dsl/PurchaseDsl.kt`:
 ```kotlin
@@ -199,13 +199,13 @@ class NewRequestBuilder {
 }
 ```
 
-### 5. Update Example Code
+### 6. Update Example Code
 
 **Location:** `example/composeApp/`
 - Compose Multiplatform shared UI
 - iOS app: `example/iosApp/`
 
-### 6. Update Tests
+### 7. Update Tests
 
 **Location:** `library/src/commonTest/`
 
@@ -214,14 +214,14 @@ class NewRequestBuilder {
 ./gradlew :library:build
 ```
 
-### 7. Update Documentation
+### 8. Update Documentation
 
 **Location:** `docs/`
 - `docs/docs/api/` - API documentation
 - `docs/docs/examples/` - Code examples
 - `docs/docs/guides/` - Usage guides
 
-### 8. Update llms.txt Files
+### 9. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -246,7 +246,7 @@ Update AI-friendly documentation files when APIs or types change:
 4. Platform-specific patterns (ios/android DSL blocks)
 5. Error handling examples
 
-### 9. Pre-commit Checklist
+### 10. Pre-commit Checklist
 
 ```bash
 ./gradlew :library:test
