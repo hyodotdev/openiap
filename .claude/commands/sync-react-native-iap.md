@@ -38,22 +38,42 @@ cd $IAP_REPOS_HOME/react-native-iap
 git pull
 ```
 
-### 1. Type Synchronization
+### 1. Sync openiap-versions.json (REQUIRED)
+
+**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
 
 ```bash
 cd $IAP_REPOS_HOME/react-native-iap
 
-# Update version in openiap-versions.json
-# Edit "gql" field to new version
+# Check current versions in openiap monorepo
+cat $OPENIAP_HOME/openiap/openiap-versions.json
 
-# Download and regenerate types
+# Update react-native-iap's openiap-versions.json to match:
+# - "gql": should match openiap's "gql" version
+# - "apple": should match openiap's "apple" version
+# - "google": should match openiap's "google" version
+```
+
+**Version fields to sync:**
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | TypeScript types version |
+| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
+| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+
+### 2. Type Synchronization
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap
+
+# Download and regenerate types (uses versions from openiap-versions.json)
 yarn generate:types
 
 # Verify types
 yarn typecheck
 ```
 
-### 2. Native Code Modifications
+### 3. Native Code Modifications
 
 #### iOS Native Code
 
@@ -112,7 +132,7 @@ cd $IAP_REPOS_HOME/react-native-iap
 # 4. Update type-bridge.ts if new types need conversion
 ```
 
-### 3. Nitro Bridge Updates
+### 4. Nitro Bridge Updates
 
 If types changed that affect the bridge:
 ```bash
@@ -123,7 +143,7 @@ yarn specs
 yarn prepare
 ```
 
-### 4. Build & Test Native Code
+### 5. Build & Test Native Code
 
 #### iOS Build Test
 
@@ -183,7 +203,7 @@ yarn android
 sed -i '' '/horizonEnabled=true/d' android/gradle.properties
 ```
 
-### 5. Update Example Code
+### 6. Update Example Code
 
 **React Native Example:** `example/`
 
@@ -194,7 +214,7 @@ Key screens to update:
 
 **Expo Example:** `example-expo/app/`
 
-### 6. Update Tests
+### 7. Update Tests
 
 **Location:** `src/__tests__/`
 
@@ -205,13 +225,13 @@ yarn test:ci           # CI environment
 yarn test:plugin       # Expo plugin tests
 ```
 
-### 7. Update Documentation
+### 8. Update Documentation
 
 **Location:** `docs/`
 - Docusaurus site
 - Package manager: Bun
 
-### 8. Update llms.txt Files
+### 9. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -237,7 +257,7 @@ Update AI-friendly documentation files when APIs or types change:
 5. Platform-specific APIs (iOS/Android suffixes)
 6. Error handling examples
 
-### 9. Pre-commit Checklist
+### 10. Pre-commit Checklist
 
 ```bash
 yarn typecheck        # TypeScript

@@ -49,15 +49,35 @@ cd $IAP_REPOS_HOME/flutter_inapp_purchase
 git pull
 ```
 
-### 1. Type Synchronization
+### 1. Sync openiap-versions.json (REQUIRED)
+
+**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
 
 ```bash
 cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
-# Update version in openiap-versions.json
-# Edit "gql" field to new version
+# Check current versions in openiap monorepo
+cat $OPENIAP_HOME/openiap/openiap-versions.json
 
-# Download and regenerate types
+# Update flutter_inapp_purchase's openiap-versions.json to match:
+# - "gql": should match openiap's "gql" version
+# - "apple": should match openiap's "apple" version
+# - "google": should match openiap's "google" version
+```
+
+**Version fields to sync:**
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Dart types version |
+| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
+| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+
+### 2. Type Synchronization
+
+```bash
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
+
+# Download and regenerate types (uses versions from openiap-versions.json)
 ./scripts/generate-type.sh
 
 # Verify
@@ -66,7 +86,7 @@ flutter analyze
 
 **Types Location:** `lib/types.dart` (4,325+ lines, auto-generated)
 
-### 2. Native Code Modifications
+### 3. Native Code Modifications
 
 #### iOS Native Code
 
@@ -129,7 +149,7 @@ cd $IAP_REPOS_HOME/flutter_inapp_purchase
 - Shares implementation pattern with iOS
 - Update alongside iOS changes
 
-### 3. Build & Test Native Code
+### 4. Build & Test Native Code
 
 #### iOS Build Test
 
@@ -209,20 +229,20 @@ flutter test
 cd example && flutter test
 ```
 
-### 4. Update Helper Functions
+### 5. Update Helper Functions
 
 If types change, update `lib/helpers.dart`:
 - JSON to object conversions
 - Platform-specific logic
 - Type transformations
 
-### 5. Update Error Handling
+### 6. Update Error Handling
 
 If error codes change, update `lib/errors.dart`:
 - Platform error code mappings
 - Exception classes
 
-### 6. Update Example Code
+### 7. Update Example Code
 
 **Location:** `example/lib/src/screens/`
 
@@ -233,7 +253,7 @@ Key screens:
 - `offer_code_screen.dart` - Code redemption
 - `builder_demo_screen.dart` - DSL demonstration
 
-### 7. Update Tests
+### 8. Update Tests
 
 **Unit Tests:** `test/`
 **Example Tests:** `example/test/`
@@ -246,7 +266,7 @@ flutter test
 flutter test --coverage
 ```
 
-### 8. Update Documentation
+### 9. Update Documentation
 
 **Location:** `docs/`
 - Docusaurus site
@@ -254,7 +274,7 @@ flutter test --coverage
 - `docs/docs/guides/` - Usage guides
 - `docs/docs/examples/` - Code examples
 
-### 9. Update llms.txt Files
+### 10. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -280,7 +300,7 @@ Update AI-friendly documentation files when APIs or types change:
 5. Platform-specific APIs (iOS/Android suffixes)
 6. Error handling examples
 
-### 10. Pre-commit Checklist
+### 11. Pre-commit Checklist
 
 ```bash
 # Format (excludes types.dart)

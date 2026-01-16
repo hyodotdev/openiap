@@ -47,15 +47,35 @@ cd $IAP_REPOS_HOME/kmp-iap
 git pull
 ```
 
-### 1. Type Synchronization
+### 1. Sync openiap-versions.json (REQUIRED)
+
+**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
 
 ```bash
 cd $IAP_REPOS_HOME/kmp-iap
 
-# Update version in openiap-versions.json
-# Edit "gql" field to new version
+# Check current versions in openiap monorepo
+cat $OPENIAP_HOME/openiap/openiap-versions.json
 
-# Download and regenerate types
+# Update kmp-iap's openiap-versions.json to match:
+# - "gql": should match openiap's "gql" version
+# - "apple": should match openiap's "apple" version
+# - "google": should match openiap's "google" version
+```
+
+**Version fields to sync:**
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Kotlin types version |
+| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
+| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+
+### 2. Type Synchronization
+
+```bash
+cd $IAP_REPOS_HOME/kmp-iap
+
+# Download and regenerate types (uses versions from openiap-versions.json)
 ./scripts/generate-types.sh
 
 # Verify build
@@ -64,7 +84,7 @@ cd $IAP_REPOS_HOME/kmp-iap
 
 **Types Location:** `library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 
-### 2. Native Code Modifications
+### 3. Native Code Modifications
 
 #### Android Implementation
 
@@ -122,7 +142,7 @@ cd $IAP_REPOS_HOME/kmp-iap
 # 4. Update cinterop if Swift API signature changed
 ```
 
-### 3. Build & Test Native Code
+### 4. Build & Test Native Code
 
 #### Android Build Test
 
@@ -185,14 +205,14 @@ cd $IAP_REPOS_HOME/kmp-iap
 ./gradlew publishToMavenLocal
 ```
 
-### 4. Update Type Aliases
+### 5. Update Type Aliases
 
 If new types added, update `KmpIap.kt`:
 ```kotlin
 typealias NewType = io.github.hyochan.kmpiap.openiap.NewType
 ```
 
-### 5. Update DSL Builders
+### 6. Update DSL Builders
 
 If new request types added, update `dsl/PurchaseDsl.kt`:
 ```kotlin
@@ -201,13 +221,13 @@ class NewRequestBuilder {
 }
 ```
 
-### 6. Update Example Code
+### 7. Update Example Code
 
 **Location:** `example/composeApp/`
 - Compose Multiplatform shared UI
 - iOS app: `example/iosApp/`
 
-### 7. Update Tests
+### 8. Update Tests
 
 **Location:** `library/src/commonTest/`
 
@@ -216,14 +236,14 @@ class NewRequestBuilder {
 ./gradlew :library:build
 ```
 
-### 8. Update Documentation
+### 9. Update Documentation
 
 **Location:** `docs/`
 - `docs/docs/api/` - API documentation
 - `docs/docs/examples/` - Code examples
 - `docs/docs/guides/` - Usage guides
 
-### 9. Update llms.txt Files
+### 10. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -248,7 +268,7 @@ Update AI-friendly documentation files when APIs or types change:
 4. Platform-specific patterns (ios/android DSL blocks)
 5. Error handling examples
 
-### 10. Pre-commit Checklist
+### 11. Pre-commit Checklist
 
 ```bash
 ./gradlew :library:test

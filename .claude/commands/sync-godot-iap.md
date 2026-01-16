@@ -41,7 +41,30 @@ cd $IAP_REPOS_HOME/godot-iap
 git pull
 ```
 
-### 1. Generate Types in OpenIAP
+### 1. Sync openiap-versions.json (REQUIRED)
+
+**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
+
+```bash
+cd $IAP_REPOS_HOME/godot-iap
+
+# Check current versions in openiap monorepo
+cat $OPENIAP_HOME/openiap/openiap-versions.json
+
+# Update godot-iap's openiap-versions.json to match:
+# - "gql": should match openiap's "gql" version
+# - "apple": should match openiap's "apple" version
+# - "google": should match openiap's "google" version
+```
+
+**Version fields to sync:**
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | GDScript types version |
+| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
+| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+
+### 2. Generate Types in OpenIAP
 
 ```bash
 cd $OPENIAP_HOME/openiap/packages/gql
@@ -53,7 +76,7 @@ npm run generate:gdscript
 npm run generate
 ```
 
-### 2. Copy Types to godot-iap
+### 3. Copy Types to godot-iap
 
 ```bash
 # Copy generated types
@@ -61,18 +84,19 @@ cp $OPENIAP_HOME/openiap/packages/gql/src/generated/types.gd \
    $IAP_REPOS_HOME/godot-iap/addons/openiap/types.gd
 ```
 
-### 3. Update Version Tracking
+### 4. Verify Version Tracking
 
-Edit `openiap-versions.json` in godot-iap:
+Confirm `openiap-versions.json` in godot-iap matches openiap:
 
 ```json
 {
   "gql": "1.3.11",
-  "godot": "1.0.0"
+  "apple": "1.3.9",
+  "google": "1.3.21"
 }
 ```
 
-### 4. Native Code Modifications
+### 5. Native Code Modifications
 
 #### iOS Native Code (GDExtension)
 
@@ -104,14 +128,14 @@ Key files to update:
 - Play Billing API changes
 - Type conversion changes
 
-### 5. Update GDScript Implementation
+### 6. Update GDScript Implementation
 
 If API changes, update:
 
 - `addons/openiap/iap.gd` - Core module
 - `addons/openiap/store.gd` - Store abstraction
 
-### 6. Build & Test
+### 7. Build & Test
 
 #### Editor Test
 
@@ -156,18 +180,18 @@ godot --headless -s addons/gdunit4/test_runner.gd
 # Or run from editor: GDUnit4 panel > Run Tests
 ```
 
-### 7. Update Example Code
+### 8. Update Example Code
 
 **Location:** `examples/`
 
 - Example Godot scenes demonstrating purchase flows
 - Sample GDScript code
 
-### 8. Update Documentation
+### 9. Update Documentation
 
 **Location:** `docs/` or `README.md`
 
-### 9. Update llms.txt Files
+### 10. Update llms.txt Files
 
 **Location:** `docs/static/`
 

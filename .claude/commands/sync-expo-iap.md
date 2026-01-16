@@ -35,22 +35,42 @@ cd $IAP_REPOS_HOME/expo-iap
 git pull
 ```
 
-### 1. Type Synchronization
+### 1. Sync openiap-versions.json (REQUIRED)
+
+**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
 
 ```bash
 cd $IAP_REPOS_HOME/expo-iap
 
-# Update version in openiap-versions.json
-# Edit "gql" field to new version
+# Check current versions in openiap monorepo
+cat $OPENIAP_HOME/openiap/openiap-versions.json
 
-# Download and regenerate types
+# Update expo-iap's openiap-versions.json to match:
+# - "gql": should match openiap's "gql" version
+# - "apple": should match openiap's "apple" version
+# - "google": should match openiap's "google" version
+```
+
+**Version fields to sync:**
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | TypeScript types version |
+| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
+| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+
+### 2. Type Synchronization
+
+```bash
+cd $IAP_REPOS_HOME/expo-iap
+
+# Download and regenerate types (uses versions from openiap-versions.json)
 bun run generate:types
 
 # Verify types
 bun run typecheck
 ```
 
-### 2. Native Code Modifications
+### 3. Native Code Modifications
 
 #### iOS Native Code
 
@@ -101,7 +121,7 @@ cd $IAP_REPOS_HOME/expo-iap
 # Gradle auto-syncs on build
 ```
 
-### 3. Build & Test Native Code
+### 4. Build & Test Native Code
 
 #### iOS Build Test
 
@@ -176,7 +196,7 @@ bun run test
 cd example && bun run test
 ```
 
-### 4. Update Example Code
+### 5. Update Example Code
 
 **Location:** `example/app/`
 
@@ -187,7 +207,7 @@ Key example screens:
 - `alternative-billing.tsx` - Android alt billing
 - `offer-code.tsx` - Promo code redemption
 
-### 5. Update Tests
+### 6. Update Tests
 
 **Library Tests:** `src/__tests__/`
 **Example Tests:** `example/__tests__/`
@@ -200,14 +220,14 @@ bun run test
 cd example && bun run test
 ```
 
-### 6. Update Documentation
+### 7. Update Documentation
 
 **Location:** `docs/`
 - `docs/api/` - API reference
 - `docs/guides/` - Usage guides
 - `docs/examples/` - Code examples
 
-### 7. Update llms.txt Files
+### 8. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -231,7 +251,7 @@ Update AI-friendly documentation files when APIs or types change:
 5. Platform-specific APIs (iOS/Android suffixes)
 6. Error handling examples
 
-### 8. Pre-commit Checklist
+### 9. Pre-commit Checklist
 
 ```bash
 bun run lint           # ESLint
