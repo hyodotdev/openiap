@@ -209,20 +209,20 @@ flutter test
 cd example && flutter test
 ```
 
-### 3. Update Helper Functions
+### 4. Update Helper Functions
 
 If types change, update `lib/helpers.dart`:
 - JSON to object conversions
 - Platform-specific logic
 - Type transformations
 
-### 4. Update Error Handling
+### 5. Update Error Handling
 
 If error codes change, update `lib/errors.dart`:
 - Platform error code mappings
 - Exception classes
 
-### 5. Update Example Code
+### 6. Update Example Code
 
 **Location:** `example/lib/src/screens/`
 
@@ -233,7 +233,7 @@ Key screens:
 - `offer_code_screen.dart` - Code redemption
 - `builder_demo_screen.dart` - DSL demonstration
 
-### 6. Update Tests
+### 7. Update Tests
 
 **Unit Tests:** `test/`
 **Example Tests:** `example/test/`
@@ -246,7 +246,7 @@ flutter test
 flutter test --coverage
 ```
 
-### 7. Update Documentation
+### 8. Update Documentation
 
 **Location:** `docs/`
 - Docusaurus site
@@ -254,7 +254,7 @@ flutter test --coverage
 - `docs/docs/guides/` - Usage guides
 - `docs/docs/examples/` - Code examples
 
-### 8. Update llms.txt Files
+### 9. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -280,7 +280,7 @@ Update AI-friendly documentation files when APIs or types change:
 5. Platform-specific APIs (iOS/Android suffixes)
 6. Error handling examples
 
-### 9. Pre-commit Checklist
+### 10. Pre-commit Checklist
 
 ```bash
 # Format (excludes types.dart)

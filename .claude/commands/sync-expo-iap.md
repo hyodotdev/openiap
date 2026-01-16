@@ -176,7 +176,7 @@ bun run test
 cd example && bun run test
 ```
 
-### 3. Update Example Code
+### 4. Update Example Code
 
 **Location:** `example/app/`
 
@@ -187,7 +187,7 @@ Key example screens:
 - `alternative-billing.tsx` - Android alt billing
 - `offer-code.tsx` - Promo code redemption
 
-### 4. Update Tests
+### 5. Update Tests
 
 **Library Tests:** `src/__tests__/`
 **Example Tests:** `example/__tests__/`
@@ -200,14 +200,14 @@ bun run test
 cd example && bun run test
 ```
 
-### 5. Update Documentation
+### 6. Update Documentation
 
 **Location:** `docs/`
 - `docs/api/` - API reference
 - `docs/guides/` - Usage guides
 - `docs/examples/` - Code examples
 
-### 6. Update llms.txt Files
+### 7. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -231,7 +231,7 @@ Update AI-friendly documentation files when APIs or types change:
 5. Platform-specific APIs (iOS/Android suffixes)
 6. Error handling examples
 
-### 7. Pre-commit Checklist
+### 8. Pre-commit Checklist
 
 ```bash
 bun run lint           # ESLint
