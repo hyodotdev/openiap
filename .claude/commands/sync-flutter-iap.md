@@ -319,6 +319,41 @@ dart format --set-exit-if-changed .
 ./scripts/pre-commit-checks.sh
 ```
 
+### 12. Commit and Push
+
+After completing all sync steps, create a branch and commit the changes:
+
+```bash
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
+
+# Create feature branch with version number
+git checkout -b feat/openiap-sync-<gql-version>
+
+# Example: feat/openiap-sync-1.3.12
+
+# Stage all changes
+git add .
+
+# Commit with descriptive message
+git commit -m "feat: sync with openiap v<gql-version>
+
+- Update openiap-versions.json (gql: <version>, apple: <version>, google: <version>)
+- Regenerate Dart types
+- Update example code for new types
+- Update documentation and llms.txt
+- Add/update tests for new features
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+# Push to remote
+git push -u origin feat/openiap-sync-<gql-version>
+```
+
+**Branch naming conventions:**
+- Feature sync: `feat/openiap-sync-<version>` (e.g., `feat/openiap-sync-1.3.12`)
+- Specific feature: `feat/<feature-name>` (e.g., `feat/discount-offer-types`)
+- Bug fix: `fix/<issue-description>` (e.g., `fix/subscription-offer-parsing`)
+
 ## API Patterns
 
 ### Generic Fetch
