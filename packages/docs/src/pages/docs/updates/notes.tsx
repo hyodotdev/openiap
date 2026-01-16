@@ -26,6 +26,100 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // GQL 1.3.12 / Google 1.3.22 / Apple 1.3.10 - Jan 17, 2026
+    {
+      id: 'gql-1-3-12-google-1-3-22-apple-1-3-10',
+      date: new Date('2026-01-17'),
+      element: (
+        <div key="gql-1-3-12-google-1-3-22-apple-1-3-10" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-12-google-1-3-22-apple-1-3-10" level="h4">
+            📅 openiap-gql v1.3.12 / openiap-google v1.3.22 / openiap-apple v1.3.10 - Standardized Offer Types
+          </AnchorLink>
+
+          <p><strong>New Cross-Platform Offer Types:</strong></p>
+          <p>
+            Introduced standardized <code>DiscountOffer</code> and <code>SubscriptionOffer</code> types
+            for unified handling of discounts and subscription offers across iOS and Android.
+          </p>
+
+          <p><strong>DiscountOffer (One-time products):</strong></p>
+          <ul>
+            <li>Cross-platform type for one-time purchase discounts</li>
+            <li>Android-specific fields use suffix: <code>offerTokenAndroid</code>, <code>fullPriceMicrosAndroid</code>, <code>percentageDiscountAndroid</code></li>
+            <li>Replaces deprecated <code>ProductAndroidOneTimePurchaseOfferDetail</code></li>
+          </ul>
+
+          <p><strong>SubscriptionOffer:</strong></p>
+          <ul>
+            <li>Cross-platform type for subscription offers (introductory, promotional)</li>
+            <li>Includes <code>paymentMode</code>: FreeTrial, PayAsYouGo, PayUpFront</li>
+            <li>Android fields: <code>offerTokenAndroid</code>, <code>basePlanIdAndroid</code></li>
+            <li>iOS fields: <code>signatureIOS</code>, <code>keyIdentifierIOS</code></li>
+            <li>Replaces deprecated <code>ProductSubscriptionAndroidOfferDetails</code>, <code>DiscountOfferIOS</code>, <code>DiscountIOS</code></li>
+          </ul>
+
+          <p><strong>New Fields on Product Types:</strong></p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// ProductAndroid & ProductIOS now include:
+discountOffers: [DiscountOffer!]      // One-time product discounts
+subscriptionOffers: [SubscriptionOffer!]  // Subscription offers`}
+          </pre>
+
+          <p><strong>PaymentMode Logic Fix (Android):</strong></p>
+          <ul>
+            <li>Fixed <code>determinePaymentMode</code> in BillingConverters</li>
+            <li>Zero price → FreeTrial (regardless of recurrenceMode)</li>
+            <li>NON_RECURRING (3) with paid → PayUpFront</li>
+            <li>FINITE_RECURRING (2) / INFINITE_RECURRING (1) with paid → PayAsYouGo</li>
+          </ul>
+
+          <p><strong>Deprecated Types:</strong></p>
+          <ul>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>ProductAndroidOneTimePurchaseOfferDetail</code>{' '}
+              → Use <code>DiscountOffer</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>ProductSubscriptionAndroidOfferDetails</code>{' '}
+              → Use <code>SubscriptionOffer</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>DiscountOfferIOS</code>{' '}
+              → Use <code>SubscriptionOffer</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>DiscountIOS</code>{' '}
+              → Use <code>SubscriptionOffer</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>oneTimePurchaseOfferDetailsAndroid</code> (field){' '}
+              → Use <code>discountOffers</code>
+            </li>
+            <li>
+              <code style={{ textDecoration: 'line-through' }}>subscriptionOfferDetailsAndroid</code> (field){' '}
+              → Use <code>subscriptionOffers</code>
+            </li>
+          </ul>
+
+          <p><strong>Migration Example:</strong></p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Before (deprecated)
+val discount = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
+val offerToken = discount?.offerToken
+
+// After (recommended)
+val discount = product.discountOffers?.firstOrNull()
+val offerToken = discount?.offerTokenAndroid`}
+          </pre>
+
+          <p><strong>References:</strong></p>
+          <ul>
+            <li><a href="/docs/types/offer">Offer Types Documentation</a></li>
+            <li><a href="/docs/features/discount">Discount Feature Guide</a></li>
+          </ul>
+        </div>
+      ),
+    },
     // GQL 1.3.11 / Google 1.3.20 / Apple 1.3.9 - Dec 28, 2025
     {
       id: 'gql-1-3-11-google-1-3-20-apple-1-3-9',
