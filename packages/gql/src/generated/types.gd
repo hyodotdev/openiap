@@ -45,6 +45,16 @@ enum DeveloperBillingLaunchModeAndroid {
 	CALLER_WILL_LAUNCH_LINK = 2,
 }
 
+## Discount offer type enumeration. Categorizes the type of discount or promotional offer.
+enum DiscountOfferType {
+	## Introductory offer for new subscribers (first-time purchase discount)
+	INTRODUCTORY = 0,
+	## Promotional offer for existing or returning subscribers
+	PROMOTIONAL = 1,
+	## One-time product discount (Android only, Google Play Billing 7.0+)
+	ONE_TIME = 2,
+}
+
 enum ErrorCode {
 	UNKNOWN = 0,
 	USER_CANCELLED = 1,
@@ -156,6 +166,18 @@ enum IapStore {
 	HORIZON = 3,
 }
 
+## Payment mode for subscription offers. Determines how the user pays during the offer period.
+enum PaymentMode {
+	## Free trial period - no charge during offer
+	FREE_TRIAL = 0,
+	## Pay each period at reduced price
+	PAY_AS_YOU_GO = 1,
+	## Pay full discounted amount upfront
+	PAY_UP_FRONT = 2,
+	## Unknown or unspecified payment mode
+	UNKNOWN = 3,
+}
+
 enum PaymentModeIOS {
 	EMPTY = 0,
 	FREE_TRIAL = 1,
@@ -202,6 +224,15 @@ enum SubscriptionPeriodIOS {
 	MONTH = 2,
 	YEAR = 3,
 	EMPTY = 4,
+}
+
+## Subscription period unit for cross-platform use.
+enum SubscriptionPeriodUnit {
+	DAY = 0,
+	WEEK = 1,
+	MONTH = 2,
+	YEAR = 3,
+	UNKNOWN = 4,
 }
 
 ## Replacement mode for subscription changes (Android) These modes determine how the subscription replacement affects billing. Available in Google Play Billing Library 8.1.0+
@@ -476,6 +507,7 @@ class DiscountDisplayInfoAndroid:
 			dict["discountAmount"] = discount_amount
 		return dict
 
+## Discount information returned from the store. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class DiscountIOS:
 	var identifier: String
 	var type: String
@@ -521,6 +553,120 @@ class DiscountIOS:
 		dict["localizedPrice"] = localized_price
 		return dict
 
+## Standardized one-time product discount offer. Provides a unified interface for one-time purchase discounts across platforms.  Currently supported on Android (Google Play Billing 7.0+). iOS does not support one-time purchase discounts in the same way.  @see https://openiap.dev/docs/features/discount
+class DiscountOffer:
+	## Unique identifier for the offer.
+	var id: String
+	## Formatted display price string (e.g., "$4.99")
+	var display_price: String
+	## Numeric price value
+	var price: float
+	## Currency code (ISO 4217, e.g., "USD")
+	var currency: String
+	## Type of discount offer
+	var type: DiscountOfferType
+	## [Android] Offer token required for purchase.
+	var offer_token_android: String
+	## [Android] List of tags associated with this offer.
+	var offer_tags_android: Array[String]
+	## [Android] Original full price in micro-units before discount.
+	var full_price_micros_android: String
+	## [Android] Percentage discount (e.g., 33 for 33% off).
+	var percentage_discount_android: int
+	## [Android] Fixed discount amount in micro-units.
+	var discount_amount_micros_android: String
+	## [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+	var formatted_discount_amount_android: String
+	## [Android] Valid time window for the offer.
+	var valid_time_window_android: ValidTimeWindowAndroid
+	## [Android] Limited quantity information.
+	var limited_quantity_info_android: LimitedQuantityInfoAndroid
+	## [Android] Pre-order details if this is a pre-order offer.
+	var preorder_details_android: PreorderDetailsAndroid
+	## [Android] Rental details if this is a rental offer.
+	var rental_details_android: RentalDetailsAndroid
+
+	static func from_dict(data: Dictionary) -> DiscountOffer:
+		var obj = DiscountOffer.new()
+		if data.has("id") and data["id"] != null:
+			obj.id = data["id"]
+		if data.has("displayPrice") and data["displayPrice"] != null:
+			obj.display_price = data["displayPrice"]
+		if data.has("price") and data["price"] != null:
+			obj.price = data["price"]
+		if data.has("currency") and data["currency"] != null:
+			obj.currency = data["currency"]
+		if data.has("type") and data["type"] != null:
+			obj.type = data["type"]
+		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
+			obj.offer_token_android = data["offerTokenAndroid"]
+		if data.has("offerTagsAndroid") and data["offerTagsAndroid"] != null:
+			obj.offer_tags_android = data["offerTagsAndroid"]
+		if data.has("fullPriceMicrosAndroid") and data["fullPriceMicrosAndroid"] != null:
+			obj.full_price_micros_android = data["fullPriceMicrosAndroid"]
+		if data.has("percentageDiscountAndroid") and data["percentageDiscountAndroid"] != null:
+			obj.percentage_discount_android = data["percentageDiscountAndroid"]
+		if data.has("discountAmountMicrosAndroid") and data["discountAmountMicrosAndroid"] != null:
+			obj.discount_amount_micros_android = data["discountAmountMicrosAndroid"]
+		if data.has("formattedDiscountAmountAndroid") and data["formattedDiscountAmountAndroid"] != null:
+			obj.formatted_discount_amount_android = data["formattedDiscountAmountAndroid"]
+		if data.has("validTimeWindowAndroid") and data["validTimeWindowAndroid"] != null:
+			if data["validTimeWindowAndroid"] is Dictionary:
+				obj.valid_time_window_android = ValidTimeWindowAndroid.from_dict(data["validTimeWindowAndroid"])
+			else:
+				obj.valid_time_window_android = data["validTimeWindowAndroid"]
+		if data.has("limitedQuantityInfoAndroid") and data["limitedQuantityInfoAndroid"] != null:
+			if data["limitedQuantityInfoAndroid"] is Dictionary:
+				obj.limited_quantity_info_android = LimitedQuantityInfoAndroid.from_dict(data["limitedQuantityInfoAndroid"])
+			else:
+				obj.limited_quantity_info_android = data["limitedQuantityInfoAndroid"]
+		if data.has("preorderDetailsAndroid") and data["preorderDetailsAndroid"] != null:
+			if data["preorderDetailsAndroid"] is Dictionary:
+				obj.preorder_details_android = PreorderDetailsAndroid.from_dict(data["preorderDetailsAndroid"])
+			else:
+				obj.preorder_details_android = data["preorderDetailsAndroid"]
+		if data.has("rentalDetailsAndroid") and data["rentalDetailsAndroid"] != null:
+			if data["rentalDetailsAndroid"] is Dictionary:
+				obj.rental_details_android = RentalDetailsAndroid.from_dict(data["rentalDetailsAndroid"])
+			else:
+				obj.rental_details_android = data["rentalDetailsAndroid"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["id"] = id
+		dict["displayPrice"] = display_price
+		dict["price"] = price
+		dict["currency"] = currency
+		if DISCOUNT_OFFER_TYPE_VALUES.has(type):
+			dict["type"] = DISCOUNT_OFFER_TYPE_VALUES[type]
+		else:
+			dict["type"] = type
+		dict["offerTokenAndroid"] = offer_token_android
+		dict["offerTagsAndroid"] = offer_tags_android
+		dict["fullPriceMicrosAndroid"] = full_price_micros_android
+		dict["percentageDiscountAndroid"] = percentage_discount_android
+		dict["discountAmountMicrosAndroid"] = discount_amount_micros_android
+		dict["formattedDiscountAmountAndroid"] = formatted_discount_amount_android
+		if valid_time_window_android != null and valid_time_window_android.has_method("to_dict"):
+			dict["validTimeWindowAndroid"] = valid_time_window_android.to_dict()
+		else:
+			dict["validTimeWindowAndroid"] = valid_time_window_android
+		if limited_quantity_info_android != null and limited_quantity_info_android.has_method("to_dict"):
+			dict["limitedQuantityInfoAndroid"] = limited_quantity_info_android.to_dict()
+		else:
+			dict["limitedQuantityInfoAndroid"] = limited_quantity_info_android
+		if preorder_details_android != null and preorder_details_android.has_method("to_dict"):
+			dict["preorderDetailsAndroid"] = preorder_details_android.to_dict()
+		else:
+			dict["preorderDetailsAndroid"] = preorder_details_android
+		if rental_details_android != null and rental_details_android.has_method("to_dict"):
+			dict["rentalDetailsAndroid"] = rental_details_android.to_dict()
+		else:
+			dict["rentalDetailsAndroid"] = rental_details_android
+		return dict
+
+## iOS DiscountOffer (output type). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class DiscountOfferIOS:
 	## Discount identifier
 	var identifier: String
@@ -772,8 +918,13 @@ class ProductAndroid:
 	var debug_description: String
 	var platform: IapPlatform
 	var name_android: String
+	## Standardized discount offers for one-time products.
+	var discount_offers: Array[DiscountOffer]
+	## Standardized subscription offers.
+	var subscription_offers: Array[SubscriptionOffer]
 	## One-time purchase offer details including discounts (Android)
 	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail]
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails]
 
 	static func from_dict(data: Dictionary) -> ProductAndroid:
@@ -800,6 +951,22 @@ class ProductAndroid:
 			obj.platform = data["platform"]
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
+		if data.has("discountOffers") and data["discountOffers"] != null:
+			var arr = []
+			for item in data["discountOffers"]:
+				if item is Dictionary:
+					arr.append(DiscountOffer.from_dict(item))
+				else:
+					arr.append(item)
+			obj.discount_offers = arr
+		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
+			var arr = []
+			for item in data["subscriptionOffers"]:
+				if item is Dictionary:
+					arr.append(SubscriptionOffer.from_dict(item))
+				else:
+					arr.append(item)
+			obj.subscription_offers = arr
 		if data.has("oneTimePurchaseOfferDetailsAndroid") and data["oneTimePurchaseOfferDetailsAndroid"] != null:
 			var arr = []
 			for item in data["oneTimePurchaseOfferDetailsAndroid"]:
@@ -837,6 +1004,26 @@ class ProductAndroid:
 		else:
 			dict["platform"] = platform
 		dict["nameAndroid"] = name_android
+		if discount_offers != null:
+			var arr = []
+			for item in discount_offers:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["discountOffers"] = arr
+		else:
+			dict["discountOffers"] = null
+		if subscription_offers != null:
+			var arr = []
+			for item in subscription_offers:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["subscriptionOffers"] = arr
+		else:
+			dict["subscriptionOffers"] = null
 		if one_time_purchase_offer_details_android != null:
 			var arr = []
 			for item in one_time_purchase_offer_details_android:
@@ -859,7 +1046,7 @@ class ProductAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
-## One-time purchase offer details (Android) Available in Google Play Billing Library 7.0+
+## One-time purchase offer details (Android). Available in Google Play Billing Library 7.0+ @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#discount-offer
 class ProductAndroidOneTimePurchaseOfferDetail:
 	## Offer ID
 	var offer_id: String
@@ -971,8 +1158,11 @@ class ProductIOS:
 	var display_name_ios: String
 	var is_family_shareable_ios: bool
 	var json_representation_ios: String
-	var subscription_info_ios: SubscriptionInfoIOS
 	var type_ios: ProductTypeIOS
+	## Standardized subscription offers.
+	var subscription_offers: Array[SubscriptionOffer]
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+	var subscription_info_ios: SubscriptionInfoIOS
 
 	static func from_dict(data: Dictionary) -> ProductIOS:
 		var obj = ProductIOS.new()
@@ -1002,13 +1192,21 @@ class ProductIOS:
 			obj.is_family_shareable_ios = data["isFamilyShareableIOS"]
 		if data.has("jsonRepresentationIOS") and data["jsonRepresentationIOS"] != null:
 			obj.json_representation_ios = data["jsonRepresentationIOS"]
+		if data.has("typeIOS") and data["typeIOS"] != null:
+			obj.type_ios = data["typeIOS"]
+		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
+			var arr = []
+			for item in data["subscriptionOffers"]:
+				if item is Dictionary:
+					arr.append(SubscriptionOffer.from_dict(item))
+				else:
+					arr.append(item)
+			obj.subscription_offers = arr
 		if data.has("subscriptionInfoIOS") and data["subscriptionInfoIOS"] != null:
 			if data["subscriptionInfoIOS"] is Dictionary:
 				obj.subscription_info_ios = SubscriptionInfoIOS.from_dict(data["subscriptionInfoIOS"])
 			else:
 				obj.subscription_info_ios = data["subscriptionInfoIOS"]
-		if data.has("typeIOS") and data["typeIOS"] != null:
-			obj.type_ios = data["typeIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -1032,14 +1230,24 @@ class ProductIOS:
 		dict["displayNameIOS"] = display_name_ios
 		dict["isFamilyShareableIOS"] = is_family_shareable_ios
 		dict["jsonRepresentationIOS"] = json_representation_ios
-		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
-			dict["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
-		else:
-			dict["subscriptionInfoIOS"] = subscription_info_ios
 		if PRODUCT_TYPE_IOS_VALUES.has(type_ios):
 			dict["typeIOS"] = PRODUCT_TYPE_IOS_VALUES[type_ios]
 		else:
 			dict["typeIOS"] = type_ios
+		if subscription_offers != null:
+			var arr = []
+			for item in subscription_offers:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["subscriptionOffers"] = arr
+		else:
+			dict["subscriptionOffers"] = null
+		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
+			dict["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		else:
+			dict["subscriptionInfoIOS"] = subscription_info_ios
 		return dict
 
 class ProductSubscriptionAndroid:
@@ -1054,8 +1262,13 @@ class ProductSubscriptionAndroid:
 	var debug_description: String
 	var platform: IapPlatform
 	var name_android: String
+	## Standardized discount offers for one-time products.
+	var discount_offers: Array[DiscountOffer]
+	## Standardized subscription offers.
+	var subscription_offers: Array[SubscriptionOffer]
 	## One-time purchase offer details including discounts (Android)
 	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail]
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails]
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionAndroid:
@@ -1082,6 +1295,22 @@ class ProductSubscriptionAndroid:
 			obj.platform = data["platform"]
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
+		if data.has("discountOffers") and data["discountOffers"] != null:
+			var arr = []
+			for item in data["discountOffers"]:
+				if item is Dictionary:
+					arr.append(DiscountOffer.from_dict(item))
+				else:
+					arr.append(item)
+			obj.discount_offers = arr
+		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
+			var arr = []
+			for item in data["subscriptionOffers"]:
+				if item is Dictionary:
+					arr.append(SubscriptionOffer.from_dict(item))
+				else:
+					arr.append(item)
+			obj.subscription_offers = arr
 		if data.has("oneTimePurchaseOfferDetailsAndroid") and data["oneTimePurchaseOfferDetailsAndroid"] != null:
 			var arr = []
 			for item in data["oneTimePurchaseOfferDetailsAndroid"]:
@@ -1119,6 +1348,26 @@ class ProductSubscriptionAndroid:
 		else:
 			dict["platform"] = platform
 		dict["nameAndroid"] = name_android
+		if discount_offers != null:
+			var arr = []
+			for item in discount_offers:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["discountOffers"] = arr
+		else:
+			dict["discountOffers"] = null
+		if subscription_offers != null:
+			var arr = []
+			for item in subscription_offers:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["subscriptionOffers"] = arr
+		else:
+			dict["subscriptionOffers"] = null
 		if one_time_purchase_offer_details_android != null:
 			var arr = []
 			for item in one_time_purchase_offer_details_android:
@@ -1141,6 +1390,7 @@ class ProductSubscriptionAndroid:
 			dict["subscriptionOfferDetailsAndroid"] = null
 		return dict
 
+## Subscription offer details (Android). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class ProductSubscriptionAndroidOfferDetails:
 	var base_plan_id: String
 	var offer_id: String
@@ -1191,8 +1441,12 @@ class ProductSubscriptionIOS:
 	var display_name_ios: String
 	var is_family_shareable_ios: bool
 	var json_representation_ios: String
-	var subscription_info_ios: SubscriptionInfoIOS
 	var type_ios: ProductTypeIOS
+	## Standardized subscription offers.
+	var subscription_offers: Array[SubscriptionOffer]
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+	var subscription_info_ios: SubscriptionInfoIOS
+	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var discounts_ios: Array[DiscountIOS]
 	var introductory_price_ios: String
 	var introductory_price_as_amount_ios: String
@@ -1230,13 +1484,21 @@ class ProductSubscriptionIOS:
 			obj.is_family_shareable_ios = data["isFamilyShareableIOS"]
 		if data.has("jsonRepresentationIOS") and data["jsonRepresentationIOS"] != null:
 			obj.json_representation_ios = data["jsonRepresentationIOS"]
+		if data.has("typeIOS") and data["typeIOS"] != null:
+			obj.type_ios = data["typeIOS"]
+		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
+			var arr = []
+			for item in data["subscriptionOffers"]:
+				if item is Dictionary:
+					arr.append(SubscriptionOffer.from_dict(item))
+				else:
+					arr.append(item)
+			obj.subscription_offers = arr
 		if data.has("subscriptionInfoIOS") and data["subscriptionInfoIOS"] != null:
 			if data["subscriptionInfoIOS"] is Dictionary:
 				obj.subscription_info_ios = SubscriptionInfoIOS.from_dict(data["subscriptionInfoIOS"])
 			else:
 				obj.subscription_info_ios = data["subscriptionInfoIOS"]
-		if data.has("typeIOS") and data["typeIOS"] != null:
-			obj.type_ios = data["typeIOS"]
 		if data.has("discountsIOS") and data["discountsIOS"] != null:
 			var arr = []
 			for item in data["discountsIOS"]:
@@ -1282,14 +1544,24 @@ class ProductSubscriptionIOS:
 		dict["displayNameIOS"] = display_name_ios
 		dict["isFamilyShareableIOS"] = is_family_shareable_ios
 		dict["jsonRepresentationIOS"] = json_representation_ios
-		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
-			dict["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
-		else:
-			dict["subscriptionInfoIOS"] = subscription_info_ios
 		if PRODUCT_TYPE_IOS_VALUES.has(type_ios):
 			dict["typeIOS"] = PRODUCT_TYPE_IOS_VALUES[type_ios]
 		else:
 			dict["typeIOS"] = type_ios
+		if subscription_offers != null:
+			var arr = []
+			for item in subscription_offers:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["subscriptionOffers"] = arr
+		else:
+			dict["subscriptionOffers"] = null
+		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
+			dict["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		else:
+			dict["subscriptionInfoIOS"] = subscription_info_ios
 		if discounts_ios != null:
 			var arr = []
 			for item in discounts_ios:
@@ -1823,6 +2095,126 @@ class SubscriptionInfoIOS:
 			dict["subscriptionPeriod"] = subscription_period
 		return dict
 
+## Standardized subscription discount/promotional offer. Provides a unified interface for subscription offers across iOS and Android.  Both platforms support subscription offers with different implementations: - iOS: Introductory offers, promotional offers with server-side signatures - Android: Offer tokens with pricing phases  @see https://openiap.dev/docs/types/ios#discount-offer @see https://openiap.dev/docs/types/android#subscription-offer
+class SubscriptionOffer:
+	## Unique identifier for the offer.
+	var id: String
+	## Formatted display price string (e.g., "$9.99/month")
+	var display_price: String
+	## Numeric price value
+	var price: float
+	## Currency code (ISO 4217, e.g., "USD")
+	var currency: String
+	## Type of subscription offer (Introductory or Promotional)
+	var type: DiscountOfferType
+	## Subscription period for this offer
+	var period: SubscriptionPeriod
+	## Number of periods the offer applies
+	var period_count: int
+	## Payment mode during the offer period
+	var payment_mode: PaymentMode
+	## [iOS] Key identifier for signature validation.
+	var key_identifier_ios: String
+	## [iOS] Cryptographic nonce (UUID) for signature validation.
+	var nonce_ios: String
+	## [iOS] Server-generated signature for promotional offer validation.
+	var signature_ios: String
+	## [iOS] Timestamp when the signature was generated.
+	var timestamp_ios: float
+	## [iOS] Number of billing periods for this discount.
+	var number_of_periods_ios: int
+	## [iOS] Localized price string.
+	var localized_price_ios: String
+	## [Android] Base plan identifier.
+	var base_plan_id_android: String
+	## [Android] Offer token required for purchase.
+	var offer_token_android: String
+	## [Android] List of tags associated with this offer.
+	var offer_tags_android: Array[String]
+	## [Android] Pricing phases for this subscription offer.
+	var pricing_phases_android: PricingPhasesAndroid
+
+	static func from_dict(data: Dictionary) -> SubscriptionOffer:
+		var obj = SubscriptionOffer.new()
+		if data.has("id") and data["id"] != null:
+			obj.id = data["id"]
+		if data.has("displayPrice") and data["displayPrice"] != null:
+			obj.display_price = data["displayPrice"]
+		if data.has("price") and data["price"] != null:
+			obj.price = data["price"]
+		if data.has("currency") and data["currency"] != null:
+			obj.currency = data["currency"]
+		if data.has("type") and data["type"] != null:
+			obj.type = data["type"]
+		if data.has("period") and data["period"] != null:
+			if data["period"] is Dictionary:
+				obj.period = SubscriptionPeriod.from_dict(data["period"])
+			else:
+				obj.period = data["period"]
+		if data.has("periodCount") and data["periodCount"] != null:
+			obj.period_count = data["periodCount"]
+		if data.has("paymentMode") and data["paymentMode"] != null:
+			obj.payment_mode = data["paymentMode"]
+		if data.has("keyIdentifierIOS") and data["keyIdentifierIOS"] != null:
+			obj.key_identifier_ios = data["keyIdentifierIOS"]
+		if data.has("nonceIOS") and data["nonceIOS"] != null:
+			obj.nonce_ios = data["nonceIOS"]
+		if data.has("signatureIOS") and data["signatureIOS"] != null:
+			obj.signature_ios = data["signatureIOS"]
+		if data.has("timestampIOS") and data["timestampIOS"] != null:
+			obj.timestamp_ios = data["timestampIOS"]
+		if data.has("numberOfPeriodsIOS") and data["numberOfPeriodsIOS"] != null:
+			obj.number_of_periods_ios = data["numberOfPeriodsIOS"]
+		if data.has("localizedPriceIOS") and data["localizedPriceIOS"] != null:
+			obj.localized_price_ios = data["localizedPriceIOS"]
+		if data.has("basePlanIdAndroid") and data["basePlanIdAndroid"] != null:
+			obj.base_plan_id_android = data["basePlanIdAndroid"]
+		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
+			obj.offer_token_android = data["offerTokenAndroid"]
+		if data.has("offerTagsAndroid") and data["offerTagsAndroid"] != null:
+			obj.offer_tags_android = data["offerTagsAndroid"]
+		if data.has("pricingPhasesAndroid") and data["pricingPhasesAndroid"] != null:
+			if data["pricingPhasesAndroid"] is Dictionary:
+				obj.pricing_phases_android = PricingPhasesAndroid.from_dict(data["pricingPhasesAndroid"])
+			else:
+				obj.pricing_phases_android = data["pricingPhasesAndroid"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["id"] = id
+		dict["displayPrice"] = display_price
+		dict["price"] = price
+		dict["currency"] = currency
+		if DISCOUNT_OFFER_TYPE_VALUES.has(type):
+			dict["type"] = DISCOUNT_OFFER_TYPE_VALUES[type]
+		else:
+			dict["type"] = type
+		if period != null and period.has_method("to_dict"):
+			dict["period"] = period.to_dict()
+		else:
+			dict["period"] = period
+		dict["periodCount"] = period_count
+		if PAYMENT_MODE_VALUES.has(payment_mode):
+			dict["paymentMode"] = PAYMENT_MODE_VALUES[payment_mode]
+		else:
+			dict["paymentMode"] = payment_mode
+		dict["keyIdentifierIOS"] = key_identifier_ios
+		dict["nonceIOS"] = nonce_ios
+		dict["signatureIOS"] = signature_ios
+		dict["timestampIOS"] = timestamp_ios
+		dict["numberOfPeriodsIOS"] = number_of_periods_ios
+		dict["localizedPriceIOS"] = localized_price_ios
+		dict["basePlanIdAndroid"] = base_plan_id_android
+		dict["offerTokenAndroid"] = offer_token_android
+		dict["offerTagsAndroid"] = offer_tags_android
+		if pricing_phases_android != null and pricing_phases_android.has_method("to_dict"):
+			dict["pricingPhasesAndroid"] = pricing_phases_android.to_dict()
+		else:
+			dict["pricingPhasesAndroid"] = pricing_phases_android
+		return dict
+
+## iOS subscription offer details. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class SubscriptionOfferIOS:
 	var display_price: String
 	var id: String
@@ -1871,6 +2263,30 @@ class SubscriptionOfferIOS:
 			dict["type"] = SUBSCRIPTION_OFFER_TYPE_IOS_VALUES[type]
 		else:
 			dict["type"] = type
+		return dict
+
+## Subscription period value combining unit and count.
+class SubscriptionPeriod:
+	## The period unit (day, week, month, year)
+	var unit: SubscriptionPeriodUnit
+	## The number of units (e.g., 1 for monthly, 3 for quarterly)
+	var value: int
+
+	static func from_dict(data: Dictionary) -> SubscriptionPeriod:
+		var obj = SubscriptionPeriod.new()
+		if data.has("unit") and data["unit"] != null:
+			obj.unit = data["unit"]
+		if data.has("value") and data["value"] != null:
+			obj.value = data["value"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if SUBSCRIPTION_PERIOD_UNIT_VALUES.has(unit):
+			dict["unit"] = SUBSCRIPTION_PERIOD_UNIT_VALUES[unit]
+		else:
+			dict["unit"] = unit
+		dict["value"] = value
 		return dict
 
 class SubscriptionPeriodValueIOS:
@@ -3171,6 +3587,12 @@ const DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES = {
 	DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "caller-will-launch-link"
 }
 
+const DISCOUNT_OFFER_TYPE_VALUES = {
+	DiscountOfferType.INTRODUCTORY: "introductory",
+	DiscountOfferType.PROMOTIONAL: "promotional",
+	DiscountOfferType.ONE_TIME: "one-time"
+}
+
 const ERROR_CODE_VALUES = {
 	ErrorCode.UNKNOWN: "unknown",
 	ErrorCode.USER_CANCELLED: "user-cancelled",
@@ -3260,6 +3682,13 @@ const IAP_STORE_VALUES = {
 	IapStore.HORIZON: "horizon"
 }
 
+const PAYMENT_MODE_VALUES = {
+	PaymentMode.FREE_TRIAL: "free-trial",
+	PaymentMode.PAY_AS_YOU_GO: "pay-as-you-go",
+	PaymentMode.PAY_UP_FRONT: "pay-up-front",
+	PaymentMode.UNKNOWN: "unknown"
+}
+
 const PAYMENT_MODE_IOS_VALUES = {
 	PaymentModeIOS.EMPTY: "empty",
 	PaymentModeIOS.FREE_TRIAL: "free-trial",
@@ -3306,6 +3735,14 @@ const SUBSCRIPTION_PERIOD_IOS_VALUES = {
 	SubscriptionPeriodIOS.MONTH: "month",
 	SubscriptionPeriodIOS.YEAR: "year",
 	SubscriptionPeriodIOS.EMPTY: "empty"
+}
+
+const SUBSCRIPTION_PERIOD_UNIT_VALUES = {
+	SubscriptionPeriodUnit.DAY: "day",
+	SubscriptionPeriodUnit.WEEK: "week",
+	SubscriptionPeriodUnit.MONTH: "month",
+	SubscriptionPeriodUnit.YEAR: "year",
+	SubscriptionPeriodUnit.UNKNOWN: "unknown"
 }
 
 const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES = {

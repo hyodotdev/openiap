@@ -69,6 +69,9 @@ enum StoreKitTypesBridge {
             return normalized.unit.subscriptionPeriodIOS
         }()
 
+        // Convert to standardized cross-platform SubscriptionOffer type
+        let standardizedOffers = makeStandardizedSubscriptionOffers(from: subscription)
+
         return ProductSubscriptionIOS(
             currency: product.priceFormatStyle.currencyCode,
             debugDescription: product.description,
@@ -88,6 +91,7 @@ enum StoreKitTypesBridge {
             platform: .ios,
             price: NSDecimalNumber(decimal: product.price).doubleValue,
             subscriptionInfoIOS: makeSubscriptionInfo(from: product.subscription),
+            subscriptionOffers: standardizedOffers.isEmpty ? nil : standardizedOffers,
             subscriptionPeriodNumberIOS: String(subscription.subscriptionPeriod.value),
             subscriptionPeriodUnitIOS: subscription.subscriptionPeriod.unit.subscriptionPeriodIOS,
             title: product.displayName,
@@ -431,6 +435,51 @@ private extension StoreKitTypesBridge {
         )
     }
 
+    /// Converts StoreKit subscription offers to standardized cross-platform SubscriptionOffer type.
+    /// This is the new format that works across iOS and Android.
+    static func makeStandardizedSubscriptionOffers(from subscription: StoreKit.Product.SubscriptionInfo) -> [SubscriptionOffer] {
+        var offers: [SubscriptionOffer] = []
+
+        // Add introductory offer if available
+        if let intro = subscription.introductoryOffer {
+            offers.append(makeStandardizedSubscriptionOffer(from: intro, type: .introductory))
+        }
+
+        // Add promotional offers
+        for promo in subscription.promotionalOffers {
+            offers.append(makeStandardizedSubscriptionOffer(from: promo, type: .promotional))
+        }
+
+        return offers
+    }
+
+    /// Converts a single StoreKit subscription offer to standardized SubscriptionOffer.
+    static func makeStandardizedSubscriptionOffer(from offer: StoreKit.Product.SubscriptionOffer, type: DiscountOfferType) -> SubscriptionOffer {
+        SubscriptionOffer(
+            basePlanIdAndroid: nil,
+            currency: nil,  // iOS doesn't provide currency at offer level
+            displayPrice: offer.displayPrice,
+            id: offer.id ?? "",
+            keyIdentifierIOS: nil,  // Not available from product, needs server-side generation
+            localizedPriceIOS: offer.displayPrice,
+            nonceIOS: nil,  // Needs server-side generation
+            numberOfPeriodsIOS: offer.periodCount,
+            offerTagsAndroid: nil,
+            offerTokenAndroid: nil,
+            paymentMode: offer.paymentMode.standardizedPaymentMode,
+            period: SubscriptionPeriod(
+                unit: offer.period.unit.standardizedPeriodUnit,
+                value: offer.period.value
+            ),
+            periodCount: offer.periodCount,
+            price: NSDecimalNumber(decimal: offer.price).doubleValue,
+            pricingPhasesAndroid: nil,
+            signatureIOS: nil,  // Needs server-side generation
+            timestampIOS: nil,
+            type: type
+        )
+    }
+
     static func makeDiscounts(from subscription: StoreKit.Product.SubscriptionInfo, product: StoreKit.Product) -> [DiscountIOS]? {
         var discounts: [DiscountIOS] = []
 
@@ -734,6 +783,16 @@ private extension StoreKit.Product.SubscriptionOffer.PaymentMode {
         default: return .empty
         }
     }
+
+    /// Converts to standardized cross-platform PaymentMode enum.
+    var standardizedPaymentMode: PaymentMode {
+        switch self {
+        case .freeTrial: return .freeTrial
+        case .payAsYouGo: return .payAsYouGo
+        case .payUpFront: return .payUpFront
+        default: return .unknown
+        }
+    }
 }
 
 @available(iOS 15.0, macOS 14.0, *)
@@ -745,6 +804,17 @@ private extension StoreKit.Product.SubscriptionPeriod.Unit {
         case .month: return .month
         case .year: return .year
         default: return .empty
+        }
+    }
+
+    /// Converts to standardized cross-platform SubscriptionPeriodUnit enum.
+    var standardizedPeriodUnit: SubscriptionPeriodUnit {
+        switch self {
+        case .day: return .day
+        case .week: return .week
+        case .month: return .month
+        case .year: return .year
+        default: return .unknown
         }
     }
 }
