@@ -263,7 +263,7 @@ Known deprecated functions:
 
 ## Commit Message Format
 
-```
+```text
 feat: add discount offer support
 fix: resolve iOS purchase verification
 docs: update subscription flow guide
@@ -272,5 +272,5 @@ docs: update subscription flow guide
 ## References
 
 - **CLAUDE.md:** `$IAP_REPOS_HOME/expo-iap/CLAUDE.md`
-- **OpenIAP Docs:** https://openiap.dev/docs
-- **expo-iap Docs:** https://expo-iap.vercel.app
+- **OpenIAP Docs:** [openiap.dev/docs](https://openiap.dev/docs)
+- **expo-iap Docs:** [expo-iap.vercel.app](https://expo-iap.vercel.app)
