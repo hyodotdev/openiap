@@ -8,8 +8,8 @@ Set these environment variables before running sync commands:
 
 ```bash
 # Add to your shell profile (.bashrc, .zshrc, etc.)
-export IAP_REPOS_HOME="$HOME/Github/hyochan"        # Parent directory of platform SDKs
-export OPENIAP_HOME="$HOME/Github/hyodotdev"        # Parent directory of openiap monorepo
+export IAP_REPOS_HOME="/Users/hyo/Github/hyochan"   # Parent directory of platform SDKs
+export OPENIAP_HOME="/Users/hyo/Github/hyodotdev"   # Parent directory of openiap monorepo
 ```
 
 ## Target Repositories
