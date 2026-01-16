@@ -2,7 +2,9 @@
 
 Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-iap) repository.
 
-**Target Repository:** `/Users/hyo/Github/hyochan/expo-iap`
+**Target Repository:** `$IAP_REPOS_HOME/expo-iap`
+
+> **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
 
 ## Project Overview
 
@@ -29,14 +31,14 @@ Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-ia
 **Always pull the latest code before starting any sync work:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap
+cd $IAP_REPOS_HOME/expo-iap
 git pull
 ```
 
 ### 1. Type Synchronization
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap
+cd $IAP_REPOS_HOME/expo-iap
 
 # Update version in openiap-versions.json
 # Edit "gql" field to new version
@@ -65,7 +67,7 @@ Key files to update:
 
 **Update workflow:**
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap
+cd $IAP_REPOS_HOME/expo-iap
 
 # 1. Update apple version in openiap-versions.json
 # 2. Review openiap/packages/apple/Sources/ for changes
@@ -90,7 +92,7 @@ Key files to update:
 
 **Update workflow:**
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap
+cd $IAP_REPOS_HOME/expo-iap
 
 # 1. Update google version in openiap-versions.json
 # 2. Review openiap/packages/google/openiap/src/main/ for changes
@@ -104,7 +106,7 @@ cd /Users/hyo/Github/hyochan/expo-iap
 #### iOS Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap/example
+cd $IAP_REPOS_HOME/expo-iap/example
 
 # Clean and prebuild
 npx expo prebuild --clean --platform ios
@@ -123,7 +125,7 @@ open ios/expoiapexample.xcworkspace
 #### Android Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap/example
+cd $IAP_REPOS_HOME/expo-iap/example
 
 # Clean and prebuild
 npx expo prebuild --clean --platform android
@@ -139,7 +141,7 @@ npx expo run:android
 #### Android Horizon Build (Meta Quest)
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap/example
+cd $IAP_REPOS_HOME/expo-iap/example
 
 # Enable Horizon flavor in gradle.properties
 echo "horizonEnabled=true" >> android/gradle.properties
@@ -155,7 +157,7 @@ sed -i '' '/horizonEnabled=true/d' android/gradle.properties
 #### Full Build Matrix
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap
+cd $IAP_REPOS_HOME/expo-iap
 
 # TypeScript build
 bun run build
@@ -249,7 +251,7 @@ cd example && bun run test  # Example app tests
 
 Search for deprecated patterns:
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap
+cd $IAP_REPOS_HOME/expo-iap
 grep -r "@deprecated" src/
 grep -r "DEPRECATED" src/
 ```
@@ -269,6 +271,6 @@ docs: update subscription flow guide
 
 ## References
 
-- **CLAUDE.md:** `/Users/hyo/Github/hyochan/expo-iap/CLAUDE.md`
+- **CLAUDE.md:** `$IAP_REPOS_HOME/expo-iap/CLAUDE.md`
 - **OpenIAP Docs:** https://openiap.dev/docs
 - **expo-iap Docs:** https://expo-iap.vercel.app

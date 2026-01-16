@@ -2,7 +2,9 @@
 
 Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap) repository.
 
-**Target Repository:** `/Users/hyo/Github/hyochan/kmp-iap`
+**Target Repository:** `$IAP_REPOS_HOME/kmp-iap`
+
+> **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
 
 ## Project Overview
 
@@ -41,14 +43,14 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 **Always pull the latest code before starting any sync work:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 git pull
 ```
 
 ### 1. Type Synchronization
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 
 # Update version in openiap-versions.json
 # Edit "gql" field to new version
@@ -84,7 +86,7 @@ Key files to update:
 **Update workflow:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 
 # 1. Update google version in openiap-versions.json
 # 2. Review openiap/packages/google/openiap/src/main/ for changes
@@ -112,7 +114,7 @@ Key files to update:
 **Update workflow:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 
 # 1. Update apple version in openiap-versions.json
 # 2. Review openiap/packages/apple/Sources/ for changes
@@ -125,7 +127,7 @@ cd /Users/hyo/Github/hyochan/kmp-iap
 #### Android Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 
 # Compile Android library
 ./gradlew :library:compileDebugKotlin
@@ -144,7 +146,7 @@ cd /Users/hyo/Github/hyochan/kmp-iap
 #### iOS Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 
 # Build iOS framework
 ./gradlew :library:linkDebugFrameworkIosSimulatorArm64
@@ -168,7 +170,7 @@ open iosApp.xcworkspace
 #### Full Build Matrix
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 
 # All tests
 ./gradlew :library:test
@@ -288,7 +290,7 @@ val purchase = kmpIapInstance.requestPurchase {
 ## Deprecation Check
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 grep -r "@Deprecated" library/src/
 grep -r "DEPRECATED" library/src/
 ```
@@ -321,6 +323,6 @@ docs: update subscription flow guide
 
 ## References
 
-- **CLAUDE.md:** `/Users/hyo/Github/hyochan/kmp-iap/CLAUDE.md`
-- **CONVENTION.md:** `/Users/hyo/Github/hyochan/kmp-iap/CONVENTION.md`
+- **CLAUDE.md:** `$IAP_REPOS_HOME/kmp-iap/CLAUDE.md`
+- **CONVENTION.md:** `$IAP_REPOS_HOME/kmp-iap/CONVENTION.md`
 - **OpenIAP Docs:** https://openiap.dev/docs

@@ -2,15 +2,25 @@
 
 Master workflow to synchronize OpenIAP changes across all platform SDKs.
 
+## Environment Setup
+
+Set these environment variables before running sync commands:
+
+```bash
+# Add to your shell profile (.bashrc, .zshrc, etc.)
+export IAP_REPOS_HOME="$HOME/Github/hyochan"        # Parent directory of platform SDKs
+export OPENIAP_HOME="$HOME/Github/hyodotdev"        # Parent directory of openiap monorepo
+```
+
 ## Target Repositories
 
 | Platform | Repository | Location |
 |----------|------------|----------|
-| Expo | expo-iap | `/Users/hyo/Github/hyochan/expo-iap` |
-| React Native | react-native-iap | `/Users/hyo/Github/hyochan/react-native-iap` |
-| Kotlin Multiplatform | kmp-iap | `/Users/hyo/Github/hyochan/kmp-iap` |
-| Godot | godot-iap | `/Users/hyo/Github/hyochan/godot-iap` |
-| Flutter | flutter_inapp_purchase | `/Users/hyo/Github/hyochan/flutter_inapp_purchase` |
+| Expo | expo-iap | `$IAP_REPOS_HOME/expo-iap` |
+| React Native | react-native-iap | `$IAP_REPOS_HOME/react-native-iap` |
+| Kotlin Multiplatform | kmp-iap | `$IAP_REPOS_HOME/kmp-iap` |
+| Godot | godot-iap | `$IAP_REPOS_HOME/godot-iap` |
+| Flutter | flutter_inapp_purchase | `$IAP_REPOS_HOME/flutter_inapp_purchase` |
 
 ## Pre-Sync: Pull All Repositories (REQUIRED)
 
@@ -18,20 +28,20 @@ Master workflow to synchronize OpenIAP changes across all platform SDKs.
 
 ```bash
 # Pull all platform SDKs
-cd /Users/hyo/Github/hyochan/expo-iap && git pull
-cd /Users/hyo/Github/hyochan/react-native-iap && git pull
-cd /Users/hyo/Github/hyochan/kmp-iap && git pull
-cd /Users/hyo/Github/hyochan/godot-iap && git pull
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase && git pull
+cd $IAP_REPOS_HOME/expo-iap && git pull
+cd $IAP_REPOS_HOME/react-native-iap && git pull
+cd $IAP_REPOS_HOME/kmp-iap && git pull
+cd $IAP_REPOS_HOME/godot-iap && git pull
+cd $IAP_REPOS_HOME/flutter_inapp_purchase && git pull
 
 # Return to openiap
-cd /Users/hyo/Github/hyodotdev/openiap
+cd $OPENIAP_HOME/openiap
 ```
 
 ## Pre-Sync: Generate Types in OpenIAP
 
 ```bash
-cd /Users/hyo/Github/hyodotdev/openiap/packages/gql
+cd $OPENIAP_HOME/openiap/packages/gql
 
 # Generate all platform types
 bun run generate
@@ -74,7 +84,7 @@ Before syncing, identify what changed:
 ### 1. expo-iap
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap
+cd $IAP_REPOS_HOME/expo-iap
 
 # Update versions
 # Edit openiap-versions.json: gql, apple, google
@@ -107,7 +117,7 @@ npx expo run:android
 ### 2. react-native-iap
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 
 # Update versions
 # Edit openiap-versions.json: gql, apple, google
@@ -145,7 +155,7 @@ bun android
 ### 3. kmp-iap
 
 ```bash
-cd /Users/hyo/Github/hyochan/kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
 
 # Update versions
 # Edit openiap-versions.json: gql, google, apple
@@ -183,11 +193,11 @@ xcodebuild -workspace iosApp.xcworkspace -scheme iosApp -sdk iphonesimulator
 ### 4. godot-iap
 
 ```bash
-cd /Users/hyo/Github/hyochan/godot-iap
+cd $IAP_REPOS_HOME/godot-iap
 
 # Types are generated in openiap
 # Copy from openiap
-cp /Users/hyo/Github/hyodotdev/openiap/packages/gql/src/generated/types.gd \
+cp $OPENIAP_HOME/openiap/packages/gql/src/generated/types.gd \
    addons/openiap/types.gd
 
 # Update implementation
@@ -208,7 +218,7 @@ godot --headless -s addons/gdunit4/test_runner.gd
 ### 5. flutter_inapp_purchase
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # Update versions
 # Edit openiap-versions.json: gql, apple, google
@@ -303,7 +313,7 @@ OpenIAP supports Meta Horizon Store via build flavors. When syncing, verify Hori
 #### openiap (packages/google)
 
 ```bash
-cd /Users/hyo/Github/hyodotdev/openiap/packages/google
+cd $OPENIAP_HOME/openiap/packages/google
 
 # Build Horizon flavor
 ./gradlew :openiap:assembleHorizonDebug
@@ -316,7 +326,7 @@ cd /Users/hyo/Github/hyodotdev/openiap/packages/google
 #### expo-iap
 
 ```bash
-cd /Users/hyo/Github/hyochan/expo-iap/example
+cd $IAP_REPOS_HOME/expo-iap/example
 
 # Enable Horizon in gradle.properties
 echo "horizonEnabled=true" >> android/gradle.properties
@@ -331,7 +341,7 @@ sed -i '' '/horizonEnabled=true/d' android/gradle.properties
 #### react-native-iap
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap/example
+cd $IAP_REPOS_HOME/react-native-iap/example
 
 # Enable Horizon in gradle.properties
 echo "horizonEnabled=true" >> android/gradle.properties
@@ -346,7 +356,7 @@ sed -i '' '/horizonEnabled=true/d' android/gradle.properties
 #### flutter_inapp_purchase
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase/example
+cd $IAP_REPOS_HOME/flutter_inapp_purchase/example
 
 # Build with Horizon flavor
 flutter build apk --flavor horizon
@@ -435,17 +445,17 @@ git commit -m "docs: sync with openiap v1.x.x - update API docs"
 
 ```bash
 # expo-iap
-cd /Users/hyo/Github/hyochan/expo-iap && bun run generate:types && bun run test
+cd $IAP_REPOS_HOME/expo-iap && bun run generate:types && bun run test
 
 # react-native-iap
-cd /Users/hyo/Github/hyochan/react-native-iap && yarn generate:types && yarn test
+cd $IAP_REPOS_HOME/react-native-iap && yarn generate:types && yarn test
 
 # kmp-iap
-cd /Users/hyo/Github/hyochan/kmp-iap && ./scripts/generate-types.sh && ./gradlew :library:test
+cd $IAP_REPOS_HOME/kmp-iap && ./scripts/generate-types.sh && ./gradlew :library:test
 
 # godot-iap
-cp /Users/hyo/Github/hyodotdev/openiap/packages/gql/src/generated/types.gd /Users/hyo/Github/hyochan/godot-iap/addons/openiap/types.gd
+cp $OPENIAP_HOME/openiap/packages/gql/src/generated/types.gd $IAP_REPOS_HOME/godot-iap/addons/openiap/types.gd
 
 # flutter_inapp_purchase
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase && ./scripts/generate-type.sh && flutter test
+cd $IAP_REPOS_HOME/flutter_inapp_purchase && ./scripts/generate-type.sh && flutter test
 ```

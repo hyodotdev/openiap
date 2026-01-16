@@ -84,8 +84,7 @@ struct SubscriptionCard: View {
                         .cornerRadius(4)
 
                     // Show intro/promotional offer using new standardized SubscriptionOffer type
-                    if let subscriptionProduct = product as? ProductSubscriptionIOS,
-                       let offer = subscriptionProduct.subscriptionOffers?.first,
+                    if let offer = product?.subscriptionOffers?.first,
                        offer.type == .introductory || offer.type == .promotional {
                         let offerText = offer.paymentMode == .freeTrial
                             ? "Free Trial"

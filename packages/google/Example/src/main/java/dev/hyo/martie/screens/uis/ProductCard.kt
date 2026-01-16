@@ -146,17 +146,17 @@ fun ProductCard(
 
                 // Show discount badge using standardized type or legacy
                 if (hasDiscount) {
-                    val discountText = when {
+                    val discountText: String = when {
                         // Prefer standardized DiscountOffer fields
                         standardizedDiscount?.percentageDiscountAndroid != null ->
                             "${standardizedDiscount.percentageDiscountAndroid}% OFF"
                         standardizedDiscount?.formattedDiscountAmountAndroid != null ->
-                            standardizedDiscount.formattedDiscountAmountAndroid
+                            standardizedDiscount.formattedDiscountAmountAndroid!!
                         // Fall back to legacy discountDisplayInfo
                         discountInfo?.percentageDiscount != null ->
                             "${discountInfo.percentageDiscount}% OFF"
-                        discountInfo?.discountAmount != null ->
-                            discountInfo.discountAmount?.formattedDiscountAmount ?: "SALE"
+                        discountInfo?.discountAmount?.formattedDiscountAmount != null ->
+                            discountInfo.discountAmount!!.formattedDiscountAmount
                         else -> "SALE"
                     }
                     Surface(

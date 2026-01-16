@@ -2,7 +2,9 @@
 
 Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-iap) repository.
 
-**Target Repository:** `/Users/hyo/Github/hyochan/godot-iap`
+**Target Repository:** `$IAP_REPOS_HOME/godot-iap`
+
+> **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
 
 ## Project Overview
 
@@ -25,8 +27,8 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 
 **OpenIAP has a built-in GDScript type generator:**
 
-- **Generator:** `/Users/hyo/Github/hyodotdev/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
-- **Output:** `/Users/hyo/Github/hyodotdev/openiap/packages/gql/src/generated/types.gd`
+- **Generator:** `$OPENIAP_HOME/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
+- **Output:** `$OPENIAP_HOME/openiap/packages/gql/src/generated/types.gd`
 
 ## Sync Steps
 
@@ -35,14 +37,14 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 **Always pull the latest code before starting any sync work:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/godot-iap
+cd $IAP_REPOS_HOME/godot-iap
 git pull
 ```
 
 ### 1. Generate Types in OpenIAP
 
 ```bash
-cd /Users/hyo/Github/hyodotdev/openiap/packages/gql
+cd $OPENIAP_HOME/openiap/packages/gql
 
 # Run GDScript type generation
 npm run generate:gdscript
@@ -55,8 +57,8 @@ npm run generate
 
 ```bash
 # Copy generated types
-cp /Users/hyo/Github/hyodotdev/openiap/packages/gql/src/generated/types.gd \
-   /Users/hyo/Github/hyochan/godot-iap/addons/openiap/types.gd
+cp $OPENIAP_HOME/openiap/packages/gql/src/generated/types.gd \
+   $IAP_REPOS_HOME/godot-iap/addons/openiap/types.gd
 ```
 
 ### 3. Update Version Tracking
@@ -114,7 +116,7 @@ If API changes, update:
 #### Editor Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/godot-iap
+cd $IAP_REPOS_HOME/godot-iap
 
 # Open project in Godot 4.x
 godot --editor .
@@ -126,7 +128,7 @@ godot --editor .
 #### iOS Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/godot-iap
+cd $IAP_REPOS_HOME/godot-iap
 
 # Export iOS build from Godot Editor
 # Project > Export > iOS
@@ -137,7 +139,7 @@ godot --headless --export-release "iOS" build/ios/godot-iap.ipa
 #### Android Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/godot-iap
+cd $IAP_REPOS_HOME/godot-iap
 
 # Export Android build from Godot Editor
 # Project > Export > Android
@@ -228,7 +230,7 @@ class ProductIOS:
 ## Deprecation Check
 
 ```bash
-cd /Users/hyo/Github/hyochan/godot-iap
+cd $IAP_REPOS_HOME/godot-iap
 grep -r "deprecated" addons/
 grep -r "DEPRECATED" addons/
 ```
@@ -261,6 +263,6 @@ docs: update subscription flow guide
 
 ## References
 
-- **OpenIAP GDScript Generator:** `/Users/hyo/Github/hyodotdev/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
+- **OpenIAP GDScript Generator:** `$OPENIAP_HOME/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
 - **OpenIAP Docs:** https://openiap.dev/docs
 - **Godot IAP Docs:** Check README.md

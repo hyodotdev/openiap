@@ -2,7 +2,9 @@
 
 Synchronize OpenIAP changes to the [flutter_inapp_purchase](https://github.com/hyochan/flutter_inapp_purchase) repository.
 
-**Target Repository:** `/Users/hyo/Github/hyochan/flutter_inapp_purchase`
+**Target Repository:** `$IAP_REPOS_HOME/flutter_inapp_purchase`
+
+> **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
 
 ## Project Overview
 
@@ -43,14 +45,14 @@ Synchronize OpenIAP changes to the [flutter_inapp_purchase](https://github.com/h
 **Always pull the latest code before starting any sync work:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 git pull
 ```
 
 ### 1. Type Synchronization
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # Update version in openiap-versions.json
 # Edit "gql" field to new version
@@ -85,7 +87,7 @@ Key files to update:
 **Update workflow:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # 1. Update apple version in openiap-versions.json
 # 2. Review openiap/packages/apple/Sources/ for changes
@@ -112,7 +114,7 @@ Key files to update:
 **Update workflow:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # 1. Update google version in openiap-versions.json
 # 2. Review openiap/packages/google/openiap/src/main/ for changes
@@ -132,7 +134,7 @@ cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
 #### iOS Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # Build iOS (no code sign for testing)
 flutter build ios --no-codesign
@@ -149,7 +151,7 @@ open example/ios/Runner.xcworkspace
 #### Android Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # Build APK
 flutter build apk --debug
@@ -166,7 +168,7 @@ flutter run -d emulator-5554
 #### macOS Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # Build macOS
 flutter build macos
@@ -179,7 +181,7 @@ flutter run -d macos
 #### Android Horizon Build (Meta Quest)
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # Build with Horizon flavor
 flutter build apk --flavor horizon
@@ -192,7 +194,7 @@ flutter run --flavor horizon
 #### Full Build Matrix
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
 # All platforms
 flutter build ios --no-codesign
@@ -334,7 +336,7 @@ QueryHandlers handlers = QueryHandlers(
 ## Deprecation Check
 
 ```bash
-cd /Users/hyo/Github/hyochan/flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 grep -r "@deprecated" lib/
 grep -r "@Deprecated" lib/
 grep -r "DEPRECATED" lib/
@@ -353,7 +355,7 @@ docs: update subscription flow guide
 
 ## References
 
-- **CLAUDE.md:** `/Users/hyo/Github/hyochan/flutter_inapp_purchase/CLAUDE.md`
-- **CONVENTION.md:** `/Users/hyo/Github/hyochan/flutter_inapp_purchase/CONVENTION.md`
+- **CLAUDE.md:** `$IAP_REPOS_HOME/flutter_inapp_purchase/CLAUDE.md`
+- **CONVENTION.md:** `$IAP_REPOS_HOME/flutter_inapp_purchase/CONVENTION.md`
 - **OpenIAP Docs:** https://openiap.dev/docs
 - **flutter_inapp_purchase Docs:** https://hyochan.github.io/flutter_inapp_purchase

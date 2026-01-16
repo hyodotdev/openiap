@@ -2,7 +2,9 @@
 
 Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan/react-native-iap) repository.
 
-**Target Repository:** `/Users/hyo/Github/hyochan/react-native-iap`
+**Target Repository:** `$IAP_REPOS_HOME/react-native-iap`
+
+> **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
 
 ## Project Overview
 
@@ -32,14 +34,14 @@ Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan
 **Always pull the latest code before starting any sync work:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 git pull
 ```
 
 ### 1. Type Synchronization
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 
 # Update version in openiap-versions.json
 # Edit "gql" field to new version
@@ -73,7 +75,7 @@ Key files to update:
 **Update workflow:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 
 # 1. Update apple version in openiap-versions.json
 # 2. Review openiap/packages/apple/Sources/ for changes
@@ -102,7 +104,7 @@ Key files to update:
 **Update workflow:**
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 
 # 1. Update google version in openiap-versions.json
 # 2. Review openiap/packages/google/openiap/src/main/ for changes
@@ -126,7 +128,7 @@ yarn prepare
 #### iOS Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 
 # Install dependencies
 yarn install
@@ -145,7 +147,7 @@ open example/ios/RnIapExample.xcworkspace
 #### Android Build Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 
 # Build and run on emulator
 yarn workspace rn-iap-example android
@@ -159,7 +161,7 @@ yarn workspace rn-iap-example android
 #### Expo Example Test
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap/example-expo
+cd $IAP_REPOS_HOME/react-native-iap/example-expo
 
 bun setup
 bun ios      # iOS simulator
@@ -169,7 +171,7 @@ bun android  # Android emulator
 #### Android Horizon Build (Meta Quest)
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap/example
+cd $IAP_REPOS_HOME/react-native-iap/example
 
 # Enable Horizon flavor in gradle.properties
 echo "horizonEnabled=true" >> android/gradle.properties
@@ -271,7 +273,7 @@ src/index.ts (cross-platform API)
 ## Deprecation Check
 
 ```bash
-cd /Users/hyo/Github/hyochan/react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
 grep -r "@deprecated" src/
 grep -r "DEPRECATED" src/
 ```
@@ -294,6 +296,6 @@ docs: update subscription flow guide
 
 ## References
 
-- **CLAUDE.md:** `/Users/hyo/Github/hyochan/react-native-iap/CLAUDE.md`
+- **CLAUDE.md:** `$IAP_REPOS_HOME/react-native-iap/CLAUDE.md`
 - **OpenIAP Docs:** https://openiap.dev/docs
 - **react-native-iap Docs:** https://react-native-iap.dooboolab.com
