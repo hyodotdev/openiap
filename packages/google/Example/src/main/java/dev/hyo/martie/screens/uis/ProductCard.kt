@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.hyo.martie.models.AppColors
+import dev.hyo.openiap.DiscountOffer
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductType
 import java.util.Locale
@@ -111,21 +112,29 @@ fun ProductCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Check for discount information
-                val firstOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
-                val discountInfo = firstOffer?.discountDisplayInfo
-                val hasDiscount = discountInfo != null
+                // Check for discount using new standardized DiscountOffer type (preferred)
+                val standardizedDiscount = product.discountOffers?.firstOrNull()
+                // Fall back to deprecated type for backward compatibility
+                val legacyOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
+                val discountInfo = legacyOffer?.discountDisplayInfo
 
-                if (hasDiscount && firstOffer?.fullPriceMicros != null) {
+                // Use standardized type if available, otherwise fall back to legacy
+                val hasDiscount = standardizedDiscount != null || discountInfo != null
+
+                if (hasDiscount) {
                     // Show original price with strikethrough
-                    val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
-                    val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
-                    Text(
-                        "${firstOffer.priceCurrencyCode} ${String.format("%.2f", fullPrice)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = AppColors.textSecondary,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                    )
+                    val fullPriceMicros = standardizedDiscount?.fullPriceMicrosAndroid?.toLongOrNull()
+                        ?: legacyOffer?.fullPriceMicros?.toLongOrNull()
+                    if (fullPriceMicros != null) {
+                        val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
+                        val currencyCode = standardizedDiscount?.currency ?: legacyOffer?.priceCurrencyCode ?: ""
+                        Text(
+                            "$currencyCode ${String.format(Locale.getDefault(), "%.2f", fullPrice)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AppColors.textSecondary,
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                        )
+                    }
                 }
 
                 Text(
@@ -135,11 +144,19 @@ fun ProductCard(
                     color = if (hasDiscount) AppColors.success else AppColors.primary
                 )
 
-                // Show discount badge
+                // Show discount badge using standardized type or legacy
                 if (hasDiscount) {
-                    val discountText = when {
-                        discountInfo?.percentageDiscount != null -> "${discountInfo.percentageDiscount}% OFF"
-                        discountInfo?.discountAmount != null -> "${discountInfo.discountAmount?.formattedDiscountAmount} OFF"
+                    val discountText: String = when {
+                        // Prefer standardized DiscountOffer fields
+                        standardizedDiscount?.percentageDiscountAndroid != null ->
+                            "${standardizedDiscount.percentageDiscountAndroid}% OFF"
+                        standardizedDiscount?.formattedDiscountAmountAndroid != null ->
+                            standardizedDiscount.formattedDiscountAmountAndroid!!
+                        // Fall back to legacy discountDisplayInfo
+                        discountInfo?.percentageDiscount != null ->
+                            "${discountInfo.percentageDiscount}% OFF"
+                        discountInfo?.discountAmount?.formattedDiscountAmount != null ->
+                            discountInfo.discountAmount!!.formattedDiscountAmount
                         else -> "SALE"
                     }
                     Surface(

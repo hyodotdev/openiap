@@ -110,10 +110,13 @@ type DiscountDisplayInfoAndroid {
 }
 
 """
-One-time purchase offer details (Android)
+One-time purchase offer details (Android).
 Available in Google Play Billing Library 7.0+
+@deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
+@see https://openiap.dev/docs/types#discount-offer
 """
-type ProductAndroidOneTimePurchaseOfferDetail {
+type ProductAndroidOneTimePurchaseOfferDetail
+  @deprecated(reason: "Use DiscountOffer type instead") {
   """
   Offer ID
   """
@@ -158,7 +161,13 @@ type ProductAndroidOneTimePurchaseOfferDetail {
   rentalDetailsAndroid: RentalDetailsAndroid
 }
 
-type ProductSubscriptionAndroidOfferDetails {
+"""
+Subscription offer details (Android).
+@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+@see https://openiap.dev/docs/types#subscription-offer
+"""
+type ProductSubscriptionAndroidOfferDetails
+  @deprecated(reason: "Use SubscriptionOffer type instead") {
   basePlanId: String!
   offerId: String
   offerToken: String!
@@ -181,12 +190,35 @@ type ProductAndroid implements ProductCommon {
 
   # Android-specific
   nameAndroid: String!
+
+  # Standardized cross-platform fields
+  """
+  Standardized discount offers for one-time products.
+  Cross-platform type with Android-specific fields using suffix.
+  @see https://openiap.dev/docs/types#discount-offer
+  """
+  discountOffers: [DiscountOffer!]
+
+  """
+  Standardized subscription offers.
+  Cross-platform type with Android-specific fields using suffix.
+  @see https://openiap.dev/docs/types#subscription-offer
+  """
+  subscriptionOffers: [SubscriptionOffer!]
+
+  # Deprecated platform-specific fields
   """
   One-time purchase offer details including discounts (Android)
   Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  @deprecated Use discountOffers instead for cross-platform compatibility.
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
+    @deprecated(reason: "Use discountOffers instead")
+  """
+  @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+  """
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]
+    @deprecated(reason: "Use subscriptionOffers instead")
 }
 
 type ProductSubscriptionAndroid implements ProductCommon {
@@ -204,12 +236,35 @@ type ProductSubscriptionAndroid implements ProductCommon {
 
   # Android-specific
   nameAndroid: String!
+
+  # Standardized cross-platform fields
+  """
+  Standardized discount offers for one-time products.
+  Cross-platform type with Android-specific fields using suffix.
+  @see https://openiap.dev/docs/types#discount-offer
+  """
+  discountOffers: [DiscountOffer!]
+
+  """
+  Standardized subscription offers.
+  Cross-platform type with Android-specific fields using suffix.
+  @see https://openiap.dev/docs/types#subscription-offer
+  """
+  subscriptionOffers: [SubscriptionOffer!]!
+
+  # Deprecated platform-specific fields
   """
   One-time purchase offer details including discounts (Android)
   Returns all eligible offers. Available in Google Play Billing Library 7.0+
+  @deprecated Use discountOffers instead for cross-platform compatibility.
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
+    @deprecated(reason: "Use discountOffers instead")
+  """
+  @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+  """
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]!
+    @deprecated(reason: "Use subscriptionOffers instead")
 }
 
 type PurchaseAndroid implements PurchaseCommon {

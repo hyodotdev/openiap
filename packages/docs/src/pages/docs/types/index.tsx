@@ -53,8 +53,10 @@ const legacyAnchorRedirects: Record<string, string> = {
   'product-common': '/docs/types/product#product-common',
   'product-platform': '/docs/types/product#product-platform',
   'product-subscription': '/docs/types/product#product-subscription',
-  'subscription-product-common': '/docs/types/product#subscription-product-common',
-  'subscription-product-platform': '/docs/types/product#subscription-product-platform',
+  'subscription-product-common':
+    '/docs/types/product#subscription-product-common',
+  'subscription-product-platform':
+    '/docs/types/product#subscription-product-platform',
   'unified-platform-types': '/docs/types/product#unified-platform-types',
   'store-discriminators': '/docs/types/product#store-discriminators',
   'union-types': '/docs/types/product#union-types',
@@ -66,9 +68,12 @@ const legacyAnchorRedirects: Record<string, string> = {
   'purchase-platform': '/docs/types/purchase#purchase-platform',
   'renewal-info-ios': '/docs/types/purchase#renewal-info-ios',
   'active-subscription': '/docs/types/purchase#active-subscription',
-  'active-subscription-common': '/docs/types/purchase#active-subscription-common',
-  'active-subscription-platform': '/docs/types/purchase#active-subscription-platform',
-  'active-subscription-example': '/docs/types/purchase#active-subscription-example',
+  'active-subscription-common':
+    '/docs/types/purchase#active-subscription-common',
+  'active-subscription-platform':
+    '/docs/types/purchase#active-subscription-platform',
+  'active-subscription-example':
+    '/docs/types/purchase#active-subscription-example',
   // Request types
   'product-request': '/docs/types/request#product-request',
   'product-request-fields': '/docs/types/request#product-request-fields',
@@ -82,9 +87,11 @@ const legacyAnchorRedirects: Record<string, string> = {
     '/docs/types/request#request-subscription-props-by-platforms',
   'platform-specific-request-props':
     '/docs/types/request#platform-specific-request-props',
-  'subscription-request-props': '/docs/types/request#subscription-request-props',
+  'subscription-request-props':
+    '/docs/types/request#subscription-request-props',
   // Alternative billing types
-  'alternative-billing-types': '/docs/types/alternative#alternative-billing-types',
+  'alternative-billing-types':
+    '/docs/types/alternative#alternative-billing-types',
   'alternative-billing-mode-android':
     '/docs/types/alternative#alternative-billing-mode-android',
   'init-connection-config': '/docs/types/alternative#init-connection-config',
@@ -93,7 +100,8 @@ const legacyAnchorRedirects: Record<string, string> = {
   'external-purchase-apis': '/docs/types/alternative#external-purchase-apis',
   'external-purchase-types': '/docs/types/alternative#external-purchase-types',
   'external-purchase-flow': '/docs/types/alternative#external-purchase-flow',
-  'external-purchase-example': '/docs/types/alternative#external-purchase-example',
+  'external-purchase-example':
+    '/docs/types/alternative#external-purchase-example',
   'external-purchase-requirements':
     '/docs/types/alternative#external-purchase-requirements',
   // Verification types
@@ -119,9 +127,13 @@ const legacyAnchorRedirects: Record<string, string> = {
     '/docs/types/verification#purchase-verification-provider',
   'verify-purchase-with-provider-example':
     '/docs/types/verification#verify-purchase-with-provider-example',
+  // Offer types (new standardized types)
+  'discount-offer': '/docs/types/offer#discount-offer',
+  'subscription-offer': '/docs/types/offer#subscription-offer',
+  'discount-offer-type': '/docs/types/offer#discount-offer',
+  'subscription-offer-type': '/docs/types/offer#subscription-offer',
   // iOS types
-  'platform-specific-types': '/docs/types/ios#discount-offer',
-  'discount-offer': '/docs/types/ios#discount-offer',
+  'platform-specific-types': '/docs/types/offer#discount-offer',
   discount: '/docs/types/ios#discount',
   'subscription-period-ios': '/docs/types/ios#subscription-period-ios',
   'payment-mode': '/docs/types/ios#payment-mode',
@@ -133,8 +145,8 @@ const legacyAnchorRedirects: Record<string, string> = {
   'app-transaction-type-definition':
     '/docs/types/ios#app-transaction-type-definition',
   'app-transaction-example': '/docs/types/ios#app-transaction-example',
-  // Android types
-  'subscription-offer': '/docs/types/android#subscription-offer',
+  // Android types (subscription-offer redirects to standardized offer page above)
+  'subscription-offer-android': '/docs/types/android#subscription-offer',
   'pricing-phase': '/docs/types/android#pricing-phase',
   'recurrence-mode-values': '/docs/types/android#recurrence-mode-values',
   'pricing-phases-android': '/docs/types/android#pricing-phases-android',
@@ -310,27 +322,52 @@ function TypesIndex() {
       <TLDRBox title="Type Categories">
         <ul>
           <li>
-            <a href="/docs/types/product"><strong>Product</strong></a>: Product, SubscriptionProduct, Storefront
+            <a href="/docs/types/product">
+              <strong>Product</strong>
+            </a>
+            : Product, SubscriptionProduct, Storefront
           </li>
           <li>
-            <a href="/docs/types/purchase"><strong>Purchase</strong></a>: Purchase, ActiveSubscription
+            <a href="/docs/types/purchase">
+              <strong>Purchase</strong>
+            </a>
+            : Purchase, ActiveSubscription
           </li>
           <li>
-            <a href="/docs/types/request"><strong>Request</strong></a>: ProductRequest, RequestPurchaseProps
+            <a href="/docs/types/offer">
+              <strong>Offer</strong>
+            </a>
+            : DiscountOffer, SubscriptionOffer (cross-platform)
           </li>
           <li>
-            <a href="/docs/types/alternative"><strong>Alternative Billing</strong></a>: External purchase and billing
-            modes
+            <a href="/docs/types/request">
+              <strong>Request</strong>
+            </a>
+            : ProductRequest, RequestPurchaseProps
           </li>
           <li>
-            <a href="/docs/types/verification"><strong>Verification</strong></a>: Purchase verification types
+            <a href="/docs/types/alternative">
+              <strong>Alternative Billing</strong>
+            </a>
+            : External purchase and billing modes
           </li>
           <li>
-            <a href="/docs/types/ios"><strong>iOS</strong></a>: DiscountOffer, SubscriptionStatusIOS,
-            AppTransaction
+            <a href="/docs/types/verification">
+              <strong>Verification</strong>
+            </a>
+            : Purchase verification types
           </li>
           <li>
-            <a href="/docs/types/android"><strong>Android</strong></a>: SubscriptionOffer, PricingPhase
+            <a href="/docs/types/ios">
+              <strong>iOS</strong>
+            </a>
+            : SubscriptionStatusIOS, AppTransaction (platform-specific)
+          </li>
+          <li>
+            <a href="/docs/types/android">
+              <strong>Android</strong>
+            </a>
+            : PricingPhase, PricingPhasesAndroid (platform-specific)
           </li>
         </ul>
       </TLDRBox>
@@ -349,6 +386,12 @@ function TypesIndex() {
             title="Purchase Types"
             description="Purchase transaction and ActiveSubscription types with platform-specific fields."
             href="/docs/types/purchase"
+            count={2}
+          />
+          <APICard
+            title="Offer Types"
+            description="DiscountOffer and SubscriptionOffer - cross-platform discount and promotional offer types."
+            href="/docs/types/offer"
             count={2}
           />
           <APICard
@@ -381,19 +424,23 @@ function TypesIndex() {
 
       <section>
         <h2>Platform-Specific Types</h2>
-        <p>Types specific to iOS and Android platforms.</p>
+        <p>
+          Types specific to iOS and Android platforms. Note: Discount/offer
+          types have been standardized in{' '}
+          <a href="/docs/types/offer">Offer Types</a>.
+        </p>
         <div className="api-cards-grid">
           <APICard
             title="iOS Types"
-            description="DiscountOffer, SubscriptionStatusIOS, PaymentMode, and AppTransaction."
+            description="SubscriptionStatusIOS, PaymentModeIOS, AppTransaction, and deprecated discount types."
             href="/docs/types/ios"
-            count={6}
+            count={4}
           />
           <APICard
             title="Android Types"
-            description="SubscriptionOffer, PricingPhase, and PricingPhasesAndroid."
+            description="PricingPhase, PricingPhasesAndroid, and deprecated offer detail types."
             href="/docs/types/android"
-            count={3}
+            count={2}
           />
         </div>
       </section>

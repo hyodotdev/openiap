@@ -399,6 +399,180 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(errorKebab.message, "Item is already owned")
     }
 
+    // MARK: - Standardized Offer Types Tests
+
+    func testSubscriptionOfferCreation() throws {
+        let offer = SubscriptionOffer(
+            basePlanIdAndroid: nil,
+            currency: "USD",
+            displayPrice: "$0.00",
+            id: "intro_offer_001",
+            keyIdentifierIOS: "key123",
+            localizedPriceIOS: "$0.00",
+            nonceIOS: nil,
+            numberOfPeriodsIOS: 1,
+            offerTagsAndroid: nil,
+            offerTokenAndroid: nil,
+            paymentMode: .freeTrial,
+            period: SubscriptionPeriod(unit: .week, value: 1),
+            periodCount: 1,
+            price: 0.0,
+            pricingPhasesAndroid: nil,
+            signatureIOS: nil,
+            timestampIOS: nil,
+            type: .introductory
+        )
+
+        XCTAssertEqual(offer.id, "intro_offer_001")
+        XCTAssertEqual(offer.displayPrice, "$0.00")
+        XCTAssertEqual(offer.price, 0.0)
+        XCTAssertEqual(offer.type, .introductory)
+        XCTAssertEqual(offer.paymentMode, .freeTrial)
+        XCTAssertEqual(offer.period?.unit, .week)
+        XCTAssertEqual(offer.period?.value, 1)
+        XCTAssertEqual(offer.periodCount, 1)
+        XCTAssertEqual(offer.keyIdentifierIOS, "key123")
+        XCTAssertNil(offer.offerTokenAndroid)
+    }
+
+    func testSubscriptionOfferSerialization() throws {
+        let offer = SubscriptionOffer(
+            basePlanIdAndroid: "monthly_base",
+            currency: "USD",
+            displayPrice: "$4.99",
+            id: "promo_summer",
+            keyIdentifierIOS: nil,
+            localizedPriceIOS: "$4.99",
+            nonceIOS: nil,
+            numberOfPeriodsIOS: 3,
+            offerTagsAndroid: ["summer", "promo"],
+            offerTokenAndroid: "token_abc123",
+            paymentMode: .payAsYouGo,
+            period: SubscriptionPeriod(unit: .month, value: 1),
+            periodCount: 3,
+            price: 4.99,
+            pricingPhasesAndroid: nil,
+            signatureIOS: nil,
+            timestampIOS: nil,
+            type: .promotional
+        )
+
+        // Test encoding/decoding
+        let data = try JSONEncoder().encode(offer)
+        let decoded = try JSONDecoder().decode(SubscriptionOffer.self, from: data)
+
+        XCTAssertEqual(decoded.id, "promo_summer")
+        XCTAssertEqual(decoded.type, .promotional)
+        XCTAssertEqual(decoded.paymentMode, .payAsYouGo)
+        XCTAssertEqual(decoded.basePlanIdAndroid, "monthly_base")
+        XCTAssertEqual(decoded.offerTokenAndroid, "token_abc123")
+        XCTAssertEqual(decoded.offerTagsAndroid, ["summer", "promo"])
+        XCTAssertEqual(decoded.period?.unit, .month)
+        XCTAssertEqual(decoded.periodCount, 3)
+    }
+
+    func testDiscountOfferTypeEnum() {
+        XCTAssertEqual(DiscountOfferType.introductory.rawValue, "introductory")
+        XCTAssertEqual(DiscountOfferType.promotional.rawValue, "promotional")
+        XCTAssertEqual(DiscountOfferType.oneTime.rawValue, "one-time")
+
+        XCTAssertEqual(DiscountOfferType(rawValue: "introductory"), .introductory)
+        XCTAssertEqual(DiscountOfferType(rawValue: "promotional"), .promotional)
+        XCTAssertEqual(DiscountOfferType(rawValue: "one-time"), .oneTime)
+    }
+
+    func testPaymentModeEnum() {
+        XCTAssertEqual(PaymentMode.freeTrial.rawValue, "free-trial")
+        XCTAssertEqual(PaymentMode.payAsYouGo.rawValue, "pay-as-you-go")
+        XCTAssertEqual(PaymentMode.payUpFront.rawValue, "pay-up-front")
+        XCTAssertEqual(PaymentMode.unknown.rawValue, "unknown")
+
+        XCTAssertEqual(PaymentMode(rawValue: "free-trial"), .freeTrial)
+        XCTAssertEqual(PaymentMode(rawValue: "pay-as-you-go"), .payAsYouGo)
+        XCTAssertEqual(PaymentMode(rawValue: "pay-up-front"), .payUpFront)
+        XCTAssertEqual(PaymentMode(rawValue: "unknown"), .unknown)
+    }
+
+    func testSubscriptionPeriodUnitEnum() {
+        XCTAssertEqual(SubscriptionPeriodUnit.day.rawValue, "day")
+        XCTAssertEqual(SubscriptionPeriodUnit.week.rawValue, "week")
+        XCTAssertEqual(SubscriptionPeriodUnit.month.rawValue, "month")
+        XCTAssertEqual(SubscriptionPeriodUnit.year.rawValue, "year")
+        XCTAssertEqual(SubscriptionPeriodUnit.unknown.rawValue, "unknown")
+    }
+
+    func testSubscriptionPeriodSerialization() throws {
+        let period = SubscriptionPeriod(unit: .month, value: 3)
+
+        let data = try JSONEncoder().encode(period)
+        let decoded = try JSONDecoder().decode(SubscriptionPeriod.self, from: data)
+
+        XCTAssertEqual(decoded.unit, .month)
+        XCTAssertEqual(decoded.value, 3)
+    }
+
+    func testProductSubscriptionIOSWithSubscriptionOffers() throws {
+        let standardizedOffer = SubscriptionOffer(
+            basePlanIdAndroid: nil,
+            currency: "USD",
+            displayPrice: "$0.00",
+            id: "intro_weekly",
+            keyIdentifierIOS: nil,
+            localizedPriceIOS: "$0.00",
+            nonceIOS: nil,
+            numberOfPeriodsIOS: 1,
+            offerTagsAndroid: nil,
+            offerTokenAndroid: nil,
+            paymentMode: .freeTrial,
+            period: SubscriptionPeriod(unit: .week, value: 1),
+            periodCount: 1,
+            price: 0.0,
+            pricingPhasesAndroid: nil,
+            signatureIOS: nil,
+            timestampIOS: nil,
+            type: .introductory
+        )
+
+        let product = ProductSubscriptionIOS(
+            currency: "USD",
+            debugDescription: "",
+            description: "Premium subscription with offers",
+            discountsIOS: nil,
+            displayName: "Premium",
+            displayNameIOS: "Premium",
+            displayPrice: "$9.99",
+            id: "dev.hyo.premium",
+            introductoryPriceAsAmountIOS: "0",
+            introductoryPriceIOS: "$0.00",
+            introductoryPriceNumberOfPeriodsIOS: "1",
+            introductoryPricePaymentModeIOS: .freeTrial,
+            introductoryPriceSubscriptionPeriodIOS: .week,
+            isFamilyShareableIOS: true,
+            jsonRepresentationIOS: "{}",
+            platform: .ios,
+            price: 9.99,
+            subscriptionInfoIOS: nil,
+            subscriptionOffers: [standardizedOffer],
+            subscriptionPeriodNumberIOS: "1",
+            subscriptionPeriodUnitIOS: .month,
+            title: "Premium",
+            type: .subs,
+            typeIOS: .autoRenewableSubscription
+        )
+
+        XCTAssertNotNil(product.subscriptionOffers)
+        XCTAssertEqual(product.subscriptionOffers?.count, 1)
+        XCTAssertEqual(product.subscriptionOffers?.first?.id, "intro_weekly")
+        XCTAssertEqual(product.subscriptionOffers?.first?.type, .introductory)
+        XCTAssertEqual(product.subscriptionOffers?.first?.paymentMode, .freeTrial)
+
+        // Test serialization
+        let data = try JSONEncoder().encode(product)
+        let decoded = try JSONDecoder().decode(ProductSubscriptionIOS.self, from: data)
+        XCTAssertEqual(decoded.subscriptionOffers?.count, 1)
+        XCTAssertEqual(decoded.subscriptionOffers?.first?.id, "intro_weekly")
+    }
+
     // MARK: - Helpers
 
     private func makeSampleProduct() -> ProductIOS {

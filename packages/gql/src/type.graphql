@@ -419,6 +419,300 @@ type ActiveSubscription {
   renewalInfoIOS: RenewalInfoIOS
 }
 
+# =============================================================================
+# Standardized Discount/Offer Types (Cross-Platform)
+# =============================================================================
+# These types provide a unified interface for discount and offer handling
+# across iOS and Android platforms. Platform-specific fields use suffixes.
+# =============================================================================
+
+"""
+Discount offer type enumeration.
+Categorizes the type of discount or promotional offer.
+"""
+enum DiscountOfferType {
+  """
+  Introductory offer for new subscribers (first-time purchase discount)
+  """
+  Introductory
+  """
+  Promotional offer for existing or returning subscribers
+  """
+  Promotional
+  """
+  One-time product discount (Android only, Google Play Billing 7.0+)
+  """
+  OneTime
+}
+
+"""
+Payment mode for subscription offers.
+Determines how the user pays during the offer period.
+"""
+enum PaymentMode {
+  """
+  Free trial period - no charge during offer
+  """
+  FreeTrial
+  """
+  Pay each period at reduced price
+  """
+  PayAsYouGo
+  """
+  Pay full discounted amount upfront
+  """
+  PayUpFront
+  """
+  Unknown or unspecified payment mode
+  """
+  Unknown
+}
+
+"""
+Subscription period unit for cross-platform use.
+"""
+enum SubscriptionPeriodUnit {
+  Day
+  Week
+  Month
+  Year
+  Unknown
+}
+
+"""
+Subscription period value combining unit and count.
+"""
+type SubscriptionPeriod {
+  """
+  The period unit (day, week, month, year)
+  """
+  unit: SubscriptionPeriodUnit!
+  """
+  The number of units (e.g., 1 for monthly, 3 for quarterly)
+  """
+  value: Int!
+}
+
+"""
+Standardized one-time product discount offer.
+Provides a unified interface for one-time purchase discounts across platforms.
+
+Currently supported on Android (Google Play Billing 7.0+).
+iOS does not support one-time purchase discounts in the same way.
+
+@see https://openiap.dev/docs/features/discount
+"""
+type DiscountOffer {
+  """
+  Unique identifier for the offer.
+  - iOS: Not applicable (one-time discounts not supported)
+  - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
+  """
+  id: ID
+
+  """
+  Formatted display price string (e.g., "$4.99")
+  """
+  displayPrice: String!
+
+  """
+  Numeric price value
+  """
+  price: Float!
+
+  """
+  Currency code (ISO 4217, e.g., "USD")
+  """
+  currency: String!
+
+  """
+  Type of discount offer
+  """
+  type: DiscountOfferType!
+
+  # ---------------------------------------------------------------------------
+  # Android-specific fields (suffix: Android)
+  # ---------------------------------------------------------------------------
+
+  """
+  [Android] Offer token required for purchase.
+  Must be passed to requestPurchase() when purchasing with this offer.
+  """
+  offerTokenAndroid: String
+
+  """
+  [Android] List of tags associated with this offer.
+  """
+  offerTagsAndroid: [String!]
+
+  """
+  [Android] Original full price in micro-units before discount.
+  Divide by 1,000,000 to get the actual price.
+  Use for displaying strikethrough original price.
+  """
+  fullPriceMicrosAndroid: String
+
+  """
+  [Android] Percentage discount (e.g., 33 for 33% off).
+  Only present for percentage-based discounts.
+  """
+  percentageDiscountAndroid: Int
+
+  """
+  [Android] Fixed discount amount in micro-units.
+  Only present for fixed amount discounts.
+  """
+  discountAmountMicrosAndroid: String
+
+  """
+  [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+  """
+  formattedDiscountAmountAndroid: String
+
+  """
+  [Android] Valid time window for the offer.
+  Contains startTimeMillis and endTimeMillis.
+  """
+  validTimeWindowAndroid: ValidTimeWindowAndroid
+
+  """
+  [Android] Limited quantity information.
+  Contains maximumQuantity and remainingQuantity.
+  """
+  limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid
+
+  """
+  [Android] Pre-order details if this is a pre-order offer.
+  Available in Google Play Billing Library 8.1.0+
+  """
+  preorderDetailsAndroid: PreorderDetailsAndroid
+
+  """
+  [Android] Rental details if this is a rental offer.
+  """
+  rentalDetailsAndroid: RentalDetailsAndroid
+}
+
+"""
+Standardized subscription discount/promotional offer.
+Provides a unified interface for subscription offers across iOS and Android.
+
+Both platforms support subscription offers with different implementations:
+- iOS: Introductory offers, promotional offers with server-side signatures
+- Android: Offer tokens with pricing phases
+
+@see https://openiap.dev/docs/types/ios#discount-offer
+@see https://openiap.dev/docs/types/android#subscription-offer
+"""
+type SubscriptionOffer {
+  """
+  Unique identifier for the offer.
+  - iOS: Discount identifier from App Store Connect
+  - Android: offerId from ProductSubscriptionAndroidOfferDetails
+  """
+  id: ID!
+
+  """
+  Formatted display price string (e.g., "$9.99/month")
+  """
+  displayPrice: String!
+
+  """
+  Numeric price value
+  """
+  price: Float!
+
+  """
+  Currency code (ISO 4217, e.g., "USD")
+  """
+  currency: String
+
+  """
+  Type of subscription offer (Introductory or Promotional)
+  """
+  type: DiscountOfferType!
+
+  """
+  Subscription period for this offer
+  """
+  period: SubscriptionPeriod
+
+  """
+  Number of periods the offer applies
+  """
+  periodCount: Int
+
+  """
+  Payment mode during the offer period
+  """
+  paymentMode: PaymentMode
+
+  # ---------------------------------------------------------------------------
+  # iOS-specific fields (suffix: IOS)
+  # ---------------------------------------------------------------------------
+
+  """
+  [iOS] Key identifier for signature validation.
+  Used with server-side signature generation for promotional offers.
+  """
+  keyIdentifierIOS: String
+
+  """
+  [iOS] Cryptographic nonce (UUID) for signature validation.
+  Must be generated server-side for each purchase attempt.
+  """
+  nonceIOS: String
+
+  """
+  [iOS] Server-generated signature for promotional offer validation.
+  Required when applying promotional offers on iOS.
+  """
+  signatureIOS: String
+
+  """
+  [iOS] Timestamp when the signature was generated.
+  Used for signature validation.
+  """
+  timestampIOS: Float
+
+  """
+  [iOS] Number of billing periods for this discount.
+  """
+  numberOfPeriodsIOS: Int
+
+  """
+  [iOS] Localized price string.
+  """
+  localizedPriceIOS: String
+
+  # ---------------------------------------------------------------------------
+  # Android-specific fields (suffix: Android)
+  # ---------------------------------------------------------------------------
+
+  """
+  [Android] Base plan identifier.
+  Identifies which base plan this offer belongs to.
+  """
+  basePlanIdAndroid: String
+
+  """
+  [Android] Offer token required for purchase.
+  Must be passed to requestPurchase() when purchasing with this offer.
+  """
+  offerTokenAndroid: String
+
+  """
+  [Android] List of tags associated with this offer.
+  """
+  offerTagsAndroid: [String!]
+
+  """
+  [Android] Pricing phases for this subscription offer.
+  Contains detailed pricing information for each phase (trial, intro, regular).
+  """
+  pricingPhasesAndroid: PricingPhasesAndroid
+}
+
 # Initialization configuration
 """
 Connection initialization configuration

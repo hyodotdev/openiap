@@ -136,6 +136,42 @@ public enum class DeveloperBillingLaunchModeAndroid(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Discount offer type enumeration.
+ * Categorizes the type of discount or promotional offer.
+ */
+public enum class DiscountOfferType(val rawValue: String) {
+    /**
+     * Introductory offer for new subscribers (first-time purchase discount)
+     */
+    Introductory("introductory"),
+    /**
+     * Promotional offer for existing or returning subscribers
+     */
+    Promotional("promotional"),
+    /**
+     * One-time product discount (Android only, Google Play Billing 7.0+)
+     */
+    OneTime("one-time")
+
+    companion object {
+        fun fromJson(value: String): DiscountOfferType = when (value) {
+            "introductory" -> DiscountOfferType.Introductory
+            "INTRODUCTORY" -> DiscountOfferType.Introductory
+            "Introductory" -> DiscountOfferType.Introductory
+            "promotional" -> DiscountOfferType.Promotional
+            "PROMOTIONAL" -> DiscountOfferType.Promotional
+            "Promotional" -> DiscountOfferType.Promotional
+            "one-time" -> DiscountOfferType.OneTime
+            "ONE_TIME" -> DiscountOfferType.OneTime
+            "OneTime" -> DiscountOfferType.OneTime
+            else -> throw IllegalArgumentException("Unknown DiscountOfferType value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class ErrorCode(val rawValue: String) {
     Unknown("unknown"),
     UserCancelled("user-cancelled"),
@@ -539,6 +575,49 @@ public enum class IapStore(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Payment mode for subscription offers.
+ * Determines how the user pays during the offer period.
+ */
+public enum class PaymentMode(val rawValue: String) {
+    /**
+     * Free trial period - no charge during offer
+     */
+    FreeTrial("free-trial"),
+    /**
+     * Pay each period at reduced price
+     */
+    PayAsYouGo("pay-as-you-go"),
+    /**
+     * Pay full discounted amount upfront
+     */
+    PayUpFront("pay-up-front"),
+    /**
+     * Unknown or unspecified payment mode
+     */
+    Unknown("unknown")
+
+    companion object {
+        fun fromJson(value: String): PaymentMode = when (value) {
+            "free-trial" -> PaymentMode.FreeTrial
+            "FREE_TRIAL" -> PaymentMode.FreeTrial
+            "FreeTrial" -> PaymentMode.FreeTrial
+            "pay-as-you-go" -> PaymentMode.PayAsYouGo
+            "PAY_AS_YOU_GO" -> PaymentMode.PayAsYouGo
+            "PayAsYouGo" -> PaymentMode.PayAsYouGo
+            "pay-up-front" -> PaymentMode.PayUpFront
+            "PAY_UP_FRONT" -> PaymentMode.PayUpFront
+            "PayUpFront" -> PaymentMode.PayUpFront
+            "unknown" -> PaymentMode.Unknown
+            "UNKNOWN" -> PaymentMode.Unknown
+            "Unknown" -> PaymentMode.Unknown
+            else -> throw IllegalArgumentException("Unknown PaymentMode value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class PaymentModeIOS(val rawValue: String) {
     Empty("empty"),
     FreeTrial("free-trial"),
@@ -717,6 +796,40 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
             "EMPTY" -> SubscriptionPeriodIOS.Empty
             "Empty" -> SubscriptionPeriodIOS.Empty
             else -> throw IllegalArgumentException("Unknown SubscriptionPeriodIOS value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Subscription period unit for cross-platform use.
+ */
+public enum class SubscriptionPeriodUnit(val rawValue: String) {
+    Day("day"),
+    Week("week"),
+    Month("month"),
+    Year("year"),
+    Unknown("unknown")
+
+    companion object {
+        fun fromJson(value: String): SubscriptionPeriodUnit = when (value) {
+            "day" -> SubscriptionPeriodUnit.Day
+            "DAY" -> SubscriptionPeriodUnit.Day
+            "Day" -> SubscriptionPeriodUnit.Day
+            "week" -> SubscriptionPeriodUnit.Week
+            "WEEK" -> SubscriptionPeriodUnit.Week
+            "Week" -> SubscriptionPeriodUnit.Week
+            "month" -> SubscriptionPeriodUnit.Month
+            "MONTH" -> SubscriptionPeriodUnit.Month
+            "Month" -> SubscriptionPeriodUnit.Month
+            "year" -> SubscriptionPeriodUnit.Year
+            "YEAR" -> SubscriptionPeriodUnit.Year
+            "Year" -> SubscriptionPeriodUnit.Year
+            "unknown" -> SubscriptionPeriodUnit.Unknown
+            "UNKNOWN" -> SubscriptionPeriodUnit.Unknown
+            "Unknown" -> SubscriptionPeriodUnit.Unknown
+            else -> throw IllegalArgumentException("Unknown SubscriptionPeriodUnit value: $value")
         }
     }
 
@@ -1109,6 +1222,11 @@ public data class DiscountDisplayInfoAndroid(
     )
 }
 
+/**
+ * Discount information returned from the store.
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @see https://openiap.dev/docs/types#subscription-offer
+ */
 public data class DiscountIOS(
     val identifier: String,
     val localizedPrice: String? = null,
@@ -1148,6 +1266,135 @@ public data class DiscountIOS(
     )
 }
 
+/**
+ * Standardized one-time product discount offer.
+ * Provides a unified interface for one-time purchase discounts across platforms.
+ * 
+ * Currently supported on Android (Google Play Billing 7.0+).
+ * iOS does not support one-time purchase discounts in the same way.
+ * 
+ * @see https://openiap.dev/docs/features/discount
+ */
+public data class DiscountOffer(
+    /**
+     * Currency code (ISO 4217, e.g., "USD")
+     */
+    val currency: String,
+    /**
+     * [Android] Fixed discount amount in micro-units.
+     * Only present for fixed amount discounts.
+     */
+    val discountAmountMicrosAndroid: String? = null,
+    /**
+     * Formatted display price string (e.g., "$4.99")
+     */
+    val displayPrice: String,
+    /**
+     * [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+     */
+    val formattedDiscountAmountAndroid: String? = null,
+    /**
+     * [Android] Original full price in micro-units before discount.
+     * Divide by 1,000,000 to get the actual price.
+     * Use for displaying strikethrough original price.
+     */
+    val fullPriceMicrosAndroid: String? = null,
+    /**
+     * Unique identifier for the offer.
+     * - iOS: Not applicable (one-time discounts not supported)
+     * - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
+     */
+    val id: String? = null,
+    /**
+     * [Android] Limited quantity information.
+     * Contains maximumQuantity and remainingQuantity.
+     */
+    val limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid? = null,
+    /**
+     * [Android] List of tags associated with this offer.
+     */
+    val offerTagsAndroid: List<String>? = null,
+    /**
+     * [Android] Offer token required for purchase.
+     * Must be passed to requestPurchase() when purchasing with this offer.
+     */
+    val offerTokenAndroid: String? = null,
+    /**
+     * [Android] Percentage discount (e.g., 33 for 33% off).
+     * Only present for percentage-based discounts.
+     */
+    val percentageDiscountAndroid: Int? = null,
+    /**
+     * [Android] Pre-order details if this is a pre-order offer.
+     * Available in Google Play Billing Library 8.1.0+
+     */
+    val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
+    /**
+     * Numeric price value
+     */
+    val price: Double,
+    /**
+     * [Android] Rental details if this is a rental offer.
+     */
+    val rentalDetailsAndroid: RentalDetailsAndroid? = null,
+    /**
+     * Type of discount offer
+     */
+    val type: DiscountOfferType,
+    /**
+     * [Android] Valid time window for the offer.
+     * Contains startTimeMillis and endTimeMillis.
+     */
+    val validTimeWindowAndroid: ValidTimeWindowAndroid? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DiscountOffer {
+            return DiscountOffer(
+                currency = json["currency"] as? String ?: "",
+                discountAmountMicrosAndroid = json["discountAmountMicrosAndroid"] as? String,
+                displayPrice = json["displayPrice"] as? String ?: "",
+                formattedDiscountAmountAndroid = json["formattedDiscountAmountAndroid"] as? String,
+                fullPriceMicrosAndroid = json["fullPriceMicrosAndroid"] as? String,
+                id = json["id"] as? String,
+                limitedQuantityInfoAndroid = (json["limitedQuantityInfoAndroid"] as? Map<String, Any?>)?.let { LimitedQuantityInfoAndroid.fromJson(it) },
+                offerTagsAndroid = (json["offerTagsAndroid"] as? List<*>)?.mapNotNull { it as? String },
+                offerTokenAndroid = json["offerTokenAndroid"] as? String,
+                percentageDiscountAndroid = (json["percentageDiscountAndroid"] as? Number)?.toInt(),
+                preorderDetailsAndroid = (json["preorderDetailsAndroid"] as? Map<String, Any?>)?.let { PreorderDetailsAndroid.fromJson(it) },
+                price = (json["price"] as? Number)?.toDouble() ?: 0.0,
+                rentalDetailsAndroid = (json["rentalDetailsAndroid"] as? Map<String, Any?>)?.let { RentalDetailsAndroid.fromJson(it) },
+                type = (json["type"] as? String)?.let { DiscountOfferType.fromJson(it) } ?: DiscountOfferType.Introductory,
+                validTimeWindowAndroid = (json["validTimeWindowAndroid"] as? Map<String, Any?>)?.let { ValidTimeWindowAndroid.fromJson(it) },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "DiscountOffer",
+        "currency" to currency,
+        "discountAmountMicrosAndroid" to discountAmountMicrosAndroid,
+        "displayPrice" to displayPrice,
+        "formattedDiscountAmountAndroid" to formattedDiscountAmountAndroid,
+        "fullPriceMicrosAndroid" to fullPriceMicrosAndroid,
+        "id" to id,
+        "limitedQuantityInfoAndroid" to limitedQuantityInfoAndroid?.toJson(),
+        "offerTagsAndroid" to offerTagsAndroid?.map { it },
+        "offerTokenAndroid" to offerTokenAndroid,
+        "percentageDiscountAndroid" to percentageDiscountAndroid,
+        "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
+        "price" to price,
+        "rentalDetailsAndroid" to rentalDetailsAndroid?.toJson(),
+        "type" to type.toJson(),
+        "validTimeWindowAndroid" to validTimeWindowAndroid?.toJson(),
+    )
+}
+
+/**
+ * iOS DiscountOffer (output type).
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @see https://openiap.dev/docs/types#subscription-offer
+ */
 public data class DiscountOfferIOS(
     /**
      * Discount identifier
@@ -1456,6 +1703,12 @@ public data class ProductAndroid(
     override val currency: String,
     override val debugDescription: String? = null,
     override val description: String,
+    /**
+     * Standardized discount offers for one-time products.
+     * Cross-platform type with Android-specific fields using suffix.
+     * @see https://openiap.dev/docs/types#discount-offer
+     */
+    val discountOffers: List<DiscountOffer>? = null,
     override val displayName: String? = null,
     override val displayPrice: String,
     override val id: String,
@@ -1463,11 +1716,21 @@ public data class ProductAndroid(
     /**
      * One-time purchase offer details including discounts (Android)
      * Returns all eligible offers. Available in Google Play Billing Library 7.0+
+     * @deprecated Use discountOffers instead for cross-platform compatibility.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
+    /**
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     */
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
+    /**
+     * Standardized subscription offers.
+     * Cross-platform type with Android-specific fields using suffix.
+     * @see https://openiap.dev/docs/types#subscription-offer
+     */
+    val subscriptionOffers: List<SubscriptionOffer>? = null,
     override val title: String,
     override val type: ProductType = ProductType.InApp
 ) : ProductCommon, Product {
@@ -1478,6 +1741,7 @@ public data class ProductAndroid(
                 currency = json["currency"] as? String ?: "",
                 debugDescription = json["debugDescription"] as? String,
                 description = json["description"] as? String ?: "",
+                discountOffers = (json["discountOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DiscountOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DiscountOffer") },
                 displayName = json["displayName"] as? String,
                 displayPrice = json["displayPrice"] as? String ?: "",
                 id = json["id"] as? String ?: "",
@@ -1486,6 +1750,7 @@ public data class ProductAndroid(
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") },
+                subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
             )
@@ -1497,6 +1762,7 @@ public data class ProductAndroid(
         "currency" to currency,
         "debugDescription" to debugDescription,
         "description" to description,
+        "discountOffers" to discountOffers?.map { it.toJson() },
         "displayName" to displayName,
         "displayPrice" to displayPrice,
         "id" to id,
@@ -1505,14 +1771,17 @@ public data class ProductAndroid(
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid?.map { it.toJson() },
+        "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "title" to title,
         "type" to type.toJson(),
     )
 }
 
 /**
- * One-time purchase offer details (Android)
+ * One-time purchase offer details (Android).
  * Available in Google Play Billing Library 7.0+
+ * @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
+ * @see https://openiap.dev/docs/types#discount-offer
  */
 public data class ProductAndroidOneTimePurchaseOfferDetail(
     /**
@@ -1607,7 +1876,17 @@ public data class ProductIOS(
     val jsonRepresentationIOS: String,
     override val platform: IapPlatform = IapPlatform.Ios,
     override val price: Double? = null,
+    /**
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     */
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
+    /**
+     * Standardized subscription offers.
+     * Cross-platform type with iOS-specific fields using suffix.
+     * Note: iOS does not support one-time product discounts.
+     * @see https://openiap.dev/docs/types#subscription-offer
+     */
+    val subscriptionOffers: List<SubscriptionOffer>? = null,
     override val title: String,
     override val type: ProductType = ProductType.InApp,
     val typeIOS: ProductTypeIOS
@@ -1628,6 +1907,7 @@ public data class ProductIOS(
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
                 subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
+                subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
                 typeIOS = (json["typeIOS"] as? String)?.let { ProductTypeIOS.fromJson(it) } ?: ProductTypeIOS.Consumable,
@@ -1649,6 +1929,7 @@ public data class ProductIOS(
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionInfoIOS" to subscriptionInfoIOS?.toJson(),
+        "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "title" to title,
         "type" to type.toJson(),
         "typeIOS" to typeIOS.toJson(),
@@ -1659,6 +1940,12 @@ public data class ProductSubscriptionAndroid(
     override val currency: String,
     override val debugDescription: String? = null,
     override val description: String,
+    /**
+     * Standardized discount offers for one-time products.
+     * Cross-platform type with Android-specific fields using suffix.
+     * @see https://openiap.dev/docs/types#discount-offer
+     */
+    val discountOffers: List<DiscountOffer>? = null,
     override val displayName: String? = null,
     override val displayPrice: String,
     override val id: String,
@@ -1666,11 +1953,21 @@ public data class ProductSubscriptionAndroid(
     /**
      * One-time purchase offer details including discounts (Android)
      * Returns all eligible offers. Available in Google Play Billing Library 7.0+
+     * @deprecated Use discountOffers instead for cross-platform compatibility.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
+    /**
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     */
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
+    /**
+     * Standardized subscription offers.
+     * Cross-platform type with Android-specific fields using suffix.
+     * @see https://openiap.dev/docs/types#subscription-offer
+     */
+    val subscriptionOffers: List<SubscriptionOffer>,
     override val title: String,
     override val type: ProductType = ProductType.Subs
 ) : ProductCommon, ProductSubscription {
@@ -1681,6 +1978,7 @@ public data class ProductSubscriptionAndroid(
                 currency = json["currency"] as? String ?: "",
                 debugDescription = json["debugDescription"] as? String,
                 description = json["description"] as? String ?: "",
+                discountOffers = (json["discountOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DiscountOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DiscountOffer") },
                 displayName = json["displayName"] as? String,
                 displayPrice = json["displayPrice"] as? String ?: "",
                 id = json["id"] as? String ?: "",
@@ -1689,6 +1987,7 @@ public data class ProductSubscriptionAndroid(
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") } ?: emptyList(),
+                subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") } ?: emptyList(),
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
             )
@@ -1700,6 +1999,7 @@ public data class ProductSubscriptionAndroid(
         "currency" to currency,
         "debugDescription" to debugDescription,
         "description" to description,
+        "discountOffers" to discountOffers?.map { it.toJson() },
         "displayName" to displayName,
         "displayPrice" to displayPrice,
         "id" to id,
@@ -1708,11 +2008,17 @@ public data class ProductSubscriptionAndroid(
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid.map { it.toJson() },
+        "subscriptionOffers" to subscriptionOffers.map { it.toJson() },
         "title" to title,
         "type" to type.toJson(),
     )
 }
 
+/**
+ * Subscription offer details (Android).
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @see https://openiap.dev/docs/types#subscription-offer
+ */
 public data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,
     val offerId: String? = null,
@@ -1747,6 +2053,9 @@ public data class ProductSubscriptionIOS(
     override val currency: String,
     override val debugDescription: String? = null,
     override val description: String,
+    /**
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     */
     val discountsIOS: List<DiscountIOS>? = null,
     override val displayName: String? = null,
     val displayNameIOS: String,
@@ -1761,7 +2070,16 @@ public data class ProductSubscriptionIOS(
     val jsonRepresentationIOS: String,
     override val platform: IapPlatform = IapPlatform.Ios,
     override val price: Double? = null,
+    /**
+     * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
+     */
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
+    /**
+     * Standardized subscription offers.
+     * Cross-platform type with iOS-specific fields using suffix.
+     * @see https://openiap.dev/docs/types#subscription-offer
+     */
+    val subscriptionOffers: List<SubscriptionOffer>? = null,
     val subscriptionPeriodNumberIOS: String? = null,
     val subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = null,
     override val title: String,
@@ -1790,6 +2108,7 @@ public data class ProductSubscriptionIOS(
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
                 subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
+                subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 subscriptionPeriodNumberIOS = json["subscriptionPeriodNumberIOS"] as? String,
                 subscriptionPeriodUnitIOS = (json["subscriptionPeriodUnitIOS"] as? String)?.let { SubscriptionPeriodIOS.fromJson(it) },
                 title = json["title"] as? String ?: "",
@@ -1819,6 +2138,7 @@ public data class ProductSubscriptionIOS(
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionInfoIOS" to subscriptionInfoIOS?.toJson(),
+        "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "subscriptionPeriodNumberIOS" to subscriptionPeriodNumberIOS,
         "subscriptionPeriodUnitIOS" to subscriptionPeriodUnitIOS?.toJson(),
         "title" to title,
@@ -2282,6 +2602,154 @@ public data class SubscriptionInfoIOS(
     )
 }
 
+/**
+ * Standardized subscription discount/promotional offer.
+ * Provides a unified interface for subscription offers across iOS and Android.
+ * 
+ * Both platforms support subscription offers with different implementations:
+ * - iOS: Introductory offers, promotional offers with server-side signatures
+ * - Android: Offer tokens with pricing phases
+ * 
+ * @see https://openiap.dev/docs/types/ios#discount-offer
+ * @see https://openiap.dev/docs/types/android#subscription-offer
+ */
+public data class SubscriptionOffer(
+    /**
+     * [Android] Base plan identifier.
+     * Identifies which base plan this offer belongs to.
+     */
+    val basePlanIdAndroid: String? = null,
+    /**
+     * Currency code (ISO 4217, e.g., "USD")
+     */
+    val currency: String? = null,
+    /**
+     * Formatted display price string (e.g., "$9.99/month")
+     */
+    val displayPrice: String,
+    /**
+     * Unique identifier for the offer.
+     * - iOS: Discount identifier from App Store Connect
+     * - Android: offerId from ProductSubscriptionAndroidOfferDetails
+     */
+    val id: String,
+    /**
+     * [iOS] Key identifier for signature validation.
+     * Used with server-side signature generation for promotional offers.
+     */
+    val keyIdentifierIOS: String? = null,
+    /**
+     * [iOS] Localized price string.
+     */
+    val localizedPriceIOS: String? = null,
+    /**
+     * [iOS] Cryptographic nonce (UUID) for signature validation.
+     * Must be generated server-side for each purchase attempt.
+     */
+    val nonceIOS: String? = null,
+    /**
+     * [iOS] Number of billing periods for this discount.
+     */
+    val numberOfPeriodsIOS: Int? = null,
+    /**
+     * [Android] List of tags associated with this offer.
+     */
+    val offerTagsAndroid: List<String>? = null,
+    /**
+     * [Android] Offer token required for purchase.
+     * Must be passed to requestPurchase() when purchasing with this offer.
+     */
+    val offerTokenAndroid: String? = null,
+    /**
+     * Payment mode during the offer period
+     */
+    val paymentMode: PaymentMode? = null,
+    /**
+     * Subscription period for this offer
+     */
+    val period: SubscriptionPeriod? = null,
+    /**
+     * Number of periods the offer applies
+     */
+    val periodCount: Int? = null,
+    /**
+     * Numeric price value
+     */
+    val price: Double,
+    /**
+     * [Android] Pricing phases for this subscription offer.
+     * Contains detailed pricing information for each phase (trial, intro, regular).
+     */
+    val pricingPhasesAndroid: PricingPhasesAndroid? = null,
+    /**
+     * [iOS] Server-generated signature for promotional offer validation.
+     * Required when applying promotional offers on iOS.
+     */
+    val signatureIOS: String? = null,
+    /**
+     * [iOS] Timestamp when the signature was generated.
+     * Used for signature validation.
+     */
+    val timestampIOS: Double? = null,
+    /**
+     * Type of subscription offer (Introductory or Promotional)
+     */
+    val type: DiscountOfferType
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): SubscriptionOffer {
+            return SubscriptionOffer(
+                basePlanIdAndroid = json["basePlanIdAndroid"] as? String,
+                currency = json["currency"] as? String,
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                keyIdentifierIOS = json["keyIdentifierIOS"] as? String,
+                localizedPriceIOS = json["localizedPriceIOS"] as? String,
+                nonceIOS = json["nonceIOS"] as? String,
+                numberOfPeriodsIOS = (json["numberOfPeriodsIOS"] as? Number)?.toInt(),
+                offerTagsAndroid = (json["offerTagsAndroid"] as? List<*>)?.mapNotNull { it as? String },
+                offerTokenAndroid = json["offerTokenAndroid"] as? String,
+                paymentMode = (json["paymentMode"] as? String)?.let { PaymentMode.fromJson(it) },
+                period = (json["period"] as? Map<String, Any?>)?.let { SubscriptionPeriod.fromJson(it) },
+                periodCount = (json["periodCount"] as? Number)?.toInt(),
+                price = (json["price"] as? Number)?.toDouble() ?: 0.0,
+                pricingPhasesAndroid = (json["pricingPhasesAndroid"] as? Map<String, Any?>)?.let { PricingPhasesAndroid.fromJson(it) },
+                signatureIOS = json["signatureIOS"] as? String,
+                timestampIOS = (json["timestampIOS"] as? Number)?.toDouble(),
+                type = (json["type"] as? String)?.let { DiscountOfferType.fromJson(it) } ?: DiscountOfferType.Introductory,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "SubscriptionOffer",
+        "basePlanIdAndroid" to basePlanIdAndroid,
+        "currency" to currency,
+        "displayPrice" to displayPrice,
+        "id" to id,
+        "keyIdentifierIOS" to keyIdentifierIOS,
+        "localizedPriceIOS" to localizedPriceIOS,
+        "nonceIOS" to nonceIOS,
+        "numberOfPeriodsIOS" to numberOfPeriodsIOS,
+        "offerTagsAndroid" to offerTagsAndroid?.map { it },
+        "offerTokenAndroid" to offerTokenAndroid,
+        "paymentMode" to paymentMode?.toJson(),
+        "period" to period?.toJson(),
+        "periodCount" to periodCount,
+        "price" to price,
+        "pricingPhasesAndroid" to pricingPhasesAndroid?.toJson(),
+        "signatureIOS" to signatureIOS,
+        "timestampIOS" to timestampIOS,
+        "type" to type.toJson(),
+    )
+}
+
+/**
+ * iOS subscription offer details.
+ * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
+ * @see https://openiap.dev/docs/types#subscription-offer
+ */
 public data class SubscriptionOfferIOS(
     val displayPrice: String,
     val id: String,
@@ -2315,6 +2783,36 @@ public data class SubscriptionOfferIOS(
         "periodCount" to periodCount,
         "price" to price,
         "type" to type.toJson(),
+    )
+}
+
+/**
+ * Subscription period value combining unit and count.
+ */
+public data class SubscriptionPeriod(
+    /**
+     * The period unit (day, week, month, year)
+     */
+    val unit: SubscriptionPeriodUnit,
+    /**
+     * The number of units (e.g., 1 for monthly, 3 for quarterly)
+     */
+    val value: Int
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): SubscriptionPeriod {
+            return SubscriptionPeriod(
+                unit = (json["unit"] as? String)?.let { SubscriptionPeriodUnit.fromJson(it) } ?: SubscriptionPeriodUnit.Day,
+                value = (json["value"] as? Number)?.toInt() ?: 0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "SubscriptionPeriod",
+        "unit" to unit.toJson(),
+        "value" to value,
     )
 }
 

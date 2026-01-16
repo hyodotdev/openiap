@@ -30,6 +30,16 @@ function Discount() {
         </p>
       </div>
 
+      <div className="alert-card alert-card--warning">
+        <p>
+          <strong>Standardized Types:</strong> For cross-platform development,
+          use the new{' '}
+          <a href="/docs/types/offer#discount-offer">DiscountOffer</a> type
+          which provides a unified interface with platform-specific fields via
+          suffixes (e.g., <code>offerTokenAndroid</code>).
+        </p>
+      </div>
+
       <section>
         <AnchorLink id="overview" level="h2">
           Overview

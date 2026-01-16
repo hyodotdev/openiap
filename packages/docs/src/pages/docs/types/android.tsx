@@ -32,12 +32,6 @@ function TypesAndroid() {
             - One-time purchase discount offers (Billing Library 7.0+)
           </li>
           <li>
-            <a href="#subscription-offer">
-              <code>SubscriptionOffer</code>
-            </a>{' '}
-            - Offer details with offerToken for purchases
-          </li>
-          <li>
             <a href="#pricing-phase">
               <code>PricingPhase</code>
             </a>{' '}
@@ -49,8 +43,23 @@ function TypesAndroid() {
             </a>{' '}
             - Container for pricing phase list
           </li>
+          <li>
+            <strong>Deprecated</strong>: SubscriptionOffer → Use{' '}
+            <a href="/docs/types/offer">standardized Offer Types</a>
+          </li>
         </ul>
       </TLDRBox>
+
+      <div className="alert-card alert-card--warning">
+        <p>
+          <strong>Deprecation Notice:</strong> The Android-specific offer types
+          (<code>ProductAndroidOneTimePurchaseOfferDetail</code>,{' '}
+          <code>ProductSubscriptionAndroidOfferDetails</code>) are deprecated.
+          Use the new cross-platform{' '}
+          <a href="/docs/types/offer">DiscountOffer and SubscriptionOffer</a>{' '}
+          types instead.
+        </p>
+      </div>
 
       <section>
         <AnchorLink id="one-time-purchase-offer-detail" level="h2">
@@ -253,8 +262,13 @@ function TypesAndroid() {
 
       <section>
         <AnchorLink id="subscription-offer" level="h2">
-          SubscriptionOffer
+          SubscriptionOffer <span className="deprecated-badge">Deprecated</span>
         </AnchorLink>
+        <p>
+          <strong>Deprecated:</strong> Use{' '}
+          <a href="/docs/types/offer#subscription-offer">SubscriptionOffer</a>{' '}
+          (cross-platform) instead.
+        </p>
         <p>Offer details for subscription purchases:</p>
         <table className="doc-table">
           <thead>

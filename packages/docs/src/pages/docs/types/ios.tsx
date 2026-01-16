@@ -12,9 +12,9 @@ function TypesIOS() {
     <div className="doc-page">
       <SEO
         title="iOS Types"
-        description="OpenIAP iOS-specific type definitions - DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction for TypeScript, Swift, Kotlin, Dart."
+        description="OpenIAP iOS-specific type definitions - DiscountOfferIOS, SubscriptionStatusIOS, PaymentModeIOS, AppTransaction for TypeScript, Swift, Kotlin, Dart."
         path="/docs/types/ios"
-        keywords="IAP types, DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction, iOS, StoreKit 2"
+        keywords="IAP types, DiscountOfferIOS, DiscountIOS, SubscriptionStatusIOS, PaymentModeIOS, AppTransaction, iOS, StoreKit 2"
       />
       <h1>iOS Types</h1>
       <p>
@@ -25,23 +25,44 @@ function TypesIOS() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#discount-offer"><strong>Discounts</strong></a>: DiscountOffer (for purchasing), Discount
-            (product info)
+            <a href="#subscription-status-ios">
+              <strong>Subscription</strong>
+            </a>
+            : SubscriptionStatusIOS, SubscriptionPeriodIOS, PaymentModeIOS
           </li>
           <li>
-            <a href="#subscription-status-ios"><strong>Subscription</strong></a>: SubscriptionStatusIOS,
-            SubscriptionPeriodIOS, PaymentMode
+            <a href="#app-transaction">
+              <code>AppTransaction</code>
+            </a>{' '}
+            - App purchase/installation metadata
           </li>
           <li>
-            <a href="#app-transaction"><code>AppTransaction</code></a> - App purchase/installation metadata
+            <strong>Deprecated</strong>: DiscountOfferIOS, DiscountIOS → Use{' '}
+            <a href="/docs/types/offer">standardized Offer Types</a>
           </li>
         </ul>
       </TLDRBox>
 
+      <div className="alert-card alert-card--warning">
+        <p>
+          <strong>Deprecation Notice:</strong> The iOS-specific discount and
+          offer types (<code>DiscountOfferIOS</code>, <code>DiscountIOS</code>,{' '}
+          <code>SubscriptionOfferIOS</code>) are deprecated. Use the new
+          cross-platform{' '}
+          <a href="/docs/types/offer">DiscountOffer and SubscriptionOffer</a>{' '}
+          types instead.
+        </p>
+      </div>
+
       <section>
-        <AnchorLink id="discount-offer" level="h2">
-          DiscountOffer
+        <AnchorLink id="discount-offer-ios" level="h2">
+          DiscountOfferIOS <span className="deprecated-badge">Deprecated</span>
         </AnchorLink>
+        <p>
+          <strong>Deprecated:</strong> Use{' '}
+          <a href="/docs/types/offer#subscription-offer">SubscriptionOffer</a>{' '}
+          instead.
+        </p>
         <p>
           Used when requesting a purchase with a promotional offer. Generate
           signature server-side.
@@ -89,9 +110,14 @@ function TypesIOS() {
       </section>
 
       <section>
-        <AnchorLink id="discount" level="h2">
-          Discount
+        <AnchorLink id="discount-ios" level="h2">
+          DiscountIOS <span className="deprecated-badge">Deprecated</span>
         </AnchorLink>
+        <p>
+          <strong>Deprecated:</strong> Use{' '}
+          <a href="/docs/types/offer#subscription-offer">SubscriptionOffer</a>{' '}
+          instead.
+        </p>
         <p>Discount info returned as part of product details:</p>
         <table className="doc-table">
           <thead>

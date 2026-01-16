@@ -82,6 +82,21 @@ struct SubscriptionCard: View {
                         .padding(.vertical, 2)
                         .background(AppColors.secondary.opacity(0.15))
                         .cornerRadius(4)
+
+                    // Show intro/promotional offer using new standardized SubscriptionOffer type
+                    if let offer = product?.subscriptionOffers?.first,
+                       offer.type == .introductory || offer.type == .promotional {
+                        let offerText = offer.paymentMode == .freeTrial
+                            ? "Free Trial"
+                            : offer.displayPrice
+                        Label(offerText, systemImage: "tag.fill")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppColors.success.opacity(0.2))
+                            .foregroundColor(AppColors.success)
+                            .cornerRadius(4)
+                    }
                 }
             }
             

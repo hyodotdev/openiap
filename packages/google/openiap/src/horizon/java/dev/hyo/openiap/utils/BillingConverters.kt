@@ -47,6 +47,7 @@ internal object HorizonBillingConverters {
             currency = currency,
             debugDescription = description,
             description = description,
+            discountOffers = null,  // Horizon doesn't support discount offers yet
             displayName = name,
             displayPrice = displayPrice,
             id = productId,
@@ -55,6 +56,7 @@ internal object HorizonBillingConverters {
             platform = IapPlatform.Android,
             price = priceAmountMicros.toDouble() / 1_000_000.0,
             subscriptionOfferDetailsAndroid = null,
+            subscriptionOffers = null,  // Horizon doesn't support standardized offers yet
             title = title,
             type = ProductType.InApp
         )
@@ -111,6 +113,7 @@ internal object HorizonBillingConverters {
             currency = currency,
             debugDescription = description,
             description = description,
+            discountOffers = null,  // Horizon doesn't support discount offers yet
             displayName = name,
             displayPrice = displayPrice,
             id = productId,
@@ -119,6 +122,7 @@ internal object HorizonBillingConverters {
             platform = IapPlatform.Android,
             price = firstPhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
             subscriptionOfferDetailsAndroid = pricingDetails,
+            subscriptionOffers = emptyList(),  // Horizon doesn't support standardized offers yet
             title = title,
             type = ProductType.Subs
         )
