@@ -12,6 +12,7 @@ import TypesAlternative from './types/alternative';
 import TypesVerification from './types/verification';
 import TypesIOS from './types/ios';
 import TypesAndroid from './types/android';
+import TypesOffer from './types/offer';
 import APIsIndex from './apis/index';
 import APIsConnection from './apis/connection';
 import APIsProducts from './apis/products';
@@ -114,6 +115,7 @@ function Docs() {
                 { to: '/docs/types/verification', label: 'Verification' },
                 { to: '/docs/types/ios', label: 'iOS Types' },
                 { to: '/docs/types/android', label: 'Android Types' },
+                { to: '/docs/types/offer', label: 'Offer Types' },
               ]}
               onItemClick={closeSidebar}
             />
@@ -290,6 +292,7 @@ function Docs() {
           <Route path="types/verification" element={<TypesVerification />} />
           <Route path="types/ios" element={<TypesIOS />} />
           <Route path="types/android" element={<TypesAndroid />} />
+          <Route path="types/offer" element={<TypesOffer />} />
           <Route path="apis" element={<APIsIndex />} />
           <Route path="apis/connection" element={<APIsConnection />} />
           <Route path="apis/products" element={<APIsProducts />} />
