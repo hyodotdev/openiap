@@ -13,9 +13,9 @@ function TypesAndroid() {
     <div className="doc-page">
       <SEO
         title="Android Types"
-        description="OpenIAP Android-specific type definitions - SubscriptionOffer, PricingPhase, PricingPhasesAndroid for TypeScript, Swift, Kotlin, Dart."
+        description="OpenIAP Android-specific type definitions - ProductAndroidOneTimePurchaseOfferDetail, SubscriptionOffer, PricingPhase, PricingPhasesAndroid for TypeScript, Swift, Kotlin, Dart."
         path="/docs/types/android"
-        keywords="IAP types, SubscriptionOffer, PricingPhase, PricingPhasesAndroid, Android, Play Billing"
+        keywords="IAP types, ProductAndroidOneTimePurchaseOfferDetail, SubscriptionOffer, PricingPhase, PricingPhasesAndroid, Android, Play Billing"
       />
       <h1>Android Types</h1>
       <p>
@@ -26,18 +26,230 @@ function TypesAndroid() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#subscription-offer"><code>SubscriptionOffer</code></a> - Offer details with offerToken for
-            purchases
+            <a href="#one-time-purchase-offer-detail">
+              <code>ProductAndroidOneTimePurchaseOfferDetail</code>
+            </a>{' '}
+            - One-time purchase discount offers (Billing Library 7.0+)
           </li>
           <li>
-            <a href="#pricing-phase"><code>PricingPhase</code></a> - Individual pricing phase (trial, intro,
-            regular)
+            <a href="#subscription-offer">
+              <code>SubscriptionOffer</code>
+            </a>{' '}
+            - Offer details with offerToken for purchases
           </li>
           <li>
-            <a href="#pricing-phases-android"><code>PricingPhasesAndroid</code></a> - Container for pricing phase list
+            <a href="#pricing-phase">
+              <code>PricingPhase</code>
+            </a>{' '}
+            - Individual pricing phase (trial, intro, regular)
+          </li>
+          <li>
+            <a href="#pricing-phases-android">
+              <code>PricingPhasesAndroid</code>
+            </a>{' '}
+            - Container for pricing phase list
           </li>
         </ul>
       </TLDRBox>
+
+      <section>
+        <AnchorLink id="one-time-purchase-offer-detail" level="h2">
+          ProductAndroidOneTimePurchaseOfferDetail
+        </AnchorLink>
+        <p>
+          One-time purchase offer details for Android products. Available with{' '}
+          <a
+            href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Play Billing Library 7.0+
+          </a>
+          . For implementation examples, see the{' '}
+          <Link to="/docs/features/discount">Discounts feature guide</Link>.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>offerId</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>
+                Unique offer identifier. <code>null</code> for base offers
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>offerToken</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Token required for purchase requests</td>
+            </tr>
+            <tr>
+              <td>
+                <code>offerTags</code>
+              </td>
+              <td>
+                <code>string[]</code>
+              </td>
+              <td>Tags for categorizing offers</td>
+            </tr>
+            <tr>
+              <td>
+                <code>formattedPrice</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Localized price string (e.g., &quot;$4.99&quot;)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>priceAmountMicros</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Price in micro-units (divide by 1,000,000)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>priceCurrencyCode</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>ISO 4217 currency code</td>
+            </tr>
+            <tr>
+              <td>
+                <code>discountDisplayInfo</code>
+              </td>
+              <td>
+                <code>DiscountDisplayInfoAndroid | null</code>
+              </td>
+              <td>Discount display information (percentage, badge text)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>fullPriceMicros</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>Original price before discount in micro-units</td>
+            </tr>
+            <tr>
+              <td>
+                <code>validTimeWindow</code>
+              </td>
+              <td>
+                <code>
+                  <a href="#valid-time-window-android">
+                    ValidTimeWindowAndroid
+                  </a>{' '}
+                  | null
+                </code>
+              </td>
+              <td>Time-limited offer validity window</td>
+            </tr>
+            <tr>
+              <td>
+                <code>limitedQuantityInfo</code>
+              </td>
+              <td>
+                <code>
+                  <a href="#limited-quantity-info-android">
+                    LimitedQuantityInfoAndroid
+                  </a>{' '}
+                  | null
+                </code>
+              </td>
+              <td>Quantity-limited offer availability</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="valid-time-window-android" level="h3">
+          ValidTimeWindowAndroid
+        </AnchorLink>
+        <p>Defines the validity period for time-limited offers:</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>startTimeMillis</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Offer start time (Unix timestamp in milliseconds)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>endTimeMillis</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Offer end time (Unix timestamp in milliseconds)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="limited-quantity-info-android" level="h3">
+          LimitedQuantityInfoAndroid
+        </AnchorLink>
+        <p>Defines availability for quantity-limited offers:</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>maximumQuantity</code>
+              </td>
+              <td>
+                <code>number</code>
+              </td>
+              <td>Maximum number of times offer can be redeemed</td>
+            </tr>
+            <tr>
+              <td>
+                <code>remainingQuantity</code>
+              </td>
+              <td>
+                <code>number</code>
+              </td>
+              <td>Remaining redemptions available for this user</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
       <section>
         <AnchorLink id="subscription-offer" level="h2">
@@ -422,7 +634,9 @@ await iap.request_purchase(props)`}</CodeBlock>
           </thead>
           <tbody>
             <tr>
-              <td>Parse <code>billingPeriod</code></td>
+              <td>
+                Parse <code>billingPeriod</code>
+              </td>
               <td>
                 Use the billing period (P1M, P1Y) to identify monthly vs yearly
               </td>
