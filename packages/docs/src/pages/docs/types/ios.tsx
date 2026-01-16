@@ -12,9 +12,9 @@ function TypesIOS() {
     <div className="doc-page">
       <SEO
         title="iOS Types"
-        description="OpenIAP iOS-specific type definitions - DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction for TypeScript, Swift, Kotlin, Dart."
+        description="OpenIAP iOS-specific type definitions - DiscountOfferIOS, SubscriptionStatusIOS, PaymentModeIOS, AppTransaction for TypeScript, Swift, Kotlin, Dart."
         path="/docs/types/ios"
-        keywords="IAP types, DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction, iOS, StoreKit 2"
+        keywords="IAP types, DiscountOfferIOS, DiscountIOS, SubscriptionStatusIOS, PaymentModeIOS, AppTransaction, iOS, StoreKit 2"
       />
       <h1>iOS Types</h1>
       <p>
@@ -37,7 +37,7 @@ function TypesIOS() {
             - App purchase/installation metadata
           </li>
           <li>
-            <strong>Deprecated</strong>: DiscountOffer, Discount → Use{' '}
+            <strong>Deprecated</strong>: DiscountOfferIOS, DiscountIOS → Use{' '}
             <a href="/docs/types/offer">standardized Offer Types</a>
           </li>
         </ul>
@@ -55,8 +55,8 @@ function TypesIOS() {
       </div>
 
       <section>
-        <AnchorLink id="discount-offer" level="h2">
-          DiscountOffer <span className="deprecated-badge">Deprecated</span>
+        <AnchorLink id="discount-offer-ios" level="h2">
+          DiscountOfferIOS <span className="deprecated-badge">Deprecated</span>
         </AnchorLink>
         <p>
           <strong>Deprecated:</strong> Use{' '}
@@ -110,8 +110,8 @@ function TypesIOS() {
       </section>
 
       <section>
-        <AnchorLink id="discount" level="h2">
-          Discount <span className="deprecated-badge">Deprecated</span>
+        <AnchorLink id="discount-ios" level="h2">
+          DiscountIOS <span className="deprecated-badge">Deprecated</span>
         </AnchorLink>
         <p>
           <strong>Deprecated:</strong> Use{' '}

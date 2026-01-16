@@ -879,7 +879,7 @@ const products = await fetchProducts({
   skus: ['premium_feature', 'premium_subscription'],
 });
 
-products.forEach((product) => {
+for (const product of products) {
   // Access standardized discount offers (one-time products)
   const discountOffers = product.discountOffers;
   if (discountOffers && discountOffers.length > 0) {
@@ -932,7 +932,7 @@ products.forEach((product) => {
       });
     }
   }
-});`}</CodeBlock>
+}`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapModule
