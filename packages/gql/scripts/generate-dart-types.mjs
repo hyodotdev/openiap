@@ -359,6 +359,10 @@ const buildFromJsonExpression = (metadata, sourceExpression) => {
 const buildToJsonExpression = (metadata, accessorExpression) => {
   if (metadata.kind === 'list') {
     const inner = buildToJsonExpression(metadata.elementType, 'e');
+    // If element is scalar (no transformation needed), skip map entirely
+    if (inner === 'e') {
+      return accessorExpression;
+    }
     if (metadata.nullable) {
       return `${accessorExpression} == null ? null : ${accessorExpression}!.map((e) => ${inner}).toList()`;
     }
@@ -407,22 +411,18 @@ const printEnum = (enumType) => {
     '  final String value;',
     '',
     `  factory ${enumType.name}.fromJson(String value) {`,
-    '    switch (value) {'
+    "    final normalized = value.toLowerCase().replaceAll('_', '-');",
+    '    switch (normalized) {'
   );
   values.forEach((value) => {
     const name = escapeDartName(toPascalCase(value.name));
     const rawValue = toKebabCase(value.name);
-    const legacyValues = Array.from(new Set([toConstantCase(value.name), value.name]))
-      .filter((candidate) => candidate !== rawValue);
     lines.push(`      case '${rawValue}':`);
-    legacyValues.forEach((legacy) => {
-      lines.push(`      case '${legacy}':`);
-    });
     lines.push(`        return ${enumType.name}.${name};`);
   });
   lines.push(
     '    }',
-    `    throw ArgumentError('Unknown ${enumType.name} value: $value');`,
+    `    throw ArgumentError('Unknown ${enumType.name} value: \$value');`,
     '  }',
     '',
     '  String toJson() => value;',

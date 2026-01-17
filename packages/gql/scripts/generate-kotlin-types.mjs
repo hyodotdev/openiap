@@ -333,13 +333,16 @@ const getOperationReturnType = (graphqlType) => {
 const buildFromJsonExpression = (metadata, sourceExpression, isListElement = false) => {
   if (metadata.kind === 'list') {
     const element = buildFromJsonExpression(metadata.elementType, 'it', true);
+    // Use mapNotNull for non-nullable elements to filter out nulls and get List<T>
+    // Use map for nullable elements to keep nulls and get List<T?>
+    const mapFn = metadata.elementType.nullable ? 'map' : 'mapNotNull';
     if (metadata.nullable) {
-      return `(${sourceExpression} as? List<*>)?.mapNotNull { ${element} }`;
+      return `(${sourceExpression} as? List<*>)?.${mapFn} { ${element} }`;
     }
-    return `(${sourceExpression} as? List<*>)?.mapNotNull { ${element} } ?: emptyList()`;
+    return `(${sourceExpression} as? List<*>)?.${mapFn} { ${element} } ?: emptyList()`;
   }
   if (metadata.kind === 'scalar') {
-    // When inside mapNotNull, return nullable expression (null elements are filtered out)
+    // When inside map/mapNotNull, return nullable expression for filtering
     const useNullable = metadata.nullable || isListElement;
     switch (metadata.name) {
       case 'Float':
@@ -395,6 +398,10 @@ const buildFromJsonExpression = (metadata, sourceExpression, isListElement = fal
 const buildToJsonExpression = (metadata, accessorExpression) => {
   if (metadata.kind === 'list') {
     const inner = buildToJsonExpression(metadata.elementType, 'it');
+    // If inner expression is just 'it', skip the map entirely (e.g., List<String>)
+    if (inner === 'it') {
+      return accessorExpression;
+    }
     return metadata.nullable
       ? `${accessorExpression}?.map { ${inner} }`
       : `${accessorExpression}.map { ${inner} }`;
