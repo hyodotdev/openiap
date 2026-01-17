@@ -254,6 +254,15 @@ class OpenIapModule(
         }
     }
 
+    /**
+     * Get available items by product type (Play-compatible API for Horizon)
+     * Used by react-native-iap when type filter is specified
+     */
+    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+        val billingType = if (type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
+        queryPurchasesHorizon(billingClient, billingType)
+    }
+
     override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->
         withContext(Dispatchers.IO) {
             OpenIapLog.i("=== HORIZON getActiveSubscriptions ===", TAG)
