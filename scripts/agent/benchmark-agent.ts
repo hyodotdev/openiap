@@ -33,6 +33,7 @@
 import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import chalk from "chalk";
 import * as lancedb from "vectordb";
 import { OllamaEmbeddings } from "@langchain/ollama";
@@ -45,10 +46,13 @@ import { execSync, execFileSync } from "child_process";
 // Configuration
 // ============================================================================
 
+// Use script directory instead of process.cwd() for stable path resolution
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+
 const CONFIG = {
-  projectRoot: path.resolve(process.cwd(), "../.."),
-  outputRoot: path.resolve(process.cwd(), "../../_generated"),
-  dbPath: path.resolve(process.cwd(), ".lancedb"),
+  projectRoot: path.resolve(scriptDir, "../.."),
+  outputRoot: path.resolve(scriptDir, "../../_generated"),
+  dbPath: path.resolve(scriptDir, ".lancedb"),
 
   // Tables
   knowledgeTable: "openiap_knowledge",

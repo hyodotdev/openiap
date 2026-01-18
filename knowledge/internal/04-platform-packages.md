@@ -5,7 +5,7 @@
 
 ## Apple Package (packages/apple)
 
-### Required Pre-Work
+### Required Pre-Work (Apple)
 
 Before writing or editing anything, **ALWAYS** review:
 - [`packages/apple/CONVENTION.md`](../../packages/apple/CONVENTION.md)
@@ -39,6 +39,7 @@ Version is managed in `openiap-versions.json`:
 3. Run `swift test` to verify compatibility
 
 **To bump Apple package version:**
+
 ```bash
 ./scripts/bump-version.sh [major|minor|patch|x.x.x]
 ```
@@ -54,7 +55,7 @@ swift build  # Build package
 
 ## Google Package (packages/google)
 
-### Required Pre-Work
+### Required Pre-Work (Google)
 
 Before writing or editing anything, **ALWAYS** review:
 - [`packages/google/CONVENTION.md`](../../packages/google/CONVENTION.md)

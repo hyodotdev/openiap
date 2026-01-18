@@ -1,7 +1,7 @@
 # Meta Horizon IAP API Reference
 
 > External reference for Meta Horizon Store in-app purchase APIs.
-> Source: https://developers.meta.com/horizon/documentation/
+> Source: [Meta Horizon Documentation](https://developers.meta.com/horizon/documentation/)
 
 ## Overview
 
@@ -84,7 +84,8 @@ Access token format: `OC|App_ID|App_Secret`
 Verify that a user owns an item (app or add-on).
 
 **Endpoint:**
-```
+
+```http
 POST https://graph.oculus.com/$APP_ID/verify_entitlement
 ```
 
@@ -92,7 +93,7 @@ POST https://graph.oculus.com/$APP_ID/verify_entitlement
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `access_token` | string | `OC|App_ID|App_Secret` format |
+| `access_token` | string | `OC\|App_ID\|App_Secret` format |
 | `user_id` | string | The user ID to verify |
 | `sku` | string | (Optional) SKU for add-on verification |
 
@@ -123,7 +124,8 @@ curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
 Refund a DURABLE or CONSUMABLE entitlement (not yet consumed).
 
 **Endpoint:**
-```
+
+```http
 POST https://graph.oculus.com/$APP_ID/refund_iap_entitlement
 ```
 
@@ -131,7 +133,7 @@ POST https://graph.oculus.com/$APP_ID/refund_iap_entitlement
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `access_token` | string | `OC|App_ID|App_Secret` format |
+| `access_token` | string | `OC\|App_ID\|App_Secret` format |
 | `user_id` | string | The user ID |
 | `sku` | string | SKU of item to refund |
 

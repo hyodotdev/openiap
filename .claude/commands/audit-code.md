@@ -4,7 +4,7 @@ Automated workflow to check and fix code based on knowledge rules and latest pla
 
 ## Workflow
 
-```
+```text
 1. Compile knowledge (re-index)
          ↓
 2. Fetch latest API docs (WebSearch)
@@ -181,11 +181,8 @@ Then ask Claude to:
 ## Example Usage
 
 Ask Claude Code:
-
 > "Run /audit-code with latest API check"
-
 > "Audit the codebase including latest Google Play Billing 8.x features"
-
 > "Check implementation against latest StoreKit 2 iOS 18.4 APIs"
 
 ## Output
