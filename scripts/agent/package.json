@@ -1,0 +1,33 @@
+{
+  "name": "openiap-rag-agent",
+  "version": "3.0.0",
+  "description": "OpenIAP Hybrid Mode - Shared Brain, Dual Body Architecture",
+  "type": "module",
+  "scripts": {
+    "compile": "bun run compile:ai && bun run compile:local",
+    "compile:ai": "bun run compile-context.ts",
+    "compile:local": "bun run indexer.ts",
+    "compile:local:knowledge": "bun run indexer.ts --knowledge",
+    "compile:local:code": "bun run indexer.ts --code",
+    "benchmark": "bun run benchmark-agent.ts",
+    "agent": "bun run agent-coder.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "bun run typecheck"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/ollama": "^0.1.0",
+    "chalk": "^5.3.0",
+    "dotenv": "^16.4.5",
+    "glob": "^10.4.5",
+    "inquirer": "^10.2.2",
+    "langchain": "^0.3.0",
+    "vectordb": "^0.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.9.2"
+  }
+}

@@ -43,3 +43,7 @@ coverage/
 tmp/
 temp/
 .build
+
+# RAG Agent generated outputs (benchmark comparisons)
+_generated/
+scripts/agent/.lancedb/

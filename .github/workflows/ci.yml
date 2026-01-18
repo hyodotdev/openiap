@@ -18,6 +18,7 @@ jobs:
       android: ${{ steps.filter.outputs.android }}
       ios: ${{ steps.filter.outputs.ios }}
       docs: ${{ steps.filter.outputs.docs }}
+      agent: ${{ steps.filter.outputs.agent }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,6 +47,9 @@ jobs:
               - '.github/workflows/ci.yml'
             docs:
               - 'packages/docs/**'
+              - '.github/workflows/ci.yml'
+            agent:
+              - 'scripts/agent/**'
               - '.github/workflows/ci.yml'
 
   test-gql:
@@ -205,3 +209,36 @@ jobs:
       - name: Build
         working-directory: packages/docs
         run: bun run build
+
+  test-agent:
+    name: Test Agent Scripts
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.agent == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.1.0
+
+      - name: Install dependencies
+        working-directory: scripts/agent
+        run: |
+          # Retry bun install up to 3 times to handle transient registry errors
+          for i in 1 2 3; do
+            bun install && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
+          done
+
+      - name: Type check
+        working-directory: scripts/agent
+        run: bun run typecheck
+
+      - name: Run tests
+        working-directory: scripts/agent
+        run: bun test

@@ -3,16 +3,15 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
+> Generated: 2026-01-18T09:42:57.292Z
 
 ## Table of Contents
 1. Installation
 2. Core APIs (Connection, Products, Purchase, Subscription)
-3. Validation APIs
-4. Platform-Specific APIs (iOS, Android)
-5. Types (Product, Purchase, Subscription, Request)
-6. Error Codes & Handling
-7. Events & Listeners
-8. Implementation Patterns
+3. Platform-Specific APIs (iOS, Android)
+4. Types Reference
+5. Error Codes & Handling
+6. Implementation Patterns
 
 ---
 
@@ -53,761 +52,342 @@ dependencies:
   flutter_inapp_purchase: ^5.0.0
 ```
 
-### Godot (GDScript)
-```
-Download from: https://github.com/hyochan/godot-iap
-```
-
 ---
 
-## 2. Core APIs
+# expo-iap API Reference
 
-### Connection APIs
+> Reference documentation for expo-iap (Expo In-App Purchase module)
+> Adapt all patterns to match OpenIAP internal conventions.
 
-#### initConnection
-Initialize connection to the store service. Required before any other operations.
+## Overview
+
+expo-iap is the Expo-compatible version of react-native-iap, providing in-app purchase functionality for both iOS and Android in Expo projects.
+
+## Installation
+
+```bash
+npx expo install expo-iap
+```
+
+## Connection Management
+
+### initConnection
+
+Initialize connection to the app store.
 
 ```typescript
-// TypeScript
-initConnection(config?: InitConnectionConfig): Promise<boolean>
+import { initConnection } from 'expo-iap';
 
-interface InitConnectionConfig {
-  alternativeBillingModeAndroid?: 'user-choice' | 'alternative-only';
-}
-
-// Examples
 await initConnection();
-await initConnection({ alternativeBillingModeAndroid: 'user-choice' });
 ```
 
-```swift
-// Swift
-func initConnection() async throws -> Bool
-try await OpenIapModule.shared.initConnection()
-```
+### endConnection
 
-```kotlin
-// Kotlin
-suspend fun initConnection(config: InitConnectionConfig? = null): Boolean
-openIapStore.initConnection()
-```
-
-#### endConnection
-End connection to store service. Call on app close or component unmount.
+Close connection to the app store.
 
 ```typescript
-// TypeScript
-endConnection(): Promise<boolean>
+import { endConnection } from 'expo-iap';
 
-// React example
-useEffect(() => {
-  void initConnection();
-  return () => { void endConnection(); };
-}, []);
+await endConnection();
 ```
 
-### Product APIs
+## Product Operations
 
-#### fetchProducts
+### fetchProducts
+
 Fetch product information from the store.
 
 ```typescript
-// TypeScript
-fetchProducts(request: ProductRequest): Promise<Product[]>
+import { fetchProducts } from 'expo-iap';
 
-interface ProductRequest {
-  products: Array<{ id: string; type: 'inapp' | 'subs' }>;
-}
-
-// Example
-const products = await fetchProducts({
-  products: [
-    { id: 'com.app.premium', type: 'inapp' },
-    { id: 'com.app.monthly', type: 'subs' },
-    { id: 'com.app.yearly', type: 'subs' },
-  ],
-});
+const products = await fetchProducts(['com.app.product1', 'com.app.sub_monthly']);
 ```
 
-```swift
-// Swift
-func fetchProducts(_ request: ProductRequest) async throws -> [Product]
-```
+**Returns:** `Promise<Product[]>`
 
-```kotlin
-// Kotlin
-suspend fun fetchProducts(request: ProductRequest): List<Product>
-```
-
-#### getAvailablePurchases
-Get user's current purchases/entitlements.
-
-```typescript
-// TypeScript
-getAvailablePurchases(): Promise<Purchase[]>
-
-const purchases = await getAvailablePurchases();
-// Returns all active purchases for the user
-```
-
-### Purchase APIs
-
-#### requestPurchase
-Initiate a purchase flow. Results delivered via purchaseUpdatedListener.
-
-```typescript
-// TypeScript
-requestPurchase(props: RequestPurchaseProps): Promise<Purchase | void>
-
-type RequestPurchaseProps =
-  | { request: RequestPurchasePropsByPlatforms; type: 'inapp' }
-  | { request: RequestSubscriptionPropsByPlatforms; type: 'subs' }
-
-interface RequestPurchasePropsByPlatforms {
-  apple?: RequestPurchaseIosProps;
-  google?: RequestPurchaseAndroidProps;
-}
-
-interface RequestPurchaseIosProps {
-  sku: string;
-  quantity?: number;
-  applicationUsername?: string;
-  offer?: DiscountOffer;
-}
-
-interface RequestPurchaseAndroidProps {
-  skus: string[];
-  obfuscatedAccountId?: string;
-  obfuscatedProfileId?: string;
-  isOfferPersonalized?: boolean;
-  subscriptionOffers?: SubscriptionOfferAndroid[];
-}
-
-// One-time purchase
-await requestPurchase({
-  request: {
-    apple: { sku: 'com.app.premium' },
-    google: { skus: ['com.app.premium'] },
-  },
-  type: 'inapp',
-});
-
-// Subscription purchase
-await requestPurchase({
-  request: {
-    apple: { sku: 'com.app.monthly' },
-    google: {
-      skus: ['com.app.monthly'],
-      subscriptionOffers: [{
-        sku: 'com.app.monthly',
-        offerToken: 'offer-token-from-product',
-      }],
-    },
-  },
-  type: 'subs',
-});
-```
-
-IMPORTANT: requestPurchase is EVENT-BASED, not promise-based. Always set up
-purchaseUpdatedListener before calling. The return value should not be relied
-upon for purchase results.
-
-#### finishTransaction
-Complete a purchase transaction. MUST be called after verifying purchase.
-
-```typescript
-// TypeScript
-finishTransaction(purchase: Purchase, isConsumable?: boolean): Promise<void>
-
-// Parameters:
-// - purchase: The Purchase object from purchaseUpdatedListener
-// - isConsumable: true for consumables (coins, gems), false otherwise
-
-// CRITICAL: Android purchases auto-refund after 3 days if not acknowledged
-// iOS transactions replay on every launch if not finished
-```
-
-| Product Type | isConsumable | Behavior |
-|--------------|--------------|----------|
-| Consumable | true | Can be purchased again |
-| Non-consumable | false | One-time purchase |
-| Subscription | false | Managed by store |
-
-#### restorePurchases
-Restore user's previous purchases (for "Restore Purchases" button).
-
-```typescript
-// TypeScript
-restorePurchases(): Promise<void>
-
-const handleRestore = async () => {
-  await restorePurchases();
-  const purchases = await getAvailablePurchases();
-  for (const purchase of purchases) {
-    await grantEntitlement(purchase.productId);
-  }
-};
-```
-
-#### getStorefront
-Get user's country/region code.
-
-```typescript
-// TypeScript
-getStorefront(): Promise<string>
-
-const countryCode = await getStorefront();
-// Returns ISO 3166-1 alpha-2 code: "US", "JP", "GB", etc.
-```
-
-### Subscription APIs
-
-#### getActiveSubscriptions
-Get list of active subscriptions.
-
-```typescript
-// TypeScript
-getActiveSubscriptions(): Promise<ActiveSubscription[]>
-```
-
-#### hasActiveSubscriptions
-Check if user has any active subscription.
-
-```typescript
-// TypeScript
-hasActiveSubscriptions(): Promise<boolean>
-
-if (await hasActiveSubscriptions()) {
-  // User is subscribed
-}
-```
-
-#### deepLinkToSubscriptions
-Open platform subscription management.
-
-```typescript
-// TypeScript
-deepLinkToSubscriptions(): Promise<void>
-// Opens App Store/Google Play subscription management
-```
-
----
-
-## 3. Validation APIs
-
-#### verifyPurchase
-Verify purchase server-side (implement your own backend).
-
-```typescript
-// TypeScript
-interface VerifyPurchaseProps {
-  purchase: Purchase;
-  url: string;
-  headers?: Record<string, string>;
-}
-
-interface VerifyPurchaseResult {
-  isValid: boolean;
-  data?: unknown;
-}
-
-const result = await verifyPurchase({
-  purchase,
-  url: 'https://your-server.com/verify',
-  headers: { 'Authorization': 'Bearer token' },
-});
-```
-
-#### verifyPurchaseWithProvider
-Verify with integrated provider (e.g., IAPKit).
-
-```typescript
-// TypeScript
-interface VerifyPurchaseWithProviderProps {
-  purchase: Purchase;
-  provider: 'iapkit';
-  providerProps: IAPKitProps;
-}
-
-const result = await verifyPurchaseWithProvider({
-  purchase,
-  provider: 'iapkit',
-  providerProps: { apiKey: 'your-api-key' },
-});
-```
-
----
-
-## 4. Platform-Specific APIs
-
-### iOS APIs (IOS suffix)
-
-#### syncIOS
-Sync pending transactions with App Store.
-```typescript
-syncIOS(): Promise<void>
-```
-
-#### presentCodeRedemptionSheetIOS
-Show offer code redemption UI.
-```typescript
-presentCodeRedemptionSheetIOS(): Promise<void>
-```
-
-#### showManageSubscriptionsIOS
-Open subscription management in App Store.
-```typescript
-showManageSubscriptionsIOS(): Promise<void>
-```
-
-#### beginRefundRequestIOS
-Start refund request flow.
-```typescript
-beginRefundRequestIOS(transactionId: string): Promise<RefundRequestStatus>
-// Returns: 'success' | 'userCancelled' | 'notSupported'
-```
-
-#### getStorefrontIOS
-Get detailed storefront info.
-```typescript
-getStorefrontIOS(): Promise<Storefront>
-// Returns: { countryCode: string; id: string; }
-```
-
-#### isEligibleForIntroOfferIOS
-Check intro offer eligibility.
-```typescript
-isEligibleForIntroOfferIOS(productId: string): Promise<boolean>
-```
-
-#### subscriptionStatusIOS
-Get subscription status details.
-```typescript
-subscriptionStatusIOS(productId: string): Promise<SubscriptionStatusIOS>
-```
-
-#### currentEntitlementIOS
-Get current entitlement for product.
-```typescript
-currentEntitlementIOS(productId: string): Promise<Purchase | null>
-```
-
-#### latestTransactionIOS
-Get latest transaction for product.
-```typescript
-latestTransactionIOS(productId: string): Promise<Purchase | null>
-```
-
-#### getPendingTransactionsIOS
-Get pending/unfinished transactions.
-```typescript
-getPendingTransactionsIOS(): Promise<Purchase[]>
-```
-
-#### getPromotedProductIOS
-Get currently promoted product (from App Store promotion).
-```typescript
-getPromotedProductIOS(): Promise<Product | null>
-```
-
-#### requestPurchaseOnPromotedProductIOS
-Purchase promoted product.
-```typescript
-requestPurchaseOnPromotedProductIOS(): Promise<void>
-```
-
-#### isTransactionVerifiedIOS
-Check if transaction is verified by StoreKit 2.
-```typescript
-isTransactionVerifiedIOS(transactionId: string): Promise<boolean>
-```
-
-#### getTransactionJwsIOS
-Get JWS representation of transaction.
-```typescript
-getTransactionJwsIOS(transactionId: string): Promise<string>
-```
-
-#### getReceiptDataIOS
-Get Base64 encoded receipt data.
-```typescript
-getReceiptDataIOS(): Promise<string | null>
-```
-
-#### getAppTransactionIOS
-Get app installation transaction info.
-```typescript
-getAppTransactionIOS(): Promise<AppTransaction>
-```
-
-#### External Purchase APIs (iOS 17.4+)
-
-```typescript
-// Check if external purchase notice can be shown
-canPresentExternalPurchaseNoticeIOS(): Promise<boolean>
-
-// Present external purchase notice sheet
-presentExternalPurchaseNoticeSheetIOS(): Promise<void>
-
-// Present external purchase link
-presentExternalPurchaseLinkIOS(url: string): Promise<void>
-```
-
-### Android APIs (Android suffix)
-
-#### acknowledgePurchaseAndroid
-Acknowledge a purchase (required within 3 days).
-```typescript
-acknowledgePurchaseAndroid(purchaseToken: string): Promise<void>
-```
-
-#### consumePurchaseAndroid
-Consume purchase for re-purchase (consumables).
-```typescript
-consumePurchaseAndroid(purchaseToken: string): Promise<void>
-```
-
-#### Alternative Billing APIs (Android)
-
-```typescript
-// Check availability
-checkAlternativeBillingAvailabilityAndroid(): Promise<boolean>
-
-// Show billing choice dialog
-showAlternativeBillingDialogAndroid(): Promise<void>
-
-// Create token for alternative billing
-createAlternativeBillingTokenAndroid(): Promise<string>
-```
-
----
-
-## 5. Types
-
-### Product Types
+### Product Type
 
 ```typescript
 interface Product {
-  id: string;                    // Product identifier (SKU)
-  title: string;                 // Display name
-  description: string;           // Product description
-  price: string;                 // Formatted price ("$9.99")
-  priceAmount: number;           // Price as number (9.99)
-  currency: string;              // ISO 4217 code ("USD")
-  type: 'inapp' | 'subs';        // Product type
-  localizedPrice?: string;       // Localized price string
-
-  // iOS specific
-  introductoryPrice?: string;    // Intro offer price
-  subscriptionPeriod?: SubscriptionPeriodIOS;
-  discounts?: DiscountOffer[];   // Available discounts
-
-  // Android specific
-  subscriptionOffers?: SubscriptionOfferAndroid[];
-  originalJson?: string;         // Raw JSON from Google
-}
-
-interface SubscriptionPeriodIOS {
-  unit: 'day' | 'week' | 'month' | 'year';
-  value: number;
-}
-
-interface DiscountOffer {
-  id: string;
-  type: 'introductory' | 'promotional' | 'code';
-  price: string;
-  priceAmount: number;
-  paymentMode: 'freeTrial' | 'payAsYouGo' | 'payUpFront';
-  period: SubscriptionPeriodIOS;
-  periodCount: number;
-}
-
-interface SubscriptionOfferAndroid {
-  offerToken: string;
-  basePlanId: string;
-  offerId?: string;
-  pricingPhases: PricingPhaseAndroid[];
-}
-
-interface PricingPhaseAndroid {
-  price: string;
-  priceAmount: number;
-  currency: string;
-  billingPeriod: string;          // ISO 8601 duration (P1M, P1Y)
-  billingCycleCount: number;
-  recurrenceMode: 'infinite' | 'finite' | 'nonRecurring';
-}
-```
-
-### Purchase Types
-
-```typescript
-interface Purchase {
-  productId: string;              // Purchased product ID
-  transactionId: string;          // Platform transaction ID
-  transactionDate: number;        // Timestamp (ms)
-  purchaseState: PurchaseState;
-
-  // iOS specific
-  originalTransactionId?: string; // Original transaction (renewals)
-
-  // Android specific
-  purchaseToken?: string;         // Required for acknowledge/consume
-  orderId?: string;               // Google order ID
-  autoRenewing?: boolean;         // Subscription auto-renew status
-  acknowledged?: boolean;         // Whether acknowledged
-}
-
-type PurchaseState = 'purchased' | 'pending' | 'restored';
-
-interface ActiveSubscription {
   productId: string;
-  transactionId: string;
-  originalTransactionId?: string;
-  purchaseDate: number;
-  expirationDate?: number;
-  isTrialPeriod?: boolean;
-  autoRenewStatus?: boolean;
+  title: string;
+  description: string;
+  price: string;
+  currency: string;
+  localizedPrice: string;
+  type: ProductType; // 'iap' | 'sub'
 
-  // iOS specific
-  renewalInfo?: RenewalInfoIOS;
+  // iOS only
+  subscriptionPeriodNumberIOS?: string;
+  subscriptionPeriodUnitIOS?: string;
+  introductoryPrice?: string;
+  introductoryPricePaymentModeIOS?: string;
+  introductoryPriceNumberOfPeriodsIOS?: string;
+  introductoryPriceSubscriptionPeriodIOS?: string;
 
-  // Android specific
-  purchaseToken?: string;
-}
-
-interface RenewalInfoIOS {
-  autoRenewStatus: boolean;
-  autoRenewProductId?: string;
-  expirationIntent?: number;
-  gracePeriodExpirationDate?: number;
-  priceIncreaseStatus?: number;
+  // Android only
+  subscriptionOfferDetailsAndroid?: SubscriptionOffer[];
+  oneTimePurchaseOfferDetailsAndroid?: OneTimePurchaseOffer;
 }
 ```
 
-### Request Types
+## Purchase Operations
+
+### requestPurchase
+
+Initiate a purchase.
 
 ```typescript
-interface ProductRequest {
-  products: Array<{
-    id: string;
-    type: 'inapp' | 'subs';
-  }>;
-}
+import { requestPurchase } from 'expo-iap';
 
-type RequestPurchaseProps =
-  | { request: RequestPurchasePropsByPlatforms; type: 'inapp' }
-  | { request: RequestSubscriptionPropsByPlatforms; type: 'subs' };
+// For consumables/non-consumables
+await requestPurchase({ sku: 'com.app.product1' });
 
-interface RequestPurchasePropsByPlatforms {
-  apple?: RequestPurchaseIosProps;
-  google?: RequestPurchaseAndroidProps;
-}
-
-interface RequestPurchaseIosProps {
-  sku: string;
-  quantity?: number;
-  applicationUsername?: string;
-  offer?: DiscountOffer;
-}
-
-interface RequestPurchaseAndroidProps {
-  skus: string[];
-  obfuscatedAccountId?: string;
-  obfuscatedProfileId?: string;
-  isOfferPersonalized?: boolean;
-  subscriptionOffers?: SubscriptionOfferAndroid[];
-}
-
-interface RequestSubscriptionPropsByPlatforms {
-  apple?: RequestPurchaseIosProps;
-  google?: RequestSubscriptionAndroidProps;
-}
-
-interface RequestSubscriptionAndroidProps extends RequestPurchaseAndroidProps {
-  subscriptionOffers: SubscriptionOfferAndroid[];
-}
-```
-
-### Error Types
-
-```typescript
-interface PurchaseError {
-  code: string;       // Error code constant
-  message: string;    // Human-readable message
-  productId?: string; // Related SKU (if applicable)
-}
-```
-
-### iOS-Specific Types
-
-```typescript
-interface Storefront {
-  countryCode: string;  // ISO 3166-1 alpha-2
-  id: string;           // Storefront identifier
-}
-
-interface SubscriptionStatusIOS {
-  state: SubscriptionState;
-  renewalInfo?: RenewalInfoIOS;
-  transaction?: Purchase;
-}
-
-type SubscriptionState =
-  | 'subscribed'
-  | 'expired'
-  | 'inBillingRetryPeriod'
-  | 'inGracePeriod'
-  | 'revoked';
-
-interface AppTransaction {
-  appId: string;
-  bundleId: string;
-  environment: 'production' | 'sandbox';
-  originalPurchaseDate: number;
-  deviceVerification?: string;
-  deviceVerificationNonce?: string;
-}
-```
-
----
-
-## 6. Error Codes & Handling
-
-### Error Code Reference
-
-| Code | Description | Retry? | Action |
-|------|-------------|--------|--------|
-| UserCancelled | User cancelled purchase | No | Expected, no action |
-| UserError | User-related error | No | Check account status |
-| DeferredPayment | Payment pending approval | No | Wait for approval |
-| Interrupted | Flow interrupted | Yes | Retry purchase |
-| ItemUnavailable | Product not in store | No | Check store config |
-| SkuNotFound | SKU not found | No | Verify SKU exists |
-| SkuOfferMismatch | Offer ID mismatch | No | Check offer config |
-| QueryProduct | Failed to query | Yes | Retry |
-| AlreadyOwned | Already purchased | No | Restore purchases |
-| ItemNotOwned | Not owned | No | Purchase first |
-| NetworkError | Network issue | Yes | Exponential backoff |
-| ServiceError | Store service error | Yes | Linear backoff |
-| RemoteError | Server error | Yes | Fixed delay |
-| InitConnection | Connection failed | Yes | Retry init |
-| ServiceDisconnected | Service disconnected | Yes | Reconnect |
-| ConnectionClosed | Connection closed | Yes | Reinitialize |
-| IapNotAvailable | IAP not available | No | Check device settings |
-| BillingUnavailable | Billing unavailable | No | Check store availability |
-| FeatureNotSupported | Feature not supported | No | Check OS version |
-| SyncError | Sync error | Yes | Retry |
-| PurchaseVerificationFailed | Verification failed | Yes | Check logic, retry |
-| PurchaseVerificationFinished | Already verified | No | Check records |
-| TransactionValidationFailed | Validation failed | Yes | Verify data, retry |
-| NotPrepared | Connection not init | No | Call initConnection |
-| EmptySkuList | No SKUs provided | No | Provide SKUs |
-
-### Error Handling Pattern
-
-```typescript
-import { purchaseErrorListener, ErrorCode } from 'expo-iap';
-
-purchaseErrorListener((error) => {
-  switch (error.code) {
-    case ErrorCode.UserCancelled:
-      // Expected behavior, no action
-      return;
-
-    case ErrorCode.AlreadyOwned:
-      // Trigger restore flow
-      restorePurchases();
-      return;
-
-    case ErrorCode.NetworkError:
-    case ErrorCode.ServiceError:
-      // Retry with backoff
-      showRetryDialog('Network issue. Please try again.');
-      return;
-
-    case ErrorCode.ItemUnavailable:
-      showAlert('This item is not available in your region.');
-      return;
-
-    default:
-      showAlert('Purchase failed. Please try again later.');
-      logError(error);
-  }
+// For subscriptions (Android)
+await requestPurchase({
+  sku: 'com.app.sub_monthly',
+  subscriptionOffers: [{ sku: 'com.app.sub_monthly', offerToken: 'token' }]
 });
 ```
 
----
+### finishTransaction
 
-## 7. Events & Listeners
-
-### Purchase Event Listeners (React Native/Expo)
+Complete a transaction after processing.
 
 ```typescript
-import {
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-  type Purchase,
-  type PurchaseError,
-} from 'expo-iap';
+import { finishTransaction } from 'expo-iap';
 
-// Set up BEFORE any purchase request
-const purchaseSubscription = purchaseUpdatedListener(
-  async (purchase: Purchase) => {
-    // 1. Verify purchase on your server
-    const isValid = await verifyPurchaseOnServer(purchase);
-    if (!isValid) {
-      console.error('Invalid purchase');
-      return;
-    }
-
-    // 2. Grant entitlement to user
-    await grantEntitlement(purchase.productId);
-
-    // 3. Finish transaction (CRITICAL)
-    const isConsumable = isConsumableProduct(purchase.productId);
-    await finishTransaction(purchase, isConsumable);
-  }
-);
-
-const errorSubscription = purchaseErrorListener(
-  (error: PurchaseError) => {
-    if (error.code === 'UserCancelled') return;
-    console.error('Purchase error:', error.code, error.message);
-  }
-);
-
-// Cleanup on unmount
-purchaseSubscription.remove();
-errorSubscription.remove();
+await finishTransaction({ purchase, isConsumable: true });
 ```
 
-### Native Event Handling
+### getAvailablePurchases
 
-```swift
-// Swift
-NotificationCenter.default.addObserver(
-    forName: .purchaseUpdated,
-    object: nil,
-    queue: .main
-) { notification in
-    guard let purchase = notification.object as? Purchase else { return }
-    // Handle purchase
+Get user's existing purchases (restore purchases).
+
+```typescript
+import { getAvailablePurchases } from 'expo-iap';
+
+const purchases = await getAvailablePurchases();
+```
+
+## Purchase Type
+
+```typescript
+interface Purchase {
+  productId: string;
+  transactionId?: string;
+  transactionDate: number;
+  transactionReceipt: string;
+  purchaseToken?: string; // Android
+
+  // iOS only
+  originalTransactionDateIOS?: number;
+  originalTransactionIdentifierIOS?: string;
+
+  // Android only
+  purchaseStateAndroid?: number;
+  isAcknowledgedAndroid?: boolean;
+  packageNameAndroid?: string;
+  obfuscatedAccountIdAndroid?: string;
+  obfuscatedProfileIdAndroid?: string;
 }
 ```
 
-```kotlin
-// Kotlin
-openIapStore.purchaseUpdatedListener = { purchase ->
-    // Handle purchase
-}
+## iOS-Specific Functions
+
+### clearTransactionIOS
+
+Clear finished transactions from the queue.
+
+```typescript
+import { clearTransactionIOS } from 'expo-iap';
+
+await clearTransactionIOS();
 ```
 
----
+### getReceiptDataIOS
 
-## 8. Implementation Patterns
+Get the receipt data for validation.
 
-### Complete Purchase Flow
+```typescript
+import { getReceiptDataIOS } from 'expo-iap';
+
+const receipt = await getReceiptDataIOS();
+```
+
+### syncIOS
+
+Sync transactions with the App Store.
+
+```typescript
+import { syncIOS } from 'expo-iap';
+
+await syncIOS();
+```
+
+### presentCodeRedemptionSheetIOS
+
+Show the offer code redemption sheet.
+
+```typescript
+import { presentCodeRedemptionSheetIOS } from 'expo-iap';
+
+await presentCodeRedemptionSheetIOS();
+```
+
+### showManageSubscriptionsIOS
+
+Open subscription management in App Store.
+
+```typescript
+import { showManageSubscriptionsIOS } from 'expo-iap';
+
+await showManageSubscriptionsIOS();
+```
+
+### isEligibleForIntroOfferIOS
+
+Check intro offer eligibility.
+
+```typescript
+import { isEligibleForIntroOfferIOS } from 'expo-iap';
+
+const eligible = await isEligibleForIntroOfferIOS('com.app.sub_monthly');
+```
+
+### beginRefundRequestIOS
+
+Start a refund request.
+
+```typescript
+import { beginRefundRequestIOS } from 'expo-iap';
+
+const result = await beginRefundRequestIOS('transaction_id');
+```
+
+## Android-Specific Functions
+
+### acknowledgePurchaseAndroid
+
+Acknowledge a purchase (required within 3 days).
+
+```typescript
+import { acknowledgePurchaseAndroid } from 'expo-iap';
+
+await acknowledgePurchaseAndroid({ token: purchase.purchaseToken });
+```
+
+### consumePurchaseAndroid
+
+Consume a consumable purchase.
+
+```typescript
+import { consumePurchaseAndroid } from 'expo-iap';
+
+await consumePurchaseAndroid({ token: purchase.purchaseToken });
+```
+
+### getPackageNameAndroid
+
+Get the app's package name.
+
+```typescript
+import { getPackageNameAndroid } from 'expo-iap';
+
+const packageName = await getPackageNameAndroid();
+```
+
+## Cross-Platform Functions
+
+### getActiveSubscriptions
+
+Get active subscriptions.
+
+```typescript
+import { getActiveSubscriptions } from 'expo-iap';
+
+const subscriptions = await getActiveSubscriptions(['com.app.sub_monthly']);
+```
+
+### hasActiveSubscriptions
+
+Check if user has active subscriptions.
+
+```typescript
+import { hasActiveSubscriptions } from 'expo-iap';
+
+const hasActive = await hasActiveSubscriptions(['com.app.sub_monthly']);
+```
+
+### deepLinkToSubscriptions
+
+Open subscription management on both platforms.
+
+```typescript
+import { deepLinkToSubscriptions } from 'expo-iap';
+
+await deepLinkToSubscriptions({ sku: 'com.app.sub_monthly' });
+```
+
+### getStorefront
+
+Get storefront information.
+
+```typescript
+import { getStorefront } from 'expo-iap';
+
+const storefront = await getStorefront();
+// { countryCode: 'US', ... }
+```
+
+## Event Listeners
+
+### purchaseUpdatedListener
+
+Listen for purchase updates.
+
+```typescript
+import { purchaseUpdatedListener } from 'expo-iap';
+
+const subscription = purchaseUpdatedListener((purchase) => {
+  console.log('Purchase updated:', purchase);
+  // Process and finish transaction
+});
+
+// Cleanup
+subscription.remove();
+```
+
+### purchaseErrorListener
+
+Listen for purchase errors.
+
+```typescript
+import { purchaseErrorListener } from 'expo-iap';
+
+const subscription = purchaseErrorListener((error) => {
+  console.error('Purchase error:', error);
+});
+
+// Cleanup
+subscription.remove();
+```
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| `E_UNKNOWN` | Unknown error |
+| `E_USER_CANCELLED` | User cancelled |
+| `E_ITEM_UNAVAILABLE` | Item not available |
+| `E_NETWORK_ERROR` | Network error |
+| `E_SERVICE_ERROR` | Store service error |
+| `E_ALREADY_OWNED` | Item already owned |
+| `E_NOT_PREPARED` | Not initialized |
+| `E_NOT_ENDED` | Connection not ended |
+| `E_DEVELOPER_ERROR` | Developer error |
+
+## Usage Pattern
 
 ```typescript
 import {
@@ -820,117 +400,815 @@ import {
   purchaseErrorListener,
 } from 'expo-iap';
 
-// 1. Initialize on app start
-const setup = async () => {
-  await initConnection();
+// Setup
+await initConnection();
 
-  // 2. Set up listeners
-  purchaseUpdatedListener(async (purchase) => {
-    const valid = await verifyOnServer(purchase);
-    if (valid) {
-      await grantProduct(purchase.productId);
-      await finishTransaction(purchase, isConsumable(purchase.productId));
-    }
-  });
+const purchaseListener = purchaseUpdatedListener(async (purchase) => {
+  // Verify purchase server-side
+  // Then finish transaction
+  await finishTransaction({ purchase, isConsumable: false });
+});
 
-  purchaseErrorListener((error) => {
-    if (error.code !== 'UserCancelled') {
-      showError(error.message);
-    }
-  });
-};
+const errorListener = purchaseErrorListener((error) => {
+  console.error(error);
+});
 
-// 3. Fetch and display products
-const loadProducts = async () => {
-  const products = await fetchProducts({
-    products: [
-      { id: 'premium', type: 'inapp' },
-      { id: 'monthly_sub', type: 'subs' },
-    ],
-  });
-  // Display products in UI
-};
+// Fetch products
+const products = await fetchProducts(['com.app.premium']);
 
-// 4. Handle purchase button
-const handlePurchase = async (product: Product) => {
-  await requestPurchase({
-    request: {
-      apple: { sku: product.id },
-      google: { skus: [product.id] },
-    },
-    type: product.type,
-  });
-  // Result comes through purchaseUpdatedListener
-};
+// Make purchase
+await requestPurchase({ sku: 'com.app.premium' });
 
-// 5. Cleanup
-const cleanup = async () => {
-  await endConnection();
-};
+// Cleanup
+purchaseListener.remove();
+errorListener.remove();
+await endConnection();
 ```
 
-### Subscription Management
+
+---
+
+# Google Play Billing Library API Reference
+
+> Reference documentation for Google Play Billing Library 7.x
+> Adapt all patterns to match OpenIAP internal conventions.
+
+## Overview
+
+Google Play Billing Library enables in-app purchases and subscriptions on Android devices.
+
+## Core Classes
+
+### BillingClient
+
+The main interface for communicating with Google Play Billing.
+
+```kotlin
+val billingClient = BillingClient.newBuilder(context)
+    .setListener(purchasesUpdatedListener)
+    .enablePendingPurchases()
+    .build()
+```
+
+### Connection Management
+
+```kotlin
+billingClient.startConnection(object : BillingClientStateListener {
+    override fun onBillingSetupFinished(billingResult: BillingResult) {
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            // Ready to query purchases
+        }
+    }
+
+    override fun onBillingServiceDisconnected() {
+        // Reconnect on next request
+    }
+})
+```
+
+## Product Details
+
+### QueryProductDetailsParams
+
+```kotlin
+val productList = listOf(
+    QueryProductDetailsParams.Product.newBuilder()
+        .setProductId("product_id")
+        .setProductType(BillingClient.ProductType.SUBS) // or INAPP
+        .build()
+)
+
+val params = QueryProductDetailsParams.newBuilder()
+    .setProductList(productList)
+    .build()
+
+billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+    // Handle product details
+}
+```
+
+### ProductDetails Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `productId` | String | Unique product identifier |
+| `productType` | String | "subs" or "inapp" |
+| `title` | String | Localized product title |
+| `name` | String | Product name |
+| `description` | String | Localized description |
+| `oneTimePurchaseOfferDetails` | Object | For INAPP products |
+| `subscriptionOfferDetails` | List | For subscription products |
+
+### Subscription Offer Details
+
+```kotlin
+data class SubscriptionOfferDetails(
+    val basePlanId: String,
+    val offerId: String?,
+    val offerToken: String,
+    val pricingPhases: PricingPhases,
+    val offerTags: List<String>
+)
+```
+
+### Pricing Phases
+
+```kotlin
+data class PricingPhase(
+    val formattedPrice: String,
+    val priceAmountMicros: Long,
+    val priceCurrencyCode: String,
+    val billingPeriod: String,  // ISO 8601 (P1W, P1M, P1Y)
+    val billingCycleCount: Int,
+    val recurrenceMode: Int     // FINITE or INFINITE
+)
+```
+
+## Purchase Flow
+
+### Launch Purchase Flow
+
+```kotlin
+val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+    .setProductDetails(productDetails)
+    .setOfferToken(offerToken) // For subscriptions
+    .build()
+
+val billingFlowParams = BillingFlowParams.newBuilder()
+    .setProductDetailsParamsList(listOf(productDetailsParams))
+    .build()
+
+val billingResult = billingClient.launchBillingFlow(activity, billingFlowParams)
+```
+
+### PurchasesUpdatedListener
+
+```kotlin
+val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
+    when (billingResult.responseCode) {
+        BillingClient.BillingResponseCode.OK -> {
+            purchases?.forEach { purchase ->
+                handlePurchase(purchase)
+            }
+        }
+        BillingClient.BillingResponseCode.USER_CANCELED -> {
+            // User cancelled
+        }
+        else -> {
+            // Handle error
+        }
+    }
+}
+```
+
+## Purchase Verification & Acknowledgement
+
+### Verify Purchase
+
+```kotlin
+val purchase: Purchase
+
+// Check purchase state
+if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+    // Verify signature server-side
+    // Then acknowledge or consume
+}
+```
+
+### Acknowledge Purchase (Subscriptions/Non-consumables)
+
+```kotlin
+if (!purchase.isAcknowledged) {
+    val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
+        .setPurchaseToken(purchase.purchaseToken)
+        .build()
+
+    billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
+        // Handle result
+    }
+}
+```
+
+### Consume Purchase (Consumables)
+
+```kotlin
+val consumeParams = ConsumeParams.newBuilder()
+    .setPurchaseToken(purchase.purchaseToken)
+    .build()
+
+billingClient.consumeAsync(consumeParams) { billingResult, purchaseToken ->
+    // Handle result
+}
+```
+
+## Query Existing Purchases
+
+```kotlin
+// Query subscriptions
+billingClient.queryPurchasesAsync(
+    QueryPurchasesParams.newBuilder()
+        .setProductType(BillingClient.ProductType.SUBS)
+        .build()
+) { billingResult, purchasesList ->
+    // Handle existing subscriptions
+}
+
+// Query in-app products
+billingClient.queryPurchasesAsync(
+    QueryPurchasesParams.newBuilder()
+        .setProductType(BillingClient.ProductType.INAPP)
+        .build()
+) { billingResult, purchasesList ->
+    // Handle existing purchases
+}
+```
+
+## Purchase Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `orderId` | String | Unique order identifier |
+| `purchaseToken` | String | Token for verification |
+| `purchaseState` | Int | PENDING, PURCHASED, UNSPECIFIED |
+| `purchaseTime` | Long | Timestamp in milliseconds |
+| `products` | List<String> | Product IDs in purchase |
+| `isAcknowledged` | Boolean | Whether acknowledged |
+| `isAutoRenewing` | Boolean | Auto-renewal status |
+| `quantity` | Int | Quantity purchased |
+
+## Response Codes
+
+| Code | Constant | Description |
+|------|----------|-------------|
+| 0 | OK | Success |
+| 1 | USER_CANCELED | User cancelled |
+| 2 | SERVICE_UNAVAILABLE | Network error |
+| 3 | BILLING_UNAVAILABLE | Billing not available |
+| 4 | ITEM_UNAVAILABLE | Item not available |
+| 5 | DEVELOPER_ERROR | Invalid arguments |
+| 6 | ERROR | Fatal error |
+| 7 | ITEM_ALREADY_OWNED | Already owned |
+| 8 | ITEM_NOT_OWNED | Not owned |
+
+## Feature Support
+
+```kotlin
+// Check if feature is supported
+val result = billingClient.isFeatureSupported(BillingClient.FeatureType.SUBSCRIPTIONS)
+if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+    // Subscriptions are supported
+}
+```
+
+### Feature Types
+
+- `SUBSCRIPTIONS` - Subscription support
+- `SUBSCRIPTIONS_UPDATE` - Subscription upgrades/downgrades
+- `PRICE_CHANGE_CONFIRMATION` - Price change confirmation
+- `PRODUCT_DETAILS` - Product details API
+
+## Best Practices
+
+1. **Always acknowledge purchases** within 3 days or they will be refunded
+2. **Verify purchases server-side** using Google Play Developer API
+3. **Handle pending purchases** for payment methods that require additional steps
+4. **Reconnect on disconnect** - billing service can disconnect anytime
+5. **Cache product details** to avoid repeated queries
+
+
+---
+
+# react-native-iap API Reference
+
+> Reference documentation for react-native-iap
+> Adapt all patterns to match OpenIAP internal conventions.
+
+## Overview
+
+react-native-iap is a React Native library for in-app purchases on iOS and Android. expo-iap is built on top of this library.
+
+## Installation
+
+```bash
+npm install react-native-iap
+# or
+yarn add react-native-iap
+```
+
+## Hook-Based API (Recommended)
+
+### useIAP Hook
 
 ```typescript
-// Check subscription status
-const checkSubscription = async () => {
-  const isActive = await hasActiveSubscriptions();
-  if (isActive) {
-    const subs = await getActiveSubscriptions();
-    // Display subscription info
+import { useIAP } from 'react-native-iap';
+
+function PurchaseScreen() {
+  const {
+    connected,
+    products,
+    subscriptions,
+    purchaseHistory,
+    availablePurchases,
+    currentPurchase,
+    currentPurchaseError,
+    initConnectionError,
+    finishTransaction,
+    getProducts,
+    getSubscriptions,
+    getAvailablePurchases,
+    getPurchaseHistory,
+    requestPurchase,
+    requestSubscription,
+  } = useIAP();
+
+  useEffect(() => {
+    if (currentPurchase) {
+      // Process purchase
+      finishTransaction({ purchase: currentPurchase });
+    }
+  }, [currentPurchase]);
+
+  return (/* ... */);
+}
+```
+
+### withIAPContext HOC
+
+Wrap your app with IAP context provider.
+
+```typescript
+import { withIAPContext } from 'react-native-iap';
+
+function App() {
+  return <PurchaseScreen />;
+}
+
+export default withIAPContext(App);
+```
+
+## Imperative API
+
+### Connection Management
+
+```typescript
+import {
+  initConnection,
+  endConnection,
+  getProducts,
+  getSubscriptions,
+} from 'react-native-iap';
+
+// Initialize
+const connected = await initConnection();
+
+// Fetch products
+const products = await getProducts({ skus: ['com.app.product1'] });
+const subs = await getSubscriptions({ skus: ['com.app.sub_monthly'] });
+
+// Cleanup
+await endConnection();
+```
+
+### Product Types
+
+```typescript
+interface Product {
+  productId: string;
+  price: string;
+  currency: string;
+  localizedPrice: string;
+  title: string;
+  description: string;
+  type: 'inapp' | 'subs';
+
+  // iOS
+  introductoryPrice?: string;
+  introductoryPriceAsAmountIOS?: string;
+  introductoryPricePaymentModeIOS?: string;
+  introductoryPriceNumberOfPeriodsIOS?: string;
+  introductoryPriceSubscriptionPeriodIOS?: string;
+  subscriptionPeriodNumberIOS?: string;
+  subscriptionPeriodUnitIOS?: string;
+  discounts?: Discount[];
+
+  // Android
+  subscriptionOfferDetails?: SubscriptionOffer[];
+  oneTimePurchaseOfferDetails?: OneTimePurchaseOffer;
+}
+
+interface SubscriptionOffer {
+  basePlanId: string;
+  offerId?: string;
+  offerToken: string;
+  offerTags: string[];
+  pricingPhases: PricingPhase[];
+}
+
+interface PricingPhase {
+  formattedPrice: string;
+  priceCurrencyCode: string;
+  priceAmountMicros: string;
+  billingPeriod: string;
+  billingCycleCount: number;
+  recurrenceMode: number;
+}
+```
+
+### Purchase Operations
+
+```typescript
+import {
+  requestPurchase,
+  requestSubscription,
+  finishTransaction,
+  getAvailablePurchases,
+  getPurchaseHistory,
+} from 'react-native-iap';
+
+// Purchase consumable/non-consumable
+await requestPurchase({ sku: 'com.app.product1' });
+
+// Purchase subscription (Android with offer token)
+await requestSubscription({
+  sku: 'com.app.sub_monthly',
+  subscriptionOffers: [{ sku: 'com.app.sub_monthly', offerToken: 'token' }],
+});
+
+// Finish transaction
+await finishTransaction({ purchase, isConsumable: true });
+
+// Get available purchases (restore)
+const available = await getAvailablePurchases();
+
+// Get purchase history
+const history = await getPurchaseHistory();
+```
+
+### Purchase Type
+
+```typescript
+interface Purchase {
+  productId: string;
+  transactionId?: string;
+  transactionDate: number;
+  transactionReceipt: string;
+  purchaseToken?: string;
+  quantityIOS?: number;
+  originalTransactionDateIOS?: number;
+  originalTransactionIdentifierIOS?: string;
+  verificationResultIOS?: string;
+  appAccountToken?: string;
+
+  // Android
+  purchaseStateAndroid?: PurchaseStateAndroid;
+  isAcknowledgedAndroid?: boolean;
+  packageNameAndroid?: string;
+  developerPayloadAndroid?: string;
+  obfuscatedAccountIdAndroid?: string;
+  obfuscatedProfileIdAndroid?: string;
+  autoRenewingAndroid?: boolean;
+}
+```
+
+## Event Listeners
+
+```typescript
+import {
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+} from 'react-native-iap';
+
+// Purchase updates
+const purchaseUpdateSubscription = purchaseUpdatedListener(
+  async (purchase: Purchase) => {
+    const receipt = purchase.transactionReceipt;
+    if (receipt) {
+      // Verify with server
+      await finishTransaction({ purchase });
+    }
   }
-};
+);
 
-// Handle subscription purchase
-const purchaseSubscription = async (productId: string, offerToken?: string) => {
-  await requestPurchase({
-    request: {
-      apple: { sku: productId },
-      google: {
-        skus: [productId],
-        subscriptionOffers: offerToken ? [{
-          sku: productId,
-          offerToken,
-        }] : undefined,
-      },
-    },
-    type: 'subs',
-  });
-};
+// Purchase errors
+const purchaseErrorSubscription = purchaseErrorListener(
+  (error: PurchaseError) => {
+    console.warn('purchaseErrorListener', error);
+  }
+);
 
-// Manage subscriptions
-const openSubscriptionManagement = async () => {
-  if (Platform.OS === 'ios') {
-    await showManageSubscriptionsIOS();
+// Cleanup
+purchaseUpdateSubscription.remove();
+purchaseErrorSubscription.remove();
+```
+
+## iOS-Specific Functions
+
+```typescript
+import {
+  clearTransactionIOS,
+  clearProductsIOS,
+  getReceiptIOS,
+  getPendingPurchasesIOS,
+  getPromotedProductIOS,
+  buyPromotedProductIOS,
+  presentCodeRedemptionSheetIOS,
+  validateReceiptIos,
+} from 'react-native-iap';
+
+// Clear finished transactions
+await clearTransactionIOS();
+
+// Clear cached products
+await clearProductsIOS();
+
+// Get receipt for validation
+const receipt = await getReceiptIOS();
+
+// Get pending purchases
+const pending = await getPendingPurchasesIOS();
+
+// Handle promoted products
+const promotedProduct = await getPromotedProductIOS();
+if (promotedProduct) {
+  await buyPromotedProductIOS();
+}
+
+// Show offer code redemption
+await presentCodeRedemptionSheetIOS();
+```
+
+## Android-Specific Functions
+
+```typescript
+import {
+  acknowledgePurchaseAndroid,
+  consumePurchaseAndroid,
+  flushFailedPurchasesCachedAsPendingAndroid,
+  getPackageNameAndroid,
+  isFeatureSupported,
+  getBillingConfigAndroid,
+} from 'react-native-iap';
+
+// Acknowledge purchase (non-consumables, subscriptions)
+await acknowledgePurchaseAndroid({ token: purchase.purchaseToken });
+
+// Consume purchase (consumables)
+await consumePurchaseAndroid({ token: purchase.purchaseToken });
+
+// Clear failed pending purchases
+await flushFailedPurchasesCachedAsPendingAndroid();
+
+// Get package name
+const packageName = getPackageNameAndroid();
+
+// Check feature support
+const supported = await isFeatureSupported('subscriptions');
+
+// Get billing config
+const config = await getBillingConfigAndroid();
+```
+
+## Subscription Status (iOS)
+
+```typescript
+import {
+  getSubscriptionStatusIOS,
+  getSubscriptionStatusesIOS,
+} from 'react-native-iap';
+
+// Get status for single product
+const status = await getSubscriptionStatusIOS('com.app.sub_monthly');
+
+// Get status for multiple products
+const statuses = await getSubscriptionStatusesIOS();
+```
+
+## Error Handling
+
+```typescript
+import { IapIosSk2, ErrorCode } from 'react-native-iap';
+
+try {
+  await requestPurchase({ sku: 'com.app.product1' });
+} catch (err) {
+  if (err.code === ErrorCode.E_USER_CANCELLED) {
+    // User cancelled
+  } else if (err.code === ErrorCode.E_ITEM_UNAVAILABLE) {
+    // Item not available
+  } else if (err.code === ErrorCode.E_ALREADY_OWNED) {
+    // Already owned
   } else {
-    await deepLinkToSubscriptions();
+    // Other error
   }
-};
+}
 ```
 
-### Restore Purchases
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| `E_UNKNOWN` | Unknown error |
+| `E_USER_CANCELLED` | User cancelled |
+| `E_ITEM_UNAVAILABLE` | Item not available |
+| `E_NETWORK_ERROR` | Network error |
+| `E_SERVICE_ERROR` | Store service error |
+| `E_ALREADY_OWNED` | Item already owned |
+| `E_REMOTE_ERROR` | Remote error |
+| `E_NOT_PREPARED` | Not initialized |
+| `E_NOT_ENDED` | Not ended |
+| `E_DEVELOPER_ERROR` | Developer error |
+| `E_BILLING_RESPONSE_JSON_PARSE_ERROR` | JSON parse error |
+| `E_DEFERRED_PAYMENT` | Deferred payment |
+
+## Complete Usage Example
 
 ```typescript
-const handleRestorePurchases = async () => {
-  try {
-    await restorePurchases();
-    const purchases = await getAvailablePurchases();
+import React, { useEffect } from 'react';
+import {
+  withIAPContext,
+  useIAP,
+  requestPurchase,
+  finishTransaction,
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+  ProductPurchase,
+} from 'react-native-iap';
 
-    if (purchases.length === 0) {
-      showMessage('No purchases to restore');
-      return;
+const productIds = ['com.app.product1'];
+const subscriptionIds = ['com.app.sub_monthly'];
+
+function Store() {
+  const {
+    connected,
+    products,
+    subscriptions,
+    getProducts,
+    getSubscriptions,
+  } = useIAP();
+
+  useEffect(() => {
+    if (connected) {
+      getProducts({ skus: productIds });
+      getSubscriptions({ skus: subscriptionIds });
     }
+  }, [connected]);
 
-    for (const purchase of purchases) {
-      await grantEntitlement(purchase.productId);
+  useEffect(() => {
+    const purchaseSub = purchaseUpdatedListener(
+      async (purchase: ProductPurchase) => {
+        await finishTransaction({ purchase, isConsumable: false });
+      }
+    );
+
+    const errorSub = purchaseErrorListener((error) => {
+      console.error('Purchase error:', error);
+    });
+
+    return () => {
+      purchaseSub.remove();
+      errorSub.remove();
+    };
+  }, []);
+
+  const handlePurchase = async (sku: string) => {
+    try {
+      await requestPurchase({ sku });
+    } catch (err) {
+      console.error(err);
     }
+  };
 
-    showMessage(`Restored ${purchases.length} purchase(s)`);
-  } catch (error) {
-    showError('Failed to restore purchases');
-  }
-};
+  return (/* Render products and subscriptions */);
+}
+
+export default withIAPContext(Store);
 ```
+
+## Platform Differences
+
+| Feature | iOS | Android |
+|---------|-----|---------|
+| Subscription offers | Introductory price, Discounts | Offer tokens, Pricing phases |
+| Acknowledge | Automatic | Required within 3 days |
+| Consume | finishTransaction | consumePurchaseAndroid |
+| Receipt | getReceiptIOS | transactionReceipt in Purchase |
+| Promoted products | Supported | Not supported |
+| Offer codes | Supported | Promo codes via Play Store |
+
+
+---
+
+# StoreKit 2 API Reference
+
+This document provides external API reference for Apple's StoreKit 2 framework.
+
+## Product
+
+A type that describes an in-app purchase product.
+
+### Properties
+
+```swift
+let id: String                    // The product identifier
+let type: Product.ProductType     // The type of product
+let displayName: String           // Localized display name
+let description: String           // Localized description
+let displayPrice: String          // Localized price string
+let price: Decimal               // Price as decimal
+let subscription: Product.SubscriptionInfo?  // Subscription details
+```
+
+### Methods
+
+#### products(for:)
+
+```swift
+static func products(for identifiers: [String]) async throws -> [Product]
+```
+
+Fetches products from the App Store.
+
+#### purchase(options:)
+
+```swift
+func purchase(options: Set<Product.PurchaseOption> = []) async throws -> Product.PurchaseResult
+```
+
+Initiates a purchase for this product.
+
+## Transaction
+
+Represents a completed purchase transaction.
+
+### Properties
+
+```swift
+let id: UInt64                   // Unique transaction ID
+let originalID: UInt64           // Original transaction ID
+let productID: String            // Product identifier
+let purchaseDate: Date           // When the purchase occurred
+let expirationDate: Date?        // Subscription expiration date
+let revocationDate: Date?        // When the transaction was revoked
+let isUpgraded: Bool             // Whether this subscription was upgraded
+let environment: AppStore.Environment  // sandbox or production
+```
+
+### Methods
+
+#### currentEntitlements
+
+```swift
+static var currentEntitlements: Transaction.Entitlements
+```
+
+A sequence of the customer's current entitlements.
+
+#### latest(for:)
+
+```swift
+static func latest(for productID: String) async -> VerificationResult<Transaction>?
+```
+
+Gets the latest transaction for a product.
+
+#### finish()
+
+```swift
+func finish() async
+```
+
+Marks the transaction as finished.
+
+## AppStore
+
+Provides access to App Store functionality.
+
+### Methods
+
+#### sync()
+
+```swift
+static func sync() async throws
+```
+
+Syncs transactions with the App Store.
+
+#### showManageSubscriptions(in:)
+
+```swift
+static func showManageSubscriptions(in scene: UIWindowScene) async throws
+```
+
+Shows the subscription management UI.
+
+#### beginRefundRequest(for:in:)
+
+```swift
+static func beginRefundRequest(for transactionID: UInt64, in scene: UIWindowScene) async throws -> Transaction.RefundRequestStatus
+```
+
+Begins a refund request for a transaction.
+
 
 ---
 
@@ -940,7 +1218,6 @@ const handleRestorePurchases = async () => {
 - Types Reference: https://openiap.dev/docs/types
 - APIs Reference: https://openiap.dev/docs/apis
 - Error Codes: https://openiap.dev/docs/errors
-- Events: https://openiap.dev/docs/events
 - GitHub: https://github.com/hyodotdev/openiap
 
 ### Ecosystem Libraries
