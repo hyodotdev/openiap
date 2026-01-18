@@ -1,11 +1,23 @@
 # Google Play Billing Library API Reference
 
-> Reference documentation for Google Play Billing Library 7.x
+> Reference documentation for Google Play Billing Library 8.x
 > Adapt all patterns to match OpenIAP internal conventions.
 
 ## Overview
 
 Google Play Billing Library enables in-app purchases and subscriptions on Android devices.
+
+## Version History
+
+| Version | Release Date | Key Features |
+|---------|--------------|--------------|
+| 8.0 | 2025-06-30 | Auto-reconnect, product-level status codes, one-time products with multiple offers, sub-response codes |
+| 8.1 | 2025-11-06 | Suspended subscriptions (`isSuspended`), `includeSuspended` parameter, pre-order details, product-level subscription replacement, `KEEP_EXISTING` mode |
+| 8.2 | 2025-12-09 | Billing Programs API (external content links, external offers), deprecates old External Offers API |
+| 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
+| 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
+
+**Current Version**: 8.3.0 (as of January 2026)
 
 ## Core Classes
 
@@ -17,8 +29,23 @@ The main interface for communicating with Google Play Billing.
 val billingClient = BillingClient.newBuilder(context)
     .setListener(purchasesUpdatedListener)
     .enablePendingPurchases()
+    // New in 8.0: Auto-reconnect on service disconnect
+    .enableAutoServiceReconnection()
     .build()
 ```
+
+### Auto Service Reconnection (8.0+)
+
+```kotlin
+// Enables automatic reconnection when service disconnects
+BillingClient.newBuilder(context)
+    .enableAutoServiceReconnection()
+    .build()
+```
+
+When enabled, the library automatically re-establishes the connection if an API call is made while disconnected. This reduces `SERVICE_DISCONNECTED` errors.
+
+> **OpenIAP Note**: Auto-reconnection is **always enabled** internally since OpenIAP uses Billing Library 8.3.0+. No configuration needed.
 
 ### Connection Management
 
@@ -237,10 +264,123 @@ if (result.responseCode == BillingClient.BillingResponseCode.OK) {
 - `PRICE_CHANGE_CONFIRMATION` - Price change confirmation
 - `PRODUCT_DETAILS` - Product details API
 
+## Product-Level Status Codes (8.0+)
+
+In Billing Library 8.0+, `queryProductDetailsAsync()` returns products that couldn't be fetched with a status code explaining why.
+
+```kotlin
+billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+    productDetailsList.forEach { productDetails ->
+        when (productDetails.productStatus) {
+            ProductDetails.ProductStatus.OK -> {
+                // Product fetched successfully
+            }
+            ProductDetails.ProductStatus.NOT_FOUND -> {
+                // SKU doesn't exist in Play Console
+            }
+            ProductDetails.ProductStatus.NO_OFFERS_AVAILABLE -> {
+                // User not eligible for any offers
+            }
+        }
+    }
+}
+```
+
+| Status | Description |
+|--------|-------------|
+| `OK` | Product fetched successfully |
+| `NOT_FOUND` | SKU doesn't exist in Play Console |
+| `NO_OFFERS_AVAILABLE` | User not eligible for any offers |
+
+## Suspended Subscriptions (8.1+)
+
+```kotlin
+val purchase: Purchase
+
+// Check if subscription is suspended due to billing issue
+if (purchase.isSuspended) {
+    // User's payment method failed
+    // Do NOT grant entitlements
+    // Direct user to subscription center to fix payment
+}
+```
+
+### Query Suspended Subscriptions (8.1+)
+
+```kotlin
+// Include suspended subscriptions in query results
+val params = QueryPurchasesParams.newBuilder()
+    .setProductType(BillingClient.ProductType.SUBS)
+    .setIncludeSuspended(true)  // New in 8.1
+    .build()
+
+billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
+    purchases.forEach { purchase ->
+        if (purchase.isSuspended) {
+            // Handle suspended subscription
+        }
+    }
+}
+```
+
+> **OpenIAP Note**: Use `includeSuspendedAndroid: true` in `PurchaseOptions` when calling `getAvailablePurchases()`. The `isSuspendedAndroid` field on purchases indicates suspension status.
+
+## Sub-Response Codes (8.0+)
+
+`BillingResult` includes a sub-response code for more granular error information:
+
+```kotlin
+val result = billingClient.launchBillingFlow(activity, params)
+when (result.subResponseCode) {
+    BillingResult.SUB_RESPONSE_CODE_INSUFFICIENT_FUNDS -> {
+        // User's payment method has insufficient funds
+    }
+    BillingResult.SUB_RESPONSE_CODE_USER_INELIGIBLE -> {
+        // User doesn't meet offer eligibility requirements
+    }
+}
+```
+
+| Sub-Response Code | Description |
+|-------------------|-------------|
+| `PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS` | User's payment method has insufficient funds |
+| `USER_INELIGIBLE` | User doesn't meet subscription offer eligibility |
+| `NO_APPLICABLE_SUB_RESPONSE_CODE` | No specific sub-code applies |
+
+## Subscription Product Replacement (8.1+)
+
+Product-level replacement parameters for subscription upgrades/downgrades:
+
+```kotlin
+val replacementParams = SubscriptionProductReplacementParams.newBuilder()
+    .setOldProductId("old_subscription_id")
+    .setReplacementMode(ReplacementMode.WITH_TIME_PRORATION)
+    .build()
+
+val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+    .setProductDetails(newProductDetails)
+    .setOfferToken(offerToken)
+    .setSubscriptionProductReplacementParams(replacementParams)  // New in 8.1
+    .build()
+```
+
+### Replacement Modes
+
+| Mode | Description |
+|------|-------------|
+| `WITH_TIME_PRORATION` | Immediate, expiration time prorated |
+| `CHARGE_PRORATED_PRICE` | Immediate, same billing cycle |
+| `CHARGE_FULL_PRICE` | Immediate, full price charged |
+| `WITHOUT_PRORATION` | Takes effect on old plan expiration |
+| `DEFERRED` | Deferred, no charge |
+| `KEEP_EXISTING` | Keep existing payment schedule (8.1+) |
+
 ## Best Practices
 
 1. **Always acknowledge purchases** within 3 days or they will be refunded
 2. **Verify purchases server-side** using Google Play Developer API
 3. **Handle pending purchases** for payment methods that require additional steps
-4. **Reconnect on disconnect** - billing service can disconnect anytime
-5. **Cache product details** to avoid repeated queries
+4. **Auto-reconnect is enabled by default** in OpenIAP (8.0+)
+5. **Check product status codes** (8.0+) to understand why products weren't fetched
+6. **Check isSuspended** (8.1+) before granting entitlements
+7. **Cache product details** to avoid repeated queries
