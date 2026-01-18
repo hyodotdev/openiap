@@ -15,13 +15,15 @@ Automated workflow to review, fix, and respond to PR review comments.
          ↓
 3. For each comment:
    ├─ Valid → Fix code
-   └─ Invalid → Add reply comment explaining why
+   └─ Invalid → Add reply comment explaining why (don't resolve)
          ↓
 4. Run lint, typecheck, tests (BEFORE commit)
          ↓
 5. If all pass → Commit and push
          ↓
-6. Resolve fixed threads
+6. For each fixed thread:
+   ├─ Reply with commit link + what changed
+   └─ Resolve thread
 ```
 
 ## Steps
@@ -172,7 +174,23 @@ git push
 
 ### 8. Resolve Fixed Threads
 
-For each thread that was fixed:
+For each thread that was fixed, **add a reply comment** explaining what was fixed and linking to the commit, then resolve:
+
+**Step 1: Add reply comment with fix details**
+
+```bash
+gh api graphql -f query='
+mutation {
+  addPullRequestReviewThreadReply(input: {
+    pullRequestReviewThreadId: "THREAD_ID",
+    body: "Fixed in COMMIT_HASH.\n\n**What was changed:**\n- DESCRIPTION_OF_FIX\n\nThanks for catching this!"
+  }) {
+    comment { id }
+  }
+}'
+```
+
+**Step 2: Resolve the thread**
 
 ```bash
 gh api graphql -f query='
@@ -183,6 +201,20 @@ mutation {
 }'
 ```
 
+**Reply templates for fixed threads:**
+
+- **Simple fix:**
+  > "Fixed in `abc1234`. Added blank lines around fenced code blocks."
+
+- **Code change:**
+  > "Fixed in `abc1234`.\n\n**Changes:**\n- Added guard clause for null check\n- Throws explicit error instead of silent ignore\n\nThanks for the thorough review!"
+
+- **Documentation fix:**
+  > "Fixed in `abc1234`. Updated version history to match official release notes."
+
+- **Multiple fixes in one commit:**
+  > "Fixed in `abc1234` along with other review items.\n\n**This thread:** Replaced hard-coded paths with placeholders."
+
 ## Decision Tree
 
 ```text
@@ -192,19 +224,34 @@ Review Comment
      │        │
      │        ├─► YES: Can we fix it?
      │        │        │
-     │        │        ├─► YES → Fix code, resolve thread
-     │        │        └─► NO (out of scope) → Reply, don't resolve
+     │        │        ├─► YES → Fix code, reply with commit link, resolve thread
+     │        │        └─► NO (out of scope) → Reply explaining why, don't resolve
      │        │
      │        └─► NO: Why is it invalid?
      │                 │
-     │                 ├─► Wrong suggestion → Reply with correction
-     │                 ├─► Misunderstanding → Reply with clarification
-     │                 └─► Style preference → Reply citing conventions
+     │                 ├─► Wrong suggestion → Reply with correction, don't resolve
+     │                 ├─► Misunderstanding → Reply with clarification, don't resolve
+     │                 └─► Style preference → Reply citing conventions, don't resolve
      │
      └─► Is it already fixed?
               │
-              └─► YES → Resolve thread
+              └─► YES → Reply with commit link, resolve thread
 ```
+
+## Thread Resolution Rules
+
+| Scenario | Reply? | Resolve? | Content |
+|----------|--------|----------|---------|
+| Fixed the issue | ✅ YES | ✅ YES | Commit link + what changed |
+| Already fixed in previous commit | ✅ YES | ✅ YES | Commit link |
+| Disagree with suggestion | ✅ YES | ❌ NO | Explanation + reasoning |
+| Out of scope | ✅ YES | ❌ NO | Why it's out of scope |
+| Misunderstanding | ✅ YES | ❌ NO | Clarification |
+| Need more info from reviewer | ✅ YES | ❌ NO | Question for clarification |
+
+**Important:** Never resolve a thread without either:
+1. Fixing the issue (with commit link in reply)
+2. Getting agreement from the reviewer that it's not needed
 
 ## Example Usage
 
@@ -227,16 +274,16 @@ After running, provide a summary:
 **Threads processed:** 12
 
 ### Fixed (8)
-- ✅ `scripts/agent/README.md:7` - Added language tag to code block
-- ✅ `scripts/agent/agent-coder.ts:56` - Fixed path resolution
+- ✅ `scripts/agent/README.md:7` - Added language tag to code block → Replied with `abc1234`
+- ✅ `scripts/agent/agent-coder.ts:56` - Fixed path resolution → Replied with `abc1234`
 - ...
 
-### Replied (2)
-- 💬 `packages/gql/schema.graphql:42` - Disagreed: follows project convention
-- 💬 `packages/apple/Sources/OpenIap.swift:15` - Out of scope for this PR
+### Replied Only (2) - Not Resolved
+- 💬 `packages/gql/schema.graphql:42` - Disagreed: follows project convention (waiting for reviewer response)
+- 💬 `packages/apple/Sources/OpenIap.swift:15` - Out of scope for this PR (waiting for reviewer response)
 
-### Already Resolved (2)
-- ⏭️ `CLAUDE.md:85` - Was fixed in previous commit
+### Already Fixed (2)
+- ⏭️ `CLAUDE.md:85` - Was fixed in previous commit `def5678` → Replied and resolved
 
 ### Commits
 - `abc1234` - fix: address PR review comments (8 files)
@@ -255,3 +302,6 @@ After running, provide a summary:
 5. **ALWAYS run lint/tsc/tests BEFORE commit** - Never commit if any check fails
 6. **Group commits** - Batch related fixes into logical commits
 7. **Fix test failures** - If tests fail after your fix, fix the issue before committing
+8. **Always reply before resolving** - When fixing an issue, reply with the commit hash and what changed before resolving the thread
+9. **Never silent resolve** - Reviewers should be able to see what action was taken on their comment
+10. **Link commits** - Use short commit hash (7 chars) with backticks: \`abc1234\`
