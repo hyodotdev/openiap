@@ -39,7 +39,7 @@ import { OllamaEmbeddings } from "@langchain/ollama";
 import { ChatOllama } from "@langchain/ollama";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import inquirer from "inquirer";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 
 // ============================================================================
 // Configuration
@@ -268,14 +268,26 @@ function formatContextForPrompt(context: RetrievedContext): {
     })
     .join("\n\n" + "─".repeat(40) + "\n\n");
 
+  // Safe JSON parse helper
+  const safeParseArray = (json: string | undefined): string[] => {
+    if (!json) return [];
+    try {
+      const parsed = JSON.parse(json);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
   // Format code map
   const codeMapText = context.codeMap
     .map((doc) => {
-      const funcs = doc.functions ? JSON.parse(doc.functions).join(", ") : "N/A";
+      const funcs = safeParseArray(doc.functions);
+      const funcsText = funcs.length > 0 ? funcs.join(", ") : "N/A";
       return `📄 ${doc.source}
    Package: ${doc.package_name}
    Language: ${doc.language}
-   Functions: ${funcs}`;
+   Functions: ${funcsText}`;
     })
     .join("\n\n");
 
@@ -367,6 +379,16 @@ Remember:
 // Output Generation
 // ============================================================================
 
+/**
+ * Validate that a path stays within a root directory (prevent path traversal)
+ */
+function isPathSafe(filePath: string, rootDir: string): boolean {
+  const normalizedPath = path.normalize(filePath);
+  const fullPath = path.resolve(rootDir, normalizedPath);
+  const relativePath = path.relative(rootDir, fullPath);
+  return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+}
+
 function saveResults(result: BenchmarkResult): string {
   // Create timestamped output directory
   const outputDir = path.join(CONFIG.outputRoot, result.timestamp);
@@ -395,6 +417,11 @@ ${result.explanation}
   // Save generated files
   const filesDir = path.join(outputDir, "files");
   for (const file of result.generatedFiles) {
+    // Validate path to prevent path traversal
+    if (!isPathSafe(file.path, filesDir)) {
+      console.log(chalk.red(`   ⚠ Skipped (unsafe path): ${file.path}`));
+      continue;
+    }
     const filePath = path.join(filesDir, file.path);
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, file.content);
@@ -403,18 +430,29 @@ ${result.explanation}
   // Generate diff if files exist in project
   let diffContent = "";
   for (const file of result.generatedFiles) {
+    // Validate paths to prevent path traversal
+    if (!isPathSafe(file.path, CONFIG.projectRoot) || !isPathSafe(file.path, filesDir)) {
+      continue;
+    }
     const existingPath = path.join(CONFIG.projectRoot, file.path);
     const generatedPath = path.join(filesDir, file.path);
 
     if (fs.existsSync(existingPath)) {
       try {
-        const diff = execSync(
-          `diff -u "${existingPath}" "${generatedPath}" || true`,
-          { encoding: "utf-8" }
-        );
+        // Use execFileSync instead of execSync to avoid shell injection
+        const diff = execFileSync("diff", ["-u", existingPath, generatedPath], {
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        });
         diffContent += `\n=== ${file.path} ===\n${diff}`;
-      } catch {
-        // diff returns non-zero when files differ
+      } catch (error: unknown) {
+        // diff returns exit code 1 when files differ (normal case)
+        if (error && typeof error === "object" && "stdout" in error) {
+          const stdout = (error as { stdout?: string }).stdout;
+          if (stdout) {
+            diffContent += `\n=== ${file.path} ===\n${stdout}`;
+          }
+        }
       }
     } else {
       diffContent += `\n=== ${file.path} (NEW FILE) ===\n`;

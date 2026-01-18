@@ -94,7 +94,7 @@ EMBEDDING_MODEL=nomic-embed-text       # default
 LLM_MODEL=qwen2.5-coder:14b            # default (for agent)
 ```
 
-> **Note:** `compile:claude` can run without Ollama (generates text files only)
+> **Note:** `compile:ai` can run without Ollama (generates text files only)
 
 ### 2. Setup
 

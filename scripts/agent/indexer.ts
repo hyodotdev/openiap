@@ -117,10 +117,15 @@ function splitMarkdownByHeaders(
 // Configuration
 // ============================================================================
 
+// Use script directory instead of process.cwd() for stable path resolution
+// Note: import.meta.dir is Bun-specific, use fileURLToPath for Node.js compatibility
+import { fileURLToPath } from "url";
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+
 const CONFIG = {
-  projectRoot: path.resolve(process.cwd(), "../.."),
-  knowledgeRoot: path.resolve(process.cwd(), "../../knowledge"),
-  dbPath: path.resolve(process.cwd(), ".lancedb"),
+  projectRoot: path.resolve(scriptDir, "../.."),
+  knowledgeRoot: path.resolve(scriptDir, "../../knowledge"),
+  dbPath: path.resolve(scriptDir, ".lancedb"),
 
   // Tables
   knowledgeTable: "openiap_knowledge",

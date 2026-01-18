@@ -22,18 +22,24 @@ function isValidIOSFunctionName(name: string, isIOSSpecific: boolean): boolean {
 
 /**
  * Check if an Android function name follows the convention
- * (no Android suffix in packages/google)
+ * - In packages/google: no Android suffix needed (it's Android-only package)
+ * - In cross-platform code: Android-specific functions must have Android suffix
  */
 function isValidAndroidFunctionName(
   name: string,
-  isInGooglePackage: boolean
+  isInGooglePackage: boolean,
+  isAndroidSpecific: boolean = false
 ): boolean {
   if (isInGooglePackage) {
     // In packages/google, functions should NOT have Android suffix
     return !name.endsWith("Android");
   }
   // In cross-platform code, Android-specific functions need Android suffix
-  return true;
+  if (isAndroidSpecific) {
+    return name.endsWith("Android");
+  }
+  // Cross-platform functions should not have Android suffix
+  return !name.endsWith("Android");
 }
 
 /**
@@ -146,6 +152,26 @@ describe("Android Function Naming", () => {
       false
     );
     expect(isValidAndroidFunctionName("buildModuleAndroid", true)).toBe(false);
+  });
+
+  test("Android-specific functions in cross-platform code should have Android suffix", () => {
+    // These are Android-specific functions used in expo-iap/react-native-iap
+    const androidSpecificFunctions = [
+      "acknowledgePurchaseAndroid",
+      "consumePurchaseAndroid",
+      "getPackageNameAndroid",
+    ];
+
+    for (const name of androidSpecificFunctions) {
+      // isInGooglePackage=false, isAndroidSpecific=true
+      expect(isValidAndroidFunctionName(name, false, true)).toBe(true);
+    }
+  });
+
+  test("Android-specific functions without suffix in cross-platform code should fail", () => {
+    // Missing Android suffix for Android-specific functions in cross-platform code
+    expect(isValidAndroidFunctionName("acknowledgePurchase", false, true)).toBe(false);
+    expect(isValidAndroidFunctionName("consumePurchase", false, true)).toBe(false);
   });
 });
 

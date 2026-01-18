@@ -86,10 +86,10 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 ## SST (Single Source of Truth)
 
-```
+```text
 knowledge/
 ├── internal/     ─┐
-└── external/     ─┴─► compile:claude ─┬► context.md (Claude Code)
-                                       ├► llms.txt (Quick Ref)
-                                       └► llms-full.txt (Full Ref)
+└── external/     ─┴─► compile:ai ─┬► context.md (Claude Code)
+                                   ├► llms.txt (Quick Ref)
+                                   └► llms-full.txt (Full Ref)
 ```

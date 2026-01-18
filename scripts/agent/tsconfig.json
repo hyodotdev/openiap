@@ -10,8 +10,9 @@
     "rootDir": "./",
     "resolveJsonModule": true,
     "declaration": true,
-    "lib": ["ES2022"]
+    "lib": ["ES2022"],
+    "types": ["bun-types"]
   },
-  "include": ["*.ts"],
+  "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -340,6 +340,16 @@ Output ONLY valid JSON.`),
 // ============================================================================
 
 /**
+ * Validate that a path stays within the project root (prevent path traversal)
+ */
+function isPathSafe(filePath: string): boolean {
+  const fullPath = path.resolve(CONFIG.projectRoot, filePath);
+  const relativePath = path.relative(CONFIG.projectRoot, fullPath);
+  // Path is unsafe if it escapes the project root (starts with .. or is absolute)
+  return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+}
+
+/**
  * Write generated files to the filesystem
  */
 function writeFiles(files: FileChange[]): string[] {
@@ -348,7 +358,13 @@ function writeFiles(files: FileChange[]): string[] {
   const writtenFiles: string[] = [];
 
   for (const file of files) {
-    const fullPath = path.join(CONFIG.projectRoot, file.path);
+    // Validate path to prevent path traversal attacks
+    if (!isPathSafe(file.path)) {
+      console.log(chalk.red(`   ⚠ Skipped (unsafe path): ${file.path}`));
+      continue;
+    }
+
+    const fullPath = path.resolve(CONFIG.projectRoot, file.path);
     const dirPath = path.dirname(fullPath);
 
     if (file.action === "delete") {

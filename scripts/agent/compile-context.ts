@@ -23,13 +23,18 @@ import chalk from "chalk";
 // Configuration
 // ============================================================================
 
+// Use script directory instead of process.cwd() for stable path resolution
+// Note: import.meta.dir is Bun-specific, use fileURLToPath for Node.js compatibility
+import { fileURLToPath } from "url";
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+
 const CONFIG = {
-  projectRoot: path.resolve(process.cwd(), "../.."),
-  knowledgeRoot: path.resolve(process.cwd(), "../../knowledge"),
-  outputDir: path.resolve(process.cwd(), "../../knowledge/_claude-context"),
+  projectRoot: path.resolve(scriptDir, "../.."),
+  knowledgeRoot: path.resolve(scriptDir, "../../knowledge"),
+  outputDir: path.resolve(scriptDir, "../../knowledge/_claude-context"),
   outputFile: "context.md",
   // LLMs.txt output (for AI assistants on web)
-  llmsOutputDir: path.resolve(process.cwd(), "../../packages/docs/public"),
+  llmsOutputDir: path.resolve(scriptDir, "../../packages/docs/public"),
 };
 
 // ============================================================================
