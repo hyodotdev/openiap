@@ -108,3 +108,18 @@ This will:
 - **Monorepo only**: All releases are now managed from this monorepo
 - **Separate versioning**: Apple and Google packages have independent versions
 - **Swift Package Manager**: Automatically works via Git tags, no separate deployment step
+
+---
+
+## Version File Management
+
+### openiap-versions.json
+
+**CRITICAL: NEVER manually edit `openiap-versions.json`**
+
+This file is automatically managed by CI/CD workflows during releases:
+- Apple releases update `apple` version
+- Google releases update `google` version
+- GQL releases update `gql` and `docs` versions
+
+Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows to update versions.

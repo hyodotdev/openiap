@@ -54,8 +54,9 @@ openiap/
 
 - `packages/apple/Sources/Models/Types.swift`
 - `packages/google/openiap/src/main/Types.kt`
+- `openiap-versions.json` - Managed by CI/CD workflows only
 
-Regenerate with: `./scripts/generate-types.sh`
+Regenerate types with: `./scripts/generate-types.sh`
 
 ### Git Commit Format
 
