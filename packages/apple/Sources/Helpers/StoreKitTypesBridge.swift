@@ -433,7 +433,7 @@ enum StoreKitTypesBridge {
             if let jwsOffer = subscriptionProps.promotionalOfferJWS {
                 #if swift(>=6.1)
                 // Swift 6.1+ implementation
-                options.insert(.promotionalOffer(jwsOffer.jws))
+                options.insert(.promotionalOffer(compactJWS: jwsOffer.jws))
                 OpenIapLog.debug("✅ Added JWS promotional offer: \(jwsOffer.offerId)")
                 #else
                 // Swift < 6.1: API not available, throw error to fail fast
