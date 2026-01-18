@@ -1417,45 +1417,26 @@ public struct RequestPurchaseIosProps: Codable {
     public var andDangerouslyFinishTransactionAutomatically: Bool?
     /// App account token for user tracking
     public var appAccountToken: String?
-    /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
-    /// Set to true to indicate the user is eligible for introductory offer,
-    /// or false to indicate they are not. When nil, the system determines eligibility.
-    /// Back-deployed to iOS 15.
-    public var introductoryOfferEligibility: Bool?
-    /// JWS promotional offer (iOS 15+, WWDC 2025).
-    /// New signature format using compact JWS string for promotional offers.
-    /// Back-deployed to iOS 15.
-    public var promotionalOfferJWS: PromotionalOfferJWSInputIOS?
     /// Purchase quantity
     public var quantity: Int?
     /// Product SKU
     public var sku: String
-    /// Win-back offer to apply (iOS 18+)
-    /// Used to re-engage churned subscribers with a discount or free trial.
-    /// Note: Win-back offers only apply to subscription products.
-    public var winBackOffer: WinBackOfferInputIOS?
-    /// Discount offer to apply
+    /// Discount offer to apply (one-time purchase discounts)
     public var withOffer: DiscountOfferInputIOS?
 
     public init(
         advancedCommerceData: String? = nil,
         andDangerouslyFinishTransactionAutomatically: Bool? = nil,
         appAccountToken: String? = nil,
-        introductoryOfferEligibility: Bool? = nil,
-        promotionalOfferJWS: PromotionalOfferJWSInputIOS? = nil,
         quantity: Int? = nil,
         sku: String,
-        winBackOffer: WinBackOfferInputIOS? = nil,
         withOffer: DiscountOfferInputIOS? = nil
     ) {
         self.advancedCommerceData = advancedCommerceData
         self.andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically
         self.appAccountToken = appAccountToken
-        self.introductoryOfferEligibility = introductoryOfferEligibility
-        self.promotionalOfferJWS = promotionalOfferJWS
         self.quantity = quantity
         self.sku = sku
-        self.winBackOffer = winBackOffer
         self.withOffer = withOffer
     }
 }

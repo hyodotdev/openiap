@@ -218,7 +218,7 @@ type PurchaseOfferIOS {
   paymentMode: String!
 }
 
-# iOS purchase/subscribe inputs
+# iOS purchase inputs (for in-app products: consumables and non-consumables)
 input RequestPurchaseIosProps {
   """
   Product SKU
@@ -237,28 +237,9 @@ input RequestPurchaseIosProps {
   """
   quantity: Int
   """
-  Discount offer to apply
+  Discount offer to apply (one-time purchase discounts)
   """
   withOffer: DiscountOfferInputIOS
-  """
-  Win-back offer to apply (iOS 18+)
-  Used to re-engage churned subscribers with a discount or free trial.
-  Note: Win-back offers only apply to subscription products.
-  """
-  winBackOffer: WinBackOfferInputIOS
-  """
-  JWS promotional offer (iOS 15+, WWDC 2025).
-  New signature format using compact JWS string for promotional offers.
-  Back-deployed to iOS 15.
-  """
-  promotionalOfferJWS: PromotionalOfferJWSInputIOS
-  """
-  Override introductory offer eligibility (iOS 15+, WWDC 2025).
-  Set to true to indicate the user is eligible for introductory offer,
-  or false to indicate they are not. When nil, the system determines eligibility.
-  Back-deployed to iOS 15.
-  """
-  introductoryOfferEligibility: Boolean
   """
   Advanced commerce data token (iOS 15+).
   Used with StoreKit 2's Product.PurchaseOption.custom API for passing
