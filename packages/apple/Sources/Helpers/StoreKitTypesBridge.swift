@@ -359,7 +359,7 @@ enum StoreKitTypesBridge {
         }
     }
 
-    static func purchaseOptions(from props: RequestPurchaseIosProps, product: StoreKit.Product? = nil) throws -> Set<StoreKit.Product.PurchaseOption> {
+    static func purchaseOptions(from props: some IosPropsProtocol, product: StoreKit.Product? = nil) throws -> Set<StoreKit.Product.PurchaseOption> {
         var options: Set<StoreKit.Product.PurchaseOption> = []
         if let quantity = props.quantity, quantity > 1 {
             options.insert(.quantity(quantity))
@@ -377,88 +377,93 @@ enum StoreKitTypesBridge {
             }
             options.insert(option)
         }
-        // Win-back offers (iOS 18+)
-        // Used to re-engage churned subscribers
-        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
-            if let winBackInput = props.winBackOffer {
-                guard let product = product else {
-                    OpenIapLog.error("❌ Win-back offer requires product context")
-                    throw PurchaseError.make(
-                        code: .developerError,
-                        productId: props.sku,
-                        message: "Win-back offer requires product context. Fetch the product before calling requestPurchase."
-                    )
-                }
-                // Find the win-back offer from the product's promotional offers
-                if let subscription = product.subscription {
-                    let winBackOffer = subscription.promotionalOffers.first { offer in
-                        offer.id == winBackInput.offerId && offer.type == .winBack
-                    }
-                    if let offer = winBackOffer {
-                        options.insert(.winBackOffer(offer))
-                        OpenIapLog.debug("✅ Added win-back offer: \(winBackInput.offerId)")
-                    } else {
-                        OpenIapLog.error("❌ Win-back offer not found: \(winBackInput.offerId)")
+
+        // Subscription-only options (only available on RequestSubscriptionIosProps)
+        if let subscriptionProps = props as? RequestSubscriptionIosProps {
+            // Win-back offers (iOS 18+)
+            // Used to re-engage churned subscribers
+            if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
+                if let winBackInput = subscriptionProps.winBackOffer {
+                    guard let product = product else {
+                        OpenIapLog.error("❌ Win-back offer requires product context")
                         throw PurchaseError.make(
                             code: .developerError,
                             productId: props.sku,
-                            message: "Win-back offer not found: \(winBackInput.offerId). Ensure the user is eligible and the offer ID is correct."
+                            message: "Win-back offer requires product context. Fetch the product before calling requestPurchase."
                         )
                     }
-                } else {
-                    OpenIapLog.error("❌ Win-back offer requires a subscription product")
-                    throw PurchaseError.make(
-                        code: .developerError,
-                        productId: props.sku,
-                        message: "Win-back offers can only be applied to subscription products"
-                    )
+                    // Find the win-back offer from the product's promotional offers
+                    if let subscription = product.subscription {
+                        let winBackOffer = subscription.promotionalOffers.first { offer in
+                            offer.id == winBackInput.offerId && offer.type == .winBack
+                        }
+                        if let offer = winBackOffer {
+                            options.insert(.winBackOffer(offer))
+                            OpenIapLog.debug("✅ Added win-back offer: \(winBackInput.offerId)")
+                        } else {
+                            OpenIapLog.error("❌ Win-back offer not found: \(winBackInput.offerId)")
+                            throw PurchaseError.make(
+                                code: .developerError,
+                                productId: props.sku,
+                                message: "Win-back offer not found: \(winBackInput.offerId). Ensure the user is eligible and the offer ID is correct."
+                            )
+                        }
+                    } else {
+                        OpenIapLog.error("❌ Win-back offer requires a subscription product")
+                        throw PurchaseError.make(
+                            code: .developerError,
+                            productId: props.sku,
+                            message: "Win-back offers can only be applied to subscription products"
+                        )
+                    }
                 }
+            } else if subscriptionProps.winBackOffer != nil {
+                // Fail fast when win-back offers are used on unsupported OS versions
+                OpenIapLog.error("❌ Win-back offers require iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+")
+                throw PurchaseError.make(
+                    code: .developerError,
+                    productId: props.sku,
+                    message: "Win-back offers are only supported on iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+."
+                )
             }
-        } else if props.winBackOffer != nil {
-            // Fail fast when win-back offers are used on unsupported OS versions
-            OpenIapLog.error("❌ Win-back offers require iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+")
-            throw PurchaseError.make(
-                code: .developerError,
-                productId: props.sku,
-                message: "Win-back offers are only supported on iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+."
-            )
-        }
-        // JWS Promotional Offer (iOS 15+, WWDC 2025)
-        // New signature format using compact JWS string for promotional offers
-        // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
-        if let jwsOffer = props.promotionalOfferJWS {
-            #if swift(>=6.1)
-            // Swift 6.1+ implementation
-            options.insert(.promotionalOffer(jwsOffer.jws))
-            OpenIapLog.debug("✅ Added JWS promotional offer: \(jwsOffer.offerId)")
-            #else
-            // Swift < 6.1: API not available, throw error to fail fast
-            OpenIapLog.error("❌ JWS promotional offers require Xcode 16.4+ / Swift 6.1+")
-            throw PurchaseError.make(
-                code: .developerError,
-                productId: props.sku,
-                message: "JWS promotional offers require Xcode 16.4+ / Swift 6.1+. Use withOffer with signature-based promotional offers instead."
-            )
-            #endif
-        }
 
-        // Introductory Offer Eligibility Override (iOS 15+, WWDC 2025)
-        // Allows overriding the system's eligibility check for introductory offers
-        // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
-        if let eligibility = props.introductoryOfferEligibility {
-            #if swift(>=6.1)
-            // Swift 6.1+ implementation
-            options.insert(.introductoryOfferEligibility(eligibility))
-            OpenIapLog.debug("✅ Added introductory offer eligibility override: \(eligibility)")
-            #else
-            // Swift < 6.1: API not available, throw error to fail fast
-            OpenIapLog.error("❌ Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+")
-            throw PurchaseError.make(
-                code: .developerError,
-                productId: props.sku,
-                message: "Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+. The system will determine eligibility automatically."
-            )
-            #endif
+            // JWS Promotional Offer (iOS 15+, WWDC 2025)
+            // New signature format using compact JWS string for promotional offers
+            // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
+            if let jwsOffer = subscriptionProps.promotionalOfferJWS {
+                #if swift(>=6.1)
+                // Swift 6.1+ implementation
+                options.insert(.promotionalOffer(jwsOffer.jws))
+                OpenIapLog.debug("✅ Added JWS promotional offer: \(jwsOffer.offerId)")
+                #else
+                // Swift < 6.1: API not available, throw error to fail fast
+                OpenIapLog.error("❌ JWS promotional offers require Xcode 16.4+ / Swift 6.1+")
+                throw PurchaseError.make(
+                    code: .developerError,
+                    productId: props.sku,
+                    message: "JWS promotional offers require Xcode 16.4+ / Swift 6.1+. Use withOffer with signature-based promotional offers instead."
+                )
+                #endif
+            }
+
+            // Introductory Offer Eligibility Override (iOS 15+, WWDC 2025)
+            // Allows overriding the system's eligibility check for introductory offers
+            // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
+            if let eligibility = subscriptionProps.introductoryOfferEligibility {
+                #if swift(>=6.1)
+                // Swift 6.1+ implementation
+                options.insert(.introductoryOfferEligibility(eligibility))
+                OpenIapLog.debug("✅ Added introductory offer eligibility override: \(eligibility)")
+                #else
+                // Swift < 6.1: API not available, throw error to fail fast
+                OpenIapLog.error("❌ Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+")
+                throw PurchaseError.make(
+                    code: .developerError,
+                    productId: props.sku,
+                    message: "Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+. The system will determine eligibility automatically."
+                )
+                #endif
+            }
         }
 
         // Advanced Commerce Data (iOS 15+)
