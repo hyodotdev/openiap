@@ -77,6 +77,24 @@ bun run compile
 claude --context knowledge/_claude-context/context.md
 ```
 
+## Available Skills (Slash Commands)
+
+| Skill | Description | Usage |
+|-------|-------------|-------|
+| `/review-pr` | Review PR comments, fix issues, resolve threads | `/review-pr 65` or `/review-pr <url>` |
+| `/audit-code` | Audit code against knowledge rules and latest APIs | `/audit-code` |
+| `/compile-knowledge` | Compile knowledge base for Claude context | `/compile-knowledge` |
+| `/sync-*` | Sync changes to platform SDKs | `/sync-expo-iap`, `/sync-flutter-iap`, etc. |
+
+### /review-pr Workflow
+
+1. Fetches unresolved PR review threads
+2. For each comment:
+   - **Valid issue** → Fix code, commit, resolve thread
+   - **Invalid/wrong** → Reply with explanation (don't resolve)
+3. Runs tests to verify fixes
+4. Pushes changes and resolves fixed threads
+
 ## For More Details
 
 All comprehensive rules are documented in [`knowledge/internal/`](knowledge/internal/):
