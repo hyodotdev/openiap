@@ -363,8 +363,16 @@ for (const objectType of objects) {
         outputLines.push(`\t\t\t\tobj.${snakeCaseName} = ${typeInfo.typeName}.from_dict(data["${fieldName}"])`);
         outputLines.push(`\t\t\telse:`);
         outputLines.push(`\t\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
+      } else if (typeInfo.isEnum) {
+        // Enum - convert string to enum using reverse lookup
+        const enumReverseLookup = toConstantCase(typeInfo.typeName) + '_FROM_STRING';
+        outputLines.push(`\t\t\tvar enum_str = data["${fieldName}"]`);
+        outputLines.push(`\t\t\tif enum_str is String and ${enumReverseLookup}.has(enum_str):`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = ${enumReverseLookup}[enum_str]`);
+        outputLines.push(`\t\t\telse:`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = enum_str`);
       } else {
-        // Scalar or enum - direct assignment
+        // Scalar - direct assignment
         outputLines.push(`\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
       }
     }
@@ -451,6 +459,14 @@ for (const inputType of inputs) {
         outputLines.push(`\t\t\t\tobj.${snakeCaseName} = ${typeInfo.typeName}.from_dict(data["${fieldName}"])`);
         outputLines.push(`\t\t\telse:`);
         outputLines.push(`\t\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
+      } else if (typeInfo.isEnum) {
+        // Enum - convert string to enum using reverse lookup
+        const enumReverseLookup = toConstantCase(typeInfo.typeName) + '_FROM_STRING';
+        outputLines.push(`\t\t\tvar enum_str = data["${fieldName}"]`);
+        outputLines.push(`\t\t\tif enum_str is String and ${enumReverseLookup}.has(enum_str):`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = ${enumReverseLookup}[enum_str]`);
+        outputLines.push(`\t\t\telse:`);
+        outputLines.push(`\t\t\t\tobj.${snakeCaseName} = enum_str`);
       } else {
         outputLines.push(`\t\t\tobj.${snakeCaseName} = data["${fieldName}"]`);
       }
@@ -497,7 +513,7 @@ for (const inputType of inputs) {
   outputLines.push('');
 }
 
-// Generate helper constants for enum string values
+// Generate helper constants for enum string values (enum -> string)
 outputLines.push('# ============================================================================');
 outputLines.push('# Enum String Helpers');
 outputLines.push('# ============================================================================');
@@ -512,6 +528,26 @@ for (const enumType of enums) {
     const rawValue = toKebabCase(value.name);
     const comma = i < values.length - 1 ? ',' : '';
     outputLines.push(`\t${enumType.name}.${enumValueName}: "${rawValue}"${comma}`);
+  }
+  outputLines.push('}');
+  outputLines.push('');
+}
+
+// Generate reverse lookup constants for enum deserialization (string -> enum)
+outputLines.push('# ============================================================================');
+outputLines.push('# Enum Reverse Lookup (string -> enum for deserialization)');
+outputLines.push('# ============================================================================');
+outputLines.push('');
+
+for (const enumType of enums) {
+  outputLines.push(`const ${toConstantCase(enumType.name)}_FROM_STRING = {`);
+  const values = enumType.getValues();
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+    const enumValueName = toConstantCase(value.name);
+    const rawValue = toKebabCase(value.name);
+    const comma = i < values.length - 1 ? ',' : '';
+    outputLines.push(`\t"${rawValue}": ${enumType.name}.${enumValueName}${comma}`);
   }
   outputLines.push('}');
   outputLines.push('');

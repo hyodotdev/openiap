@@ -431,7 +431,11 @@ class BillingProgramAvailabilityResultAndroid:
 		if data.has("isAvailable") and data["isAvailable"] != null:
 			obj.is_available = data["isAvailable"]
 		if data.has("billingProgram") and data["billingProgram"] != null:
-			obj.billing_program = data["billingProgram"]
+			var enum_str = data["billingProgram"]
+			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
+				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.billing_program = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -453,7 +457,11 @@ class BillingProgramReportingDetailsAndroid:
 	static func from_dict(data: Dictionary) -> BillingProgramReportingDetailsAndroid:
 		var obj = BillingProgramReportingDetailsAndroid.new()
 		if data.has("billingProgram") and data["billingProgram"] != null:
-			obj.billing_program = data["billingProgram"]
+			var enum_str = data["billingProgram"]
+			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
+				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.billing_program = enum_str
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
@@ -483,7 +491,11 @@ class BillingResultAndroid:
 		if data.has("debugMessage") and data["debugMessage"] != null:
 			obj.debug_message = data["debugMessage"]
 		if data.has("subResponseCode") and data["subResponseCode"] != null:
-			obj.sub_response_code = data["subResponseCode"]
+			var enum_str = data["subResponseCode"]
+			if enum_str is String and SUB_RESPONSE_CODE_ANDROID_FROM_STRING.has(enum_str):
+				obj.sub_response_code = SUB_RESPONSE_CODE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.sub_response_code = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -584,7 +596,11 @@ class DiscountIOS:
 		if data.has("priceAmount") and data["priceAmount"] != null:
 			obj.price_amount = data["priceAmount"]
 		if data.has("paymentMode") and data["paymentMode"] != null:
-			obj.payment_mode = data["paymentMode"]
+			var enum_str = data["paymentMode"]
+			if enum_str is String and PAYMENT_MODE_IOS_FROM_STRING.has(enum_str):
+				obj.payment_mode = PAYMENT_MODE_IOS_FROM_STRING[enum_str]
+			else:
+				obj.payment_mode = enum_str
 		if data.has("subscriptionPeriod") and data["subscriptionPeriod"] != null:
 			obj.subscription_period = data["subscriptionPeriod"]
 		if data.has("localizedPrice") and data["localizedPrice"] != null:
@@ -650,7 +666,11 @@ class DiscountOffer:
 		if data.has("currency") and data["currency"] != null:
 			obj.currency = data["currency"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and DISCOUNT_OFFER_TYPE_FROM_STRING.has(enum_str):
+				obj.type = DISCOUNT_OFFER_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
 			obj.offer_token_android = data["offerTokenAndroid"]
 		if data.has("offerTagsAndroid") and data["offerTagsAndroid"] != null:
@@ -840,7 +860,11 @@ class ExternalPurchaseNoticeResultIOS:
 	static func from_dict(data: Dictionary) -> ExternalPurchaseNoticeResultIOS:
 		var obj = ExternalPurchaseNoticeResultIOS.new()
 		if data.has("result") and data["result"] != null:
-			obj.result = data["result"]
+			var enum_str = data["result"]
+			if enum_str is String and EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING.has(enum_str):
+				obj.result = EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING[enum_str]
+			else:
+				obj.result = enum_str
 		if data.has("error") and data["error"] != null:
 			obj.error = data["error"]
 		return obj
@@ -991,7 +1015,11 @@ class ProductAndroid:
 		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
+				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
 		if data.has("displayPrice") and data["displayPrice"] != null:
@@ -1003,11 +1031,19 @@ class ProductAndroid:
 		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
 		if data.has("platform") and data["platform"] != null:
-			obj.platform = data["platform"]
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
 		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
-			obj.product_status_android = data["productStatusAndroid"]
+			var enum_str = data["productStatusAndroid"]
+			if enum_str is String and PRODUCT_STATUS_ANDROID_FROM_STRING.has(enum_str):
+				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.product_status_android = enum_str
 		if data.has("discountOffers") and data["discountOffers"] != null:
 			var arr = []
 			for item in data["discountOffers"]:
@@ -1234,7 +1270,11 @@ class ProductIOS:
 		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
+				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
 		if data.has("displayPrice") and data["displayPrice"] != null:
@@ -1246,7 +1286,11 @@ class ProductIOS:
 		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
 		if data.has("platform") and data["platform"] != null:
-			obj.platform = data["platform"]
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
 		if data.has("displayNameIOS") and data["displayNameIOS"] != null:
 			obj.display_name_ios = data["displayNameIOS"]
 		if data.has("isFamilyShareableIOS") and data["isFamilyShareableIOS"] != null:
@@ -1254,7 +1298,11 @@ class ProductIOS:
 		if data.has("jsonRepresentationIOS") and data["jsonRepresentationIOS"] != null:
 			obj.json_representation_ios = data["jsonRepresentationIOS"]
 		if data.has("typeIOS") and data["typeIOS"] != null:
-			obj.type_ios = data["typeIOS"]
+			var enum_str = data["typeIOS"]
+			if enum_str is String and PRODUCT_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.type_ios = PRODUCT_TYPE_IOS_FROM_STRING[enum_str]
+			else:
+				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			var arr = []
 			for item in data["subscriptionOffers"]:
@@ -1343,7 +1391,11 @@ class ProductSubscriptionAndroid:
 		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
+				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
 		if data.has("displayPrice") and data["displayPrice"] != null:
@@ -1355,11 +1407,19 @@ class ProductSubscriptionAndroid:
 		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
 		if data.has("platform") and data["platform"] != null:
-			obj.platform = data["platform"]
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
 		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
-			obj.product_status_android = data["productStatusAndroid"]
+			var enum_str = data["productStatusAndroid"]
+			if enum_str is String and PRODUCT_STATUS_ANDROID_FROM_STRING.has(enum_str):
+				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.product_status_android = enum_str
 		if data.has("discountOffers") and data["discountOffers"] != null:
 			var arr = []
 			for item in data["discountOffers"]:
@@ -1534,7 +1594,11 @@ class ProductSubscriptionIOS:
 		if data.has("description") and data["description"] != null:
 			obj.description = data["description"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
+				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
 			obj.display_name = data["displayName"]
 		if data.has("displayPrice") and data["displayPrice"] != null:
@@ -1546,7 +1610,11 @@ class ProductSubscriptionIOS:
 		if data.has("debugDescription") and data["debugDescription"] != null:
 			obj.debug_description = data["debugDescription"]
 		if data.has("platform") and data["platform"] != null:
-			obj.platform = data["platform"]
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
 		if data.has("displayNameIOS") and data["displayNameIOS"] != null:
 			obj.display_name_ios = data["displayNameIOS"]
 		if data.has("isFamilyShareableIOS") and data["isFamilyShareableIOS"] != null:
@@ -1554,7 +1622,11 @@ class ProductSubscriptionIOS:
 		if data.has("jsonRepresentationIOS") and data["jsonRepresentationIOS"] != null:
 			obj.json_representation_ios = data["jsonRepresentationIOS"]
 		if data.has("typeIOS") and data["typeIOS"] != null:
-			obj.type_ios = data["typeIOS"]
+			var enum_str = data["typeIOS"]
+			if enum_str is String and PRODUCT_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.type_ios = PRODUCT_TYPE_IOS_FROM_STRING[enum_str]
+			else:
+				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			var arr = []
 			for item in data["subscriptionOffers"]:
@@ -1581,15 +1653,27 @@ class ProductSubscriptionIOS:
 		if data.has("introductoryPriceAsAmountIOS") and data["introductoryPriceAsAmountIOS"] != null:
 			obj.introductory_price_as_amount_ios = data["introductoryPriceAsAmountIOS"]
 		if data.has("introductoryPricePaymentModeIOS") and data["introductoryPricePaymentModeIOS"] != null:
-			obj.introductory_price_payment_mode_ios = data["introductoryPricePaymentModeIOS"]
+			var enum_str = data["introductoryPricePaymentModeIOS"]
+			if enum_str is String and PAYMENT_MODE_IOS_FROM_STRING.has(enum_str):
+				obj.introductory_price_payment_mode_ios = PAYMENT_MODE_IOS_FROM_STRING[enum_str]
+			else:
+				obj.introductory_price_payment_mode_ios = enum_str
 		if data.has("introductoryPriceNumberOfPeriodsIOS") and data["introductoryPriceNumberOfPeriodsIOS"] != null:
 			obj.introductory_price_number_of_periods_ios = data["introductoryPriceNumberOfPeriodsIOS"]
 		if data.has("introductoryPriceSubscriptionPeriodIOS") and data["introductoryPriceSubscriptionPeriodIOS"] != null:
-			obj.introductory_price_subscription_period_ios = data["introductoryPriceSubscriptionPeriodIOS"]
+			var enum_str = data["introductoryPriceSubscriptionPeriodIOS"]
+			if enum_str is String and SUBSCRIPTION_PERIOD_IOS_FROM_STRING.has(enum_str):
+				obj.introductory_price_subscription_period_ios = SUBSCRIPTION_PERIOD_IOS_FROM_STRING[enum_str]
+			else:
+				obj.introductory_price_subscription_period_ios = enum_str
 		if data.has("subscriptionPeriodNumberIOS") and data["subscriptionPeriodNumberIOS"] != null:
 			obj.subscription_period_number_ios = data["subscriptionPeriodNumberIOS"]
 		if data.has("subscriptionPeriodUnitIOS") and data["subscriptionPeriodUnitIOS"] != null:
-			obj.subscription_period_unit_ios = data["subscriptionPeriodUnitIOS"]
+			var enum_str = data["subscriptionPeriodUnitIOS"]
+			if enum_str is String and SUBSCRIPTION_PERIOD_IOS_FROM_STRING.has(enum_str):
+				obj.subscription_period_unit_ios = SUBSCRIPTION_PERIOD_IOS_FROM_STRING[enum_str]
+			else:
+				obj.subscription_period_unit_ios = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -1699,13 +1783,25 @@ class PurchaseAndroid:
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
-			obj.store = data["store"]
+			var enum_str = data["store"]
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			else:
+				obj.store = enum_str
 		if data.has("platform") and data["platform"] != null:
-			obj.platform = data["platform"]
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
-			obj.purchase_state = data["purchaseState"]
+			var enum_str = data["purchaseState"]
+			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			else:
+				obj.purchase_state = enum_str
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
 		if data.has("currentPlanId") and data["currentPlanId"] != null:
@@ -1772,7 +1868,11 @@ class PurchaseError:
 	static func from_dict(data: Dictionary) -> PurchaseError:
 		var obj = PurchaseError.new()
 		if data.has("code") and data["code"] != null:
-			obj.code = data["code"]
+			var enum_str = data["code"]
+			if enum_str is String and ERROR_CODE_FROM_STRING.has(enum_str):
+				obj.code = ERROR_CODE_FROM_STRING[enum_str]
+			else:
+				obj.code = enum_str
 		if data.has("message") and data["message"] != null:
 			obj.message = data["message"]
 		if data.has("productId") and data["productId"] != null:
@@ -1839,13 +1939,25 @@ class PurchaseIOS:
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
-			obj.store = data["store"]
+			var enum_str = data["store"]
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			else:
+				obj.store = enum_str
 		if data.has("platform") and data["platform"] != null:
-			obj.platform = data["platform"]
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
-			obj.purchase_state = data["purchaseState"]
+			var enum_str = data["purchaseState"]
+			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			else:
+				obj.purchase_state = enum_str
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
 		if data.has("currentPlanId") and data["currentPlanId"] != null:
@@ -2091,11 +2203,19 @@ class RequestVerifyPurchaseWithIapkitResult:
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitResult:
 		var obj = RequestVerifyPurchaseWithIapkitResult.new()
 		if data.has("store") and data["store"] != null:
-			obj.store = data["store"]
+			var enum_str = data["store"]
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			else:
+				obj.store = enum_str
 		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
 		if data.has("state") and data["state"] != null:
-			obj.state = data["state"]
+			var enum_str = data["state"]
+			if enum_str is String and IAPKIT_PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.state = IAPKIT_PURCHASE_STATE_FROM_STRING[enum_str]
+			else:
+				obj.state = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2214,7 +2334,11 @@ class SubscriptionOffer:
 		if data.has("currency") and data["currency"] != null:
 			obj.currency = data["currency"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and DISCOUNT_OFFER_TYPE_FROM_STRING.has(enum_str):
+				obj.type = DISCOUNT_OFFER_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		if data.has("period") and data["period"] != null:
 			if data["period"] is Dictionary:
 				obj.period = SubscriptionPeriod.from_dict(data["period"])
@@ -2223,7 +2347,11 @@ class SubscriptionOffer:
 		if data.has("periodCount") and data["periodCount"] != null:
 			obj.period_count = data["periodCount"]
 		if data.has("paymentMode") and data["paymentMode"] != null:
-			obj.payment_mode = data["paymentMode"]
+			var enum_str = data["paymentMode"]
+			if enum_str is String and PAYMENT_MODE_FROM_STRING.has(enum_str):
+				obj.payment_mode = PAYMENT_MODE_FROM_STRING[enum_str]
+			else:
+				obj.payment_mode = enum_str
 		if data.has("keyIdentifierIOS") and data["keyIdentifierIOS"] != null:
 			obj.key_identifier_ios = data["keyIdentifierIOS"]
 		if data.has("nonceIOS") and data["nonceIOS"] != null:
@@ -2300,7 +2428,11 @@ class SubscriptionOfferIOS:
 		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
 		if data.has("paymentMode") and data["paymentMode"] != null:
-			obj.payment_mode = data["paymentMode"]
+			var enum_str = data["paymentMode"]
+			if enum_str is String and PAYMENT_MODE_IOS_FROM_STRING.has(enum_str):
+				obj.payment_mode = PAYMENT_MODE_IOS_FROM_STRING[enum_str]
+			else:
+				obj.payment_mode = enum_str
 		if data.has("period") and data["period"] != null:
 			if data["period"] is Dictionary:
 				obj.period = SubscriptionPeriodValueIOS.from_dict(data["period"])
@@ -2311,7 +2443,11 @@ class SubscriptionOfferIOS:
 		if data.has("price") and data["price"] != null:
 			obj.price = data["price"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and SUBSCRIPTION_OFFER_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.type = SUBSCRIPTION_OFFER_TYPE_IOS_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2344,7 +2480,11 @@ class SubscriptionPeriod:
 	static func from_dict(data: Dictionary) -> SubscriptionPeriod:
 		var obj = SubscriptionPeriod.new()
 		if data.has("unit") and data["unit"] != null:
-			obj.unit = data["unit"]
+			var enum_str = data["unit"]
+			if enum_str is String and SUBSCRIPTION_PERIOD_UNIT_FROM_STRING.has(enum_str):
+				obj.unit = SUBSCRIPTION_PERIOD_UNIT_FROM_STRING[enum_str]
+			else:
+				obj.unit = enum_str
 		if data.has("value") and data["value"] != null:
 			obj.value = data["value"]
 		return obj
@@ -2365,7 +2505,11 @@ class SubscriptionPeriodValueIOS:
 	static func from_dict(data: Dictionary) -> SubscriptionPeriodValueIOS:
 		var obj = SubscriptionPeriodValueIOS.new()
 		if data.has("unit") and data["unit"] != null:
-			obj.unit = data["unit"]
+			var enum_str = data["unit"]
+			if enum_str is String and SUBSCRIPTION_PERIOD_IOS_FROM_STRING.has(enum_str):
+				obj.unit = SUBSCRIPTION_PERIOD_IOS_FROM_STRING[enum_str]
+			else:
+				obj.unit = enum_str
 		if data.has("value") and data["value"] != null:
 			obj.value = data["value"]
 		return obj
@@ -2606,7 +2750,11 @@ class VerifyPurchaseWithProviderResult:
 	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderResult:
 		var obj = VerifyPurchaseWithProviderResult.new()
 		if data.has("provider") and data["provider"] != null:
-			obj.provider = data["provider"]
+			var enum_str = data["provider"]
+			if enum_str is String and PURCHASE_VERIFICATION_PROVIDER_FROM_STRING.has(enum_str):
+				obj.provider = PURCHASE_VERIFICATION_PROVIDER_FROM_STRING[enum_str]
+			else:
+				obj.provider = enum_str
 		if data.has("iapkit") and data["iapkit"] != null:
 			if data["iapkit"] is Dictionary:
 				obj.iapkit = RequestVerifyPurchaseWithIapkitResult.from_dict(data["iapkit"])
@@ -2718,11 +2866,19 @@ class DeveloperBillingOptionParamsAndroid:
 	static func from_dict(data: Dictionary) -> DeveloperBillingOptionParamsAndroid:
 		var obj = DeveloperBillingOptionParamsAndroid.new()
 		if data.has("billingProgram") and data["billingProgram"] != null:
-			obj.billing_program = data["billingProgram"]
+			var enum_str = data["billingProgram"]
+			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
+				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.billing_program = enum_str
 		if data.has("linkUri") and data["linkUri"] != null:
 			obj.link_uri = data["linkUri"]
 		if data.has("launchMode") and data["launchMode"] != null:
-			obj.launch_mode = data["launchMode"]
+			var enum_str = data["launchMode"]
+			if enum_str is String and DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING.has(enum_str):
+				obj.launch_mode = DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.launch_mode = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2791,9 +2947,17 @@ class InitConnectionConfig:
 	static func from_dict(data: Dictionary) -> InitConnectionConfig:
 		var obj = InitConnectionConfig.new()
 		if data.has("alternativeBillingModeAndroid") and data["alternativeBillingModeAndroid"] != null:
-			obj.alternative_billing_mode_android = data["alternativeBillingModeAndroid"]
+			var enum_str = data["alternativeBillingModeAndroid"]
+			if enum_str is String and ALTERNATIVE_BILLING_MODE_ANDROID_FROM_STRING.has(enum_str):
+				obj.alternative_billing_mode_android = ALTERNATIVE_BILLING_MODE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.alternative_billing_mode_android = enum_str
 		if data.has("enableBillingProgramAndroid") and data["enableBillingProgramAndroid"] != null:
-			obj.enable_billing_program_android = data["enableBillingProgramAndroid"]
+			var enum_str = data["enableBillingProgramAndroid"]
+			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
+				obj.enable_billing_program_android = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.enable_billing_program_android = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2824,11 +2988,23 @@ class LaunchExternalLinkParamsAndroid:
 	static func from_dict(data: Dictionary) -> LaunchExternalLinkParamsAndroid:
 		var obj = LaunchExternalLinkParamsAndroid.new()
 		if data.has("billingProgram") and data["billingProgram"] != null:
-			obj.billing_program = data["billingProgram"]
+			var enum_str = data["billingProgram"]
+			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
+				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.billing_program = enum_str
 		if data.has("launchMode") and data["launchMode"] != null:
-			obj.launch_mode = data["launchMode"]
+			var enum_str = data["launchMode"]
+			if enum_str is String and EXTERNAL_LINK_LAUNCH_MODE_ANDROID_FROM_STRING.has(enum_str):
+				obj.launch_mode = EXTERNAL_LINK_LAUNCH_MODE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.launch_mode = enum_str
 		if data.has("linkType") and data["linkType"] != null:
-			obj.link_type = data["linkType"]
+			var enum_str = data["linkType"]
+			if enum_str is String and EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING.has(enum_str):
+				obj.link_type = EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.link_type = enum_str
 		if data.has("linkUri") and data["linkUri"] != null:
 			obj.link_uri = data["linkUri"]
 		return obj
@@ -2863,7 +3039,11 @@ class ProductRequest:
 		if data.has("skus") and data["skus"] != null:
 			obj.skus = data["skus"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and PRODUCT_QUERY_TYPE_FROM_STRING.has(enum_str):
+				obj.type = PRODUCT_QUERY_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2927,13 +3107,25 @@ class PurchaseInput:
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
-			obj.store = data["store"]
+			var enum_str = data["store"]
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			else:
+				obj.store = enum_str
 		if data.has("platform") and data["platform"] != null:
-			obj.platform = data["platform"]
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
-			obj.purchase_state = data["purchaseState"]
+			var enum_str = data["purchaseState"]
+			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			else:
+				obj.purchase_state = enum_str
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
 		return obj
@@ -3120,7 +3312,11 @@ class RequestPurchaseProps:
 			else:
 				obj.request_subscription = data["requestSubscription"]
 		if data.has("type") and data["type"] != null:
-			obj.type = data["type"]
+			var enum_str = data["type"]
+			if enum_str is String and PRODUCT_QUERY_TYPE_FROM_STRING.has(enum_str):
+				obj.type = PRODUCT_QUERY_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
 		if data.has("useAlternativeBilling") and data["useAlternativeBilling"] != null:
 			obj.use_alternative_billing = data["useAlternativeBilling"]
 		return obj
@@ -3515,7 +3711,11 @@ class SubscriptionProductReplacementParamsAndroid:
 		if data.has("oldProductId") and data["oldProductId"] != null:
 			obj.old_product_id = data["oldProductId"]
 		if data.has("replacementMode") and data["replacementMode"] != null:
-			obj.replacement_mode = data["replacementMode"]
+			var enum_str = data["replacementMode"]
+			if enum_str is String and SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING.has(enum_str):
+				obj.replacement_mode = SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING[enum_str]
+			else:
+				obj.replacement_mode = enum_str
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3670,7 +3870,11 @@ class VerifyPurchaseWithProviderProps:
 	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderProps:
 		var obj = VerifyPurchaseWithProviderProps.new()
 		if data.has("provider") and data["provider"] != null:
-			obj.provider = data["provider"]
+			var enum_str = data["provider"]
+			if enum_str is String and PURCHASE_VERIFICATION_PROVIDER_FROM_STRING.has(enum_str):
+				obj.provider = PURCHASE_VERIFICATION_PROVIDER_FROM_STRING[enum_str]
+			else:
+				obj.provider = enum_str
 		if data.has("iapkit") and data["iapkit"] != null:
 			if data["iapkit"] is Dictionary:
 				obj.iapkit = RequestVerifyPurchaseWithIapkitProps.from_dict(data["iapkit"])
@@ -3913,6 +4117,212 @@ const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES = {
 	SubscriptionReplacementModeAndroid.WITHOUT_PRORATION: "without-proration",
 	SubscriptionReplacementModeAndroid.DEFERRED: "deferred",
 	SubscriptionReplacementModeAndroid.KEEP_EXISTING: "keep-existing"
+}
+
+# ============================================================================
+# Enum Reverse Lookup (string -> enum for deserialization)
+# ============================================================================
+
+const ALTERNATIVE_BILLING_MODE_ANDROID_FROM_STRING = {
+	"none": AlternativeBillingModeAndroid.NONE,
+	"user-choice": AlternativeBillingModeAndroid.USER_CHOICE,
+	"alternative-only": AlternativeBillingModeAndroid.ALTERNATIVE_ONLY
+}
+
+const BILLING_PROGRAM_ANDROID_FROM_STRING = {
+	"unspecified": BillingProgramAndroid.UNSPECIFIED,
+	"user-choice-billing": BillingProgramAndroid.USER_CHOICE_BILLING,
+	"external-content-link": BillingProgramAndroid.EXTERNAL_CONTENT_LINK,
+	"external-offer": BillingProgramAndroid.EXTERNAL_OFFER,
+	"external-payments": BillingProgramAndroid.EXTERNAL_PAYMENTS
+}
+
+const DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING = {
+	"unspecified": DeveloperBillingLaunchModeAndroid.UNSPECIFIED,
+	"launch-in-external-browser-or-app": DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP,
+	"caller-will-launch-link": DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK
+}
+
+const DISCOUNT_OFFER_TYPE_FROM_STRING = {
+	"introductory": DiscountOfferType.INTRODUCTORY,
+	"promotional": DiscountOfferType.PROMOTIONAL,
+	"one-time": DiscountOfferType.ONE_TIME
+}
+
+const ERROR_CODE_FROM_STRING = {
+	"unknown": ErrorCode.UNKNOWN,
+	"user-cancelled": ErrorCode.USER_CANCELLED,
+	"user-error": ErrorCode.USER_ERROR,
+	"item-unavailable": ErrorCode.ITEM_UNAVAILABLE,
+	"remote-error": ErrorCode.REMOTE_ERROR,
+	"network-error": ErrorCode.NETWORK_ERROR,
+	"service-error": ErrorCode.SERVICE_ERROR,
+	"receipt-failed": ErrorCode.RECEIPT_FAILED,
+	"receipt-finished": ErrorCode.RECEIPT_FINISHED,
+	"receipt-finished-failed": ErrorCode.RECEIPT_FINISHED_FAILED,
+	"purchase-verification-failed": ErrorCode.PURCHASE_VERIFICATION_FAILED,
+	"purchase-verification-finished": ErrorCode.PURCHASE_VERIFICATION_FINISHED,
+	"purchase-verification-finish-failed": ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED,
+	"not-prepared": ErrorCode.NOT_PREPARED,
+	"not-ended": ErrorCode.NOT_ENDED,
+	"already-owned": ErrorCode.ALREADY_OWNED,
+	"developer-error": ErrorCode.DEVELOPER_ERROR,
+	"billing-response-json-parse-error": ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR,
+	"deferred-payment": ErrorCode.DEFERRED_PAYMENT,
+	"interrupted": ErrorCode.INTERRUPTED,
+	"iap-not-available": ErrorCode.IAP_NOT_AVAILABLE,
+	"purchase-error": ErrorCode.PURCHASE_ERROR,
+	"sync-error": ErrorCode.SYNC_ERROR,
+	"transaction-validation-failed": ErrorCode.TRANSACTION_VALIDATION_FAILED,
+	"activity-unavailable": ErrorCode.ACTIVITY_UNAVAILABLE,
+	"already-prepared": ErrorCode.ALREADY_PREPARED,
+	"pending": ErrorCode.PENDING,
+	"connection-closed": ErrorCode.CONNECTION_CLOSED,
+	"init-connection": ErrorCode.INIT_CONNECTION,
+	"service-disconnected": ErrorCode.SERVICE_DISCONNECTED,
+	"query-product": ErrorCode.QUERY_PRODUCT,
+	"sku-not-found": ErrorCode.SKU_NOT_FOUND,
+	"sku-offer-mismatch": ErrorCode.SKU_OFFER_MISMATCH,
+	"item-not-owned": ErrorCode.ITEM_NOT_OWNED,
+	"billing-unavailable": ErrorCode.BILLING_UNAVAILABLE,
+	"feature-not-supported": ErrorCode.FEATURE_NOT_SUPPORTED,
+	"empty-sku-list": ErrorCode.EMPTY_SKU_LIST
+}
+
+const EXTERNAL_LINK_LAUNCH_MODE_ANDROID_FROM_STRING = {
+	"unspecified": ExternalLinkLaunchModeAndroid.UNSPECIFIED,
+	"launch-in-external-browser-or-app": ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP,
+	"caller-will-launch-link": ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK
+}
+
+const EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING = {
+	"unspecified": ExternalLinkTypeAndroid.UNSPECIFIED,
+	"link-to-digital-content-offer": ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER,
+	"link-to-app-download": ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD
+}
+
+const EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING = {
+	"continue": ExternalPurchaseNoticeAction.CONTINUE,
+	"dismissed": ExternalPurchaseNoticeAction.DISMISSED
+}
+
+const IAP_EVENT_FROM_STRING = {
+	"purchase-updated": IapEvent.PURCHASE_UPDATED,
+	"purchase-error": IapEvent.PURCHASE_ERROR,
+	"promoted-product-ios": IapEvent.PROMOTED_PRODUCT_IOS,
+	"user-choice-billing-android": IapEvent.USER_CHOICE_BILLING_ANDROID,
+	"developer-provided-billing-android": IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID
+}
+
+const IAPKIT_PURCHASE_STATE_FROM_STRING = {
+	"entitled": IapkitPurchaseState.ENTITLED,
+	"pending-acknowledgment": IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
+	"pending": IapkitPurchaseState.PENDING,
+	"canceled": IapkitPurchaseState.CANCELED,
+	"expired": IapkitPurchaseState.EXPIRED,
+	"ready-to-consume": IapkitPurchaseState.READY_TO_CONSUME,
+	"consumed": IapkitPurchaseState.CONSUMED,
+	"unknown": IapkitPurchaseState.UNKNOWN,
+	"inauthentic": IapkitPurchaseState.INAUTHENTIC
+}
+
+const IAP_PLATFORM_FROM_STRING = {
+	"ios": IapPlatform.IOS,
+	"android": IapPlatform.ANDROID
+}
+
+const IAP_STORE_FROM_STRING = {
+	"unknown": IapStore.UNKNOWN,
+	"apple": IapStore.APPLE,
+	"google": IapStore.GOOGLE,
+	"horizon": IapStore.HORIZON
+}
+
+const PAYMENT_MODE_FROM_STRING = {
+	"free-trial": PaymentMode.FREE_TRIAL,
+	"pay-as-you-go": PaymentMode.PAY_AS_YOU_GO,
+	"pay-up-front": PaymentMode.PAY_UP_FRONT,
+	"unknown": PaymentMode.UNKNOWN
+}
+
+const PAYMENT_MODE_IOS_FROM_STRING = {
+	"empty": PaymentModeIOS.EMPTY,
+	"free-trial": PaymentModeIOS.FREE_TRIAL,
+	"pay-as-you-go": PaymentModeIOS.PAY_AS_YOU_GO,
+	"pay-up-front": PaymentModeIOS.PAY_UP_FRONT
+}
+
+const PRODUCT_QUERY_TYPE_FROM_STRING = {
+	"in-app": ProductQueryType.IN_APP,
+	"subs": ProductQueryType.SUBS,
+	"all": ProductQueryType.ALL
+}
+
+const PRODUCT_STATUS_ANDROID_FROM_STRING = {
+	"ok": ProductStatusAndroid.OK,
+	"not-found": ProductStatusAndroid.NOT_FOUND,
+	"no-offers-available": ProductStatusAndroid.NO_OFFERS_AVAILABLE,
+	"unknown": ProductStatusAndroid.UNKNOWN
+}
+
+const PRODUCT_TYPE_FROM_STRING = {
+	"in-app": ProductType.IN_APP,
+	"subs": ProductType.SUBS
+}
+
+const PRODUCT_TYPE_IOS_FROM_STRING = {
+	"consumable": ProductTypeIOS.CONSUMABLE,
+	"non-consumable": ProductTypeIOS.NON_CONSUMABLE,
+	"auto-renewable-subscription": ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION,
+	"non-renewing-subscription": ProductTypeIOS.NON_RENEWING_SUBSCRIPTION
+}
+
+const PURCHASE_STATE_FROM_STRING = {
+	"pending": PurchaseState.PENDING,
+	"purchased": PurchaseState.PURCHASED,
+	"unknown": PurchaseState.UNKNOWN
+}
+
+const PURCHASE_VERIFICATION_PROVIDER_FROM_STRING = {
+	"iapkit": PurchaseVerificationProvider.IAPKIT
+}
+
+const SUB_RESPONSE_CODE_ANDROID_FROM_STRING = {
+	"no-applicable-sub-response-code": SubResponseCodeAndroid.NO_APPLICABLE_SUB_RESPONSE_CODE,
+	"payment-declined-due-to-insufficient-funds": SubResponseCodeAndroid.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS,
+	"user-ineligible": SubResponseCodeAndroid.USER_INELIGIBLE
+}
+
+const SUBSCRIPTION_OFFER_TYPE_IOS_FROM_STRING = {
+	"introductory": SubscriptionOfferTypeIOS.INTRODUCTORY,
+	"promotional": SubscriptionOfferTypeIOS.PROMOTIONAL,
+	"win-back": SubscriptionOfferTypeIOS.WIN_BACK
+}
+
+const SUBSCRIPTION_PERIOD_IOS_FROM_STRING = {
+	"day": SubscriptionPeriodIOS.DAY,
+	"week": SubscriptionPeriodIOS.WEEK,
+	"month": SubscriptionPeriodIOS.MONTH,
+	"year": SubscriptionPeriodIOS.YEAR,
+	"empty": SubscriptionPeriodIOS.EMPTY
+}
+
+const SUBSCRIPTION_PERIOD_UNIT_FROM_STRING = {
+	"day": SubscriptionPeriodUnit.DAY,
+	"week": SubscriptionPeriodUnit.WEEK,
+	"month": SubscriptionPeriodUnit.MONTH,
+	"year": SubscriptionPeriodUnit.YEAR,
+	"unknown": SubscriptionPeriodUnit.UNKNOWN
+}
+
+const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING = {
+	"unknown-replacement-mode": SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE,
+	"with-time-proration": SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION,
+	"charge-prorated-price": SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE,
+	"charge-full-price": SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE,
+	"without-proration": SubscriptionReplacementModeAndroid.WITHOUT_PRORATION,
+	"deferred": SubscriptionReplacementModeAndroid.DEFERRED,
+	"keep-existing": SubscriptionReplacementModeAndroid.KEEP_EXISTING
 }
 
 # ============================================================================
