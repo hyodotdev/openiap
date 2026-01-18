@@ -26,6 +26,58 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // Google 1.3.25 - Jan 19, 2026
+    {
+      id: 'google-1-3-25',
+      date: new Date('2026-01-19'),
+      element: (
+        <div key="google-1-3-25" style={noteCardStyle}>
+          <AnchorLink id="google-1-3-25" level="h4">
+            📅 openiap-google v1.3.25 - Fix displayPrice for Subscriptions with Free Trials
+          </AnchorLink>
+
+          <p><strong>Bug Fix:</strong></p>
+          <p>
+            Fixed an issue where <code>displayPrice</code> returned "Free" or "$0.00" for subscription products
+            with free trials, instead of the actual base/recurring price.
+          </p>
+
+          <p><strong>Problem:</strong></p>
+          <p>
+            When a subscription has a free trial configured in Google Play Console, the first pricing phase
+            is the trial phase (recurrenceMode=3, price=0). The previous code incorrectly used this first phase
+            for <code>displayPrice</code> and <code>price</code>.
+          </p>
+
+          <p><strong>Solution:</strong></p>
+          <p>
+            Added <code>findBasePricingPhase()</code> helper that finds the INFINITE_RECURRING phase (recurrenceMode=1)
+            which represents the actual recurring subscription price.
+          </p>
+
+          <p><strong>Before vs After:</strong></p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Before (bug)
+product.displayPrice  // "Free" or "$0.00"
+product.price         // 0.0
+
+// After (fixed)
+product.displayPrice  // "$9.99" (base recurring price)
+product.price         // 9.99
+
+// Note: Free trial info is still available in subscriptionOffers
+product.subscriptionOffers[0].displayPrice   // "$0.00"
+product.subscriptionOffers[0].paymentMode    // "free-trial"`}
+          </pre>
+
+          <p><strong>Impact:</strong></p>
+          <p>
+            You can now easily display "7 days free, then $9.99/month" by combining
+            the <code>displayPrice</code> (base price) with <code>subscriptionOffers</code> (trial info).
+          </p>
+        </div>
+      ),
+    },
     // GQL 1.3.13 / Google 1.3.24 / Apple 1.3.11 - Jan 18, 2026
     {
       id: 'gql-1-3-13-google-1-3-24-apple-1-3-11',
