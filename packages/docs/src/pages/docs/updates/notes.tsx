@@ -26,6 +26,89 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // GQL 1.3.13 / Google 1.3.24 / Apple 1.3.11 - Jan 18, 2026
+    {
+      id: 'gql-1-3-13-google-1-3-24-apple-1-3-11',
+      date: new Date('2026-01-18'),
+      element: (
+        <div key="gql-1-3-13-google-1-3-24-apple-1-3-11" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-13-google-1-3-24-apple-1-3-11" level="h4">
+            📅 openiap-gql v1.3.13 / openiap-google v1.3.24 / openiap-apple v1.3.11 - Platform API Gap Analysis
+          </AnchorLink>
+
+          <p><strong>iOS - Win-Back Offers (iOS 18+):</strong></p>
+          <p>
+            Added support for <a href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer" target="_blank" rel="noopener noreferrer">win-back offers</a> to re-engage churned subscribers.
+          </p>
+          <ul>
+            <li><code>winBackOffer</code> - New field in <code>RequestPurchaseIosProps</code> and <code>RequestSubscriptionIosProps</code></li>
+            <li><code>WinBackOfferInputIOS</code> - Input type with <code>offerId</code> field</li>
+            <li><code>SubscriptionOfferTypeIOS.WinBack</code> - New enum value</li>
+          </ul>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Apply win-back offer to subscription purchase
+requestSubscription({
+  sku: 'premium_monthly',
+  winBackOffer: { offerId: 'winback_50_off' }
+});`}
+          </pre>
+
+          <p><strong>iOS - JWS Promotional Offers (iOS 15+, WWDC 2025):</strong></p>
+          <p>
+            New signature format using compact JWS string for promotional offers. Back-deployed to iOS 15.
+          </p>
+          <ul>
+            <li><code>promotionalOfferJWS</code> - New field in purchase props</li>
+            <li><code>PromotionalOfferJWSInputIOS</code> - Input type with <code>offerId</code> and <code>jws</code> fields</li>
+          </ul>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Note: Requires Xcode 16.4+ to compile. Falls back to legacy signature-based offers until then.
+          </p>
+
+          <p><strong>iOS - Introductory Offer Eligibility Override (iOS 15+, WWDC 2025):</strong></p>
+          <ul>
+            <li><code>introductoryOfferEligibility</code> - Override system eligibility check for intro offers</li>
+            <li>Set <code>true</code> to indicate eligible, <code>false</code> for not eligible, <code>nil</code> for system default</li>
+          </ul>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Note: Requires Xcode 16.4+ to compile. System determines eligibility automatically until then.
+          </p>
+
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
+
+          <p><strong>Android - Product Status Codes (Billing 8.0+):</strong></p>
+          <p>
+            Product-level status codes indicating why products couldn't be fetched.
+          </p>
+          <ul>
+            <li><code>ProductStatusAndroid</code> - New enum with values: <code>OK</code>, <code>NOT_FOUND</code>, <code>NO_OFFERS_AVAILABLE</code>, <code>UNKNOWN</code></li>
+            <li><code>productStatusAndroid</code> - New field on <code>ProductAndroid</code> and <code>ProductSubscriptionAndroid</code></li>
+          </ul>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Check product fetch status
+val product = fetchProducts(skus).firstOrNull()
+when (product?.productStatusAndroid) {
+    ProductStatusAndroid.Ok -> { /* Success */ }
+    ProductStatusAndroid.NotFound -> { /* SKU doesn't exist */ }
+    ProductStatusAndroid.NoOffersAvailable -> { /* User not eligible */ }
+}`}
+          </pre>
+
+          <p><strong>Android - Auto Service Reconnection:</strong></p>
+          <p>
+            <code>enableAutoServiceReconnection()</code> is now always enabled internally since OpenIAP uses Billing Library 8.3.0+.
+            No configuration needed - the library automatically re-establishes connection if disconnected.
+          </p>
+
+          <p><strong>References:</strong></p>
+          <ul>
+            <li><a href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer" target="_blank" rel="noopener noreferrer">Apple StoreKit 2 - SubscriptionOffer</a></li>
+            <li><a href="https://developer.android.com/google/play/billing/release-notes#8-0-0" target="_blank" rel="noopener noreferrer">Google Play Billing 8.0.0 Release Notes</a></li>
+            <li><a href="/docs/types/product">Product Types Documentation</a></li>
+          </ul>
+        </div>
+      ),
+    },
     // GQL 1.3.12 / Google 1.3.22 / Apple 1.3.10 - Jan 17, 2026
     {
       id: 'gql-1-3-12-google-1-3-22-apple-1-3-10',
