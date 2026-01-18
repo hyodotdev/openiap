@@ -42,6 +42,11 @@ Use WebSearch to get the latest platform API information:
 - Check WWDC announcements for new features
 - Key areas: win-back offers, advanced commerce, offer codes
 
+**Meta Horizon Billing:**
+- Search: "Meta Horizon Billing Compatibility SDK release notes site:developers.meta.com"
+- Check compatibility with Google Play Billing Library version
+- Key areas: billing compatibility SDK version, API parity with Play flavor
+
 ### 3. Analyze Codebase
 
 Check each package against internal rules AND latest API capabilities:
@@ -82,6 +87,25 @@ Compare current implementation against latest platform APIs:
 | appTransactionID | iOS 18.4 | In AppTransaction type? |
 | Expanded offer codes | iOS 18.4 | For consumables/non-consumables? |
 
+**Meta Horizon (check packages/google/openiap/src/horizon/):**
+
+| Feature | Check |
+|---------|-------|
+| horizon-billing-compatibility version | Is it latest? (currently 1.1.1) |
+| API parity with Play flavor | Same APIs available in both? |
+| Shared code compatibility | Uses only Billing 7.0 APIs? |
+| getAvailableItems (Horizon-only) | Implemented? |
+| verifyPurchase S2S | verify_entitlement endpoint? |
+
+**Version Compatibility (CRITICAL):**
+
+| Check | Expected |
+|-------|----------|
+| Play flavor Billing version | 8.x |
+| Horizon SDK compatible with | Billing 7.0 API |
+| Shared code uses | Only 7.0-compatible APIs |
+| react-native-iap requires | v14+, RN 0.79+, Kotlin 2.0+ |
+
 ### 5. Analysis Checklist
 
 **Internal Rules Compliance:**
@@ -96,6 +120,8 @@ packages/google (Kotlin):
 - [ ] Functions do NOT have `Android` suffix (it's Android-only package)
 - [ ] Cross-platform functions have NO suffix
 - [ ] Types.kt is not manually edited (auto-generated)
+- [ ] Both Play and Horizon flavors compile
+- [ ] Shared code uses only Billing 7.0 APIs
 
 packages/gql (GraphQL):
 - [ ] Async operations have `# Future` comment
@@ -105,7 +131,13 @@ packages/gql (GraphQL):
 **Latest API Coverage:**
 - [ ] Google Play Billing 8.x features implemented
 - [ ] StoreKit 2 iOS 18+ features implemented
+- [ ] Meta Horizon Billing SDK up to date
 - [ ] External API docs updated with new features
+
+**Version Compatibility:**
+- [ ] horizon-billing-compatibility matches latest
+- [ ] Shared code avoids Billing 8.x-only APIs
+- [ ] react-native-iap/expo-iap compatible versions documented
 
 ### 6. Fix Issues
 
@@ -120,6 +152,7 @@ After identifying issues:
 If new API features are found, update knowledge/external/:
 - `google-billing-api.md` - Add new Google Play Billing features
 - `storekit2-api.md` - Add new StoreKit 2 features
+- `horizon-api.md` - Add new Meta Horizon Billing features, version compatibility
 
 ### 8. Final Verification
 
