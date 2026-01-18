@@ -180,16 +180,81 @@ godot --headless -s addons/gdunit4/test_runner.gd
 # Or run from editor: GDUnit4 panel > Run Tests
 ```
 
-### 8. Update Example Code
+### 8. Update Example Code (REQUIRED)
 
 **Location:** `examples/`
 
 - Example Godot scenes demonstrating purchase flows
 - Sample GDScript code
 
-### 9. Update Documentation
+**Example Code Guidelines:**
+- Demonstrate ALL new API features with working code
+- Show both success and error handling
+- Include comments explaining the feature
+- Use realistic SKU names and user flows
+
+**Example for new iOS feature (e.g., Win-Back Offer):**
+```gdscript
+# In example scene script
+func _on_winback_button_pressed():
+    var request = RequestSubscriptionIosProps.new()
+    request.sku = "premium_monthly"
+    request.win_back_offer = WinBackOfferInputIOS.new()
+    request.win_back_offer.offer_id = "winback_50_off"  # iOS 18+
+
+    var result = await iap.request_subscription_ios(request)
+    print("Win-back applied: ", result)
+```
+
+**Example for new Android feature (e.g., Product Status):**
+```gdscript
+# In example scene script
+for product in products:
+    if product.product_status_android != null:
+        match product.product_status_android:
+            ProductStatusAndroid.OK:
+                # Show product
+                pass
+            ProductStatusAndroid.NOT_FOUND:
+                # Show error
+                pass
+            ProductStatusAndroid.NO_OFFERS_AVAILABLE:
+                # Show ineligible message
+                pass
+```
+
+### 9. Update Documentation (REQUIRED)
 
 **Location:** `docs/` or `README.md`
+
+**Documentation Checklist:**
+
+For each new feature synced from openiap:
+
+- [ ] **CHANGELOG.md** - Add entry for new version
+- [ ] **API reference** - Function added with signature, params, return type
+- [ ] **Type reference** - New types documented with all fields explained
+- [ ] **Example code** - Working examples in documentation
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **Migration notes** - Breaking changes documented
+
+**Example Documentation Entry:**
+```markdown
+## request_subscription_ios
+
+### Win-Back Offers (iOS 18+)
+
+Win-back offers re-engage churned subscribers:
+
+```gdscript
+var request = RequestSubscriptionIosProps.new()
+request.sku = "premium_monthly"
+request.win_back_offer = WinBackOfferInputIOS.new()
+request.win_back_offer.offer_id = "winback_50_off"
+
+var result = await iap.request_subscription_ios(request)
+```
+```
 
 ### 10. Update llms.txt Files
 
@@ -276,6 +341,17 @@ grep -r "DEPRECATED" addons/
 3. Examples updated
 4. Tests passing
 5. Documentation updated
+
+**Full Sync Checklist:**
+
+- [ ] openiap-versions.json synced
+- [ ] Types regenerated and copied (`types.gd`)
+- [ ] GDScript implementation updated (`iap.gd`, `store.gd`)
+- [ ] GDExtension native code updated if needed
+- [ ] Example code demonstrates new features
+- [ ] Tests pass (GDUnit4)
+- [ ] Documentation updated
+- [ ] llms.txt files updated
 
 ### 11. Commit and Push
 

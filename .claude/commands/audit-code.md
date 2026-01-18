@@ -15,7 +15,9 @@ Automated workflow to check and fix code based on knowledge rules and latest pla
          ↓
 5. Fix issues found
          ↓
-6. Verify fixes
+6. Update documentation
+         ↓
+7. Verify fixes
 ```
 
 ## Steps
@@ -147,12 +149,182 @@ After identifying issues:
 3. Fix the code to comply with the rule
 4. For missing features: add to roadmap or implement
 
-### 7. Update External Docs
+### 7. Update Documentation
 
-If new API features are found, update knowledge/external/:
+When new features are implemented or APIs change, update ALL relevant documentation:
+
+#### 7a. Knowledge Base (knowledge/external/)
+
+Update external API reference docs:
 - `google-billing-api.md` - Add new Google Play Billing features
 - `storekit2-api.md` - Add new StoreKit 2 features
 - `horizon-api.md` - Add new Meta Horizon Billing features, version compatibility
+
+#### 7b. User Documentation (packages/docs/)
+
+Update the documentation site for users:
+
+**Release Notes (REQUIRED):**
+- `src/pages/docs/updates/notes.tsx` - Add release notes for next patch version
+- Check current version in `openiap-versions.json` and increment patch
+- Document ALL changes: new features, bug fixes, breaking changes
+- Add entry at the TOP of `allNotes` array (newest first)
+
+Example notes.tsx entry:
+```typescript
+// Add to TOP of allNotes array in notes.tsx
+{
+  id: 'gql-1-3-13-google-1-3-24-apple-1-3-11',  // kebab-case id
+  date: new Date('2026-01-20'),
+  element: (
+    <div key="gql-1-3-13-google-1-3-24-apple-1-3-11" style={noteCardStyle}>
+      <AnchorLink id="gql-1-3-13-google-1-3-24-apple-1-3-11" level="h4">
+        📅 openiap-gql v1.3.13 / openiap-google v1.3.24 / openiap-apple v1.3.11 - Feature Name
+      </AnchorLink>
+
+      <p><strong>iOS - Win-Back Offers (iOS 18+):</strong></p>
+      <ul>
+        <li><code>winBackOffer</code> - New field in RequestSubscriptionIosProps</li>
+        <li>Re-engage churned subscribers with discounts</li>
+      </ul>
+
+      <p><strong>Android - Product Status Codes (Billing 8.0+):</strong></p>
+      <ul>
+        <li><code>ProductStatusAndroid</code> - New enum (OK, NOT_FOUND, NO_OFFERS_AVAILABLE)</li>
+        <li><code>productStatusAndroid</code> - New field on ProductAndroid</li>
+      </ul>
+
+      <p><strong>References:</strong></p>
+      <ul>
+        <li><a href="/docs/types/product">Product Types Documentation</a></li>
+      </ul>
+    </div>
+  ),
+},
+```
+
+**API Reference Pages:**
+- `src/pages/docs/apis/*.tsx` - Update function signatures, parameters, return types
+- Add new functions to appropriate API pages (index.tsx, ios.tsx, android.tsx, etc.)
+- Update deprecated function notices
+
+**Type Documentation:**
+- `src/pages/docs/types/*.tsx` - Update type definitions
+- Add new types (enums, interfaces, input types)
+- Document new fields on existing types
+- Key files: product.tsx, purchase.tsx, offer.tsx, alternative.tsx, etc.
+
+**Feature Documentation:**
+- `src/pages/docs/features/*.tsx` - Add new feature pages if implementing major functionality
+- Update existing feature pages with new options/parameters
+- Include code examples for new features
+
+#### 7c. Example Apps (REQUIRED)
+
+Update example apps to demonstrate new features:
+
+**iOS Example** (`packages/apple/Example/OpenIapExample/`):
+- `Screens/` - Add new screens or update existing ones
+- `Screens/uis/` - Add UI components for new features
+- Key files:
+  - `PurchaseFlowScreen.swift` - Purchase flow examples
+  - `SubscriptionFlowScreen.swift` - Subscription examples
+  - `AlternativeBillingScreen.swift` - External purchase examples
+  - `AvailablePurchasesScreen.swift` - Purchase history examples
+
+**Android Example** (`packages/google/Example/src/main/java/dev/hyo/martie/`):
+- `screens/` - Add new screens or update existing ones
+- `screens/uis/` - Add UI components for new features
+- Key files:
+  - `PurchaseFlowScreen.kt` - Purchase flow examples
+  - `SubscriptionFlowScreen.kt` - Subscription examples
+  - `AlternativeBillingScreen.kt` - External purchase examples
+  - `AvailablePurchasesScreen.kt` - Purchase history examples
+
+**Example Code Guidelines:**
+- Demonstrate ALL new API features with working code
+- Show both success and error handling
+- Include comments explaining the feature
+- Use realistic SKU names and user flows
+- Test on actual devices before committing
+
+**Example for Win-Back Offer (iOS):**
+```swift
+// In SubscriptionFlowScreen.swift
+Button("Apply Win-Back Offer") {
+    Task {
+        let props = RequestSubscriptionIosProps(
+            sku: "premium_monthly",
+            winBackOffer: WinBackOfferInputIOS(offerId: "winback_50_off")
+        )
+        // ... purchase flow
+    }
+}
+```
+
+**Example for Product Status (Android):**
+```kotlin
+// In AllProductsScreen.kt
+product.productStatusAndroid?.let { status ->
+    when (status) {
+        ProductStatusAndroid.Ok -> { /* Show product */ }
+        ProductStatusAndroid.NotFound -> { /* Show error */ }
+        ProductStatusAndroid.NoOffersAvailable -> { /* Show ineligible message */ }
+        else -> { /* Handle unknown */ }
+    }
+}
+```
+
+#### 7d. Documentation Checklist
+
+For each new feature implemented:
+
+- [ ] **Release notes** - Entry added to `notes.tsx` with next patch version
+- [ ] **API docs** - Function added to correct API page with signature, params, return type
+- [ ] **Type docs** - New types documented with all fields explained
+- [ ] **Example apps** - Working examples in iOS and Android example apps
+- [ ] **Code examples** - Inline code examples in documentation
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **Cross-references** - Links between related functions/types
+- [ ] **Search** - New items added to search index
+
+#### 7e. Documentation Examples
+
+**New Function (e.g., win-back offer):**
+```mdx
+## requestSubscription
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| sku | string | ✅ | Product SKU |
+| winBackOffer | WinBackOfferInputIOS | ❌ | Win-back offer (iOS 18+) |
+
+### Win-Back Offers (iOS 18+)
+
+Win-back offers re-engage churned subscribers:
+
+```typescript
+await requestSubscription({
+  sku: 'premium_monthly',
+  winBackOffer: { offerId: 'winback_50_off' }
+});
+```
+```
+
+**New Type:**
+```mdx
+## ProductStatusAndroid
+
+Product fetch status codes (Billing 8.0+).
+
+| Value | Description |
+|-------|-------------|
+| OK | Product fetched successfully |
+| NOT_FOUND | SKU doesn't exist |
+| NO_OFFERS_AVAILABLE | User not eligible |
+```
 
 ### 8. Final Verification
 
@@ -191,5 +363,12 @@ After running audit, you should have:
 
 1. **Rule Violations Report** - List of internal rule violations found and fixed
 2. **Feature Gap Report** - Missing platform features with implementation status
-3. **Updated External Docs** - knowledge/external/ updated with latest API info
-4. **Roadmap Items** - New features to implement (if any)
+3. **Updated Knowledge Base** - knowledge/external/ updated with latest API info
+4. **Updated User Docs** - packages/docs/ updated:
+   - `notes.tsx` - Release notes for next version
+   - API reference pages updated
+   - Type documentation updated
+5. **Updated Example Apps** - packages/*/Example/ updated:
+   - iOS example demonstrating new features
+   - Android example demonstrating new features
+6. **Roadmap Items** - New features to implement (if any)

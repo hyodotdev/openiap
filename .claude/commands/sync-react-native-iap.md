@@ -203,16 +203,56 @@ yarn android
 sed -i '' '/horizonEnabled=true/d' android/gradle.properties
 ```
 
-### 6. Update Example Code
+### 6. Update Example Code (REQUIRED)
 
 **React Native Example:** `example/`
 
 Key screens to update:
-
-- `example/src/screens/` - Main app screens
+- `example/src/screens/PurchaseFlow.tsx` - Purchase flow demo
+- `example/src/screens/SubscriptionFlow.tsx` - Subscription demo
+- `example/src/screens/AlternativeBilling.tsx` - Android alt billing
 - `example/navigation/` - Navigation setup
 
 **Expo Example:** `example-expo/app/`
+
+**Example Code Guidelines:**
+- Demonstrate ALL new API features with working code
+- Show both success and error handling
+- Include comments explaining the feature
+- Use realistic SKU names and user flows
+
+**Example for new iOS feature (e.g., Win-Back Offer):**
+```tsx
+// In SubscriptionFlow.tsx
+const handleWinBackOffer = async () => {
+  try {
+    const result = await requestSubscription({
+      sku: 'premium_monthly',
+      winBackOffer: { offerId: 'winback_50_off' }  // iOS 18+
+    });
+    console.log('Win-back applied:', result);
+  } catch (error) {
+    console.error('Win-back failed:', error);
+  }
+};
+```
+
+**Example for new Android feature (e.g., Product Status):**
+```tsx
+// In PurchaseFlow.tsx
+products.forEach((product) => {
+  if (product.productStatusAndroid) {
+    switch (product.productStatusAndroid) {
+      case 'OK': // Show product
+        break;
+      case 'NOT_FOUND': // Show error
+        break;
+      case 'NO_OFFERS_AVAILABLE': // Show ineligible message
+        break;
+    }
+  }
+});
+```
 
 ### 7. Update Tests
 
@@ -225,11 +265,41 @@ yarn test:ci           # CI environment
 yarn test:plugin       # Expo plugin tests
 ```
 
-### 8. Update Documentation
+### 8. Update Documentation (REQUIRED)
 
 **Location:** `docs/`
-- Docusaurus site
+- `docs/docs/api/` - API reference
+- `docs/docs/types/` - Type definitions
+- `docs/docs/guides/` - Usage guides
+- `docs/docs/examples/` - Code examples
 - Package manager: Bun
+
+**Documentation Checklist:**
+
+For each new feature synced from openiap:
+
+- [ ] **CHANGELOG.md** - Add entry for new version
+- [ ] **API docs** - Function added with signature, params, return type
+- [ ] **Type docs** - New types documented with all fields explained
+- [ ] **Example code** - Working examples in documentation
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **Migration notes** - Breaking changes documented
+
+**Example Documentation Entry:**
+```mdx
+## requestSubscription
+
+### Win-Back Offers (iOS 18+)
+
+Win-back offers re-engage churned subscribers:
+
+```typescript
+await requestSubscription({
+  sku: 'premium_monthly',
+  winBackOffer: { offerId: 'winback_50_off' }
+});
+```
+```
 
 ### 9. Update llms.txt Files
 
@@ -265,6 +335,17 @@ yarn lint             # ESLint
 yarn lint:prettier    # Prettier
 yarn test             # Tests
 ```
+
+**Full Sync Checklist:**
+
+- [ ] openiap-versions.json synced
+- [ ] Types regenerated (`yarn generate:types`)
+- [ ] Nitro specs regenerated if needed (`yarn specs`)
+- [ ] Native code updated (iOS/Android)
+- [ ] Example code demonstrates new features
+- [ ] Tests pass
+- [ ] Documentation updated
+- [ ] llms.txt files updated
 
 ### 11. Commit and Push
 

@@ -242,7 +242,7 @@ If error codes change, update `lib/errors.dart`:
 - Platform error code mappings
 - Exception classes
 
-### 7. Update Example Code
+### 7. Update Example Code (REQUIRED)
 
 **Location:** `example/lib/src/screens/`
 
@@ -252,6 +252,52 @@ Key screens:
 - `alternative_billing_screen.dart` - Android alt billing
 - `offer_code_screen.dart` - Code redemption
 - `builder_demo_screen.dart` - DSL demonstration
+
+**Example Code Guidelines:**
+- Demonstrate ALL new API features with working code
+- Show both success and error handling
+- Include comments explaining the feature
+- Use realistic SKU names and user flows
+
+**Example for new iOS feature (e.g., Win-Back Offer):**
+```dart
+// In subscription_flow_screen.dart
+Future<void> _handleWinBackOffer() async {
+  try {
+    final result = await FlutterInappPurchase.instance.requestSubscription(
+      RequestSubscriptionParams(
+        sku: 'premium_monthly',
+        winBackOffer: WinBackOfferInputIOS(offerId: 'winback_50_off'),  // iOS 18+
+      ),
+    );
+    print('Win-back applied: $result');
+  } catch (e) {
+    print('Win-back failed: $e');
+  }
+}
+```
+
+**Example for new Android feature (e.g., Product Status):**
+```dart
+// In purchase_flow_screen.dart
+for (final product in products) {
+  if (product.productStatusAndroid != null) {
+    switch (product.productStatusAndroid) {
+      case ProductStatusAndroid.ok:
+        // Show product
+        break;
+      case ProductStatusAndroid.notFound:
+        // Show error
+        break;
+      case ProductStatusAndroid.noOffersAvailable:
+        // Show ineligible message
+        break;
+      default:
+        break;
+    }
+  }
+}
+```
 
 ### 8. Update Tests
 
@@ -266,13 +312,43 @@ flutter test
 flutter test --coverage
 ```
 
-### 9. Update Documentation
+### 9. Update Documentation (REQUIRED)
 
 **Location:** `docs/`
 - Docusaurus site
 - `docs/docs/api/` - API reference
+- `docs/docs/types/` - Type definitions
 - `docs/docs/guides/` - Usage guides
 - `docs/docs/examples/` - Code examples
+
+**Documentation Checklist:**
+
+For each new feature synced from openiap:
+
+- [ ] **CHANGELOG.md** - Add entry for new version
+- [ ] **API docs** - Function added with signature, params, return type
+- [ ] **Type docs** - New types documented with all fields explained
+- [ ] **Example code** - Working examples in documentation
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **Migration notes** - Breaking changes documented
+
+**Example Documentation Entry:**
+```mdx
+## requestSubscription
+
+### Win-Back Offers (iOS 18+)
+
+Win-back offers re-engage churned subscribers:
+
+```dart
+await FlutterInappPurchase.instance.requestSubscription(
+  RequestSubscriptionParams(
+    sku: 'premium_monthly',
+    winBackOffer: WinBackOfferInputIOS(offerId: 'winback_50_off'),
+  ),
+);
+```
+```
 
 ### 10. Update llms.txt Files
 
@@ -318,6 +394,17 @@ dart format --set-exit-if-changed .
 # Or run all checks
 ./scripts/pre-commit-checks.sh
 ```
+
+**Full Sync Checklist:**
+
+- [ ] openiap-versions.json synced
+- [ ] Types regenerated (`./scripts/generate-type.sh`)
+- [ ] Native code updated (iOS/Android)
+- [ ] Helper/error functions updated if needed
+- [ ] Example code demonstrates new features
+- [ ] Tests pass
+- [ ] Documentation updated
+- [ ] llms.txt files updated
 
 ### 12. Commit and Push
 

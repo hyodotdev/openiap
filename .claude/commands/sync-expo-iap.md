@@ -196,7 +196,67 @@ bun run test
 cd example && bun run test
 ```
 
-### 5. Update Example Code
+### 5. Local OpenIAP Testing (Pre-Deployment)
+
+**IMPORTANT:** expo-iap supports testing local openiap changes before deployment.
+
+#### Enable Local Development
+
+In `example/app.config.ts`:
+
+```typescript
+const LOCAL_OPENIAP_PATHS = {
+  ios: '/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/apple',
+  android: '/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/google',
+} as const;
+
+export default ({config}: ConfigContext): ExpoConfig => {
+  // ...
+  const pluginEntries: NonNullable<ExpoConfig['plugins']> = [
+    [
+      '../app.plugin.js',
+      {
+        iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+        enableLocalDev: true,  // <-- Enable local openiap
+        localPath: {
+          ios: LOCAL_OPENIAP_PATHS.ios,
+          android: LOCAL_OPENIAP_PATHS.android,
+        },
+      },
+    ],
+  ];
+  // ...
+};
+```
+
+#### Local Dev Workflow
+
+```bash
+# 1. Make changes in openiap monorepo
+cd $OPENIAP_HOME/openiap/packages/apple  # or packages/google
+
+# 2. Enable local dev in expo-iap
+cd $IAP_REPOS_HOME/expo-iap/example
+# Edit app.config.ts: set enableLocalDev: true
+
+# 3. Prebuild with local sources
+npx expo prebuild --clean
+
+# 4. Build and test
+npx expo run:ios   # iOS with local openiap-apple
+npx expo run:android  # Android with local openiap-google
+
+# 5. After testing, disable local dev before committing
+# Edit app.config.ts: set enableLocalDev: false
+```
+
+**When to use local dev:**
+- Testing new openiap features before release
+- Debugging native code issues
+- Verifying type generation changes
+- Testing breaking changes
+
+### 6. Update Example Code (REQUIRED)
 
 **Location:** `example/app/`
 
@@ -207,7 +267,46 @@ Key example screens:
 - `alternative-billing.tsx` - Android alt billing
 - `offer-code.tsx` - Promo code redemption
 
-### 6. Update Tests
+**Example Code Guidelines:**
+- Demonstrate ALL new API features with working code
+- Show both success and error handling
+- Include comments explaining the feature
+- Use realistic SKU names and user flows
+
+**Example for new iOS feature (e.g., Win-Back Offer):**
+```tsx
+// In subscription-flow.tsx
+const handleWinBackOffer = async () => {
+  try {
+    const result = await requestSubscription({
+      sku: 'premium_monthly',
+      winBackOffer: { offerId: 'winback_50_off' }  // iOS 18+
+    });
+    console.log('Win-back applied:', result);
+  } catch (error) {
+    console.error('Win-back failed:', error);
+  }
+};
+```
+
+**Example for new Android feature (e.g., Product Status):**
+```tsx
+// In purchase-flow.tsx
+products.forEach((product) => {
+  if (product.productStatusAndroid) {
+    switch (product.productStatusAndroid) {
+      case 'OK': // Show product
+        break;
+      case 'NOT_FOUND': // Show error
+        break;
+      case 'NO_OFFERS_AVAILABLE': // Show ineligible message
+        break;
+    }
+  }
+});
+```
+
+### 7. Update Tests
 
 **Library Tests:** `src/__tests__/`
 **Example Tests:** `example/__tests__/`
@@ -220,14 +319,42 @@ bun run test
 cd example && bun run test
 ```
 
-### 7. Update Documentation
+### 8. Update Documentation (REQUIRED)
 
 **Location:** `docs/`
-- `docs/api/` - API reference
-- `docs/guides/` - Usage guides
-- `docs/examples/` - Code examples
+- `docs/docs/api/` - API reference
+- `docs/docs/types/` - Type definitions
+- `docs/docs/guides/` - Usage guides
+- `docs/docs/examples/` - Code examples
 
-### 8. Update llms.txt Files
+**Documentation Checklist:**
+
+For each new feature synced from openiap:
+
+- [ ] **CHANGELOG.md** - Add entry for new version
+- [ ] **API docs** - Function added with signature, params, return type
+- [ ] **Type docs** - New types documented with all fields explained
+- [ ] **Example code** - Working examples in documentation
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **Migration notes** - Breaking changes documented
+
+**Example Documentation Entry:**
+```mdx
+## requestSubscription
+
+### Win-Back Offers (iOS 18+)
+
+Win-back offers re-engage churned subscribers:
+
+```typescript
+await requestSubscription({
+  sku: 'premium_monthly',
+  winBackOffer: { offerId: 'winback_50_off' }  // iOS 18+
+});
+```
+```
+
+### 9. Update llms.txt Files
 
 **Location:** `docs/static/`
 
@@ -251,7 +378,7 @@ Update AI-friendly documentation files when APIs or types change:
 5. Platform-specific APIs (iOS/Android suffixes)
 6. Error handling examples
 
-### 9. Pre-commit Checklist
+### 10. Pre-commit Checklist
 
 ```bash
 bun run lint           # ESLint
@@ -260,7 +387,18 @@ bun run test           # Jest
 cd example && bun run test  # Example app tests
 ```
 
-### 10. Commit and Push
+**Full Sync Checklist:**
+
+- [ ] openiap-versions.json synced
+- [ ] Types regenerated (`bun run generate:types`)
+- [ ] Native code updated (iOS/Android)
+- [ ] Example code demonstrates new features
+- [ ] Tests pass
+- [ ] Documentation updated
+- [ ] llms.txt files updated
+- [ ] Local dev disabled (`enableLocalDev: false`)
+
+### 11. Commit and Push
 
 After completing all sync steps, create a branch and commit the changes:
 

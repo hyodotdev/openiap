@@ -221,11 +221,50 @@ class NewRequestBuilder {
 }
 ```
 
-### 7. Update Example Code
+### 7. Update Example Code (REQUIRED)
 
 **Location:** `example/composeApp/`
 - Compose Multiplatform shared UI
 - iOS app: `example/iosApp/`
+
+**Example Code Guidelines:**
+- Demonstrate ALL new API features with working code
+- Show both success and error handling
+- Include comments explaining the feature
+- Use realistic SKU names and user flows
+
+**Example for new iOS feature (e.g., Win-Back Offer):**
+```kotlin
+// In Example app Compose UI
+Button(onClick = {
+    scope.launch {
+        val result = kmpIapInstance.requestSubscription {
+            ios {
+                sku = "premium_monthly"
+                winBackOffer = WinBackOfferInputIOS(offerId = "winback_50_off")  // iOS 18+
+            }
+        }
+        println("Win-back applied: $result")
+    }
+}) {
+    Text("Apply Win-Back Offer")
+}
+```
+
+**Example for new Android feature (e.g., Product Status):**
+```kotlin
+// In Example app Compose UI
+products.forEach { product ->
+    product.productStatusAndroid?.let { status ->
+        when (status) {
+            ProductStatusAndroid.Ok -> { /* Show product */ }
+            ProductStatusAndroid.NotFound -> { /* Show error */ }
+            ProductStatusAndroid.NoOffersAvailable -> { /* Show ineligible message */ }
+            else -> { /* Handle unknown */ }
+        }
+    }
+}
+```
 
 ### 8. Update Tests
 
@@ -236,12 +275,42 @@ class NewRequestBuilder {
 ./gradlew :library:build
 ```
 
-### 9. Update Documentation
+### 9. Update Documentation (REQUIRED)
 
 **Location:** `docs/`
 - `docs/docs/api/` - API documentation
+- `docs/docs/types/` - Type definitions
 - `docs/docs/examples/` - Code examples
 - `docs/docs/guides/` - Usage guides
+
+**Documentation Checklist:**
+
+For each new feature synced from openiap:
+
+- [ ] **CHANGELOG.md** - Add entry for new version
+- [ ] **API docs** - Function added with signature, params, return type
+- [ ] **Type docs** - New types documented with all fields explained
+- [ ] **Example code** - Working examples in documentation
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **Migration notes** - Breaking changes documented
+
+**Example Documentation Entry:**
+```mdx
+## requestSubscription
+
+### Win-Back Offers (iOS 18+)
+
+Win-back offers re-engage churned subscribers:
+
+```kotlin
+kmpIapInstance.requestSubscription {
+    ios {
+        sku = "premium_monthly"
+        winBackOffer = WinBackOfferInputIOS(offerId = "winback_50_off")
+    }
+}
+```
+```
 
 ### 10. Update llms.txt Files
 
@@ -275,6 +344,18 @@ Update AI-friendly documentation files when APIs or types change:
 ./gradlew :library:build
 ./gradlew :library:detekt
 ```
+
+**Full Sync Checklist:**
+
+- [ ] openiap-versions.json synced
+- [ ] Types regenerated (`./scripts/generate-types.sh`)
+- [ ] Type aliases updated in `KmpIap.kt`
+- [ ] DSL builders updated if new request types
+- [ ] Native implementations updated (iOS/Android)
+- [ ] Example code demonstrates new features
+- [ ] Tests pass
+- [ ] Documentation updated
+- [ ] llms.txt files updated
 
 ### 12. Commit and Push
 
