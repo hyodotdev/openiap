@@ -608,6 +608,47 @@ public enum class ProductQueryType(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Status code for individual products returned from queryProductDetailsAsync (Android)
+ * Prior to 8.0, products that couldn't be fetched were simply not returned.
+ * With 8.0+, these products are returned with a status code explaining why.
+ * Available in Google Play Billing Library 8.0.0+
+ */
+public enum class ProductStatusAndroid(val rawValue: String) {
+    /**
+     * Product was successfully fetched
+     */
+    Ok("ok"),
+    /**
+     * Product not found - the SKU doesn't exist in the Play Console
+     */
+    NotFound("not-found"),
+    /**
+     * No offers available for the user - product exists but user is not eligible for any offers
+     */
+    NoOffersAvailable("no-offers-available"),
+    /**
+     * Unknown error occurred while fetching the product
+     */
+    Unknown("unknown");
+
+    companion object {
+        fun fromJson(value: String): ProductStatusAndroid = when (value) {
+            "ok" -> ProductStatusAndroid.Ok
+            "Ok" -> ProductStatusAndroid.Ok
+            "not-found" -> ProductStatusAndroid.NotFound
+            "NotFound" -> ProductStatusAndroid.NotFound
+            "no-offers-available" -> ProductStatusAndroid.NoOffersAvailable
+            "NoOffersAvailable" -> ProductStatusAndroid.NoOffersAvailable
+            "unknown" -> ProductStatusAndroid.Unknown
+            "Unknown" -> ProductStatusAndroid.Unknown
+            else -> throw IllegalArgumentException("Unknown ProductStatusAndroid value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class ProductType(val rawValue: String) {
     InApp("in-app"),
     Subs("subs");
@@ -682,9 +723,47 @@ public enum class PurchaseVerificationProvider(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Sub-response codes for more granular purchase error information (Android)
+ * Available in Google Play Billing Library 8.0.0+
+ */
+public enum class SubResponseCodeAndroid(val rawValue: String) {
+    /**
+     * No specific sub-response code applies
+     */
+    NoApplicableSubResponseCode("no-applicable-sub-response-code"),
+    /**
+     * User's payment method has insufficient funds
+     */
+    PaymentDeclinedDueToInsufficientFunds("payment-declined-due-to-insufficient-funds"),
+    /**
+     * User doesn't meet subscription offer eligibility requirements
+     */
+    UserIneligible("user-ineligible");
+
+    companion object {
+        fun fromJson(value: String): SubResponseCodeAndroid = when (value) {
+            "no-applicable-sub-response-code" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
+            "NoApplicableSubResponseCode" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
+            "payment-declined-due-to-insufficient-funds" -> SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
+            "PaymentDeclinedDueToInsufficientFunds" -> SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
+            "user-ineligible" -> SubResponseCodeAndroid.UserIneligible
+            "UserIneligible" -> SubResponseCodeAndroid.UserIneligible
+            else -> throw IllegalArgumentException("Unknown SubResponseCodeAndroid value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
     Introductory("introductory"),
-    Promotional("promotional");
+    Promotional("promotional"),
+    /**
+     * Win-back offer type (iOS 18+)
+     * Used to re-engage churned subscribers with a discount or free trial.
+     */
+    WinBack("win-back");
 
     companion object {
         fun fromJson(value: String): SubscriptionOfferTypeIOS = when (value) {
@@ -692,6 +771,8 @@ public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
             "Introductory" -> SubscriptionOfferTypeIOS.Introductory
             "promotional" -> SubscriptionOfferTypeIOS.Promotional
             "Promotional" -> SubscriptionOfferTypeIOS.Promotional
+            "win-back" -> SubscriptionOfferTypeIOS.WinBack
+            "WinBack" -> SubscriptionOfferTypeIOS.WinBack
             else -> throw IllegalArgumentException("Unknown SubscriptionOfferTypeIOS value: $value")
         }
     }
@@ -1045,6 +1126,44 @@ public data class BillingProgramReportingDetailsAndroid(
         "__typename" to "BillingProgramReportingDetailsAndroid",
         "billingProgram" to billingProgram.toJson(),
         "externalTransactionToken" to externalTransactionToken,
+    )
+}
+
+/**
+ * Extended billing result with sub-response code (Android)
+ * Available in Google Play Billing Library 8.0.0+
+ */
+public data class BillingResultAndroid(
+    /**
+     * Debug message from the billing library
+     */
+    val debugMessage: String? = null,
+    /**
+     * The response code from the billing operation
+     */
+    val responseCode: Int,
+    /**
+     * Sub-response code for more granular error information (8.0+).
+     * Provides additional context when responseCode indicates an error.
+     */
+    val subResponseCode: SubResponseCodeAndroid? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BillingResultAndroid {
+            return BillingResultAndroid(
+                debugMessage = json["debugMessage"] as? String,
+                responseCode = (json["responseCode"] as? Number)?.toInt() ?: 0,
+                subResponseCode = (json["subResponseCode"] as? String)?.let { SubResponseCodeAndroid.fromJson(it) },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "BillingResultAndroid",
+        "debugMessage" to debugMessage,
+        "responseCode" to responseCode,
+        "subResponseCode" to subResponseCode?.toJson(),
     )
 }
 
@@ -1640,6 +1759,14 @@ public data class ProductAndroid(
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     /**
+     * Product-level status code indicating fetch result (Android 8.0+)
+     * OK = product fetched successfully
+     * NOT_FOUND = SKU doesn't exist
+     * NO_OFFERS_AVAILABLE = user not eligible for any offers
+     * Available in Google Play Billing Library 8.0.0+
+     */
+    val productStatusAndroid: ProductStatusAndroid? = null,
+    /**
      * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
      */
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
@@ -1667,6 +1794,7 @@ public data class ProductAndroid(
                 oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductAndroidOneTimePurchaseOfferDetail") },
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
+                productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { ProductStatusAndroid.fromJson(it) },
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
@@ -1688,6 +1816,7 @@ public data class ProductAndroid(
         "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
+        "productStatusAndroid" to productStatusAndroid?.toJson(),
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid?.map { it.toJson() },
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "title" to title,
@@ -1877,6 +2006,14 @@ public data class ProductSubscriptionAndroid(
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     /**
+     * Product-level status code indicating fetch result (Android 8.0+)
+     * OK = product fetched successfully
+     * NOT_FOUND = SKU doesn't exist
+     * NO_OFFERS_AVAILABLE = user not eligible for any offers
+     * Available in Google Play Billing Library 8.0.0+
+     */
+    val productStatusAndroid: ProductStatusAndroid? = null,
+    /**
      * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
      */
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
@@ -1904,6 +2041,7 @@ public data class ProductSubscriptionAndroid(
                 oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductAndroidOneTimePurchaseOfferDetail") },
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
+                productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { ProductStatusAndroid.fromJson(it) },
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") } ?: emptyList(),
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") } ?: emptyList(),
                 title = json["title"] as? String ?: "",
@@ -1925,6 +2063,7 @@ public data class ProductSubscriptionAndroid(
         "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
+        "productStatusAndroid" to productStatusAndroid?.toJson(),
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid.map { it.toJson() },
         "subscriptionOffers" to subscriptionOffers.map { it.toJson() },
         "title" to title,
@@ -3258,6 +3397,39 @@ public data class ProductRequest(
     )
 }
 
+/**
+ * JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).
+ * New signature format using compact JWS string for promotional offers.
+ * This provides a simpler alternative to the legacy signature-based promotional offers.
+ * Back-deployed to iOS 15.
+ */
+public data class PromotionalOfferJWSInputIOS(
+    /**
+     * Compact JWS string signed by your server.
+     * The JWS should contain the promotional offer signature data.
+     * Format: header.payload.signature (base64url encoded)
+     */
+    val jws: String,
+    /**
+     * The promotional offer identifier from App Store Connect
+     */
+    val offerId: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): PromotionalOfferJWSInputIOS {
+            return PromotionalOfferJWSInputIOS(
+                jws = json["jws"] as? String ?: "",
+                offerId = json["offerId"] as? String ?: "",
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "jws" to jws,
+        "offerId" to offerId,
+    )
+}
+
 public typealias PurchaseInput = Purchase
 
 public data class PurchaseOptions(
@@ -3265,6 +3437,13 @@ public data class PurchaseOptions(
      * Also emit results through the iOS event listeners
      */
     val alsoPublishToEventListenerIOS: Boolean? = null,
+    /**
+     * Include suspended subscriptions in the result (Android 8.1+).
+     * Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+     * Users should be directed to the subscription center to resolve payment issues.
+     * Default: false (only active subscriptions are returned)
+     */
+    val includeSuspendedAndroid: Boolean? = null,
     /**
      * Limit to currently active items on iOS
      */
@@ -3274,6 +3453,7 @@ public data class PurchaseOptions(
         fun fromJson(json: Map<String, Any?>): PurchaseOptions {
             return PurchaseOptions(
                 alsoPublishToEventListenerIOS = json["alsoPublishToEventListenerIOS"] as? Boolean,
+                includeSuspendedAndroid = json["includeSuspendedAndroid"] as? Boolean,
                 onlyIncludeActiveItemsIOS = json["onlyIncludeActiveItemsIOS"] as? Boolean,
             )
         }
@@ -3281,6 +3461,7 @@ public data class PurchaseOptions(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "alsoPublishToEventListenerIOS" to alsoPublishToEventListenerIOS,
+        "includeSuspendedAndroid" to includeSuspendedAndroid,
         "onlyIncludeActiveItemsIOS" to onlyIncludeActiveItemsIOS,
     )
 }
@@ -3347,6 +3528,19 @@ public data class RequestPurchaseIosProps(
      */
     val appAccountToken: String? = null,
     /**
+     * Override introductory offer eligibility (iOS 15+, WWDC 2025).
+     * Set to true to indicate the user is eligible for introductory offer,
+     * or false to indicate they are not. When nil, the system determines eligibility.
+     * Back-deployed to iOS 15.
+     */
+    val introductoryOfferEligibility: Boolean? = null,
+    /**
+     * JWS promotional offer (iOS 15+, WWDC 2025).
+     * New signature format using compact JWS string for promotional offers.
+     * Back-deployed to iOS 15.
+     */
+    val promotionalOfferJWS: PromotionalOfferJWSInputIOS? = null,
+    /**
      * Purchase quantity
      */
     val quantity: Int? = null,
@@ -3354,6 +3548,12 @@ public data class RequestPurchaseIosProps(
      * Product SKU
      */
     val sku: String,
+    /**
+     * Win-back offer to apply (iOS 18+)
+     * Used to re-engage churned subscribers with a discount or free trial.
+     * Note: Win-back offers only apply to subscription products.
+     */
+    val winBackOffer: WinBackOfferInputIOS? = null,
     /**
      * Discount offer to apply
      */
@@ -3365,8 +3565,11 @@ public data class RequestPurchaseIosProps(
                 advancedCommerceData = json["advancedCommerceData"] as? String,
                 andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean,
                 appAccountToken = json["appAccountToken"] as? String,
+                introductoryOfferEligibility = json["introductoryOfferEligibility"] as? Boolean,
+                promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) },
                 quantity = (json["quantity"] as? Number)?.toInt(),
                 sku = json["sku"] as? String ?: "",
+                winBackOffer = (json["winBackOffer"] as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) },
                 withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) },
             )
         }
@@ -3376,8 +3579,11 @@ public data class RequestPurchaseIosProps(
         "advancedCommerceData" to advancedCommerceData,
         "andDangerouslyFinishTransactionAutomatically" to andDangerouslyFinishTransactionAutomatically,
         "appAccountToken" to appAccountToken,
+        "introductoryOfferEligibility" to introductoryOfferEligibility,
+        "promotionalOfferJWS" to promotionalOfferJWS?.toJson(),
         "quantity" to quantity,
         "sku" to sku,
+        "winBackOffer" to winBackOffer?.toJson(),
         "withOffer" to withOffer?.toJson(),
     )
 }
@@ -3561,8 +3767,28 @@ public data class RequestSubscriptionIosProps(
     val advancedCommerceData: String? = null,
     val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
     val appAccountToken: String? = null,
+    /**
+     * Override introductory offer eligibility (iOS 15+, WWDC 2025).
+     * Set to true to indicate the user is eligible for introductory offer,
+     * or false to indicate they are not. When nil, the system determines eligibility.
+     * Back-deployed to iOS 15.
+     */
+    val introductoryOfferEligibility: Boolean? = null,
+    /**
+     * JWS promotional offer (iOS 15+, WWDC 2025).
+     * New signature format using compact JWS string for promotional offers.
+     * Back-deployed to iOS 15.
+     */
+    val promotionalOfferJWS: PromotionalOfferJWSInputIOS? = null,
     val quantity: Int? = null,
     val sku: String,
+    /**
+     * Win-back offer to apply (iOS 18+)
+     * Used to re-engage churned subscribers with a discount or free trial.
+     * The offer is available when the customer is eligible and can be discovered
+     * via StoreKit Message (automatic) or subscription offer APIs.
+     */
+    val winBackOffer: WinBackOfferInputIOS? = null,
     val withOffer: DiscountOfferInputIOS? = null
 ) {
     companion object {
@@ -3571,8 +3797,11 @@ public data class RequestSubscriptionIosProps(
                 advancedCommerceData = json["advancedCommerceData"] as? String,
                 andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean,
                 appAccountToken = json["appAccountToken"] as? String,
+                introductoryOfferEligibility = json["introductoryOfferEligibility"] as? Boolean,
+                promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) },
                 quantity = (json["quantity"] as? Number)?.toInt(),
                 sku = json["sku"] as? String ?: "",
+                winBackOffer = (json["winBackOffer"] as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) },
                 withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) },
             )
         }
@@ -3582,8 +3811,11 @@ public data class RequestSubscriptionIosProps(
         "advancedCommerceData" to advancedCommerceData,
         "andDangerouslyFinishTransactionAutomatically" to andDangerouslyFinishTransactionAutomatically,
         "appAccountToken" to appAccountToken,
+        "introductoryOfferEligibility" to introductoryOfferEligibility,
+        "promotionalOfferJWS" to promotionalOfferJWS?.toJson(),
         "quantity" to quantity,
         "sku" to sku,
+        "winBackOffer" to winBackOffer?.toJson(),
         "withOffer" to withOffer?.toJson(),
     )
 }
@@ -3905,6 +4137,31 @@ public data class VerifyPurchaseWithProviderProps(
     fun toJson(): Map<String, Any?> = mapOf(
         "iapkit" to iapkit?.toJson(),
         "provider" to provider.toJson(),
+    )
+}
+
+/**
+ * Win-back offer input for iOS 18+ (StoreKit 2)
+ * Win-back offers are used to re-engage churned subscribers.
+ * The offer is automatically presented via StoreKit Message when eligible,
+ * or can be applied programmatically during purchase.
+ */
+public data class WinBackOfferInputIOS(
+    /**
+     * The win-back offer ID from App Store Connect
+     */
+    val offerId: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): WinBackOfferInputIOS {
+            return WinBackOfferInputIOS(
+                offerId = json["offerId"] as? String ?: "",
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "offerId" to offerId,
     )
 }
 

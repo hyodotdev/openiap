@@ -46,23 +46,43 @@ internal suspend fun onPurchaseError(
     continuation.invokeOnCancellation { removeListener(listener) }
 }
 
-internal suspend fun restorePurchases(client: BillingClient?): List<Purchase> {
+internal suspend fun restorePurchases(
+    client: BillingClient?,
+    includeSuspended: Boolean = false
+): List<Purchase> {
     if (client == null) return emptyList()
     val purchases = mutableListOf<Purchase>()
-    purchases += queryPurchases(client, BillingClient.ProductType.INAPP)
-    purchases += queryPurchases(client, BillingClient.ProductType.SUBS)
+    purchases += queryPurchases(client, BillingClient.ProductType.INAPP, includeSuspended = false)
+    purchases += queryPurchases(client, BillingClient.ProductType.SUBS, includeSuspended)
     return purchases
 }
 
 internal suspend fun queryPurchases(
     client: BillingClient?,
-    productType: String
+    productType: String,
+    includeSuspended: Boolean = false
 ): List<Purchase> = suspendCancellableCoroutine { continuation ->
     val billingClient = client ?: run {
         continuation.resume(emptyList())
         return@suspendCancellableCoroutine
     }
-    val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
+    val paramsBuilder = QueryPurchasesParams.newBuilder().setProductType(productType)
+
+    // Include suspended subscriptions (Google Play Billing Library 8.1+)
+    // Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+    // Users should be directed to the subscription center to resolve payment issues.
+    if (productType == BillingClient.ProductType.SUBS && includeSuspended) {
+        runCatching {
+            // Use reflection to maintain backward compatibility with older billing library versions
+            val setIncludeSuspendedMethod = paramsBuilder::class.java.getMethod(
+                "setIncludeSuspended",
+                Boolean::class.javaPrimitiveType
+            )
+            setIncludeSuspendedMethod.invoke(paramsBuilder, true)
+        }
+    }
+
+    val params = paramsBuilder.build()
     billingClient.queryPurchasesAsync(params) { result, purchaseList ->
         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
             val mapped = purchaseList.map { billingPurchase ->
