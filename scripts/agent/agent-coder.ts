@@ -27,7 +27,8 @@
 import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { fileURLToPath } from "url";
+import { execSync, execFileSync } from "child_process";
 import chalk from "chalk";
 import * as lancedb from "vectordb";
 import { OllamaEmbeddings } from "@langchain/ollama";
@@ -39,10 +40,13 @@ import inquirer from "inquirer";
 // Configuration
 // ============================================================================
 
+// Use script directory instead of process.cwd() for stable path resolution
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+
 const CONFIG = {
   // Paths
-  projectRoot: path.resolve(process.cwd(), "../.."),
-  dbPath: path.resolve(process.cwd(), ".lancedb"),
+  projectRoot: path.resolve(scriptDir, "../.."),
+  dbPath: path.resolve(scriptDir, ".lancedb"),
   tableName: "openiap_knowledge",
 
   // Ollama
@@ -409,8 +413,8 @@ function gitCommit(commitMessage: string, files: string[]): string {
   const branchName = `feature/ai-${timestamp}`;
 
   try {
-    // Create and checkout new branch
-    execSync(`git checkout -b ${branchName}`, {
+    // Create and checkout new branch (use execFileSync to prevent shell injection)
+    execFileSync("git", ["checkout", "-b", branchName], {
       cwd: CONFIG.projectRoot,
       stdio: "pipe",
     });
@@ -418,7 +422,7 @@ function gitCommit(commitMessage: string, files: string[]): string {
 
     // Stage specific files
     for (const file of files) {
-      execSync(`git add "${file}"`, {
+      execFileSync("git", ["add", file], {
         cwd: CONFIG.projectRoot,
         stdio: "pipe",
       });
@@ -427,13 +431,10 @@ function gitCommit(commitMessage: string, files: string[]): string {
 
     // Commit
     const fullMessage = `${commitMessage}\n\nCo-Authored-By: OpenIAP RAG Agent <agent@openiap.dev>`;
-    execSync(
-      `git commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
-      {
-        cwd: CONFIG.projectRoot,
-        stdio: "pipe",
-      }
-    );
+    execFileSync("git", ["commit", "-m", fullMessage], {
+      cwd: CONFIG.projectRoot,
+      stdio: "pipe",
+    });
     console.log(chalk.green(`   ✓ Committed: ${commitMessage}`));
 
     return branchName;
@@ -454,8 +455,8 @@ function createPullRequest(
   console.log(chalk.blue("\n🔗 Creating Pull Request..."));
 
   try {
-    // Push branch
-    execSync(`git push -u origin ${branchName}`, {
+    // Push branch (use execFileSync to prevent shell injection)
+    execFileSync("git", ["push", "-u", "origin", branchName], {
       cwd: CONFIG.projectRoot,
       stdio: "pipe",
     });
@@ -474,11 +475,10 @@ OpenIAP Context-Aware RAG Agent v2.0
 
 🤖 This PR was automatically generated. Please review carefully before merging.`;
 
-    const escapedBody = prBody.replace(/"/g, '\\"').replace(/\n/g, "\\n");
-    const escapedTitle = commitMessage.replace(/"/g, '\\"');
-
-    const result = execSync(
-      `gh pr create --title "${escapedTitle}" --body "${escapedBody}"`,
+    // Use execFileSync with argument array to prevent shell injection
+    const result = execFileSync(
+      "gh",
+      ["pr", "create", "--title", commitMessage, "--body", prBody],
       {
         cwd: CONFIG.projectRoot,
         encoding: "utf-8",

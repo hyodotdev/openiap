@@ -67,6 +67,11 @@ function isValidSwiftAcronymCasing(name: string): boolean {
     return false;
   }
 
+  // Check for Iap at the end (should be IAP, not Iap)
+  if (name.endsWith("Iap")) {
+    return false;
+  }
+
   return true;
 }
 
@@ -212,6 +217,11 @@ describe("Swift Acronym Casing", () => {
   test("IAP in the middle should fail (should be Iap)", () => {
     expect(isValidSwiftAcronymCasing("OpenIAPManager")).toBe(false);
     expect(isValidSwiftAcronymCasing("MyIAPService")).toBe(false);
+  });
+
+  test("Iap at the end should fail (should be IAP)", () => {
+    expect(isValidSwiftAcronymCasing("OpenIap")).toBe(false);
+    expect(isValidSwiftAcronymCasing("ProductIap")).toBe(false);
   });
 });
 

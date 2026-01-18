@@ -4,7 +4,7 @@ A sophisticated architecture enabling **Claude Code** and a **Local RAG Agent** 
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                          SHARED BRAIN: /knowledge/                              │
 ├─────────────────────────────────────────────────────────────────────────────────┤

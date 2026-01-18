@@ -234,6 +234,12 @@ async function retrieveContext(
   console.log(chalk.blue("\n📖 Reading Reference Code...\n"));
 
   for (const codeFile of context.codeMap) {
+    // Validate path to prevent path traversal from stale/tampered index
+    if (!isPathSafe(codeFile.source, CONFIG.projectRoot)) {
+      console.log(chalk.yellow(`   ⚠ Skipped (unsafe path): ${codeFile.source}`));
+      continue;
+    }
+
     const filePath = path.join(CONFIG.projectRoot, codeFile.source);
 
     try {
@@ -533,12 +539,22 @@ async function main(): Promise<void> {
   console.log(chalk.gray("\nThis agent generates code for comparison with Claude Code."));
   console.log(chalk.gray(`LLM Model: ${CONFIG.llmModel}`));
 
-  // Get prompt
-  let prompt: string;
-  const promptArg = process.argv.find((arg) => arg.startsWith("--prompt="));
-  if (promptArg) {
-    prompt = promptArg.split("=").slice(1).join("=");
+  // Get prompt - support both --prompt="..." and --prompt "..." forms
+  let prompt: string | undefined;
+
+  // Check for --prompt=value form
+  const promptEqArg = process.argv.find((arg) => arg.startsWith("--prompt="));
+  if (promptEqArg) {
+    prompt = promptEqArg.split("=").slice(1).join("=");
   } else {
+    // Check for --prompt value form
+    const promptIndex = process.argv.indexOf("--prompt");
+    if (promptIndex !== -1 && promptIndex + 1 < process.argv.length) {
+      prompt = process.argv[promptIndex + 1];
+    }
+  }
+
+  if (!prompt) {
     const answers = await inquirer.prompt<{ prompt: string }>([
       {
         type: "input",
