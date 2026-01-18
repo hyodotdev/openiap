@@ -30,6 +30,11 @@ enum PaymentModeIOS {
 enum SubscriptionOfferTypeIOS {
   Introductory
   Promotional
+  """
+  Win-back offer type (iOS 18+)
+  Used to re-engage churned subscribers with a discount or free trial.
+  """
+  WinBack
 }
 
 # iOS subscription period (unit + value)
@@ -236,6 +241,25 @@ input RequestPurchaseIosProps {
   """
   withOffer: DiscountOfferInputIOS
   """
+  Win-back offer to apply (iOS 18+)
+  Used to re-engage churned subscribers with a discount or free trial.
+  Note: Win-back offers only apply to subscription products.
+  """
+  winBackOffer: WinBackOfferInputIOS
+  """
+  JWS promotional offer (iOS 15+, WWDC 2025).
+  New signature format using compact JWS string for promotional offers.
+  Back-deployed to iOS 15.
+  """
+  promotionalOfferJWS: PromotionalOfferJWSInputIOS
+  """
+  Override introductory offer eligibility (iOS 15+, WWDC 2025).
+  Set to true to indicate the user is eligible for introductory offer,
+  or false to indicate they are not. When nil, the system determines eligibility.
+  Back-deployed to iOS 15.
+  """
+  introductoryOfferEligibility: Boolean
+  """
   Advanced commerce data token (iOS 15+).
   Used with StoreKit 2's Product.PurchaseOption.custom API for passing
   campaign tokens, affiliate IDs, or other attribution data.
@@ -251,6 +275,26 @@ input RequestSubscriptionIosProps {
   appAccountToken: String
   quantity: Int
   withOffer: DiscountOfferInputIOS
+  """
+  Win-back offer to apply (iOS 18+)
+  Used to re-engage churned subscribers with a discount or free trial.
+  The offer is available when the customer is eligible and can be discovered
+  via StoreKit Message (automatic) or subscription offer APIs.
+  """
+  winBackOffer: WinBackOfferInputIOS
+  """
+  JWS promotional offer (iOS 15+, WWDC 2025).
+  New signature format using compact JWS string for promotional offers.
+  Back-deployed to iOS 15.
+  """
+  promotionalOfferJWS: PromotionalOfferJWSInputIOS
+  """
+  Override introductory offer eligibility (iOS 15+, WWDC 2025).
+  Set to true to indicate the user is eligible for introductory offer,
+  or false to indicate they are not. When nil, the system determines eligibility.
+  Back-deployed to iOS 15.
+  """
+  introductoryOfferEligibility: Boolean
   """
   Advanced commerce data token (iOS 15+).
   Used with StoreKit 2's Product.PurchaseOption.custom API for passing
@@ -282,6 +326,38 @@ input DiscountOfferInputIOS {
   Timestamp of discount offer
   """
   timestamp: Float!
+}
+
+"""
+Win-back offer input for iOS 18+ (StoreKit 2)
+Win-back offers are used to re-engage churned subscribers.
+The offer is automatically presented via StoreKit Message when eligible,
+or can be applied programmatically during purchase.
+"""
+input WinBackOfferInputIOS {
+  """
+  The win-back offer ID from App Store Connect
+  """
+  offerId: String!
+}
+
+"""
+JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).
+New signature format using compact JWS string for promotional offers.
+This provides a simpler alternative to the legacy signature-based promotional offers.
+Back-deployed to iOS 15.
+"""
+input PromotionalOfferJWSInputIOS {
+  """
+  The promotional offer identifier from App Store Connect
+  """
+  offerId: String!
+  """
+  Compact JWS string signed by your server.
+  The JWS should contain the promotional offer signature data.
+  Format: header.payload.signature (base64url encoded)
+  """
+  jws: String!
 }
 
 """
