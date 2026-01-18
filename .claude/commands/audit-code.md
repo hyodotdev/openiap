@@ -126,9 +126,11 @@ If new API features are found, update knowledge/external/:
 ```bash
 # Type check all packages
 cd packages/apple && swift build
-cd packages/google && ./gradlew :openiap:compileDebugKotlin
+cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin
 cd packages/gql && bun run typecheck
 ```
+
+**Important**: Always test BOTH Google flavors (Play and Horizon).
 
 ## Quick Commands
 

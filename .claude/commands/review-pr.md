@@ -142,8 +142,8 @@ cd packages/docs && bun run lint && bun run typecheck
 # packages/apple changes
 cd packages/apple && swift build && swift test
 
-# packages/google changes
-cd packages/google && ./gradlew :openiap:compileDebugKotlin
+# packages/google changes (test BOTH flavors)
+cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin
 ```
 
 **If any check fails:**
