@@ -206,8 +206,8 @@ In `example/app.config.ts`:
 
 ```typescript
 const LOCAL_OPENIAP_PATHS = {
-  ios: '/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/apple',
-  android: '/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/google',
+  ios: '<path-to-openiap>/packages/apple',
+  android: '<path-to-openiap>/packages/google',
 } as const;
 
 export default ({config}: ConfigContext): ExpoConfig => {
@@ -274,6 +274,7 @@ Key example screens:
 - Use realistic SKU names and user flows
 
 **Example for new iOS feature (e.g., Win-Back Offer):**
+
 ```tsx
 // In subscription-flow.tsx
 const handleWinBackOffer = async () => {
@@ -290,6 +291,7 @@ const handleWinBackOffer = async () => {
 ```
 
 **Example for new Android feature (e.g., Product Status):**
+
 ```tsx
 // In purchase-flow.tsx
 products.forEach((product) => {
@@ -339,6 +341,7 @@ For each new feature synced from openiap:
 - [ ] **Migration notes** - Breaking changes documented
 
 **Example Documentation Entry:**
+
 ```mdx
 ## requestSubscription
 
@@ -346,12 +349,12 @@ For each new feature synced from openiap:
 
 Win-back offers re-engage churned subscribers:
 
-```typescript
+~~~typescript
 await requestSubscription({
   sku: 'premium_monthly',
   winBackOffer: { offerId: 'winback_50_off' }  // iOS 18+
 });
-```
+~~~
 ```
 
 ### 9. Update llms.txt Files

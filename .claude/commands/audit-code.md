@@ -171,6 +171,7 @@ Update the documentation site for users:
 - Add entry at the TOP of `allNotes` array (newest first)
 
 Example notes.tsx entry:
+
 ```typescript
 // Add to TOP of allNotes array in notes.tsx
 {
@@ -249,6 +250,7 @@ Update example apps to demonstrate new features:
 - Test on actual devices before committing
 
 **Example for Win-Back Offer (iOS):**
+
 ```swift
 // In SubscriptionFlowScreen.swift
 Button("Apply Win-Back Offer") {
@@ -263,6 +265,7 @@ Button("Apply Win-Back Offer") {
 ```
 
 **Example for Product Status (Android):**
+
 ```kotlin
 // In AllProductsScreen.kt
 product.productStatusAndroid?.let { status ->
@@ -291,6 +294,7 @@ For each new feature implemented:
 #### 7e. Documentation Examples
 
 **New Function (e.g., win-back offer):**
+
 ```mdx
 ## requestSubscription
 
@@ -305,15 +309,16 @@ For each new feature implemented:
 
 Win-back offers re-engage churned subscribers:
 
-```typescript
+~~~typescript
 await requestSubscription({
   sku: 'premium_monthly',
   winBackOffer: { offerId: 'winback_50_off' }
 });
-```
+~~~
 ```
 
 **New Type:**
+
 ```mdx
 ## ProductStatusAndroid
 

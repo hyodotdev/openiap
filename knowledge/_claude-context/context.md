@@ -1494,11 +1494,11 @@ Google Play Billing Library enables in-app purchases and subscriptions on Androi
 
 | Version | Release Date | Key Features |
 |---------|--------------|--------------|
-| 8.0 | 2025-06-30 | Auto-reconnect, product-level status codes, one-time products with multiple offers, sub-response codes |
-| 8.1 | 2025-11-06 | Suspended subscriptions (`isSuspended`), `includeSuspended` parameter, pre-order details, product-level subscription replacement, `KEEP_EXISTING` mode |
+| 8.0 | 2025-06-30 | One-time product improvements, multiple purchase options/offers for one-time products, product-level status for unfetched products |
+| 8.1 | 2025-11-06 | Minor release with bug fixes and improvements |
 | 8.2 | 2025-12-09 | Billing Programs API (external content links, external offers), deprecates old External Offers API |
 | 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
-| 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
+| 8.3 | 2025-12-23 | External Payments program, developer billing options |
 
 **Current Version**: 8.3.0 (as of January 2026)
 
@@ -2571,7 +2571,7 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | UI context for purchases | iOS 18.2 | Required for proper payment sheet display |
 | External purchase notice | iOS 18.2 | `presentExternalPurchaseNoticeSheetIOS` |
 | `appTransactionID` | iOS 18.4 | Globally unique app transaction identifier (back-deployed to iOS 15) |
-| `originalPlatform` | iOS 18.4 | Original purchase platform (back-deployed to iOS 15) |
+| `originalPlatform` | iOS 18.4 | Original purchase platform |
 | `Offer.Period` | iOS 18.4 | Offer period information |
 | `advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data |
 | Expanded offer codes | iOS 18.4 | For consumables/non-consumables |

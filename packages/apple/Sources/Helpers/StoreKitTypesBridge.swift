@@ -380,7 +380,15 @@ enum StoreKitTypesBridge {
         // Win-back offers (iOS 18+)
         // Used to re-engage churned subscribers
         if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
-            if let winBackInput = props.winBackOffer, let product = product {
+            if let winBackInput = props.winBackOffer {
+                guard let product = product else {
+                    OpenIapLog.error("❌ Win-back offer requires product context")
+                    throw PurchaseError.make(
+                        code: .developerError,
+                        productId: props.sku,
+                        message: "Win-back offer requires product context. Fetch the product before calling requestPurchase."
+                    )
+                }
                 // Find the win-back offer from the product's promotional offers
                 if let subscription = product.subscription {
                     let winBackOffer = subscription.promotionalOffers.first { offer in
@@ -409,30 +417,40 @@ enum StoreKitTypesBridge {
         }
         // JWS Promotional Offer (iOS 15+, WWDC 2025)
         // New signature format using compact JWS string for promotional offers
-        // Back-deployed to iOS 15
+        // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
         if let jwsOffer = props.promotionalOfferJWS {
-            // Note: This uses the new promotionalOffer(_:) purchase option that accepts JWS
-            // The API was announced at WWDC 2025 and back-deployed to iOS 15
-            // We use the legacy promotional offer API as fallback since the new API
-            // requires Xcode 16.4+ / Swift 6.1+ to compile
-            OpenIapLog.debug("⚠️ JWS promotional offer provided: \(jwsOffer.offerId)")
-            // TODO: When Xcode 16.4+ is available, use:
-            // options.insert(.promotionalOffer(jwsOffer.jws))
-            // For now, log a warning - developers should use withOffer for promotional offers
-            OpenIapLog.debug("⚠️ JWS promotional offers require Xcode 16.4+. Use withOffer with signature-based promotional offers instead.")
+            #if swift(>=6.1)
+            // Swift 6.1+ implementation
+            options.insert(.promotionalOffer(jwsOffer.jws))
+            OpenIapLog.debug("✅ Added JWS promotional offer: \(jwsOffer.offerId)")
+            #else
+            // Swift < 6.1: API not available, throw error to fail fast
+            OpenIapLog.error("❌ JWS promotional offers require Xcode 16.4+ / Swift 6.1+")
+            throw PurchaseError.make(
+                code: .developerError,
+                productId: props.sku,
+                message: "JWS promotional offers require Xcode 16.4+ / Swift 6.1+. Use withOffer with signature-based promotional offers instead."
+            )
+            #endif
         }
 
         // Introductory Offer Eligibility Override (iOS 15+, WWDC 2025)
         // Allows overriding the system's eligibility check for introductory offers
-        // Back-deployed to iOS 15
+        // Back-deployed to iOS 15, but requires Xcode 16.4+ / Swift 6.1+ to compile
         if let eligibility = props.introductoryOfferEligibility {
-            // Note: This uses the new introductoryOfferEligibility(_:) purchase option
-            // The API was announced at WWDC 2025 and back-deployed to iOS 15
-            // We need Xcode 16.4+ / Swift 6.1+ to compile this
-            OpenIapLog.debug("⚠️ Introductory offer eligibility override requested: \(eligibility)")
-            // TODO: When Xcode 16.4+ is available, use:
-            // options.insert(.introductoryOfferEligibility(eligibility))
-            OpenIapLog.debug("⚠️ Introductory offer eligibility override requires Xcode 16.4+. The system will determine eligibility automatically.")
+            #if swift(>=6.1)
+            // Swift 6.1+ implementation
+            options.insert(.introductoryOfferEligibility(eligibility))
+            OpenIapLog.debug("✅ Added introductory offer eligibility override: \(eligibility)")
+            #else
+            // Swift < 6.1: API not available, throw error to fail fast
+            OpenIapLog.error("❌ Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+")
+            throw PurchaseError.make(
+                code: .developerError,
+                productId: props.sku,
+                message: "Introductory offer eligibility override requires Xcode 16.4+ / Swift 6.1+. The system will determine eligibility automatically."
+            )
+            #endif
         }
 
         // Advanced Commerce Data (iOS 15+)

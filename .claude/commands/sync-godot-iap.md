@@ -194,6 +194,7 @@ godot --headless -s addons/gdunit4/test_runner.gd
 - Use realistic SKU names and user flows
 
 **Example for new iOS feature (e.g., Win-Back Offer):**
+
 ```gdscript
 # In example scene script
 func _on_winback_button_pressed():
@@ -207,6 +208,7 @@ func _on_winback_button_pressed():
 ```
 
 **Example for new Android feature (e.g., Product Status):**
+
 ```gdscript
 # In example scene script
 for product in products:
@@ -239,6 +241,7 @@ For each new feature synced from openiap:
 - [ ] **Migration notes** - Breaking changes documented
 
 **Example Documentation Entry:**
+
 ```markdown
 ## request_subscription_ios
 
@@ -246,14 +249,14 @@ For each new feature synced from openiap:
 
 Win-back offers re-engage churned subscribers:
 
-```gdscript
+~~~gdscript
 var request = RequestSubscriptionIosProps.new()
 request.sku = "premium_monthly"
 request.win_back_offer = WinBackOfferInputIOS.new()
 request.win_back_offer.offer_id = "winback_50_off"
 
 var result = await iap.request_subscription_ios(request)
-```
+~~~
 ```
 
 ### 10. Update llms.txt Files

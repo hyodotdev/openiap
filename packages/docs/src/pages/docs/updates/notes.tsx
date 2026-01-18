@@ -81,7 +81,7 @@ requestSubscription({
             Product-level status codes indicating why products couldn't be fetched.
           </p>
           <ul>
-            <li><code>ProductStatusAndroid</code> - New enum with values: <code>OK</code>, <code>NOT_FOUND</code>, <code>NO_OFFERS_AVAILABLE</code>, <code>UNKNOWN</code></li>
+            <li><code>ProductStatusAndroid</code> - New enum with values: <code>Ok</code>, <code>NotFound</code>, <code>NoOffersAvailable</code>, <code>Unknown</code></li>
             <li><code>productStatusAndroid</code> - New field on <code>ProductAndroid</code> and <code>ProductSubscriptionAndroid</code></li>
           </ul>
           <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
@@ -91,6 +91,8 @@ when (product?.productStatusAndroid) {
     ProductStatusAndroid.Ok -> { /* Success */ }
     ProductStatusAndroid.NotFound -> { /* SKU doesn't exist */ }
     ProductStatusAndroid.NoOffersAvailable -> { /* User not eligible */ }
+    ProductStatusAndroid.Unknown -> { /* Unknown status */ }
+    null -> { /* No product or status */ }
 }`}
           </pre>
 
