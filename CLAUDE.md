@@ -67,8 +67,8 @@ Regenerate with: `./scripts/generate-types.sh`
 ```bash
 cd scripts/agent
 
-# Compile for Claude Code only
-bun run compile:claude
+# Compile for AI assistants (no Ollama required)
+bun run compile:ai
 
 # Or compile for both Claude Code + Local RAG
 bun run compile
