@@ -359,7 +359,7 @@ enum StoreKitTypesBridge {
         }
     }
 
-    static func purchaseOptions(from props: RequestPurchaseIosProps) throws -> Set<StoreKit.Product.PurchaseOption> {
+    static func purchaseOptions(from props: RequestPurchaseIosProps, product: StoreKit.Product? = nil) throws -> Set<StoreKit.Product.PurchaseOption> {
         var options: Set<StoreKit.Product.PurchaseOption> = []
         if let quantity = props.quantity, quantity > 1 {
             options.insert(.quantity(quantity))
@@ -377,6 +377,64 @@ enum StoreKitTypesBridge {
             }
             options.insert(option)
         }
+        // Win-back offers (iOS 18+)
+        // Used to re-engage churned subscribers
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
+            if let winBackInput = props.winBackOffer, let product = product {
+                // Find the win-back offer from the product's promotional offers
+                if let subscription = product.subscription {
+                    let winBackOffer = subscription.promotionalOffers.first { offer in
+                        offer.id == winBackInput.offerId && offer.type == .winBack
+                    }
+                    if let offer = winBackOffer {
+                        options.insert(.winBackOffer(offer))
+                        OpenIapLog.debug("✅ Added win-back offer: \(winBackInput.offerId)")
+                    } else {
+                        OpenIapLog.error("❌ Win-back offer not found: \(winBackInput.offerId)")
+                        throw PurchaseError.make(
+                            code: .developerError,
+                            productId: props.sku,
+                            message: "Win-back offer not found: \(winBackInput.offerId). Ensure the user is eligible and the offer ID is correct."
+                        )
+                    }
+                } else {
+                    OpenIapLog.error("❌ Win-back offer requires a subscription product")
+                    throw PurchaseError.make(
+                        code: .developerError,
+                        productId: props.sku,
+                        message: "Win-back offers can only be applied to subscription products"
+                    )
+                }
+            }
+        }
+        // JWS Promotional Offer (iOS 15+, WWDC 2025)
+        // New signature format using compact JWS string for promotional offers
+        // Back-deployed to iOS 15
+        if let jwsOffer = props.promotionalOfferJWS {
+            // Note: This uses the new promotionalOffer(_:) purchase option that accepts JWS
+            // The API was announced at WWDC 2025 and back-deployed to iOS 15
+            // We use the legacy promotional offer API as fallback since the new API
+            // requires Xcode 16.4+ / Swift 6.1+ to compile
+            OpenIapLog.debug("⚠️ JWS promotional offer provided: \(jwsOffer.offerId)")
+            // TODO: When Xcode 16.4+ is available, use:
+            // options.insert(.promotionalOffer(jwsOffer.jws))
+            // For now, log a warning - developers should use withOffer for promotional offers
+            OpenIapLog.debug("⚠️ JWS promotional offers require Xcode 16.4+. Use withOffer with signature-based promotional offers instead.")
+        }
+
+        // Introductory Offer Eligibility Override (iOS 15+, WWDC 2025)
+        // Allows overriding the system's eligibility check for introductory offers
+        // Back-deployed to iOS 15
+        if let eligibility = props.introductoryOfferEligibility {
+            // Note: This uses the new introductoryOfferEligibility(_:) purchase option
+            // The API was announced at WWDC 2025 and back-deployed to iOS 15
+            // We need Xcode 16.4+ / Swift 6.1+ to compile this
+            OpenIapLog.debug("⚠️ Introductory offer eligibility override requested: \(eligibility)")
+            // TODO: When Xcode 16.4+ is available, use:
+            // options.insert(.introductoryOfferEligibility(eligibility))
+            OpenIapLog.debug("⚠️ Introductory offer eligibility override requires Xcode 16.4+. The system will determine eligibility automatically.")
+        }
+
         // Advanced Commerce Data (iOS 15+)
         // Used with StoreKit 2's Product.PurchaseOption.custom API for passing
         // campaign tokens, affiliate IDs, or other attribution data

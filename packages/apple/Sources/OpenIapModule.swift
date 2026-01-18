@@ -218,7 +218,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let iosProps = try resolveIosPurchaseProps(from: params)
         let sku = iosProps.sku
         let product = try await storeProduct(for: sku)
-        let options = try StoreKitTypesBridge.purchaseOptions(from: iosProps)
+        let options = try StoreKitTypesBridge.purchaseOptions(from: iosProps, product: product)
 
         // Check if subscription is already owned before attempting purchase
         // This prevents iOS from showing "You're already subscribed" alert
@@ -1275,8 +1275,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     advancedCommerceData: ios.advancedCommerceData,
                     andDangerouslyFinishTransactionAutomatically: ios.andDangerouslyFinishTransactionAutomatically,
                     appAccountToken: ios.appAccountToken,
+                    introductoryOfferEligibility: ios.introductoryOfferEligibility,
+                    promotionalOfferJWS: ios.promotionalOfferJWS,
                     quantity: ios.quantity,
                     sku: ios.sku,
+                    winBackOffer: ios.winBackOffer,
                     withOffer: ios.withOffer
                 )
             }
