@@ -414,6 +414,14 @@ enum StoreKitTypesBridge {
                     )
                 }
             }
+        } else if props.winBackOffer != nil {
+            // Fail fast when win-back offers are used on unsupported OS versions
+            OpenIapLog.error("❌ Win-back offers require iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+")
+            throw PurchaseError.make(
+                code: .developerError,
+                productId: props.sku,
+                message: "Win-back offers are only supported on iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+."
+            )
         }
         // JWS Promotional Offer (iOS 15+, WWDC 2025)
         // New signature format using compact JWS string for promotional offers

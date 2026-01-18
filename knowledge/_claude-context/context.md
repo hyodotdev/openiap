@@ -1490,7 +1490,7 @@ await endConnection();
 
 Google Play Billing Library enables in-app purchases and subscriptions on Android devices.
 
-## Version History
+## Google Play Billing Version History
 
 | Version | Release Date | Key Features |
 |---------|--------------|--------------|
@@ -2762,8 +2762,10 @@ let result = try await product.purchase(confirmIn: window)
 ```swift
 let appTransaction = try await AppTransaction.shared
 
-// New in iOS 18.4 (back-deployed to iOS 15)
+// appTransactionID: New in iOS 18.4 (back-deployed to iOS 15)
 let appTransactionID = appTransaction.appTransactionID  // Globally unique per Apple Account
+
+// originalPlatform: New in iOS 18.4 (iOS 18.4+ only, NOT back-deployed)
 let originalPlatform = appTransaction.originalPlatform   // Original purchase platform
 ```
 
