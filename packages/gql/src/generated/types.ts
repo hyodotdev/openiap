@@ -525,7 +525,7 @@ export interface Mutation {
    * promoted products can be purchased directly via the standard purchase flow.
    * @deprecated Use promotedProductListenerIOS + requestPurchase instead
    */
-  requestPurchaseOnPromotedProductIOS: boolean;
+  requestPurchaseOnPromotedProductIOS: Promise<boolean>;
   /** Restore completed purchases across platforms */
   restorePurchases: Promise<void>;
   /**

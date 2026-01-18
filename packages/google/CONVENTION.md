@@ -47,7 +47,55 @@ fun buildModuleAndroid()          // Don't add Android suffix
 - `OpenIapStore` and other consumers must call the module through these handler properties rather than direct suspend functions, unpacking any wrapper results (such as `RequestPurchaseResultPurchases`) as needed.
 - Keep helper wiring inside `OpenIapModule`—avoid reintroducing extension builders like `createQueryHandlers`; the module itself owns `queryHandlers`, `mutationHandlers`, and `subscriptionHandlers` values so wiring stays localized and in sync with the typealiases.
 
+## Build Flavors (Play vs Horizon)
+
+This package supports **two build flavors**:
+
+| Flavor | Store | Source Directory |
+|--------|-------|------------------|
+| `play` (default) | Google Play Store | `src/play/` |
+| `horizon` | Meta Quest Store | `src/horizon/` |
+
+### Source Directory Structure
+
+```text
+openiap/src/
+├── main/      # Shared code (used by both flavors)
+├── play/      # Play Store specific implementations
+└── horizon/   # Meta Horizon specific implementations
+```
+
+### When to Use Each Directory
+
+- **`src/main/`**: Code that works for BOTH Play and Horizon
+- **`src/play/`**: Play Store specific code (Google Play Billing API)
+- **`src/horizon/`**: Horizon specific code (Meta S2S API)
+
+### Critical: Test Both Flavors
+
+When modifying shared code in `src/main/`, **ALWAYS test both flavors**:
+
+```bash
+# Play flavor
+./gradlew :openiap:compilePlayDebugKotlin
+
+# Horizon flavor
+./gradlew :openiap:compileHorizonDebugKotlin
+```
+
+### Horizon-Specific APIs
+
+Some APIs exist only in Horizon flavor:
+
+- `getAvailableItems` - Fetch catalog items (Horizon only)
+- `VerifyPurchaseHorizonOptions` - Horizon verification parameters
+- `VerifyPurchaseResultHorizon` - Horizon verification result
+
 ## Regeneration Checklist
 
 - Run `./scripts/generate-types.sh` whenever GraphQL schema definitions change.
-- After regenerating, run the relevant Gradle targets (e.g. `./gradlew :openiap:compileDebugKotlin`) to ensure the generated output compiles together with existing handwritten code.
+- After regenerating, run the relevant Gradle targets for **BOTH flavors**:
+  ```bash
+  ./gradlew :openiap:compilePlayDebugKotlin
+  ./gradlew :openiap:compileHorizonDebugKotlin
+  ```

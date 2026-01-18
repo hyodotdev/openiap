@@ -81,6 +81,7 @@ extend type Mutation {
   then call requestPurchase with that SKU instead. In StoreKit 2,
   promoted products can be purchased directly via the standard purchase flow.
   """
+  # Future
   requestPurchaseOnPromotedProductIOS: Boolean! @deprecated(reason: "Use promotedProductListenerIOS + requestPurchase instead")
   """
   Open subscription management UI and return changed purchases (iOS 15+)

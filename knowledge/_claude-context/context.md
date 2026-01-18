@@ -1,58 +1,1108 @@
-# OpenIAP Complete Reference
+# OpenIAP Project Context
 
-> OpenIAP: Unified in-app purchase specification for iOS & Android
-> Documentation: https://openiap.dev
-> Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-01-18T10:51:44.321Z
-
-## Table of Contents
-1. Installation
-2. Core APIs (Connection, Products, Purchase, Subscription)
-3. Platform-Specific APIs (iOS, Android)
-4. Types Reference
-5. Error Codes & Handling
-6. Implementation Patterns
+> **Auto-generated for Claude Code**
+> Last updated: 2026-01-18T10:51:44.310Z
+>
+> Usage: `claude --context knowledge/_claude-context/context.md`
 
 ---
 
-## 1. Installation
+# 🚨 INTERNAL RULES (MANDATORY)
 
-### React Native / Expo
-```bash
-# expo-iap (Expo projects - recommended)
-npx expo install expo-iap
+These rules define OpenIAP's development philosophy.
+**You MUST follow these rules EXACTLY. No exceptions.**
 
-# react-native-iap (React Native CLI)
-npm install react-native-iap
-cd ios && pod install
-```
+---
 
-### Swift (iOS/macOS)
+<!-- Source: internal/01-naming-conventions.md -->
+
+# OpenIAP Naming Conventions
+
+> **Priority: MANDATORY**
+> These rules MUST be followed without exception.
+
+## Platform-Specific Function Naming
+
+### iOS Functions (packages/apple)
+
+All iOS-specific functions MUST end with `IOS` suffix:
+
 ```swift
-// Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.0.0")
+// CORRECT
+func clearTransactionIOS()
+func getStorefrontIOS()
+func syncIOS()
+func presentCodeRedemptionSheetIOS()
+func showManageSubscriptionsIOS()
+func isEligibleForIntroOfferIOS()
+func subscriptionStatusIOS()
+func currentEntitlementIOS()
+func latestTransactionIOS()
+func beginRefundRequestIOS()
+func getReceiptDataIOS()
+func getAppTransactionIOS()
+func getTransactionJwsIOS()
+func getPendingTransactionsIOS()
+func getPromotedProductIOS()
+func requestPurchaseOnPromotedProductIOS()
 
-// CocoaPods
-pod 'openiap', '~> 1.0.0'
+// INCORRECT - Missing IOS suffix
+func clearTransaction()
+func presentCodeRedemptionSheet()
+func sync()
 ```
 
-### Kotlin (Android)
+### Android Functions (packages/google)
+
+In the `packages/google` directory (Android-only package), **DO NOT** add `Android` suffix:
+
 ```kotlin
-// Gradle (build.gradle.kts)
-implementation("io.github.hyochan.openiap:openiap-google:1.0.0")
+// CORRECT - No Android suffix in Android package
+fun acknowledgePurchase()
+fun consumePurchase()
+fun getPackageName()
+fun buildModule(context: Context)
+fun isFeatureSupported(feature: FeatureType)
 
-// For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:1.0.0")
+// INCORRECT - Unnecessary Android suffix
+fun acknowledgePurchaseAndroid()
+fun consumePurchaseAndroid()
+fun buildModuleAndroid()
 ```
 
-### Flutter
-```yaml
-# pubspec.yaml
-dependencies:
-  flutter_inapp_purchase: ^5.0.0
+**Exception**: Only use `Android` suffix for types that are part of a cross-platform API (e.g., `ProductAndroid`, `PurchaseAndroid` that contrast with iOS types).
+
+### Cross-Platform Functions
+
+Functions available on BOTH platforms have **NO** platform suffix:
+
+```typescript
+// CORRECT - Cross-platform, no suffix
+fetchProducts()
+requestPurchase()
+getAvailablePurchases()
+finishTransaction()
+verifyPurchase()
+initConnection()
+endConnection()
+getActiveSubscriptions()
+hasActiveSubscriptions()
+deepLinkToSubscriptions()
+getStorefront()
+```
+
+## Action Prefix Rules
+
+| Prefix | When to Use | Examples |
+|--------|-------------|----------|
+| `get` | Synchronous data retrieval | `getStorefrontIOS`, `getPackageName` |
+| `fetch` | Async data retrieval from server | `fetchProducts` |
+| `request` | User-initiated async operations | `requestPurchase` |
+| `clear` | Remove/reset data | `clearTransactionIOS`, `clearProductsIOS` |
+| `is/has` | Boolean checks | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions` |
+| `show/present` | Display UI | `showManageSubscriptionsIOS`, `presentCodeRedemptionSheetIOS` |
+| `begin` | Start a multi-step process | `beginRefundRequestIOS` |
+| `finish/end` | Complete a process | `finishTransaction`, `endConnection` |
+| `init` | Initialize resources | `initConnection` |
+| `verify` | Validate data | `verifyPurchase` |
+| `acknowledge` | Confirm receipt (Android) | `acknowledgePurchase` |
+| `consume` | Mark as consumed (Android) | `consumePurchase` |
+
+## Swift Acronym Rules
+
+- **Acronyms should be ALL CAPS only when they appear as a suffix**
+- **When acronyms appear at the beginning or middle, use Pascal case**
+
+```swift
+// CORRECT
+OpenIAP       // Package name: Open at beginning, IAP as suffix
+IapManager    // IAP at beginning
+IapPurchase   // IAP at beginning
+ProductIAP    // IAP as suffix
+
+// INCORRECT
+OpenIap       // Should be OpenIAP - IAP is suffix
+IAPManager    // Should be IapManager - IAP at beginning
+```
+
+## File Naming
+
+### TypeScript/JavaScript
+- Use `kebab-case` for file names: `purchase-validator.ts`
+- Use `PascalCase` for class/type files: `PurchaseValidator.ts` (when single class)
+
+### Swift
+- Use `PascalCase`: `OpenIapModule.swift`, `ProductManager.swift`
+
+### Kotlin
+- Use `PascalCase`: `OpenIapModule.kt`, `BillingManager.kt`
+
+## URL Anchors and Search IDs
+
+### URL Anchors
+
+Use kebab-case for all URL anchors:
+
+```
+Function: fetchProducts     -> Anchor: #fetch-products
+Function: getAppTransactionIOS -> Anchor: #get-app-transaction-ios
+```
+
+### Search Modal IDs
+
+Use kebab-case for search modal IDs:
+
+```typescript
+// CORRECT
+{ id: 'request-products' }
+{ id: 'fetch-products' }
+
+// INCORRECT
+{ id: 'requestproducts' }
+{ id: 'fetchProducts' }
+```
+
+## Variable Naming
+
+```typescript
+// CORRECT - camelCase for variables
+const productId: string;
+const isSubscription: boolean;
+const purchaseToken: string;
+
+// INCORRECT
+const product_id: string;     // No snake_case
+const IsSubscription: boolean; // No PascalCase for variables
+```
+
+## Deprecated Functions
+
+When renaming functions, document the migration path:
+
+| Deprecated | Use Instead |
+|------------|-------------|
+| `buy-promoted-product-ios` | `requestPurchaseOnPromotedProductIOS` |
+| `requestProducts` | `fetchProducts` |
+| `get-storefront-ios` | `getStorefront` |
+| `validateReceipt` | `verifyPurchase` |
+| `validateReceiptIOS` | `verifyPurchase` |
+
+
+---
+
+<!-- Source: internal/02-architecture.md -->
+
+# OpenIAP Architecture Principles
+
+> **Priority: MANDATORY**
+> Follow these architectural principles in all code.
+
+## Monorepo Structure
+
+```
+openiap/
+├── packages/
+│   ├── docs/          # Documentation (React/Vite/Vercel)
+│   ├── gql/           # GraphQL schema & type generation
+│   ├── google/        # Android library (Kotlin)
+│   └── apple/         # iOS/macOS library (Swift)
+├── knowledge/         # Shared knowledge base (SSOT)
+│   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
+│   ├── external/      # External API reference
+│   └── _claude-context/  # Compiled context for Claude Code
+├── scripts/
+│   └── agent/         # RAG Agent scripts
+└── .github/workflows/ # CI/CD workflows
+```
+
+## Package Responsibilities
+
+### packages/gql
+
+**Purpose:** Single source of truth for type definitions.
+
+- Contains GraphQL schema defining all OpenIAP types
+- Generates types for: TypeScript, Swift, Kotlin, Dart
+- **RULE:** `Types.swift` / `Types.kt` are AUTO-GENERATED. Never edit directly.
+
+```bash
+# Regenerate all types
+cd packages/gql && bun run generate
+```
+
+Generated files:
+- TypeScript: `src/generated/types.ts`
+- Swift: `dist/swift/Types.swift`
+- Kotlin: `dist/kotlin/Types.kt`
+- Dart: `dist/dart/types.dart`
+
+### packages/apple
+
+**Purpose:** iOS/macOS StoreKit 2 implementation.
+
+Directory structure:
+```
+Sources/
+├── Models/           # Official OpenIAP types (matches openiap.dev/docs/types)
+│   ├── Product.swift
+│   ├── Purchase.swift
+│   ├── ActiveSubscription.swift
+│   └── Types.swift   # AUTO-GENERATED - DO NOT EDIT
+├── Helpers/          # Internal implementation (NOT public API)
+│   ├── ProductManager.swift
+│   └── IapStatus.swift
+├── OpenIapModule.swift    # Core implementation
+├── OpenIapStore.swift     # SwiftUI-friendly store
+└── OpenIapProtocol.swift  # API interface definitions
+```
+
+### packages/google
+
+**Purpose:** Android Google Play Billing implementation.
+
+Directory structure:
+```
+openiap/src/main/
+├── java/dev/hyo/openiap/
+│   ├── OpenIapModule.kt
+│   ├── Models.kt
+│   └── utils/           # Internal helpers
+└── Types.kt             # AUTO-GENERATED - DO NOT EDIT
+```
+
+### packages/docs
+
+**Purpose:** Documentation site for openiap.dev.
+
+- Built with React + Vite
+- Deployed to Vercel
+- Contains API reference and guides
+
+## Dependency Flow
+
+```
+┌─────────────┐
+│  packages/  │
+│    gql      │ ──── Generates Types ────┐
+└─────────────┘                          │
+                                         ▼
+                          ┌──────────────────────────┐
+                          │                          │
+                    ┌─────┴─────┐            ┌───────┴──────┐
+                    │ packages/ │            │  packages/   │
+                    │   apple   │            │    google    │
+                    └───────────┘            └──────────────┘
+```
+
+## Module Pattern
+
+### iOS Module (Swift)
+
+```swift
+// OpenIapModule.swift
+public final class OpenIapModule: OpenIapProtocol {
+    public static let shared = OpenIapModule()
+
+    private init() {}
+
+    // All public methods here
+    public func fetchProducts(_ productIds: [String]) async throws -> [ProductIOS]
+}
+```
+
+### Android Module (Kotlin)
+
+```kotlin
+// OpenIapModule.kt
+class OpenIapModule private constructor(
+    private val context: Context
+) {
+    companion object {
+        @Volatile
+        private var instance: OpenIapModule? = null
+
+        fun getInstance(context: Context): OpenIapModule {
+            return instance ?: synchronized(this) {
+                instance ?: OpenIapModule(context).also { instance = it }
+            }
+        }
+    }
+}
+```
+
+## Error Handling Pattern
+
+### Swift
+
+```swift
+public enum OpenIapError: Error {
+    case notInitialized
+    case productNotFound(String)
+    case purchaseFailed(String)
+    case verificationFailed
+}
+
+// Usage
+public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS] {
+    guard isInitialized else {
+        throw OpenIapError.notInitialized
+    }
+    // ...
+}
+```
+
+### Kotlin
+
+```kotlin
+sealed class OpenIapError : Exception() {
+    object NotInitialized : OpenIapError()
+    data class ProductNotFound(val productId: String) : OpenIapError()
+    data class PurchaseFailed(val message: String) : OpenIapError()
+}
+```
+
+## Async Pattern
+
+### Swift (async/await)
+
+```swift
+// CORRECT - Use async/await
+public func fetchProducts(_ ids: [String]) async throws -> [ProductIOS]
+
+// INCORRECT - Don't use completion handlers
+public func fetchProducts(_ ids: [String], completion: @escaping (Result<[ProductIOS], Error>) -> Void)
+```
+
+### Kotlin (Coroutines)
+
+```kotlin
+// CORRECT - Use suspend functions
+suspend fun fetchProducts(productIds: List<String>): List<ProductAndroid>
+
+// INCORRECT - Don't use callbacks
+fun fetchProducts(productIds: List<String>, callback: (List<ProductAndroid>) -> Unit)
+```
+
+## GraphQL Promise/Future Convention
+
+**CRITICAL**: All async/Promise-returning operations in the GraphQL schema MUST include `# Future` comment above the field definition.
+
+The `# Future` comment tells the type generator to wrap the return type appropriately:
+- TypeScript: `Promise<T>`
+- Swift: `async`
+- Kotlin: `suspend`
+
+```graphql
+"""
+Check if a billing program is available for the current user
+Returns availability result with isAvailable flag
+"""
+# Future
+isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgramAvailabilityResultAndroid!
+```
+
+**Rule**: If the operation makes network calls, accesses native APIs, or returns data asynchronously, it MUST have `# Future` comment.
+
+
+---
+
+<!-- Source: internal/03-coding-style.md -->
+
+# OpenIAP Coding Style
+
+> **Priority: MANDATORY**
+> All code must follow these style guidelines.
+
+## General Principles
+
+### 1. Explicit Over Implicit
+
+Always be explicit about types and intentions:
+
+```typescript
+// ✅ CORRECT - Explicit return type
+function calculateTotal(items: CartItem[]): number {
+    return items.reduce((sum, item) => sum + item.price, 0);
+}
+
+// ❌ INCORRECT - Implicit return type
+function calculateTotal(items: CartItem[]) {
+    return items.reduce((sum, item) => sum + item.price, 0);
+}
+```
+
+### 2. Prefer Pure Functions
+
+Functions should not have side effects when possible:
+
+```typescript
+// ✅ CORRECT - Pure function
+function formatPrice(price: number, currency: string): string {
+    return `${currency}${price.toFixed(2)}`;
+}
+
+// ❌ INCORRECT - Side effect (modifying external state)
+let formattedPrice = '';
+function formatPrice(price: number, currency: string): void {
+    formattedPrice = `${currency}${price.toFixed(2)}`;
+}
+```
+
+### 3. Single Responsibility
+
+Each function/class should do ONE thing:
+
+```typescript
+// ✅ CORRECT - Single responsibility
+async function fetchProduct(id: string): Promise<Product> { ... }
+function validateProduct(product: Product): boolean { ... }
+function formatProduct(product: Product): FormattedProduct { ... }
+
+// ❌ INCORRECT - Multiple responsibilities
+async function fetchAndValidateAndFormatProduct(id: string): Promise<FormattedProduct> { ... }
+```
+
+## TypeScript Rules
+
+### Always Use Explicit Return Types
+
+```typescript
+// ✅ CORRECT
+interface User {
+    id: string;
+    name: string;
+}
+
+function getUser(id: string): User | null {
+    // ...
+}
+
+async function fetchUsers(): Promise<User[]> {
+    // ...
+}
+
+// ❌ INCORRECT
+function getUser(id: string) {
+    // ...
+}
+```
+
+### Use `const` by Default
+
+```typescript
+// ✅ CORRECT
+const userId = '123';
+const config = { timeout: 5000 };
+
+// ❌ INCORRECT (unless reassignment is needed)
+let userId = '123';
+var config = { timeout: 5000 };
+```
+
+### Prefer Interface Over Type for Objects
+
+```typescript
+// ✅ CORRECT - Interface for object shapes
+interface ProductConfig {
+    id: string;
+    name: string;
+    price: number;
+}
+
+// ✅ CORRECT - Type for unions, primitives, tuples
+type ProductType = 'subscription' | 'consumable' | 'non-consumable';
+type Coordinates = [number, number];
+
+// ❌ INCORRECT - Type for simple object shapes
+type ProductConfig = {
+    id: string;
+    name: string;
+};
+```
+
+## Swift Rules
+
+### Use `guard` for Early Exit
+
+```swift
+// ✅ CORRECT
+func processTransaction(_ transaction: Transaction?) throws -> Receipt {
+    guard let transaction = transaction else {
+        throw OpenIapError.invalidTransaction
+    }
+    guard transaction.isValid else {
+        throw OpenIapError.transactionNotValid
+    }
+    return transaction.receipt
+}
+
+// ❌ INCORRECT - Nested if statements
+func processTransaction(_ transaction: Transaction?) throws -> Receipt {
+    if let transaction = transaction {
+        if transaction.isValid {
+            return transaction.receipt
+        } else {
+            throw OpenIapError.transactionNotValid
+        }
+    } else {
+        throw OpenIapError.invalidTransaction
+    }
+}
+```
+
+### Prefer Struct Over Class
+
+```swift
+// ✅ CORRECT - Struct for data models
+public struct ProductIOS: Sendable {
+    public let id: String
+    public let displayName: String
+    public let price: Decimal
+}
+
+// Class only when needed (inheritance, reference semantics)
+public final class OpenIapModule { ... }
+```
+
+## Kotlin Rules
+
+### Use Data Classes for Models
+
+```kotlin
+// ✅ CORRECT
+data class ProductAndroid(
+    val id: String,
+    val title: String,
+    val price: String,
+    val priceAmountMicros: Long
+)
+
+// ❌ INCORRECT - Regular class for data
+class ProductAndroid {
+    var id: String = ""
+    var title: String = ""
+}
+```
+
+### Use `when` Instead of `if-else` Chains
+
+```kotlin
+// ✅ CORRECT
+fun handlePurchaseState(state: PurchaseState): String = when (state) {
+    PurchaseState.PENDING -> "Processing..."
+    PurchaseState.PURCHASED -> "Success!"
+    PurchaseState.UNSPECIFIED -> "Unknown"
+}
+
+// ❌ INCORRECT
+fun handlePurchaseState(state: PurchaseState): String {
+    if (state == PurchaseState.PENDING) return "Processing..."
+    else if (state == PurchaseState.PURCHASED) return "Success!"
+    else return "Unknown"
+}
+```
+
+## Error Messages
+
+### Be Specific and Actionable
+
+```typescript
+// ✅ CORRECT
+throw new Error(`Product not found: ${productId}. Ensure the product exists in App Store Connect.`);
+
+// ❌ INCORRECT
+throw new Error('Error occurred');
+throw new Error('Product not found');
+```
+
+## Comments
+
+### Document "Why", Not "What"
+
+```typescript
+// ✅ CORRECT - Explains why
+// StoreKit 2 requires finishing transactions within 24 hours to avoid re-delivery
+await transaction.finish();
+
+// ❌ INCORRECT - States the obvious
+// Finish the transaction
+await transaction.finish();
+```
+
+### Use JSDoc for Public APIs
+
+```typescript
+/**
+ * Fetches products from the App Store.
+ *
+ * @param productIds - Array of product identifiers to fetch
+ * @returns Array of products matching the given IDs
+ * @throws {ProductNotFoundError} If no products match the given IDs
+ *
+ * @example
+ * const products = await fetchProducts(['com.app.premium', 'com.app.pro']);
+ */
+async function fetchProducts(productIds: string[]): Promise<Product[]> {
+    // ...
+}
+```
+
+
+---
+
+<!-- Source: internal/04-platform-packages.md -->
+
+# Platform Package Guidelines
+
+> **Priority: MANDATORY**
+> Each platform package has specific rules and workflows.
+
+## Apple Package (packages/apple)
+
+### Required Pre-Work
+
+Before writing or editing anything, **ALWAYS** review:
+- [`packages/apple/CONVENTION.md`](../../packages/apple/CONVENTION.md)
+
+### Type Generation
+
+The `Types.swift` file in `Sources/Models/` is **auto-generated** from the OpenIAP GraphQL schema.
+
+```bash
+# Generate types using version from openiap-versions.json
+./scripts/generate-types.sh
+
+# Or override with environment variable
+OPENIAP_GQL_VERSION=1.0.9 ./scripts/generate-types.sh
+```
+
+### Version Management
+
+Version is managed in `openiap-versions.json`:
+
+```json
+{
+  "apple": "1.2.5",
+  "gql": "1.0.10"
+}
+```
+
+**To update GQL types:**
+1. Edit `openiap-versions.json` - change `"gql"` version
+2. Run `./scripts/generate-types.sh`
+3. Run `swift test` to verify compatibility
+
+**To bump Apple package version:**
+```bash
+./scripts/bump-version.sh [major|minor|patch|x.x.x]
+```
+
+### Testing
+
+```bash
+swift test   # Run tests
+swift build  # Build package
 ```
 
 ---
+
+## Google Package (packages/google)
+
+### Required Pre-Work
+
+Before writing or editing anything, **ALWAYS** review:
+- [`packages/google/CONVENTION.md`](../../packages/google/CONVENTION.md)
+
+### Project Layout
+
+```text
+openiap/
+├── src/
+│   ├── main/           # Shared code (both flavors)
+│   ├── play/           # Play Store specific code
+│   └── horizon/        # Meta Horizon specific code
+├── Example/            # Sample application
+└── scripts/            # Automation
+```
+
+### Build Flavors
+
+The Google package supports **two build flavors**:
+
+| Flavor | Store | API | Description |
+|--------|-------|-----|-------------|
+| `play` (default) | Google Play Store | Google Play Billing Library | Standard Android billing |
+| `horizon` | Meta Quest Store | Meta Horizon API | VR/Quest billing |
+
+**Flavor-specific source directories:**
+- `src/main/` - Shared code for both flavors
+- `src/play/` - Play Store specific implementations
+- `src/horizon/` - Meta Horizon specific implementations
+
+### Critical Rules
+
+1. **DO NOT edit generated files**: `openiap/src/main/Types.kt` is auto-generated
+2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
+3. Run `./scripts/generate-types.sh` to regenerate types
+4. **Test BOTH flavors** when making changes to shared code
+
+### Build Commands
+
+```bash
+# Play flavor (default)
+./gradlew :openiap:compilePlayDebugKotlin
+./gradlew :openiap:assemblePlayDebug
+
+# Horizon flavor
+./gradlew :openiap:compileHorizonDebugKotlin
+./gradlew :openiap:assembleHorizonDebug
+
+# Run tests (both flavors)
+./gradlew :openiap:test
+```
+
+### Version Compatibility
+
+| Flavor | Billing Library | Version |
+|--------|-----------------|---------|
+| Play | Google Play Billing | 8.3.0 |
+| Horizon | horizon-billing-compatibility | 1.1.1 (GPB 7.0 compatible) |
+
+**CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x. When writing shared code in `src/main/`:
+
+**Safe APIs (exist in both 7.0 and 8.x):**
+- `queryProductDetailsAsync()`, `launchBillingFlow()`
+- `acknowledgePurchase()`, `consumeAsync()`, `queryPurchasesAsync()`
+
+**DO NOT use in shared code (8.x only):**
+- `enableAutoServiceReconnection()`
+- Product-level status codes
+- One-time products with multiple offers
+
+### Horizon-Specific APIs
+
+Meta Horizon has different APIs from Google Play:
+
+| OpenIAP API | Play Implementation | Horizon Implementation |
+|-------------|---------------------|------------------------|
+| `verifyPurchase` | Play Developer API | Meta S2S `verify_entitlement` |
+| `getAvailableItems` | N/A | Horizon catalog API |
+| `IapStore` | `IapStore.Play` | `IapStore.Horizon` |
+
+**Horizon-specific types in GraphQL:**
+- `VerifyPurchaseHorizonOptions` - Horizon verification parameters
+- `VerifyPurchaseResultHorizon` - Horizon verification result
+
+### Updating openiap-gql Version
+
+1. Edit `openiap-versions.json` and update the `gql` field
+2. Run `./scripts/generate-types.sh` to download and regenerate Types.kt
+3. Compile BOTH flavors to verify:
+   ```bash
+   ./gradlew :openiap:compilePlayDebugKotlin
+   ./gradlew :openiap:compileHorizonDebugKotlin
+   ```
+
+---
+
+## GQL Package (packages/gql)
+
+### Required Pre-Work
+
+Before writing or editing anything, **ALWAYS** review:
+- [`packages/gql/CONVENTION.md`](../../packages/gql/CONVENTION.md)
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `generate:ts` | Generate TypeScript types |
+| `generate:swift` | Generate Swift types |
+| `generate:kotlin` | Generate Kotlin types |
+| `generate:dart` | Generate Dart types |
+| `generate` | Generate all types |
+| `sync` | Sync generated types to platform packages |
+
+### Generating Types
+
+```bash
+cd packages/gql
+bun run generate
+```
+
+This generates:
+- TypeScript types: `src/generated/types.ts`
+- Swift types: `dist/swift/Types.swift`
+- Kotlin types: `dist/kotlin/Types.kt`
+- Dart types: `dist/dart/types.dart`
+
+---
+
+## Docs Package (packages/docs)
+
+### Pre-commit Checklist
+
+Before committing any changes:
+
+1. Run `npx prettier --write` to format all files
+2. **ALWAYS run `npm run lint`** to check for linting issues
+3. **ALWAYS run `bun run tsc` or `npm run typecheck`** to check for TypeScript errors
+4. Run `npm run build` to ensure no build errors
+
+### ESLint Critical Rule
+
+**ANY function that returns a Promise must be wrapped with `void` operator** when used where a void return is expected:
+
+```typescript
+// CORRECT
+<button onClick={() => void handleClick()}>Click</button>
+<button onClick={() => void navigate("/path")}>Navigate</button>
+<button onClick={() => void deleteThing({ id })}>Delete</button>
+
+// INCORRECT - ESLint will flag these
+<button onClick={handleClick}>Click</button>
+<button onClick={() => navigate("/path")}>Go</button>
+```
+
+
+---
+
+<!-- Source: internal/05-docs-patterns.md -->
+
+# Documentation Site Patterns
+
+> **Priority: MANDATORY**
+> Follow these patterns when working on packages/docs.
+
+## Modal Pattern with Preact Signals
+
+### Global Modal Management
+
+**IMPORTANT**: Modals should be defined once at the app root level and managed via global state using Preact Signals.
+
+#### 1. Signal Definition (`src/lib/signals.ts`)
+
+```typescript
+import { signal } from '@preact/signals-react';
+
+// Modal state signal
+export const authModalSignal = signal({
+  isOpen: false,
+});
+
+// Helper functions
+export const openAuthModal = () => {
+  authModalSignal.value = { isOpen: true };
+};
+
+export const closeAuthModal = () => {
+  authModalSignal.value = { isOpen: false };
+};
+```
+
+#### 2. Root Level Setup (`src/App.tsx`)
+
+```typescript
+import { AuthModal } from "./components/AuthModal";
+import { authModalSignal, closeAuthModal } from "./lib/signals";
+
+export default function App() {
+  return (
+    <>
+      {/* Single modal instance at root */}
+      <AuthModal
+        isOpen={authModalSignal.value.isOpen}
+        onClose={closeAuthModal}
+      />
+      {/* Rest of your app */}
+    </>
+  );
+}
+```
+
+#### 3. Usage in Pages/Components
+
+```typescript
+import { openAuthModal } from '../lib/signals';
+
+// In component
+<button onClick={openAuthModal}>
+  Sign In
+</button>
+```
+
+---
+
+## React Component Organization
+
+### Component Structure
+
+#### Shared Components (`src/components/`)
+
+- Place reusable components that are used across multiple pages/features
+- If a component is only used in one place, it should be co-located with its parent
+
+#### Scoped Component Pattern
+
+When a component has sub-components that are only used within it:
+
+```
+// For a component with internal sub-components
+src/components/AuthModal/
+  ├── index.tsx        // Main AuthModal component
+  └── Modal.tsx        // Modal used only within AuthModal
+
+// If Modal is used elsewhere too
+src/components/
+  ├── AuthModal.tsx    // Main component
+  └── Modal.tsx        // Shared modal component
+```
+
+---
+
+## Component Layout Rules
+
+**CRITICAL**: All components must respect parent boundaries. Children must NEVER overflow outside parent containers.
+
+### Overflow Prevention
+
+- ALL components must fit within parent boundaries
+- Use `overflow-hidden` on parent containers when necessary
+- Apply `break-words` for text content that might be long
+- Use `whitespace-nowrap` for navigation items to prevent wrapping
+
+### Clean Code Practices
+
+- Delete unused components, functions, and imports immediately
+- Don't keep commented-out code
+- Remove unused variables and parameters
+
+
+---
+
+<!-- Source: internal/06-git-deployment.md -->
+
+# Git Conventions & Deployment
+
+> **Priority: MANDATORY**
+> Follow these conventions for all commits and deployments.
+
+## Git Commit Message Format
+
+### With Tag Prefix
+
+Everything after the tag MUST be lowercase:
+
+```
+feat: add user authentication system
+fix: resolve purchase validation error
+docs: update API reference
+refactor: simplify product fetching logic
+test: add subscription validation tests
+chore: update dependencies
+```
+
+### Without Tag Prefix
+
+First letter MUST be uppercase:
+
+```
+Add user authentication system
+Fix purchase validation error
+Update API reference
+```
+
+### Common Tags
+
+| Tag | Usage |
+|-----|-------|
+| `feat:` | New feature |
+| `fix:` | Bug fix |
+| `docs:` | Documentation changes |
+| `style:` | Code style changes (formatting) |
+| `refactor:` | Code refactoring |
+| `test:` | Adding or updating tests |
+| `chore:` | Maintenance tasks |
+
+---
+
+## Deployment
+
+### Deploying Apple Package (iOS/macOS)
+
+**Via GitHub Actions UI:**
+
+1. Go to Actions -> "Apple Release"
+2. Click "Run workflow"
+3. Enter version (e.g., `1.2.24`)
+4. Click "Run workflow"
+
+**What happens:**
+1. Updates `openiap-versions.json`
+2. Commits version change to main
+3. Creates Git tag `apple-v1.2.24`
+4. Builds and tests Swift package
+5. Validates and publishes to CocoaPods
+6. Creates GitHub Release
+
+**Result:**
+- CocoaPods: `pod 'openiap', '~> 1.2.24'`
+- Swift Package Manager: `.package(url: "https://github.com/hyodotdev/openiap.git", from: "1.2.24")`
+
+### Deploying Google Package (Android)
+
+**Via GitHub Actions UI:**
+
+1. Go to Actions -> "Google Release"
+2. Click "Run workflow"
+3. Enter version (e.g., `1.2.14`)
+4. Click "Run workflow"
+
+**What happens:**
+1. Updates `openiap-versions.json`
+2. Commits version change to main
+3. Creates Git tag `google-v1.2.14`
+4. Builds and tests Android library
+5. Publishes to Maven Central
+6. Creates GitHub Release with artifacts (AAR, JAR)
+
+**Result:**
+- Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:1.2.14")`
+
+### Deploying Documentation
+
+```bash
+# From monorepo root
+npm run deploy 1.2.0
+```
+
+This will:
+1. Build and deploy documentation to Vercel
+2. Trigger GitHub Actions workflow to:
+   - Regenerate types for all platforms
+   - Create release artifacts (TypeScript, Dart, Kotlin, Swift)
+   - Create Git tag `v1.2.0`
+   - Create GitHub Release with artifacts
+
+---
+
+## Important Notes
+
+- **Deprecated repositories**: `openiap-apple` and `openiap-google` are no longer used
+- **Monorepo only**: All releases are now managed from this monorepo
+- **Separate versioning**: Apple and Google packages have independent versions
+- **Swift Package Manager**: Automatically works via Git tags, no separate deployment step
+
+
+---
+
+# 📚 EXTERNAL API REFERENCE
+
+Use this documentation for API details, but **ALWAYS adapt patterns to match Internal Rules above**.
+
+---
+
+<!-- Source: external/expo-iap-api.md -->
 
 # expo-iap API Reference
 
@@ -428,6 +1478,8 @@ await endConnection();
 
 ---
 
+<!-- Source: external/google-billing-api.md -->
+
 # Google Play Billing Library API Reference
 
 > Reference documentation for Google Play Billing Library 7.x
@@ -678,6 +1730,8 @@ if (result.responseCode == BillingClient.BillingResponseCode.OK) {
 
 ---
 
+<!-- Source: external/horizon-api.md -->
+
 # Meta Horizon IAP API Reference
 
 > External reference for Meta Horizon Store in-app purchase APIs.
@@ -924,6 +1978,8 @@ The plugin:
 
 
 ---
+
+<!-- Source: external/react-native-iap-api.md -->
 
 # react-native-iap API Reference
 
@@ -1345,6 +2401,8 @@ export default withIAPContext(Store);
 
 ---
 
+<!-- Source: external/storekit2-api.md -->
+
 # StoreKit 2 API Reference
 
 This document provides external API reference for Apple's StoreKit 2 framework.
@@ -1459,17 +2517,32 @@ Begins a refund request for a transaction.
 
 ---
 
-## Links & Resources
+# 📁 PROJECT STRUCTURE
 
-- Documentation: https://openiap.dev/docs
-- Types Reference: https://openiap.dev/docs/types
-- APIs Reference: https://openiap.dev/docs/apis
-- Error Codes: https://openiap.dev/docs/errors
-- GitHub: https://github.com/hyodotdev/openiap
+```
+openiap/
+├── packages/
+│   ├── apple/        # iOS/macOS StoreKit 2 (Swift)
+│   │   └── Sources/
+│   │       ├── Models/      # Official types
+│   │       ├── Helpers/     # Internal helpers
+│   │       └── OpenIapModule.swift
+│   ├── google/       # Android Play Billing (Kotlin)
+│   │   └── openiap/src/main/
+│   │       ├── java/dev/hyo/openiap/
+│   │       └── Types.kt     # AUTO-GENERATED
+│   ├── gql/          # GraphQL schema & type generation
+│   └── docs/         # Documentation site
+├── knowledge/        # Shared knowledge base
+│   ├── internal/     # Project philosophy
+│   └── external/     # External API reference
+└── scripts/agent/    # RAG agent scripts
+```
 
-### Ecosystem Libraries
-- expo-iap: https://github.com/hyochan/expo-iap
-- react-native-iap: https://github.com/dooboolab-community/react-native-iap
-- flutter_inapp_purchase: https://github.com/dooboolab-community/flutter_inapp_purchase
-- godot-iap: https://github.com/hyochan/godot-iap
-- kmp-iap: https://github.com/nicoseng/kmp-iap
+## Key Reminders
+
+- **packages/apple**: iOS functions MUST end with `IOS` suffix
+- **packages/google**: DO NOT add `Android` suffix (it's Android-only package)
+- **packages/gql**: Types.kt and Types.swift are AUTO-GENERATED, never edit directly
+- **Cross-platform functions**: NO platform suffix
+
