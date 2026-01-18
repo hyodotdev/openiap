@@ -250,6 +250,25 @@ function TypesProduct() {
                         <code>offerToken</code>, <code>pricingPhases</code>
                       </td>
                     </tr>
+                    <tr>
+                      <td>
+                        <code>productStatusAndroid</code>
+                      </td>
+                      <td>
+                        Product fetch status code. Values: <code>OK</code> (success),{' '}
+                        <code>NOT_FOUND</code> (SKU doesn't exist),{' '}
+                        <code>NO_OFFERS_AVAILABLE</code> (user not eligible for any offers),{' '}
+                        <code>UNKNOWN</code>.
+                        Requires{' '}
+                        <a
+                          href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Billing Library 8.0+
+                        </a>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </>

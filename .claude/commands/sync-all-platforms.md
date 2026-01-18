@@ -367,16 +367,51 @@ flutter run --flavor horizon
 
 ---
 
-## Documentation Updates
+## Documentation Updates (REQUIRED)
 
-After code changes, update documentation in each repo:
+After code changes, update documentation in each platform SDK repo.
 
-1. **API Reference** - New/changed methods
-2. **Type Definitions** - New/changed types
-3. **Migration Guide** - Breaking changes
-4. **Examples** - Updated usage patterns
-5. **CHANGELOG** - Version history
-6. **llms.txt Files** - AI-friendly documentation
+### Documentation Checklist Per Platform
+
+For each new feature synced to a platform SDK:
+
+- [ ] **CHANGELOG** - Entry for the new version
+- [ ] **API docs** - Function added to docs/docs/api/ with signature, params, return type
+- [ ] **Type docs** - New types documented with all fields explained
+- [ ] **Example apps** - Working examples demonstrating new features
+- [ ] **Code examples** - Inline code examples in documentation
+- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
+- [ ] **llms.txt** - AI-friendly documentation updated
+
+### Documentation Locations by Platform
+
+| Platform | API Docs | Type Docs | Examples | llms.txt |
+|----------|----------|-----------|----------|----------|
+| expo-iap | `docs/docs/api/` | `docs/docs/types/` | `example/app/` | `docs/static/` |
+| react-native-iap | `docs/docs/api/` | `docs/docs/types/` | `example/src/` | `docs/static/` |
+| kmp-iap | `docs/docs/api/` | `docs/docs/types/` | `example/composeApp/` | `docs/static/` |
+| godot-iap | `docs/` or `README.md` | - | `examples/` | `docs/static/` |
+| flutter_inapp_purchase | `docs/docs/api/` | `docs/docs/types/` | `example/lib/src/screens/` | `docs/static/` |
+| openiap (docs) | `src/pages/docs/apis/` | `src/pages/docs/types/` | `packages/*/Example/` | `public/` |
+
+### Example App Updates (REQUIRED)
+
+Update example apps in each platform SDK to demonstrate new features:
+
+| Platform | Example Location | Key Files |
+|----------|------------------|-----------|
+| expo-iap | `example/app/` | `purchase-flow.tsx`, `subscription-flow.tsx` |
+| react-native-iap | `example/src/screens/` | `PurchaseFlow.tsx`, `SubscriptionFlow.tsx` |
+| kmp-iap | `example/composeApp/` | Compose Multiplatform UI |
+| godot-iap | `examples/` | GDScript scenes |
+| flutter_inapp_purchase | `example/lib/src/screens/` | `purchase_flow_screen.dart` |
+
+**Example Code Guidelines:**
+- Demonstrate ALL new API features with working code
+- Show both success and error handling
+- Include comments explaining the feature
+- Use realistic SKU names and user flows
+- Test on actual devices/simulators before committing
 
 ### llms.txt Update Locations
 

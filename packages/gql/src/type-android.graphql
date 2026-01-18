@@ -1,5 +1,31 @@
 # Android-specific GraphQL Types
 
+# Product-level status codes (Google Play Billing Library 8.0+)
+"""
+Status code for individual products returned from queryProductDetailsAsync (Android)
+Prior to 8.0, products that couldn't be fetched were simply not returned.
+With 8.0+, these products are returned with a status code explaining why.
+Available in Google Play Billing Library 8.0.0+
+"""
+enum ProductStatusAndroid {
+  """
+  Product was successfully fetched
+  """
+  OK
+  """
+  Product not found - the SKU doesn't exist in the Play Console
+  """
+  NOT_FOUND
+  """
+  No offers available for the user - product exists but user is not eligible for any offers
+  """
+  NO_OFFERS_AVAILABLE
+  """
+  Unknown error occurred while fetching the product
+  """
+  UNKNOWN
+}
+
 # Android pricing phases
 type PricingPhasesAndroid {
   pricingPhaseList: [PricingPhaseAndroid!]!
@@ -190,6 +216,14 @@ type ProductAndroid implements ProductCommon {
 
   # Android-specific
   nameAndroid: String!
+  """
+  Product-level status code indicating fetch result (Android 8.0+)
+  OK = product fetched successfully
+  NOT_FOUND = SKU doesn't exist
+  NO_OFFERS_AVAILABLE = user not eligible for any offers
+  Available in Google Play Billing Library 8.0.0+
+  """
+  productStatusAndroid: ProductStatusAndroid
 
   # Standardized cross-platform fields
   """
@@ -236,6 +270,14 @@ type ProductSubscriptionAndroid implements ProductCommon {
 
   # Android-specific
   nameAndroid: String!
+  """
+  Product-level status code indicating fetch result (Android 8.0+)
+  OK = product fetched successfully
+  NOT_FOUND = SKU doesn't exist
+  NO_OFFERS_AVAILABLE = user not eligible for any offers
+  Available in Google Play Billing Library 8.0.0+
+  """
+  productStatusAndroid: ProductStatusAndroid
 
   # Standardized cross-platform fields
   """
@@ -794,4 +836,46 @@ type ExternalOfferAvailabilityResultAndroid
   Whether external offers are available for the user
   """
   isAvailable: Boolean!
+}
+
+# Sub-Response Codes (Google Play Billing Library 8.0+)
+# See: https://developer.android.com/google/play/billing/release-notes
+
+"""
+Sub-response codes for more granular purchase error information (Android)
+Available in Google Play Billing Library 8.0.0+
+"""
+enum SubResponseCodeAndroid {
+  """
+  No specific sub-response code applies
+  """
+  NO_APPLICABLE_SUB_RESPONSE_CODE
+  """
+  User's payment method has insufficient funds
+  """
+  PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS
+  """
+  User doesn't meet subscription offer eligibility requirements
+  """
+  USER_INELIGIBLE
+}
+
+"""
+Extended billing result with sub-response code (Android)
+Available in Google Play Billing Library 8.0.0+
+"""
+type BillingResultAndroid {
+  """
+  The response code from the billing operation
+  """
+  responseCode: Int!
+  """
+  Debug message from the billing library
+  """
+  debugMessage: String
+  """
+  Sub-response code for more granular error information (8.0+).
+  Provides additional context when responseCode indicates an error.
+  """
+  subResponseCode: SubResponseCodeAndroid
 }

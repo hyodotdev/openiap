@@ -226,8 +226,11 @@ class OpenIapModule(
             }
         }
     }
-    override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { _ ->
-        withContext(Dispatchers.IO) { restorePurchasesHelper(billingClient) }
+    override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
+        withContext(Dispatchers.IO) {
+            val includeSuspended = options?.includeSuspendedAndroid == true
+            restorePurchasesHelper(billingClient, includeSuspended)
+        }
     }
 
     override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->

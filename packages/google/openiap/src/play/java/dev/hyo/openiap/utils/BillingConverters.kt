@@ -15,6 +15,7 @@ import dev.hyo.openiap.Product
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.PreorderDetailsAndroid
 import dev.hyo.openiap.ProductAndroidOneTimePurchaseOfferDetail
+import dev.hyo.openiap.ProductStatusAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroidOfferDetails
 import dev.hyo.openiap.ProductType
@@ -32,6 +33,24 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase as BillingPurchase
 
 internal object BillingConverters {
+    /**
+     * Gets the product status from ProductDetails (Billing Library 8.0+).
+     * Returns null for older billing library versions.
+     */
+    private fun ProductDetails.getProductStatus(): ProductStatusAndroid? {
+        return runCatching {
+            // ProductDetails.productStatus is available in Billing Library 8.0+
+            val statusMethod = this::class.java.getMethod("getProductStatus")
+            val status = statusMethod.invoke(this) as? Int
+            when (status) {
+                0 -> ProductStatusAndroid.Ok           // ProductDetails.ProductStatus.OK
+                1 -> ProductStatusAndroid.NotFound     // ProductDetails.ProductStatus.NOT_FOUND
+                2 -> ProductStatusAndroid.NoOffersAvailable // ProductDetails.ProductStatus.NO_OFFERS_AVAILABLE
+                else -> ProductStatusAndroid.Unknown
+            }
+        }.getOrNull()
+    }
+
     /**
      * Converts a ProductDetails.OneTimePurchaseOfferDetails to ProductAndroidOneTimePurchaseOfferDetail
      * This includes all discount-related fields available in Billing Library 7.0+
@@ -266,6 +285,7 @@ internal object BillingConverters {
             oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
             platform = IapPlatform.Android,
             price = priceAmountMicros.toDouble() / 1_000_000.0,
+            productStatusAndroid = getProductStatus(),
             subscriptionOfferDetailsAndroid = null,
             subscriptionOffers = null,
             title = title,
@@ -331,6 +351,7 @@ internal object BillingConverters {
             oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetailsList,
             platform = IapPlatform.Android,
             price = firstPhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
+            productStatusAndroid = getProductStatus(),
             subscriptionOfferDetailsAndroid = pricingDetails,
             subscriptionOffers = subscriptionOffers,
             title = title,

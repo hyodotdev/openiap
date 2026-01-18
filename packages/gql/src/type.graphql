@@ -135,6 +135,13 @@ input PurchaseOptions {
   Limit to currently active items on iOS
   """
   onlyIncludeActiveItemsIOS: Boolean
+  """
+  Include suspended subscriptions in the result (Android 8.1+).
+  Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+  Users should be directed to the subscription center to resolve payment issues.
+  Default: false (only active subscriptions are returned)
+  """
+  includeSuspendedAndroid: Boolean
 }
 
 # Parameters for requestPurchase
@@ -734,4 +741,6 @@ input InitConnectionConfig {
   - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
   """
   enableBillingProgramAndroid: BillingProgramAndroid
+  # Note: enableAutoServiceReconnection is always enabled internally (Billing 8.0+)
+  # since OpenIAP uses Billing Library 8.3.0+
 }

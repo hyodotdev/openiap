@@ -14,12 +14,17 @@ Meta Horizon provides IAP functionality for Quest VR applications. There are two
 
 | Library | Version | Compatible With |
 |---------|---------|-----------------|
-| horizon-billing-compatibility | 1.1.1 | Google Play Billing **7.0** API |
-| Google Play Billing (Play flavor) | 8.3.0 | N/A |
-| react-native-iap | v14+ | Billing 7.0+ |
-| expo-iap | latest | Billing 7.0+ |
+| horizon-billing-compatibility | **1.1.1** (latest) | Google Play Billing **7.0** API |
+| Google Play Billing (Play flavor) | **8.3.0** (latest) | N/A |
+| react-native-iap | v14+ | Billing 7.0+, RN 0.79+, Kotlin 2.0+ |
+| expo-iap | latest | Billing 7.0+, Kotlin 2.0+ |
 
-**IMPORTANT**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x. When writing shared code for both Play and Horizon flavors, use only APIs that exist in both Billing 7.0 and 8.x.
+**CRITICAL**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x.
+
+When writing shared code for both Play and Horizon flavors:
+- Use only APIs that exist in **both** Billing 7.0 and 8.x
+- Horizon SDK does NOT support Billing 8.x features like auto-reconnect, product status codes, or `includeSuspended`
+- OpenIAP handles this automatically with flavor-specific implementations
 
 ### APIs Available in Both (Safe to use in shared code)
 
@@ -32,9 +37,15 @@ Meta Horizon provides IAP functionality for Quest VR applications. There are two
 
 ### APIs Only in Billing 8.x (DO NOT use in shared code)
 
-- `enableAutoServiceReconnection()` - Auto reconnect feature
-- Product-level status codes in `queryProductDetailsAsync()` response
-- One-time products with multiple offers
+- `enableAutoServiceReconnection()` - Auto reconnect feature (8.0+)
+- Product-level status codes in `queryProductDetailsAsync()` response (8.0+)
+- One-time products with multiple offers (8.0+)
+- Sub-response codes in `BillingResult` (8.0+)
+- `isSuspended` on Purchase (8.1+)
+- `includeSuspended` parameter in `QueryPurchasesParams` (8.1+)
+- `SubscriptionProductReplacementParams` (8.1+)
+- Billing Programs API (`isBillingProgramAvailableAsync`, etc.) (8.2+)
+- External Payments / Developer Billing Options (8.3+)
 
 ## Billing Compatibility SDK
 

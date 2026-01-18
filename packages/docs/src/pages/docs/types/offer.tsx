@@ -125,7 +125,7 @@ function TypesOffer() {
               <td>
                 <code>DiscountOfferType!</code>
               </td>
-              <td>Type of offer (Introductory, Promotional, OneTime)</td>
+              <td>Type of offer: <code>Introductory</code>, <code>Promotional</code>, <code>WinBack</code> (iOS 18+), or <code>OneTime</code></td>
             </tr>
           </tbody>
         </table>
@@ -268,6 +268,7 @@ function TypesOffer() {
 enum DiscountOfferType {
   Introductory = 'Introductory',
   Promotional = 'Promotional',
+  WinBack = 'WinBack',    // iOS 18+
   OneTime = 'OneTime',
 }`}</CodeBlock>
             ),
@@ -296,6 +297,7 @@ enum DiscountOfferType {
 enum DiscountOfferType: String, Codable {
     case introductory = "Introductory"
     case promotional = "Promotional"
+    case winBack = "WinBack"    // iOS 18+
     case oneTime = "OneTime"
 }`}</CodeBlock>
             ),
@@ -324,6 +326,7 @@ enum DiscountOfferType: String, Codable {
 enum class DiscountOfferType {
     Introductory,
     Promotional,
+    WinBack,    // iOS 18+
     OneTime
 }`}</CodeBlock>
             ),
@@ -370,6 +373,7 @@ enum class DiscountOfferType {
 enum DiscountOfferType {
   introductory,
   promotional,
+  winBack,    // iOS 18+
   oneTime,
 }`}</CodeBlock>
             ),
@@ -398,6 +402,7 @@ var rental_details_android: RentalDetailsAndroid
 enum DiscountOfferType {
     INTRODUCTORY,
     PROMOTIONAL,
+    WIN_BACK,    # iOS 18+
     ONE_TIME
 }`}</CodeBlock>
             ),
@@ -470,7 +475,7 @@ enum DiscountOfferType {
               <td>
                 <code>DiscountOfferType!</code>
               </td>
-              <td>Introductory or Promotional</td>
+              <td><code>Introductory</code>, <code>Promotional</code>, or <code>WinBack</code> (iOS 18+)</td>
             </tr>
             <tr>
               <td>
