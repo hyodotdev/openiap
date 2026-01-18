@@ -5,6 +5,25 @@ Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-ia
 **Target Repository:** `$IAP_REPOS_HOME/expo-iap`
 
 > **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
+>
+> **Default Path:** `/Users/crossplatformkorea/Github/hyochan/expo-iap`
+
+## CRITICAL: Mandatory Steps Checklist
+
+**YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
+
+| Step | Required | Description |
+|------|----------|-------------|
+| 0. Pull Latest | **YES** | `git pull` before any work |
+| 1. Analyze OpenIAP Changes | **YES** | Review what changed in openiap packages |
+| 2. Sync Versions | **YES** | Update openiap-versions.json |
+| 3. Generate Types | **YES** | `bun run generate:types` |
+| 4. Review Native Code | **YES** | Check if iOS/Android modules need updates |
+| 5. Update API Exports | **IF NEEDED** | Add new functions to index.ts, useIAP.ts |
+| 6. Run All Checks | **YES** | `bun run lint:ci`, `bun run test`, example tests |
+| 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
+| 9. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -23,450 +42,416 @@ Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-ia
 | `src/modules/ios.ts` | iOS-specific functions | NO |
 | `src/modules/android.ts` | Android-specific functions | NO |
 | `openiap-versions.json` | Version tracking | NO |
+| `docs/blog/` | Release blog posts | NO |
+| `docs/static/llms.txt` | AI reference (short) | NO |
+| `docs/static/llms-full.txt` | AI reference (detailed) | NO |
+
+---
 
 ## Sync Steps
 
-### 0. Pull Latest (REQUIRED)
+### Step 0: Pull Latest (REQUIRED)
 
 **Always pull the latest code before starting any sync work:**
 
 ```bash
-cd $IAP_REPOS_HOME/expo-iap
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap
 git pull
 ```
 
-### 1. Sync openiap-versions.json (REQUIRED)
+---
 
-**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
+### Step 1: Analyze OpenIAP Changes (REQUIRED)
+
+**CRITICAL: Before syncing, understand what changed in the openiap monorepo.**
+
+#### 1.1 Check Version Differences
 
 ```bash
-cd $IAP_REPOS_HOME/expo-iap
+echo "=== OpenIAP Monorepo Versions ==="
+cat /Users/crossplatformkorea/Github/hyodotdev/openiap/openiap-versions.json
 
-# Check current versions in openiap monorepo
-cat $OPENIAP_HOME/openiap/openiap-versions.json
-
-# Update expo-iap's openiap-versions.json to match:
-# - "gql": should match openiap's "gql" version
-# - "apple": should match openiap's "apple" version
-# - "google": should match openiap's "google" version
+echo "=== expo-iap Current Versions ==="
+cat /Users/crossplatformkorea/Github/hyochan/expo-iap/openiap-versions.json
 ```
 
-**Version fields to sync:**
-| Field | Source | Purpose |
-|-------|--------|---------|
-| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | TypeScript types version |
-| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
-| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
-
-### 2. Type Synchronization
+#### 1.2 Analyze GQL Schema Changes (Types)
 
 ```bash
-cd $IAP_REPOS_HOME/expo-iap
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log --oneline packages/gql/ -10
+```
 
-# Download and regenerate types (uses versions from openiap-versions.json)
+Look for:
+- New types/interfaces added
+- New fields on existing types
+- Breaking changes to type signatures
+
+#### 1.3 Analyze Apple Package Changes (iOS Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log --oneline packages/apple/ -10
+```
+
+Check `packages/apple/Sources/` for:
+- New public functions in `OpenIapModule.swift`
+- New types in `Types.swift`
+- Changes to serialization in `OpenIapSerialization.swift`
+
+#### 1.4 Analyze Google Package Changes (Android Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log --oneline packages/google/ -10
+```
+
+Check `packages/google/openiap/src/main/` for:
+- New public functions in `OpenIapModule.kt`
+- New types in `Types.kt`
+- Changes to Billing Library integration
+
+#### 1.5 Document Changes Found
+
+Create a mental checklist:
+- [ ] New types added?
+- [ ] New API methods exposed?
+- [ ] Breaking changes?
+- [ ] Deprecations?
+- [ ] Bug fixes?
+- [ ] Platform version requirements changed?
+
+---
+
+### Step 2: Sync openiap-versions.json (REQUIRED)
+
+Update expo-iap's version tracking file to match openiap monorepo.
+
+**Edit `/Users/crossplatformkorea/Github/hyochan/expo-iap/openiap-versions.json`:**
+
+```json
+{
+  "apple": "<match openiap's apple version>",
+  "google": "<match openiap's google version>",
+  "gql": "<match openiap's gql version>"
+}
+```
+
+---
+
+### Step 3: Generate Types (REQUIRED)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap
+
+# Download and regenerate types
 bun run generate:types
 
-# Verify types
-bun run typecheck
+# Review what changed
+git diff src/types.ts
 ```
 
-### 3. Native Code Modifications
+**Analyze the type diff carefully:**
+- New interfaces/types?
+- New fields on existing types?
+- Changed field types?
+- New enums or enum values?
 
-#### iOS Native Code
+---
 
-**Location:** `ios/`
+### Step 4: Review Native Code (REQUIRED)
 
-Key files to update:
-- `ios/ExpoIapModule.swift` - Main Expo module implementation
-- `ios/ExpoIap.podspec` - CocoaPods spec (update `apple` version dependency)
+**CRITICAL: This step catches bugs that "type-only" syncs miss. DO NOT SKIP.**
 
-**When to modify:**
-- New iOS-specific API methods added to OpenIAP
-- Type conversion changes needed
-- StoreKit 2 API changes
+You must verify that expo-iap's native code actually passes new options/fields to OpenIAP.
 
-**Update workflow:**
+#### 4.1 iOS Native Code Review
+
+**Location:** `ios/ExpoIapModule.swift`, `ios/ExpoIapHelper.swift`
+
+**Verification steps:**
+
+1. Check what new fields were added to `RequestPurchaseIosProps` in types:
+   ```bash
+   git diff src/types.ts | grep -A5 "RequestPurchaseIosProps\|RequestSubscriptionIosProps"
+   ```
+
+2. Verify expo-iap passes these fields to OpenIAP:
+   ```bash
+   # iOS uses OpenIapSerialization.decode which auto-handles new fields
+   # BUT: Check if any explicit parameter passing exists that needs updating
+   grep -n "requestPurchase\|RequestPurchase" ios/ExpoIapModule.swift
+   ```
+
+3. Check if new options fields (like `PurchaseOptions`) are passed:
+   ```bash
+   grep -n "getAvailableItems\|getAvailablePurchases" ios/ExpoIapModule.swift
+   ```
+
+**iOS typically auto-handles new fields via serialization, but verify!**
+
+#### 4.2 Android Native Code Review
+
+**Location:** `android/src/main/java/expo/modules/iap/ExpoIapModule.kt`
+
+**Verification steps:**
+
+1. Check what new fields were added to Android types:
+   ```bash
+   git diff src/types.ts | grep -A5 "Android"
+   ```
+
+2. **CRITICAL**: Check if expo-iap's native functions pass options to OpenIAP:
+   ```bash
+   # Look for functions that might need options parameter updates
+   grep -n "openIap\." android/src/main/java/expo/modules/iap/ExpoIapModule.kt | head -20
+   ```
+
+3. Verify options are forwarded:
+   ```bash
+   # Check if getAvailablePurchases receives and passes options
+   grep -A10 "getAvailableItems" android/src/main/java/expo/modules/iap/ExpoIapModule.kt
+   ```
+
+**Android often requires explicit option passing - don't assume it works!**
+
+#### 4.3 TypeScript API Review
+
+**Location:** `src/index.ts`, `src/modules/android.ts`, `src/modules/ios.ts`
+
+Check if TypeScript API passes new options to native:
+
 ```bash
-cd $IAP_REPOS_HOME/expo-iap
-
-# 1. Update apple version in openiap-versions.json
-# 2. Review openiap/packages/apple/Sources/ for changes
-# 3. Update ios/ExpoIapModule.swift accordingly
-
-# Install updated pod
-cd example/ios && pod install --repo-update
+# Check if new options fields are included in the native call
+grep -A20 "getAvailablePurchases" src/index.ts
 ```
 
-#### Android Native Code
+**If a new option exists in types but isn't passed in the TS/native layer, IT WON'T WORK!**
 
-**Location:** `android/src/main/java/`
+#### 4.4 Decision Matrix (Updated)
 
-Key files to update:
-- `ExpoIapModule.kt` - Main Expo module implementation
-- `build.gradle` - Dependencies (auto-reads `google` version)
+| Change Type | Action Required |
+|-------------|-----------------|
+| New types only (response types) | NO code change - OpenIAP returns them automatically |
+| New INPUT option fields | **CHECK** - verify native code passes the option |
+| New API function | YES - add wrapper in both native + TS |
+| Breaking type change | YES - check serialization compatibility |
+| New platform feature | YES - add wrapper + expose to JS |
 
-**When to modify:**
-- New Android-specific API methods added to OpenIAP
-- Type conversion changes needed
-- Play Billing API changes
+**Common mistakes to catch:**
+- TypeScript has the option in types, but native code passes `null` instead of the options object
+- Android native doesn't parse the new option from the params map
+- iOS Swift code doesn't include new field in the props struct
 
-**Update workflow:**
-```bash
-cd $IAP_REPOS_HOME/expo-iap
+---
 
-# 1. Update google version in openiap-versions.json
-# 2. Review openiap/packages/google/openiap/src/main/ for changes
-# 3. Update android/src/main/java/ accordingly
+### Step 5: Update API Exports (IF NEEDED)
 
-# Gradle auto-syncs on build
-```
+If new API functions were added to the native modules, expose them in TypeScript:
 
-### 4. Build & Test Native Code
+#### 5.1 Update `src/modules/ios.ts`
 
-#### iOS Build Test
+For iOS-specific functions with `IOS` suffix.
 
-```bash
-cd $IAP_REPOS_HOME/expo-iap/example
+#### 5.2 Update `src/modules/android.ts`
 
-# Clean and prebuild
-npx expo prebuild --clean --platform ios
+For Android-specific functions with `Android` suffix.
 
-# Install pods
-cd ios && pod install --repo-update && cd ..
+#### 5.3 Update `src/index.ts`
 
-# Build for simulator
-npx expo run:ios --device "iPhone 15 Pro"
+Export new functions from the main entry point.
 
-# Or build via Xcode
-open ios/expoiapexample.xcworkspace
-# Build: Cmd+B, Run: Cmd+R
-```
+#### 5.4 Update `src/useIAP.ts`
 
-#### Android Build Test
+If the new function should be available in the hook.
+
+---
+
+### Step 6: Run All Checks (REQUIRED)
+
+**ALL checks must pass before proceeding.**
 
 ```bash
-cd $IAP_REPOS_HOME/expo-iap/example
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap
 
-# Clean and prebuild
-npx expo prebuild --clean --platform android
+# Run full lint suite (tsc, eslint, prettier, ktlint)
+bun run lint:ci
 
-# Build debug APK
-npx expo run:android
-
-# Or build via Android Studio
-# Open android/ folder in Android Studio
-# Build > Make Project
-```
-
-#### Android Horizon Build (Meta Quest)
-
-```bash
-cd $IAP_REPOS_HOME/expo-iap/example
-
-# Enable Horizon flavor in gradle.properties
-echo "horizonEnabled=true" >> android/gradle.properties
-
-# Prebuild and build with Horizon
-npx expo prebuild --clean --platform android
-npx expo run:android
-
-# Revert for Play Store builds
-sed -i '' '/horizonEnabled=true/d' android/gradle.properties
-```
-
-#### Full Build Matrix
-
-```bash
-cd $IAP_REPOS_HOME/expo-iap
-
-# TypeScript build
-bun run build
-
-# iOS build
-cd example && npx expo run:ios
-
-# Android build (Play Store)
-cd example && npx expo run:android
-
-# Android build (Horizon)
-cd example && echo "horizonEnabled=true" >> android/gradle.properties && npx expo run:android
-
-# All tests
+# Run library tests
 bun run test
-cd example && bun run test
+
+# Run example app tests
+cd example && bun run test && cd ..
 ```
 
-### 5. Local OpenIAP Testing (Pre-Deployment)
+**If any check fails, fix before continuing.**
 
-**IMPORTANT:** expo-iap supports testing local openiap changes before deployment.
+---
 
-#### Enable Local Development
+### Step 7: Write Blog Post (REQUIRED)
 
-In `example/app.config.ts`:
+**Every sync MUST have a blog post documenting the changes.**
+
+#### 7.1 Create Blog Post File
+
+**Location:** `docs/blog/`
+
+**Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
+
+Example: `2026-01-18-3.5.0-winback-offers.md`
+
+#### 7.2 Blog Post Template
+
+```markdown
+---
+slug: <version>-<short-slug>
+title: <version> - <Short Title>
+authors: [hyochan]
+tags: [release, openiap, <platform-tags>]
+date: YYYY-MM-DD
+---
+
+# <version> Release Notes
+
+This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/updates/notes#<anchor>).
+
+## New Features
+
+### <Feature Name> (<Platform> <Version>+)
+
+<Description of the feature>
 
 ```typescript
-const LOCAL_OPENIAP_PATHS = {
-  ios: '<path-to-openiap>/packages/apple',
-  android: '<path-to-openiap>/packages/google',
-} as const;
-
-export default ({config}: ConfigContext): ExpoConfig => {
-  // ...
-  const pluginEntries: NonNullable<ExpoConfig['plugins']> = [
-    [
-      '../app.plugin.js',
-      {
-        iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
-        enableLocalDev: true,  // <-- Enable local openiap
-        localPath: {
-          ios: LOCAL_OPENIAP_PATHS.ios,
-          android: LOCAL_OPENIAP_PATHS.android,
-        },
-      },
-    ],
-  ];
-  // ...
-};
+// Example usage
 ```
 
-#### Local Dev Workflow
+## Bug Fixes
 
-```bash
-# 1. Make changes in openiap monorepo
-cd $OPENIAP_HOME/openiap/packages/apple  # or packages/google
+- <Fix description>
 
-# 2. Enable local dev in expo-iap
-cd $IAP_REPOS_HOME/expo-iap/example
-# Edit app.config.ts: set enableLocalDev: true
+## OpenIAP Versions
 
-# 3. Prebuild with local sources
-npx expo prebuild --clean
+| Package | Version |
+|---------|---------|
+| openiap-gql | <version> |
+| openiap-google | <version> |
+| openiap-apple | <version> |
 
-# 4. Build and test
-npx expo run:ios   # iOS with local openiap-apple
-npx expo run:android  # Android with local openiap-google
-
-# 5. After testing, disable local dev before committing
-# Edit app.config.ts: set enableLocalDev: false
+For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
 ```
 
-**When to use local dev:**
-- Testing new openiap features before release
-- Debugging native code issues
-- Verifying type generation changes
-- Testing breaking changes
+#### 7.3 Blog Post Guidelines
 
-### 6. Update Example Code (REQUIRED)
+- **New features**: Explain what they do, show example code, note platform requirements
+- **Breaking changes**: MUST have migration guide with before/after code
+- **Type-only changes**: Still document, mention "TypeScript types updated"
+- **Bug fixes**: List what was fixed
+- **Always link**: Link to OpenIAP release notes
 
-**Location:** `example/app/`
+---
 
-Key example screens:
-- `index.tsx` - Home/Overview
-- `purchase-flow.tsx` - Purchase flow demo
-- `subscription-flow.tsx` - Subscription demo
-- `alternative-billing.tsx` - Android alt billing
-- `offer-code.tsx` - Promo code redemption
+### Step 8: Update llms.txt (IF API CHANGED)
 
-**Example Code Guidelines:**
-- Demonstrate ALL new API features with working code
-- Show both success and error handling
-- Include comments explaining the feature
-- Use realistic SKU names and user flows
+**Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
 
-**Example for new iOS feature (e.g., Win-Back Offer):**
-
-```tsx
-// In subscription-flow.tsx
-const handleWinBackOffer = async () => {
-  try {
-    const result = await requestSubscription({
-      sku: 'premium_monthly',
-      winBackOffer: { offerId: 'winback_50_off' }  // iOS 18+
-    });
-    console.log('Win-back applied:', result);
-  } catch (error) {
-    console.error('Win-back failed:', error);
-  }
-};
-```
-
-**Example for new Android feature (e.g., Product Status):**
-
-```tsx
-// In purchase-flow.tsx
-products.forEach((product) => {
-  if (product.productStatusAndroid) {
-    switch (product.productStatusAndroid) {
-      case 'OK': // Show product
-        break;
-      case 'NOT_FOUND': // Show error
-        break;
-      case 'NO_OFFERS_AVAILABLE': // Show ineligible message
-        break;
-    }
-  }
-});
-```
-
-### 7. Update Tests
-
-**Library Tests:** `src/__tests__/`
-**Example Tests:** `example/__tests__/`
-
-```bash
-# Run all tests
-bun run test
-
-# Run example tests
-cd example && bun run test
-```
-
-### 8. Update Documentation (REQUIRED)
-
-**Location:** `docs/`
-- `docs/docs/api/` - API reference
-- `docs/docs/types/` - Type definitions
-- `docs/docs/guides/` - Usage guides
-- `docs/docs/examples/` - Code examples
-
-**Documentation Checklist:**
-
-For each new feature synced from openiap:
-
-- [ ] **CHANGELOG.md** - Add entry for new version
-- [ ] **API docs** - Function added with signature, params, return type
-- [ ] **Type docs** - New types documented with all fields explained
-- [ ] **Example code** - Working examples in documentation
-- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
-- [ ] **Migration notes** - Breaking changes documented
-
-**Example Documentation Entry:**
-
-```mdx
-## requestSubscription
-
-### Win-Back Offers (iOS 18+)
-
-Win-back offers re-engage churned subscribers:
-
-~~~typescript
-await requestSubscription({
-  sku: 'premium_monthly',
-  winBackOffer: { offerId: 'winback_50_off' }  // iOS 18+
-});
-~~~
-```
-
-### 9. Update llms.txt Files
-
-**Location:** `docs/static/`
-
-Update AI-friendly documentation files when APIs or types change:
-
-- `docs/static/llms.txt` - Quick reference for AI assistants
-- `docs/static/llms-full.txt` - Detailed AI reference
-
-**When to update:**
+Update if:
 - New API functions added
 - Function signatures changed
-- New types or enums added
+- New types developers need to know about
 - Usage patterns updated
-- Error codes changed
 
-**Content to sync:**
-1. Installation commands
-2. Core API reference (useIAP hook, direct functions)
-3. Key types (Product, Purchase, ErrorCode)
-4. Common usage patterns
-5. Platform-specific APIs (iOS/Android suffixes)
-6. Error handling examples
+---
 
-### 10. Pre-commit Checklist
+### Step 9: Commit and Push (REQUIRED)
+
+#### 9.1 Create Feature Branch
 
 ```bash
-bun run lint           # ESLint
-bun run typecheck      # TypeScript
-bun run test           # Jest
-cd example && bun run test  # Example app tests
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap
+
+git checkout -b feat/openiap-sync-<gql-version>
+# Example: feat/openiap-sync-1.3.13
 ```
 
-**Full Sync Checklist:**
-
-- [ ] openiap-versions.json synced
-- [ ] Types regenerated (`bun run generate:types`)
-- [ ] Native code updated (iOS/Android)
-- [ ] Example code demonstrates new features
-- [ ] Tests pass
-- [ ] Documentation updated
-- [ ] llms.txt files updated
-- [ ] Local dev disabled (`enableLocalDev: false`)
-
-### 11. Commit and Push
-
-After completing all sync steps, create a branch and commit the changes:
+#### 9.2 Stage All Changes
 
 ```bash
-cd $IAP_REPOS_HOME/expo-iap
-
-# Create feature branch with version number
-git checkout -b feat/openiap-sync-<gql-version>
-
-# Example: feat/openiap-sync-1.3.12
-
-# Stage all changes
 git add .
+```
 
-# Commit with descriptive message
-git commit -m "feat: sync with openiap v<gql-version>
+#### 9.3 Commit with Descriptive Message
 
-- Update openiap-versions.json (gql: <version>, apple: <version>, google: <version>)
+```bash
+git commit -m "$(cat <<'EOF'
+feat: sync with openiap v<gql-version>
+
+- Update openiap-versions.json (gql: <ver>, apple: <ver>, google: <ver>)
 - Regenerate TypeScript types
-- Update example code for new types
-- Update documentation and llms.txt
-- Add/update tests for new features
+- <List specific new features/changes>
+- Add release blog post
+- <Any other changes made>
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
 
-# Push to remote
+#### 9.4 Push to Remote
+
+```bash
 git push -u origin feat/openiap-sync-<gql-version>
 ```
 
-**Branch naming conventions:**
-- Feature sync: `feat/openiap-sync-<version>` (e.g., `feat/openiap-sync-1.3.12`)
-- Specific feature: `feat/<feature-name>` (e.g., `feat/discount-offer-types`)
-- Bug fix: `fix/<issue-description>` (e.g., `fix/subscription-offer-parsing`)
+---
+
+## Version Bump Guidelines
+
+After sync, the expo-iap version should be bumped:
+
+| Change Type | Version Bump |
+|-------------|--------------|
+| Type-only changes (no API) | PATCH (x.x.+1) |
+| New features (non-breaking) | MINOR (x.+1.0) |
+| Breaking changes | MAJOR (+1.0.0) |
+
+**Note:** Version bump is typically done separately after PR merge.
+
+---
+
+## Example Sync Session
+
+Here's what a complete sync looks like:
+
+```
+1. git pull
+2. Check versions: gql 1.3.12 → 1.3.13, apple 1.3.10 → 1.3.11, google 1.3.23 → 1.3.24
+3. Analyze: Found new WinBackOfferInputIOS type, ProductStatusAndroid type
+4. Update openiap-versions.json
+5. bun run generate:types
+6. Review types diff: +WinBackOfferInputIOS, +ProductStatusAndroid, +PromotionalOfferJwsInputIOS
+7. Check native code: Types flow through automatically, no wrapper changes needed
+8. bun run lint:ci ✓
+9. bun run test ✓
+10. cd example && bun run test ✓
+11. Create docs/blog/2026-01-18-3.5.0-winback-offers.md
+12. git checkout -b feat/openiap-sync-1.3.13
+13. git add . && git commit
+14. git push
+```
+
+---
 
 ## Naming Conventions
 
 - **iOS-only:** `functionNameIOS` (e.g., `syncIOS`, `getPromotedProductIOS`)
-- **Android-only:** `functionNameAndroid` (e.g., `validateReceiptAndroid`)
+- **Android-only:** `functionNameAndroid` (e.g., `consumePurchaseAndroid`)
 - **Cross-platform:** No suffix (e.g., `fetchProducts`, `requestPurchase`)
 - **Error codes:** kebab-case (e.g., `'user-cancelled'`)
 
-## Deprecation Check
-
-Search for deprecated patterns:
-```bash
-cd $IAP_REPOS_HOME/expo-iap
-grep -r "@deprecated" src/
-grep -r "DEPRECATED" src/
-```
-
-Known deprecated functions:
-- `requestProducts` -> Use `fetchProducts`
-- `validateReceipt` -> Use `verifyPurchase`
-- `validateReceiptIOS` -> Use `verifyPurchase`
-
-## Commit Message Format
-
-```text
-feat: add discount offer support
-fix: resolve iOS purchase verification
-docs: update subscription flow guide
-```
+---
 
 ## References
 
-- **CLAUDE.md:** `$IAP_REPOS_HOME/expo-iap/CLAUDE.md`
+- **expo-iap CLAUDE.md:** `/Users/crossplatformkorea/Github/hyochan/expo-iap/CLAUDE.md`
 - **OpenIAP Docs:** [openiap.dev/docs](https://openiap.dev/docs)
-- **expo-iap Docs:** [expo-iap.vercel.app](https://expo-iap.vercel.app)
+- **expo-iap Docs:** [hyochan.github.io/expo-iap](https://hyochan.github.io/expo-iap)

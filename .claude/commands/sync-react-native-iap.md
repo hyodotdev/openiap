@@ -5,6 +5,25 @@ Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan
 **Target Repository:** `$IAP_REPOS_HOME/react-native-iap`
 
 > **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
+>
+> **Default Path:** `/Users/crossplatformkorea/Github/hyochan/react-native-iap`
+
+## CRITICAL: Mandatory Steps Checklist
+
+**YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
+
+| Step | Required | Description |
+|------|----------|-------------|
+| 0. Pull Latest | **YES** | `git pull` before any work |
+| 1. Analyze OpenIAP Changes | **YES** | Review what changed in openiap packages |
+| 2. Sync Versions | **YES** | Update openiap-versions.json |
+| 3. Generate Types | **YES** | `yarn generate:types` |
+| 4. Review Native Code | **YES** | Check if iOS/Android modules need updates |
+| 5. Update API Exports | **IF NEEDED** | Add new functions to index.ts |
+| 6. Run All Checks | **YES** | `yarn typecheck`, `yarn test` |
+| 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
+| 9. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -26,10 +45,15 @@ Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan
 | `android/.../HybridRnIap.kt` | Android implementation | NO |
 | `nitrogen/generated/` | Nitro bridge code | YES |
 | `openiap-versions.json` | Version tracking | NO |
+| `docs/blog/` | Release blog posts | NO |
+| `docs/static/llms.txt` | AI reference (short) | NO |
+| `docs/static/llms-full.txt` | AI reference (detailed) | NO |
+
+---
 
 ## Sync Steps
 
-### 0. Pull Latest (REQUIRED)
+### Step 0: Pull Latest (REQUIRED)
 
 **Always pull the latest code before starting any sync work:**
 
@@ -38,101 +62,193 @@ cd $IAP_REPOS_HOME/react-native-iap
 git pull
 ```
 
-### 1. Sync openiap-versions.json (REQUIRED)
+---
 
-**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
+### Step 1: Analyze OpenIAP Changes (REQUIRED)
+
+**CRITICAL: Before syncing, understand what changed in the openiap monorepo.**
+
+#### 1.1 Check Version Differences
 
 ```bash
-cd $IAP_REPOS_HOME/react-native-iap
+echo "=== OpenIAP Monorepo Versions ==="
+cat /Users/crossplatformkorea/Github/hyodotdev/openiap/openiap-versions.json
 
-# Check current versions in openiap monorepo
-cat $OPENIAP_HOME/openiap/openiap-versions.json
-
-# Update react-native-iap's openiap-versions.json to match:
-# - "gql": should match openiap's "gql" version
-# - "apple": should match openiap's "apple" version
-# - "google": should match openiap's "google" version
+echo "=== react-native-iap Current Versions ==="
+cat $IAP_REPOS_HOME/react-native-iap/openiap-versions.json
 ```
 
-**Version fields to sync:**
-| Field | Source | Purpose |
-|-------|--------|---------|
-| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | TypeScript types version |
-| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
-| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+#### 1.2 Analyze GQL Schema Changes (Types)
 
-### 2. Type Synchronization
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/gql/
+```
+
+Look for:
+- New types/interfaces added
+- New fields on existing types
+- Breaking changes to type signatures
+
+#### 1.3 Analyze Apple Package Changes (iOS Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/apple/
+```
+
+Check `packages/apple/Sources/` for:
+- New public functions in `OpenIapModule.swift`
+- New types in `Types.swift`
+- Changes to serialization
+
+#### 1.4 Analyze Google Package Changes (Android Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/google/
+```
+
+Check `packages/google/openiap/src/main/` for:
+- New public functions in `OpenIapModule.kt`
+- New types in `Types.kt`
+- Changes to Billing Library integration
+
+#### 1.5 Document Changes Found
+
+Create a mental checklist:
+- [ ] New types added?
+- [ ] New API methods exposed?
+- [ ] Breaking changes?
+- [ ] Deprecations?
+- [ ] Bug fixes?
+- [ ] Platform version requirements changed?
+
+---
+
+### Step 2: Sync openiap-versions.json (REQUIRED)
+
+Update react-native-iap's version tracking file to match openiap monorepo.
+
+**Edit `openiap-versions.json`:**
+
+```json
+{
+  "apple": "<match openiap's apple version>",
+  "google": "<match openiap's google version>",
+  "gql": "<match openiap's gql version>"
+}
+```
+
+---
+
+### Step 3: Generate Types (REQUIRED)
 
 ```bash
 cd $IAP_REPOS_HOME/react-native-iap
 
-# Download and regenerate types (uses versions from openiap-versions.json)
+# Download and regenerate types
 yarn generate:types
 
-# Verify types
-yarn typecheck
+# Review what changed
+git diff src/types.ts
 ```
 
-### 3. Native Code Modifications
+**Analyze the type diff carefully:**
+- New interfaces/types?
+- New fields on existing types?
+- Changed field types?
+- New enums or enum values?
 
-#### iOS Native Code
+---
 
-**Location:** `ios/`
+### Step 4: Review Native Code (REQUIRED)
 
-Key files to update:
+**CRITICAL: This step catches bugs that "type-only" syncs miss. DO NOT SKIP.**
 
-- `ios/HybridRnIap.swift` - Main iOS implementation (wraps OpenIAP Swift)
-- `ios/RnIapHelper.swift` - Helper utilities
-- `ios/RnIapLog.swift` - Logging utilities
-- `NitroIap.podspec` - CocoaPods spec
+You must verify that react-native-iap's native code actually passes new options/fields to OpenIAP.
 
-**When to modify:**
+#### 4.1 iOS Native Code Review
 
-- New iOS-specific API methods added to OpenIAP
-- StoreKit 2 API signature changes
-- Type conversion between Swift and Nitro
+**Location:** `ios/HybridRnIap.swift`, `ios/RnIapHelper.swift`
 
-**Update workflow:**
+**Verification steps:**
+
+1. Check what new fields were added to request props in types:
+   ```bash
+   git diff src/types.ts | grep -A5 "RequestPurchaseIosProps\|RequestSubscriptionIosProps\|PurchaseOptions"
+   ```
+
+2. Verify react-native-iap passes these fields to OpenIAP:
+   ```bash
+   # Check if any explicit parameter passing exists that needs updating
+   grep -n "requestPurchase\|getAvailablePurchases" ios/HybridRnIap.swift
+   ```
+
+**iOS typically auto-handles new fields via serialization, but verify!**
+
+#### 4.2 Android Native Code Review
+
+**Location:** `android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt`
+
+**Verification steps:**
+
+1. Check what new fields were added to Android types:
+   ```bash
+   git diff src/types.ts | grep -A5 "Android"
+   ```
+
+2. **CRITICAL**: Check if react-native-iap's native functions pass options to OpenIAP:
+   ```bash
+   # Look for functions that might need options parameter updates
+   grep -n "openIap\." android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt | head -20
+   ```
+
+3. Verify options are forwarded:
+   ```bash
+   # Check if getAvailablePurchases receives and passes options
+   grep -A10 "getAvailablePurchases\|getAvailableItems" android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt
+   ```
+
+**Android often requires explicit option passing - don't assume it works!**
+
+#### 4.3 TypeScript API Review
+
+**Location:** `src/index.ts`, `src/utils/type-bridge.ts`
+
+Check if TypeScript API passes new options to native:
 
 ```bash
-cd $IAP_REPOS_HOME/react-native-iap
-
-# 1. Update apple version in openiap-versions.json
-# 2. Review openiap/packages/apple/Sources/ for changes
-# 3. Update ios/HybridRnIap.swift accordingly
-# 4. Update type-bridge.ts if new types need conversion
-
-# Install updated pod
-cd example/ios && bundle exec pod install --repo-update
+# Check if new options fields are included in the native call
+grep -A20 "getAvailablePurchases" src/index.ts
 ```
 
-#### Android Native Code
+**If a new option exists in types but isn't passed in the TS/native layer, IT WON'T WORK!**
 
-**Location:** `android/src/main/java/com/margelo/nitro/iap/`
+#### 4.4 Decision Matrix (Updated)
 
-Key files to update:
+| Change Type | Action Required |
+|-------------|-----------------|
+| New types only (response types) | NO code change - OpenIAP returns them automatically |
+| New INPUT option fields | **CHECK** - verify native code passes the option |
+| New API function | YES - add wrapper in both native + TS |
+| Breaking type change | YES - check serialization compatibility |
+| New platform feature | YES - add wrapper + expose to JS |
 
-- `HybridRnIap.kt` - Main Android implementation (wraps OpenIAP Kotlin)
-- `RnIapLog.kt` - Logging utilities
+**Common mistakes to catch:**
+- TypeScript has the option in types, but native code passes `null` instead of the options object
+- Android native doesn't parse the new option from the params map
+- Nitro bridge spec doesn't include new field
 
-**When to modify:**
+---
 
-- New Android-specific API methods added to OpenIAP
-- Play Billing API changes
-- Type conversion between Kotlin and Nitro
+### Step 5: Update API Exports (IF NEEDED)
 
-**Update workflow:**
+If new API functions were added to the native modules:
 
-```bash
-cd $IAP_REPOS_HOME/react-native-iap
+#### 5.1 Update Nitro Bridge Spec
 
-# 1. Update google version in openiap-versions.json
-# 2. Review openiap/packages/google/openiap/src/main/ for changes
-# 3. Update android/.../HybridRnIap.kt accordingly
-# 4. Update type-bridge.ts if new types need conversion
-```
-
-### 4. Nitro Bridge Updates
+**Location:** `src/specs/RnIap.nitro.ts`
 
 If types changed that affect the bridge:
 ```bash
@@ -143,244 +259,146 @@ yarn specs
 yarn prepare
 ```
 
-### 5. Build & Test Native Code
+#### 5.2 Update `src/index.ts`
 
-#### iOS Build Test
+Export new functions from the main entry point.
 
-```bash
-cd $IAP_REPOS_HOME/react-native-iap
+#### 5.3 Update `src/hooks/useIAP.ts`
 
-# Install dependencies
-yarn install
+If the new function should be available in the hook.
 
-# Install pods for example
-cd example/ios && bundle exec pod install --repo-update && cd ../..
+---
 
-# Build and run on simulator
-yarn workspace rn-iap-example ios
+### Step 6: Run All Checks (REQUIRED)
 
-# Or build via Xcode
-open example/ios/RnIapExample.xcworkspace
-# Build: Cmd+B, Run: Cmd+R
-```
-
-#### Android Build Test
+**ALL checks must pass before proceeding.**
 
 ```bash
 cd $IAP_REPOS_HOME/react-native-iap
 
-# Build and run on emulator
-yarn workspace rn-iap-example android
+# TypeScript
+yarn typecheck
 
-# Or build via Android Studio
-# Open example/android/ in Android Studio
-# Build > Make Project
-# Run > Run 'app'
+# ESLint
+yarn lint
+
+# Prettier
+yarn lint:prettier
+
+# Tests
+yarn test
 ```
 
-#### Expo Example Test
+**If any check fails, fix before continuing.**
 
-```bash
-cd $IAP_REPOS_HOME/react-native-iap/example-expo
+---
 
-bun setup
-bun ios      # iOS simulator
-bun android  # Android emulator
-```
+### Step 7: Write Blog Post (REQUIRED)
 
-#### Android Horizon Build (Meta Quest)
+**Every sync MUST have a blog post documenting the changes.**
 
-```bash
-cd $IAP_REPOS_HOME/react-native-iap/example
+#### 7.1 Create Blog Post File
 
-# Enable Horizon flavor in gradle.properties
-echo "horizonEnabled=true" >> android/gradle.properties
+**Location:** `docs/blog/`
 
-# Build with Horizon
-yarn android
+**Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
 
-# Revert for Play Store builds
-sed -i '' '/horizonEnabled=true/d' android/gradle.properties
-```
+#### 7.2 Blog Post Template
 
-### 6. Update Example Code (REQUIRED)
+```markdown
+---
+slug: <version>-<short-slug>
+title: <version> - <Short Title>
+authors: [hyochan]
+tags: [release, openiap, <platform-tags>]
+date: YYYY-MM-DD
+---
 
-**React Native Example:** `example/`
+# <version> Release Notes
 
-Key screens to update:
-- `example/src/screens/PurchaseFlow.tsx` - Purchase flow demo
-- `example/src/screens/SubscriptionFlow.tsx` - Subscription demo
-- `example/src/screens/AlternativeBilling.tsx` - Android alt billing
-- `example/navigation/` - Navigation setup
+This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/updates/notes#<anchor>).
 
-**Expo Example:** `example-expo/app/`
+## New Features
 
-**Example Code Guidelines:**
-- Demonstrate ALL new API features with working code
-- Show both success and error handling
-- Include comments explaining the feature
-- Use realistic SKU names and user flows
+### <Feature Name> (<Platform> <Version>+)
 
-**Example for new iOS feature (e.g., Win-Back Offer):**
-```tsx
-// In SubscriptionFlow.tsx
-const handleWinBackOffer = async () => {
-  try {
-    const result = await requestSubscription({
-      sku: 'premium_monthly',
-      winBackOffer: { offerId: 'winback_50_off' }  // iOS 18+
-    });
-    console.log('Win-back applied:', result);
-  } catch (error) {
-    console.error('Win-back failed:', error);
-  }
-};
-```
-
-**Example for new Android feature (e.g., Product Status):**
-```tsx
-// In PurchaseFlow.tsx
-products.forEach((product) => {
-  if (product.productStatusAndroid) {
-    switch (product.productStatusAndroid) {
-      case 'OK': // Show product
-        break;
-      case 'NOT_FOUND': // Show error
-        break;
-      case 'NO_OFFERS_AVAILABLE': // Show ineligible message
-        break;
-    }
-  }
-});
-```
-
-### 7. Update Tests
-
-**Location:** `src/__tests__/`
-
-```bash
-yarn test              # Unit tests
-yarn test:all          # Library + example tests
-yarn test:ci           # CI environment
-yarn test:plugin       # Expo plugin tests
-```
-
-### 8. Update Documentation (REQUIRED)
-
-**Location:** `docs/`
-- `docs/docs/api/` - API reference
-- `docs/docs/types/` - Type definitions
-- `docs/docs/guides/` - Usage guides
-- `docs/docs/examples/` - Code examples
-- Package manager: Bun
-
-**Documentation Checklist:**
-
-For each new feature synced from openiap:
-
-- [ ] **CHANGELOG.md** - Add entry for new version
-- [ ] **API docs** - Function added with signature, params, return type
-- [ ] **Type docs** - New types documented with all fields explained
-- [ ] **Example code** - Working examples in documentation
-- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
-- [ ] **Migration notes** - Breaking changes documented
-
-**Example Documentation Entry:**
-```mdx
-## requestSubscription
-
-### Win-Back Offers (iOS 18+)
-
-Win-back offers re-engage churned subscribers:
+<Description of the feature>
 
 ```typescript
-await requestSubscription({
-  sku: 'premium_monthly',
-  winBackOffer: { offerId: 'winback_50_off' }
-});
-```
+// Example usage
 ```
 
-### 9. Update llms.txt Files
+## Bug Fixes
 
-**Location:** `docs/static/`
+- <Fix description>
 
-Update AI-friendly documentation files when APIs or types change:
+## OpenIAP Versions
 
-- `docs/static/llms.txt` - Quick reference for AI assistants
-- `docs/static/llms-full.txt` - Detailed AI reference
+| Package | Version |
+|---------|---------|
+| openiap-gql | <version> |
+| openiap-google | <version> |
+| openiap-apple | <version> |
 
-**When to update:**
+For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
+```
 
+#### 7.3 Blog Post Guidelines
+
+- **New features**: Explain what they do, show example code, note platform requirements
+- **Breaking changes**: MUST have migration guide with before/after code
+- **Type-only changes**: Still document, mention "TypeScript types updated"
+- **Bug fixes**: List what was fixed
+- **Always link**: Link to OpenIAP release notes
+
+---
+
+### Step 8: Update llms.txt (IF API CHANGED)
+
+**Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
+
+Update if:
 - New API functions added
 - Function signatures changed
-- New types or enums added
+- New types developers need to know about
 - Usage patterns updated
-- Error codes changed
 
-**Content to sync:**
+---
 
-1. Installation commands
-2. Core API reference (useIAP hook, direct functions)
-3. Key types (Product, Purchase, ErrorCode)
-4. Common usage patterns
-5. Platform-specific APIs (iOS/Android suffixes)
-6. Error handling examples
+### Step 9: Commit and Push (REQUIRED)
 
-### 10. Pre-commit Checklist
-
-```bash
-yarn typecheck        # TypeScript
-yarn lint             # ESLint
-yarn lint:prettier    # Prettier
-yarn test             # Tests
-```
-
-**Full Sync Checklist:**
-
-- [ ] openiap-versions.json synced
-- [ ] Types regenerated (`yarn generate:types`)
-- [ ] Nitro specs regenerated if needed (`yarn specs`)
-- [ ] Native code updated (iOS/Android)
-- [ ] Example code demonstrates new features
-- [ ] Tests pass
-- [ ] Documentation updated
-- [ ] llms.txt files updated
-
-### 11. Commit and Push
-
-After completing all sync steps, create a branch and commit the changes:
+#### 9.1 Create Feature Branch
 
 ```bash
 cd $IAP_REPOS_HOME/react-native-iap
 
-# Create feature branch with version number
 git checkout -b feat/openiap-sync-<gql-version>
+```
 
-# Example: feat/openiap-sync-1.3.12
+#### 9.2 Commit with Descriptive Message
 
-# Stage all changes
-git add .
+```bash
+git commit -m "$(cat <<'EOF'
+feat: sync with openiap v<gql-version>
 
-# Commit with descriptive message
-git commit -m "feat: sync with openiap v<gql-version>
-
-- Update openiap-versions.json (gql: <version>, apple: <version>, google: <version>)
+- Update openiap-versions.json (gql: <ver>, apple: <ver>, google: <ver>)
 - Regenerate TypeScript types
-- Update example code for new types
-- Update documentation and llms.txt
-- Add/update tests for new features
+- <List specific new features/changes>
+- Add release blog post
+- <Any other changes made>
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
 
-# Push to remote
+#### 9.3 Push to Remote
+
+```bash
 git push -u origin feat/openiap-sync-<gql-version>
 ```
 
-**Branch naming conventions:**
-- Feature sync: `feat/openiap-sync-<version>` (e.g., `feat/openiap-sync-1.3.12`)
-- Specific feature: `feat/<feature-name>` (e.g., `feat/discount-offer-types`)
-- Bug fix: `fix/<issue-description>` (e.g., `fix/subscription-offer-parsing`)
+---
 
 ## Type Conversion Flow
 
@@ -398,6 +416,8 @@ src/utils/type-bridge.ts (conversion functions)
 src/index.ts (cross-platform API)
 ```
 
+---
+
 ## Naming Conventions
 
 - **iOS-only:** `functionNameIOS` (e.g., `clearTransactionIOS`)
@@ -406,29 +426,7 @@ src/index.ts (cross-platform API)
 - **iOS types:** `ProductIOS`, `PurchaseIOS`
 - **ID fields:** `Id` not `ID` (e.g., `productId`, `transactionId`)
 
-## Deprecation Check
-
-```bash
-cd $IAP_REPOS_HOME/react-native-iap
-grep -r "@deprecated" src/
-grep -r "DEPRECATED" src/
-```
-
-## Error Handling
-
-**Key files:**
-- `src/utils/error.ts` - Error parsing
-- `src/utils/errorMapping.ts` - Native error code mapping
-
-Update if `ErrorCode` enum changes in OpenIAP.
-
-## Commit Message Format
-
-```
-feat: add discount offer support
-fix: resolve iOS purchase verification
-docs: update subscription flow guide
-```
+---
 
 ## References
 

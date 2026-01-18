@@ -5,6 +5,25 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 **Target Repository:** `$IAP_REPOS_HOME/kmp-iap`
 
 > **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
+>
+> **Default Path:** `/Users/crossplatformkorea/Github/hyochan/kmp-iap`
+
+## CRITICAL: Mandatory Steps Checklist
+
+**YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
+
+| Step | Required | Description |
+|------|----------|-------------|
+| 0. Pull Latest | **YES** | `git pull` before any work |
+| 1. Analyze OpenIAP Changes | **YES** | Review what changed in openiap packages |
+| 2. Sync Versions | **YES** | Update openiap-versions.json |
+| 3. Generate Types | **YES** | `./scripts/generate-types.sh` |
+| 4. Review Native Code | **YES** | Check if iOS/Android implementations need updates |
+| 5. Update API Exports | **IF NEEDED** | Add new functions, type aliases, DSL builders |
+| 6. Run All Checks | **YES** | `./gradlew build test detekt` |
+| 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
+| 9. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -24,21 +43,14 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 | `library/src/commonMain/.../dsl/PurchaseDsl.kt` | DSL builders | NO |
 | `library/src/commonMain/.../utils/ErrorMapping.kt` | Error code mapping | NO |
 | `openiap-versions.json` | Version tracking | NO |
+| `docs/blog/` | Release blog posts | NO |
+| `docs/static/llms.txt` | AI reference (short) | NO |
 
-## Version File Structure
-
-```json
-{
-  "gql": "1.2.5",         // GraphQL schema version (for Types.kt)
-  "google": "1.3.7",      // Android openiap-google version
-  "apple": "1.2.39",      // iOS openiap pod version
-  "kmp-iap": "1.0.0-rc.6" // This library version
-}
-```
+---
 
 ## Sync Steps
 
-### 0. Pull Latest (REQUIRED)
+### Step 0: Pull Latest (REQUIRED)
 
 **Always pull the latest code before starting any sync work:**
 
@@ -47,35 +59,93 @@ cd $IAP_REPOS_HOME/kmp-iap
 git pull
 ```
 
-### 1. Sync openiap-versions.json (REQUIRED)
+---
 
-**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
+### Step 1: Analyze OpenIAP Changes (REQUIRED)
+
+**CRITICAL: Before syncing, understand what changed in the openiap monorepo.**
+
+#### 1.1 Check Version Differences
 
 ```bash
-cd $IAP_REPOS_HOME/kmp-iap
+echo "=== OpenIAP Monorepo Versions ==="
+cat /Users/crossplatformkorea/Github/hyodotdev/openiap/openiap-versions.json
 
-# Check current versions in openiap monorepo
-cat $OPENIAP_HOME/openiap/openiap-versions.json
-
-# Update kmp-iap's openiap-versions.json to match:
-# - "gql": should match openiap's "gql" version
-# - "apple": should match openiap's "apple" version
-# - "google": should match openiap's "google" version
+echo "=== kmp-iap Current Versions ==="
+cat $IAP_REPOS_HOME/kmp-iap/openiap-versions.json
 ```
 
-**Version fields to sync:**
-| Field | Source | Purpose |
-|-------|--------|---------|
-| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Kotlin types version |
-| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
-| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+#### 1.2 Analyze GQL Schema Changes (Types)
 
-### 2. Type Synchronization
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/gql/
+```
+
+Look for:
+- New types/interfaces added
+- New fields on existing types
+- Breaking changes to type signatures
+
+#### 1.3 Analyze Apple Package Changes (iOS Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/apple/
+```
+
+Check `packages/apple/Sources/` for:
+- New public functions in `OpenIapModule.swift`
+- New types in `Types.swift`
+- Changes to serialization
+
+#### 1.4 Analyze Google Package Changes (Android Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/google/
+```
+
+Check `packages/google/openiap/src/main/` for:
+- New public functions in `OpenIapModule.kt`
+- New types in `Types.kt`
+- Changes to Billing Library integration
+
+#### 1.5 Document Changes Found
+
+Create a mental checklist:
+- [ ] New types added?
+- [ ] New API methods exposed?
+- [ ] Breaking changes?
+- [ ] Deprecations?
+- [ ] Bug fixes?
+- [ ] Platform version requirements changed?
+
+---
+
+### Step 2: Sync openiap-versions.json (REQUIRED)
+
+Update kmp-iap's version tracking file to match openiap monorepo.
+
+**Edit `openiap-versions.json`:**
+
+```json
+{
+  "gql": "<match openiap's gql version>",
+  "google": "<match openiap's google version>",
+  "apple": "<match openiap's apple version>",
+  "kmp-iap": "<current library version>"
+}
+```
+
+---
+
+### Step 3: Generate Types (REQUIRED)
 
 ```bash
 cd $IAP_REPOS_HOME/kmp-iap
 
-# Download and regenerate types (uses versions from openiap-versions.json)
+# Download and regenerate types
 ./scripts/generate-types.sh
 
 # Verify build
@@ -84,110 +154,136 @@ cd $IAP_REPOS_HOME/kmp-iap
 
 **Types Location:** `library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 
-### 3. Native Code Modifications
-
-#### Android Implementation
-
-**Location:** `library/src/androidMain/kotlin/io/github/hyochan/kmpiap/`
-
-Key files to update:
-
-- `InAppPurchaseAndroid.kt` (879 lines) - Main Android implementation
-- `Helper.kt` (312 lines) - Android utility functions
-- `Platform.kt` - Platform detection
-- `KmpIAP.android.kt` - Android entry point
-
-**When to modify:**
-
-- New Android-specific API methods added to OpenIAP
-- Play Billing API changes
-- Type mapping changes
-
-**Update workflow:**
-
+**Review what changed:**
 ```bash
-cd $IAP_REPOS_HOME/kmp-iap
-
-# 1. Update google version in openiap-versions.json
-# 2. Review openiap/packages/google/openiap/src/main/ for changes
-# 3. Update library/src/androidMain/.../InAppPurchaseAndroid.kt
-# 4. Update Helper.kt for new type conversions
+git diff library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt | head -100
 ```
 
-#### iOS Implementation
+**Analyze the type diff carefully:**
+- New data classes?
+- New fields on existing classes?
+- Changed field types?
+- New enums or enum values?
 
-**Location:** `library/src/iosMain/kotlin/io/github/hyochan/kmpiap/`
+---
 
-Key files to update:
+### Step 4: Review Native Code (REQUIRED)
 
-- `InAppPurchaseIOS.kt` (880 lines) - Main iOS implementation
-- `Platform.kt` - Platform detection
-- `KmpIAP.ios.kt` - iOS entry point
-- `nativeInterop/cinterop/` - C-Interop declarations for Swift
+**CRITICAL: This step catches bugs that "type-only" syncs miss. DO NOT SKIP.**
 
-**When to modify:**
+You must verify that kmp-iap's implementations actually pass new options/fields to OpenIAP.
 
-- New iOS-specific API methods added to OpenIAP
-- StoreKit 2 API changes
-- Swift interop changes
+#### 4.1 Android Implementation Review
 
-**Update workflow:**
+**Location:** `library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt`
+
+**Verification steps:**
+
+1. Check what new fields were added to request types:
+   ```bash
+   git diff library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt | grep -A5 "RequestPurchase\|PurchaseOptions"
+   ```
+
+2. **CRITICAL**: Check if kmp-iap's Android implementation passes options to OpenIAP:
+   ```bash
+   # Look for functions that might need options parameter updates
+   grep -n "openIap\.\|getAvailablePurchases" library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt | head -20
+   ```
+
+3. Verify options are forwarded:
+   ```bash
+   # Check implementation methods
+   grep -A10 "getAvailablePurchases\|suspend fun" library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt | head -50
+   ```
+
+**Android often requires explicit option passing - don't assume it works!**
+
+#### 4.2 iOS Implementation Review
+
+**Location:** `library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt`
+
+**Verification steps:**
+
+1. Check what new fields were added to iOS types:
+   ```bash
+   git diff library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt | grep -A5 "IOS"
+   ```
+
+2. Verify kmp-iap passes these fields to OpenIAP:
+   ```bash
+   # Check Swift interop calls
+   grep -n "openIap\.\|requestPurchase\|getAvailable" library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt | head -20
+   ```
+
+3. Check cinterop if Swift API signature changed:
+   ```bash
+   # Review cinterop declarations
+   cat library/src/nativeInterop/cinterop/*.def
+   ```
+
+#### 4.3 Common API Review
+
+**Location:** `library/src/commonMain/kotlin/io/github/hyochan/kmpiap/KmpIap.kt`
+
+Check if common interface exposes new options:
 
 ```bash
-cd $IAP_REPOS_HOME/kmp-iap
-
-# 1. Update apple version in openiap-versions.json
-# 2. Review openiap/packages/apple/Sources/ for changes
-# 3. Update library/src/iosMain/.../InAppPurchaseIOS.kt
-# 4. Update cinterop if Swift API signature changed
+# Check if new options fields are included in the interface
+grep -A10 "getAvailablePurchases\|suspend fun" library/src/commonMain/kotlin/io/github/hyochan/kmpiap/KmpIap.kt
 ```
 
-### 4. Build & Test Native Code
+**If a new option exists in types but isn't passed in the implementation, IT WON'T WORK!**
 
-#### Android Build Test
+#### 4.4 Decision Matrix (Updated)
 
-```bash
-cd $IAP_REPOS_HOME/kmp-iap
+| Change Type | Action Required |
+|-------------|-----------------|
+| New types only (response types) | NO code change - OpenIAP returns them automatically |
+| New INPUT option fields | **CHECK** - verify implementations pass the option |
+| New API function | YES - add to interface + both platform implementations |
+| Breaking type change | YES - check serialization compatibility |
+| New platform feature | YES - add to interface + platform impl + DSL |
 
-# Compile Android library
-./gradlew :library:compileDebugKotlin
-./gradlew :library:compileReleaseKotlin
+**Common mistakes to catch:**
+- Interface has the option but Android/iOS implementation passes `null`
+- Android implementation doesn't read the new option from params
+- iOS cinterop doesn't map the new Swift parameter
 
-# Build example app
-./gradlew :example:composeApp:assembleDebug
+---
 
-# Run Android tests
-./gradlew :library:testDebugUnitTest
+### Step 5: Update API (IF NEEDED)
 
-# Run on emulator (from Android Studio)
-# Open in Android Studio, run example/composeApp
+If new API functions or options were added:
+
+#### 5.1 Update Type Aliases
+
+**Location:** `library/src/commonMain/kotlin/io/github/hyochan/kmpiap/KmpIap.kt`
+
+```kotlin
+typealias NewType = io.github.hyochan.kmpiap.openiap.NewType
 ```
 
-#### iOS Build Test
+#### 5.2 Update DSL Builders
 
-```bash
-cd $IAP_REPOS_HOME/kmp-iap
+**Location:** `library/src/commonMain/kotlin/io/github/hyochan/kmpiap/dsl/PurchaseDsl.kt`
 
-# Build iOS framework
-./gradlew :library:linkDebugFrameworkIosSimulatorArm64
-./gradlew :library:linkReleaseFrameworkIosArm64
-
-# Build example iOS app
-cd example/iosApp
-pod install --repo-update
-
-# Build via Xcode
-xcodebuild -workspace iosApp.xcworkspace \
-  -scheme iosApp \
-  -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
-  build
-
-# Or open in Xcode and build
-open iosApp.xcworkspace
+```kotlin
+class NewRequestBuilder {
+    // ...
+}
 ```
 
-#### Full Build Matrix
+#### 5.3 Update Error Mapping
+
+**Location:** `library/src/commonMain/kotlin/io/github/hyochan/kmpiap/utils/ErrorMapping.kt`
+
+If error codes changed.
+
+---
+
+### Step 6: Run All Checks (REQUIRED)
+
+**ALL checks must pass before proceeding.**
 
 ```bash
 cd $IAP_REPOS_HOME/kmp-iap
@@ -201,196 +297,126 @@ cd $IAP_REPOS_HOME/kmp-iap
 # Code quality
 ./gradlew :library:detekt
 
-# Publish locally for testing
-./gradlew publishToMavenLocal
+# Or all at once
+./gradlew :library:test :library:build :library:detekt
 ```
 
-### 5. Update Type Aliases
+**If any check fails, fix before continuing.**
 
-If new types added, update `KmpIap.kt`:
-```kotlin
-typealias NewType = io.github.hyochan.kmpiap.openiap.NewType
-```
+---
 
-### 6. Update DSL Builders
+### Step 7: Write Blog Post (REQUIRED)
 
-If new request types added, update `dsl/PurchaseDsl.kt`:
-```kotlin
-class NewRequestBuilder {
-    // ...
-}
-```
+**Every sync MUST have a blog post documenting the changes.**
 
-### 7. Update Example Code (REQUIRED)
+#### 7.1 Create Blog Post File
 
-**Location:** `example/composeApp/`
-- Compose Multiplatform shared UI
-- iOS app: `example/iosApp/`
+**Location:** `docs/blog/`
 
-**Example Code Guidelines:**
-- Demonstrate ALL new API features with working code
-- Show both success and error handling
-- Include comments explaining the feature
-- Use realistic SKU names and user flows
+**Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
 
-**Example for new iOS feature (e.g., Win-Back Offer):**
-```kotlin
-// In Example app Compose UI
-Button(onClick = {
-    scope.launch {
-        val result = kmpIapInstance.requestSubscription {
-            ios {
-                sku = "premium_monthly"
-                winBackOffer = WinBackOfferInputIOS(offerId = "winback_50_off")  // iOS 18+
-            }
-        }
-        println("Win-back applied: $result")
-    }
-}) {
-    Text("Apply Win-Back Offer")
-}
-```
+#### 7.2 Blog Post Template
 
-**Example for new Android feature (e.g., Product Status):**
-```kotlin
-// In Example app Compose UI
-products.forEach { product ->
-    product.productStatusAndroid?.let { status ->
-        when (status) {
-            ProductStatusAndroid.Ok -> { /* Show product */ }
-            ProductStatusAndroid.NotFound -> { /* Show error */ }
-            ProductStatusAndroid.NoOffersAvailable -> { /* Show ineligible message */ }
-            else -> { /* Handle unknown */ }
-        }
-    }
-}
-```
+```markdown
+---
+slug: <version>-<short-slug>
+title: <version> - <Short Title>
+authors: [hyochan]
+tags: [release, openiap, kmp, <platform-tags>]
+date: YYYY-MM-DD
+---
 
-### 8. Update Tests
+# <version> Release Notes
 
-**Location:** `library/src/commonTest/`
+This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/updates/notes#<anchor>).
 
-```bash
-./gradlew :library:test
-./gradlew :library:build
-```
+## New Features
 
-### 9. Update Documentation (REQUIRED)
+### <Feature Name> (<Platform> <Version>+)
 
-**Location:** `docs/`
-- `docs/docs/api/` - API documentation
-- `docs/docs/types/` - Type definitions
-- `docs/docs/examples/` - Code examples
-- `docs/docs/guides/` - Usage guides
-
-**Documentation Checklist:**
-
-For each new feature synced from openiap:
-
-- [ ] **CHANGELOG.md** - Add entry for new version
-- [ ] **API docs** - Function added with signature, params, return type
-- [ ] **Type docs** - New types documented with all fields explained
-- [ ] **Example code** - Working examples in documentation
-- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
-- [ ] **Migration notes** - Breaking changes documented
-
-**Example Documentation Entry:**
-```mdx
-## requestSubscription
-
-### Win-Back Offers (iOS 18+)
-
-Win-back offers re-engage churned subscribers:
+<Description of the feature>
 
 ```kotlin
+// Example usage
 kmpIapInstance.requestSubscription {
     ios {
         sku = "premium_monthly"
-        winBackOffer = WinBackOfferInputIOS(offerId = "winback_50_off")
+        // new option
     }
 }
 ```
+
+## Bug Fixes
+
+- <Fix description>
+
+## OpenIAP Versions
+
+| Package | Version |
+|---------|---------|
+| openiap-gql | <version> |
+| openiap-google | <version> |
+| openiap-apple | <version> |
+
+For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
 ```
 
-### 10. Update llms.txt Files
+#### 7.3 Blog Post Guidelines
 
-**Location:** `docs/static/`
+- **New features**: Explain what they do, show example code, note platform requirements
+- **Breaking changes**: MUST have migration guide with before/after code
+- **Type-only changes**: Still document, mention "Kotlin types updated"
+- **Bug fixes**: List what was fixed
+- **Always link**: Link to OpenIAP release notes
 
-Update AI-friendly documentation files when APIs or types change:
+---
 
-- `docs/static/llms.txt` - Quick reference for AI assistants
-- `docs/static/llms-full.txt` - Detailed AI reference
+### Step 8: Update llms.txt (IF API CHANGED)
 
-**When to update:**
+**Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
 
+Update if:
 - New API functions added
 - Function signatures changed
-- New types or enums added
+- New types developers need to know about
 - DSL builders updated
-- Error codes changed
 
-**Content to sync:**
+---
 
-1. Installation (Gradle dependencies)
-2. Core API reference (KmpIAP interface, DSL patterns)
-3. Key types (Product, Purchase, ErrorCode)
-4. Platform-specific patterns (ios/android DSL blocks)
-5. Error handling examples
+### Step 9: Commit and Push (REQUIRED)
 
-### 11. Pre-commit Checklist
-
-```bash
-./gradlew :library:test
-./gradlew :library:build
-./gradlew :library:detekt
-```
-
-**Full Sync Checklist:**
-
-- [ ] openiap-versions.json synced
-- [ ] Types regenerated (`./scripts/generate-types.sh`)
-- [ ] Type aliases updated in `KmpIap.kt`
-- [ ] DSL builders updated if new request types
-- [ ] Native implementations updated (iOS/Android)
-- [ ] Example code demonstrates new features
-- [ ] Tests pass
-- [ ] Documentation updated
-- [ ] llms.txt files updated
-
-### 12. Commit and Push
-
-After completing all sync steps, create a branch and commit the changes:
+#### 9.1 Create Feature Branch
 
 ```bash
 cd $IAP_REPOS_HOME/kmp-iap
 
-# Create feature branch with version number
 git checkout -b feat/openiap-sync-<gql-version>
+```
 
-# Example: feat/openiap-sync-1.3.12
+#### 9.2 Commit with Descriptive Message
 
-# Stage all changes
-git add .
+```bash
+git commit -m "$(cat <<'EOF'
+feat: sync with openiap v<gql-version>
 
-# Commit with descriptive message
-git commit -m "feat: sync with openiap v<gql-version>
-
-- Update openiap-versions.json (gql: <version>, apple: <version>, google: <version>)
+- Update openiap-versions.json (gql: <ver>, apple: <ver>, google: <ver>)
 - Regenerate Kotlin types
-- Update example code for new types
-- Update documentation and llms.txt
-- Add/update tests for new features
+- <List specific new features/changes>
+- Add release blog post
+- <Any other changes made>
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
 
-# Push to remote
+#### 9.3 Push to Remote
+
+```bash
 git push -u origin feat/openiap-sync-<gql-version>
 ```
 
-**Branch naming conventions:**
-- Feature sync: `feat/openiap-sync-<version>` (e.g., `feat/openiap-sync-1.3.12`)
-- Specific feature: `feat/<feature-name>` (e.g., `feat/discount-offer-types`)
-- Bug fix: `fix/<issue-description>` (e.g., `fix/subscription-offer-parsing`)
+---
 
 ## API Patterns
 
@@ -402,12 +428,6 @@ val products = kmpIapInstance.fetchProducts {
 }
 ```
 
-### Constructor Pattern (for testing)
-```kotlin
-val kmpIAP = KmpIAP()
-kmpIAP.initConnection()
-```
-
 ### Platform-Specific DSL
 ```kotlin
 val purchase = kmpIapInstance.requestPurchase {
@@ -416,6 +436,8 @@ val purchase = kmpIapInstance.requestPurchase {
 }
 ```
 
+---
+
 ## Naming Conventions
 
 - **IAP suffix:** For types contrasting with iOS (e.g., `IapPurchase`)
@@ -423,39 +445,7 @@ val purchase = kmpIapInstance.requestPurchase {
 - **iOS types:** `IOS` suffix when iOS-specific
 - **Android types:** `Android` suffix when Android-specific
 
-## Deprecation Check
-
-```bash
-cd $IAP_REPOS_HOME/kmp-iap
-grep -r "@Deprecated" library/src/
-grep -r "DEPRECATED" library/src/
-```
-
-## Build Commands
-
-```bash
-# Type generation
-./scripts/generate-types.sh
-
-# Building
-./gradlew :library:build
-./gradlew :library:compileDebugKotlin
-./gradlew :example:composeApp:assembleDebug
-
-# Testing
-./gradlew :library:test
-
-# Publishing
-./gradlew publishAllPublicationsToMavenCentral
-```
-
-## Commit Message Format
-
-```
-feat: add discount offer support
-fix: resolve iOS purchase verification
-docs: update subscription flow guide
-```
+---
 
 ## References
 
