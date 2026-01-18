@@ -1216,30 +1216,14 @@ export interface RequestPurchaseIosProps {
   andDangerouslyFinishTransactionAutomatically?: (boolean | null);
   /** App account token for user tracking */
   appAccountToken?: (string | null);
-  /**
-   * Override introductory offer eligibility (iOS 15+, WWDC 2025).
-   * Set to true to indicate the user is eligible for introductory offer,
-   * or false to indicate they are not. When nil, the system determines eligibility.
-   * Back-deployed to iOS 15.
-   */
-  introductoryOfferEligibility?: (boolean | null);
-  /**
-   * JWS promotional offer (iOS 15+, WWDC 2025).
-   * New signature format using compact JWS string for promotional offers.
-   * Back-deployed to iOS 15.
-   */
-  promotionalOfferJWS?: (PromotionalOfferJwsInputIOS | null);
   /** Purchase quantity */
   quantity?: (number | null);
   /** Product SKU */
   sku: string;
   /**
-   * Win-back offer to apply (iOS 18+)
-   * Used to re-engage churned subscribers with a discount or free trial.
-   * Note: Win-back offers only apply to subscription products.
+   * Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+   * iOS only supports promotional offers for auto-renewable subscriptions.
    */
-  winBackOffer?: (WinBackOfferInputIOS | null);
-  /** Discount offer to apply */
   withOffer?: (DiscountOfferInputIOS | null);
 }
 
@@ -1343,6 +1327,10 @@ export interface RequestSubscriptionIosProps {
    * via StoreKit Message (automatic) or subscription offer APIs.
    */
   winBackOffer?: (WinBackOfferInputIOS | null);
+  /**
+   * Promotional offer to apply for subscription purchases.
+   * Requires server-signed offer with nonce, timestamp, keyId, and signature.
+   */
   withOffer?: (DiscountOfferInputIOS | null);
 }
 

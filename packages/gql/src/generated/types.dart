@@ -3646,11 +3646,8 @@ class RequestPurchaseIosProps {
     this.advancedCommerceData,
     this.andDangerouslyFinishTransactionAutomatically,
     this.appAccountToken,
-    this.introductoryOfferEligibility,
-    this.promotionalOfferJWS,
     this.quantity,
     required this.sku,
-    this.winBackOffer,
     this.withOffer,
   });
 
@@ -3663,24 +3660,12 @@ class RequestPurchaseIosProps {
   final bool? andDangerouslyFinishTransactionAutomatically;
   /// App account token for user tracking
   final String? appAccountToken;
-  /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
-  /// Set to true to indicate the user is eligible for introductory offer,
-  /// or false to indicate they are not. When nil, the system determines eligibility.
-  /// Back-deployed to iOS 15.
-  final bool? introductoryOfferEligibility;
-  /// JWS promotional offer (iOS 15+, WWDC 2025).
-  /// New signature format using compact JWS string for promotional offers.
-  /// Back-deployed to iOS 15.
-  final PromotionalOfferJWSInputIOS? promotionalOfferJWS;
   /// Purchase quantity
   final int? quantity;
   /// Product SKU
   final String sku;
-  /// Win-back offer to apply (iOS 18+)
-  /// Used to re-engage churned subscribers with a discount or free trial.
-  /// Note: Win-back offers only apply to subscription products.
-  final WinBackOfferInputIOS? winBackOffer;
-  /// Discount offer to apply
+  /// Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+  /// iOS only supports promotional offers for auto-renewable subscriptions.
   final DiscountOfferInputIOS? withOffer;
 
   factory RequestPurchaseIosProps.fromJson(Map<String, dynamic> json) {
@@ -3688,11 +3673,8 @@ class RequestPurchaseIosProps {
       advancedCommerceData: json['advancedCommerceData'] as String?,
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
-      introductoryOfferEligibility: json['introductoryOfferEligibility'] as bool?,
-      promotionalOfferJWS: json['promotionalOfferJWS'] != null ? PromotionalOfferJWSInputIOS.fromJson(json['promotionalOfferJWS'] as Map<String, dynamic>) : null,
       quantity: json['quantity'] as int?,
       sku: json['sku'] as String,
-      winBackOffer: json['winBackOffer'] != null ? WinBackOfferInputIOS.fromJson(json['winBackOffer'] as Map<String, dynamic>) : null,
       withOffer: json['withOffer'] != null ? DiscountOfferInputIOS.fromJson(json['withOffer'] as Map<String, dynamic>) : null,
     );
   }
@@ -3702,11 +3684,8 @@ class RequestPurchaseIosProps {
       'advancedCommerceData': advancedCommerceData,
       'andDangerouslyFinishTransactionAutomatically': andDangerouslyFinishTransactionAutomatically,
       'appAccountToken': appAccountToken,
-      'introductoryOfferEligibility': introductoryOfferEligibility,
-      'promotionalOfferJWS': promotionalOfferJWS?.toJson(),
       'quantity': quantity,
       'sku': sku,
-      'winBackOffer': winBackOffer?.toJson(),
       'withOffer': withOffer?.toJson(),
     };
   }
@@ -3915,6 +3894,8 @@ class RequestSubscriptionIosProps {
   /// The offer is available when the customer is eligible and can be discovered
   /// via StoreKit Message (automatic) or subscription offer APIs.
   final WinBackOfferInputIOS? winBackOffer;
+  /// Promotional offer to apply for subscription purchases.
+  /// Requires server-signed offer with nonce, timestamp, keyId, and signature.
   final DiscountOfferInputIOS? withOffer;
 
   factory RequestSubscriptionIosProps.fromJson(Map<String, dynamic> json) {

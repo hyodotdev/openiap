@@ -1,6 +1,22 @@
 import Foundation
 import StoreKit
 
+// MARK: - iOS Props Protocol
+
+/// Protocol for iOS purchase/subscription props to enable polymorphic handling.
+/// Both RequestPurchaseIosProps and RequestSubscriptionIosProps conform to this protocol.
+public protocol IosPropsProtocol {
+    var sku: String { get }
+    var quantity: Int? { get }
+    var appAccountToken: String? { get }
+    var withOffer: DiscountOfferInputIOS? { get }
+    var advancedCommerceData: String? { get }
+    var andDangerouslyFinishTransactionAutomatically: Bool? { get }
+}
+
+extension RequestPurchaseIosProps: IosPropsProtocol {}
+extension RequestSubscriptionIosProps: IosPropsProtocol {}
+
 // MARK: - Event Listeners
 
 @available(iOS 15.0, macOS 14.0, *)

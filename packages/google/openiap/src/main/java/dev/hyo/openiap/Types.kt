@@ -3528,19 +3528,6 @@ public data class RequestPurchaseIosProps(
      */
     val appAccountToken: String? = null,
     /**
-     * Override introductory offer eligibility (iOS 15+, WWDC 2025).
-     * Set to true to indicate the user is eligible for introductory offer,
-     * or false to indicate they are not. When nil, the system determines eligibility.
-     * Back-deployed to iOS 15.
-     */
-    val introductoryOfferEligibility: Boolean? = null,
-    /**
-     * JWS promotional offer (iOS 15+, WWDC 2025).
-     * New signature format using compact JWS string for promotional offers.
-     * Back-deployed to iOS 15.
-     */
-    val promotionalOfferJWS: PromotionalOfferJWSInputIOS? = null,
-    /**
      * Purchase quantity
      */
     val quantity: Int? = null,
@@ -3549,13 +3536,8 @@ public data class RequestPurchaseIosProps(
      */
     val sku: String,
     /**
-     * Win-back offer to apply (iOS 18+)
-     * Used to re-engage churned subscribers with a discount or free trial.
-     * Note: Win-back offers only apply to subscription products.
-     */
-    val winBackOffer: WinBackOfferInputIOS? = null,
-    /**
-     * Discount offer to apply
+     * Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+     * iOS only supports promotional offers for auto-renewable subscriptions.
      */
     val withOffer: DiscountOfferInputIOS? = null
 ) {
@@ -3565,11 +3547,8 @@ public data class RequestPurchaseIosProps(
                 advancedCommerceData = json["advancedCommerceData"] as? String,
                 andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean,
                 appAccountToken = json["appAccountToken"] as? String,
-                introductoryOfferEligibility = json["introductoryOfferEligibility"] as? Boolean,
-                promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) },
                 quantity = (json["quantity"] as? Number)?.toInt(),
                 sku = json["sku"] as? String ?: "",
-                winBackOffer = (json["winBackOffer"] as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) },
                 withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) },
             )
         }
@@ -3579,11 +3558,8 @@ public data class RequestPurchaseIosProps(
         "advancedCommerceData" to advancedCommerceData,
         "andDangerouslyFinishTransactionAutomatically" to andDangerouslyFinishTransactionAutomatically,
         "appAccountToken" to appAccountToken,
-        "introductoryOfferEligibility" to introductoryOfferEligibility,
-        "promotionalOfferJWS" to promotionalOfferJWS?.toJson(),
         "quantity" to quantity,
         "sku" to sku,
-        "winBackOffer" to winBackOffer?.toJson(),
         "withOffer" to withOffer?.toJson(),
     )
 }
@@ -3789,6 +3765,10 @@ public data class RequestSubscriptionIosProps(
      * via StoreKit Message (automatic) or subscription offer APIs.
      */
     val winBackOffer: WinBackOfferInputIOS? = null,
+    /**
+     * Promotional offer to apply for subscription purchases.
+     * Requires server-signed offer with nonce, timestamp, keyId, and signature.
+     */
     val withOffer: DiscountOfferInputIOS? = null
 ) {
     companion object {

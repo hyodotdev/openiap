@@ -1263,7 +1263,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return first
     }
 
-    private func resolveIosPurchaseProps(from params: RequestPurchaseProps) throws -> RequestPurchaseIosProps {
+    /// Resolves iOS purchase props from request params.
+    /// Returns either RequestPurchaseIosProps or RequestSubscriptionIosProps based on request type.
+    private func resolveIosPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
         switch params.request {
         case let .purchase(platforms):
             if let ios = platforms.ios {
@@ -1271,17 +1273,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
         case let .subscription(platforms):
             if let ios = platforms.ios {
-                return RequestPurchaseIosProps(
-                    advancedCommerceData: ios.advancedCommerceData,
-                    andDangerouslyFinishTransactionAutomatically: ios.andDangerouslyFinishTransactionAutomatically,
-                    appAccountToken: ios.appAccountToken,
-                    introductoryOfferEligibility: ios.introductoryOfferEligibility,
-                    promotionalOfferJWS: ios.promotionalOfferJWS,
-                    quantity: ios.quantity,
-                    sku: ios.sku,
-                    winBackOffer: ios.winBackOffer,
-                    withOffer: ios.withOffer
-                )
+                return ios
             }
         }
         throw makePurchaseError(code: .purchaseError, message: "Missing iOS purchase parameters")

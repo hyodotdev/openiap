@@ -3054,14 +3054,8 @@ class RequestPurchaseIosProps:
 	var app_account_token: String
 	## Purchase quantity
 	var quantity: int
-	## Discount offer to apply
+	## Promotional offer to apply (subscriptions only, ignored for one-time purchases).
 	var with_offer: DiscountOfferInputIOS
-	## Win-back offer to apply (iOS 18+)
-	var win_back_offer: WinBackOfferInputIOS
-	## JWS promotional offer (iOS 15+, WWDC 2025).
-	var promotional_offer_jws: PromotionalOfferJWSInputIOS
-	## Override introductory offer eligibility (iOS 15+, WWDC 2025).
-	var introductory_offer_eligibility: bool
 	## Advanced commerce data token (iOS 15+).
 	var advanced_commerce_data: String
 
@@ -3080,18 +3074,6 @@ class RequestPurchaseIosProps:
 				obj.with_offer = DiscountOfferInputIOS.from_dict(data["withOffer"])
 			else:
 				obj.with_offer = data["withOffer"]
-		if data.has("winBackOffer") and data["winBackOffer"] != null:
-			if data["winBackOffer"] is Dictionary:
-				obj.win_back_offer = WinBackOfferInputIOS.from_dict(data["winBackOffer"])
-			else:
-				obj.win_back_offer = data["winBackOffer"]
-		if data.has("promotionalOfferJWS") and data["promotionalOfferJWS"] != null:
-			if data["promotionalOfferJWS"] is Dictionary:
-				obj.promotional_offer_jws = PromotionalOfferJWSInputIOS.from_dict(data["promotionalOfferJWS"])
-			else:
-				obj.promotional_offer_jws = data["promotionalOfferJWS"]
-		if data.has("introductoryOfferEligibility") and data["introductoryOfferEligibility"] != null:
-			obj.introductory_offer_eligibility = data["introductoryOfferEligibility"]
 		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
 			obj.advanced_commerce_data = data["advancedCommerceData"]
 		return obj
@@ -3111,18 +3093,6 @@ class RequestPurchaseIosProps:
 				dict["withOffer"] = with_offer.to_dict()
 			else:
 				dict["withOffer"] = with_offer
-		if win_back_offer != null:
-			if win_back_offer.has_method("to_dict"):
-				dict["winBackOffer"] = win_back_offer.to_dict()
-			else:
-				dict["winBackOffer"] = win_back_offer
-		if promotional_offer_jws != null:
-			if promotional_offer_jws.has_method("to_dict"):
-				dict["promotionalOfferJWS"] = promotional_offer_jws.to_dict()
-			else:
-				dict["promotionalOfferJWS"] = promotional_offer_jws
-		if introductory_offer_eligibility != null:
-			dict["introductoryOfferEligibility"] = introductory_offer_eligibility
 		if advanced_commerce_data != null:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict
@@ -3328,6 +3298,7 @@ class RequestSubscriptionIosProps:
 	var and_dangerously_finish_transaction_automatically: bool
 	var app_account_token: String
 	var quantity: int
+	## Promotional offer to apply for subscription purchases.
 	var with_offer: DiscountOfferInputIOS
 	## Win-back offer to apply (iOS 18+)
 	var win_back_offer: WinBackOfferInputIOS
