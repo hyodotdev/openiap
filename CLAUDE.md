@@ -90,10 +90,11 @@ claude --context knowledge/_claude-context/context.md
 
 1. Fetches unresolved PR review threads
 2. For each comment:
-   - **Valid issue** → Fix code, commit, resolve thread
+   - **Valid issue** → Fix code
    - **Invalid/wrong** → Reply with explanation (don't resolve)
-3. Runs tests to verify fixes
-4. Pushes changes and resolves fixed threads
+3. **Run lint, typecheck, tests** (BEFORE commit)
+4. If all pass → Commit and push
+5. Resolve fixed threads
 
 ## For More Details
 

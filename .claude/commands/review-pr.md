@@ -14,12 +14,14 @@ Automated workflow to review, fix, and respond to PR review comments.
 2. Analyze each unresolved comment
          ↓
 3. For each comment:
-   ├─ Valid → Fix code, commit, resolve thread
+   ├─ Valid → Fix code
    └─ Invalid → Add reply comment explaining why
          ↓
-4. Run tests to verify fixes
+4. Run lint, typecheck, tests (BEFORE commit)
          ↓
-5. Push all changes
+5. If all pass → Commit and push
+         ↓
+6. Resolve fixed threads
 ```
 
 ## Steps
@@ -121,9 +123,37 @@ mutation {
 - **Disagree with style:**
   > "This follows the project convention defined in [CLAUDE.md/CONVENTION.md]. [Quote relevant section]."
 
-### 6. Commit and Push Fixes
+### 6. Run Lint, Typecheck, Tests (BEFORE Commit)
 
-After fixing all valid issues:
+**CRITICAL**: Always verify fixes don't break anything BEFORE committing:
+
+```bash
+# Based on changed files, run relevant checks:
+
+# scripts/agent changes
+cd scripts/agent && bun test
+
+# packages/gql changes
+cd packages/gql && bun run lint && bun run typecheck
+
+# packages/docs changes
+cd packages/docs && bun run lint && bun run typecheck
+
+# packages/apple changes
+cd packages/apple && swift build && swift test
+
+# packages/google changes
+cd packages/google && ./gradlew :openiap:compileDebugKotlin
+```
+
+**If any check fails:**
+1. Fix the issue
+2. Re-run the failing check
+3. Only proceed to commit when ALL checks pass
+
+### 7. Commit and Push Fixes
+
+After ALL checks pass, commit the changes:
 
 ```bash
 # Stage all changes
@@ -138,18 +168,6 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 # Push to remote
 git push
-```
-
-### 7. Run Tests
-
-Verify fixes don't break anything:
-
-```bash
-# Run relevant tests based on changed files
-bun test                           # scripts/agent tests
-cd packages/gql && bun run typecheck  # TypeScript
-cd packages/apple && swift build      # Swift
-cd packages/google && ./gradlew :openiap:compileDebugKotlin  # Kotlin
 ```
 
 ### 8. Resolve Fixed Threads
@@ -234,5 +252,6 @@ After running, provide a summary:
 2. **Check conventions** - Reference CLAUDE.md and package CONVENTION.md files
 3. **Be respectful** - When disagreeing, explain clearly and cite sources
 4. **Don't over-fix** - Only fix what the review asks for, don't add extra changes
-5. **Test before resolving** - Ensure fixes don't break anything
+5. **ALWAYS run lint/tsc/tests BEFORE commit** - Never commit if any check fails
 6. **Group commits** - Batch related fixes into logical commits
+7. **Fix test failures** - If tests fail after your fix, fix the issue before committing
