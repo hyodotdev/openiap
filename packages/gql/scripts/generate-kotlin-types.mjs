@@ -203,8 +203,16 @@ for (const interfaceType of interfaces) {
 for (const objectType of objects) {
   objectNames.add(objectType.name);
 }
+// Track which input types have required (non-nullable) fields
+// These will have nullable fromJson() methods
+const inputsWithRequiredFields = new Set();
 for (const inputType of inputs) {
   inputNames.add(inputType.name);
+  const fields = Object.values(inputType.getFields());
+  const hasRequired = fields.some((field) => field.type instanceof GraphQLNonNull);
+  if (hasRequired) {
+    inputsWithRequiredFields.add(inputType.name);
+  }
 }
 for (const unionType of unions) {
   unionNames.add(unionType.name);
@@ -330,20 +338,20 @@ const getOperationReturnType = (graphqlType) => {
   };
 };
 
-const buildFromJsonExpression = (metadata, sourceExpression, isListElement = false) => {
+const buildFromJsonExpression = (metadata, sourceExpression, isListElement = false, forNullableFromJson = false) => {
   if (metadata.kind === 'list') {
-    const element = buildFromJsonExpression(metadata.elementType, 'it', true);
+    const element = buildFromJsonExpression(metadata.elementType, 'it', true, forNullableFromJson);
     // Use mapNotNull for non-nullable elements to filter out nulls and get List<T>
     // Use map for nullable elements to keep nulls and get List<T?>
     const mapFn = metadata.elementType.nullable ? 'map' : 'mapNotNull';
-    if (metadata.nullable) {
+    if (metadata.nullable || forNullableFromJson) {
       return `(${sourceExpression} as? List<*>)?.${mapFn} { ${element} }`;
     }
     return `(${sourceExpression} as? List<*>)?.${mapFn} { ${element} } ?: emptyList()`;
   }
   if (metadata.kind === 'scalar') {
-    // When inside map/mapNotNull, return nullable expression for filtering
-    const useNullable = metadata.nullable || isListElement;
+    // When inside map/mapNotNull or nullable fromJson, return nullable expression for filtering
+    const useNullable = metadata.nullable || isListElement || forNullableFromJson;
     switch (metadata.name) {
       case 'Float':
         return useNullable
@@ -386,10 +394,19 @@ const buildFromJsonExpression = (metadata, sourceExpression, isListElement = fal
   }
   if (['object', 'input', 'interface', 'union'].includes(metadata.kind)) {
     const callTarget = metadata.name ?? metadata.kotlinType;
-    if (metadata.nullable) {
+    // Check if this input type has a nullable fromJson (has required fields)
+    const hasNullableFromJson = metadata.kind === 'input' && inputsWithRequiredFields.has(callTarget);
+
+    if (metadata.nullable || forNullableFromJson) {
+      // Already nullable context - just return nullable
       return `(${sourceExpression} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) }`;
     }
-    // For non-nullable objects, still use safe cast but throw if null
+    if (hasNullableFromJson) {
+      // Input has required fields, fromJson returns nullable
+      // Use flatMap to handle the nullable return from fromJson
+      return `(${sourceExpression} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) } ?: throw IllegalArgumentException("Missing or invalid required object for ${callTarget}")`;
+    }
+    // For non-nullable objects with non-nullable fromJson
     return `(${sourceExpression} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ${callTarget}")`;
   }
   return metadata.nullable ? `${sourceExpression}` : `${sourceExpression}`;
@@ -627,14 +644,40 @@ const printInput = (inputType) => {
   });
   lines.push(') {');
   lines.push('    companion object {');
-  lines.push(`        fun fromJson(json: Map<String, Any?>): ${inputType.name} {`);
-  lines.push(`            return ${inputType.name}(`);
-  fieldInfos.forEach(({ field, propertyName, metadata }) => {
-    const expression = buildFromJsonExpression(metadata, `json["${field.name}"]`);
-    lines.push(`                ${propertyName} = ${expression},`);
-  });
-  lines.push('            )');
-  lines.push('        }');
+
+  // Check if input has any non-nullable fields - if so, fromJson should return nullable
+  const hasRequiredFields = fieldInfos.some(({ metadata }) => !metadata.nullable);
+
+  if (hasRequiredFields) {
+    // Nullable fromJson pattern: returns null if any required field is missing
+    lines.push(`        fun fromJson(json: Map<String, Any?>): ${inputType.name}? {`);
+    // Parse all fields with nullable expressions
+    fieldInfos.forEach(({ field, propertyName, metadata }) => {
+      const expression = buildFromJsonExpression(metadata, `json["${field.name}"]`, false, true);
+      lines.push(`            val ${propertyName} = ${expression}`);
+    });
+    // Check required fields are not null
+    const requiredFields = fieldInfos.filter(({ metadata }) => !metadata.nullable);
+    const nullChecks = requiredFields.map(({ propertyName }) => `${propertyName} == null`).join(' || ');
+    lines.push(`            if (${nullChecks}) return null`);
+    lines.push(`            return ${inputType.name}(`);
+    fieldInfos.forEach(({ propertyName }) => {
+      // Kotlin smart cast applies after null check, so no !! needed
+      lines.push(`                ${propertyName} = ${propertyName},`);
+    });
+    lines.push('            )');
+    lines.push('        }');
+  } else {
+    // All fields are nullable, use simple non-null fromJson
+    lines.push(`        fun fromJson(json: Map<String, Any?>): ${inputType.name} {`);
+    lines.push(`            return ${inputType.name}(`);
+    fieldInfos.forEach(({ field, propertyName, metadata }) => {
+      const expression = buildFromJsonExpression(metadata, `json["${field.name}"]`);
+      lines.push(`                ${propertyName} = ${expression},`);
+    });
+    lines.push('            )');
+    lines.push('        }');
+  }
   lines.push('    }', '');
   lines.push('    fun toJson(): Map<String, Any?> = mapOf(');
   fieldInfos.forEach(({ field, propertyName, metadata }) => {

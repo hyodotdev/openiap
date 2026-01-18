@@ -51,6 +51,60 @@ swift test   # Run tests
 swift build  # Build package
 ```
 
+### Objective-C Bridge (CRITICAL for kmp-iap)
+
+**IMPORTANT**: When updating iOS functions in `OpenIapModule.swift`, you **MUST** also update `OpenIapModule+ObjC.swift`.
+
+The Objective-C bridge (`OpenIapModule+ObjC.swift`) exposes Swift async functions to Objective-C/Kotlin for:
+- **kmp-iap** (Kotlin Multiplatform via cinterop)
+- Any other platform that requires Objective-C interoperability
+
+#### When to Update ObjC Bridge
+
+Update `OpenIapModule+ObjC.swift` when:
+- [ ] Adding new public functions to `OpenIapModule.swift`
+- [ ] Changing function signatures (parameters, return types)
+- [ ] Adding new input options or parameters
+- [ ] Changing existing function behavior
+
+#### Bridge Pattern
+
+Every Swift async function needs an Objective-C completion handler wrapper:
+
+```swift
+// In OpenIapModule.swift (Swift async)
+public func newFeatureIOS(param: String) async throws -> ResultType {
+    // implementation
+}
+
+// In OpenIapModule+ObjC.swift (ObjC bridge - MUST ADD)
+@objc func newFeatureIOSWithParam(
+    _ param: String,
+    completion: @escaping (Any?, Error?) -> Void
+) {
+    Task {
+        do {
+            let result = try await newFeatureIOS(param: param)
+            let dictionary = OpenIapSerialization.encode(result)
+            completion(dictionary, nil)
+        } catch {
+            completion(nil, error)
+        }
+    }
+}
+```
+
+#### Files to Update Together
+
+| Swift Function Changed | ObjC Bridge Required |
+|------------------------|----------------------|
+| `OpenIapModule.swift` | `OpenIapModule+ObjC.swift` |
+
+**Verification**: After updating, run:
+```bash
+swift build  # Verifies ObjC bridge compiles
+```
+
 ---
 
 ## Google Package (packages/google)

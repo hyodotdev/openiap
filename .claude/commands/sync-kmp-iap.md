@@ -19,6 +19,7 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 | 2. Sync Versions | **YES** | Update openiap-versions.json |
 | 3. Generate Types | **YES** | `./scripts/generate-types.sh` |
 | 4. Review Native Code | **YES** | Check if iOS/Android implementations need updates |
+| 4.5. **Verify ObjC Bridge** | **YES (iOS)** | Check `OpenIapModule+ObjC.swift` matches Swift functions |
 | 5. Update API Exports | **IF NEEDED** | Add new functions, type aliases, DSL builders |
 | 6. Run All Checks | **YES** | `./gradlew build test detekt` |
 | 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
@@ -96,6 +97,7 @@ git log -10 --oneline -- packages/apple/
 
 Check `packages/apple/Sources/` for:
 - New public functions in `OpenIapModule.swift`
+- **CRITICAL: Corresponding updates in `OpenIapModule+ObjC.swift`** (see Step 4.5)
 - New types in `Types.swift`
 - Changes to serialization
 
@@ -234,11 +236,77 @@ grep -A10 "getAvailablePurchases\|suspend fun" library/src/commonMain/kotlin/io/
 
 **If a new option exists in types but isn't passed in the implementation, IT WON'T WORK!**
 
-#### 4.4 Decision Matrix (Updated)
+#### 4.5 Objective-C Bridge Verification (CRITICAL for kmp-iap)
+
+**kmp-iap uses the Objective-C bridge to call Swift functions from Kotlin via cinterop.**
+
+**Location:** `packages/apple/Sources/OpenIapModule+ObjC.swift`
+
+**This is the #1 cause of iOS sync failures in kmp-iap.**
+
+**Verification steps:**
+
+1. Compare Swift functions with ObjC bridge:
+   ```bash
+   # List all public Swift async functions
+   grep -n "public func\|public static func" /Users/crossplatformkorea/Github/hyodotdev/openiap/packages/apple/Sources/OpenIapModule.swift | head -30
+
+   # List all ObjC bridge functions
+   grep -n "@objc func" /Users/crossplatformkorea/Github/hyodotdev/openiap/packages/apple/Sources/OpenIapModule+ObjC.swift | head -30
+   ```
+
+2. **For EACH new/modified Swift function**, verify:
+   - [ ] ObjC wrapper exists in `OpenIapModule+ObjC.swift`
+   - [ ] All parameters are forwarded correctly
+   - [ ] Return type is serialized via `OpenIapSerialization.encode()`
+   - [ ] New input options are passed (not hardcoded to `nil`)
+
+3. Check for missing bridges:
+   ```bash
+   # Find Swift functions that might be missing ObjC bridges
+   # Compare the counts - they should roughly match
+   echo "Swift public functions:"
+   grep -c "public func" /Users/crossplatformkorea/Github/hyodotdev/openiap/packages/apple/Sources/OpenIapModule.swift
+
+   echo "ObjC bridge functions:"
+   grep -c "@objc func" /Users/crossplatformkorea/Github/hyodotdev/openiap/packages/apple/Sources/OpenIapModule+ObjC.swift
+   ```
+
+**ObjC Bridge Pattern:**
+
+```swift
+// Swift async function (OpenIapModule.swift)
+public func newFeatureIOS(option: NewOption?) async throws -> ResultType
+
+// ObjC bridge wrapper (OpenIapModule+ObjC.swift) - MUST EXIST
+@objc func newFeatureIOSWithOption(
+    _ option: [String: Any]?,
+    completion: @escaping (Any?, Error?) -> Void
+) {
+    Task {
+        do {
+            let parsedOption = option.flatMap { NewOption.from($0) }
+            let result = try await newFeatureIOS(option: parsedOption)
+            let dictionary = OpenIapSerialization.encode(result)
+            completion(dictionary, nil)
+        } catch {
+            completion(nil, error)
+        }
+    }
+}
+```
+
+**Common ObjC bridge issues:**
+- New Swift function added but no ObjC wrapper → kmp-iap can't call it
+- New parameter added to Swift but ObjC wrapper passes `nil` → feature doesn't work
+- Swift signature changed but ObjC wrapper not updated → compile error or runtime crash
+
+#### 4.6 Decision Matrix (Updated)
 
 | Change Type | Action Required |
 |-------------|-----------------|
 | New types only (response types) | NO code change - OpenIAP returns them automatically |
+| New Swift function | **CHECK ObjC bridge** - wrapper must exist |
 | New INPUT option fields | **CHECK** - verify implementations pass the option |
 | New API function | YES - add to interface + both platform implementations |
 | Breaking type change | YES - check serialization compatibility |

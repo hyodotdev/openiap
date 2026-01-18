@@ -163,9 +163,36 @@ import StoreKit
         offer: [String: Any]?,
         completion: @escaping (Any?, Error?) -> Void
     ) {
+        // Call the full method with nil for new options (backward compatibility)
+        requestSubscriptionWithSku(
+            sku,
+            offer: offer,
+            introductoryOfferEligibility: nil,
+            promotionalOfferJWS: nil,
+            winBackOfferId: nil,
+            completion: completion
+        )
+    }
+
+    /// Extended subscription request with iOS 15+ / iOS 18+ options
+    /// - Parameters:
+    ///   - sku: The product SKU
+    ///   - offer: Legacy promotional offer (DiscountOfferInputIOS)
+    ///   - introductoryOfferEligibility: Override introductory offer eligibility (iOS 15+, WWDC 2025)
+    ///   - promotionalOfferJWS: JWS promotional offer dict with "offerId" and "jws" keys (iOS 15+, WWDC 2025)
+    ///   - winBackOfferId: Win-back offer ID (iOS 18+)
+    ///   - completion: Completion handler
+    @objc func requestSubscriptionWithSku(
+        _ sku: String,
+        offer: [String: Any]?,
+        introductoryOfferEligibility: NSNumber?,
+        promotionalOfferJWS: [String: Any]?,
+        winBackOfferId: String?,
+        completion: @escaping (Any?, Error?) -> Void
+    ) {
         Task {
             do {
-                // For subscription request, type must be .subs
+                // Parse legacy promotional offer
                 let discountOffer: DiscountOfferInputIOS? = if let offer = offer,
                     let identifier = offer["identifier"] as? String,
                     let keyIdentifier = offer["keyIdentifier"] as? String,
@@ -183,10 +210,29 @@ import StoreKit
                     nil
                 }
 
+                // Parse JWS promotional offer (iOS 15+, WWDC 2025)
+                let jwsOffer: PromotionalOfferJWSInputIOS? = if let jwsDict = promotionalOfferJWS,
+                    let offerId = jwsDict["offerId"] as? String,
+                    let jws = jwsDict["jws"] as? String {
+                    PromotionalOfferJWSInputIOS(jws: jws, offerId: offerId)
+                } else {
+                    nil
+                }
+
+                // Parse win-back offer (iOS 18+)
+                let winBack: WinBackOfferInputIOS? = if let offerId = winBackOfferId {
+                    WinBackOfferInputIOS(offerId: offerId)
+                } else {
+                    nil
+                }
+
                 let iosProps = RequestSubscriptionIosProps(
                     andDangerouslyFinishTransactionAutomatically: nil,
                     appAccountToken: nil,
+                    introductoryOfferEligibility: introductoryOfferEligibility?.boolValue,
+                    promotionalOfferJWS: jwsOffer,
                     sku: sku,
+                    winBackOffer: winBack,
                     withOffer: discountOffer
                 )
                 let props = RequestPurchaseProps(

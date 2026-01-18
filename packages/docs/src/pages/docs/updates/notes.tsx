@@ -26,14 +26,14 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // GQL 1.3.14 / Google 1.3.25 / Apple 1.3.12 - Jan 19, 2026
+    // GQL 1.3.14 / Google 1.3.25 / Apple 1.3.13 - Jan 19, 2026
     {
-      id: 'gql-1-3-14-google-1-3-25-apple-1-3-12',
+      id: 'gql-1-3-14-google-1-3-25-apple-1-3-13',
       date: new Date('2026-01-19'),
       element: (
-        <div key="gql-1-3-14-google-1-3-25-apple-1-3-12" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-14-google-1-3-25-apple-1-3-12" level="h4">
-            📅 openiap-gql v1.3.14 / openiap-google v1.3.25 / openiap-apple v1.3.12 - Breaking Changes & Bug Fixes
+        <div key="gql-1-3-14-google-1-3-25-apple-1-3-13" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-14-google-1-3-25-apple-1-3-13" level="h4">
+            📅 openiap-gql v1.3.14 / openiap-google v1.3.25 / openiap-apple v1.3.13 - Breaking Changes & Bug Fixes
           </AnchorLink>
 
           <p><strong>iOS - Subscription-Only Props Cleanup (Breaking Change):</strong></p>
@@ -81,6 +81,22 @@ product.price         // 9.99
 product.subscriptionOffers[0].displayPrice   // "$0.00"
 product.subscriptionOffers[0].paymentMode    // "free-trial"`}
           </pre>
+
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
+
+          <p><strong>Apple v1.3.13 - Objective-C Bridge Updates:</strong></p>
+          <p>
+            Updated <code>OpenIapModule+ObjC.swift</code> to properly expose new Swift async functions to Objective-C.
+            This is critical for <strong>kmp-iap</strong> and other platforms using Kotlin/Native cinterop.
+          </p>
+          <ul>
+            <li>Added ObjC wrappers for new purchase option parameters</li>
+            <li>Ensures all Swift async functions are callable from Kotlin Multiplatform</li>
+          </ul>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Note: When updating iOS functions in OpenIapModule.swift, always update OpenIapModule+ObjC.swift as well.
+            See <a href="https://github.com/hyodotdev/openiap/blob/main/knowledge/internal/04-platform-packages.md#objective-c-bridge-critical-for-kmp-iap" target="_blank" rel="noopener noreferrer">Objective-C Bridge Documentation</a>.
+          </p>
 
           <p><strong>References:</strong></p>
           <ul>

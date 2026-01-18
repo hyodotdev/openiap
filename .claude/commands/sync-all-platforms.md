@@ -326,6 +326,21 @@ For each platform SDK, check:
    - [ ] Error messages localized if needed
    - [ ] Proper error propagation
 
+5. **Objective-C Bridge (CRITICAL for kmp-iap)**
+   - [ ] **New Swift functions have ObjC wrappers** in `OpenIapModule+ObjC.swift`
+   - [ ] **ObjC wrappers forward ALL parameters** (not hardcoded to `nil`)
+   - [ ] **Serialization uses `OpenIapSerialization.encode()`**
+
+   **Why this matters:** kmp-iap uses Kotlin/Native cinterop which requires Objective-C compatible APIs. Swift async functions are NOT directly callable from Kotlin - they need completion handler wrappers.
+
+   **Verification:**
+   ```bash
+   # Compare Swift functions vs ObjC wrappers
+   grep -c "public func" packages/apple/Sources/OpenIapModule.swift
+   grep -c "@objc func" packages/apple/Sources/OpenIapModule+ObjC.swift
+   # Counts should roughly match
+   ```
+
 ### Android Native Code Updates
 
 1. **New API Methods**
