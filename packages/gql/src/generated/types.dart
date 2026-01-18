@@ -577,6 +577,41 @@ enum ProductQueryType {
   String toJson() => value;
 }
 
+/// Status code for individual products returned from queryProductDetailsAsync (Android)
+/// Prior to 8.0, products that couldn't be fetched were simply not returned.
+/// With 8.0+, these products are returned with a status code explaining why.
+/// Available in Google Play Billing Library 8.0.0+
+enum ProductStatusAndroid {
+  /// Product was successfully fetched
+  Ok('ok'),
+  /// Product not found - the SKU doesn't exist in the Play Console
+  NotFound('not-found'),
+  /// No offers available for the user - product exists but user is not eligible for any offers
+  NoOffersAvailable('no-offers-available'),
+  /// Unknown error occurred while fetching the product
+  Unknown('unknown');
+
+  const ProductStatusAndroid(this.value);
+  final String value;
+
+  factory ProductStatusAndroid.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'ok':
+        return ProductStatusAndroid.Ok;
+      case 'not-found':
+        return ProductStatusAndroid.NotFound;
+      case 'no-offers-available':
+        return ProductStatusAndroid.NoOffersAvailable;
+      case 'unknown':
+        return ProductStatusAndroid.Unknown;
+    }
+    throw ArgumentError('Unknown ProductStatusAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
 enum ProductType {
   InApp('in-app'),
   Subs('subs');
@@ -667,9 +702,41 @@ enum PurchaseVerificationProvider {
   String toJson() => value;
 }
 
+/// Sub-response codes for more granular purchase error information (Android)
+/// Available in Google Play Billing Library 8.0.0+
+enum SubResponseCodeAndroid {
+  /// No specific sub-response code applies
+  NoApplicableSubResponseCode('no-applicable-sub-response-code'),
+  /// User's payment method has insufficient funds
+  PaymentDeclinedDueToInsufficientFunds('payment-declined-due-to-insufficient-funds'),
+  /// User doesn't meet subscription offer eligibility requirements
+  UserIneligible('user-ineligible');
+
+  const SubResponseCodeAndroid(this.value);
+  final String value;
+
+  factory SubResponseCodeAndroid.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'no-applicable-sub-response-code':
+        return SubResponseCodeAndroid.NoApplicableSubResponseCode;
+      case 'payment-declined-due-to-insufficient-funds':
+        return SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds;
+      case 'user-ineligible':
+        return SubResponseCodeAndroid.UserIneligible;
+    }
+    throw ArgumentError('Unknown SubResponseCodeAndroid value: $value');
+  }
+
+  String toJson() => value;
+}
+
 enum SubscriptionOfferTypeIOS {
   Introductory('introductory'),
-  Promotional('promotional');
+  Promotional('promotional'),
+  /// Win-back offer type (iOS 18+)
+  /// Used to re-engage churned subscribers with a discount or free trial.
+  WinBack('win-back');
 
   const SubscriptionOfferTypeIOS(this.value);
   final String value;
@@ -681,6 +748,8 @@ enum SubscriptionOfferTypeIOS {
         return SubscriptionOfferTypeIOS.Introductory;
       case 'promotional':
         return SubscriptionOfferTypeIOS.Promotional;
+      case 'win-back':
+        return SubscriptionOfferTypeIOS.WinBack;
     }
     throw ArgumentError('Unknown SubscriptionOfferTypeIOS value: $value');
   }
@@ -1040,6 +1109,41 @@ class BillingProgramReportingDetailsAndroid {
       '__typename': 'BillingProgramReportingDetailsAndroid',
       'billingProgram': billingProgram.toJson(),
       'externalTransactionToken': externalTransactionToken,
+    };
+  }
+}
+
+/// Extended billing result with sub-response code (Android)
+/// Available in Google Play Billing Library 8.0.0+
+class BillingResultAndroid {
+  const BillingResultAndroid({
+    this.debugMessage,
+    required this.responseCode,
+    this.subResponseCode,
+  });
+
+  /// Debug message from the billing library
+  final String? debugMessage;
+  /// The response code from the billing operation
+  final int responseCode;
+  /// Sub-response code for more granular error information (8.0+).
+  /// Provides additional context when responseCode indicates an error.
+  final SubResponseCodeAndroid? subResponseCode;
+
+  factory BillingResultAndroid.fromJson(Map<String, dynamic> json) {
+    return BillingResultAndroid(
+      debugMessage: json['debugMessage'] as String?,
+      responseCode: json['responseCode'] as int,
+      subResponseCode: json['subResponseCode'] != null ? SubResponseCodeAndroid.fromJson(json['subResponseCode'] as String) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'BillingResultAndroid',
+      'debugMessage': debugMessage,
+      'responseCode': responseCode,
+      'subResponseCode': subResponseCode?.toJson(),
     };
   }
 }
@@ -1626,6 +1730,7 @@ class ProductAndroid extends Product implements ProductCommon {
     this.oneTimePurchaseOfferDetailsAndroid,
     this.platform = IapPlatform.Android,
     this.price,
+    this.productStatusAndroid,
     this.subscriptionOfferDetailsAndroid,
     this.subscriptionOffers,
     required this.title,
@@ -1649,6 +1754,12 @@ class ProductAndroid extends Product implements ProductCommon {
   final List<ProductAndroidOneTimePurchaseOfferDetail>? oneTimePurchaseOfferDetailsAndroid;
   final IapPlatform platform;
   final double? price;
+  /// Product-level status code indicating fetch result (Android 8.0+)
+  /// OK = product fetched successfully
+  /// NOT_FOUND = SKU doesn't exist
+  /// NO_OFFERS_AVAILABLE = user not eligible for any offers
+  /// Available in Google Play Billing Library 8.0.0+
+  final ProductStatusAndroid? productStatusAndroid;
   /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
   final List<ProductSubscriptionAndroidOfferDetails>? subscriptionOfferDetailsAndroid;
   /// Standardized subscription offers.
@@ -1671,6 +1782,7 @@ class ProductAndroid extends Product implements ProductCommon {
       oneTimePurchaseOfferDetailsAndroid: (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?) == null ? null : (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?)!.map((e) => ProductAndroidOneTimePurchaseOfferDetail.fromJson(e as Map<String, dynamic>)).toList(),
       platform: IapPlatform.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
+      productStatusAndroid: json['productStatusAndroid'] != null ? ProductStatusAndroid.fromJson(json['productStatusAndroid'] as String) : null,
       subscriptionOfferDetailsAndroid: (json['subscriptionOfferDetailsAndroid'] as List<dynamic>?) == null ? null : (json['subscriptionOfferDetailsAndroid'] as List<dynamic>?)!.map((e) => ProductSubscriptionAndroidOfferDetails.fromJson(e as Map<String, dynamic>)).toList(),
       subscriptionOffers: (json['subscriptionOffers'] as List<dynamic>?) == null ? null : (json['subscriptionOffers'] as List<dynamic>?)!.map((e) => SubscriptionOffer.fromJson(e as Map<String, dynamic>)).toList(),
       title: json['title'] as String,
@@ -1693,6 +1805,7 @@ class ProductAndroid extends Product implements ProductCommon {
       'oneTimePurchaseOfferDetailsAndroid': oneTimePurchaseOfferDetailsAndroid == null ? null : oneTimePurchaseOfferDetailsAndroid!.map((e) => e.toJson()).toList(),
       'platform': platform.toJson(),
       'price': price,
+      'productStatusAndroid': productStatusAndroid?.toJson(),
       'subscriptionOfferDetailsAndroid': subscriptionOfferDetailsAndroid == null ? null : subscriptionOfferDetailsAndroid!.map((e) => e.toJson()).toList(),
       'subscriptionOffers': subscriptionOffers == null ? null : subscriptionOffers!.map((e) => e.toJson()).toList(),
       'title': title,
@@ -1882,6 +1995,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
     this.oneTimePurchaseOfferDetailsAndroid,
     this.platform = IapPlatform.Android,
     this.price,
+    this.productStatusAndroid,
     required this.subscriptionOfferDetailsAndroid,
     required this.subscriptionOffers,
     required this.title,
@@ -1905,6 +2019,12 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
   final List<ProductAndroidOneTimePurchaseOfferDetail>? oneTimePurchaseOfferDetailsAndroid;
   final IapPlatform platform;
   final double? price;
+  /// Product-level status code indicating fetch result (Android 8.0+)
+  /// OK = product fetched successfully
+  /// NOT_FOUND = SKU doesn't exist
+  /// NO_OFFERS_AVAILABLE = user not eligible for any offers
+  /// Available in Google Play Billing Library 8.0.0+
+  final ProductStatusAndroid? productStatusAndroid;
   /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
   final List<ProductSubscriptionAndroidOfferDetails> subscriptionOfferDetailsAndroid;
   /// Standardized subscription offers.
@@ -1927,6 +2047,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
       oneTimePurchaseOfferDetailsAndroid: (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?) == null ? null : (json['oneTimePurchaseOfferDetailsAndroid'] as List<dynamic>?)!.map((e) => ProductAndroidOneTimePurchaseOfferDetail.fromJson(e as Map<String, dynamic>)).toList(),
       platform: IapPlatform.fromJson(json['platform'] as String),
       price: (json['price'] as num?)?.toDouble(),
+      productStatusAndroid: json['productStatusAndroid'] != null ? ProductStatusAndroid.fromJson(json['productStatusAndroid'] as String) : null,
       subscriptionOfferDetailsAndroid: (json['subscriptionOfferDetailsAndroid'] as List<dynamic>).map((e) => ProductSubscriptionAndroidOfferDetails.fromJson(e as Map<String, dynamic>)).toList(),
       subscriptionOffers: (json['subscriptionOffers'] as List<dynamic>).map((e) => SubscriptionOffer.fromJson(e as Map<String, dynamic>)).toList(),
       title: json['title'] as String,
@@ -1949,6 +2070,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
       'oneTimePurchaseOfferDetailsAndroid': oneTimePurchaseOfferDetailsAndroid == null ? null : oneTimePurchaseOfferDetailsAndroid!.map((e) => e.toJson()).toList(),
       'platform': platform.toJson(),
       'price': price,
+      'productStatusAndroid': productStatusAndroid?.toJson(),
       'subscriptionOfferDetailsAndroid': subscriptionOfferDetailsAndroid.map((e) => e.toJson()).toList(),
       'subscriptionOffers': subscriptionOffers.map((e) => e.toJson()).toList(),
       'title': title,
@@ -3408,22 +3530,61 @@ class ProductRequest {
   }
 }
 
+/// JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).
+/// New signature format using compact JWS string for promotional offers.
+/// This provides a simpler alternative to the legacy signature-based promotional offers.
+/// Back-deployed to iOS 15.
+class PromotionalOfferJWSInputIOS {
+  const PromotionalOfferJWSInputIOS({
+    required this.jws,
+    required this.offerId,
+  });
+
+  /// Compact JWS string signed by your server.
+  /// The JWS should contain the promotional offer signature data.
+  /// Format: header.payload.signature (base64url encoded)
+  final String jws;
+  /// The promotional offer identifier from App Store Connect
+  final String offerId;
+
+  factory PromotionalOfferJWSInputIOS.fromJson(Map<String, dynamic> json) {
+    return PromotionalOfferJWSInputIOS(
+      jws: json['jws'] as String,
+      offerId: json['offerId'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'jws': jws,
+      'offerId': offerId,
+    };
+  }
+}
+
 typedef PurchaseInput = Purchase;
 
 class PurchaseOptions {
   const PurchaseOptions({
     this.alsoPublishToEventListenerIOS,
+    this.includeSuspendedAndroid,
     this.onlyIncludeActiveItemsIOS,
   });
 
   /// Also emit results through the iOS event listeners
   final bool? alsoPublishToEventListenerIOS;
+  /// Include suspended subscriptions in the result (Android 8.1+).
+  /// Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+  /// Users should be directed to the subscription center to resolve payment issues.
+  /// Default: false (only active subscriptions are returned)
+  final bool? includeSuspendedAndroid;
   /// Limit to currently active items on iOS
   final bool? onlyIncludeActiveItemsIOS;
 
   factory PurchaseOptions.fromJson(Map<String, dynamic> json) {
     return PurchaseOptions(
       alsoPublishToEventListenerIOS: json['alsoPublishToEventListenerIOS'] as bool?,
+      includeSuspendedAndroid: json['includeSuspendedAndroid'] as bool?,
       onlyIncludeActiveItemsIOS: json['onlyIncludeActiveItemsIOS'] as bool?,
     );
   }
@@ -3431,6 +3592,7 @@ class PurchaseOptions {
   Map<String, dynamic> toJson() {
     return {
       'alsoPublishToEventListenerIOS': alsoPublishToEventListenerIOS,
+      'includeSuspendedAndroid': includeSuspendedAndroid,
       'onlyIncludeActiveItemsIOS': onlyIncludeActiveItemsIOS,
     };
   }
@@ -3484,8 +3646,11 @@ class RequestPurchaseIosProps {
     this.advancedCommerceData,
     this.andDangerouslyFinishTransactionAutomatically,
     this.appAccountToken,
+    this.introductoryOfferEligibility,
+    this.promotionalOfferJWS,
     this.quantity,
     required this.sku,
+    this.winBackOffer,
     this.withOffer,
   });
 
@@ -3498,10 +3663,23 @@ class RequestPurchaseIosProps {
   final bool? andDangerouslyFinishTransactionAutomatically;
   /// App account token for user tracking
   final String? appAccountToken;
+  /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
+  /// Set to true to indicate the user is eligible for introductory offer,
+  /// or false to indicate they are not. When nil, the system determines eligibility.
+  /// Back-deployed to iOS 15.
+  final bool? introductoryOfferEligibility;
+  /// JWS promotional offer (iOS 15+, WWDC 2025).
+  /// New signature format using compact JWS string for promotional offers.
+  /// Back-deployed to iOS 15.
+  final PromotionalOfferJWSInputIOS? promotionalOfferJWS;
   /// Purchase quantity
   final int? quantity;
   /// Product SKU
   final String sku;
+  /// Win-back offer to apply (iOS 18+)
+  /// Used to re-engage churned subscribers with a discount or free trial.
+  /// Note: Win-back offers only apply to subscription products.
+  final WinBackOfferInputIOS? winBackOffer;
   /// Discount offer to apply
   final DiscountOfferInputIOS? withOffer;
 
@@ -3510,8 +3688,11 @@ class RequestPurchaseIosProps {
       advancedCommerceData: json['advancedCommerceData'] as String?,
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
+      introductoryOfferEligibility: json['introductoryOfferEligibility'] as bool?,
+      promotionalOfferJWS: json['promotionalOfferJWS'] != null ? PromotionalOfferJWSInputIOS.fromJson(json['promotionalOfferJWS'] as Map<String, dynamic>) : null,
       quantity: json['quantity'] as int?,
       sku: json['sku'] as String,
+      winBackOffer: json['winBackOffer'] != null ? WinBackOfferInputIOS.fromJson(json['winBackOffer'] as Map<String, dynamic>) : null,
       withOffer: json['withOffer'] != null ? DiscountOfferInputIOS.fromJson(json['withOffer'] as Map<String, dynamic>) : null,
     );
   }
@@ -3521,8 +3702,11 @@ class RequestPurchaseIosProps {
       'advancedCommerceData': advancedCommerceData,
       'andDangerouslyFinishTransactionAutomatically': andDangerouslyFinishTransactionAutomatically,
       'appAccountToken': appAccountToken,
+      'introductoryOfferEligibility': introductoryOfferEligibility,
+      'promotionalOfferJWS': promotionalOfferJWS?.toJson(),
       'quantity': quantity,
       'sku': sku,
+      'winBackOffer': winBackOffer?.toJson(),
       'withOffer': withOffer?.toJson(),
     };
   }
@@ -3700,8 +3884,11 @@ class RequestSubscriptionIosProps {
     this.advancedCommerceData,
     this.andDangerouslyFinishTransactionAutomatically,
     this.appAccountToken,
+    this.introductoryOfferEligibility,
+    this.promotionalOfferJWS,
     this.quantity,
     required this.sku,
+    this.winBackOffer,
     this.withOffer,
   });
 
@@ -3712,8 +3899,22 @@ class RequestSubscriptionIosProps {
   final String? advancedCommerceData;
   final bool? andDangerouslyFinishTransactionAutomatically;
   final String? appAccountToken;
+  /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
+  /// Set to true to indicate the user is eligible for introductory offer,
+  /// or false to indicate they are not. When nil, the system determines eligibility.
+  /// Back-deployed to iOS 15.
+  final bool? introductoryOfferEligibility;
+  /// JWS promotional offer (iOS 15+, WWDC 2025).
+  /// New signature format using compact JWS string for promotional offers.
+  /// Back-deployed to iOS 15.
+  final PromotionalOfferJWSInputIOS? promotionalOfferJWS;
   final int? quantity;
   final String sku;
+  /// Win-back offer to apply (iOS 18+)
+  /// Used to re-engage churned subscribers with a discount or free trial.
+  /// The offer is available when the customer is eligible and can be discovered
+  /// via StoreKit Message (automatic) or subscription offer APIs.
+  final WinBackOfferInputIOS? winBackOffer;
   final DiscountOfferInputIOS? withOffer;
 
   factory RequestSubscriptionIosProps.fromJson(Map<String, dynamic> json) {
@@ -3721,8 +3922,11 @@ class RequestSubscriptionIosProps {
       advancedCommerceData: json['advancedCommerceData'] as String?,
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
+      introductoryOfferEligibility: json['introductoryOfferEligibility'] as bool?,
+      promotionalOfferJWS: json['promotionalOfferJWS'] != null ? PromotionalOfferJWSInputIOS.fromJson(json['promotionalOfferJWS'] as Map<String, dynamic>) : null,
       quantity: json['quantity'] as int?,
       sku: json['sku'] as String,
+      winBackOffer: json['winBackOffer'] != null ? WinBackOfferInputIOS.fromJson(json['winBackOffer'] as Map<String, dynamic>) : null,
       withOffer: json['withOffer'] != null ? DiscountOfferInputIOS.fromJson(json['withOffer'] as Map<String, dynamic>) : null,
     );
   }
@@ -3732,8 +3936,11 @@ class RequestSubscriptionIosProps {
       'advancedCommerceData': advancedCommerceData,
       'andDangerouslyFinishTransactionAutomatically': andDangerouslyFinishTransactionAutomatically,
       'appAccountToken': appAccountToken,
+      'introductoryOfferEligibility': introductoryOfferEligibility,
+      'promotionalOfferJWS': promotionalOfferJWS?.toJson(),
       'quantity': quantity,
       'sku': sku,
+      'winBackOffer': winBackOffer?.toJson(),
       'withOffer': withOffer?.toJson(),
     };
   }
@@ -4054,6 +4261,31 @@ class VerifyPurchaseWithProviderProps {
   }
 }
 
+/// Win-back offer input for iOS 18+ (StoreKit 2)
+/// Win-back offers are used to re-engage churned subscribers.
+/// The offer is automatically presented via StoreKit Message when eligible,
+/// or can be applied programmatically during purchase.
+class WinBackOfferInputIOS {
+  const WinBackOfferInputIOS({
+    required this.offerId,
+  });
+
+  /// The win-back offer ID from App Store Connect
+  final String offerId;
+
+  factory WinBackOfferInputIOS.fromJson(Map<String, dynamic> json) {
+    return WinBackOfferInputIOS(
+      offerId: json['offerId'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'offerId': offerId,
+    };
+  }
+}
+
 // MARK: - Unions
 
 sealed class Product implements ProductCommon {
@@ -4367,6 +4599,7 @@ abstract class QueryResolver {
   /// Get all available purchases for the current user
   Future<List<Purchase>> getAvailablePurchases({
     bool? alsoPublishToEventListenerIOS,
+    bool? includeSuspendedAndroid,
     bool? onlyIncludeActiveItemsIOS,
   });
   /// Retrieve all pending transactions in the StoreKit queue
@@ -4541,6 +4774,7 @@ typedef QueryGetActiveSubscriptionsHandler = Future<List<ActiveSubscription>> Fu
 typedef QueryGetAppTransactionIOSHandler = Future<AppTransaction?> Function();
 typedef QueryGetAvailablePurchasesHandler = Future<List<Purchase>> Function({
   bool? alsoPublishToEventListenerIOS,
+  bool? includeSuspendedAndroid,
   bool? onlyIncludeActiveItemsIOS,
 });
 typedef QueryGetPendingTransactionsIOSHandler = Future<List<PurchaseIOS>> Function();

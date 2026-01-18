@@ -299,6 +299,21 @@ public enum ProductQueryType: String, Codable, CaseIterable {
     case all = "all"
 }
 
+/// Status code for individual products returned from queryProductDetailsAsync (Android)
+/// Prior to 8.0, products that couldn't be fetched were simply not returned.
+/// With 8.0+, these products are returned with a status code explaining why.
+/// Available in Google Play Billing Library 8.0.0+
+public enum ProductStatusAndroid: String, Codable, CaseIterable {
+    /// Product was successfully fetched
+    case ok = "ok"
+    /// Product not found - the SKU doesn't exist in the Play Console
+    case notFound = "not-found"
+    /// No offers available for the user - product exists but user is not eligible for any offers
+    case noOffersAvailable = "no-offers-available"
+    /// Unknown error occurred while fetching the product
+    case unknown = "unknown"
+}
+
 public enum ProductType: String, Codable, CaseIterable {
     case inApp = "in-app"
     case subs = "subs"
@@ -321,9 +336,23 @@ public enum PurchaseVerificationProvider: String, Codable, CaseIterable {
     case iapkit = "iapkit"
 }
 
+/// Sub-response codes for more granular purchase error information (Android)
+/// Available in Google Play Billing Library 8.0.0+
+public enum SubResponseCodeAndroid: String, Codable, CaseIterable {
+    /// No specific sub-response code applies
+    case noApplicableSubResponseCode = "no-applicable-sub-response-code"
+    /// User's payment method has insufficient funds
+    case paymentDeclinedDueToInsufficientFunds = "payment-declined-due-to-insufficient-funds"
+    /// User doesn't meet subscription offer eligibility requirements
+    case userIneligible = "user-ineligible"
+}
+
 public enum SubscriptionOfferTypeIOS: String, Codable, CaseIterable {
     case introductory = "introductory"
     case promotional = "promotional"
+    /// Win-back offer type (iOS 18+)
+    /// Used to re-engage churned subscribers with a discount or free trial.
+    case winBack = "win-back"
 }
 
 public enum SubscriptionPeriodIOS: String, Codable, CaseIterable {
@@ -461,6 +490,18 @@ public struct BillingProgramReportingDetailsAndroid: Codable {
     /// External transaction token used to report transactions made outside of Google Play Billing.
     /// This token must be used when reporting the external transaction to Google.
     public var externalTransactionToken: String
+}
+
+/// Extended billing result with sub-response code (Android)
+/// Available in Google Play Billing Library 8.0.0+
+public struct BillingResultAndroid: Codable {
+    /// Debug message from the billing library
+    public var debugMessage: String?
+    /// The response code from the billing operation
+    public var responseCode: Int
+    /// Sub-response code for more granular error information (8.0+).
+    /// Provides additional context when responseCode indicates an error.
+    public var subResponseCode: SubResponseCodeAndroid?
 }
 
 /// Details provided when user selects developer billing option (Android)
@@ -668,6 +709,12 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]?
     public var platform: IapPlatform = .android
     public var price: Double?
+    /// Product-level status code indicating fetch result (Android 8.0+)
+    /// OK = product fetched successfully
+    /// NOT_FOUND = SKU doesn't exist
+    /// NO_OFFERS_AVAILABLE = user not eligible for any offers
+    /// Available in Google Play Billing Library 8.0.0+
+    public var productStatusAndroid: ProductStatusAndroid?
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]?
     /// Standardized subscription offers.
@@ -751,6 +798,12 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]?
     public var platform: IapPlatform = .android
     public var price: Double?
+    /// Product-level status code indicating fetch result (Android 8.0+)
+    /// OK = product fetched successfully
+    /// NOT_FOUND = SKU doesn't exist
+    /// NO_OFFERS_AVAILABLE = user not eligible for any offers
+    /// Available in Google Play Billing Library 8.0.0+
+    public var productStatusAndroid: ProductStatusAndroid?
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
     /// Standardized subscription offers.
@@ -1280,19 +1333,47 @@ public struct ProductRequest: Codable {
     }
 }
 
+/// JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).
+/// New signature format using compact JWS string for promotional offers.
+/// This provides a simpler alternative to the legacy signature-based promotional offers.
+/// Back-deployed to iOS 15.
+public struct PromotionalOfferJWSInputIOS: Codable {
+    /// Compact JWS string signed by your server.
+    /// The JWS should contain the promotional offer signature data.
+    /// Format: header.payload.signature (base64url encoded)
+    public var jws: String
+    /// The promotional offer identifier from App Store Connect
+    public var offerId: String
+
+    public init(
+        jws: String,
+        offerId: String
+    ) {
+        self.jws = jws
+        self.offerId = offerId
+    }
+}
+
 public typealias PurchaseInput = Purchase
 
 public struct PurchaseOptions: Codable {
     /// Also emit results through the iOS event listeners
     public var alsoPublishToEventListenerIOS: Bool?
+    /// Include suspended subscriptions in the result (Android 8.1+).
+    /// Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+    /// Users should be directed to the subscription center to resolve payment issues.
+    /// Default: false (only active subscriptions are returned)
+    public var includeSuspendedAndroid: Bool?
     /// Limit to currently active items on iOS
     public var onlyIncludeActiveItemsIOS: Bool?
 
     public init(
         alsoPublishToEventListenerIOS: Bool? = nil,
+        includeSuspendedAndroid: Bool? = nil,
         onlyIncludeActiveItemsIOS: Bool? = nil
     ) {
         self.alsoPublishToEventListenerIOS = alsoPublishToEventListenerIOS
+        self.includeSuspendedAndroid = includeSuspendedAndroid
         self.onlyIncludeActiveItemsIOS = onlyIncludeActiveItemsIOS
     }
 }
@@ -1336,10 +1417,23 @@ public struct RequestPurchaseIosProps: Codable {
     public var andDangerouslyFinishTransactionAutomatically: Bool?
     /// App account token for user tracking
     public var appAccountToken: String?
+    /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
+    /// Set to true to indicate the user is eligible for introductory offer,
+    /// or false to indicate they are not. When nil, the system determines eligibility.
+    /// Back-deployed to iOS 15.
+    public var introductoryOfferEligibility: Bool?
+    /// JWS promotional offer (iOS 15+, WWDC 2025).
+    /// New signature format using compact JWS string for promotional offers.
+    /// Back-deployed to iOS 15.
+    public var promotionalOfferJWS: PromotionalOfferJWSInputIOS?
     /// Purchase quantity
     public var quantity: Int?
     /// Product SKU
     public var sku: String
+    /// Win-back offer to apply (iOS 18+)
+    /// Used to re-engage churned subscribers with a discount or free trial.
+    /// Note: Win-back offers only apply to subscription products.
+    public var winBackOffer: WinBackOfferInputIOS?
     /// Discount offer to apply
     public var withOffer: DiscountOfferInputIOS?
 
@@ -1347,15 +1441,21 @@ public struct RequestPurchaseIosProps: Codable {
         advancedCommerceData: String? = nil,
         andDangerouslyFinishTransactionAutomatically: Bool? = nil,
         appAccountToken: String? = nil,
+        introductoryOfferEligibility: Bool? = nil,
+        promotionalOfferJWS: PromotionalOfferJWSInputIOS? = nil,
         quantity: Int? = nil,
         sku: String,
+        winBackOffer: WinBackOfferInputIOS? = nil,
         withOffer: DiscountOfferInputIOS? = nil
     ) {
         self.advancedCommerceData = advancedCommerceData
         self.andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically
         self.appAccountToken = appAccountToken
+        self.introductoryOfferEligibility = introductoryOfferEligibility
+        self.promotionalOfferJWS = promotionalOfferJWS
         self.quantity = quantity
         self.sku = sku
+        self.winBackOffer = winBackOffer
         self.withOffer = withOffer
     }
 }
@@ -1514,23 +1614,43 @@ public struct RequestSubscriptionIosProps: Codable {
     public var advancedCommerceData: String?
     public var andDangerouslyFinishTransactionAutomatically: Bool?
     public var appAccountToken: String?
+    /// Override introductory offer eligibility (iOS 15+, WWDC 2025).
+    /// Set to true to indicate the user is eligible for introductory offer,
+    /// or false to indicate they are not. When nil, the system determines eligibility.
+    /// Back-deployed to iOS 15.
+    public var introductoryOfferEligibility: Bool?
+    /// JWS promotional offer (iOS 15+, WWDC 2025).
+    /// New signature format using compact JWS string for promotional offers.
+    /// Back-deployed to iOS 15.
+    public var promotionalOfferJWS: PromotionalOfferJWSInputIOS?
     public var quantity: Int?
     public var sku: String
+    /// Win-back offer to apply (iOS 18+)
+    /// Used to re-engage churned subscribers with a discount or free trial.
+    /// The offer is available when the customer is eligible and can be discovered
+    /// via StoreKit Message (automatic) or subscription offer APIs.
+    public var winBackOffer: WinBackOfferInputIOS?
     public var withOffer: DiscountOfferInputIOS?
 
     public init(
         advancedCommerceData: String? = nil,
         andDangerouslyFinishTransactionAutomatically: Bool? = nil,
         appAccountToken: String? = nil,
+        introductoryOfferEligibility: Bool? = nil,
+        promotionalOfferJWS: PromotionalOfferJWSInputIOS? = nil,
         quantity: Int? = nil,
         sku: String,
+        winBackOffer: WinBackOfferInputIOS? = nil,
         withOffer: DiscountOfferInputIOS? = nil
     ) {
         self.advancedCommerceData = advancedCommerceData
         self.andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically
         self.appAccountToken = appAccountToken
+        self.introductoryOfferEligibility = introductoryOfferEligibility
+        self.promotionalOfferJWS = promotionalOfferJWS
         self.quantity = quantity
         self.sku = sku
+        self.winBackOffer = winBackOffer
         self.withOffer = withOffer
     }
 }
@@ -1732,6 +1852,21 @@ public struct VerifyPurchaseWithProviderProps: Codable {
     ) {
         self.iapkit = iapkit
         self.provider = provider
+    }
+}
+
+/// Win-back offer input for iOS 18+ (StoreKit 2)
+/// Win-back offers are used to re-engage churned subscribers.
+/// The offer is automatically presented via StoreKit Message when eligible,
+/// or can be applied programmatically during purchase.
+public struct WinBackOfferInputIOS: Codable {
+    /// The win-back offer ID from App Store Connect
+    public var offerId: String
+
+    public init(
+        offerId: String
+    ) {
+        self.offerId = offerId
     }
 }
 

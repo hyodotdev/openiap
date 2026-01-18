@@ -191,6 +191,18 @@ enum ProductQueryType {
 	ALL = 2,
 }
 
+## Status code for individual products returned from queryProductDetailsAsync (Android) Prior to 8.0, products that couldn't be fetched were simply not returned. With 8.0+, these products are returned with a status code explaining why. Available in Google Play Billing Library 8.0.0+
+enum ProductStatusAndroid {
+	## Product was successfully fetched
+	OK = 0,
+	## Product not found - the SKU doesn't exist in the Play Console
+	NOT_FOUND = 1,
+	## No offers available for the user - product exists but user is not eligible for any offers
+	NO_OFFERS_AVAILABLE = 2,
+	## Unknown error occurred while fetching the product
+	UNKNOWN = 3,
+}
+
 enum ProductType {
 	IN_APP = 0,
 	SUBS = 1,
@@ -213,9 +225,21 @@ enum PurchaseVerificationProvider {
 	IAPKIT = 0,
 }
 
+## Sub-response codes for more granular purchase error information (Android) Available in Google Play Billing Library 8.0.0+
+enum SubResponseCodeAndroid {
+	## No specific sub-response code applies
+	NO_APPLICABLE_SUB_RESPONSE_CODE = 0,
+	## User's payment method has insufficient funds
+	PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS = 1,
+	## User doesn't meet subscription offer eligibility requirements
+	USER_INELIGIBLE = 2,
+}
+
 enum SubscriptionOfferTypeIOS {
 	INTRODUCTORY = 0,
 	PROMOTIONAL = 1,
+	## Win-back offer type (iOS 18+) Used to re-engage churned subscribers with a discount or free trial.
+	WIN_BACK = 2,
 }
 
 enum SubscriptionPeriodIOS {
@@ -441,6 +465,35 @@ class BillingProgramReportingDetailsAndroid:
 		else:
 			dict["billingProgram"] = billing_program
 		dict["externalTransactionToken"] = external_transaction_token
+		return dict
+
+## Extended billing result with sub-response code (Android) Available in Google Play Billing Library 8.0.0+
+class BillingResultAndroid:
+	## The response code from the billing operation
+	var response_code: int
+	## Debug message from the billing library
+	var debug_message: String
+	## Sub-response code for more granular error information (8.0+).
+	var sub_response_code: SubResponseCodeAndroid
+
+	static func from_dict(data: Dictionary) -> BillingResultAndroid:
+		var obj = BillingResultAndroid.new()
+		if data.has("responseCode") and data["responseCode"] != null:
+			obj.response_code = data["responseCode"]
+		if data.has("debugMessage") and data["debugMessage"] != null:
+			obj.debug_message = data["debugMessage"]
+		if data.has("subResponseCode") and data["subResponseCode"] != null:
+			obj.sub_response_code = data["subResponseCode"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["responseCode"] = response_code
+		dict["debugMessage"] = debug_message
+		if SUB_RESPONSE_CODE_ANDROID_VALUES.has(sub_response_code):
+			dict["subResponseCode"] = SUB_RESPONSE_CODE_ANDROID_VALUES[sub_response_code]
+		else:
+			dict["subResponseCode"] = sub_response_code
 		return dict
 
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
@@ -918,6 +971,8 @@ class ProductAndroid:
 	var debug_description: String
 	var platform: IapPlatform
 	var name_android: String
+	## Product-level status code indicating fetch result (Android 8.0+)
+	var product_status_android: ProductStatusAndroid
 	## Standardized discount offers for one-time products.
 	var discount_offers: Array[DiscountOffer]
 	## Standardized subscription offers.
@@ -951,6 +1006,8 @@ class ProductAndroid:
 			obj.platform = data["platform"]
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
+		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
+			obj.product_status_android = data["productStatusAndroid"]
 		if data.has("discountOffers") and data["discountOffers"] != null:
 			var arr = []
 			for item in data["discountOffers"]:
@@ -1004,6 +1061,10 @@ class ProductAndroid:
 		else:
 			dict["platform"] = platform
 		dict["nameAndroid"] = name_android
+		if PRODUCT_STATUS_ANDROID_VALUES.has(product_status_android):
+			dict["productStatusAndroid"] = PRODUCT_STATUS_ANDROID_VALUES[product_status_android]
+		else:
+			dict["productStatusAndroid"] = product_status_android
 		if discount_offers != null:
 			var arr = []
 			for item in discount_offers:
@@ -1262,6 +1323,8 @@ class ProductSubscriptionAndroid:
 	var debug_description: String
 	var platform: IapPlatform
 	var name_android: String
+	## Product-level status code indicating fetch result (Android 8.0+)
+	var product_status_android: ProductStatusAndroid
 	## Standardized discount offers for one-time products.
 	var discount_offers: Array[DiscountOffer]
 	## Standardized subscription offers.
@@ -1295,6 +1358,8 @@ class ProductSubscriptionAndroid:
 			obj.platform = data["platform"]
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
+		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
+			obj.product_status_android = data["productStatusAndroid"]
 		if data.has("discountOffers") and data["discountOffers"] != null:
 			var arr = []
 			for item in data["discountOffers"]:
@@ -1348,6 +1413,10 @@ class ProductSubscriptionAndroid:
 		else:
 			dict["platform"] = platform
 		dict["nameAndroid"] = name_android
+		if PRODUCT_STATUS_ANDROID_VALUES.has(product_status_android):
+			dict["productStatusAndroid"] = PRODUCT_STATUS_ANDROID_VALUES[product_status_android]
+		else:
+			dict["productStatusAndroid"] = product_status_android
 		if discount_offers != null:
 			var arr = []
 			for item in discount_offers:
@@ -2808,6 +2877,29 @@ class ProductRequest:
 				dict["type"] = type
 		return dict
 
+## JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025). New signature format using compact JWS string for promotional offers. This provides a simpler alternative to the legacy signature-based promotional offers. Back-deployed to iOS 15.
+class PromotionalOfferJWSInputIOS:
+	## The promotional offer identifier from App Store Connect
+	var offer_id: String
+	## Compact JWS string signed by your server.
+	var jws: String
+
+	static func from_dict(data: Dictionary) -> PromotionalOfferJWSInputIOS:
+		var obj = PromotionalOfferJWSInputIOS.new()
+		if data.has("offerId") and data["offerId"] != null:
+			obj.offer_id = data["offerId"]
+		if data.has("jws") and data["jws"] != null:
+			obj.jws = data["jws"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if offer_id != null:
+			dict["offerId"] = offer_id
+		if jws != null:
+			dict["jws"] = jws
+		return dict
+
 class PurchaseInput:
 	var id: String
 	var product_id: String
@@ -2884,6 +2976,8 @@ class PurchaseOptions:
 	var also_publish_to_event_listener_ios: bool
 	## Limit to currently active items on iOS
 	var only_include_active_items_ios: bool
+	## Include suspended subscriptions in the result (Android 8.1+).
+	var include_suspended_android: bool
 
 	static func from_dict(data: Dictionary) -> PurchaseOptions:
 		var obj = PurchaseOptions.new()
@@ -2891,6 +2985,8 @@ class PurchaseOptions:
 			obj.also_publish_to_event_listener_ios = data["alsoPublishToEventListenerIOS"]
 		if data.has("onlyIncludeActiveItemsIOS") and data["onlyIncludeActiveItemsIOS"] != null:
 			obj.only_include_active_items_ios = data["onlyIncludeActiveItemsIOS"]
+		if data.has("includeSuspendedAndroid") and data["includeSuspendedAndroid"] != null:
+			obj.include_suspended_android = data["includeSuspendedAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2899,6 +2995,8 @@ class PurchaseOptions:
 			dict["alsoPublishToEventListenerIOS"] = also_publish_to_event_listener_ios
 		if only_include_active_items_ios != null:
 			dict["onlyIncludeActiveItemsIOS"] = only_include_active_items_ios
+		if include_suspended_android != null:
+			dict["includeSuspendedAndroid"] = include_suspended_android
 		return dict
 
 class RequestPurchaseAndroidProps:
@@ -2958,6 +3056,12 @@ class RequestPurchaseIosProps:
 	var quantity: int
 	## Discount offer to apply
 	var with_offer: DiscountOfferInputIOS
+	## Win-back offer to apply (iOS 18+)
+	var win_back_offer: WinBackOfferInputIOS
+	## JWS promotional offer (iOS 15+, WWDC 2025).
+	var promotional_offer_jws: PromotionalOfferJWSInputIOS
+	## Override introductory offer eligibility (iOS 15+, WWDC 2025).
+	var introductory_offer_eligibility: bool
 	## Advanced commerce data token (iOS 15+).
 	var advanced_commerce_data: String
 
@@ -2976,6 +3080,18 @@ class RequestPurchaseIosProps:
 				obj.with_offer = DiscountOfferInputIOS.from_dict(data["withOffer"])
 			else:
 				obj.with_offer = data["withOffer"]
+		if data.has("winBackOffer") and data["winBackOffer"] != null:
+			if data["winBackOffer"] is Dictionary:
+				obj.win_back_offer = WinBackOfferInputIOS.from_dict(data["winBackOffer"])
+			else:
+				obj.win_back_offer = data["winBackOffer"]
+		if data.has("promotionalOfferJWS") and data["promotionalOfferJWS"] != null:
+			if data["promotionalOfferJWS"] is Dictionary:
+				obj.promotional_offer_jws = PromotionalOfferJWSInputIOS.from_dict(data["promotionalOfferJWS"])
+			else:
+				obj.promotional_offer_jws = data["promotionalOfferJWS"]
+		if data.has("introductoryOfferEligibility") and data["introductoryOfferEligibility"] != null:
+			obj.introductory_offer_eligibility = data["introductoryOfferEligibility"]
 		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
 			obj.advanced_commerce_data = data["advancedCommerceData"]
 		return obj
@@ -2995,6 +3111,18 @@ class RequestPurchaseIosProps:
 				dict["withOffer"] = with_offer.to_dict()
 			else:
 				dict["withOffer"] = with_offer
+		if win_back_offer != null:
+			if win_back_offer.has_method("to_dict"):
+				dict["winBackOffer"] = win_back_offer.to_dict()
+			else:
+				dict["winBackOffer"] = win_back_offer
+		if promotional_offer_jws != null:
+			if promotional_offer_jws.has_method("to_dict"):
+				dict["promotionalOfferJWS"] = promotional_offer_jws.to_dict()
+			else:
+				dict["promotionalOfferJWS"] = promotional_offer_jws
+		if introductory_offer_eligibility != null:
+			dict["introductoryOfferEligibility"] = introductory_offer_eligibility
 		if advanced_commerce_data != null:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict
@@ -3201,6 +3329,12 @@ class RequestSubscriptionIosProps:
 	var app_account_token: String
 	var quantity: int
 	var with_offer: DiscountOfferInputIOS
+	## Win-back offer to apply (iOS 18+)
+	var win_back_offer: WinBackOfferInputIOS
+	## JWS promotional offer (iOS 15+, WWDC 2025).
+	var promotional_offer_jws: PromotionalOfferJWSInputIOS
+	## Override introductory offer eligibility (iOS 15+, WWDC 2025).
+	var introductory_offer_eligibility: bool
 	## Advanced commerce data token (iOS 15+).
 	var advanced_commerce_data: String
 
@@ -3219,6 +3353,18 @@ class RequestSubscriptionIosProps:
 				obj.with_offer = DiscountOfferInputIOS.from_dict(data["withOffer"])
 			else:
 				obj.with_offer = data["withOffer"]
+		if data.has("winBackOffer") and data["winBackOffer"] != null:
+			if data["winBackOffer"] is Dictionary:
+				obj.win_back_offer = WinBackOfferInputIOS.from_dict(data["winBackOffer"])
+			else:
+				obj.win_back_offer = data["winBackOffer"]
+		if data.has("promotionalOfferJWS") and data["promotionalOfferJWS"] != null:
+			if data["promotionalOfferJWS"] is Dictionary:
+				obj.promotional_offer_jws = PromotionalOfferJWSInputIOS.from_dict(data["promotionalOfferJWS"])
+			else:
+				obj.promotional_offer_jws = data["promotionalOfferJWS"]
+		if data.has("introductoryOfferEligibility") and data["introductoryOfferEligibility"] != null:
+			obj.introductory_offer_eligibility = data["introductoryOfferEligibility"]
 		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
 			obj.advanced_commerce_data = data["advancedCommerceData"]
 		return obj
@@ -3238,6 +3384,18 @@ class RequestSubscriptionIosProps:
 				dict["withOffer"] = with_offer.to_dict()
 			else:
 				dict["withOffer"] = with_offer
+		if win_back_offer != null:
+			if win_back_offer.has_method("to_dict"):
+				dict["winBackOffer"] = win_back_offer.to_dict()
+			else:
+				dict["winBackOffer"] = win_back_offer
+		if promotional_offer_jws != null:
+			if promotional_offer_jws.has_method("to_dict"):
+				dict["promotionalOfferJWS"] = promotional_offer_jws.to_dict()
+			else:
+				dict["promotionalOfferJWS"] = promotional_offer_jws
+		if introductory_offer_eligibility != null:
+			dict["introductoryOfferEligibility"] = introductory_offer_eligibility
 		if advanced_commerce_data != null:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict
@@ -3563,6 +3721,23 @@ class VerifyPurchaseWithProviderProps:
 				dict["iapkit"] = iapkit
 		return dict
 
+## Win-back offer input for iOS 18+ (StoreKit 2) Win-back offers are used to re-engage churned subscribers. The offer is automatically presented via StoreKit Message when eligible, or can be applied programmatically during purchase.
+class WinBackOfferInputIOS:
+	## The win-back offer ID from App Store Connect
+	var offer_id: String
+
+	static func from_dict(data: Dictionary) -> WinBackOfferInputIOS:
+		var obj = WinBackOfferInputIOS.new()
+		if data.has("offerId") and data["offerId"] != null:
+			obj.offer_id = data["offerId"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if offer_id != null:
+			dict["offerId"] = offer_id
+		return dict
+
 # ============================================================================
 # Enum String Helpers
 # ============================================================================
@@ -3702,6 +3877,13 @@ const PRODUCT_QUERY_TYPE_VALUES = {
 	ProductQueryType.ALL: "all"
 }
 
+const PRODUCT_STATUS_ANDROID_VALUES = {
+	ProductStatusAndroid.OK: "ok",
+	ProductStatusAndroid.NOT_FOUND: "not-found",
+	ProductStatusAndroid.NO_OFFERS_AVAILABLE: "no-offers-available",
+	ProductStatusAndroid.UNKNOWN: "unknown"
+}
+
 const PRODUCT_TYPE_VALUES = {
 	ProductType.IN_APP: "in-app",
 	ProductType.SUBS: "subs"
@@ -3724,9 +3906,16 @@ const PURCHASE_VERIFICATION_PROVIDER_VALUES = {
 	PurchaseVerificationProvider.IAPKIT: "iapkit"
 }
 
+const SUB_RESPONSE_CODE_ANDROID_VALUES = {
+	SubResponseCodeAndroid.NO_APPLICABLE_SUB_RESPONSE_CODE: "no-applicable-sub-response-code",
+	SubResponseCodeAndroid.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS: "payment-declined-due-to-insufficient-funds",
+	SubResponseCodeAndroid.USER_INELIGIBLE: "user-ineligible"
+}
+
 const SUBSCRIPTION_OFFER_TYPE_IOS_VALUES = {
 	SubscriptionOfferTypeIOS.INTRODUCTORY: "introductory",
-	SubscriptionOfferTypeIOS.PROMOTIONAL: "promotional"
+	SubscriptionOfferTypeIOS.PROMOTIONAL: "promotional",
+	SubscriptionOfferTypeIOS.WIN_BACK: "win-back"
 }
 
 const SUBSCRIPTION_PERIOD_IOS_VALUES = {
