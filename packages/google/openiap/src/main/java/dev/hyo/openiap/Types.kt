@@ -3536,7 +3536,8 @@ public data class RequestPurchaseIosProps(
      */
     val sku: String,
     /**
-     * Discount offer to apply (one-time purchase discounts)
+     * Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+     * iOS only supports promotional offers for auto-renewable subscriptions.
      */
     val withOffer: DiscountOfferInputIOS? = null
 ) {
@@ -3764,6 +3765,10 @@ public data class RequestSubscriptionIosProps(
      * via StoreKit Message (automatic) or subscription offer APIs.
      */
     val winBackOffer: WinBackOfferInputIOS? = null,
+    /**
+     * Promotional offer to apply for subscription purchases.
+     * Requires server-signed offer with nonce, timestamp, keyId, and signature.
+     */
     val withOffer: DiscountOfferInputIOS? = null
 ) {
     companion object {

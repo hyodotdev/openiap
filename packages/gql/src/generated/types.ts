@@ -1220,7 +1220,10 @@ export interface RequestPurchaseIosProps {
   quantity?: (number | null);
   /** Product SKU */
   sku: string;
-  /** Discount offer to apply (one-time purchase discounts) */
+  /**
+   * Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+   * iOS only supports promotional offers for auto-renewable subscriptions.
+   */
   withOffer?: (DiscountOfferInputIOS | null);
 }
 
@@ -1324,6 +1327,10 @@ export interface RequestSubscriptionIosProps {
    * via StoreKit Message (automatic) or subscription offer APIs.
    */
   winBackOffer?: (WinBackOfferInputIOS | null);
+  /**
+   * Promotional offer to apply for subscription purchases.
+   * Requires server-signed offer with nonce, timestamp, keyId, and signature.
+   */
   withOffer?: (DiscountOfferInputIOS | null);
 }
 

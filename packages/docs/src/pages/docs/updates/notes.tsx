@@ -26,6 +26,55 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // GQL 1.3.14 / Apple 1.3.12 - Jan 19, 2026
+    {
+      id: 'gql-1-3-14-apple-1-3-12',
+      date: new Date('2026-01-19'),
+      element: (
+        <div key="gql-1-3-14-apple-1-3-12" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-14-apple-1-3-12" level="h4">
+            📅 openiap-gql v1.3.14 / openiap-apple v1.3.12 - Subscription-Only Props Fix
+          </AnchorLink>
+
+          <p><strong>Type Safety Improvement:</strong></p>
+          <p>
+            Moved subscription-only fields from <code>RequestPurchaseIosProps</code> to{' '}
+            <code>RequestSubscriptionIosProps</code> only. These fields only apply to subscription purchases,
+            not in-app products (consumables/non-consumables).
+          </p>
+
+          <p><strong>Fields Moved (subscription-only):</strong></p>
+          <ul>
+            <li><code>winBackOffer</code> - Win-back offers for churned subscribers (iOS 18+)</li>
+            <li><code>promotionalOfferJWS</code> - JWS promotional offers (iOS 15+)</li>
+            <li><code>introductoryOfferEligibility</code> - Override intro offer eligibility (iOS 15+)</li>
+          </ul>
+
+          <p><strong>Impact:</strong></p>
+          <ul>
+            <li>No functional changes - these options were only used for subscriptions anyway</li>
+            <li>Better type safety - TypeScript will now error if you try to use subscription options on in-app purchases</li>
+            <li>Clearer API design - subscription-specific options are only available in subscription context</li>
+          </ul>
+
+          <p><strong>Migration:</strong></p>
+          <p>If you were using these fields with <code>type: 'in-app'</code>, change to <code>type: 'subs'</code>:</p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Before (would be ignored anyway for in-app)
+requestPurchase({
+  request: { apple: { sku: 'product', winBackOffer: {...} } },
+  type: 'in-app'  // ❌ winBackOffer doesn't apply
+});
+
+// After (correct usage)
+requestPurchase({
+  request: { apple: { sku: 'subscription', winBackOffer: {...} } },
+  type: 'subs'    // ✅ winBackOffer only works with subscriptions
+});`}
+          </pre>
+        </div>
+      ),
+    },
     // GQL 1.3.13 / Google 1.3.24 / Apple 1.3.11 - Jan 18, 2026
     {
       id: 'gql-1-3-13-google-1-3-24-apple-1-3-11',

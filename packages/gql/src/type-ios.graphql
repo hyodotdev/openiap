@@ -237,7 +237,8 @@ input RequestPurchaseIosProps {
   """
   quantity: Int
   """
-  Discount offer to apply (one-time purchase discounts)
+  Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+  iOS only supports promotional offers for auto-renewable subscriptions.
   """
   withOffer: DiscountOfferInputIOS
   """
@@ -255,6 +256,10 @@ input RequestSubscriptionIosProps {
   andDangerouslyFinishTransactionAutomatically: Boolean
   appAccountToken: String
   quantity: Int
+  """
+  Promotional offer to apply for subscription purchases.
+  Requires server-signed offer with nonce, timestamp, keyId, and signature.
+  """
   withOffer: DiscountOfferInputIOS
   """
   Win-back offer to apply (iOS 18+)

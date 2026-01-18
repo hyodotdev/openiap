@@ -1421,7 +1421,8 @@ public struct RequestPurchaseIosProps: Codable {
     public var quantity: Int?
     /// Product SKU
     public var sku: String
-    /// Discount offer to apply (one-time purchase discounts)
+    /// Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+    /// iOS only supports promotional offers for auto-renewable subscriptions.
     public var withOffer: DiscountOfferInputIOS?
 
     public init(
@@ -1611,6 +1612,8 @@ public struct RequestSubscriptionIosProps: Codable {
     /// The offer is available when the customer is eligible and can be discovered
     /// via StoreKit Message (automatic) or subscription offer APIs.
     public var winBackOffer: WinBackOfferInputIOS?
+    /// Promotional offer to apply for subscription purchases.
+    /// Requires server-signed offer with nonce, timestamp, keyId, and signature.
     public var withOffer: DiscountOfferInputIOS?
 
     public init(

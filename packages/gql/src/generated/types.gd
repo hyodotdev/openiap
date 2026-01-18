@@ -3054,7 +3054,7 @@ class RequestPurchaseIosProps:
 	var app_account_token: String
 	## Purchase quantity
 	var quantity: int
-	## Discount offer to apply (one-time purchase discounts)
+	## Promotional offer to apply (subscriptions only, ignored for one-time purchases).
 	var with_offer: DiscountOfferInputIOS
 	## Advanced commerce data token (iOS 15+).
 	var advanced_commerce_data: String
@@ -3298,6 +3298,7 @@ class RequestSubscriptionIosProps:
 	var and_dangerously_finish_transaction_automatically: bool
 	var app_account_token: String
 	var quantity: int
+	## Promotional offer to apply for subscription purchases.
 	var with_offer: DiscountOfferInputIOS
 	## Win-back offer to apply (iOS 18+)
 	var win_back_offer: WinBackOfferInputIOS

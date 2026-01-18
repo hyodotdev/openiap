@@ -382,8 +382,8 @@ enum StoreKitTypesBridge {
         if let subscriptionProps = props as? RequestSubscriptionIosProps {
             // Win-back offers (iOS 18+)
             // Used to re-engage churned subscribers
-            if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
-                if let winBackInput = subscriptionProps.winBackOffer {
+            if let winBackInput = subscriptionProps.winBackOffer {
+                if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
                     guard let product = product else {
                         OpenIapLog.error("❌ Win-back offer requires product context")
                         throw PurchaseError.make(
@@ -416,15 +416,15 @@ enum StoreKitTypesBridge {
                             message: "Win-back offers can only be applied to subscription products"
                         )
                     }
+                } else {
+                    // Fail fast when win-back offers are used on unsupported OS versions
+                    OpenIapLog.error("❌ Win-back offers require iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+")
+                    throw PurchaseError.make(
+                        code: .developerError,
+                        productId: props.sku,
+                        message: "Win-back offers are only supported on iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+."
+                    )
                 }
-            } else if subscriptionProps.winBackOffer != nil {
-                // Fail fast when win-back offers are used on unsupported OS versions
-                OpenIapLog.error("❌ Win-back offers require iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+")
-                throw PurchaseError.make(
-                    code: .developerError,
-                    productId: props.sku,
-                    message: "Win-back offers are only supported on iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+."
-                )
             }
 
             // JWS Promotional Offer (iOS 15+, WWDC 2025)

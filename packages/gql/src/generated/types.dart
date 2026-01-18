@@ -3664,7 +3664,8 @@ class RequestPurchaseIosProps {
   final int? quantity;
   /// Product SKU
   final String sku;
-  /// Discount offer to apply (one-time purchase discounts)
+  /// Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+  /// iOS only supports promotional offers for auto-renewable subscriptions.
   final DiscountOfferInputIOS? withOffer;
 
   factory RequestPurchaseIosProps.fromJson(Map<String, dynamic> json) {
@@ -3893,6 +3894,8 @@ class RequestSubscriptionIosProps {
   /// The offer is available when the customer is eligible and can be discovered
   /// via StoreKit Message (automatic) or subscription offer APIs.
   final WinBackOfferInputIOS? winBackOffer;
+  /// Promotional offer to apply for subscription purchases.
+  /// Requires server-signed offer with nonce, timestamp, keyId, and signature.
   final DiscountOfferInputIOS? withOffer;
 
   factory RequestSubscriptionIosProps.fromJson(Map<String, dynamic> json) {
