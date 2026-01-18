@@ -107,6 +107,24 @@ The Google package supports **two build flavors**:
 ./gradlew :openiap:test
 ```
 
+### Version Compatibility
+
+| Flavor | Billing Library | Version |
+|--------|-----------------|---------|
+| Play | Google Play Billing | 8.3.0 |
+| Horizon | horizon-billing-compatibility | 1.1.1 (GPB 7.0 compatible) |
+
+**CRITICAL**: Horizon SDK implements **Billing 7.0 API**, not 8.x. When writing shared code in `src/main/`:
+
+**Safe APIs (exist in both 7.0 and 8.x):**
+- `queryProductDetailsAsync()`, `launchBillingFlow()`
+- `acknowledgePurchase()`, `consumeAsync()`, `queryPurchasesAsync()`
+
+**DO NOT use in shared code (8.x only):**
+- `enableAutoServiceReconnection()`
+- Product-level status codes
+- One-time products with multiple offers
+
 ### Horizon-Specific APIs
 
 Meta Horizon has different APIs from Google Play:
