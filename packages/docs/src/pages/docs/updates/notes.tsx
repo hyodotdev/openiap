@@ -26,52 +26,67 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // GQL 1.3.14 / Apple 1.3.12 - Jan 19, 2026
+    // GQL 1.3.14 / Google 1.3.25 / Apple 1.3.12 - Jan 19, 2026
     {
-      id: 'gql-1-3-14-apple-1-3-12',
+      id: 'gql-1-3-14-google-1-3-25-apple-1-3-12',
       date: new Date('2026-01-19'),
       element: (
-        <div key="gql-1-3-14-apple-1-3-12" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-14-apple-1-3-12" level="h4">
-            📅 openiap-gql v1.3.14 / openiap-apple v1.3.12 - Subscription-Only Props Fix
+        <div key="gql-1-3-14-google-1-3-25-apple-1-3-12" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-14-google-1-3-25-apple-1-3-12" level="h4">
+            📅 openiap-gql v1.3.14 / openiap-google v1.3.25 / openiap-apple v1.3.12 - Breaking Changes & Bug Fixes
           </AnchorLink>
 
-          <p><strong>Type Safety Improvement:</strong></p>
+          <p><strong>iOS - Subscription-Only Props Cleanup (Breaking Change):</strong></p>
           <p>
-            Moved subscription-only fields from <code>RequestPurchaseIosProps</code> to{' '}
-            <code>RequestSubscriptionIosProps</code> only. These fields only apply to subscription purchases,
-            not in-app products (consumables/non-consumables).
+            Removed subscription-specific fields from <code>RequestPurchaseIosProps</code>. These fields now only exist in <code>RequestSubscriptionIosProps</code>.
+          </p>
+          <ul>
+            <li><code>introductoryOfferEligibility</code> - Removed from <code>RequestPurchaseIosProps</code></li>
+            <li><code>promotionalOfferJWS</code> - Removed from <code>RequestPurchaseIosProps</code></li>
+            <li><code>winBackOffer</code> - Removed from <code>RequestPurchaseIosProps</code></li>
+          </ul>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Migration: If using these fields for non-subscription purchases, move to <code>requestSubscription()</code> API.
           </p>
 
-          <p><strong>Fields Moved (subscription-only):</strong></p>
-          <ul>
-            <li><code>winBackOffer</code> - Win-back offers for churned subscribers (iOS 18+)</li>
-            <li><code>promotionalOfferJWS</code> - JWS promotional offers (iOS 15+)</li>
-            <li><code>introductoryOfferEligibility</code> - Override intro offer eligibility (iOS 15+)</li>
-          </ul>
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
 
-          <p><strong>Impact:</strong></p>
-          <ul>
-            <li>No functional changes - these options were only used for subscriptions anyway</li>
-            <li>Better type safety - TypeScript will now error if you try to use subscription options on in-app purchases</li>
-            <li>Clearer API design - subscription-specific options are only available in subscription context</li>
-          </ul>
+          <p><strong>Known Issue - introductoryOfferEligibility API (Issue <a href="https://github.com/hyodotdev/openiap/issues/68" target="_blank" rel="noopener noreferrer">#68</a>):</strong></p>
+          <p>
+            The current <code>introductoryOfferEligibility</code> field uses <code>Boolean</code> type, but Apple's actual
+            <a href="https://developer.apple.com/documentation/storekit/product/purchaseoption/introductoryoffereligibility(compactjws:)" target="_blank" rel="noopener noreferrer"> introductoryOfferEligibility(compactJWS:)</a> API
+            requires a JWS string parameter, not a boolean.
+          </p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            This will be corrected in a future release. The API signature will change from <code>Boolean</code> to <code>String</code> (JWS).
+          </p>
 
-          <p><strong>Migration:</strong></p>
-          <p>If you were using these fields with <code>type: 'in-app'</code>, change to <code>type: 'subs'</code>:</p>
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
+
+          <p><strong>Android - Fix displayPrice for Subscriptions with Free Trials:</strong></p>
+          <p>
+            Fixed an issue where <code>displayPrice</code> returned "Free" or "$0.00" for subscription products
+            with free trials, instead of the actual base/recurring price.
+          </p>
           <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
-{`// Before (would be ignored anyway for in-app)
-requestPurchase({
-  request: { apple: { sku: 'product', winBackOffer: {...} } },
-  type: 'in-app'  // ❌ winBackOffer doesn't apply
-});
+{`// Before (bug)
+product.displayPrice  // "Free" or "$0.00"
+product.price         // 0.0
 
-// After (correct usage)
-requestPurchase({
-  request: { apple: { sku: 'subscription', winBackOffer: {...} } },
-  type: 'subs'    // ✅ winBackOffer only works with subscriptions
-});`}
+// After (fixed)
+product.displayPrice  // "$9.99" (base recurring price)
+product.price         // 9.99
+
+// Note: Free trial info is still available in subscriptionOffers
+product.subscriptionOffers[0].displayPrice   // "$0.00"
+product.subscriptionOffers[0].paymentMode    // "free-trial"`}
           </pre>
+
+          <p><strong>References:</strong></p>
+          <ul>
+            <li><a href="https://github.com/hyodotdev/openiap/issues/68" target="_blank" rel="noopener noreferrer">Issue #68 - introductoryOfferEligibility API Correction</a></li>
+            <li><a href="/docs/types/purchase">Purchase Types Documentation</a></li>
+          </ul>
         </div>
       ),
     },

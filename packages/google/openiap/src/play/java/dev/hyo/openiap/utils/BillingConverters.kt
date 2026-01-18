@@ -187,6 +187,24 @@ internal object BillingConverters {
     }
 
     /**
+     * Finds the base/recurring pricing phase from subscription offers.
+     * recurrenceMode: 1 = INFINITE_RECURRING (base price), 2 = FINITE_RECURRING, 3 = NON_RECURRING (trial/intro)
+     *
+     * For subscriptions with free trials, the first phase is often the trial (recurrenceMode=3, price=0).
+     * This function finds the actual recurring price phase (recurrenceMode=1).
+     */
+    private fun findBasePricingPhase(offers: List<ProductDetails.SubscriptionOfferDetails>): ProductDetails.PricingPhase? {
+        for (offer in offers) {
+            val phases = offer.pricingPhases.pricingPhaseList
+            // Find the INFINITE_RECURRING phase (base price)
+            val basePhase = phases.find { it.recurrenceMode == 1 }
+            if (basePhase != null) return basePhase
+        }
+        // Fallback: return the last phase of the first offer (usually the recurring phase)
+        return offers.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()
+    }
+
+    /**
      * Determines PaymentMode from recurrenceMode and price.
      * recurrenceMode: 1 = INFINITE_RECURRING, 2 = FINITE_RECURRING, 3 = NON_RECURRING
      */
@@ -295,9 +313,10 @@ internal object BillingConverters {
 
     fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid {
         val offers = subscriptionOfferDetails.orEmpty()
-        val firstPhase = offers.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()
-        val displayPrice = firstPhase?.formattedPrice.orEmpty()
-        val currency = firstPhase?.priceCurrencyCode.orEmpty()
+        // Use base/recurring price phase instead of first phase (which may be free trial)
+        val basePhase = findBasePricingPhase(offers)
+        val displayPrice = basePhase?.formattedPrice.orEmpty()
+        val currency = basePhase?.priceCurrencyCode.orEmpty()
 
         // Convert to deprecated format (for backwards compatibility)
         val pricingDetails = offers.map { offer ->
@@ -350,7 +369,7 @@ internal object BillingConverters {
             nameAndroid = name,
             oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetailsList,
             platform = IapPlatform.Android,
-            price = firstPhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
+            price = basePhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
             productStatusAndroid = getProductStatus(),
             subscriptionOfferDetailsAndroid = pricingDetails,
             subscriptionOffers = subscriptionOffers,
