@@ -2,14 +2,27 @@
 
 Master workflow to synchronize OpenIAP changes across all platform SDKs.
 
+## CRITICAL: The #1 Mistake to Avoid
+
+**The most common sync mistake is updating types without verifying native code passes new options.**
+
+Example: A new `includeSuspendedAndroid` option is added to `PurchaseOptions`. You:
+1. Update types ✓
+2. Run tests ✓
+3. Push PR ✓
+
+**BUT**: The native code still passes `null` instead of the options object. The feature doesn't work.
+
+**ALWAYS verify native code actually passes new input fields to OpenIAP.**
+
 ## Environment Setup
 
 Set these environment variables before running sync commands:
 
 ```bash
 # Add to your shell profile (.bashrc, .zshrc, etc.)
-export IAP_REPOS_HOME="/Users/hyo/Github/hyochan"   # Parent directory of platform SDKs
-export OPENIAP_HOME="/Users/hyo/Github/hyodotdev"   # Parent directory of openiap monorepo
+export IAP_REPOS_HOME="/Users/crossplatformkorea/Github/hyochan"   # Parent directory of platform SDKs
+export OPENIAP_HOME="/Users/crossplatformkorea/Github/hyodotdev"   # Parent directory of openiap monorepo
 ```
 
 ## Target Repositories
@@ -256,7 +269,37 @@ flutter run -d android
 
 ---
 
-## Native Code Modification Checklist
+## Native Code Modification Checklist (CRITICAL)
+
+**This is the most important section. DO NOT SKIP.**
+
+### Change Type Decision Matrix
+
+| Change Type | Action Required |
+|-------------|-----------------|
+| New response types only | NO code change - OpenIAP returns them automatically |
+| New INPUT option fields | **CHECK** - verify native code passes the option |
+| New API function | YES - add wrapper in native + expose to JS/Dart/Kotlin |
+| Breaking type change | YES - check serialization compatibility |
+| New platform feature | YES - full implementation needed |
+
+### How to Verify INPUT Options Are Passed
+
+**For each new input field (e.g., `includeSuspendedAndroid`, `winBackOffer`):**
+
+1. **Find where the option is used in OpenIAP native SDK:**
+   ```bash
+   # Example: Check how OpenIAP uses the option
+   grep -rn "includeSuspendedAndroid" packages/google/
+   ```
+
+2. **Check if platform SDK passes the option to OpenIAP:**
+   ```bash
+   # Example: Check expo-iap
+   grep -A10 "getAvailableItems\|getAvailablePurchases" android/src/main/java/expo/modules/iap/ExpoIapModule.kt
+   ```
+
+3. **If native code passes `null` or doesn't read the option, IT WON'T WORK.**
 
 ### iOS Native Code Updates
 
@@ -268,12 +311,17 @@ For each platform SDK, check:
    - [ ] Error handling follows pattern
    - [ ] Async/await properly used (StoreKit 2)
 
-2. **Type Conversions**
+2. **New INPUT Options**
+   - [ ] Options are read from the params/arguments
+   - [ ] Options are forwarded to OpenIAP SDK
+   - [ ] Not passing `null` when options exist
+
+3. **Type Conversions**
    - [ ] New types have conversion functions
    - [ ] Optional fields handled correctly
    - [ ] Platform-specific fields mapped
 
-3. **Error Handling**
+4. **Error Handling**
    - [ ] New error codes mapped
    - [ ] Error messages localized if needed
    - [ ] Proper error propagation
@@ -285,12 +333,17 @@ For each platform SDK, check:
    - [ ] Coroutines/suspend functions properly used
    - [ ] BillingClient callbacks handled
 
-2. **Type Conversions**
+2. **New INPUT Options (MOST COMMONLY MISSED)**
+   - [ ] Options are parsed from the params Map/HashMap
+   - [ ] `PurchaseOptions.fromJson(options)` or equivalent is called
+   - [ ] Options are passed to `openIap.getAvailablePurchases(options)` not `null`
+
+3. **Type Conversions**
    - [ ] New types have conversion functions
    - [ ] Nullable fields handled correctly
    - [ ] Platform-specific fields mapped
 
-3. **Error Handling**
+4. **Error Handling**
    - [ ] BillingResponseCode mapping updated
    - [ ] Error messages consistent
 

@@ -5,6 +5,25 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 **Target Repository:** `$IAP_REPOS_HOME/godot-iap`
 
 > **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
+>
+> **Default Path:** `/Users/crossplatformkorea/Github/hyochan/godot-iap`
+
+## CRITICAL: Mandatory Steps Checklist
+
+**YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
+
+| Step | Required | Description |
+|------|----------|-------------|
+| 0. Pull Latest | **YES** | `git pull` before any work |
+| 1. Analyze OpenIAP Changes | **YES** | Review what changed in openiap packages |
+| 2. Sync Versions | **YES** | Update openiap-versions.json |
+| 3. Generate Types | **YES** | Generate in openiap, copy to godot-iap |
+| 4. Review Native Code | **YES** | Check if GDExtension code needs updates |
+| 5. Update GDScript API | **IF NEEDED** | Add new functions to `iap.gd`, `store.gd` |
+| 6. Run All Checks | **YES** | Editor test, GDUnit4 tests |
+| 7. Write Blog Post | **YES** | Create release notes |
+| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
+| 9. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -22,17 +41,21 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 | `addons/openiap/store.gd` | SwiftUI-like store | NO |
 | `plugin.cfg` | Plugin configuration | NO |
 | `openiap-versions.json` | Version tracking | NO |
+| `docs/blog/` | Release blog posts | NO |
+| `docs/static/llms.txt` | AI reference | NO |
 
 ## Type Generation Source
 
 **OpenIAP has a built-in GDScript type generator:**
 
-- **Generator:** `$OPENIAP_HOME/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
-- **Output:** `$OPENIAP_HOME/openiap/packages/gql/src/generated/types.gd`
+- **Generator:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
+- **Output:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/src/generated/types.gd`
+
+---
 
 ## Sync Steps
 
-### 0. Pull Latest (REQUIRED)
+### Step 0: Pull Latest (REQUIRED)
 
 **Always pull the latest code before starting any sync work:**
 
@@ -41,33 +64,92 @@ cd $IAP_REPOS_HOME/godot-iap
 git pull
 ```
 
-### 1. Sync openiap-versions.json (REQUIRED)
+---
 
-**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
+### Step 1: Analyze OpenIAP Changes (REQUIRED)
+
+**CRITICAL: Before syncing, understand what changed in the openiap monorepo.**
+
+#### 1.1 Check Version Differences
 
 ```bash
-cd $IAP_REPOS_HOME/godot-iap
+echo "=== OpenIAP Monorepo Versions ==="
+cat /Users/crossplatformkorea/Github/hyodotdev/openiap/openiap-versions.json
 
-# Check current versions in openiap monorepo
-cat $OPENIAP_HOME/openiap/openiap-versions.json
-
-# Update godot-iap's openiap-versions.json to match:
-# - "gql": should match openiap's "gql" version
-# - "apple": should match openiap's "apple" version
-# - "google": should match openiap's "google" version
+echo "=== godot-iap Current Versions ==="
+cat $IAP_REPOS_HOME/godot-iap/openiap-versions.json
 ```
 
-**Version fields to sync:**
-| Field | Source | Purpose |
-|-------|--------|---------|
-| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | GDScript types version |
-| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
-| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
-
-### 2. Generate Types in OpenIAP
+#### 1.2 Analyze GQL Schema Changes (Types)
 
 ```bash
-cd $OPENIAP_HOME/openiap/packages/gql
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/gql/
+```
+
+Look for:
+- New types/interfaces added
+- New fields on existing types
+- Breaking changes to type signatures
+
+#### 1.3 Analyze Apple Package Changes (iOS Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/apple/
+```
+
+Check `packages/apple/Sources/` for:
+- New public functions in `OpenIapModule.swift`
+- New types in `Types.swift`
+- Changes that need GDExtension bridge updates
+
+#### 1.4 Analyze Google Package Changes (Android Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/google/
+```
+
+Check `packages/google/openiap/src/main/` for:
+- New public functions in `OpenIapModule.kt`
+- New types in `Types.kt`
+- Changes that need GDExtension bridge updates
+
+#### 1.5 Document Changes Found
+
+Create a mental checklist:
+- [ ] New types added?
+- [ ] New API methods exposed?
+- [ ] Breaking changes?
+- [ ] Deprecations?
+- [ ] Bug fixes?
+- [ ] Platform version requirements changed?
+
+---
+
+### Step 2: Sync openiap-versions.json (REQUIRED)
+
+Update godot-iap's version tracking file to match openiap monorepo.
+
+**Edit `openiap-versions.json`:**
+
+```json
+{
+  "gql": "<match openiap's gql version>",
+  "apple": "<match openiap's apple version>",
+  "google": "<match openiap's google version>"
+}
+```
+
+---
+
+### Step 3: Generate and Copy Types (REQUIRED)
+
+#### 3.1 Generate Types in OpenIAP
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql
 
 # Run GDScript type generation
 npm run generate:gdscript
@@ -76,68 +158,129 @@ npm run generate:gdscript
 npm run generate
 ```
 
-### 3. Copy Types to godot-iap
+#### 3.2 Copy Types to godot-iap
 
 ```bash
 # Copy generated types
-cp $OPENIAP_HOME/openiap/packages/gql/src/generated/types.gd \
+cp /Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/src/generated/types.gd \
    $IAP_REPOS_HOME/godot-iap/addons/openiap/types.gd
 ```
 
-### 4. Verify Version Tracking
+#### 3.3 Review Changes
 
-Confirm `openiap-versions.json` in godot-iap matches openiap:
-
-```json
-{
-  "gql": "1.3.11",
-  "apple": "1.3.9",
-  "google": "1.3.21"
-}
+```bash
+cd $IAP_REPOS_HOME/godot-iap
+git diff addons/openiap/types.gd | head -100
 ```
 
-### 5. Native Code Modifications
+**Analyze the type diff carefully:**
+- New classes?
+- New fields on existing classes?
+- Changed field types?
+- New enums or enum values?
 
-#### iOS Native Code (GDExtension)
+---
+
+### Step 4: Review Native Code (REQUIRED)
+
+**CRITICAL: This step catches bugs that "type-only" syncs miss. DO NOT SKIP.**
+
+You must verify that godot-iap's GDExtension code actually passes new options/fields to OpenIAP.
+
+#### 4.1 iOS GDExtension Review
 
 **Location:** `ios/` or `gdextension/ios/`
 
-Key files to update:
+**Verification steps:**
 
-- Swift/Objective-C bridge to StoreKit 2
-- GDExtension bindings for iOS
+1. Check what new fields were added to iOS types:
+   ```bash
+   git diff addons/openiap/types.gd | grep -A5 "IOS\|ios"
+   ```
+
+2. Check if GDExtension bridge exposes new fields:
+   ```bash
+   # Check Swift/Objective-C bridge
+   grep -rn "getAvailablePurchases\|requestPurchase" ios/ gdextension/ios/ 2>/dev/null
+   ```
 
 **When to modify:**
-
 - New iOS-specific API methods added to OpenIAP
 - StoreKit 2 API changes
 - Type conversion changes
 
-#### Android Native Code (GDExtension)
+#### 4.2 Android GDExtension Review
 
 **Location:** `android/` or `gdextension/android/`
 
-Key files to update:
+**Verification steps:**
 
-- Kotlin/Java bridge to Play Billing
-- GDExtension bindings for Android
+1. Check what new fields were added to Android types:
+   ```bash
+   git diff addons/openiap/types.gd | grep -A5 "Android\|android"
+   ```
 
-**When to modify:**
+2. **CRITICAL**: Check if GDExtension bridge passes options to OpenIAP:
+   ```bash
+   # Check Kotlin/Java bridge
+   grep -rn "getAvailablePurchases\|requestPurchase" android/ gdextension/android/ 2>/dev/null
+   ```
 
-- New Android-specific API methods added to OpenIAP
-- Play Billing API changes
-- Type conversion changes
+**Android often requires explicit option passing - don't assume it works!**
 
-### 6. Update GDScript Implementation
+#### 4.3 GDScript API Review
 
-If API changes, update:
+**Location:** `addons/openiap/iap.gd`, `addons/openiap/store.gd`
 
-- `addons/openiap/iap.gd` - Core module
-- `addons/openiap/store.gd` - Store abstraction
+Check if GDScript API passes new options to native:
 
-### 7. Build & Test
+```bash
+# Check if new options fields are included in native calls
+grep -A10 "get_available_purchases\|request_purchase" addons/openiap/iap.gd
+```
 
-#### Editor Test
+**If a new option exists in types but isn't passed in the GDScript/native layer, IT WON'T WORK!**
+
+#### 4.4 Decision Matrix (Updated)
+
+| Change Type | Action Required |
+|-------------|-----------------|
+| New types only (response types) | NO code change - OpenIAP returns them automatically |
+| New INPUT option fields | **CHECK** - verify GDExtension passes the option |
+| New API function | YES - add to GDExtension + GDScript wrapper |
+| Breaking type change | YES - check serialization compatibility |
+| New platform feature | YES - add GDExtension + GDScript + signals |
+
+**Common mistakes to catch:**
+- GDScript has the option in types, but GDExtension doesn't read it
+- Android GDExtension doesn't parse the new option
+- Signal not emitted for new purchase states
+
+---
+
+### Step 5: Update GDScript API (IF NEEDED)
+
+If new API functions were added:
+
+#### 5.1 Update `addons/openiap/iap.gd`
+
+Add new methods to the core module.
+
+#### 5.2 Update `addons/openiap/store.gd`
+
+Add new methods to the store abstraction.
+
+#### 5.3 Add Signals
+
+For new asynchronous events, add signals.
+
+---
+
+### Step 6: Run All Checks (REQUIRED)
+
+**ALL checks must pass before proceeding.**
+
+#### 6.1 Editor Test
 
 ```bash
 cd $IAP_REPOS_HOME/godot-iap
@@ -149,29 +292,7 @@ godot --editor .
 # Run test scenes from editor
 ```
 
-#### iOS Build Test
-
-```bash
-cd $IAP_REPOS_HOME/godot-iap
-
-# Export iOS build from Godot Editor
-# Project > Export > iOS
-# Or use CLI:
-godot --headless --export-release "iOS" build/ios/godot-iap.ipa
-```
-
-#### Android Build Test
-
-```bash
-cd $IAP_REPOS_HOME/godot-iap
-
-# Export Android build from Godot Editor
-# Project > Export > Android
-# Or use CLI:
-godot --headless --export-release "Android" build/android/godot-iap.apk
-```
-
-#### Unit Tests (GDUnit4)
+#### 6.2 GDUnit4 Tests
 
 ```bash
 # Run GDUnit4 tests
@@ -180,110 +301,120 @@ godot --headless -s addons/gdunit4/test_runner.gd
 # Or run from editor: GDUnit4 panel > Run Tests
 ```
 
-### 8. Update Example Code (REQUIRED)
+**If any check fails, fix before continuing.**
 
-**Location:** `examples/`
+---
 
-- Example Godot scenes demonstrating purchase flows
-- Sample GDScript code
+### Step 7: Write Blog Post (REQUIRED)
 
-**Example Code Guidelines:**
-- Demonstrate ALL new API features with working code
-- Show both success and error handling
-- Include comments explaining the feature
-- Use realistic SKU names and user flows
+**Every sync MUST have a blog post documenting the changes.**
 
-**Example for new iOS feature (e.g., Win-Back Offer):**
+#### 7.1 Create Blog Post File
 
-```gdscript
-# In example scene script
-func _on_winback_button_pressed():
-    var request = RequestSubscriptionIosProps.new()
-    request.sku = "premium_monthly"
-    request.win_back_offer = WinBackOfferInputIOS.new()
-    request.win_back_offer.offer_id = "winback_50_off"  # iOS 18+
+**Location:** `docs/blog/` or `README.md` changelog section
 
-    var result = await iap.request_subscription_ios(request)
-    print("Win-back applied: ", result)
-```
+**Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
 
-**Example for new Android feature (e.g., Product Status):**
-
-```gdscript
-# In example scene script
-for product in products:
-    if product.product_status_android != null:
-        match product.product_status_android:
-            ProductStatusAndroid.OK:
-                # Show product
-                pass
-            ProductStatusAndroid.NOT_FOUND:
-                # Show error
-                pass
-            ProductStatusAndroid.NO_OFFERS_AVAILABLE:
-                # Show ineligible message
-                pass
-```
-
-### 9. Update Documentation (REQUIRED)
-
-**Location:** `docs/` or `README.md`
-
-**Documentation Checklist:**
-
-For each new feature synced from openiap:
-
-- [ ] **CHANGELOG.md** - Add entry for new version
-- [ ] **API reference** - Function added with signature, params, return type
-- [ ] **Type reference** - New types documented with all fields explained
-- [ ] **Example code** - Working examples in documentation
-- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
-- [ ] **Migration notes** - Breaking changes documented
-
-**Example Documentation Entry:**
+#### 7.2 Blog Post Template
 
 ```markdown
-## request_subscription_ios
+---
+slug: <version>-<short-slug>
+title: <version> - <Short Title>
+authors: [hyochan]
+tags: [release, openiap, godot, <platform-tags>]
+date: YYYY-MM-DD
+---
 
-### Win-Back Offers (iOS 18+)
+# <version> Release Notes
 
-Win-back offers re-engage churned subscribers:
+This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/updates/notes#<anchor>).
 
-~~~gdscript
+## New Features
+
+### <Feature Name> (<Platform> <Version>+)
+
+<Description of the feature>
+
+```gdscript
+# Example usage
 var request = RequestSubscriptionIosProps.new()
 request.sku = "premium_monthly"
-request.win_back_offer = WinBackOfferInputIOS.new()
-request.win_back_offer.offer_id = "winback_50_off"
-
+# new option
 var result = await iap.request_subscription_ios(request)
-~~~
 ```
 
-### 10. Update llms.txt Files
+## Bug Fixes
 
-**Location:** `docs/static/`
+- <Fix description>
 
-Update AI-friendly documentation files when APIs or types change:
+## OpenIAP Versions
 
-- `docs/static/llms.txt` - Quick reference for AI assistants
-- `docs/static/llms-full.txt` - Detailed AI reference
+| Package | Version |
+|---------|---------|
+| openiap-gql | <version> |
+| openiap-google | <version> |
+| openiap-apple | <version> |
 
-**When to update:**
+For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
+```
 
+#### 7.3 Blog Post Guidelines
+
+- **New features**: Explain what they do, show example code, note platform requirements
+- **Breaking changes**: MUST have migration guide with before/after code
+- **Type-only changes**: Still document, mention "GDScript types updated"
+- **Bug fixes**: List what was fixed
+- **Always link**: Link to OpenIAP release notes
+
+---
+
+### Step 8: Update llms.txt (IF API CHANGED)
+
+**Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
+
+Update if:
 - New API functions added
 - Function signatures changed
-- New types or enums added
-- GDScript patterns updated
-- Error codes changed
+- New types developers need to know about
+- Signal patterns updated
 
-**Content to sync:**
+---
 
-1. Installation (Godot Asset Library)
-2. Core API reference (IAP module, Store class)
-3. Key types (ProductIOS, PurchaseAndroid, etc.)
-4. Signal patterns for purchase events
-5. Platform-specific notes (StoreKit 2, Play Billing)
-6. Error handling examples
+### Step 9: Commit and Push (REQUIRED)
+
+#### 9.1 Create Feature Branch
+
+```bash
+cd $IAP_REPOS_HOME/godot-iap
+
+git checkout -b feat/openiap-sync-<gql-version>
+```
+
+#### 9.2 Commit with Descriptive Message
+
+```bash
+git commit -m "$(cat <<'EOF'
+feat: sync with openiap v<gql-version>
+
+- Update openiap-versions.json (gql: <ver>, apple: <ver>, google: <ver>)
+- Regenerate GDScript types
+- <List specific new features/changes>
+- Add release blog post
+- <Any other changes made>
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+#### 9.3 Push to Remote
+
+```bash
+git push -u origin feat/openiap-sync-<gql-version>
+```
+
+---
 
 ## Generated Type Structure
 
@@ -310,6 +441,8 @@ class ProductIOS:
         pass
 ```
 
+---
+
 ## Naming Conventions (GDScript)
 
 - **Classes:** PascalCase (e.g., `ProductIOS`, `RequestPurchaseResult`)
@@ -319,88 +452,10 @@ class ProductIOS:
 - **iOS types:** `IOS` suffix
 - **Android types:** `Android` suffix
 
-## Deprecation Check
-
-```bash
-cd $IAP_REPOS_HOME/godot-iap
-grep -r "deprecated" addons/
-grep -r "DEPRECATED" addons/
-```
-
-## Platform-Specific Notes
-
-**iOS:**
-- Uses StoreKit 2 via Swift bridge
-- Check Apple-specific types in generated code
-
-**Android:**
-- Uses Google Play Billing via Java/Kotlin bridge
-- Check Android-specific types in generated code
-
-## Pre-commit Checklist
-
-1. Types generated and copied
-2. Implementation updated for new types
-3. Examples updated
-4. Tests passing
-5. Documentation updated
-
-**Full Sync Checklist:**
-
-- [ ] openiap-versions.json synced
-- [ ] Types regenerated and copied (`types.gd`)
-- [ ] GDScript implementation updated (`iap.gd`, `store.gd`)
-- [ ] GDExtension native code updated if needed
-- [ ] Example code demonstrates new features
-- [ ] Tests pass (GDUnit4)
-- [ ] Documentation updated
-- [ ] llms.txt files updated
-
-### 11. Commit and Push
-
-After completing all sync steps, create a branch and commit the changes:
-
-```bash
-cd $IAP_REPOS_HOME/godot-iap
-
-# Create feature branch with version number
-git checkout -b feat/openiap-sync-<gql-version>
-
-# Example: feat/openiap-sync-1.3.12
-
-# Stage all changes
-git add .
-
-# Commit with descriptive message
-git commit -m "feat: sync with openiap v<gql-version>
-
-- Update openiap-versions.json (gql: <version>, apple: <version>, google: <version>)
-- Regenerate GDScript types
-- Update example code for new types
-- Update documentation and llms.txt
-- Add/update tests for new features
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
-
-# Push to remote
-git push -u origin feat/openiap-sync-<gql-version>
-```
-
-**Branch naming conventions:**
-- Feature sync: `feat/openiap-sync-<version>` (e.g., `feat/openiap-sync-1.3.12`)
-- Specific feature: `feat/<feature-name>` (e.g., `feat/discount-offer-types`)
-- Bug fix: `fix/<issue-description>` (e.g., `fix/subscription-offer-parsing`)
-
-## Commit Message Format
-
-```
-feat: add discount offer support
-fix: resolve iOS purchase verification
-docs: update subscription flow guide
-```
+---
 
 ## References
 
-- **OpenIAP GDScript Generator:** `$OPENIAP_HOME/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
+- **OpenIAP GDScript Generator:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
 - **OpenIAP Docs:** https://openiap.dev/docs
 - **Godot IAP Docs:** Check README.md

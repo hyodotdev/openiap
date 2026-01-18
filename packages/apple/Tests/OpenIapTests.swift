@@ -375,6 +375,163 @@ final class OpenIapTests: XCTestCase {
         XCTAssertTrue(jsonString.contains("promo_code_abc"))
     }
 
+    // MARK: - Subscription-Only Props Tests
+
+    func testRequestSubscriptionIosPropsWithWinBackOffer() throws {
+        let winBackOffer = WinBackOfferInputIOS(offerId: "winback_50_off")
+        let props = RequestSubscriptionIosProps(
+            advancedCommerceData: nil,
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            introductoryOfferEligibility: nil,
+            promotionalOfferJWS: nil,
+            quantity: nil,
+            sku: "dev.hyo.subscription.monthly",
+            winBackOffer: winBackOffer,
+            withOffer: nil
+        )
+
+        XCTAssertEqual(props.sku, "dev.hyo.subscription.monthly")
+        XCTAssertNotNil(props.winBackOffer)
+        XCTAssertEqual(props.winBackOffer?.offerId, "winback_50_off")
+
+        // Test encoding/decoding
+        let data = try JSONEncoder().encode(props)
+        let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
+        XCTAssertEqual(decoded.winBackOffer?.offerId, "winback_50_off")
+    }
+
+    func testRequestSubscriptionIosPropsWithPromotionalOfferJWS() throws {
+        let jwsOffer = PromotionalOfferJWSInputIOS(jws: "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...", offerId: "promo_20_off")
+        let props = RequestSubscriptionIosProps(
+            advancedCommerceData: nil,
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            introductoryOfferEligibility: nil,
+            promotionalOfferJWS: jwsOffer,
+            quantity: nil,
+            sku: "dev.hyo.subscription.yearly",
+            winBackOffer: nil,
+            withOffer: nil
+        )
+
+        XCTAssertEqual(props.sku, "dev.hyo.subscription.yearly")
+        XCTAssertNotNil(props.promotionalOfferJWS)
+        XCTAssertEqual(props.promotionalOfferJWS?.offerId, "promo_20_off")
+        XCTAssertEqual(props.promotionalOfferJWS?.jws, "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...")
+
+        // Test encoding/decoding
+        let data = try JSONEncoder().encode(props)
+        let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
+        XCTAssertEqual(decoded.promotionalOfferJWS?.offerId, "promo_20_off")
+        XCTAssertEqual(decoded.promotionalOfferJWS?.jws, "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...")
+    }
+
+    func testRequestSubscriptionIosPropsWithIntroductoryOfferEligibility() throws {
+        let props = RequestSubscriptionIosProps(
+            advancedCommerceData: nil,
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            introductoryOfferEligibility: true,
+            promotionalOfferJWS: nil,
+            quantity: nil,
+            sku: "dev.hyo.subscription.monthly",
+            winBackOffer: nil,
+            withOffer: nil
+        )
+
+        XCTAssertEqual(props.sku, "dev.hyo.subscription.monthly")
+        XCTAssertEqual(props.introductoryOfferEligibility, true)
+
+        // Test encoding/decoding
+        let data = try JSONEncoder().encode(props)
+        let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
+        XCTAssertEqual(decoded.introductoryOfferEligibility, true)
+    }
+
+    func testRequestSubscriptionIosPropsWithAllSubscriptionOnlyFields() throws {
+        let winBackOffer = WinBackOfferInputIOS(offerId: "winback_offer")
+        let jwsOffer = PromotionalOfferJWSInputIOS(jws: "jws_token", offerId: "promo_offer")
+        let discountOffer = DiscountOfferInputIOS(
+            identifier: "offer123",
+            keyIdentifier: "key123",
+            nonce: "550e8400-e29b-41d4-a716-446655440000",
+            signature: "base64signature",
+            timestamp: 1704067200000
+        )
+
+        let props = RequestSubscriptionIosProps(
+            advancedCommerceData: "campaign_data",
+            andDangerouslyFinishTransactionAutomatically: false,
+            appAccountToken: "user-uuid-123",
+            introductoryOfferEligibility: true,
+            promotionalOfferJWS: jwsOffer,
+            quantity: 1,
+            sku: "dev.hyo.subscription.premium",
+            winBackOffer: winBackOffer,
+            withOffer: discountOffer
+        )
+
+        // Verify all fields
+        XCTAssertEqual(props.sku, "dev.hyo.subscription.premium")
+        XCTAssertEqual(props.quantity, 1)
+        XCTAssertEqual(props.appAccountToken, "user-uuid-123")
+        XCTAssertEqual(props.advancedCommerceData, "campaign_data")
+        XCTAssertEqual(props.andDangerouslyFinishTransactionAutomatically, false)
+        XCTAssertEqual(props.introductoryOfferEligibility, true)
+        XCTAssertEqual(props.winBackOffer?.offerId, "winback_offer")
+        XCTAssertEqual(props.promotionalOfferJWS?.offerId, "promo_offer")
+        XCTAssertEqual(props.withOffer?.keyIdentifier, "key123")
+
+        // Test round-trip encoding/decoding
+        let data = try JSONEncoder().encode(props)
+        let decoded = try JSONDecoder().decode(RequestSubscriptionIosProps.self, from: data)
+
+        XCTAssertEqual(decoded.sku, props.sku)
+        XCTAssertEqual(decoded.introductoryOfferEligibility, props.introductoryOfferEligibility)
+        XCTAssertEqual(decoded.winBackOffer?.offerId, props.winBackOffer?.offerId)
+        XCTAssertEqual(decoded.promotionalOfferJWS?.offerId, props.promotionalOfferJWS?.offerId)
+    }
+
+    func testSubscriptionPropsHasSubscriptionOnlyFields() {
+        // Verify that RequestSubscriptionIosProps has subscription-only fields
+        let subscriptionProps = RequestSubscriptionIosProps(
+            advancedCommerceData: nil,
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            introductoryOfferEligibility: true,
+            promotionalOfferJWS: PromotionalOfferJWSInputIOS(jws: "jws", offerId: "offer"),
+            quantity: nil,
+            sku: "sub_sku",
+            winBackOffer: WinBackOfferInputIOS(offerId: "winback"),
+            withOffer: nil
+        )
+
+        // These fields exist on RequestSubscriptionIosProps
+        XCTAssertEqual(subscriptionProps.introductoryOfferEligibility, true)
+        XCTAssertNotNil(subscriptionProps.promotionalOfferJWS)
+        XCTAssertNotNil(subscriptionProps.winBackOffer)
+
+        // RequestPurchaseIosProps does NOT have these fields (compile-time check)
+        // This is verified at compile time - if these fields were added to
+        // RequestPurchaseIosProps, the code would compile differently
+        let purchaseProps = RequestPurchaseIosProps(
+            advancedCommerceData: nil,
+            andDangerouslyFinishTransactionAutomatically: nil,
+            appAccountToken: nil,
+            quantity: nil,
+            sku: "purchase_sku",
+            withOffer: nil
+        )
+
+        // Verify purchase props only has common fields
+        XCTAssertEqual(purchaseProps.sku, "purchase_sku")
+        XCTAssertNil(purchaseProps.quantity)
+        XCTAssertNil(purchaseProps.appAccountToken)
+        XCTAssertNil(purchaseProps.advancedCommerceData)
+        XCTAssertNil(purchaseProps.withOffer)
+    }
+
     func testErrorCodeJSONDecoding() throws {
         // Test decoding from JSON with camelCase (react-native-iap format)
         let jsonCamel = """

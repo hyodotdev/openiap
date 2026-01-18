@@ -5,6 +5,25 @@ Synchronize OpenIAP changes to the [flutter_inapp_purchase](https://github.com/h
 **Target Repository:** `$IAP_REPOS_HOME/flutter_inapp_purchase`
 
 > **Note:** Set `IAP_REPOS_HOME` environment variable (see [sync-all-platforms.md](./sync-all-platforms.md#environment-setup))
+>
+> **Default Path:** `/Users/crossplatformkorea/Github/hyochan/flutter_inapp_purchase`
+
+## CRITICAL: Mandatory Steps Checklist
+
+**YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
+
+| Step | Required | Description |
+|------|----------|-------------|
+| 0. Pull Latest | **YES** | `git pull` before any work |
+| 1. Analyze OpenIAP Changes | **YES** | Review what changed in openiap packages |
+| 2. Sync Versions | **YES** | Update openiap-versions.json |
+| 3. Generate Types | **YES** | `./scripts/generate-type.sh` |
+| 4. Review Native Code | **YES** | Check if iOS/Android plugins need updates |
+| 5. Update API Exports | **IF NEEDED** | Add new functions to main class |
+| 6. Run All Checks | **YES** | `flutter analyze`, `flutter test` |
+| 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
+| 9. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -23,24 +42,18 @@ Synchronize OpenIAP changes to the [flutter_inapp_purchase](https://github.com/h
 | `lib/helpers.dart` | Type conversion utilities | NO |
 | `lib/errors.dart` | Error handling & codes | NO |
 | `lib/builders.dart` | Request builder DSL | NO |
-| `lib/enums.dart` | Custom enums | NO |
 | `ios/Classes/FlutterInappPurchasePlugin.swift` | iOS implementation | NO |
 | `android/.../FlutterInappPurchasePlugin.kt` | Android implementation | NO |
 | `openiap-versions.json` | Version tracking | NO |
+| `docs/blog/` | Release blog posts | NO |
+| `docs/static/llms.txt` | AI reference (short) | NO |
+| `docs/static/llms-full.txt` | AI reference (detailed) | NO |
 
-## Version File Structure
-
-```json
-{
-  "apple": "1.3.5",
-  "google": "1.3.14",
-  "gql": "1.3.5"
-}
-```
+---
 
 ## Sync Steps
 
-### 0. Pull Latest (REQUIRED)
+### Step 0: Pull Latest (REQUIRED)
 
 **Always pull the latest code before starting any sync work:**
 
@@ -49,35 +62,92 @@ cd $IAP_REPOS_HOME/flutter_inapp_purchase
 git pull
 ```
 
-### 1. Sync openiap-versions.json (REQUIRED)
+---
 
-**IMPORTANT:** Before generating types, sync version numbers from openiap monorepo.
+### Step 1: Analyze OpenIAP Changes (REQUIRED)
+
+**CRITICAL: Before syncing, understand what changed in the openiap monorepo.**
+
+#### 1.1 Check Version Differences
 
 ```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
+echo "=== OpenIAP Monorepo Versions ==="
+cat /Users/crossplatformkorea/Github/hyodotdev/openiap/openiap-versions.json
 
-# Check current versions in openiap monorepo
-cat $OPENIAP_HOME/openiap/openiap-versions.json
-
-# Update flutter_inapp_purchase's openiap-versions.json to match:
-# - "gql": should match openiap's "gql" version
-# - "apple": should match openiap's "apple" version
-# - "google": should match openiap's "google" version
+echo "=== flutter_inapp_purchase Current Versions ==="
+cat $IAP_REPOS_HOME/flutter_inapp_purchase/openiap-versions.json
 ```
 
-**Version fields to sync:**
-| Field | Source | Purpose |
-|-------|--------|---------|
-| `gql` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Dart types version |
-| `apple` | `$OPENIAP_HOME/openiap/openiap-versions.json` | iOS native SDK version |
-| `google` | `$OPENIAP_HOME/openiap/openiap-versions.json` | Android native SDK version |
+#### 1.2 Analyze GQL Schema Changes (Types)
 
-### 2. Type Synchronization
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/gql/
+```
+
+Look for:
+- New types/interfaces added
+- New fields on existing types
+- Breaking changes to type signatures
+
+#### 1.3 Analyze Apple Package Changes (iOS Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/apple/
+```
+
+Check `packages/apple/Sources/` for:
+- New public functions in `OpenIapModule.swift`
+- New types in `Types.swift`
+- Changes to serialization
+
+#### 1.4 Analyze Google Package Changes (Android Native)
+
+```bash
+cd /Users/crossplatformkorea/Github/hyodotdev/openiap
+git log -10 --oneline -- packages/google/
+```
+
+Check `packages/google/openiap/src/main/` for:
+- New public functions in `OpenIapModule.kt`
+- New types in `Types.kt`
+- Changes to Billing Library integration
+
+#### 1.5 Document Changes Found
+
+Create a mental checklist:
+- [ ] New types added?
+- [ ] New API methods exposed?
+- [ ] Breaking changes?
+- [ ] Deprecations?
+- [ ] Bug fixes?
+- [ ] Platform version requirements changed?
+
+---
+
+### Step 2: Sync openiap-versions.json (REQUIRED)
+
+Update flutter_inapp_purchase's version tracking file to match openiap monorepo.
+
+**Edit `openiap-versions.json`:**
+
+```json
+{
+  "apple": "<match openiap's apple version>",
+  "google": "<match openiap's google version>",
+  "gql": "<match openiap's gql version>"
+}
+```
+
+---
+
+### Step 3: Generate Types (REQUIRED)
 
 ```bash
 cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
-# Download and regenerate types (uses versions from openiap-versions.json)
+# Download and regenerate types
 ./scripts/generate-type.sh
 
 # Verify
@@ -86,299 +156,133 @@ flutter analyze
 
 **Types Location:** `lib/types.dart` (4,325+ lines, auto-generated)
 
-### 3. Native Code Modifications
+**Review what changed:**
+```bash
+git diff lib/types.dart | head -100
+```
 
-#### iOS Native Code
+**Analyze the type diff carefully:**
+- New classes?
+- New fields on existing classes?
+- Changed field types?
+- New enums or enum values?
 
-**Location:** `ios/Classes/`
+---
 
-Key files to update:
+### Step 4: Review Native Code (REQUIRED)
 
-- `FlutterInappPurchasePlugin.swift` - Main Flutter plugin implementation
-- Method channel handlers for iOS-specific APIs
+**CRITICAL: This step catches bugs that "type-only" syncs miss. DO NOT SKIP.**
+
+You must verify that flutter_inapp_purchase's native code actually passes new options/fields to OpenIAP.
+
+#### 4.1 iOS Native Code Review
+
+**Location:** `ios/Classes/FlutterInappPurchasePlugin.swift`
+
+**Verification steps:**
+
+1. Check what new fields were added to request types:
+   ```bash
+   git diff lib/types.dart | grep -A5 "RequestPurchaseIosProps\|RequestSubscriptionIosProps\|PurchaseOptions"
+   ```
+
+2. Verify flutter plugin passes these fields to OpenIAP:
+   ```bash
+   # Check method channel handlers
+   grep -n "requestPurchase\|getAvailablePurchases" ios/Classes/FlutterInappPurchasePlugin.swift
+   ```
 
 **When to modify:**
-
 - New iOS-specific API methods added to OpenIAP
 - StoreKit 2 API changes
 - Type conversion between Swift and Dart
 - New method channels needed
 
-**Update workflow:**
+#### 4.2 Android Native Code Review
+
+**Location:** `android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/FlutterInappPurchasePlugin.kt`
+
+**Verification steps:**
+
+1. Check what new fields were added to Android types:
+   ```bash
+   git diff lib/types.dart | grep -A5 "Android"
+   ```
+
+2. **CRITICAL**: Check if flutter plugin's native functions pass options to OpenIAP:
+   ```bash
+   # Look for functions that might need options parameter updates
+   grep -n "openIap\.\|getAvailablePurchases" android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/FlutterInappPurchasePlugin.kt | head -20
+   ```
+
+3. Verify options are forwarded:
+   ```bash
+   # Check method channel handlers
+   grep -A10 "getAvailablePurchases\|when.*call.method" android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/FlutterInappPurchasePlugin.kt
+   ```
+
+**Android often requires explicit option passing - don't assume it works!**
+
+#### 4.3 Dart API Review
+
+**Location:** `lib/flutter_inapp_purchase.dart`, `lib/helpers.dart`
+
+Check if Dart API passes new options to native:
 
 ```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
-
-# 1. Update apple version in openiap-versions.json
-# 2. Review openiap/packages/apple/Sources/ for changes
-# 3. Update ios/Classes/FlutterInappPurchasePlugin.swift
-# 4. Update lib/helpers.dart for new type conversions
+# Check if new options fields are included in the method channel call
+grep -A20 "getAvailablePurchases" lib/flutter_inapp_purchase.dart
 ```
 
-#### Android Native Code
+**If a new option exists in types but isn't passed in the Dart/native layer, IT WON'T WORK!**
 
-**Location:** `android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/`
+#### 4.4 Decision Matrix (Updated)
 
-Key files to update:
+| Change Type | Action Required |
+|-------------|-----------------|
+| New types only (response types) | NO code change - OpenIAP returns them automatically |
+| New INPUT option fields | **CHECK** - verify native code passes the option |
+| New API function | YES - add method channel in both native + Dart |
+| Breaking type change | YES - check serialization compatibility |
+| New platform feature | YES - add method channel + expose to Dart |
 
-- `FlutterInappPurchasePlugin.kt` - Main Flutter plugin implementation
-- Method channel handlers for Android-specific APIs
+**Common mistakes to catch:**
+- Dart has the option in types, but native code doesn't read it from the method call arguments
+- Android native doesn't parse the new option from the HashMap
+- Method channel name mismatch
 
-**When to modify:**
+---
 
-- New Android-specific API methods added to OpenIAP
-- Play Billing API changes
-- Type conversion between Kotlin and Dart
-- New method channels needed
+### Step 5: Update API (IF NEEDED)
 
-**Update workflow:**
+If new API functions were added:
 
-```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
+#### 5.1 Update `lib/flutter_inapp_purchase.dart`
 
-# 1. Update google version in openiap-versions.json
-# 2. Review openiap/packages/google/openiap/src/main/ for changes
-# 3. Update android/.../FlutterInappPurchasePlugin.kt
-# 4. Update lib/helpers.dart for new type conversions
-```
+Add new methods to the main class.
 
-#### macOS Native Code
+#### 5.2 Update `lib/helpers.dart`
 
-**Location:** `macos/Classes/`
-
-- Shares implementation pattern with iOS
-- Update alongside iOS changes
-
-### 4. Build & Test Native Code
-
-#### iOS Build Test
-
-```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
-
-# Build iOS (no code sign for testing)
-flutter build ios --no-codesign
-
-# Run on simulator
-cd example
-flutter run -d "iPhone 15 Pro"
-
-# Or build via Xcode
-open example/ios/Runner.xcworkspace
-# Build: Cmd+B, Run: Cmd+R
-```
-
-#### Android Build Test
-
-```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
-
-# Build APK
-flutter build apk --debug
-
-# Run on emulator
-cd example
-flutter run -d emulator-5554
-
-# Or build via Android Studio
-# Open example/android/ in Android Studio
-# Build > Make Project
-```
-
-#### macOS Build Test
-
-```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
-
-# Build macOS
-flutter build macos
-
-# Run
-cd example
-flutter run -d macos
-```
-
-#### Android Horizon Build (Meta Quest)
-
-```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
-
-# Build with Horizon flavor
-flutter build apk --flavor horizon
-
-# Run example with Horizon
-cd example
-flutter run --flavor horizon
-```
-
-#### Full Build Matrix
-
-```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
-
-# All platforms
-flutter build ios --no-codesign
-flutter build apk                    # Play Store
-flutter build apk --flavor horizon   # Horizon Store
-flutter build macos
-
-# All tests
-flutter test
-
-# Example app tests
-cd example && flutter test
-```
-
-### 5. Update Helper Functions
-
-If types change, update `lib/helpers.dart`:
+Add type conversion for new types:
 - JSON to object conversions
 - Platform-specific logic
 - Type transformations
 
-### 6. Update Error Handling
+#### 5.3 Update `lib/errors.dart`
 
-If error codes change, update `lib/errors.dart`:
+If error codes changed:
 - Platform error code mappings
 - Exception classes
 
-### 7. Update Example Code (REQUIRED)
+---
 
-**Location:** `example/lib/src/screens/`
+### Step 6: Run All Checks (REQUIRED)
 
-Key screens:
-- `purchase_flow_screen.dart` - Purchase flow demo
-- `subscription_flow_screen.dart` - Subscription demo
-- `alternative_billing_screen.dart` - Android alt billing
-- `offer_code_screen.dart` - Code redemption
-- `builder_demo_screen.dart` - DSL demonstration
-
-**Example Code Guidelines:**
-- Demonstrate ALL new API features with working code
-- Show both success and error handling
-- Include comments explaining the feature
-- Use realistic SKU names and user flows
-
-**Example for new iOS feature (e.g., Win-Back Offer):**
-```dart
-// In subscription_flow_screen.dart
-Future<void> _handleWinBackOffer() async {
-  try {
-    final result = await FlutterInappPurchase.instance.requestSubscription(
-      RequestSubscriptionParams(
-        sku: 'premium_monthly',
-        winBackOffer: WinBackOfferInputIOS(offerId: 'winback_50_off'),  // iOS 18+
-      ),
-    );
-    print('Win-back applied: $result');
-  } catch (e) {
-    print('Win-back failed: $e');
-  }
-}
-```
-
-**Example for new Android feature (e.g., Product Status):**
-```dart
-// In purchase_flow_screen.dart
-for (final product in products) {
-  if (product.productStatusAndroid != null) {
-    switch (product.productStatusAndroid) {
-      case ProductStatusAndroid.ok:
-        // Show product
-        break;
-      case ProductStatusAndroid.notFound:
-        // Show error
-        break;
-      case ProductStatusAndroid.noOffersAvailable:
-        // Show ineligible message
-        break;
-      default:
-        break;
-    }
-  }
-}
-```
-
-### 8. Update Tests
-
-**Unit Tests:** `test/`
-**Example Tests:** `example/test/`
+**ALL checks must pass before proceeding.**
 
 ```bash
-# Run all tests
-flutter test
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
-# With coverage (excludes types.dart)
-flutter test --coverage
-```
-
-### 9. Update Documentation (REQUIRED)
-
-**Location:** `docs/`
-- Docusaurus site
-- `docs/docs/api/` - API reference
-- `docs/docs/types/` - Type definitions
-- `docs/docs/guides/` - Usage guides
-- `docs/docs/examples/` - Code examples
-
-**Documentation Checklist:**
-
-For each new feature synced from openiap:
-
-- [ ] **CHANGELOG.md** - Add entry for new version
-- [ ] **API docs** - Function added with signature, params, return type
-- [ ] **Type docs** - New types documented with all fields explained
-- [ ] **Example code** - Working examples in documentation
-- [ ] **Platform notes** - Version requirements (e.g., "iOS 18+", "Billing 8.0+")
-- [ ] **Migration notes** - Breaking changes documented
-
-**Example Documentation Entry:**
-```mdx
-## requestSubscription
-
-### Win-Back Offers (iOS 18+)
-
-Win-back offers re-engage churned subscribers:
-
-```dart
-await FlutterInappPurchase.instance.requestSubscription(
-  RequestSubscriptionParams(
-    sku: 'premium_monthly',
-    winBackOffer: WinBackOfferInputIOS(offerId: 'winback_50_off'),
-  ),
-);
-```
-```
-
-### 10. Update llms.txt Files
-
-**Location:** `docs/static/`
-
-Update AI-friendly documentation files when APIs or types change:
-
-- `docs/static/llms.txt` - Quick reference for AI assistants
-- `docs/static/llms-full.txt` - Detailed AI reference
-
-**When to update:**
-
-- New API functions added
-- Function signatures changed
-- New types or enums added
-- Usage patterns updated
-- Error codes changed
-
-**Content to sync:**
-
-1. Installation (pubspec.yaml)
-2. Core API reference (FlutterInappPurchase class)
-3. Key types (Product, Purchase, ErrorCode)
-4. Common usage patterns (fetch, purchase, finish)
-5. Platform-specific APIs (iOS/Android suffixes)
-6. Error handling examples
-
-### 11. Pre-commit Checklist
-
-```bash
 # Format (excludes types.dart)
 git ls-files '*.dart' | grep -v '^lib/types.dart$' | xargs dart format --page-width 80 --output=none --set-exit-if-changed
 
@@ -388,85 +292,120 @@ flutter analyze
 # Test
 flutter test
 
-# Final format check
-dart format --set-exit-if-changed .
-
 # Or run all checks
 ./scripts/pre-commit-checks.sh
 ```
 
-**Full Sync Checklist:**
+**If any check fails, fix before continuing.**
 
-- [ ] openiap-versions.json synced
-- [ ] Types regenerated (`./scripts/generate-type.sh`)
-- [ ] Native code updated (iOS/Android)
-- [ ] Helper/error functions updated if needed
-- [ ] Example code demonstrates new features
-- [ ] Tests pass
-- [ ] Documentation updated
-- [ ] llms.txt files updated
+---
 
-### 12. Commit and Push
+### Step 7: Write Blog Post (REQUIRED)
 
-After completing all sync steps, create a branch and commit the changes:
+**Every sync MUST have a blog post documenting the changes.**
+
+#### 7.1 Create Blog Post File
+
+**Location:** `docs/blog/`
+
+**Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
+
+#### 7.2 Blog Post Template
+
+```markdown
+---
+slug: <version>-<short-slug>
+title: <version> - <Short Title>
+authors: [hyochan]
+tags: [release, openiap, <platform-tags>]
+date: YYYY-MM-DD
+---
+
+# <version> Release Notes
+
+This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/updates/notes#<anchor>).
+
+## New Features
+
+### <Feature Name> (<Platform> <Version>+)
+
+<Description of the feature>
+
+```dart
+// Example usage
+```
+
+## Bug Fixes
+
+- <Fix description>
+
+## OpenIAP Versions
+
+| Package | Version |
+|---------|---------|
+| openiap-gql | <version> |
+| openiap-google | <version> |
+| openiap-apple | <version> |
+
+For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
+```
+
+#### 7.3 Blog Post Guidelines
+
+- **New features**: Explain what they do, show example code, note platform requirements
+- **Breaking changes**: MUST have migration guide with before/after code
+- **Type-only changes**: Still document, mention "Dart types updated"
+- **Bug fixes**: List what was fixed
+- **Always link**: Link to OpenIAP release notes
+
+---
+
+### Step 8: Update llms.txt (IF API CHANGED)
+
+**Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
+
+Update if:
+- New API functions added
+- Function signatures changed
+- New types developers need to know about
+- Usage patterns updated
+
+---
+
+### Step 9: Commit and Push (REQUIRED)
+
+#### 9.1 Create Feature Branch
 
 ```bash
 cd $IAP_REPOS_HOME/flutter_inapp_purchase
 
-# Create feature branch with version number
 git checkout -b feat/openiap-sync-<gql-version>
+```
 
-# Example: feat/openiap-sync-1.3.12
+#### 9.2 Commit with Descriptive Message
 
-# Stage all changes
-git add .
+```bash
+git commit -m "$(cat <<'EOF'
+feat: sync with openiap v<gql-version>
 
-# Commit with descriptive message
-git commit -m "feat: sync with openiap v<gql-version>
-
-- Update openiap-versions.json (gql: <version>, apple: <version>, google: <version>)
+- Update openiap-versions.json (gql: <ver>, apple: <ver>, google: <ver>)
 - Regenerate Dart types
-- Update example code for new types
-- Update documentation and llms.txt
-- Add/update tests for new features
+- <List specific new features/changes>
+- Add release blog post
+- <Any other changes made>
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
 
-# Push to remote
+#### 9.3 Push to Remote
+
+```bash
 git push -u origin feat/openiap-sync-<gql-version>
 ```
 
-**Branch naming conventions:**
-- Feature sync: `feat/openiap-sync-<version>` (e.g., `feat/openiap-sync-1.3.12`)
-- Specific feature: `feat/<feature-name>` (e.g., `feat/discount-offer-types`)
-- Bug fix: `fix/<issue-description>` (e.g., `fix/subscription-offer-parsing`)
-
-## API Patterns
-
-### Generic Fetch
-```dart
-final products = await FlutterInappPurchase.instance.fetchProducts<Product>(
-  productIds: ['product_id'],
-);
-```
-
-### Request Purchase
-```dart
-final result = await FlutterInappPurchase.instance.requestPurchase(
-  RequestPurchaseParams(
-    sku: 'product_id',
-    // platform-specific options
-  ),
-);
-```
-
-### Handler Typedefs
-```dart
-// Use QueryHandlers, MutationHandlers with typed callbacks
-QueryHandlers handlers = QueryHandlers(
-  onProducts: (List<Product> products) { ... },
-);
-```
+---
 
 ## Naming Conventions
 
@@ -475,25 +414,7 @@ QueryHandlers handlers = QueryHandlers(
 - **IAP codes:** `Iap` when not final suffix (e.g., `IapPurchase`)
 - **ID fields:** Always `Id` (e.g., `productId`, `subscriptionGroupIdIOS`)
 
-## Deprecation Check
-
-```bash
-cd $IAP_REPOS_HOME/flutter_inapp_purchase
-grep -r "@deprecated" lib/
-grep -r "@Deprecated" lib/
-grep -r "DEPRECATED" lib/
-```
-
-Known deprecations:
-- `getPurchaseHistories()` -> Use `getAvailablePurchases()`
-
-## Commit Message Format
-
-```
-feat: add discount offer support
-fix: resolve iOS purchase verification
-docs: update subscription flow guide
-```
+---
 
 ## References
 
