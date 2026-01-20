@@ -431,6 +431,16 @@ class OpenIapModule(
                             // Note: Horizon SDK doesn't currently support one-time purchase discount offers,
                             // but we pass the offer token through in case future SDK versions add support.
                             OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
+
+                            // Validate offerToken format (basic sanity check)
+                            if (androidArgs.offerToken.isBlank()) {
+                                OpenIapLog.w("Invalid empty offerToken provided for ${productDetails.productId}", TAG)
+                                val err = OpenIapError.SkuOfferMismatch
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                return
+                            }
+
                             OpenIapLog.w("Note: Horizon SDK may not support one-time purchase discount offers", TAG)
                             builder.setOfferToken(androidArgs.offerToken)
                         }

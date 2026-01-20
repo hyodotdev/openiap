@@ -897,10 +897,19 @@ class OpenIapModule(
                             OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
 
                             // Validate offer token exists in available one-time purchase offers
-                            val oneTimePurchaseOffer = productDetails.oneTimePurchaseOfferDetails
-                            val availableTokens = listOfNotNull(oneTimePurchaseOffer?.offerToken)
+                            // Use oneTimePurchaseOfferDetailsList (Billing Library 7.0+) for discount offers
+                            val oneTimePurchaseOffers = productDetails.oneTimePurchaseOfferDetailsList
+                            val availableTokens = oneTimePurchaseOffers?.map { it.offerToken } ?: emptyList()
 
-                            if (availableTokens.isNotEmpty() && !availableTokens.contains(androidArgs.offerToken)) {
+                            if (availableTokens.isEmpty()) {
+                                OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided: ${androidArgs.offerToken}", TAG)
+                                val err = OpenIapError.SkuOfferMismatch
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                return
+                            }
+
+                            if (!availableTokens.contains(androidArgs.offerToken)) {
                                 OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in $availableTokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
