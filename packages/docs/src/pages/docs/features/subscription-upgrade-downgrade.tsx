@@ -1082,30 +1082,60 @@ func format_date(timestamp: int) -> String:
                   <p>
                     <strong>Available replacement modes:</strong>
                   </p>
-                  <ul>
-                    <li>
-                      <code>WITH_TIME_PRORATION</code> - Immediate change
-                      with prorated credit
-                    </li>
-                    <li>
-                      <code>CHARGE_PRORATED_PRICE</code> - Immediate change,
-                      charge difference (upgrade only)
-                    </li>
-                    <li>
-                      <code>WITHOUT_PRORATION</code> - Immediate change, no
-                      proration
-                    </li>
-                    <li>
-                      <code>CHARGE_FULL_PRICE</code> - Immediate change,
-                      charge full price
-                    </li>
-                    <li>
-                      <code>DEFERRED</code> - Change at next billing cycle
-                    </li>
-                    <li>
-                      <code>KEEP_EXISTING</code> - Keep the existing payment schedule unchanged (8.1.0+)
-                    </li>
-                  </ul>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Mode</th>
+                        <th style={{ textAlign: 'center', padding: '0.5rem' }}>Legacy API</th>
+                        <th style={{ textAlign: 'center', padding: '0.5rem' }}>8.1.0+ API</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.25rem 0.5rem' }}><code>WITH_TIME_PRORATION</code></td>
+                        <td style={{ textAlign: 'center' }}>1</td>
+                        <td style={{ textAlign: 'center' }}>1</td>
+                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change with prorated credit</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_PRORATED_PRICE</code></td>
+                        <td style={{ textAlign: 'center' }}>2</td>
+                        <td style={{ textAlign: 'center' }}>2</td>
+                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge difference (upgrade only)</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.25rem 0.5rem' }}><code>WITHOUT_PRORATION</code></td>
+                        <td style={{ textAlign: 'center' }}>3</td>
+                        <td style={{ textAlign: 'center' }}>3</td>
+                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, no proration</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_FULL_PRICE</code></td>
+                        <td style={{ textAlign: 'center' }}>5</td>
+                        <td style={{ textAlign: 'center' }}>4</td>
+                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge full price</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.25rem 0.5rem' }}><code>DEFERRED</code></td>
+                        <td style={{ textAlign: 'center' }}>6</td>
+                        <td style={{ textAlign: 'center' }}>5</td>
+                        <td style={{ padding: '0.25rem 0.5rem' }}>Change at next billing cycle</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '0.25rem 0.5rem' }}><code>KEEP_EXISTING</code></td>
+                        <td style={{ textAlign: 'center' }}>—</td>
+                        <td style={{ textAlign: 'center' }}>6</td>
+                        <td style={{ padding: '0.25rem 0.5rem' }}>Keep existing payment schedule (8.1.0+ only)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    <strong>Note:</strong> Legacy API refers to <code>SubscriptionUpdateParams.ReplacementMode</code>,
+                    8.1.0+ API refers to <code>SubscriptionProductReplacementParams.ReplacementMode</code>.
+                    The integer values differ for CHARGE_FULL_PRICE and DEFERRED between APIs.
+                  </p>
 
                   <p>
                     <strong>Note:</strong> If you don't specify a replacement
@@ -1307,7 +1337,7 @@ if current_sub:
 
                 <ol>
                   <li>
-                    <strong>Use DEFERRED replacement mode (value: 6)</strong>
+                    <strong>Use DEFERRED replacement mode</strong> (Legacy API: 6, 8.1.0+ API: 5)
                   </li>
                   <li>No immediate charge to the user</li>
                   <li>User keeps premium access until current period ends</li>
@@ -1325,7 +1355,7 @@ if current_sub:
                 >
                   <p>
                     <strong>
-                      When using DEFERRED replacement mode (6), the purchase
+                      When using DEFERRED replacement mode, the purchase
                       callback completes successfully with an empty purchase
                       list.
                     </strong>{' '}
@@ -1707,11 +1737,11 @@ for purchase in purchases:
                     override the default configured in Google Play Console
                   </li>
                   <li>
-                    <strong>Use WITH_TIME_PRORATION (1) for upgrades</strong> to
+                    <strong>Use WITH_TIME_PRORATION for upgrades</strong> to
                     give users credit for unused time
                   </li>
                   <li>
-                    <strong>Use DEFERRED (6) for downgrades</strong> to let
+                    <strong>Use DEFERRED for downgrades</strong> to let
                     users keep premium features until period ends
                   </li>
                   <li>
