@@ -3581,17 +3581,24 @@ public data class RequestPurchaseAndroidProps(
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
-     * Personalized offer flag
+     * Personalized offer flag.
+     * When true, indicates the price was customized for this user.
      */
     val isOfferPersonalized: Boolean? = null,
     /**
      * Obfuscated account ID
      */
-    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedAccountId: String? = null,
     /**
      * Obfuscated profile ID
      */
-    val obfuscatedProfileIdAndroid: String? = null,
+    val obfuscatedProfileId: String? = null,
+    /**
+     * Offer token for one-time purchase discounts (7.0+).
+     * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+     * to apply a discount offer to the purchase.
+     */
+    val offerToken: String? = null,
     /**
      * List of product SKUs
      */
@@ -3601,15 +3608,17 @@ public data class RequestPurchaseAndroidProps(
         fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps? {
             val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
-            val obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String
-            val obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String
+            val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
+            val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
+            val offerToken = json["offerToken"] as? String
             val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
             if (skus == null) return null
             return RequestPurchaseAndroidProps(
                 developerBillingOption = developerBillingOption,
                 isOfferPersonalized = isOfferPersonalized,
-                obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
-                obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
+                obfuscatedAccountId = obfuscatedAccountId,
+                obfuscatedProfileId = obfuscatedProfileId,
+                offerToken = offerToken,
                 skus = skus,
             )
         }
@@ -3618,8 +3627,9 @@ public data class RequestPurchaseAndroidProps(
     fun toJson(): Map<String, Any?> = mapOf(
         "developerBillingOption" to developerBillingOption?.toJson(),
         "isOfferPersonalized" to isOfferPersonalized,
-        "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
-        "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
+        "obfuscatedAccountId" to obfuscatedAccountId,
+        "obfuscatedProfileId" to obfuscatedProfileId,
+        "offerToken" to offerToken,
         "skus" to skus,
     )
 }
@@ -3790,26 +3800,27 @@ public data class RequestSubscriptionAndroidProps(
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
-     * Personalized offer flag
+     * Personalized offer flag.
+     * When true, indicates the price was customized for this user.
      */
     val isOfferPersonalized: Boolean? = null,
     /**
      * Obfuscated account ID
      */
-    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedAccountId: String? = null,
     /**
      * Obfuscated profile ID
      */
-    val obfuscatedProfileIdAndroid: String? = null,
+    val obfuscatedProfileId: String? = null,
     /**
      * Purchase token for upgrades/downgrades
      */
-    val purchaseTokenAndroid: String? = null,
+    val purchaseToken: String? = null,
     /**
      * Replacement mode for subscription changes
      * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
      */
-    val replacementModeAndroid: Int? = null,
+    val replacementMode: Int? = null,
     /**
      * List of subscription SKUs
      */
@@ -3820,7 +3831,7 @@ public data class RequestSubscriptionAndroidProps(
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>? = null,
     /**
      * Product-level replacement parameters (8.1.0+)
-     * Use this instead of replacementModeAndroid for item-level replacement
+     * Use this instead of replacementMode for item-level replacement
      */
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null
 ) {
@@ -3828,10 +3839,10 @@ public data class RequestSubscriptionAndroidProps(
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps? {
             val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
-            val obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String
-            val obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String
-            val purchaseTokenAndroid = json["purchaseTokenAndroid"] as? String
-            val replacementModeAndroid = (json["replacementModeAndroid"] as? Number)?.toInt()
+            val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
+            val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
+            val purchaseToken = json["purchaseToken"] as? String
+            val replacementMode = (json["replacementMode"] as? Number)?.toInt()
             val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
             val subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } }
             val subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) }
@@ -3839,10 +3850,10 @@ public data class RequestSubscriptionAndroidProps(
             return RequestSubscriptionAndroidProps(
                 developerBillingOption = developerBillingOption,
                 isOfferPersonalized = isOfferPersonalized,
-                obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
-                obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
-                purchaseTokenAndroid = purchaseTokenAndroid,
-                replacementModeAndroid = replacementModeAndroid,
+                obfuscatedAccountId = obfuscatedAccountId,
+                obfuscatedProfileId = obfuscatedProfileId,
+                purchaseToken = purchaseToken,
+                replacementMode = replacementMode,
                 skus = skus,
                 subscriptionOffers = subscriptionOffers,
                 subscriptionProductReplacementParams = subscriptionProductReplacementParams,
@@ -3853,10 +3864,10 @@ public data class RequestSubscriptionAndroidProps(
     fun toJson(): Map<String, Any?> = mapOf(
         "developerBillingOption" to developerBillingOption?.toJson(),
         "isOfferPersonalized" to isOfferPersonalized,
-        "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
-        "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
-        "purchaseTokenAndroid" to purchaseTokenAndroid,
-        "replacementModeAndroid" to replacementModeAndroid,
+        "obfuscatedAccountId" to obfuscatedAccountId,
+        "obfuscatedProfileId" to obfuscatedProfileId,
+        "purchaseToken" to purchaseToken,
+        "replacementMode" to replacementMode,
         "skus" to skus,
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "subscriptionProductReplacementParams" to subscriptionProductReplacementParams?.toJson(),

@@ -853,11 +853,13 @@ async function purchaseWithOffer(
   const selectedOffer = offers[offerIndex];
 
   await requestPurchase({
-    type: 'inapp',
+    type: 'in-app',
     request: {
-      skus: [product.id],
-      // Include offerToken for discounted purchases
-      offerToken: selectedOffer.offerToken,
+      google: {
+        skus: [product.id],
+        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+        offerToken: selectedOffer.offerToken,
+      },
     },
   });
 }`}</CodeBlock>
@@ -881,11 +883,14 @@ async function purchaseWithOffer(
     iapStore.requestPurchase(
         activity = activity,
         props = RequestPurchaseProps(
-            type = "inapp",
-            request = RequestPurchasePropsByPlatforms(
-                android = RequestPurchaseAndroidProps(
-                    skus = listOf(product.id),
-                    offerToken = selectedOffer.offerToken
+            type = ProductQueryType.InApp,
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(
+                        skus = listOf(product.id),
+                        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+                        offerToken = selectedOffer.offerToken
+                    )
                 )
             )
         )

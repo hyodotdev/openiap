@@ -786,9 +786,9 @@ fun SubscriptionFlowScreen(
                                                                     RequestSubscriptionPropsByPlatforms(
                                                                         android = RequestSubscriptionAndroidProps(
                                                                             isOfferPersonalized = null,
-                                                                            obfuscatedAccountIdAndroid = null,
-                                                                            obfuscatedProfileIdAndroid = null,
-                                                                            purchaseTokenAndroid = purchaseToken,
+                                                                            obfuscatedAccountId = null,
+                                                                            obfuscatedProfileId = null,
+                                                                            purchaseToken = purchaseToken,
                                                                             // New 8.1.0+ API: per-product replacement params
                                                                             subscriptionProductReplacementParams = SubscriptionProductReplacementParamsAndroid(
                                                                                 oldProductId = IapConstants.PREMIUM_PRODUCT_ID,
@@ -1019,10 +1019,10 @@ fun SubscriptionFlowScreen(
                                                                     RequestSubscriptionPropsByPlatforms(
                                                                         android = RequestSubscriptionAndroidProps(
                                                                             isOfferPersonalized = null,
-                                                                            obfuscatedAccountIdAndroid = null,
-                                                                            obfuscatedProfileIdAndroid = null,
-                                                                            purchaseTokenAndroid = purchaseToken,
-                                                                            replacementModeAndroid = replacementMode,
+                                                                            obfuscatedAccountId = null,
+                                                                            obfuscatedProfileId = null,
+                                                                            purchaseToken = purchaseToken,
+                                                                            replacementMode = replacementMode,
                                                                             skus = listOf(PREMIUM_SUBSCRIPTION_PRODUCT_ID),
                                                                             subscriptionOffers = offerInputs
                                                                         )
@@ -1168,10 +1168,10 @@ fun SubscriptionFlowScreen(
                                             RequestSubscriptionPropsByPlatforms(
                                                 android = RequestSubscriptionAndroidProps(
                                                     isOfferPersonalized = null,
-                                                    obfuscatedAccountIdAndroid = null,
-                                                    obfuscatedProfileIdAndroid = null,
-                                                    purchaseTokenAndroid = purchaseToken,
-                                                    replacementModeAndroid = replacementMode,
+                                                    obfuscatedAccountId = null,
+                                                    obfuscatedProfileId = null,
+                                                    purchaseToken = purchaseToken,
+                                                    replacementMode = replacementMode,
                                                     skus = listOf(product.id),
                                                     subscriptionOffers = subscriptionOffers
                                                 )
@@ -1185,8 +1185,8 @@ fun SubscriptionFlowScreen(
                                             RequestPurchasePropsByPlatforms(
                                                 android = RequestPurchaseAndroidProps(
                                                     isOfferPersonalized = null,
-                                                    obfuscatedAccountIdAndroid = null,
-                                                    obfuscatedProfileIdAndroid = null,
+                                                    obfuscatedAccountId = null,
+                                                    obfuscatedProfileId = null,
                                                     skus = listOf(product.id)
                                                 )
                                             )
@@ -1447,10 +1447,10 @@ fun SubscriptionFlowScreen(
                                 RequestSubscriptionPropsByPlatforms(
                                     android = RequestSubscriptionAndroidProps(
                                         isOfferPersonalized = null,
-                                        obfuscatedAccountIdAndroid = null,
-                                        obfuscatedProfileIdAndroid = null,
-                                        purchaseTokenAndroid = null,
-                                        replacementModeAndroid = null,
+                                        obfuscatedAccountId = null,
+                                        obfuscatedProfileId = null,
+                                        purchaseToken = null,
+                                        replacementMode = null,
                                         skus = listOf(product.id),
                                         subscriptionOffers = null
                                     )
@@ -1464,8 +1464,8 @@ fun SubscriptionFlowScreen(
                                 RequestPurchasePropsByPlatforms(
                                     android = RequestPurchaseAndroidProps(
                                         isOfferPersonalized = null,
-                                        obfuscatedAccountIdAndroid = null,
-                                        obfuscatedProfileIdAndroid = null,
+                                        obfuscatedAccountId = null,
+                                        obfuscatedProfileId = null,
                                         skus = listOf(product.id)
                                     )
                                 )

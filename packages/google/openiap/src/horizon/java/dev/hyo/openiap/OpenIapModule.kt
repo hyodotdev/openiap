@@ -426,6 +426,23 @@ class OpenIapModule(
                             }
 
                             builder.setOfferToken(resolved)
+                        } else if (androidArgs.type == ProductQueryType.InApp && !androidArgs.offerToken.isNullOrEmpty()) {
+                            // Handle one-time purchase discount offers
+                            // Note: Horizon SDK doesn't currently support one-time purchase discount offers,
+                            // but we pass the offer token through in case future SDK versions add support.
+                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
+
+                            // Validate offerToken format (basic sanity check)
+                            if (androidArgs.offerToken.isBlank()) {
+                                OpenIapLog.w("Invalid empty offerToken provided for ${productDetails.productId}", TAG)
+                                val err = OpenIapError.SkuOfferMismatch
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                return
+                            }
+
+                            OpenIapLog.w("Note: Horizon SDK may not support one-time purchase discount offers", TAG)
+                            builder.setOfferToken(androidArgs.offerToken)
                         }
 
                         paramsList += builder.build()
@@ -438,22 +455,22 @@ class OpenIapModule(
                     androidArgs.obfuscatedAccountId?.let { flowBuilder.setObfuscatedAccountId(it) }
 
                     // For subscription upgrades/downgrades, purchaseToken and obfuscatedProfileId are mutually exclusive
-                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseTokenAndroid.isNullOrBlank()) {
+                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseTokenAndroid.take(10)}...", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken.take(10)}...", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
-                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementModeAndroid}", TAG)
+                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
                         paramsList.forEachIndexed { idx, params ->
                             OpenIapLog.d("  - Product[$idx]: SKU=${details[idx].productId}, offerToken=...", TAG)
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                            .setOldPurchaseToken(androidArgs.purchaseTokenAndroid)
+                            .setOldPurchaseToken(androidArgs.purchaseToken)
 
                         // Set replacement mode - this is critical for upgrades
-                        val replacementMode = androidArgs.replacementModeAndroid ?: 5 // Default to CHARGE_FULL_PRICE
+                        val replacementMode = androidArgs.replacementMode ?: 5 // Default to CHARGE_FULL_PRICE
                         updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
                         OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)
 

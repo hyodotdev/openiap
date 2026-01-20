@@ -1212,8 +1212,8 @@ if (currentSub) {
   // Upgrade to premium with time proration
   await requestPurchase({
     sku: 'premium_monthly',
-    purchaseTokenAndroid: currentSub.purchaseToken,
-    replacementModeAndroid: 1, // WITH_TIME_PRORATION
+    purchaseToken: currentSub.purchaseToken,
+    replacementMode: 1, // WITH_TIME_PRORATION
   });
 
   console.log('✅ Upgrade initiated');
@@ -1376,8 +1376,8 @@ if (premiumPurchase) {
   // Downgrade - takes effect at next billing cycle
   await requestPurchase({
     sku: 'basic_monthly',
-    purchaseTokenAndroid: premiumPurchase.purchaseToken,
-    replacementModeAndroid: 6, // DEFERRED - Change at renewal
+    purchaseToken: premiumPurchase.purchaseToken,
+    replacementMode: 6, // DEFERRED - Change at renewal
   });
 
   console.log('✅ Downgrade scheduled for next billing cycle');
@@ -1703,7 +1703,7 @@ for purchase in purchases:
                 <ol>
                   <li>
                     <strong>Specify replacement mode when needed</strong>: Pass{' '}
-                    <code>replacementModeAndroid</code> when you want to
+                    <code>replacementMode</code> when you want to
                     override the default configured in Google Play Console
                   </li>
                   <li>
@@ -1764,8 +1764,8 @@ async function changeSubscription(
   try {
     await requestPurchase({
       sku: newSku,
-      purchaseTokenAndroid: currentSub.purchaseToken,
-      replacementModeAndroid: replacementMode,
+      purchaseToken: currentSub.purchaseToken,
+      replacementMode: replacementMode,
     });
 
     // If DEFERRED, store pending change in your backend

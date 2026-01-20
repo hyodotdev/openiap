@@ -404,4 +404,123 @@ class StandardizedOfferTypesTest {
         assertEquals("sub_intro", product.subscriptionOffers.first().id)
         assertEquals(PaymentMode.FreeTrial, product.subscriptionOffers.first().paymentMode)
     }
+
+    // MARK: - RequestPurchaseAndroidProps offerToken Tests
+
+    @Test
+    fun `RequestPurchaseAndroidProps supports offerToken for one-time purchases`() {
+        val props = RequestPurchaseAndroidProps(
+            skus = listOf("premium_upgrade"),
+            offerToken = "discount_offer_token_abc123"
+        )
+
+        assertEquals(listOf("premium_upgrade"), props.skus)
+        assertEquals("discount_offer_token_abc123", props.offerToken)
+        assertNull(props.isOfferPersonalized)
+        assertNull(props.obfuscatedAccountId)
+    }
+
+    @Test
+    fun `RequestPurchaseAndroidProps toJson includes offerToken`() {
+        val props = RequestPurchaseAndroidProps(
+            skus = listOf("product_id"),
+            offerToken = "test_offer_token",
+            isOfferPersonalized = true
+        )
+
+        val json = props.toJson()
+        assertEquals(listOf("product_id"), json["skus"])
+        assertEquals("test_offer_token", json["offerToken"])
+        assertEquals(true, json["isOfferPersonalized"])
+    }
+
+    @Test
+    fun `RequestPurchaseAndroidProps fromJson parses offerToken`() {
+        val json = mapOf<String, Any?>(
+            "skus" to listOf("sku_001"),
+            "offerToken" to "parsed_offer_token",
+            "obfuscatedAccountId" to "account_123"
+        )
+
+        val props = RequestPurchaseAndroidProps.fromJson(json)
+        assertEquals(listOf("sku_001"), props?.skus)
+        assertEquals("parsed_offer_token", props?.offerToken)
+        assertEquals("account_123", props?.obfuscatedAccountId)
+    }
+
+    @Test
+    fun `RequestPurchaseAndroidProps allows null offerToken`() {
+        val props = RequestPurchaseAndroidProps(
+            skus = listOf("regular_product")
+        )
+
+        assertNull(props.offerToken)
+
+        val json = props.toJson()
+        assertNull(json["offerToken"])
+    }
+
+    @Test
+    fun `DiscountOffer offerTokenAndroid can be used for purchase`() {
+        // Simulate fetching a product with discount offer
+        val discountOffer = DiscountOffer(
+            id = "summer_sale",
+            displayPrice = "$4.99",
+            price = 4.99,
+            currency = "USD",
+            type = DiscountOfferType.OneTime,
+            offerTokenAndroid = "summer_sale_offer_token_xyz",
+            percentageDiscountAndroid = 50
+        )
+
+        // Create purchase props using the offer token from the discount offer
+        val purchaseProps = RequestPurchaseAndroidProps(
+            skus = listOf("premium_upgrade"),
+            offerToken = discountOffer.offerTokenAndroid
+        )
+
+        assertEquals("summer_sale_offer_token_xyz", purchaseProps.offerToken)
+        assertEquals(discountOffer.offerTokenAndroid, purchaseProps.offerToken)
+    }
+
+    @Test
+    fun `ProductAndroid discountOffers can provide offerTokenAndroid for purchase`() {
+        val discountOffer = DiscountOffer(
+            id = "flash_sale",
+            displayPrice = "$2.99",
+            price = 2.99,
+            currency = "USD",
+            type = DiscountOfferType.OneTime,
+            offerTokenAndroid = "flash_sale_token"
+        )
+
+        val product = ProductAndroid(
+            id = "consumable_gems",
+            title = "100 Gems",
+            description = "A pack of 100 gems",
+            displayName = "Gems Pack",
+            displayPrice = "$4.99",
+            price = 4.99,
+            currency = "USD",
+            platform = IapPlatform.Android,
+            type = ProductType.InApp,
+            nameAndroid = "100 Gems",
+            discountOffers = listOf(discountOffer),
+            subscriptionOffers = null,
+            oneTimePurchaseOfferDetailsAndroid = null,
+            subscriptionOfferDetailsAndroid = null
+        )
+
+        // Get the offer token from product's discount offers
+        val offerToken = product.discountOffers?.firstOrNull()?.offerTokenAndroid
+
+        // Create purchase request with the offer token
+        val purchaseProps = RequestPurchaseAndroidProps(
+            skus = listOf(product.id),
+            offerToken = offerToken
+        )
+
+        assertEquals("consumable_gems", purchaseProps.skus.first())
+        assertEquals("flash_sale_token", purchaseProps.offerToken)
+    }
 }

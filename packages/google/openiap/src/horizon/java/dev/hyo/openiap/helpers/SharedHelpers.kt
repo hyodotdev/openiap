@@ -55,8 +55,9 @@ internal data class AndroidPurchaseArgs(
     val isOfferPersonalized: Boolean?,
     val obfuscatedAccountId: String?,
     val obfuscatedProfileId: String?,
-    val purchaseTokenAndroid: String?,
-    val replacementModeAndroid: Int?,
+    val offerToken: String?,
+    val purchaseToken: String?,
+    val replacementMode: Int?,
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>?,
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
     val type: ProductQueryType,
@@ -75,10 +76,11 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
             AndroidPurchaseArgs(
                 skus = params.skus,
                 isOfferPersonalized = params.isOfferPersonalized,
-                obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
-                obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
-                purchaseTokenAndroid = null,
-                replacementModeAndroid = null,
+                obfuscatedAccountId = params.obfuscatedAccountId,
+                obfuscatedProfileId = params.obfuscatedProfileId,
+                offerToken = params.offerToken,
+                purchaseToken = null,
+                replacementMode = null,
                 subscriptionOffers = null,
                 subscriptionProductReplacementParams = null,
                 type = type,
@@ -91,16 +93,17 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 ?: throw IllegalArgumentException("Google subscription parameters are required (use 'google' field)")
 
             // For subscription upgrades/downgrades:
-            // - purchaseTokenAndroid: Identifies which existing subscription to upgrade/downgrade
+            // - purchaseToken: Identifies which existing subscription to upgrade/downgrade
             // - obfuscatedProfileId: Optional user identifier for fraud prevention and attribution
             // Both can be provided together - they serve different purposes and are not mutually exclusive
             AndroidPurchaseArgs(
                 skus = params.skus,
                 isOfferPersonalized = params.isOfferPersonalized,
-                obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
-                obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
-                purchaseTokenAndroid = params.purchaseTokenAndroid,
-                replacementModeAndroid = params.replacementModeAndroid,
+                obfuscatedAccountId = params.obfuscatedAccountId,
+                obfuscatedProfileId = params.obfuscatedProfileId,
+                offerToken = null,
+                purchaseToken = params.purchaseToken,
+                replacementMode = params.replacementMode,
                 subscriptionOffers = params.subscriptionOffers,
                 subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,
                 type = type,

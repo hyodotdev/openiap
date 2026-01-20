@@ -499,8 +499,10 @@ class OpenIapModule(
     }
 
     /**
-     * Create reporting details for transactions made outside of Google Play Billing (8.2.0+)
+     * Create reporting details for transactions made outside of Google Play Billing (8.3.0+)
      * This is the new API that replaces createAlternativeBillingReportingToken for external offers.
+     *
+     * Note: This method uses BillingProgramReportingDetailsParams which was introduced in 8.3.0.
      *
      * @param program The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
      * @return Reporting details containing the external transaction token
@@ -526,7 +528,8 @@ class OpenIapModule(
                     listenerClass.classLoader,
                     arrayOf(listenerClass)
                 ) { _, method, args ->
-                    if (method.name == "onBillingProgramReportingDetailsResponse") {
+                    // Note: Callback method name is onCreateBillingProgramReportingDetailsResponse (not onBillingProgramReportingDetailsResponse)
+                    if (method.name == "onCreateBillingProgramReportingDetailsResponse") {
                         val result = args?.get(0) as? BillingResult
                         val details = args?.getOrNull(1)
 
@@ -556,14 +559,33 @@ class OpenIapModule(
                     null
                 }
 
+                // Build BillingProgramReportingDetailsParams using reflection (Billing Library 8.3.0+)
+                val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams")
+                val paramsBuilderClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder")
+
+                val newBuilderMethod = paramsClass.getMethod("newBuilder")
+                val paramsBuilder = newBuilderMethod.invoke(null)
+
+                // Set billing program
+                val setBillingProgramMethod = paramsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+                setBillingProgramMethod.invoke(paramsBuilder, billingProgramConstant)
+
+                // Build the params
+                val buildMethod = paramsBuilderClass.getMethod("build")
+                val reportingParams = buildMethod.invoke(paramsBuilder)
+
+                // Call createBillingProgramReportingDetailsAsync with (BillingProgramReportingDetailsParams, Listener)
                 val method = client.javaClass.getMethod(
                     "createBillingProgramReportingDetailsAsync",
-                    Int::class.javaPrimitiveType,
+                    paramsClass,
                     listenerClass
                 )
-                method.invoke(client, billingProgramConstant, listener)
+                method.invoke(client, reportingParams, listener)
             } catch (e: NoSuchMethodException) {
-                OpenIapLog.e("createBillingProgramReportingDetailsAsync not found. Requires Billing Library 8.2.0+", e, TAG)
+                OpenIapLog.e("createBillingProgramReportingDetailsAsync not found. Requires Billing Library 8.3.0+", e, TAG)
+                throw OpenIapError.FeatureNotSupported
+            } catch (e: ClassNotFoundException) {
+                OpenIapLog.e("BillingProgramReportingDetailsParams not found. Requires Billing Library 8.3.0+", e, TAG)
                 throw OpenIapError.FeatureNotSupported
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to create billing program reporting details: ${e.message}", e, TAG)
@@ -845,6 +867,21 @@ class OpenIapModule(
                     val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
                     val requestedOffersBySku = mutableMapOf<String, MutableList<String>>()
 
+                    // Reject multi-SKU one-time purchase requests when offerToken is provided
+                    // A single offerToken cannot be applied to multiple SKUs
+                    if (androidArgs.type == ProductQueryType.InApp &&
+                        !androidArgs.offerToken.isNullOrEmpty() &&
+                        androidArgs.skus.size > 1) {
+                        OpenIapLog.w(
+                            "offerToken requires a single SKU. Provided SKUs: ${androidArgs.skus}",
+                            TAG
+                        )
+                        val err = OpenIapError.SkuOfferMismatch
+                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        return
+                    }
+
                     if (androidArgs.type == ProductQueryType.Subs) {
                         for (offer in androidArgs.subscriptionOffers.orEmpty()) {
                             if (offer.offerToken.isNotEmpty()) {
@@ -892,6 +929,32 @@ class OpenIapModule(
                                     applySubscriptionProductReplacementParams(builder, replacementParams)
                                 }
                             }
+                        } else if (androidArgs.type == ProductQueryType.InApp && !androidArgs.offerToken.isNullOrEmpty()) {
+                            // Handle one-time purchase discount offers (Android 7.0+)
+                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
+
+                            // Validate offer token exists in available one-time purchase offers
+                            // Use oneTimePurchaseOfferDetailsList (Billing Library 7.0+) for discount offers
+                            val oneTimePurchaseOffers = productDetails.oneTimePurchaseOfferDetailsList
+                            val availableTokens = oneTimePurchaseOffers?.map { it.offerToken } ?: emptyList()
+
+                            if (availableTokens.isEmpty()) {
+                                OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided: ${androidArgs.offerToken}", TAG)
+                                val err = OpenIapError.SkuOfferMismatch
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                return
+                            }
+
+                            if (!availableTokens.contains(androidArgs.offerToken)) {
+                                OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in $availableTokens", TAG)
+                                val err = OpenIapError.SkuOfferMismatch
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                return
+                            }
+
+                            builder.setOfferToken(androidArgs.offerToken)
                         }
 
                         paramsList += builder.build()
@@ -920,25 +983,25 @@ class OpenIapModule(
                     }
 
                     // For subscription upgrades/downgrades, purchaseToken and obfuscatedProfileId are mutually exclusive
-                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseTokenAndroid.isNullOrBlank()) {
+                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseTokenAndroid.take(10)}...", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken.take(10)}...", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
-                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementModeAndroid}", TAG)
+                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
                         for ((index, params) in paramsList.withIndex()) {
                             OpenIapLog.d("  - Product[$index]: SKU=${details[index].productId}, offerToken=...", TAG)
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                            .setOldPurchaseToken(androidArgs.purchaseTokenAndroid)
+                            .setOldPurchaseToken(androidArgs.purchaseToken)
 
                         // Set replacement mode - this is critical for upgrades
                         // Note: setSubscriptionReplacementMode() is deprecated in Billing 8.1.0
                         // in favor of SubscriptionProductReplacementParams for per-product control.
                         // However, for single-product upgrades, the legacy API still works.
-                        val replacementMode = androidArgs.replacementModeAndroid ?: 5 // Default to CHARGE_FULL_PRICE
+                        val replacementMode = androidArgs.replacementMode ?: 5 // Default to CHARGE_FULL_PRICE
                         @Suppress("DEPRECATION")
                         updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
                         OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)
@@ -1554,11 +1617,12 @@ class OpenIapModule(
             }
 
             // Build SubscriptionProductReplacementParams using reflection
+            // Note: SubscriptionProductReplacementParams is nested under ProductDetailsParams (Billing Library 8.1.0+)
             val replacementParamsClass = Class.forName(
-                "com.android.billingclient.api.BillingFlowParams\$SubscriptionProductReplacementParams"
+                "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams"
             )
             val replacementBuilderClass = Class.forName(
-                "com.android.billingclient.api.BillingFlowParams\$SubscriptionProductReplacementParams\$Builder"
+                "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$Builder"
             )
 
             // Create new builder
