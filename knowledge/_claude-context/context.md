@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-01-20T01:17:35.950Z
+> Last updated: 2026-01-20T21:43:18.692Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -114,20 +114,21 @@ input RequestPurchaseAndroidProps {
 | Cross-platform type reference | YES | `developerBillingOption: DeveloperBillingOptionParamsAndroid` |
 | Internal implementation | NO (not API) | `val offerToken` in Kotlin data class |
 
-### Internal vs API Fields
+### Type vs Field Suffix
 
-- **API fields** (GraphQL schema): ALWAYS use platform suffix
-- **Internal fields** (Kotlin/Swift data classes not exposed): No suffix needed
+- **Type names**: Cross-platform types ALWAYS use platform suffix (`DeveloperBillingOptionParamsAndroid`)
+- **Fields in platform-specific inputs**: NO suffix needed (parent type indicates platform)
+- **Fields in cross-platform types**: Use suffix for platform-specific fields
 
 ```kotlin
-// Internal helper data class - no suffix needed
-internal data class AndroidPurchaseArgs(
-    val offerToken: String?,        // Internal, no suffix OK
-    val isOfferPersonalized: Boolean?  // Internal, no suffix OK
-)
-
-// But when reading from API props, use the suffixed names:
-val offerToken = params.offerTokenAndroid  // ✓ API uses suffix
+// Cross-platform SDK usage
+requestPurchase {
+  google {
+    skus = listOf("product_id")
+    offerToken = "discount_offer_token"      // ✓ Clean - no redundant suffix
+    isOfferPersonalized = false
+  }
+}
 ```
 
 ### Cross-Platform Functions
