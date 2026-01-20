@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-01-18T13:00:35.017Z
+> Last updated: 2026-01-20T00:21:08.836Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -705,6 +705,60 @@ swift test   # Run tests
 swift build  # Build package
 ```
 
+### Objective-C Bridge (CRITICAL for kmp-iap)
+
+**IMPORTANT**: When updating iOS functions in `OpenIapModule.swift`, you **MUST** also update `OpenIapModule+ObjC.swift`.
+
+The Objective-C bridge (`OpenIapModule+ObjC.swift`) exposes Swift async functions to Objective-C/Kotlin for:
+- **kmp-iap** (Kotlin Multiplatform via cinterop)
+- Any other platform that requires Objective-C interoperability
+
+#### When to Update ObjC Bridge
+
+Update `OpenIapModule+ObjC.swift` when:
+- [ ] Adding new public functions to `OpenIapModule.swift`
+- [ ] Changing function signatures (parameters, return types)
+- [ ] Adding new input options or parameters
+- [ ] Changing existing function behavior
+
+#### Bridge Pattern
+
+Every Swift async function needs an Objective-C completion handler wrapper:
+
+```swift
+// In OpenIapModule.swift (Swift async)
+public func newFeatureIOS(param: String) async throws -> ResultType {
+    // implementation
+}
+
+// In OpenIapModule+ObjC.swift (ObjC bridge - MUST ADD)
+@objc func newFeatureIOSWithParam(
+    _ param: String,
+    completion: @escaping (Any?, Error?) -> Void
+) {
+    Task {
+        do {
+            let result = try await newFeatureIOS(param: param)
+            let dictionary = OpenIapSerialization.encode(result)
+            completion(dictionary, nil)
+        } catch {
+            completion(nil, error)
+        }
+    }
+}
+```
+
+#### Files to Update Together
+
+| Swift Function Changed | ObjC Bridge Required |
+|------------------------|----------------------|
+| `OpenIapModule.swift` | `OpenIapModule+ObjC.swift` |
+
+**Verification**: After updating, run:
+```bash
+swift build  # Verifies ObjC bridge compiles
+```
+
 ---
 
 ## Google Package (packages/google)
@@ -1093,6 +1147,21 @@ This will:
 - **Monorepo only**: All releases are now managed from this monorepo
 - **Separate versioning**: Apple and Google packages have independent versions
 - **Swift Package Manager**: Automatically works via Git tags, no separate deployment step
+
+---
+
+## Version File Management
+
+### openiap-versions.json
+
+**CRITICAL: NEVER manually edit `openiap-versions.json`**
+
+This file is automatically managed by CI/CD workflows during releases:
+- Apple releases update `apple` version
+- Google releases update `google` version
+- GQL releases update `gql` and `docs` versions
+
+Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows to update versions.
 
 
 ---
@@ -1490,15 +1559,15 @@ await endConnection();
 
 Google Play Billing Library enables in-app purchases and subscriptions on Android devices.
 
-## Google Play Billing Version History
+## Version History
 
 | Version | Release Date | Key Features |
 |---------|--------------|--------------|
-| 8.0 | 2025-06-30 | One-time product improvements, multiple purchase options/offers for one-time products, product-level status for unfetched products |
-| 8.1 | 2025-11-06 | Minor release with bug fixes and improvements |
+| 8.0 | 2025-06-30 | Auto-reconnect, product-level status codes, one-time products with multiple offers, sub-response codes |
+| 8.1 | 2025-11-06 | Suspended subscriptions (`isSuspended`), `includeSuspended` parameter, pre-order details, product-level subscription replacement, `KEEP_EXISTING` mode |
 | 8.2 | 2025-12-09 | Billing Programs API (external content links, external offers), deprecates old External Offers API |
 | 8.2.1 | 2025-12-15 | Bug fix for `isBillingProgramAvailableAsync()` and `createBillingProgramReportingDetailsAsync()` |
-| 8.3 | 2025-12-23 | External Payments program, developer billing options |
+| 8.3 | 2025-12-23 | External Payments program (Japan only), developer billing options |
 
 **Current Version**: 8.3.0 (as of January 2026)
 
@@ -2571,7 +2640,7 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | UI context for purchases | iOS 18.2 | Required for proper payment sheet display |
 | External purchase notice | iOS 18.2 | `presentExternalPurchaseNoticeSheetIOS` |
 | `appTransactionID` | iOS 18.4 | Globally unique app transaction identifier (back-deployed to iOS 15) |
-| `originalPlatform` | iOS 18.4 | Original purchase platform |
+| `originalPlatform` | iOS 18.4 | Original purchase platform (back-deployed to iOS 15) |
 | `Offer.Period` | iOS 18.4 | Offer period information |
 | `advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data |
 | Expanded offer codes | iOS 18.4 | For consumables/non-consumables |
@@ -2762,10 +2831,8 @@ let result = try await product.purchase(confirmIn: window)
 ```swift
 let appTransaction = try await AppTransaction.shared
 
-// appTransactionID: New in iOS 18.4 (back-deployed to iOS 15)
+// New in iOS 18.4 (back-deployed to iOS 15)
 let appTransactionID = appTransaction.appTransactionID  // Globally unique per Apple Account
-
-// originalPlatform: New in iOS 18.4 (iOS 18.4+ only, NOT back-deployed)
 let originalPlatform = appTransaction.originalPlatform   // Original purchase platform
 ```
 
