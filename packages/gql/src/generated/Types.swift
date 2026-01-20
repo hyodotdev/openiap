@@ -1382,7 +1382,7 @@ public struct RequestPurchaseAndroidProps: Codable {
     /// Developer billing option parameters for external payments flow (8.3.0+).
     /// When provided, the purchase flow will show a side-by-side choice between
     /// Google Play Billing and the developer's external payment option.
-    public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
+    public var developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid?
     /// Personalized offer flag (Android).
     /// When true, indicates the price was customized for this user.
     public var isOfferPersonalizedAndroid: Bool?
@@ -1398,14 +1398,14 @@ public struct RequestPurchaseAndroidProps: Codable {
     public var skus: [String]
 
     public init(
-        developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
+        developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid? = nil,
         isOfferPersonalizedAndroid: Bool? = nil,
         obfuscatedAccountIdAndroid: String? = nil,
         obfuscatedProfileIdAndroid: String? = nil,
         offerTokenAndroid: String? = nil,
         skus: [String]
     ) {
-        self.developerBillingOption = developerBillingOption
+        self.developerBillingOptionAndroid = developerBillingOptionAndroid
         self.isOfferPersonalizedAndroid = isOfferPersonalizedAndroid
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
         self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
@@ -1552,7 +1552,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
     /// Developer billing option parameters for external payments flow (8.3.0+).
     /// When provided, the purchase flow will show a side-by-side choice between
     /// Google Play Billing and the developer's external payment option.
-    public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
+    public var developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid?
     /// Personalized offer flag (Android).
     /// When true, indicates the price was customized for this user.
     public var isOfferPersonalizedAndroid: Bool?
@@ -1574,7 +1574,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
     public var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?
 
     public init(
-        developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
+        developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid? = nil,
         isOfferPersonalizedAndroid: Bool? = nil,
         obfuscatedAccountIdAndroid: String? = nil,
         obfuscatedProfileIdAndroid: String? = nil,
@@ -1584,7 +1584,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
         subscriptionOffers: [AndroidSubscriptionOfferInput]? = nil,
         subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = nil
     ) {
-        self.developerBillingOption = developerBillingOption
+        self.developerBillingOptionAndroid = developerBillingOptionAndroid
         self.isOfferPersonalizedAndroid = isOfferPersonalizedAndroid
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
         self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid

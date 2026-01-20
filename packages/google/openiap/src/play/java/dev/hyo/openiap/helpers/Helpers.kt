@@ -144,7 +144,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 replacementModeAndroid = null,
                 subscriptionOffers = null,
                 subscriptionProductReplacementParams = null,
-                developerBillingOption = params.developerBillingOption,
+                developerBillingOption = params.developerBillingOptionAndroid,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
@@ -168,7 +168,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 replacementModeAndroid = params.replacementModeAndroid,
                 subscriptionOffers = params.subscriptionOffers,
                 subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,
-                developerBillingOption = params.developerBillingOption,
+                developerBillingOption = params.developerBillingOptionAndroid,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )

@@ -3203,7 +3203,7 @@ class RequestPurchaseAndroidProps:
 	## Offer token for one-time purchase discounts (Android 7.0+).
 	var offer_token_android: String
 	## Developer billing option parameters for external payments flow (8.3.0+).
-	var developer_billing_option: DeveloperBillingOptionParamsAndroid
+	var developer_billing_option_android: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
 		var obj = RequestPurchaseAndroidProps.new()
@@ -3217,11 +3217,11 @@ class RequestPurchaseAndroidProps:
 			obj.is_offer_personalized_android = data["isOfferPersonalizedAndroid"]
 		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
 			obj.offer_token_android = data["offerTokenAndroid"]
-		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
-			if data["developerBillingOption"] is Dictionary:
-				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
+		if data.has("developerBillingOptionAndroid") and data["developerBillingOptionAndroid"] != null:
+			if data["developerBillingOptionAndroid"] is Dictionary:
+				obj.developer_billing_option_android = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOptionAndroid"])
 			else:
-				obj.developer_billing_option = data["developerBillingOption"]
+				obj.developer_billing_option_android = data["developerBillingOptionAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3236,11 +3236,11 @@ class RequestPurchaseAndroidProps:
 			dict["isOfferPersonalizedAndroid"] = is_offer_personalized_android
 		if offer_token_android != null:
 			dict["offerTokenAndroid"] = offer_token_android
-		if developer_billing_option != null:
-			if developer_billing_option.has_method("to_dict"):
-				dict["developerBillingOption"] = developer_billing_option.to_dict()
+		if developer_billing_option_android != null:
+			if developer_billing_option_android.has_method("to_dict"):
+				dict["developerBillingOptionAndroid"] = developer_billing_option_android.to_dict()
 			else:
-				dict["developerBillingOption"] = developer_billing_option
+				dict["developerBillingOptionAndroid"] = developer_billing_option_android
 		return dict
 
 class RequestPurchaseIosProps:
@@ -3425,7 +3425,7 @@ class RequestSubscriptionAndroidProps:
 	## Product-level replacement parameters (8.1.0+)
 	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
 	## Developer billing option parameters for external payments flow (8.3.0+).
-	var developer_billing_option: DeveloperBillingOptionParamsAndroid
+	var developer_billing_option_android: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
 		var obj = RequestSubscriptionAndroidProps.new()
@@ -3454,11 +3454,11 @@ class RequestSubscriptionAndroidProps:
 				obj.subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.from_dict(data["subscriptionProductReplacementParams"])
 			else:
 				obj.subscription_product_replacement_params = data["subscriptionProductReplacementParams"]
-		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
-			if data["developerBillingOption"] is Dictionary:
-				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
+		if data.has("developerBillingOptionAndroid") and data["developerBillingOptionAndroid"] != null:
+			if data["developerBillingOptionAndroid"] is Dictionary:
+				obj.developer_billing_option_android = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOptionAndroid"])
 			else:
-				obj.developer_billing_option = data["developerBillingOption"]
+				obj.developer_billing_option_android = data["developerBillingOptionAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3488,11 +3488,11 @@ class RequestSubscriptionAndroidProps:
 				dict["subscriptionProductReplacementParams"] = subscription_product_replacement_params.to_dict()
 			else:
 				dict["subscriptionProductReplacementParams"] = subscription_product_replacement_params
-		if developer_billing_option != null:
-			if developer_billing_option.has_method("to_dict"):
-				dict["developerBillingOption"] = developer_billing_option.to_dict()
+		if developer_billing_option_android != null:
+			if developer_billing_option_android.has_method("to_dict"):
+				dict["developerBillingOptionAndroid"] = developer_billing_option_android.to_dict()
 			else:
-				dict["developerBillingOption"] = developer_billing_option
+				dict["developerBillingOptionAndroid"] = developer_billing_option_android
 		return dict
 
 class RequestSubscriptionIosProps:

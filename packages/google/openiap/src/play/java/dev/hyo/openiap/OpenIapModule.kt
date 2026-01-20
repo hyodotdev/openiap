@@ -1580,11 +1580,12 @@ class OpenIapModule(
             }
 
             // Build SubscriptionProductReplacementParams using reflection
+            // Note: SubscriptionProductReplacementParams is nested under ProductDetailsParams (Billing Library 8.1.0+)
             val replacementParamsClass = Class.forName(
-                "com.android.billingclient.api.BillingFlowParams\$SubscriptionProductReplacementParams"
+                "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams"
             )
             val replacementBuilderClass = Class.forName(
-                "com.android.billingclient.api.BillingFlowParams\$SubscriptionProductReplacementParams\$Builder"
+                "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$Builder"
             )
 
             // Create new builder

@@ -1538,7 +1538,7 @@ async function handlePurchaseWithExternalPayments(productId: string) {
     await requestPurchase({
       google: {
         skus: [productId],
-        developerBillingOption: {
+        developerBillingOptionAndroid: {
           billingProgram: 'EXTERNAL_PAYMENTS',
           linkUri: 'https://your-payment-site.com/checkout',
           launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
@@ -1626,7 +1626,7 @@ suspend fun handlePurchaseWithExternalPayments(productId: String) {
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(productId),
-                        developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                        developerBillingOptionAndroid = DeveloperBillingOptionParamsAndroid(
                             billingProgram = BillingProgramAndroid.ExternalPayments,
                             linkUri = "https://your-payment-site.com/checkout",
                             launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
@@ -1701,7 +1701,7 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
     // User will see side-by-side choice dialog
     await FlutterInappPurchase.instance.requestPurchase(
       productId,
-      developerBillingOption: DeveloperBillingOptionParamsAndroid(
+      developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid(
         billingProgram: BillingProgramAndroid.externalPayments,
         linkUri: 'https://your-payment-site.com/checkout',
         launchMode: DeveloperBillingLaunchModeAndroid.launchInExternalBrowserOrApp,
@@ -1804,7 +1804,7 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                     </tr>
                     <tr>
                       <td>3</td>
-                      <td><code>requestPurchase(developerBillingOption: ...)</code></td>
+                      <td><code>requestPurchase(developerBillingOptionAndroid: ...)</code></td>
                       <td>Launch purchase with developer billing option configured</td>
                     </tr>
                     <tr>

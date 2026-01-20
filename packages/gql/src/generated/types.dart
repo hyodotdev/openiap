@@ -3600,7 +3600,7 @@ class PurchaseOptions {
 
 class RequestPurchaseAndroidProps {
   const RequestPurchaseAndroidProps({
-    this.developerBillingOption,
+    this.developerBillingOptionAndroid,
     this.isOfferPersonalizedAndroid,
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
@@ -3611,7 +3611,7 @@ class RequestPurchaseAndroidProps {
   /// Developer billing option parameters for external payments flow (8.3.0+).
   /// When provided, the purchase flow will show a side-by-side choice between
   /// Google Play Billing and the developer's external payment option.
-  final DeveloperBillingOptionParamsAndroid? developerBillingOption;
+  final DeveloperBillingOptionParamsAndroid? developerBillingOptionAndroid;
   /// Personalized offer flag (Android).
   /// When true, indicates the price was customized for this user.
   final bool? isOfferPersonalizedAndroid;
@@ -3628,7 +3628,7 @@ class RequestPurchaseAndroidProps {
 
   factory RequestPurchaseAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestPurchaseAndroidProps(
-      developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
+      developerBillingOptionAndroid: json['developerBillingOptionAndroid'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOptionAndroid'] as Map<String, dynamic>) : null,
       isOfferPersonalizedAndroid: json['isOfferPersonalizedAndroid'] as bool?,
       obfuscatedAccountIdAndroid: json['obfuscatedAccountIdAndroid'] as String?,
       obfuscatedProfileIdAndroid: json['obfuscatedProfileIdAndroid'] as String?,
@@ -3639,7 +3639,7 @@ class RequestPurchaseAndroidProps {
 
   Map<String, dynamic> toJson() {
     return {
-      'developerBillingOption': developerBillingOption?.toJson(),
+      'developerBillingOptionAndroid': developerBillingOptionAndroid?.toJson(),
       'isOfferPersonalizedAndroid': isOfferPersonalizedAndroid,
       'obfuscatedAccountIdAndroid': obfuscatedAccountIdAndroid,
       'obfuscatedProfileIdAndroid': obfuscatedProfileIdAndroid,
@@ -3803,7 +3803,7 @@ class RequestPurchasePropsByPlatforms {
 
 class RequestSubscriptionAndroidProps {
   const RequestSubscriptionAndroidProps({
-    this.developerBillingOption,
+    this.developerBillingOptionAndroid,
     this.isOfferPersonalizedAndroid,
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
@@ -3817,7 +3817,7 @@ class RequestSubscriptionAndroidProps {
   /// Developer billing option parameters for external payments flow (8.3.0+).
   /// When provided, the purchase flow will show a side-by-side choice between
   /// Google Play Billing and the developer's external payment option.
-  final DeveloperBillingOptionParamsAndroid? developerBillingOption;
+  final DeveloperBillingOptionParamsAndroid? developerBillingOptionAndroid;
   /// Personalized offer flag (Android).
   /// When true, indicates the price was customized for this user.
   final bool? isOfferPersonalizedAndroid;
@@ -3840,7 +3840,7 @@ class RequestSubscriptionAndroidProps {
 
   factory RequestSubscriptionAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestSubscriptionAndroidProps(
-      developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
+      developerBillingOptionAndroid: json['developerBillingOptionAndroid'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOptionAndroid'] as Map<String, dynamic>) : null,
       isOfferPersonalizedAndroid: json['isOfferPersonalizedAndroid'] as bool?,
       obfuscatedAccountIdAndroid: json['obfuscatedAccountIdAndroid'] as String?,
       obfuscatedProfileIdAndroid: json['obfuscatedProfileIdAndroid'] as String?,
@@ -3854,7 +3854,7 @@ class RequestSubscriptionAndroidProps {
 
   Map<String, dynamic> toJson() {
     return {
-      'developerBillingOption': developerBillingOption?.toJson(),
+      'developerBillingOptionAndroid': developerBillingOptionAndroid?.toJson(),
       'isOfferPersonalizedAndroid': isOfferPersonalizedAndroid,
       'obfuscatedAccountIdAndroid': obfuscatedAccountIdAndroid,
       'obfuscatedProfileIdAndroid': obfuscatedProfileIdAndroid,

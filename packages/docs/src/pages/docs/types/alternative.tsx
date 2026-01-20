@@ -873,7 +873,7 @@ if (result.isAvailable) {
   await requestPurchase({
     google: {
       skus: ['product_id'],
-      developerBillingOption: {
+      developerBillingOptionAndroid: {
         billingProgram: 'EXTERNAL_PAYMENTS',
         linkUri: 'https://your-site.com/checkout',
         launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
@@ -910,7 +910,7 @@ if (result.isAvailable) {
             RequestPurchasePropsByPlatforms(
                 google = RequestPurchaseAndroidProps(
                     skus = listOf("product_id"),
-                    developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                    developerBillingOptionAndroid = DeveloperBillingOptionParamsAndroid(
                         billingProgram = BillingProgramAndroid.ExternalPayments,
                         linkUri = "https://your-site.com/checkout",
                         launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
@@ -946,7 +946,7 @@ if (result.isAvailable) {
   // Purchase with developer billing option
   await FlutterInappPurchase.instance.requestPurchase(
     'product_id',
-    developerBillingOption: DeveloperBillingOptionParamsAndroid(
+    developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid(
       billingProgram: BillingProgramAndroid.externalPayments,
       linkUri: 'https://your-site.com/checkout',
       launchMode: DeveloperBillingLaunchModeAndroid.launchInExternalBrowserOrApp,

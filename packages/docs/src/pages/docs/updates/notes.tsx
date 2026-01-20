@@ -573,7 +573,7 @@ let products = try await OpenIapModule.shared.fetchProducts(request)`}
               - New listener for when user selects developer billing
             </li>
             <li>
-              <strong><code>developerBillingOption</code></strong>{' '}
+              <strong><code>developerBillingOptionAndroid</code></strong>{' '}
               - New field in RequestPurchaseAndroidProps and RequestSubscriptionAndroidProps
             </li>
           </ul>

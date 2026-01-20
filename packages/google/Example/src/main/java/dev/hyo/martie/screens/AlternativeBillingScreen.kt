@@ -960,7 +960,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                                                         RequestPurchasePropsByPlatforms(
                                                             google = RequestPurchaseAndroidProps(
                                                                 skus = listOf(selectedProduct!!.id),
-                                                                developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                                                                developerBillingOptionAndroid = DeveloperBillingOptionParamsAndroid(
                                                                     billingProgram = BillingProgramAndroid.ExternalPayments,
                                                                     linkUri = "https://example.com/checkout?product=${selectedProduct!!.id}",
                                                                     launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp

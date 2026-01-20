@@ -376,7 +376,7 @@ input RequestPurchaseAndroidProps {
   When provided, the purchase flow will show a side-by-side choice between
   Google Play Billing and the developer's external payment option.
   """
-  developerBillingOption: DeveloperBillingOptionParamsAndroid
+  developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid
 }
 
 input RequestSubscriptionAndroidProps {
@@ -420,7 +420,7 @@ input RequestSubscriptionAndroidProps {
   When provided, the purchase flow will show a side-by-side choice between
   Google Play Billing and the developer's external payment option.
   """
-  developerBillingOption: DeveloperBillingOptionParamsAndroid
+  developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid
 }
 
 # Subscription Replacement (Google Play Billing Library 8.1.0+)
