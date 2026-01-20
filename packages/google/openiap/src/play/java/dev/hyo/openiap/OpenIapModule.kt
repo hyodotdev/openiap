@@ -1605,16 +1605,8 @@ class OpenIapModule(
         params: SubscriptionProductReplacementParamsAndroid
     ) {
         try {
-            // Convert our enum to BillingClient replacement mode constant
-            val replacementModeConstant = when (params.replacementMode) {
-                SubscriptionReplacementModeAndroid.UnknownReplacementMode -> 0
-                SubscriptionReplacementModeAndroid.WithTimeProration -> 1
-                SubscriptionReplacementModeAndroid.ChargeProratedPrice -> 2
-                SubscriptionReplacementModeAndroid.WithoutProration -> 3
-                SubscriptionReplacementModeAndroid.Deferred -> 6
-                SubscriptionReplacementModeAndroid.ChargeFullPrice -> 5
-                SubscriptionReplacementModeAndroid.KeepExisting -> 7 // New in 8.1.0
-            }
+            // Convert our enum to BillingClient SubscriptionProductReplacementParams.ReplacementMode constant
+            val replacementModeConstant = params.replacementMode.toReplacementModeConstant()
 
             // Build SubscriptionProductReplacementParams using reflection
             // Note: SubscriptionProductReplacementParams is nested under ProductDetailsParams (Billing Library 8.1.0+)

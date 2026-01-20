@@ -26,6 +26,49 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // GQL 1.3.15 / Google 1.3.27 / Apple 1.3.13 - Jan 21, 2026
+    {
+      id: 'gql-1-3-15-google-1-3-27-apple-1-3-13',
+      date: new Date('2026-01-21'),
+      element: (
+        <div key="gql-1-3-15-google-1-3-27-apple-1-3-13" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-15-google-1-3-27-apple-1-3-13" level="h4">
+            📅 openiap-gql v1.3.15 / openiap-google v1.3.27 / openiap-apple v1.3.13 - Bug Fix
+          </AnchorLink>
+
+          <p><strong>Android - Fix SubscriptionProductReplacementParams ReplacementMode Mapping:</strong></p>
+          <p>
+            Fixed incorrect <code>replacementModeConstant</code> mapping in <code>applySubscriptionProductReplacementParams</code>.
+            The function was using values from the legacy <code>SubscriptionUpdateParams.ReplacementMode</code> API instead of
+            the new <code>SubscriptionProductReplacementParams.ReplacementMode</code> API (Billing Library 8.1.0+).
+          </p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Issue: <a href="https://github.com/hyodotdev/openiap/issues/71" target="_blank" rel="noopener noreferrer">#71</a>
+          </p>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Mode</th>
+                <th style={{ textAlign: 'center', padding: '0.5rem' }}>Before (Wrong)</th>
+                <th style={{ textAlign: 'center', padding: '0.5rem' }}>After (Correct)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}>CHARGE_FULL_PRICE</td><td style={{ textAlign: 'center' }}>5</td><td style={{ textAlign: 'center' }}>4</td></tr>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}>DEFERRED</td><td style={{ textAlign: 'center' }}>6</td><td style={{ textAlign: 'center' }}>5</td></tr>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}>KEEP_EXISTING</td><td style={{ textAlign: 'center' }}>7</td><td style={{ textAlign: 'center' }}>6</td></tr>
+            </tbody>
+          </table>
+
+          <p><strong>References:</strong></p>
+          <ul>
+            <li><a href="https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode" target="_blank" rel="noopener noreferrer">SubscriptionProductReplacementParams.ReplacementMode (Billing 8.1.0+)</a></li>
+            <li><a href="https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode" target="_blank" rel="noopener noreferrer">SubscriptionUpdateParams.ReplacementMode (Legacy)</a></li>
+          </ul>
+        </div>
+      ),
+    },
     // GQL 1.3.14 / Google 1.3.25 / Apple 1.3.13 - Jan 19, 2026
     {
       id: 'gql-1-3-14-google-1-3-25-apple-1-3-13',
