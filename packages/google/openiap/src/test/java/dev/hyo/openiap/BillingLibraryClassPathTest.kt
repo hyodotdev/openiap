@@ -241,15 +241,16 @@ class BillingLibraryClassPathTest {
     }
 
     // ============================================================================
-    // MARK: - BillingProgramReportingDetailsListener (Billing Library 8.2.0+)
+    // MARK: - BillingProgramReportingDetailsListener (Billing Library 8.3.0+)
     // Used in: OpenIapModule.createBillingProgramReportingDetails()
+    // Note: Requires BillingProgramReportingDetailsParams in 8.3.0+
     // ============================================================================
 
     @Test
     fun `BillingProgramReportingDetailsListener class exists`() {
         assertClassExists(
             "com.android.billingclient.api.BillingProgramReportingDetailsListener",
-            "8.2.0+"
+            "8.3.0+"
         )
     }
 
@@ -271,6 +272,39 @@ class BillingLibraryClassPathTest {
         assertClassExists(
             "com.android.billingclient.api.BillingProgramReportingDetailsParams",
             "8.3.0+"
+        )
+    }
+
+    @Test
+    fun `BillingProgramReportingDetailsParams Builder class exists`() {
+        assertClassExists(
+            "com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder",
+            "8.3.0+"
+        )
+    }
+
+    @Test
+    fun `BillingProgramReportingDetailsParams has newBuilder method`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramReportingDetailsParams",
+            "newBuilder"
+        )
+    }
+
+    @Test
+    fun `BillingProgramReportingDetailsParams Builder has setBillingProgram method`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder",
+            "setBillingProgram",
+            Int::class.javaPrimitiveType!!
+        )
+    }
+
+    @Test
+    fun `BillingProgramReportingDetailsParams Builder has build method`() {
+        assertClassHasMethod(
+            "com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder",
+            "build"
         )
     }
 
@@ -640,8 +674,7 @@ class BillingLibraryClassPathTest {
 
     @Test
     fun `BillingClient has createBillingProgramReportingDetailsAsync method`() {
-        // Note: In Billing Library 8.3.0+, this method takes (BillingProgramReportingDetailsParams, Listener)
-        // OpenIapModule currently uses (int, Listener) which may need updating
+        // Billing Library 8.3.0+: Takes (BillingProgramReportingDetailsParams, Listener)
         val clientClassName = "com.android.billingclient.api.BillingClient"
         val paramsClassName = "com.android.billingclient.api.BillingProgramReportingDetailsParams"
         val listenerClassName = "com.android.billingclient.api.BillingProgramReportingDetailsListener"

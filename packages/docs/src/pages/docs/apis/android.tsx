@@ -353,6 +353,13 @@ suspend fun launchExternalLink(
           <strong>Step 3:</strong> Create reporting details after successful
           payment. Returns external transaction token for reporting.
         </p>
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>Note:</strong> This API uses{' '}
+            <code>BillingProgramReportingDetailsParams</code> internally, which
+            requires Billing Library 8.3.0+. OpenIAP handles this automatically.
+          </p>
+        </div>
         <CodeBlock language="kotlin">{`// Returns BillingProgramReportingDetailsAndroid with externalTransactionToken
 // Token must be reported to Google Play backend within 24 hours
 // Throws OpenIapError.NotPrepared if billing client not ready

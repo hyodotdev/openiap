@@ -499,8 +499,10 @@ class OpenIapModule(
     }
 
     /**
-     * Create reporting details for transactions made outside of Google Play Billing (8.2.0+)
+     * Create reporting details for transactions made outside of Google Play Billing (8.3.0+)
      * This is the new API that replaces createAlternativeBillingReportingToken for external offers.
+     *
+     * Note: This method uses BillingProgramReportingDetailsParams which was introduced in 8.3.0.
      *
      * @param program The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
      * @return Reporting details containing the external transaction token
@@ -526,7 +528,8 @@ class OpenIapModule(
                     listenerClass.classLoader,
                     arrayOf(listenerClass)
                 ) { _, method, args ->
-                    if (method.name == "onBillingProgramReportingDetailsResponse") {
+                    // Note: Callback method name is onCreateBillingProgramReportingDetailsResponse (not onBillingProgramReportingDetailsResponse)
+                    if (method.name == "onCreateBillingProgramReportingDetailsResponse") {
                         val result = args?.get(0) as? BillingResult
                         val details = args?.getOrNull(1)
 
@@ -556,14 +559,33 @@ class OpenIapModule(
                     null
                 }
 
+                // Build BillingProgramReportingDetailsParams using reflection (Billing Library 8.3.0+)
+                val paramsClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams")
+                val paramsBuilderClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsParams\$Builder")
+
+                val newBuilderMethod = paramsClass.getMethod("newBuilder")
+                val paramsBuilder = newBuilderMethod.invoke(null)
+
+                // Set billing program
+                val setBillingProgramMethod = paramsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+                setBillingProgramMethod.invoke(paramsBuilder, billingProgramConstant)
+
+                // Build the params
+                val buildMethod = paramsBuilderClass.getMethod("build")
+                val reportingParams = buildMethod.invoke(paramsBuilder)
+
+                // Call createBillingProgramReportingDetailsAsync with (BillingProgramReportingDetailsParams, Listener)
                 val method = client.javaClass.getMethod(
                     "createBillingProgramReportingDetailsAsync",
-                    Int::class.javaPrimitiveType,
+                    paramsClass,
                     listenerClass
                 )
-                method.invoke(client, billingProgramConstant, listener)
+                method.invoke(client, reportingParams, listener)
             } catch (e: NoSuchMethodException) {
-                OpenIapLog.e("createBillingProgramReportingDetailsAsync not found. Requires Billing Library 8.2.0+", e, TAG)
+                OpenIapLog.e("createBillingProgramReportingDetailsAsync not found. Requires Billing Library 8.3.0+", e, TAG)
+                throw OpenIapError.FeatureNotSupported
+            } catch (e: ClassNotFoundException) {
+                OpenIapLog.e("BillingProgramReportingDetailsParams not found. Requires Billing Library 8.3.0+", e, TAG)
                 throw OpenIapError.FeatureNotSupported
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to create billing program reporting details: ${e.message}", e, TAG)
