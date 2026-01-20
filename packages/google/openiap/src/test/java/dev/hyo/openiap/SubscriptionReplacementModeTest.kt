@@ -16,91 +16,40 @@ import org.junit.Test
  */
 class SubscriptionReplacementModeTest {
 
-    /**
-     * Maps SubscriptionReplacementModeAndroid enum to
-     * SubscriptionProductReplacementParams.ReplacementMode constants (Billing Library 8.1.0+).
-     *
-     * These are the CORRECT values for the new API:
-     * - UNKNOWN_REPLACEMENT_MODE = 0
-     * - WITH_TIME_PRORATION = 1
-     * - CHARGE_PRORATED_PRICE = 2
-     * - WITHOUT_PRORATION = 3
-     * - CHARGE_FULL_PRICE = 4
-     * - DEFERRED = 5
-     * - KEEP_EXISTING = 6
-     */
-    private fun getSubscriptionProductReplacementModeConstant(mode: SubscriptionReplacementModeAndroid): Int {
-        return when (mode) {
-            SubscriptionReplacementModeAndroid.UnknownReplacementMode -> 0
-            SubscriptionReplacementModeAndroid.WithTimeProration -> 1
-            SubscriptionReplacementModeAndroid.ChargeProratedPrice -> 2
-            SubscriptionReplacementModeAndroid.WithoutProration -> 3
-            SubscriptionReplacementModeAndroid.ChargeFullPrice -> 4
-            SubscriptionReplacementModeAndroid.Deferred -> 5
-            SubscriptionReplacementModeAndroid.KeepExisting -> 6
-        }
-    }
-
-    /**
-     * Maps SubscriptionReplacementModeAndroid enum to the LEGACY
-     * SubscriptionUpdateParams.ReplacementMode constants.
-     *
-     * These are the OLD values (DO NOT USE with SubscriptionProductReplacementParams):
-     * - UNKNOWN_REPLACEMENT_MODE = 0
-     * - WITH_TIME_PRORATION = 1
-     * - CHARGE_PRORATED_PRICE = 2
-     * - WITHOUT_PRORATION = 3
-     * - CHARGE_FULL_PRICE = 5  <-- Different!
-     * - DEFERRED = 6           <-- Different!
-     * - (KEEP_EXISTING not available in legacy API)
-     */
-    @Suppress("unused")
-    private fun getLegacySubscriptionUpdateModeConstant(mode: SubscriptionReplacementModeAndroid): Int {
-        return when (mode) {
-            SubscriptionReplacementModeAndroid.UnknownReplacementMode -> 0
-            SubscriptionReplacementModeAndroid.WithTimeProration -> 1
-            SubscriptionReplacementModeAndroid.ChargeProratedPrice -> 2
-            SubscriptionReplacementModeAndroid.WithoutProration -> 3
-            SubscriptionReplacementModeAndroid.ChargeFullPrice -> 5  // Legacy value
-            SubscriptionReplacementModeAndroid.Deferred -> 6         // Legacy value
-            SubscriptionReplacementModeAndroid.KeepExisting -> 7     // Not in legacy API
-        }
-    }
-
     // MARK: - SubscriptionProductReplacementParams.ReplacementMode constants (8.1.0+)
 
     @Test
     fun `UNKNOWN_REPLACEMENT_MODE constant is 0`() {
-        assertEquals(0, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.UnknownReplacementMode))
+        assertEquals(0, SubscriptionReplacementModeAndroid.UnknownReplacementMode.toReplacementModeConstant())
     }
 
     @Test
     fun `WITH_TIME_PRORATION constant is 1`() {
-        assertEquals(1, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.WithTimeProration))
+        assertEquals(1, SubscriptionReplacementModeAndroid.WithTimeProration.toReplacementModeConstant())
     }
 
     @Test
     fun `CHARGE_PRORATED_PRICE constant is 2`() {
-        assertEquals(2, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.ChargeProratedPrice))
+        assertEquals(2, SubscriptionReplacementModeAndroid.ChargeProratedPrice.toReplacementModeConstant())
     }
 
     @Test
     fun `WITHOUT_PRORATION constant is 3`() {
-        assertEquals(3, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.WithoutProration))
+        assertEquals(3, SubscriptionReplacementModeAndroid.WithoutProration.toReplacementModeConstant())
     }
 
     @Test
     fun `CHARGE_FULL_PRICE constant is 4 for SubscriptionProductReplacementParams`() {
         // This was incorrectly mapped to 5 (legacy value) before the fix
         // Correct value for SubscriptionProductReplacementParams.ReplacementMode is 4
-        assertEquals(4, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.ChargeFullPrice))
+        assertEquals(4, SubscriptionReplacementModeAndroid.ChargeFullPrice.toReplacementModeConstant())
     }
 
     @Test
     fun `DEFERRED constant is 5 for SubscriptionProductReplacementParams`() {
         // This was incorrectly mapped to 6 (legacy value) before the fix
         // Correct value for SubscriptionProductReplacementParams.ReplacementMode is 5
-        assertEquals(5, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.Deferred))
+        assertEquals(5, SubscriptionReplacementModeAndroid.Deferred.toReplacementModeConstant())
     }
 
     @Test
@@ -108,7 +57,7 @@ class SubscriptionReplacementModeTest {
         // This was incorrectly mapped to 7 before the fix
         // Correct value for SubscriptionProductReplacementParams.ReplacementMode is 6
         // Note: KEEP_EXISTING is only available in Billing Library 8.1.0+
-        assertEquals(6, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.KeepExisting))
+        assertEquals(6, SubscriptionReplacementModeAndroid.KeepExisting.toReplacementModeConstant())
     }
 
     // MARK: - Verify all enum values are covered
@@ -134,7 +83,7 @@ class SubscriptionReplacementModeTest {
             assertEquals(
                 "Mapping for $mode should be $expectedConstant",
                 expectedConstant,
-                getSubscriptionProductReplacementModeConstant(mode)
+                mode.toReplacementModeConstant()
             )
         }
     }
@@ -148,7 +97,7 @@ class SubscriptionReplacementModeTest {
         val legacyValue = 5
         val newValue = 4
 
-        assertEquals(newValue, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.ChargeFullPrice))
+        assertEquals(newValue, SubscriptionReplacementModeAndroid.ChargeFullPrice.toReplacementModeConstant())
         // Document that legacy value is different
         assertNotEquals(
             "Legacy and new API values should differ for CHARGE_FULL_PRICE",
@@ -164,7 +113,7 @@ class SubscriptionReplacementModeTest {
         val legacyValue = 6
         val newValue = 5
 
-        assertEquals(newValue, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.Deferred))
+        assertEquals(newValue, SubscriptionReplacementModeAndroid.Deferred.toReplacementModeConstant())
         // Document that legacy value is different
         assertNotEquals(
             "Legacy and new API values should differ for DEFERRED",
