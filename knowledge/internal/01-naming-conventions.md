@@ -54,6 +54,63 @@ fun buildModuleAndroid()
 
 **Exception**: Only use `Android` suffix for types that are part of a cross-platform API (e.g., `ProductAndroid`, `PurchaseAndroid` that contrast with iOS types).
 
+## Platform-Specific Field Naming (CRITICAL)
+
+> **This is the most commonly violated rule. Pay extra attention.**
+
+### GraphQL Input Types (API Fields)
+
+All platform-specific fields in GraphQL input types MUST use the platform suffix:
+
+```graphql
+# CORRECT - All Android-specific fields have Android suffix
+input RequestPurchaseAndroidProps {
+  skus: [String!]!                      # Cross-platform, no suffix
+  offerTokenAndroid: String             # Android-only feature
+  isOfferPersonalizedAndroid: Boolean   # Android-only feature
+  obfuscatedAccountIdAndroid: String    # Android-only feature
+  obfuscatedProfileIdAndroid: String    # Android-only feature
+  developerBillingOption: DeveloperBillingOptionParamsAndroid  # Type has suffix
+}
+
+# INCORRECT - Missing Android suffix
+input RequestPurchaseAndroidProps {
+  offerToken: String           # ❌ Should be offerTokenAndroid
+  isOfferPersonalized: Boolean # ❌ Should be isOfferPersonalizedAndroid
+}
+```
+
+### Why This Matters
+
+1. **Cross-platform consumers** (React Native, Flutter, etc.) see all fields
+2. Without suffix, it's unclear which platform the field applies to
+3. Consistency makes documentation and code generation predictable
+
+### Field Suffix Rules
+
+| Field Location | Suffix Required? | Example |
+|----------------|------------------|---------|
+| Android-only input type | YES for Android features | `offerTokenAndroid`, `isOfferPersonalizedAndroid` |
+| iOS-only input type | YES for iOS features | `appAccountTokenIOS`, `uuid` → `appAccountTokenIOS` |
+| Cross-platform type | YES for platform-specific | `nameAndroid` in `ProductAndroid` |
+| Internal implementation | NO (not API) | `val offerToken` in Kotlin data class |
+
+### Internal vs API Fields
+
+- **API fields** (GraphQL schema): ALWAYS use platform suffix
+- **Internal fields** (Kotlin/Swift data classes not exposed): No suffix needed
+
+```kotlin
+// Internal helper data class - no suffix needed
+internal data class AndroidPurchaseArgs(
+    val offerToken: String?,        // Internal, no suffix OK
+    val isOfferPersonalized: Boolean?  // Internal, no suffix OK
+)
+
+// But when reading from API props, use the suffixed names:
+val offerToken = params.offerTokenAndroid  // ✓ API uses suffix
+```
+
 ### Cross-Platform Functions
 
 Functions available on BOTH platforms have **NO** platform suffix:

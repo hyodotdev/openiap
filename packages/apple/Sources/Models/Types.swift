@@ -1383,8 +1383,9 @@ public struct RequestPurchaseAndroidProps: Codable {
     /// When provided, the purchase flow will show a side-by-side choice between
     /// Google Play Billing and the developer's external payment option.
     public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
-    /// Personalized offer flag
-    public var isOfferPersonalized: Bool?
+    /// Personalized offer flag (Android).
+    /// When true, indicates the price was customized for this user.
+    public var isOfferPersonalizedAndroid: Bool?
     /// Obfuscated account ID
     public var obfuscatedAccountIdAndroid: String?
     /// Obfuscated profile ID
@@ -1392,23 +1393,23 @@ public struct RequestPurchaseAndroidProps: Codable {
     /// Offer token for one-time purchase discounts (Android 7.0+).
     /// Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
     /// to apply a discount offer to the purchase.
-    public var offerToken: String?
+    public var offerTokenAndroid: String?
     /// List of product SKUs
     public var skus: [String]
 
     public init(
         developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
-        isOfferPersonalized: Bool? = nil,
+        isOfferPersonalizedAndroid: Bool? = nil,
         obfuscatedAccountIdAndroid: String? = nil,
         obfuscatedProfileIdAndroid: String? = nil,
-        offerToken: String? = nil,
+        offerTokenAndroid: String? = nil,
         skus: [String]
     ) {
         self.developerBillingOption = developerBillingOption
-        self.isOfferPersonalized = isOfferPersonalized
+        self.isOfferPersonalizedAndroid = isOfferPersonalizedAndroid
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
         self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
-        self.offerToken = offerToken
+        self.offerTokenAndroid = offerTokenAndroid
         self.skus = skus
     }
 }
@@ -1552,8 +1553,9 @@ public struct RequestSubscriptionAndroidProps: Codable {
     /// When provided, the purchase flow will show a side-by-side choice between
     /// Google Play Billing and the developer's external payment option.
     public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
-    /// Personalized offer flag
-    public var isOfferPersonalized: Bool?
+    /// Personalized offer flag (Android).
+    /// When true, indicates the price was customized for this user.
+    public var isOfferPersonalizedAndroid: Bool?
     /// Obfuscated account ID
     public var obfuscatedAccountIdAndroid: String?
     /// Obfuscated profile ID
@@ -1573,7 +1575,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
 
     public init(
         developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
-        isOfferPersonalized: Bool? = nil,
+        isOfferPersonalizedAndroid: Bool? = nil,
         obfuscatedAccountIdAndroid: String? = nil,
         obfuscatedProfileIdAndroid: String? = nil,
         purchaseTokenAndroid: String? = nil,
@@ -1583,7 +1585,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
         subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = nil
     ) {
         self.developerBillingOption = developerBillingOption
-        self.isOfferPersonalized = isOfferPersonalized
+        self.isOfferPersonalizedAndroid = isOfferPersonalizedAndroid
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
         self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
         self.purchaseTokenAndroid = purchaseTokenAndroid

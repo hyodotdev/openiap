@@ -525,7 +525,7 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
-                        <code>offerToken</code>
+                        <code>offerTokenAndroid</code>
                       </td>
                       <td>
                         Offer token for one-time purchase discounts (Android 7.0+).
@@ -548,7 +548,7 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
-                        <code>isOfferPersonalized</code>
+                        <code>isOfferPersonalizedAndroid</code>
                       </td>
                       <td>True if offer is personalized (EU compliance)</td>
                     </tr>

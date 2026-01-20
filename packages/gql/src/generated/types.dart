@@ -3601,10 +3601,10 @@ class PurchaseOptions {
 class RequestPurchaseAndroidProps {
   const RequestPurchaseAndroidProps({
     this.developerBillingOption,
-    this.isOfferPersonalized,
+    this.isOfferPersonalizedAndroid,
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
-    this.offerToken,
+    this.offerTokenAndroid,
     required this.skus,
   });
 
@@ -3612,8 +3612,9 @@ class RequestPurchaseAndroidProps {
   /// When provided, the purchase flow will show a side-by-side choice between
   /// Google Play Billing and the developer's external payment option.
   final DeveloperBillingOptionParamsAndroid? developerBillingOption;
-  /// Personalized offer flag
-  final bool? isOfferPersonalized;
+  /// Personalized offer flag (Android).
+  /// When true, indicates the price was customized for this user.
+  final bool? isOfferPersonalizedAndroid;
   /// Obfuscated account ID
   final String? obfuscatedAccountIdAndroid;
   /// Obfuscated profile ID
@@ -3621,17 +3622,17 @@ class RequestPurchaseAndroidProps {
   /// Offer token for one-time purchase discounts (Android 7.0+).
   /// Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
   /// to apply a discount offer to the purchase.
-  final String? offerToken;
+  final String? offerTokenAndroid;
   /// List of product SKUs
   final List<String> skus;
 
   factory RequestPurchaseAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestPurchaseAndroidProps(
       developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
-      isOfferPersonalized: json['isOfferPersonalized'] as bool?,
+      isOfferPersonalizedAndroid: json['isOfferPersonalizedAndroid'] as bool?,
       obfuscatedAccountIdAndroid: json['obfuscatedAccountIdAndroid'] as String?,
       obfuscatedProfileIdAndroid: json['obfuscatedProfileIdAndroid'] as String?,
-      offerToken: json['offerToken'] as String?,
+      offerTokenAndroid: json['offerTokenAndroid'] as String?,
       skus: (json['skus'] as List<dynamic>).map((e) => e as String).toList(),
     );
   }
@@ -3639,10 +3640,10 @@ class RequestPurchaseAndroidProps {
   Map<String, dynamic> toJson() {
     return {
       'developerBillingOption': developerBillingOption?.toJson(),
-      'isOfferPersonalized': isOfferPersonalized,
+      'isOfferPersonalizedAndroid': isOfferPersonalizedAndroid,
       'obfuscatedAccountIdAndroid': obfuscatedAccountIdAndroid,
       'obfuscatedProfileIdAndroid': obfuscatedProfileIdAndroid,
-      'offerToken': offerToken,
+      'offerTokenAndroid': offerTokenAndroid,
       'skus': skus,
     };
   }
@@ -3803,7 +3804,7 @@ class RequestPurchasePropsByPlatforms {
 class RequestSubscriptionAndroidProps {
   const RequestSubscriptionAndroidProps({
     this.developerBillingOption,
-    this.isOfferPersonalized,
+    this.isOfferPersonalizedAndroid,
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
     this.purchaseTokenAndroid,
@@ -3817,8 +3818,9 @@ class RequestSubscriptionAndroidProps {
   /// When provided, the purchase flow will show a side-by-side choice between
   /// Google Play Billing and the developer's external payment option.
   final DeveloperBillingOptionParamsAndroid? developerBillingOption;
-  /// Personalized offer flag
-  final bool? isOfferPersonalized;
+  /// Personalized offer flag (Android).
+  /// When true, indicates the price was customized for this user.
+  final bool? isOfferPersonalizedAndroid;
   /// Obfuscated account ID
   final String? obfuscatedAccountIdAndroid;
   /// Obfuscated profile ID
@@ -3839,7 +3841,7 @@ class RequestSubscriptionAndroidProps {
   factory RequestSubscriptionAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestSubscriptionAndroidProps(
       developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
-      isOfferPersonalized: json['isOfferPersonalized'] as bool?,
+      isOfferPersonalizedAndroid: json['isOfferPersonalizedAndroid'] as bool?,
       obfuscatedAccountIdAndroid: json['obfuscatedAccountIdAndroid'] as String?,
       obfuscatedProfileIdAndroid: json['obfuscatedProfileIdAndroid'] as String?,
       purchaseTokenAndroid: json['purchaseTokenAndroid'] as String?,
@@ -3853,7 +3855,7 @@ class RequestSubscriptionAndroidProps {
   Map<String, dynamic> toJson() {
     return {
       'developerBillingOption': developerBillingOption?.toJson(),
-      'isOfferPersonalized': isOfferPersonalized,
+      'isOfferPersonalizedAndroid': isOfferPersonalizedAndroid,
       'obfuscatedAccountIdAndroid': obfuscatedAccountIdAndroid,
       'obfuscatedProfileIdAndroid': obfuscatedProfileIdAndroid,
       'purchaseTokenAndroid': purchaseTokenAndroid,

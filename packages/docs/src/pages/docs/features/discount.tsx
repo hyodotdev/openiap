@@ -857,8 +857,8 @@ async function purchaseWithOffer(
     request: {
       google: {
         skus: [product.id],
-        // Include offerToken for discounted purchases (Android 7.0+)
-        offerToken: selectedOffer.offerToken,
+        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+        offerTokenAndroid: selectedOffer.offerToken,
       },
     },
   });
@@ -888,8 +888,8 @@ async function purchaseWithOffer(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
-                        // Include offerToken for discounted purchases (Android 7.0+)
-                        offerToken = selectedOffer.offerToken
+                        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+                        offerTokenAndroid = selectedOffer.offerToken
                     )
                 )
             )

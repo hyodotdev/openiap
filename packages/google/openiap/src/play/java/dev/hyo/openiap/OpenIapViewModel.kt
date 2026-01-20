@@ -46,7 +46,7 @@ class OpenIapViewModel(app: Application) : AndroidViewModel(app) {
                 val props = when (type) {
                     ProductQueryType.InApp -> {
                         val android = RequestPurchaseAndroidProps(
-                            isOfferPersonalized = null,
+                            isOfferPersonalizedAndroid = null,
                             obfuscatedAccountIdAndroid = null,
                             obfuscatedProfileIdAndroid = null,
                             skus = skus
@@ -60,7 +60,7 @@ class OpenIapViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     ProductQueryType.Subs -> {
                         val android = RequestSubscriptionAndroidProps(
-                            isOfferPersonalized = null,
+                            isOfferPersonalizedAndroid = null,
                             obfuscatedAccountIdAndroid = null,
                             obfuscatedProfileIdAndroid = null,
                             purchaseTokenAndroid = null,

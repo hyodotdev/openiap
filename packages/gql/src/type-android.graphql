@@ -361,15 +361,16 @@ input RequestPurchaseAndroidProps {
   """
   obfuscatedProfileIdAndroid: String
   """
-  Personalized offer flag
+  Personalized offer flag (Android).
+  When true, indicates the price was customized for this user.
   """
-  isOfferPersonalized: Boolean
+  isOfferPersonalizedAndroid: Boolean
   """
   Offer token for one-time purchase discounts (Android 7.0+).
   Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
   to apply a discount offer to the purchase.
   """
-  offerToken: String
+  offerTokenAndroid: String
   """
   Developer billing option parameters for external payments flow (8.3.0+).
   When provided, the purchase flow will show a side-by-side choice between
@@ -392,9 +393,10 @@ input RequestSubscriptionAndroidProps {
   """
   obfuscatedProfileIdAndroid: String
   """
-  Personalized offer flag
+  Personalized offer flag (Android).
+  When true, indicates the price was customized for this user.
   """
-  isOfferPersonalized: Boolean
+  isOfferPersonalizedAndroid: Boolean
   """
   Purchase token for upgrades/downgrades
   """

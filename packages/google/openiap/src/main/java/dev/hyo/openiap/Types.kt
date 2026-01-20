@@ -3498,9 +3498,10 @@ public data class RequestPurchaseAndroidProps(
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
-     * Personalized offer flag
+     * Personalized offer flag (Android).
+     * When true, indicates the price was customized for this user.
      */
-    val isOfferPersonalized: Boolean? = null,
+    val isOfferPersonalizedAndroid: Boolean? = null,
     /**
      * Obfuscated account ID
      */
@@ -3514,7 +3515,7 @@ public data class RequestPurchaseAndroidProps(
      * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
      * to apply a discount offer to the purchase.
      */
-    val offerToken: String? = null,
+    val offerTokenAndroid: String? = null,
     /**
      * List of product SKUs
      */
@@ -3523,18 +3524,18 @@ public data class RequestPurchaseAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps? {
             val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
-            val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
+            val isOfferPersonalizedAndroid = json["isOfferPersonalizedAndroid"] as? Boolean
             val obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String
             val obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String
-            val offerToken = json["offerToken"] as? String
+            val offerTokenAndroid = json["offerTokenAndroid"] as? String
             val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
             if (skus == null) return null
             return RequestPurchaseAndroidProps(
                 developerBillingOption = developerBillingOption,
-                isOfferPersonalized = isOfferPersonalized,
+                isOfferPersonalizedAndroid = isOfferPersonalizedAndroid,
                 obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
                 obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
-                offerToken = offerToken,
+                offerTokenAndroid = offerTokenAndroid,
                 skus = skus,
             )
         }
@@ -3542,10 +3543,10 @@ public data class RequestPurchaseAndroidProps(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "developerBillingOption" to developerBillingOption?.toJson(),
-        "isOfferPersonalized" to isOfferPersonalized,
+        "isOfferPersonalizedAndroid" to isOfferPersonalizedAndroid,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
-        "offerToken" to offerToken,
+        "offerTokenAndroid" to offerTokenAndroid,
         "skus" to skus,
     )
 }
@@ -3716,9 +3717,10 @@ public data class RequestSubscriptionAndroidProps(
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
-     * Personalized offer flag
+     * Personalized offer flag (Android).
+     * When true, indicates the price was customized for this user.
      */
-    val isOfferPersonalized: Boolean? = null,
+    val isOfferPersonalizedAndroid: Boolean? = null,
     /**
      * Obfuscated account ID
      */
@@ -3753,7 +3755,7 @@ public data class RequestSubscriptionAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps? {
             val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
-            val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
+            val isOfferPersonalizedAndroid = json["isOfferPersonalizedAndroid"] as? Boolean
             val obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String
             val obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String
             val purchaseTokenAndroid = json["purchaseTokenAndroid"] as? String
@@ -3764,7 +3766,7 @@ public data class RequestSubscriptionAndroidProps(
             if (skus == null) return null
             return RequestSubscriptionAndroidProps(
                 developerBillingOption = developerBillingOption,
-                isOfferPersonalized = isOfferPersonalized,
+                isOfferPersonalizedAndroid = isOfferPersonalizedAndroid,
                 obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
                 obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
                 purchaseTokenAndroid = purchaseTokenAndroid,
@@ -3778,7 +3780,7 @@ public data class RequestSubscriptionAndroidProps(
 
     fun toJson(): Map<String, Any?> = mapOf(
         "developerBillingOption" to developerBillingOption?.toJson(),
-        "isOfferPersonalized" to isOfferPersonalized,
+        "isOfferPersonalizedAndroid" to isOfferPersonalizedAndroid,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
         "purchaseTokenAndroid" to purchaseTokenAndroid,

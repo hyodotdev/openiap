@@ -136,10 +136,10 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 ?: throw IllegalArgumentException("Google purchase parameters are required (use 'google' field)")
             AndroidPurchaseArgs(
                 skus = params.skus,
-                isOfferPersonalized = params.isOfferPersonalized,
+                isOfferPersonalized = params.isOfferPersonalizedAndroid,
                 obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
                 obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
-                offerToken = params.offerToken,
+                offerToken = params.offerTokenAndroid,
                 purchaseTokenAndroid = null,
                 replacementModeAndroid = null,
                 subscriptionOffers = null,
@@ -160,7 +160,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
             // Both can be provided together - they serve different purposes and are not mutually exclusive
             AndroidPurchaseArgs(
                 skus = params.skus,
-                isOfferPersonalized = params.isOfferPersonalized,
+                isOfferPersonalized = params.isOfferPersonalizedAndroid,
                 obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
                 obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
                 offerToken = null,
