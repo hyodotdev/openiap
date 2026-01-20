@@ -30,3 +30,12 @@ When reviewing, check these project-specific rules:
 - **Generated files**: Do NOT edit `packages/apple/Sources/Models/Types.swift` or `packages/google/openiap/src/main/Types.kt`
 
 See [CLAUDE.md](../../CLAUDE.md) and [knowledge/internal/](../../knowledge/internal/) for full conventions.
+
+## Reply Format Rules
+
+When replying to PR comments:
+
+- **Commit hash references**: Write commit hashes as plain text, NOT in code blocks
+  - CORRECT: `Fixed in f3b5fec.`
+  - WRONG: `Fixed in \`f3b5fec\`.`
+  - This ensures GitHub auto-links the commit hash to the actual commit
