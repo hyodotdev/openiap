@@ -8,6 +8,34 @@ Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-ia
 >
 > **Default Path:** `/Users/crossplatformkorea/Github/hyochan/expo-iap`
 
+## Usage
+
+```bash
+/sync-expo-iap [--patch | --minor | --major]
+```
+
+### Version Bump Arguments
+
+| Argument | Description | Versioned Docs Required |
+|----------|-------------|-------------------------|
+| `--patch` | Patch version bump (x.x.+1) - Bug fixes, type-only changes | NO |
+| `--minor` | Minor version bump (x.+1.0) - New features, non-breaking | **YES** |
+| `--major` | Major version bump (+1.0.0) - Breaking changes | **YES** |
+
+**Default:** If no argument provided, you will be prompted to choose the version bump type.
+
+### When to Use Each
+
+| Change Type | Version Bump |
+|-------------|--------------|
+| Type-only changes (no new API) | `--patch` |
+| Bug fixes | `--patch` |
+| New fields on existing types | `--patch` |
+| New API functions | `--minor` |
+| New features (non-breaking) | `--minor` |
+| Breaking API changes | `--major` |
+| Removed/renamed functions | `--major` |
+
 ## CRITICAL: Mandatory Steps Checklist
 
 **YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
@@ -578,17 +606,73 @@ git push -u origin feat/openiap-sync-<gql-version>
 
 ---
 
-## Version Bump Guidelines
+## Version Bump & Versioned Docs
 
-After sync, the expo-iap version should be bumped:
+### Automatic Version Determination
 
-| Change Type | Version Bump |
-|-------------|--------------|
-| Type-only changes (no API) | PATCH (x.x.+1) |
-| New features (non-breaking) | MINOR (x.+1.0) |
-| Breaking changes | MAJOR (+1.0.0) |
+Based on the `--patch`, `--minor`, or `--major` argument passed to the sync command.
 
-**Note:** Version bump is typically done separately after PR merge.
+### Versioned Docs (REQUIRED for Minor/Major)
+
+**CRITICAL: For `--minor` or `--major` version bumps, you MUST create versioned documentation.**
+
+Docusaurus versioned docs preserve documentation for previous versions so users on older SDK versions can reference the correct API.
+
+#### Step 1: Create Version Snapshot
+
+Before updating docs for the new version, snapshot the current docs:
+
+```bash
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap/docs
+
+# Create a versioned snapshot (e.g., if current is 3.4, new minor will be 3.5)
+# This copies current docs/ to versioned_docs/version-X.X/
+npm run docusaurus docs:version <CURRENT_VERSION>
+
+# Example: If bumping from 3.4 to 3.5
+npm run docusaurus docs:version 3.4
+```
+
+This creates:
+- `versioned_docs/version-3.4/` - Copy of current documentation
+- `versioned_sidebars/version-3.4-sidebars.json` - Sidebar config for that version
+- Updates `versions.json` with the new version entry
+
+#### Step 2: Update docusaurus.config.ts
+
+Add the new version to the versions config:
+
+```typescript
+// docs/docusaurus.config.ts
+versions: {
+  current: {
+    label: '3.5 (Current)',  // Update to new version
+    path: '',
+  },
+  '3.4': {                   // Add previous version
+    label: '3.4',
+    path: '3.4',
+  },
+  // ... older versions
+},
+```
+
+#### Step 3: Update Current Docs
+
+Now update `docs/docs/` with new API documentation for the new version.
+
+#### When NOT to Create Versioned Docs
+
+- `--patch` version bumps (bug fixes, type-only changes)
+- Changes that don't affect user-facing API documentation
+
+### Version Bump Checklist
+
+| Bump Type | Create Versioned Docs | Update docusaurus.config.ts | Update Current Docs |
+|-----------|----------------------|----------------------------|---------------------|
+| `--patch` | NO | NO | If API docs changed |
+| `--minor` | **YES** | **YES** | **YES** |
+| `--major` | **YES** | **YES** | **YES** |
 
 ---
 

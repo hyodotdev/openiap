@@ -8,6 +8,34 @@ Synchronize OpenIAP changes to the [flutter_inapp_purchase](https://github.com/h
 >
 > **Default Path:** `/Users/crossplatformkorea/Github/hyochan/flutter_inapp_purchase`
 
+## Usage
+
+```bash
+/sync-flutter-iap [--patch | --minor | --major]
+```
+
+### Version Bump Arguments
+
+| Argument | Description | Versioned Docs Required |
+|----------|-------------|-------------------------|
+| `--patch` | Patch version bump (x.x.+1) - Bug fixes, type-only changes | NO |
+| `--minor` | Minor version bump (x.+1.0) - New features, non-breaking | **YES** |
+| `--major` | Major version bump (+1.0.0) - Breaking changes | **YES** |
+
+**Default:** If no argument provided, you will be prompted to choose the version bump type.
+
+### When to Use Each
+
+| Change Type | Version Bump |
+|-------------|--------------|
+| Type-only changes (no new API) | `--patch` |
+| Bug fixes | `--patch` |
+| New fields on existing types | `--patch` |
+| New API functions | `--minor` |
+| New features (non-breaking) | `--minor` |
+| Breaking API changes | `--major` |
+| Removed/renamed functions | `--major` |
+
 ## CRITICAL: Mandatory Steps Checklist
 
 **YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
@@ -588,6 +616,75 @@ EOF
 ```bash
 git push -u origin feat/openiap-sync-<gql-version>
 ```
+
+---
+
+## Version Bump & Versioned Docs
+
+### Automatic Version Determination
+
+Based on the `--patch`, `--minor`, or `--major` argument passed to the sync command.
+
+### Versioned Docs (REQUIRED for Minor/Major)
+
+**CRITICAL: For `--minor` or `--major` version bumps, you MUST create versioned documentation.**
+
+Docusaurus versioned docs preserve documentation for previous versions so users on older SDK versions can reference the correct API.
+
+#### Step 1: Create Version Snapshot
+
+Before updating docs for the new version, snapshot the current docs:
+
+```bash
+cd $IAP_REPOS_HOME/flutter_inapp_purchase/docs
+
+# Create a versioned snapshot (e.g., if current is 8.3, new minor will be 8.4)
+npm run docusaurus docs:version <CURRENT_VERSION>
+
+# Example: If bumping from 8.3 to 8.4
+npm run docusaurus docs:version 8.3
+```
+
+This creates:
+- `versioned_docs/version-8.3/` - Copy of current documentation
+- `versioned_sidebars/version-8.3-sidebars.json` - Sidebar config for that version
+- Updates `versions.json` with the new version entry
+
+#### Step 2: Update docusaurus.config.ts
+
+Add the new version to the versions config:
+
+```typescript
+// docs/docusaurus.config.ts
+versions: {
+  current: {
+    label: '8.4 (Current)',  // Update to new version
+    path: '',
+  },
+  '8.3': {                   // Add previous version
+    label: '8.3',
+    path: '8.3',
+  },
+  // ... older versions
+},
+```
+
+#### Step 3: Update Current Docs
+
+Now update `docs/docs/` with new API documentation for the new version.
+
+#### When NOT to Create Versioned Docs
+
+- `--patch` version bumps (bug fixes, type-only changes)
+- Changes that don't affect user-facing API documentation
+
+### Version Bump Checklist
+
+| Bump Type | Create Versioned Docs | Update docusaurus.config.ts | Update Current Docs |
+|-----------|----------------------|----------------------------|---------------------|
+| `--patch` | NO | NO | If API docs changed |
+| `--minor` | **YES** | **YES** | **YES** |
+| `--major` | **YES** | **YES** | **YES** |
 
 ---
 

@@ -2,6 +2,36 @@
 
 Master workflow to synchronize OpenIAP changes across all platform SDKs.
 
+## Usage
+
+```bash
+/sync-all-platforms [--patch | --minor | --major]
+```
+
+### Version Bump Arguments
+
+| Argument | Description | Versioned Docs Required |
+|----------|-------------|-------------------------|
+| `--patch` | Patch version bump (x.x.+1) - Bug fixes, type-only changes | NO |
+| `--minor` | Minor version bump (x.+1.0) - New features, non-breaking | **YES** |
+| `--major` | Major version bump (+1.0.0) - Breaking changes | **YES** |
+
+**Default:** If no argument provided, you will be prompted to choose the version bump type.
+
+### When to Use Each
+
+| Change Type | Version Bump |
+|-------------|--------------|
+| Type-only changes (no new API) | `--patch` |
+| Bug fixes | `--patch` |
+| New fields on existing types | `--patch` |
+| New API functions | `--minor` |
+| New features (non-breaking) | `--minor` |
+| Breaking API changes | `--major` |
+| Removed/renamed functions | `--major` |
+
+---
+
 ## CRITICAL: The #1 Mistake to Avoid
 
 **The most common sync mistake is updating types without verifying native code passes new options.**
@@ -512,6 +542,95 @@ When deprecating APIs:
 3. **Update examples** - Remove deprecated usage
 4. **Log warnings** - Runtime deprecation warnings
 5. **Set removal timeline** - Specify when fully removed
+
+---
+
+## Version Bump & Versioned Docs
+
+### Versioned Docs (REQUIRED for Minor/Major)
+
+**CRITICAL: For `--minor` or `--major` version bumps, you MUST create versioned documentation in EACH platform SDK.**
+
+Docusaurus versioned docs preserve documentation for previous versions so users on older SDK versions can reference the correct API.
+
+### Create Versioned Docs for All Platforms
+
+For each platform SDK, run the following:
+
+```bash
+# expo-iap
+cd $IAP_REPOS_HOME/expo-iap/docs
+npm run docusaurus docs:version <CURRENT_VERSION>
+
+# react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap/docs
+npm run docusaurus docs:version <CURRENT_VERSION>
+
+# flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase/docs
+npm run docusaurus docs:version <CURRENT_VERSION>
+
+# kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap/docs
+npm run docusaurus docs:version <CURRENT_VERSION>
+
+# godot-iap
+cd $IAP_REPOS_HOME/godot-iap/docs
+npm run docusaurus docs:version <CURRENT_VERSION>
+```
+
+### Versioned Docs Structure
+
+Each platform SDK uses Docusaurus versioned docs:
+
+```
+docs/
+├── docs/                    # Current (next) version docs
+├── versioned_docs/
+│   ├── version-X.X/         # Snapshot of docs at version X.X
+│   └── version-Y.Y/         # Snapshot of docs at version Y.Y
+├── versioned_sidebars/
+│   ├── version-X.X-sidebars.json
+│   └── version-Y.Y-sidebars.json
+├── versions.json            # List of all versions
+└── docusaurus.config.ts     # Version labels and paths
+```
+
+### Update docusaurus.config.ts
+
+After creating versioned docs, update each platform's `docusaurus.config.ts`:
+
+```typescript
+versions: {
+  current: {
+    label: '<NEW_VERSION> (Current)',  // Update to new version
+    path: '',
+  },
+  '<PREVIOUS_VERSION>': {              // Add previous version
+    label: '<PREVIOUS_VERSION>',
+    path: '<PREVIOUS_VERSION>',
+  },
+  // ... older versions
+},
+```
+
+### Version Bump Checklist (All Platforms)
+
+| Bump Type | Create Versioned Docs | Update docusaurus.config.ts | Update Current Docs |
+|-----------|----------------------|----------------------------|---------------------|
+| `--patch` | NO | NO | If API docs changed |
+| `--minor` | **YES** (all platforms) | **YES** (all platforms) | **YES** (all platforms) |
+| `--major` | **YES** (all platforms) | **YES** (all platforms) | **YES** (all platforms) |
+
+### Platform-Specific Versioned Docs Notes
+
+| Platform | Docs Location | Version Format |
+|----------|---------------|----------------|
+| expo-iap | `docs/` | `X.Y` (e.g., 3.4) |
+| react-native-iap | `docs/` | `X.Y` (e.g., 14.5) |
+| flutter_inapp_purchase | `docs/` | `X.Y` (e.g., 8.3) |
+| kmp-iap | `docs/` | `X.Y` (e.g., 1.2) |
+| godot-iap | `docs/` | `X.Y` (e.g., 1.0) |
 
 ---
 
