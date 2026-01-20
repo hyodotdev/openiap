@@ -1417,7 +1417,7 @@ if (premiumPurchase) {
   await requestPurchase({
     sku: 'basic_monthly',
     purchaseToken: premiumPurchase.purchaseToken,
-    replacementMode: 6, // DEFERRED - Change at renewal
+    replacementMode: 6, // DEFERRED (Legacy API value) - Change at renewal
   });
 
   console.log('✅ Downgrade scheduled for next billing cycle');
@@ -1438,7 +1438,7 @@ premiumPurchase?.let { purchase ->
         android {
             skus = listOf("basic_monthly")
             purchaseToken = purchase.purchaseToken
-            replacementMode = 6 // DEFERRED - Change at renewal
+            replacementMode = 6 // DEFERRED (Legacy API value) - Change at renewal
         }
     }
 
@@ -1462,7 +1462,7 @@ if (premiumPurchase != null) {
         google: RequestPurchaseAndroidProps(
           skus: ['basic_monthly'],
           purchaseToken: premiumPurchase.purchaseToken,
-          replacementMode: 6, // DEFERRED - Change at renewal
+          replacementMode: 6, // DEFERRED (Legacy API value) - Change at renewal
         ),
       ),
     ),
@@ -1490,7 +1490,7 @@ if premium_purchase:
     props.request.google = RequestPurchaseAndroidProps.new()
     props.request.google.skus = ["basic_monthly"]
     props.request.google.purchase_token = premium_purchase.purchase_token
-    props.request.google.replacement_mode = 6  # DEFERRED - Change at renewal
+    props.request.google.replacement_mode = 6  # DEFERRED (Legacy API value) - Change at renewal
     props.type = ProductType.SUBS
 
     await iap.request_purchase(props)
@@ -1799,7 +1799,7 @@ async function changeSubscription(
   // Choose appropriate replacement mode
   const replacementMode = isUpgrade
     ? 1  // WITH_TIME_PRORATION - Upgrade: give credit
-    : 6; // DEFERRED - Downgrade: change at renewal
+    : 6; // DEFERRED (Legacy API value) - Downgrade: change at renewal
 
   try {
     await requestPurchase({
@@ -1847,7 +1847,7 @@ suspend fun changeSubscription(
     val replacementMode = if (isUpgrade) {
         1  // WITH_TIME_PRORATION - Upgrade: give credit
     } else {
-        6  // DEFERRED - Downgrade: change at renewal
+        6  // DEFERRED (Legacy API value) - Downgrade: change at renewal
     }
 
     try {
@@ -1898,7 +1898,7 @@ Future<void> changeSubscription(
   // Choose appropriate replacement mode
   final replacementMode = isUpgrade
       ? 1  // WITH_TIME_PRORATION - Upgrade: give credit
-      : 6; // DEFERRED - Downgrade: change at renewal
+      : 6; // DEFERRED (Legacy API value) - Downgrade: change at renewal
 
   try {
     await FlutterInappPurchase.instance.requestPurchase(
@@ -1948,7 +1948,7 @@ func change_subscription(new_sku: String, is_upgrade: bool) -> void:
     # Choose appropriate replacement mode
     var replacement_mode = 1 if is_upgrade else 6
     # 1 = WITH_TIME_PRORATION - Upgrade: give credit
-    # 6 = DEFERRED - Downgrade: change at renewal
+    # 6 = DEFERRED (Legacy API value) - Downgrade: change at renewal
 
     var props = RequestPurchaseProps.new()
     props.request = RequestPurchasePropsByPlatforms.new()
