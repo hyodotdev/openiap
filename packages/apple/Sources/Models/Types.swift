@@ -1389,6 +1389,10 @@ public struct RequestPurchaseAndroidProps: Codable {
     public var obfuscatedAccountIdAndroid: String?
     /// Obfuscated profile ID
     public var obfuscatedProfileIdAndroid: String?
+    /// Offer token for one-time purchase discounts (Android 7.0+).
+    /// Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+    /// to apply a discount offer to the purchase.
+    public var offerToken: String?
     /// List of product SKUs
     public var skus: [String]
 
@@ -1397,12 +1401,14 @@ public struct RequestPurchaseAndroidProps: Codable {
         isOfferPersonalized: Bool? = nil,
         obfuscatedAccountIdAndroid: String? = nil,
         obfuscatedProfileIdAndroid: String? = nil,
+        offerToken: String? = nil,
         skus: [String]
     ) {
         self.developerBillingOption = developerBillingOption
         self.isOfferPersonalized = isOfferPersonalized
         self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
         self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
+        self.offerToken = offerToken
         self.skus = skus
     }
 }
