@@ -1200,6 +1200,12 @@ export interface RequestPurchaseAndroidProps {
   obfuscatedAccountIdAndroid?: (string | null);
   /** Obfuscated profile ID */
   obfuscatedProfileIdAndroid?: (string | null);
+  /**
+   * Offer token for one-time purchase discounts (Android 7.0+).
+   * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+   * to apply a discount offer to the purchase.
+   */
+  offerToken?: (string | null);
   /** List of product SKUs */
   skus: string[];
 }

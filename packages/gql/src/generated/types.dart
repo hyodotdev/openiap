@@ -3604,6 +3604,7 @@ class RequestPurchaseAndroidProps {
     this.isOfferPersonalized,
     this.obfuscatedAccountIdAndroid,
     this.obfuscatedProfileIdAndroid,
+    this.offerToken,
     required this.skus,
   });
 
@@ -3617,6 +3618,10 @@ class RequestPurchaseAndroidProps {
   final String? obfuscatedAccountIdAndroid;
   /// Obfuscated profile ID
   final String? obfuscatedProfileIdAndroid;
+  /// Offer token for one-time purchase discounts (Android 7.0+).
+  /// Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+  /// to apply a discount offer to the purchase.
+  final String? offerToken;
   /// List of product SKUs
   final List<String> skus;
 
@@ -3626,6 +3631,7 @@ class RequestPurchaseAndroidProps {
       isOfferPersonalized: json['isOfferPersonalized'] as bool?,
       obfuscatedAccountIdAndroid: json['obfuscatedAccountIdAndroid'] as String?,
       obfuscatedProfileIdAndroid: json['obfuscatedProfileIdAndroid'] as String?,
+      offerToken: json['offerToken'] as String?,
       skus: (json['skus'] as List<dynamic>).map((e) => e as String).toList(),
     );
   }
@@ -3636,6 +3642,7 @@ class RequestPurchaseAndroidProps {
       'isOfferPersonalized': isOfferPersonalized,
       'obfuscatedAccountIdAndroid': obfuscatedAccountIdAndroid,
       'obfuscatedProfileIdAndroid': obfuscatedProfileIdAndroid,
+      'offerToken': offerToken,
       'skus': skus,
     };
   }

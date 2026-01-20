@@ -3593,6 +3593,12 @@ public data class RequestPurchaseAndroidProps(
      */
     val obfuscatedProfileIdAndroid: String? = null,
     /**
+     * Offer token for one-time purchase discounts (Android 7.0+).
+     * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+     * to apply a discount offer to the purchase.
+     */
+    val offerToken: String? = null,
+    /**
      * List of product SKUs
      */
     val skus: List<String>
@@ -3603,6 +3609,7 @@ public data class RequestPurchaseAndroidProps(
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
             val obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String
             val obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String
+            val offerToken = json["offerToken"] as? String
             val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
             if (skus == null) return null
             return RequestPurchaseAndroidProps(
@@ -3610,6 +3617,7 @@ public data class RequestPurchaseAndroidProps(
                 isOfferPersonalized = isOfferPersonalized,
                 obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
                 obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
+                offerToken = offerToken,
                 skus = skus,
             )
         }
@@ -3620,6 +3628,7 @@ public data class RequestPurchaseAndroidProps(
         "isOfferPersonalized" to isOfferPersonalized,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
+        "offerToken" to offerToken,
         "skus" to skus,
     )
 }
