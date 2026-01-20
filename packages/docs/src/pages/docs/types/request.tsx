@@ -525,6 +525,17 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
+                        <code>offerToken</code>
+                      </td>
+                      <td>
+                        Offer token for one-time purchase discounts (Android 7.0+).
+                        Pass the <code>offerToken</code> from{' '}
+                        <code>oneTimePurchaseOfferDetailsAndroid</code> or{' '}
+                        <code>discountOffers</code> to apply a discount.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>obfuscatedAccountIdAndroid</code>
                       </td>
                       <td>Obfuscated user account ID</td>
