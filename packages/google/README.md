@@ -379,6 +379,63 @@ openIAP.requestPurchase(
 )
 ```
 
+### One-Time Purchase Discount Offers (Android 7.0+)
+
+Google Play Billing Library 7.0+ supports discount offers for one-time (in-app) purchases. You can fetch products with discount information and apply them during purchase.
+
+```kotlin
+// 1. Fetch products - discount offers are included automatically
+val products = openIAP.fetchProducts(listOf("premium_upgrade"))
+val product = products.firstOrNull()
+
+// 2. Check for available discount offers
+val discountOffer = product?.discountOffers?.firstOrNull()
+
+if (discountOffer != null) {
+    // Display discount info to user
+    Log.d("IAP", "Discount available: ${discountOffer.displayPrice}")
+    Log.d("IAP", "Original price: ${discountOffer.fullPriceMicrosAndroid}")
+    Log.d("IAP", "Discount: ${discountOffer.percentageDiscountAndroid}%")
+
+    // 3. Purchase with discount offer token
+    openIAP.requestPurchase(
+        activity = this,
+        sku = "premium_upgrade",
+        offerToken = discountOffer.offerTokenAndroid
+    )
+} else {
+    // Purchase at regular price (no offerToken)
+    openIAP.requestPurchase(
+        activity = this,
+        sku = "premium_upgrade"
+    )
+}
+```
+
+#### Using RequestPurchaseProps
+
+For more control, use `RequestPurchaseProps` directly:
+
+```kotlin
+val purchaseResult = openIAP.requestPurchase(
+    props = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(
+                    skus = listOf("premium_upgrade"),
+                    offerToken = discountOffer?.offerTokenAndroid,
+                    isOfferPersonalized = true  // Required in EU if offer is personalized
+                )
+            )
+        ),
+        type = ProductQueryType.InApp
+    ),
+    activity = this
+)
+```
+
+> **Note**: One-time purchase discount offers require Google Play Billing Library 7.0+ and must be configured in Google Play Console.
+
 ## ⚠️ Important Notes
 
 - This library requires Google Play Billing Library v8
