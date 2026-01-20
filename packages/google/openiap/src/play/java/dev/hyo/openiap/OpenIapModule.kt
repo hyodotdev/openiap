@@ -892,6 +892,23 @@ class OpenIapModule(
                                     applySubscriptionProductReplacementParams(builder, replacementParams)
                                 }
                             }
+                        } else if (androidArgs.type == ProductQueryType.InApp && !androidArgs.offerToken.isNullOrEmpty()) {
+                            // Handle one-time purchase discount offers (Android 7.0+)
+                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
+
+                            // Validate offer token exists in available one-time purchase offers
+                            val oneTimePurchaseOffer = productDetails.oneTimePurchaseOfferDetails
+                            val availableTokens = listOfNotNull(oneTimePurchaseOffer?.offerToken)
+
+                            if (availableTokens.isNotEmpty() && !availableTokens.contains(androidArgs.offerToken)) {
+                                OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in $availableTokens", TAG)
+                                val err = OpenIapError.SkuOfferMismatch
+                                for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                return
+                            }
+
+                            builder.setOfferToken(androidArgs.offerToken)
                         }
 
                         paramsList += builder.build()

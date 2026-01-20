@@ -426,6 +426,13 @@ class OpenIapModule(
                             }
 
                             builder.setOfferToken(resolved)
+                        } else if (androidArgs.type == ProductQueryType.InApp && !androidArgs.offerToken.isNullOrEmpty()) {
+                            // Handle one-time purchase discount offers
+                            // Note: Horizon SDK doesn't currently support one-time purchase discount offers,
+                            // but we pass the offer token through in case future SDK versions add support.
+                            OpenIapLog.d("Setting offer token for one-time product ${productDetails.productId}: ${androidArgs.offerToken}", TAG)
+                            OpenIapLog.w("Note: Horizon SDK may not support one-time purchase discount offers", TAG)
+                            builder.setOfferToken(androidArgs.offerToken)
                         }
 
                         paramsList += builder.build()
