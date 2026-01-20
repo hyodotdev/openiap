@@ -20,10 +20,13 @@ Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan
 | 3. Generate Types | **YES** | `yarn generate:types` |
 | 4. Review Native Code | **YES** | Check if iOS/Android modules need updates |
 | 5. Update API Exports | **IF NEEDED** | Add new functions to index.ts |
+| 5.5. **Verify Nitro Modules** | **YES** | Check Nitro bridge spec and regenerate if needed |
 | 6. Run All Checks | **YES** | `yarn typecheck`, `yarn test` |
-| 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
-| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
-| 9. Commit & Push | **YES** | Create PR with proper format |
+| 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
+| 8. **Verify Example Code** | **YES** | Check `example/` app uses correct API patterns |
+| 9. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
+| 11. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -269,6 +272,105 @@ If the new function should be available in the hook.
 
 ---
 
+### Step 5.5: Verify Nitro Modules (REQUIRED)
+
+**CRITICAL: react-native-iap uses Nitro Modules for native bridge. This step catches bridge-level bugs. DO NOT SKIP.**
+
+#### 5.5.1 Check Nitro Bridge Spec
+
+**Location:** `src/specs/RnIap.nitro.ts`
+
+The Nitro bridge spec defines the interface between JavaScript and native code.
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap
+
+# Review current Nitro spec
+cat src/specs/RnIap.nitro.ts
+
+# Check if new types need to be added to the spec
+git diff src/types.ts | grep -A10 "interface.*Props\|type.*Props"
+```
+
+#### 5.5.2 Verify Type Mappings
+
+For new types added in `src/types.ts`, verify they are correctly mapped in the Nitro spec:
+
+1. **Request types** (inputs to native): Must be defined in the spec with correct TypeScript types
+2. **Response types** (outputs from native): Must match what native code returns
+3. **Optional fields**: Must use `?` or `| undefined` correctly
+
+```typescript
+// src/specs/RnIap.nitro.ts
+// ✅ CORRECT: New request type includes new fields
+interface RequestPurchaseAndroidSpec {
+  skus: string[];
+  offerToken?: string;       // New field from OpenIAP sync
+  isOfferPersonalized?: boolean;  // New field from OpenIAP sync
+}
+
+// ❌ WRONG: Missing new fields in spec
+interface RequestPurchaseAndroidSpec {
+  skus: string[];
+  // Missing offerToken and isOfferPersonalized!
+}
+```
+
+#### 5.5.3 Regenerate Nitro Bridge Code
+
+**ALWAYS regenerate after type changes:**
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap
+
+# Regenerate Nitro bridge files from spec
+yarn specs
+
+# This runs nitrogen to generate:
+# - nitrogen/generated/android/ (Kotlin bridge)
+# - nitrogen/generated/ios/ (Swift bridge)
+# - nitrogen/generated/shared/ (C++ bridge)
+
+# Verify the generation was successful
+yarn prepare
+```
+
+#### 5.5.4 Verify Generated Code
+
+After regeneration, verify the generated files include new types:
+
+```bash
+# Check generated Android bridge
+grep -n "offerToken\|isOfferPersonalized" nitrogen/generated/android/kotlin/**/*.kt 2>/dev/null
+
+# Check generated iOS bridge
+grep -n "offerToken\|isOfferPersonalized" nitrogen/generated/ios/swift/**/*.swift 2>/dev/null
+
+# Check generated C++ bridge
+grep -n "offerToken\|isOfferPersonalized" nitrogen/generated/shared/**/*.hpp 2>/dev/null
+```
+
+#### 5.5.5 Common Nitro Module Issues
+
+| Issue | Symptom | Fix |
+|-------|---------|-----|
+| New field not in spec | TypeScript compiles but field is `undefined` at runtime | Add field to `src/specs/RnIap.nitro.ts` |
+| Spec not regenerated | Old bridge code used, new features don't work | Run `yarn specs` then `yarn prepare` |
+| Type mismatch | Runtime errors or silent data loss | Fix type in spec to match native expectation |
+| Missing optional marker | Crash when field is null | Add `?` to optional fields in spec |
+
+#### 5.5.6 Decision Matrix for Nitro Updates
+
+| Change Type | Nitro Spec Update | Regenerate |
+|-------------|-------------------|------------|
+| New response type fields | NO (auto-mapped) | NO |
+| New request type fields | **YES** - add to spec | **YES** |
+| New API function | **YES** - add function to spec | **YES** |
+| Type name change | **YES** - update spec | **YES** |
+| Optional → Required | **YES** - update spec | **YES** |
+
+---
+
 ### Step 6: Run All Checks (REQUIRED)
 
 **ALL checks must pass before proceeding.**
@@ -293,17 +395,132 @@ yarn test
 
 ---
 
-### Step 7: Write Blog Post (REQUIRED)
+### Step 7: Verify Tests (REQUIRED)
+
+**CRITICAL: Tests MUST cover any new features or field name changes. DO NOT SKIP.**
+
+#### 7.1 Check Existing Tests
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap
+
+# List test files
+ls -la src/__tests__/
+
+# Check test coverage for changed types/features
+grep -r "offerToken\|DiscountOffer\|SubscriptionOffer" src/__tests__/
+```
+
+#### 7.2 Required Test Coverage
+
+For new features or field changes, verify or add tests for:
+
+- **Type serialization/deserialization**: Test `fromJson`/`toJson` roundtrips
+- **Input field naming**: Test that input types use correct field names (no suffix for Android-specific input types)
+- **Response field naming**: Test that response types use correct field names (with Android suffix for cross-platform types)
+- **API integration**: Test that new fields are passed correctly to native code
+
+#### 7.3 Add Missing Tests
+
+If tests don't exist for new features:
+
+```typescript
+// src/__tests__/standardized-offer-types.test.ts
+describe('New Feature', () => {
+  it('should have correct structure', () => {
+    const offer: DiscountOffer = {
+      id: 'test',
+      displayPrice: '$4.99',
+      price: 4.99,
+      currency: 'USD',
+      type: 'one-time',
+      offerTokenAndroid: 'token123', // Response field WITH suffix
+    };
+    expect(offer.offerTokenAndroid).toBe('token123');
+  });
+
+  it('should use correct input field naming', () => {
+    // Input fields WITHOUT suffix (parent type indicates platform)
+    const request: RequestPurchaseAndroidProps = {
+      skus: ['sku1'],
+      offerToken: 'token123', // Input field NO suffix
+    };
+    expect(request.offerToken).toBe('token123');
+  });
+});
+```
+
+#### 7.4 Run Tests
+
+```bash
+yarn test
+```
+
+---
+
+### Step 8: Verify Example Code (REQUIRED)
+
+**CRITICAL: Example app MUST demonstrate correct API usage patterns. DO NOT SKIP.**
+
+#### 8.1 Check Example App
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap/example
+
+# Check for usage of new features
+grep -r "offerToken\|DiscountOffer\|subscriptionOffers" src/
+```
+
+#### 8.2 Verify API Patterns
+
+Ensure example code follows correct patterns:
+
+```typescript
+// ✅ CORRECT: Input fields without Android suffix
+const request = {
+  apple: { sku: 'product_id' },
+  google: {
+    skus: ['product_id'],
+    offerToken: offer.offerTokenAndroid, // Input: no suffix
+    obfuscatedAccountId: 'account123',   // Input: no suffix
+  },
+};
+
+// ❌ WRONG: Using Android suffix on input fields
+const wrongRequest = {
+  google: {
+    offerTokenAndroid: offer.offerTokenAndroid, // WRONG!
+  },
+};
+```
+
+#### 8.3 Update Example If Needed
+
+If example code uses deprecated patterns, update it:
+
+**Location:** `example/src/App.tsx` or relevant screen components
+
+#### 8.4 Build Example App
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap/example
+yarn install
+yarn ios  # or yarn android
+```
+
+---
+
+### Step 9: Write Blog Post (REQUIRED)
 
 **Every sync MUST have a blog post documenting the changes.**
 
-#### 7.1 Create Blog Post File
+#### 9.1 Create Blog Post File
 
 **Location:** `docs/blog/`
 
 **Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
 
-#### 7.2 Blog Post Template
+#### 9.2 Blog Post Template
 
 ```markdown
 ---
@@ -343,7 +560,7 @@ This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/up
 For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
 ```
 
-#### 7.3 Blog Post Guidelines
+#### 9.3 Blog Post Guidelines
 
 - **New features**: Explain what they do, show example code, note platform requirements
 - **Breaking changes**: MUST have migration guide with before/after code
@@ -353,21 +570,74 @@ For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/do
 
 ---
 
-### Step 8: Update llms.txt (IF API CHANGED)
+### Step 10: Verify and Update llms.txt (REQUIRED)
+
+**CRITICAL: ALWAYS review and update AI reference docs. DO NOT SKIP even for "type-only" changes.**
 
 **Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
 
-Update if:
-- New API functions added
-- Function signatures changed
-- New types developers need to know about
-- Usage patterns updated
+#### 10.1 Review Current llms.txt
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap
+
+# Check current AI reference docs
+cat docs/static/llms.txt | head -100
+cat docs/static/llms-full.txt | head -200
+```
+
+#### 10.2 What MUST Be Updated
+
+**Always update llms.txt for:**
+
+| Change Type | Update Required |
+|-------------|-----------------|
+| New API functions | **YES** - Add function signature and example |
+| New types (input/response) | **YES** - Add type definition |
+| New fields on existing types | **YES** - Update type definition |
+| Field name changes | **YES** - Update field names in examples |
+| Deprecations | **YES** - Add deprecation notice |
+| Breaking changes | **YES** - Add migration example |
+| Bug fixes | IF affects usage patterns |
+
+#### 10.3 llms.txt Update Template
+
+For new features, add sections like:
+
+```markdown
+### New Feature Name (v14.x.x+)
+
+```typescript
+// Example usage for one-time purchase discounts
+const product = products.find(p => p.id === 'premium_unlock');
+const discountOffer = product?.discountOffers?.[0];
+
+await requestPurchase({
+  request: {
+    apple: { sku: 'premium_unlock' },
+    google: {
+      skus: ['premium_unlock'],
+      offerToken: discountOffer?.offerTokenAndroid,  // Apply discount
+    },
+  },
+  type: 'in-app',
+});
+```
+
+#### 10.4 Verify llms.txt Is Complete
+
+Check that llms.txt includes:
+- [ ] All public API functions
+- [ ] All major types with their fields
+- [ ] Usage examples for common patterns
+- [ ] Platform-specific notes (iOS/Android)
+- [ ] Version requirements for new features
 
 ---
 
-### Step 9: Commit and Push (REQUIRED)
+### Step 11: Commit and Push (REQUIRED)
 
-#### 9.1 Create Feature Branch
+#### 11.1 Create Feature Branch
 
 ```bash
 cd $IAP_REPOS_HOME/react-native-iap
@@ -375,7 +645,7 @@ cd $IAP_REPOS_HOME/react-native-iap
 git checkout -b feat/openiap-sync-<gql-version>
 ```
 
-#### 9.2 Commit with Descriptive Message
+#### 11.2 Commit with Descriptive Message
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -392,7 +662,7 @@ EOF
 )"
 ```
 
-#### 9.3 Push to Remote
+#### 11.3 Push to Remote
 
 ```bash
 git push -u origin feat/openiap-sync-<gql-version>

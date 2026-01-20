@@ -21,9 +21,11 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 | 4. Review Native Code | **YES** | Check if GDExtension code needs updates |
 | 5. Update GDScript API | **IF NEEDED** | Add new functions to `iap.gd`, `store.gd` |
 | 6. Run All Checks | **YES** | Editor test, GDUnit4 tests |
-| 7. Write Blog Post | **YES** | Create release notes |
-| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
-| 9. Commit & Push | **YES** | Create PR with proper format |
+| 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
+| 8. **Verify Example Code** | **YES** | Check example scenes use correct API patterns |
+| 9. Write Blog Post | **YES** | Create release notes |
+| 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
+| 11. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -305,17 +307,133 @@ godot --headless -s addons/gdunit4/test_runner.gd
 
 ---
 
-### Step 7: Write Blog Post (REQUIRED)
+### Step 7: Verify Tests (REQUIRED)
+
+**CRITICAL: All tests must cover new features and field name changes. DO NOT SKIP.**
+
+#### 7.1 Check Existing Test Coverage
+
+```bash
+cd $IAP_REPOS_HOME/godot-iap
+
+# Find all test files
+find . -name "*test*.gd" -o -name "*_test.gd"
+
+# Check what's being tested
+grep -rn "func test_" test/ 2>/dev/null || grep -rn "func test_" . --include="*test*.gd"
+```
+
+#### 7.2 Verify New Features Are Tested
+
+For each new type or field added in the sync:
+
+1. **Check if tests exist for new types:**
+   ```gdscript
+   # Example: If RequestPurchaseAndroidProps got new field 'offer_token'
+   # Test file should have:
+   func test_request_purchase_android_with_offer_token():
+       var props = RequestPurchaseAndroidProps.new()
+       props.sku = "test_sku"
+       props.offer_token = "test_token"  # New field must be tested
+       assert_not_null(props.to_dict()["offer_token"])
+   ```
+
+2. **Check if field serialization is tested:**
+   ```gdscript
+   func test_type_serialization():
+       var props = NewType.new()
+       props.new_field = "value"
+       var dict = props.to_dict()
+       var restored = NewType.from_dict(dict)
+       assert_eq(restored.new_field, "value")
+   ```
+
+#### 7.3 Add Missing Tests
+
+If tests don't exist for new features:
+
+1. Create test file in appropriate location
+2. Add tests for:
+   - Type instantiation with new fields
+   - Serialization (`to_dict()`) includes new fields
+   - Deserialization (`from_dict()`) parses new fields
+   - Default values for optional fields
+
+#### 7.4 Run All Tests
+
+```bash
+# Run GDUnit4 tests
+godot --headless -s addons/gdunit4/test_runner.gd
+
+# Verify all tests pass
+```
+
+**If tests fail, fix before continuing.**
+
+---
+
+### Step 8: Verify Example Code (REQUIRED)
+
+**CRITICAL: Example scenes must demonstrate correct API usage. DO NOT SKIP.**
+
+#### 8.1 Check Example Scenes
+
+```bash
+cd $IAP_REPOS_HOME/godot-iap
+
+# Find example scenes
+find . -name "*.tscn" -path "*/example/*" -o -name "*.tscn" -path "*/demo/*"
+
+# Find example scripts
+find . -name "*.gd" -path "*/example/*" -o -name "*.gd" -path "*/demo/*"
+```
+
+#### 8.2 Verify API Patterns
+
+Check that example code uses correct patterns:
+
+```gdscript
+# CORRECT - Uses new field names (simplified naming)
+var props = RequestPurchaseAndroidProps.new()
+props.sku = "premium_upgrade"
+props.offer_token = offer.offer_token  # Input field: NO suffix
+props.is_offer_personalized = true      # Input field: NO suffix
+
+# INCORRECT - Old naming convention
+var props = RequestPurchaseAndroidProps.new()
+props.offer_token_android = token       # WRONG: input fields don't have suffix
+```
+
+#### 8.3 Update Outdated Examples
+
+If examples use outdated patterns:
+
+1. Update to use new field names
+2. Add comments explaining new features
+3. Test the example runs without errors
+
+#### 8.4 Run Example in Editor
+
+```bash
+# Open Godot editor and run example scenes
+godot --editor .
+
+# In editor: Run each example scene to verify no errors
+```
+
+---
+
+### Step 9: Write Blog Post (REQUIRED)
 
 **Every sync MUST have a blog post documenting the changes.**
 
-#### 7.1 Create Blog Post File
+#### 9.1 Create Blog Post File
 
 **Location:** `docs/blog/` or `README.md` changelog section
 
 **Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
 
-#### 7.2 Blog Post Template
+#### 9.2 Blog Post Template
 
 ```markdown
 ---
@@ -359,7 +477,7 @@ var result = await iap.request_subscription_ios(request)
 For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
 ```
 
-#### 7.3 Blog Post Guidelines
+#### 9.3 Blog Post Guidelines
 
 - **New features**: Explain what they do, show example code, note platform requirements
 - **Breaking changes**: MUST have migration guide with before/after code
@@ -369,21 +487,63 @@ For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/do
 
 ---
 
-### Step 8: Update llms.txt (IF API CHANGED)
+### Step 10: Verify and Update llms.txt (REQUIRED)
+
+**CRITICAL: Always review and update AI reference documentation. DO NOT SKIP.**
 
 **Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
 
-Update if:
-- New API functions added
-- Function signatures changed
-- New types developers need to know about
-- Signal patterns updated
+#### 10.1 Check Current llms.txt
+
+```bash
+cd $IAP_REPOS_HOME/godot-iap
+
+# Review current AI reference docs
+cat docs/static/llms.txt 2>/dev/null || echo "llms.txt not found"
+cat docs/static/llms-full.txt 2>/dev/null || echo "llms-full.txt not found"
+```
+
+#### 10.2 Verify Documentation Accuracy
+
+Check that llms.txt includes:
+
+1. **All public API functions:**
+   ```bash
+   # List public functions in iap.gd
+   grep -n "^func " addons/openiap/iap.gd | grep -v "^func _"
+
+   # Compare with llms.txt
+   grep -c "func" docs/static/llms.txt
+   ```
+
+2. **Correct type definitions:**
+   - New types added in this sync
+   - Updated field names (input fields NO suffix, response fields WITH suffix)
+   - Correct method signatures
+
+3. **Updated examples:**
+   - Examples use new field names
+   - Examples demonstrate new features
+
+#### 10.3 Update llms.txt Content
+
+If API changed, update:
+- Function signatures
+- Type definitions
+- Usage examples
+- Platform-specific notes
+
+#### 10.4 Sync llms.txt and llms-full.txt
+
+Ensure both files are consistent:
+- `llms.txt`: Concise API reference
+- `llms-full.txt`: Detailed documentation with examples
 
 ---
 
-### Step 9: Commit and Push (REQUIRED)
+### Step 11: Commit and Push (REQUIRED)
 
-#### 9.1 Create Feature Branch
+#### 11.1 Create Feature Branch
 
 ```bash
 cd $IAP_REPOS_HOME/godot-iap
@@ -391,7 +551,7 @@ cd $IAP_REPOS_HOME/godot-iap
 git checkout -b feat/openiap-sync-<gql-version>
 ```
 
-#### 9.2 Commit with Descriptive Message
+#### 11.2 Commit with Descriptive Message
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -408,7 +568,7 @@ EOF
 )"
 ```
 
-#### 9.3 Push to Remote
+#### 11.3 Push to Remote
 
 ```bash
 git push -u origin feat/openiap-sync-<gql-version>

@@ -22,9 +22,11 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 | 4.5. **Verify ObjC Bridge** | **YES (iOS)** | Check `OpenIapModule+ObjC.swift` matches Swift functions |
 | 5. Update API Exports | **IF NEEDED** | Add new functions, type aliases, DSL builders |
 | 6. Run All Checks | **YES** | `./gradlew build test detekt` |
-| 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
-| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
-| 9. Commit & Push | **YES** | Create PR with proper format |
+| 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
+| 8. **Verify Example Code** | **YES** | Check example app uses correct API patterns |
+| 9. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
+| 11. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -373,17 +375,149 @@ cd $IAP_REPOS_HOME/kmp-iap
 
 ---
 
-### Step 7: Write Blog Post (REQUIRED)
+### Step 7: Verify Tests (REQUIRED)
+
+**CRITICAL: All tests must cover new features and field name changes. DO NOT SKIP.**
+
+#### 7.1 Check Existing Test Coverage
+
+```bash
+cd $IAP_REPOS_HOME/kmp-iap
+
+# Find all test files
+find . -name "*Test.kt" -o -name "*Tests.kt"
+
+# Check test coverage for types
+grep -rn "fun.*test" library/src/commonTest/ library/src/androidTest/ library/src/iosTest/ 2>/dev/null
+```
+
+#### 7.2 Verify New Features Are Tested
+
+For each new type or field added in the sync:
+
+1. **Check if tests exist for new types:**
+   ```kotlin
+   // Example: If RequestPurchaseAndroidProps got new field 'offerToken'
+   // Test file should have:
+   @Test
+   fun `test RequestPurchaseAndroidProps with offerToken`() {
+       val props = RequestPurchaseAndroidProps(
+           sku = "test_sku",
+           offerToken = "test_token"  // New field must be tested
+       )
+       assertNotNull(props.offerToken)
+   }
+   ```
+
+2. **Check if serialization is tested:**
+   ```kotlin
+   @Test
+   fun `test type serialization round trip`() {
+       val original = NewType(newField = "value")
+       val json = Json.encodeToString(original)
+       val restored = Json.decodeFromString<NewType>(json)
+       assertEquals(original.newField, restored.newField)
+   }
+   ```
+
+#### 7.3 Add Missing Tests
+
+If tests don't exist for new features:
+
+1. Create test file in `library/src/commonTest/kotlin/`
+2. Add tests for:
+   - Type instantiation with new fields
+   - JSON serialization includes new fields
+   - JSON deserialization parses new fields
+   - Default values for optional fields
+   - Platform-specific DSL builders
+
+#### 7.4 Run All Tests
+
+```bash
+cd $IAP_REPOS_HOME/kmp-iap
+
+# Run all tests
+./gradlew :library:test
+
+# Verify all tests pass
+./gradlew :library:check
+```
+
+**If tests fail, fix before continuing.**
+
+---
+
+### Step 8: Verify Example Code (REQUIRED)
+
+**CRITICAL: Example app must demonstrate correct API usage. DO NOT SKIP.**
+
+#### 8.1 Check Example App
+
+```bash
+cd $IAP_REPOS_HOME/kmp-iap
+
+# Find example app code
+find . -path "*/sample/*" -name "*.kt" -o -path "*/example/*" -name "*.kt"
+
+# Check how API is used
+grep -rn "kmpIapInstance\|requestPurchase\|fetchProducts" sample/ example/ 2>/dev/null
+```
+
+#### 8.2 Verify API Patterns
+
+Check that example code uses correct patterns:
+
+```kotlin
+// CORRECT - Uses new field names (simplified naming)
+kmpIapInstance.requestPurchase {
+    android {
+        skus = listOf("premium_upgrade")
+        offerToken = selectedOffer.offerToken  // Input field: NO suffix
+        isOfferPersonalized = true              // Input field: NO suffix
+    }
+}
+
+// INCORRECT - Old naming convention
+kmpIapInstance.requestPurchase {
+    android {
+        offerTokenAndroid = token  // WRONG: input fields don't have suffix
+    }
+}
+```
+
+#### 8.3 Update Outdated Examples
+
+If examples use outdated patterns:
+
+1. Update to use new field names
+2. Add KDoc comments explaining new features
+3. Verify example compiles without errors
+
+#### 8.4 Build Example App
+
+```bash
+cd $IAP_REPOS_HOME/kmp-iap
+
+# Build sample/example app
+./gradlew :sample:build 2>/dev/null || ./gradlew :example:build 2>/dev/null
+
+# Verify no compilation errors
+```
+
+---
+
+### Step 9: Write Blog Post (REQUIRED)
 
 **Every sync MUST have a blog post documenting the changes.**
 
-#### 7.1 Create Blog Post File
+#### 9.1 Create Blog Post File
 
 **Location:** `docs/blog/`
 
 **Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
 
-#### 7.2 Blog Post Template
+#### 9.2 Blog Post Template
 
 ```markdown
 ---
@@ -429,7 +563,7 @@ kmpIapInstance.requestSubscription {
 For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
 ```
 
-#### 7.3 Blog Post Guidelines
+#### 9.3 Blog Post Guidelines
 
 - **New features**: Explain what they do, show example code, note platform requirements
 - **Breaking changes**: MUST have migration guide with before/after code
@@ -439,21 +573,65 @@ For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/do
 
 ---
 
-### Step 8: Update llms.txt (IF API CHANGED)
+### Step 10: Verify and Update llms.txt (REQUIRED)
+
+**CRITICAL: Always review and update AI reference documentation. DO NOT SKIP.**
 
 **Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
 
-Update if:
-- New API functions added
-- Function signatures changed
-- New types developers need to know about
-- DSL builders updated
+#### 10.1 Check Current llms.txt
+
+```bash
+cd $IAP_REPOS_HOME/kmp-iap
+
+# Review current AI reference docs
+cat docs/static/llms.txt 2>/dev/null || echo "llms.txt not found"
+cat docs/static/llms-full.txt 2>/dev/null || echo "llms-full.txt not found"
+```
+
+#### 10.2 Verify Documentation Accuracy
+
+Check that llms.txt includes:
+
+1. **All public API functions:**
+   ```bash
+   # List public functions in KmpIap interface
+   grep -n "suspend fun\|fun " library/src/commonMain/kotlin/io/github/hyochan/kmpiap/KmpIap.kt
+
+   # Compare with llms.txt
+   grep -c "fun" docs/static/llms.txt
+   ```
+
+2. **Correct type definitions:**
+   - New types added in this sync
+   - Updated field names (input fields NO suffix, response fields WITH suffix)
+   - Correct method signatures
+
+3. **Updated DSL examples:**
+   - Examples use new field names
+   - Examples demonstrate new features
+   - Platform-specific builders are documented
+
+#### 10.3 Update llms.txt Content
+
+If API changed, update:
+- Function signatures
+- Type definitions
+- DSL builder patterns
+- Usage examples
+- Platform-specific notes
+
+#### 10.4 Sync llms.txt and llms-full.txt
+
+Ensure both files are consistent:
+- `llms.txt`: Concise API reference
+- `llms-full.txt`: Detailed documentation with examples
 
 ---
 
-### Step 9: Commit and Push (REQUIRED)
+### Step 11: Commit and Push (REQUIRED)
 
-#### 9.1 Create Feature Branch
+#### 11.1 Create Feature Branch
 
 ```bash
 cd $IAP_REPOS_HOME/kmp-iap
@@ -461,7 +639,7 @@ cd $IAP_REPOS_HOME/kmp-iap
 git checkout -b feat/openiap-sync-<gql-version>
 ```
 
-#### 9.2 Commit with Descriptive Message
+#### 11.2 Commit with Descriptive Message
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -478,7 +656,7 @@ EOF
 )"
 ```
 
-#### 9.3 Push to Remote
+#### 11.3 Push to Remote
 
 ```bash
 git push -u origin feat/openiap-sync-<gql-version>

@@ -21,9 +21,11 @@ Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-ia
 | 4. Review Native Code | **YES** | Check if iOS/Android modules need updates |
 | 5. Update API Exports | **IF NEEDED** | Add new functions to index.ts, useIAP.ts |
 | 6. Run All Checks | **YES** | `bun run lint:ci`, `bun run test`, example tests |
-| 7. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
-| 8. Update llms.txt | **IF API CHANGED** | Update AI reference docs |
-| 9. Commit & Push | **YES** | Create PR with proper format |
+| 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
+| 8. **Verify Example Code** | **YES** | Check `example/` app uses correct API patterns |
+| 9. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
+| 11. Commit & Push | **YES** | Create PR with proper format |
 
 ## Project Overview
 
@@ -288,11 +290,129 @@ cd example && bun run test && cd ..
 
 ---
 
-### Step 7: Write Blog Post (REQUIRED)
+### Step 7: Verify Tests (REQUIRED)
+
+**CRITICAL: Tests MUST cover any new features or field name changes. DO NOT SKIP.**
+
+#### 7.1 Check Existing Tests
+
+```bash
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap
+
+# List test files
+ls -la src/__tests__/
+
+# Check test coverage for changed types/features
+grep -r "offerToken\|DiscountOffer\|SubscriptionOffer" src/__tests__/
+```
+
+#### 7.2 Required Test Coverage
+
+For new features or field changes, verify or add tests for:
+
+- **Type serialization/deserialization**: Test JSON roundtrips
+- **Input field naming**: Test that input types use correct field names (no suffix for Android-specific input types)
+- **Response field naming**: Test that response types use correct field names (with Android suffix for cross-platform types)
+- **API integration**: Test that new fields are passed correctly to native code
+
+#### 7.3 Add Missing Tests
+
+If tests don't exist for new features:
+
+```typescript
+// src/__tests__/standardized-offer-types.test.ts
+describe('DiscountOffer', () => {
+  it('should have correct structure with Android-specific fields', () => {
+    const offer: DiscountOffer = {
+      id: 'summer_sale',
+      displayPrice: '$4.99',
+      price: 4.99,
+      currency: 'USD',
+      type: 'one-time',
+      offerTokenAndroid: 'token123', // Response field WITH suffix
+    };
+    expect(offer.offerTokenAndroid).toBe('token123');
+  });
+});
+
+describe('RequestPurchaseAndroidProps', () => {
+  it('should use simplified input field names', () => {
+    // Input fields WITHOUT suffix (parent type indicates platform)
+    const request: RequestPurchaseAndroidProps = {
+      skus: ['sku1'],
+      obfuscatedAccountId: 'account123', // NO suffix
+      offerToken: 'token123',            // NO suffix
+    };
+    expect(request.offerToken).toBe('token123');
+  });
+});
+```
+
+#### 7.4 Run Tests
+
+```bash
+bun run test
+```
+
+---
+
+### Step 8: Verify Example Code (REQUIRED)
+
+**CRITICAL: Example app MUST demonstrate correct API usage patterns. DO NOT SKIP.**
+
+#### 8.1 Check Example App
+
+```bash
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap/example
+
+# Check for usage of new features
+grep -r "offerToken\|DiscountOffer\|subscriptionOffers" src/
+```
+
+#### 8.2 Verify API Patterns
+
+Ensure example code follows correct patterns:
+
+```typescript
+// ✅ CORRECT: Input fields without Android suffix
+const request = {
+  apple: { sku: 'product_id' },
+  google: {
+    skus: ['product_id'],
+    offerToken: offer.offerTokenAndroid, // Input: no suffix
+    obfuscatedAccountId: 'account123',   // Input: no suffix
+  },
+};
+
+// ❌ WRONG: Using Android suffix on input fields
+const wrongRequest = {
+  google: {
+    offerTokenAndroid: offer.offerTokenAndroid, // WRONG!
+  },
+};
+```
+
+#### 8.3 Update Example If Needed
+
+If example code uses deprecated patterns, update it:
+
+**Location:** `example/src/App.tsx` or relevant screen components
+
+#### 8.4 Build Example App
+
+```bash
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap/example
+bun install
+bun run ios  # or bun run android
+```
+
+---
+
+### Step 9: Write Blog Post (REQUIRED)
 
 **Every sync MUST have a blog post documenting the changes.**
 
-#### 7.1 Create Blog Post File
+#### 9.1 Create Blog Post File
 
 **Location:** `docs/blog/`
 
@@ -300,7 +420,7 @@ cd example && bun run test && cd ..
 
 Example: `2026-01-18-3.5.0-winback-offers.md`
 
-#### 7.2 Blog Post Template
+#### 9.2 Blog Post Template
 
 ```markdown
 ---
@@ -340,7 +460,7 @@ This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/up
 For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
 ```
 
-#### 7.3 Blog Post Guidelines
+#### 9.3 Blog Post Guidelines
 
 - **New features**: Explain what they do, show example code, note platform requirements
 - **Breaking changes**: MUST have migration guide with before/after code
@@ -350,21 +470,75 @@ For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/do
 
 ---
 
-### Step 8: Update llms.txt (IF API CHANGED)
+### Step 10: Verify and Update llms.txt (REQUIRED)
+
+**CRITICAL: ALWAYS review and update AI reference docs. DO NOT SKIP even for "type-only" changes.**
 
 **Location:** `docs/static/llms.txt` and `docs/static/llms-full.txt`
 
-Update if:
-- New API functions added
-- Function signatures changed
-- New types developers need to know about
-- Usage patterns updated
+#### 10.1 Review Current llms.txt
+
+```bash
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap
+
+# Check current AI reference docs
+cat docs/static/llms.txt | head -100
+cat docs/static/llms-full.txt | head -200
+```
+
+#### 10.2 What MUST Be Updated
+
+**Always update llms.txt for:**
+
+| Change Type | Update Required |
+|-------------|-----------------|
+| New API functions | **YES** - Add function signature and example |
+| New types (input/response) | **YES** - Add type definition |
+| New fields on existing types | **YES** - Update type definition |
+| Field name changes | **YES** - Update field names in examples |
+| Deprecations | **YES** - Add deprecation notice |
+| Breaking changes | **YES** - Add migration example |
+| Bug fixes | IF affects usage patterns |
+
+#### 10.3 llms.txt Update Template
+
+For new features, add sections like:
+
+```markdown
+### One-Time Purchase Discounts (v3.x.x+, Android 7.0+)
+
+```typescript
+// Example usage for one-time purchase discount offers
+const product = products.find(p => p.id === 'premium_unlock');
+const discountOffer = product?.discountOffers?.[0];
+
+await requestPurchase({
+  request: {
+    apple: { sku: 'premium_unlock' },
+    google: {
+      skus: ['premium_unlock'],
+      offerToken: discountOffer?.offerTokenAndroid,  // Apply discount
+    },
+  },
+  type: 'in-app',
+});
+```
+```
+
+#### 10.4 Verify llms.txt Is Complete
+
+Check that llms.txt includes:
+- [ ] All public API functions
+- [ ] All major types with their fields
+- [ ] Usage examples for common patterns
+- [ ] Platform-specific notes (iOS/Android)
+- [ ] Version requirements for new features
 
 ---
 
-### Step 9: Commit and Push (REQUIRED)
+### Step 11: Commit and Push (REQUIRED)
 
-#### 9.1 Create Feature Branch
+#### 11.1 Create Feature Branch
 
 ```bash
 cd /Users/crossplatformkorea/Github/hyochan/expo-iap
@@ -373,13 +547,13 @@ git checkout -b feat/openiap-sync-<gql-version>
 # Example: feat/openiap-sync-1.3.13
 ```
 
-#### 9.2 Stage All Changes
+#### 11.2 Stage All Changes
 
 ```bash
 git add .
 ```
 
-#### 9.3 Commit with Descriptive Message
+#### 11.3 Commit with Descriptive Message
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -396,7 +570,7 @@ EOF
 )"
 ```
 
-#### 9.4 Push to Remote
+#### 11.4 Push to Remote
 
 ```bash
 git push -u origin feat/openiap-sync-<gql-version>
