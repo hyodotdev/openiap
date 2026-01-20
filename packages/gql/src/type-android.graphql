@@ -365,6 +365,12 @@ input RequestPurchaseAndroidProps {
   """
   isOfferPersonalized: Boolean
   """
+  Offer token for one-time purchase discounts (Android 7.0+).
+  Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+  to apply a discount offer to the purchase.
+  """
+  offerToken: String
+  """
   Developer billing option parameters for external payments flow (8.3.0+).
   When provided, the purchase flow will show a side-by-side choice between
   Google Play Billing and the developer's external payment option.
