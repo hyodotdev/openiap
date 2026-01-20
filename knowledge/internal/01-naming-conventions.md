@@ -70,7 +70,7 @@ input RequestPurchaseAndroidProps {
   isOfferPersonalizedAndroid: Boolean   # Android-only feature
   obfuscatedAccountIdAndroid: String    # Android-only feature
   obfuscatedProfileIdAndroid: String    # Android-only feature
-  developerBillingOption: DeveloperBillingOptionParamsAndroid  # Type has suffix
+  developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid  # Android-specific field
 }
 
 # INCORRECT - Missing Android suffix

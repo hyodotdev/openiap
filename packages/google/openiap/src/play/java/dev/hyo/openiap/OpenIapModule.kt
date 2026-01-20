@@ -867,6 +867,21 @@ class OpenIapModule(
                     val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
                     val requestedOffersBySku = mutableMapOf<String, MutableList<String>>()
 
+                    // Reject multi-SKU one-time purchase requests when offerToken is provided
+                    // A single offerToken cannot be applied to multiple SKUs
+                    if (androidArgs.type == ProductQueryType.InApp &&
+                        !androidArgs.offerToken.isNullOrEmpty() &&
+                        androidArgs.skus.size > 1) {
+                        OpenIapLog.w(
+                            "offerTokenAndroid requires a single SKU. Provided SKUs: ${androidArgs.skus}",
+                            TAG
+                        )
+                        val err = OpenIapError.SkuOfferMismatch
+                        for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
+                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        return
+                    }
+
                     if (androidArgs.type == ProductQueryType.Subs) {
                         for (offer in androidArgs.subscriptionOffers.orEmpty()) {
                             if (offer.offerToken.isNotEmpty()) {
