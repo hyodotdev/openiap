@@ -119,8 +119,8 @@ internal data class AndroidPurchaseArgs(
     val obfuscatedAccountId: String?,
     val obfuscatedProfileId: String?,
     val offerToken: String?,
-    val purchaseTokenAndroid: String?,
-    val replacementModeAndroid: Int?,
+    val purchaseToken: String?,
+    val replacementMode: Int?,
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>?,
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
     val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
@@ -136,15 +136,15 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 ?: throw IllegalArgumentException("Google purchase parameters are required (use 'google' field)")
             AndroidPurchaseArgs(
                 skus = params.skus,
-                isOfferPersonalized = params.isOfferPersonalizedAndroid,
-                obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
-                obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
-                offerToken = params.offerTokenAndroid,
-                purchaseTokenAndroid = null,
-                replacementModeAndroid = null,
+                isOfferPersonalized = params.isOfferPersonalized,
+                obfuscatedAccountId = params.obfuscatedAccountId,
+                obfuscatedProfileId = params.obfuscatedProfileId,
+                offerToken = params.offerToken,
+                purchaseToken = null,
+                replacementMode = null,
                 subscriptionOffers = null,
                 subscriptionProductReplacementParams = null,
-                developerBillingOption = params.developerBillingOptionAndroid,
+                developerBillingOption = params.developerBillingOption,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
@@ -155,20 +155,20 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 ?: throw IllegalArgumentException("Google subscription parameters are required (use 'google' field)")
 
             // For subscription upgrades/downgrades:
-            // - purchaseTokenAndroid: Identifies which existing subscription to upgrade/downgrade
+            // - purchaseToken: Identifies which existing subscription to upgrade/downgrade
             // - obfuscatedProfileId: Optional user identifier for fraud prevention and attribution
             // Both can be provided together - they serve different purposes and are not mutually exclusive
             AndroidPurchaseArgs(
                 skus = params.skus,
-                isOfferPersonalized = params.isOfferPersonalizedAndroid,
-                obfuscatedAccountId = params.obfuscatedAccountIdAndroid,
-                obfuscatedProfileId = params.obfuscatedProfileIdAndroid,
+                isOfferPersonalized = params.isOfferPersonalized,
+                obfuscatedAccountId = params.obfuscatedAccountId,
+                obfuscatedProfileId = params.obfuscatedProfileId,
                 offerToken = null,
-                purchaseTokenAndroid = params.purchaseTokenAndroid,
-                replacementModeAndroid = params.replacementModeAndroid,
+                purchaseToken = params.purchaseToken,
+                replacementMode = params.replacementMode,
                 subscriptionOffers = params.subscriptionOffers,
                 subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,
-                developerBillingOption = params.developerBillingOptionAndroid,
+                developerBillingOption = params.developerBillingOption,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )

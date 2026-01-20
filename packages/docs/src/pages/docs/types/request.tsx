@@ -525,10 +525,10 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
-                        <code>offerTokenAndroid</code>
+                        <code>offerToken</code>
                       </td>
                       <td>
-                        Offer token for one-time purchase discounts (Android 7.0+).
+                        Offer token for one-time purchase discounts (7.0+).
                         Pass the <code>offerToken</code> from{' '}
                         <code>oneTimePurchaseOfferDetailsAndroid</code> or{' '}
                         <code>discountOffers</code> to apply a discount.
@@ -536,19 +536,19 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
-                        <code>obfuscatedAccountIdAndroid</code>
+                        <code>obfuscatedAccountId</code>
                       </td>
                       <td>Obfuscated user account ID</td>
                     </tr>
                     <tr>
                       <td>
-                        <code>obfuscatedProfileIdAndroid</code>
+                        <code>obfuscatedProfileId</code>
                       </td>
                       <td>Obfuscated user profile ID</td>
                     </tr>
                     <tr>
                       <td>
-                        <code>isOfferPersonalizedAndroid</code>
+                        <code>isOfferPersonalized</code>
                       </td>
                       <td>True if offer is personalized (EU compliance)</td>
                     </tr>
@@ -594,13 +594,13 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                   <tbody>
                     <tr>
                       <td>
-                        <code>purchaseTokenAndroid</code>
+                        <code>purchaseToken</code>
                       </td>
                       <td>Existing subscription token for upgrade/downgrade</td>
                     </tr>
                     <tr>
                       <td>
-                        <code>replacementModeAndroid</code>
+                        <code>replacementMode</code>
                       </td>
                       <td>
                         How to handle subscription change (proration mode)

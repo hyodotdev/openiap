@@ -60,55 +60,57 @@ fun buildModuleAndroid()
 
 ### GraphQL Input Types (API Fields)
 
-All platform-specific fields in GraphQL input types MUST use the platform suffix:
+Fields inside platform-specific input types do NOT need platform suffix (the type name already indicates the platform):
 
 ```graphql
-# CORRECT - All Android-specific fields have Android suffix
+# CORRECT - Fields inside AndroidProps don't need Android suffix
 input RequestPurchaseAndroidProps {
   skus: [String!]!                      # Cross-platform, no suffix
-  offerTokenAndroid: String             # Android-only feature
-  isOfferPersonalizedAndroid: Boolean   # Android-only feature
-  obfuscatedAccountIdAndroid: String    # Android-only feature
-  obfuscatedProfileIdAndroid: String    # Android-only feature
-  developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid  # Android-specific field
+  offerToken: String                    # No suffix - already in Android type
+  isOfferPersonalized: Boolean          # No suffix - already in Android type
+  obfuscatedAccountId: String           # No suffix - already in Android type
+  obfuscatedProfileId: String           # No suffix - already in Android type
+  developerBillingOption: DeveloperBillingOptionParamsAndroid  # Type has suffix (cross-platform type)
 }
 
-# INCORRECT - Missing Android suffix
+# INCORRECT - Redundant Android suffix inside Android-specific type
 input RequestPurchaseAndroidProps {
-  offerToken: String           # ❌ Should be offerTokenAndroid
-  isOfferPersonalized: Boolean # ❌ Should be isOfferPersonalizedAndroid
+  offerTokenAndroid: String           # ❌ Redundant - type already indicates Android
+  isOfferPersonalizedAndroid: Boolean # ❌ Redundant - type already indicates Android
 }
 ```
 
 ### Why This Matters
 
-1. **Cross-platform consumers** (React Native, Flutter, etc.) see all fields
-2. Without suffix, it's unclear which platform the field applies to
-3. Consistency makes documentation and code generation predictable
+1. **Parent type context**: `RequestPurchaseAndroidProps` already indicates Android
+2. **Cleaner API**: `google: { offerToken: "..." }` is cleaner than `google: { offerTokenAndroid: "..." }`
+3. **Type names still use suffix**: Cross-platform types like `DeveloperBillingOptionParamsAndroid` keep the suffix
 
 ### Field Suffix Rules
 
 | Field Location | Suffix Required? | Example |
 |----------------|------------------|---------|
-| Android-only input type | YES for Android features | `offerTokenAndroid`, `isOfferPersonalizedAndroid` |
-| iOS-only input type | YES for iOS features | `appAccountTokenIOS`, `uuid` → `appAccountTokenIOS` |
+| Inside Android-only input type | NO | `offerToken` in `RequestPurchaseAndroidProps` |
+| Inside iOS-only input type | NO | `appAccountToken` in `RequestPurchaseIOSProps` |
 | Cross-platform type | YES for platform-specific | `nameAndroid` in `ProductAndroid` |
+| Cross-platform type reference | YES | `developerBillingOption: DeveloperBillingOptionParamsAndroid` |
 | Internal implementation | NO (not API) | `val offerToken` in Kotlin data class |
 
-### Internal vs API Fields
+### Type vs Field Suffix
 
-- **API fields** (GraphQL schema): ALWAYS use platform suffix
-- **Internal fields** (Kotlin/Swift data classes not exposed): No suffix needed
+- **Type names**: Cross-platform types ALWAYS use platform suffix (`DeveloperBillingOptionParamsAndroid`)
+- **Fields in platform-specific inputs**: NO suffix needed (parent type indicates platform)
+- **Fields in cross-platform types**: Use suffix for platform-specific fields
 
 ```kotlin
-// Internal helper data class - no suffix needed
-internal data class AndroidPurchaseArgs(
-    val offerToken: String?,        // Internal, no suffix OK
-    val isOfferPersonalized: Boolean?  // Internal, no suffix OK
-)
-
-// But when reading from API props, use the suffixed names:
-val offerToken = params.offerTokenAndroid  // ✓ API uses suffix
+// Cross-platform SDK usage
+requestPurchase {
+  google {
+    skus = listOf("product_id")
+    offerToken = "discount_offer_token"      // ✓ Clean - no redundant suffix
+    isOfferPersonalized = false
+  }
+}
 ```
 
 ### Cross-Platform Functions

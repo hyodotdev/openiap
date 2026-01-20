@@ -355,28 +355,28 @@ input RequestPurchaseAndroidProps {
   """
   Obfuscated account ID
   """
-  obfuscatedAccountIdAndroid: String
+  obfuscatedAccountId: String
   """
   Obfuscated profile ID
   """
-  obfuscatedProfileIdAndroid: String
+  obfuscatedProfileId: String
   """
-  Personalized offer flag (Android).
+  Personalized offer flag.
   When true, indicates the price was customized for this user.
   """
-  isOfferPersonalizedAndroid: Boolean
+  isOfferPersonalized: Boolean
   """
-  Offer token for one-time purchase discounts (Android 7.0+).
+  Offer token for one-time purchase discounts (7.0+).
   Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
   to apply a discount offer to the purchase.
   """
-  offerTokenAndroid: String
+  offerToken: String
   """
   Developer billing option parameters for external payments flow (8.3.0+).
   When provided, the purchase flow will show a side-by-side choice between
   Google Play Billing and the developer's external payment option.
   """
-  developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid
+  developerBillingOption: DeveloperBillingOptionParamsAndroid
 }
 
 input RequestSubscriptionAndroidProps {
@@ -387,32 +387,32 @@ input RequestSubscriptionAndroidProps {
   """
   Obfuscated account ID
   """
-  obfuscatedAccountIdAndroid: String
+  obfuscatedAccountId: String
   """
   Obfuscated profile ID
   """
-  obfuscatedProfileIdAndroid: String
+  obfuscatedProfileId: String
   """
-  Personalized offer flag (Android).
+  Personalized offer flag.
   When true, indicates the price was customized for this user.
   """
-  isOfferPersonalizedAndroid: Boolean
+  isOfferPersonalized: Boolean
   """
   Purchase token for upgrades/downgrades
   """
-  purchaseTokenAndroid: String
+  purchaseToken: String
   """
   Replacement mode for subscription changes
   @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
   """
-  replacementModeAndroid: Int
+  replacementMode: Int
   """
   Subscription offers
   """
   subscriptionOffers: [AndroidSubscriptionOfferInput!]
   """
   Product-level replacement parameters (8.1.0+)
-  Use this instead of replacementModeAndroid for item-level replacement
+  Use this instead of replacementMode for item-level replacement
   """
   subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid
   """
@@ -420,7 +420,7 @@ input RequestSubscriptionAndroidProps {
   When provided, the purchase flow will show a side-by-side choice between
   Google Play Billing and the developer's external payment option.
   """
-  developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid
+  developerBillingOption: DeveloperBillingOptionParamsAndroid
 }
 
 # Subscription Replacement (Google Play Billing Library 8.1.0+)

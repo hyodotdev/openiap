@@ -858,7 +858,7 @@ async function purchaseWithOffer(
       google: {
         skus: [product.id],
         // Include offerTokenAndroid for discounted purchases (Android 7.0+)
-        offerTokenAndroid: selectedOffer.offerToken,
+        offerToken: selectedOffer.offerToken,
       },
     },
   });
@@ -889,7 +889,7 @@ async function purchaseWithOffer(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
                         // Include offerTokenAndroid for discounted purchases (Android 7.0+)
-                        offerTokenAndroid = selectedOffer.offerToken
+                        offerToken = selectedOffer.offerToken
                     )
                 )
             )

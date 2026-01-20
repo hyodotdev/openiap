@@ -873,7 +873,7 @@ class OpenIapModule(
                         !androidArgs.offerToken.isNullOrEmpty() &&
                         androidArgs.skus.size > 1) {
                         OpenIapLog.w(
-                            "offerTokenAndroid requires a single SKU. Provided SKUs: ${androidArgs.skus}",
+                            "offerToken requires a single SKU. Provided SKUs: ${androidArgs.skus}",
                             TAG
                         )
                         val err = OpenIapError.SkuOfferMismatch
@@ -983,25 +983,25 @@ class OpenIapModule(
                     }
 
                     // For subscription upgrades/downgrades, purchaseToken and obfuscatedProfileId are mutually exclusive
-                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseTokenAndroid.isNullOrBlank()) {
+                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseTokenAndroid.take(10)}...", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken.take(10)}...", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
-                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementModeAndroid}", TAG)
+                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
                         for ((index, params) in paramsList.withIndex()) {
                             OpenIapLog.d("  - Product[$index]: SKU=${details[index].productId}, offerToken=...", TAG)
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                            .setOldPurchaseToken(androidArgs.purchaseTokenAndroid)
+                            .setOldPurchaseToken(androidArgs.purchaseToken)
 
                         // Set replacement mode - this is critical for upgrades
                         // Note: setSubscriptionReplacementMode() is deprecated in Billing 8.1.0
                         // in favor of SubscriptionProductReplacementParams for per-product control.
                         // However, for single-product upgrades, the legacy API still works.
-                        val replacementMode = androidArgs.replacementModeAndroid ?: 5 // Default to CHARGE_FULL_PRICE
+                        val replacementMode = androidArgs.replacementMode ?: 5 // Default to CHARGE_FULL_PRICE
                         @Suppress("DEPRECATION")
                         updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
                         OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)

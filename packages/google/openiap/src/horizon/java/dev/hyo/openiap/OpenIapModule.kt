@@ -455,22 +455,22 @@ class OpenIapModule(
                     androidArgs.obfuscatedAccountId?.let { flowBuilder.setObfuscatedAccountId(it) }
 
                     // For subscription upgrades/downgrades, purchaseToken and obfuscatedProfileId are mutually exclusive
-                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseTokenAndroid.isNullOrBlank()) {
+                    if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
                         // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseTokenAndroid.take(10)}...", TAG)
+                        OpenIapLog.d("  - Old Token: ${androidArgs.purchaseToken.take(10)}...", TAG)
                         OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
-                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementModeAndroid}", TAG)
+                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
                         paramsList.forEachIndexed { idx, params ->
                             OpenIapLog.d("  - Product[$idx]: SKU=${details[idx].productId}, offerToken=...", TAG)
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                            .setOldPurchaseToken(androidArgs.purchaseTokenAndroid)
+                            .setOldPurchaseToken(androidArgs.purchaseToken)
 
                         // Set replacement mode - this is critical for upgrades
-                        val replacementMode = androidArgs.replacementModeAndroid ?: 5 // Default to CHARGE_FULL_PRICE
+                        val replacementMode = androidArgs.replacementMode ?: 5 // Default to CHARGE_FULL_PRICE
                         updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
                         OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)
 

@@ -1382,34 +1382,34 @@ public struct RequestPurchaseAndroidProps: Codable {
     /// Developer billing option parameters for external payments flow (8.3.0+).
     /// When provided, the purchase flow will show a side-by-side choice between
     /// Google Play Billing and the developer's external payment option.
-    public var developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid?
-    /// Personalized offer flag (Android).
+    public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
+    /// Personalized offer flag.
     /// When true, indicates the price was customized for this user.
-    public var isOfferPersonalizedAndroid: Bool?
+    public var isOfferPersonalized: Bool?
     /// Obfuscated account ID
-    public var obfuscatedAccountIdAndroid: String?
+    public var obfuscatedAccountId: String?
     /// Obfuscated profile ID
-    public var obfuscatedProfileIdAndroid: String?
-    /// Offer token for one-time purchase discounts (Android 7.0+).
+    public var obfuscatedProfileId: String?
+    /// Offer token for one-time purchase discounts (7.0+).
     /// Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
     /// to apply a discount offer to the purchase.
-    public var offerTokenAndroid: String?
+    public var offerToken: String?
     /// List of product SKUs
     public var skus: [String]
 
     public init(
-        developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid? = nil,
-        isOfferPersonalizedAndroid: Bool? = nil,
-        obfuscatedAccountIdAndroid: String? = nil,
-        obfuscatedProfileIdAndroid: String? = nil,
-        offerTokenAndroid: String? = nil,
+        developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
+        isOfferPersonalized: Bool? = nil,
+        obfuscatedAccountId: String? = nil,
+        obfuscatedProfileId: String? = nil,
+        offerToken: String? = nil,
         skus: [String]
     ) {
-        self.developerBillingOptionAndroid = developerBillingOptionAndroid
-        self.isOfferPersonalizedAndroid = isOfferPersonalizedAndroid
-        self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
-        self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
-        self.offerTokenAndroid = offerTokenAndroid
+        self.developerBillingOption = developerBillingOption
+        self.isOfferPersonalized = isOfferPersonalized
+        self.obfuscatedAccountId = obfuscatedAccountId
+        self.obfuscatedProfileId = obfuscatedProfileId
+        self.offerToken = offerToken
         self.skus = skus
     }
 }
@@ -1552,44 +1552,44 @@ public struct RequestSubscriptionAndroidProps: Codable {
     /// Developer billing option parameters for external payments flow (8.3.0+).
     /// When provided, the purchase flow will show a side-by-side choice between
     /// Google Play Billing and the developer's external payment option.
-    public var developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid?
-    /// Personalized offer flag (Android).
+    public var developerBillingOption: DeveloperBillingOptionParamsAndroid?
+    /// Personalized offer flag.
     /// When true, indicates the price was customized for this user.
-    public var isOfferPersonalizedAndroid: Bool?
+    public var isOfferPersonalized: Bool?
     /// Obfuscated account ID
-    public var obfuscatedAccountIdAndroid: String?
+    public var obfuscatedAccountId: String?
     /// Obfuscated profile ID
-    public var obfuscatedProfileIdAndroid: String?
+    public var obfuscatedProfileId: String?
     /// Purchase token for upgrades/downgrades
-    public var purchaseTokenAndroid: String?
+    public var purchaseToken: String?
     /// Replacement mode for subscription changes
     /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
-    public var replacementModeAndroid: Int?
+    public var replacementMode: Int?
     /// List of subscription SKUs
     public var skus: [String]
     /// Subscription offers
     public var subscriptionOffers: [AndroidSubscriptionOfferInput]?
     /// Product-level replacement parameters (8.1.0+)
-    /// Use this instead of replacementModeAndroid for item-level replacement
+    /// Use this instead of replacementMode for item-level replacement
     public var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?
 
     public init(
-        developerBillingOptionAndroid: DeveloperBillingOptionParamsAndroid? = nil,
-        isOfferPersonalizedAndroid: Bool? = nil,
-        obfuscatedAccountIdAndroid: String? = nil,
-        obfuscatedProfileIdAndroid: String? = nil,
-        purchaseTokenAndroid: String? = nil,
-        replacementModeAndroid: Int? = nil,
+        developerBillingOption: DeveloperBillingOptionParamsAndroid? = nil,
+        isOfferPersonalized: Bool? = nil,
+        obfuscatedAccountId: String? = nil,
+        obfuscatedProfileId: String? = nil,
+        purchaseToken: String? = nil,
+        replacementMode: Int? = nil,
         skus: [String],
         subscriptionOffers: [AndroidSubscriptionOfferInput]? = nil,
         subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = nil
     ) {
-        self.developerBillingOptionAndroid = developerBillingOptionAndroid
-        self.isOfferPersonalizedAndroid = isOfferPersonalizedAndroid
-        self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
-        self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
-        self.purchaseTokenAndroid = purchaseTokenAndroid
-        self.replacementModeAndroid = replacementModeAndroid
+        self.developerBillingOption = developerBillingOption
+        self.isOfferPersonalized = isOfferPersonalized
+        self.obfuscatedAccountId = obfuscatedAccountId
+        self.obfuscatedProfileId = obfuscatedProfileId
+        self.purchaseToken = purchaseToken
+        self.replacementMode = replacementMode
         self.skus = skus
         self.subscriptionOffers = subscriptionOffers
         self.subscriptionProductReplacementParams = subscriptionProductReplacementParams

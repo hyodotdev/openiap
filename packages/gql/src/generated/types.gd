@@ -3195,52 +3195,52 @@ class RequestPurchaseAndroidProps:
 	## List of product SKUs
 	var skus: Array[String]
 	## Obfuscated account ID
-	var obfuscated_account_id_android: String
+	var obfuscated_account_id: String
 	## Obfuscated profile ID
-	var obfuscated_profile_id_android: String
-	## Personalized offer flag (Android).
-	var is_offer_personalized_android: bool
-	## Offer token for one-time purchase discounts (Android 7.0+).
-	var offer_token_android: String
+	var obfuscated_profile_id: String
+	## Personalized offer flag.
+	var is_offer_personalized: bool
+	## Offer token for one-time purchase discounts (7.0+).
+	var offer_token: String
 	## Developer billing option parameters for external payments flow (8.3.0+).
-	var developer_billing_option_android: DeveloperBillingOptionParamsAndroid
+	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
 		var obj = RequestPurchaseAndroidProps.new()
 		if data.has("skus") and data["skus"] != null:
 			obj.skus = data["skus"]
-		if data.has("obfuscatedAccountIdAndroid") and data["obfuscatedAccountIdAndroid"] != null:
-			obj.obfuscated_account_id_android = data["obfuscatedAccountIdAndroid"]
-		if data.has("obfuscatedProfileIdAndroid") and data["obfuscatedProfileIdAndroid"] != null:
-			obj.obfuscated_profile_id_android = data["obfuscatedProfileIdAndroid"]
-		if data.has("isOfferPersonalizedAndroid") and data["isOfferPersonalizedAndroid"] != null:
-			obj.is_offer_personalized_android = data["isOfferPersonalizedAndroid"]
-		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
-			obj.offer_token_android = data["offerTokenAndroid"]
-		if data.has("developerBillingOptionAndroid") and data["developerBillingOptionAndroid"] != null:
-			if data["developerBillingOptionAndroid"] is Dictionary:
-				obj.developer_billing_option_android = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOptionAndroid"])
+		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null:
+			obj.obfuscated_account_id = data["obfuscatedAccountId"]
+		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null:
+			obj.obfuscated_profile_id = data["obfuscatedProfileId"]
+		if data.has("isOfferPersonalized") and data["isOfferPersonalized"] != null:
+			obj.is_offer_personalized = data["isOfferPersonalized"]
+		if data.has("offerToken") and data["offerToken"] != null:
+			obj.offer_token = data["offerToken"]
+		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
+			if data["developerBillingOption"] is Dictionary:
+				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
 			else:
-				obj.developer_billing_option_android = data["developerBillingOptionAndroid"]
+				obj.developer_billing_option = data["developerBillingOption"]
 		return obj
 
 	func to_dict() -> Dictionary:
 		var dict = {}
 		if skus != null:
 			dict["skus"] = skus
-		if obfuscated_account_id_android != null:
-			dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
-		if obfuscated_profile_id_android != null:
-			dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
-		if is_offer_personalized_android != null:
-			dict["isOfferPersonalizedAndroid"] = is_offer_personalized_android
-		if offer_token_android != null:
-			dict["offerTokenAndroid"] = offer_token_android
-		if developer_billing_option_android != null:
-			if developer_billing_option_android.has_method("to_dict"):
-				dict["developerBillingOptionAndroid"] = developer_billing_option_android.to_dict()
+		if obfuscated_account_id != null:
+			dict["obfuscatedAccountId"] = obfuscated_account_id
+		if obfuscated_profile_id != null:
+			dict["obfuscatedProfileId"] = obfuscated_profile_id
+		if is_offer_personalized != null:
+			dict["isOfferPersonalized"] = is_offer_personalized
+		if offer_token != null:
+			dict["offerToken"] = offer_token
+		if developer_billing_option != null:
+			if developer_billing_option.has_method("to_dict"):
+				dict["developerBillingOption"] = developer_billing_option.to_dict()
 			else:
-				dict["developerBillingOptionAndroid"] = developer_billing_option_android
+				dict["developerBillingOption"] = developer_billing_option
 		return dict
 
 class RequestPurchaseIosProps:
@@ -3411,36 +3411,36 @@ class RequestSubscriptionAndroidProps:
 	## List of subscription SKUs
 	var skus: Array[String]
 	## Obfuscated account ID
-	var obfuscated_account_id_android: String
+	var obfuscated_account_id: String
 	## Obfuscated profile ID
-	var obfuscated_profile_id_android: String
-	## Personalized offer flag (Android).
-	var is_offer_personalized_android: bool
+	var obfuscated_profile_id: String
+	## Personalized offer flag.
+	var is_offer_personalized: bool
 	## Purchase token for upgrades/downgrades
-	var purchase_token_android: String
+	var purchase_token: String
 	## Replacement mode for subscription changes
-	var replacement_mode_android: int
+	var replacement_mode: int
 	## Subscription offers
 	var subscription_offers: Array[AndroidSubscriptionOfferInput]
 	## Product-level replacement parameters (8.1.0+)
 	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
 	## Developer billing option parameters for external payments flow (8.3.0+).
-	var developer_billing_option_android: DeveloperBillingOptionParamsAndroid
+	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
 		var obj = RequestSubscriptionAndroidProps.new()
 		if data.has("skus") and data["skus"] != null:
 			obj.skus = data["skus"]
-		if data.has("obfuscatedAccountIdAndroid") and data["obfuscatedAccountIdAndroid"] != null:
-			obj.obfuscated_account_id_android = data["obfuscatedAccountIdAndroid"]
-		if data.has("obfuscatedProfileIdAndroid") and data["obfuscatedProfileIdAndroid"] != null:
-			obj.obfuscated_profile_id_android = data["obfuscatedProfileIdAndroid"]
-		if data.has("isOfferPersonalizedAndroid") and data["isOfferPersonalizedAndroid"] != null:
-			obj.is_offer_personalized_android = data["isOfferPersonalizedAndroid"]
-		if data.has("purchaseTokenAndroid") and data["purchaseTokenAndroid"] != null:
-			obj.purchase_token_android = data["purchaseTokenAndroid"]
-		if data.has("replacementModeAndroid") and data["replacementModeAndroid"] != null:
-			obj.replacement_mode_android = data["replacementModeAndroid"]
+		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null:
+			obj.obfuscated_account_id = data["obfuscatedAccountId"]
+		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null:
+			obj.obfuscated_profile_id = data["obfuscatedProfileId"]
+		if data.has("isOfferPersonalized") and data["isOfferPersonalized"] != null:
+			obj.is_offer_personalized = data["isOfferPersonalized"]
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
+			obj.purchase_token = data["purchaseToken"]
+		if data.has("replacementMode") and data["replacementMode"] != null:
+			obj.replacement_mode = data["replacementMode"]
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			var arr = []
 			for item in data["subscriptionOffers"]:
@@ -3454,27 +3454,27 @@ class RequestSubscriptionAndroidProps:
 				obj.subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.from_dict(data["subscriptionProductReplacementParams"])
 			else:
 				obj.subscription_product_replacement_params = data["subscriptionProductReplacementParams"]
-		if data.has("developerBillingOptionAndroid") and data["developerBillingOptionAndroid"] != null:
-			if data["developerBillingOptionAndroid"] is Dictionary:
-				obj.developer_billing_option_android = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOptionAndroid"])
+		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
+			if data["developerBillingOption"] is Dictionary:
+				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
 			else:
-				obj.developer_billing_option_android = data["developerBillingOptionAndroid"]
+				obj.developer_billing_option = data["developerBillingOption"]
 		return obj
 
 	func to_dict() -> Dictionary:
 		var dict = {}
 		if skus != null:
 			dict["skus"] = skus
-		if obfuscated_account_id_android != null:
-			dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
-		if obfuscated_profile_id_android != null:
-			dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
-		if is_offer_personalized_android != null:
-			dict["isOfferPersonalizedAndroid"] = is_offer_personalized_android
-		if purchase_token_android != null:
-			dict["purchaseTokenAndroid"] = purchase_token_android
-		if replacement_mode_android != null:
-			dict["replacementModeAndroid"] = replacement_mode_android
+		if obfuscated_account_id != null:
+			dict["obfuscatedAccountId"] = obfuscated_account_id
+		if obfuscated_profile_id != null:
+			dict["obfuscatedProfileId"] = obfuscated_profile_id
+		if is_offer_personalized != null:
+			dict["isOfferPersonalized"] = is_offer_personalized
+		if purchase_token != null:
+			dict["purchaseToken"] = purchase_token
+		if replacement_mode != null:
+			dict["replacementMode"] = replacement_mode
 		if subscription_offers != null:
 			var arr = []
 			for item in subscription_offers:
@@ -3488,11 +3488,11 @@ class RequestSubscriptionAndroidProps:
 				dict["subscriptionProductReplacementParams"] = subscription_product_replacement_params.to_dict()
 			else:
 				dict["subscriptionProductReplacementParams"] = subscription_product_replacement_params
-		if developer_billing_option_android != null:
-			if developer_billing_option_android.has_method("to_dict"):
-				dict["developerBillingOptionAndroid"] = developer_billing_option_android.to_dict()
+		if developer_billing_option != null:
+			if developer_billing_option.has_method("to_dict"):
+				dict["developerBillingOption"] = developer_billing_option.to_dict()
 			else:
-				dict["developerBillingOptionAndroid"] = developer_billing_option_android
+				dict["developerBillingOption"] = developer_billing_option
 		return dict
 
 class RequestSubscriptionIosProps:

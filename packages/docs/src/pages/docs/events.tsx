@@ -996,7 +996,7 @@ subscription.cancel();`}</CodeBlock>
             <tr>
               <td>Setup</td>
               <td><code>AlternativeBillingModeAndroid.UserChoice</code></td>
-              <td><code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> + <code>developerBillingOptionAndroid</code> in requestPurchase</td>
+              <td><code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> + <code>developerBillingOption</code> in requestPurchase</td>
             </tr>
           </tbody>
         </table>
