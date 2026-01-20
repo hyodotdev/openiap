@@ -3,7 +3,8 @@
 // Run `npm run generate` after updating any *.graphql schema file.
 // ============================================================================
 
-@file:Suppress("unused", "UNCHECKED_CAST")
+// Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure
+@file:Suppress("UNCHECKED_CAST")
 package dev.hyo.openiap
 
 // MARK: - Enums
@@ -3248,7 +3249,7 @@ public data class DeveloperBillingOptionParamsAndroid(
             val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified
             val launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) } ?: DeveloperBillingLaunchModeAndroid.Unspecified
             val linkUri = json["linkUri"] as? String
-            if (billingProgram == null || launchMode == null || linkUri == null) return null
+            if (linkUri == null) return null
             return DeveloperBillingOptionParamsAndroid(
                 billingProgram = billingProgram,
                 launchMode = launchMode,
@@ -3378,7 +3379,7 @@ public data class LaunchExternalLinkParamsAndroid(
             val launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: ExternalLinkLaunchModeAndroid.Unspecified
             val linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: ExternalLinkTypeAndroid.Unspecified
             val linkUri = json["linkUri"] as? String
-            if (billingProgram == null || launchMode == null || linkType == null || linkUri == null) return null
+            if (linkUri == null) return null
             return LaunchExternalLinkParamsAndroid(
                 billingProgram = billingProgram,
                 launchMode = launchMode,
@@ -4011,7 +4012,7 @@ public data class SubscriptionProductReplacementParamsAndroid(
         fun fromJson(json: Map<String, Any?>): SubscriptionProductReplacementParamsAndroid? {
             val oldProductId = json["oldProductId"] as? String
             val replacementMode = (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJson(it) } ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode
-            if (oldProductId == null || replacementMode == null) return null
+            if (oldProductId == null) return null
             return SubscriptionProductReplacementParamsAndroid(
                 oldProductId = oldProductId,
                 replacementMode = replacementMode,
@@ -4196,7 +4197,6 @@ public data class VerifyPurchaseWithProviderProps(
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderProps? {
             val iapkit = (json["iapkit"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) }
             val provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: PurchaseVerificationProvider.Iapkit
-            if (provider == null) return null
             return VerifyPurchaseWithProviderProps(
                 iapkit = iapkit,
                 provider = provider,

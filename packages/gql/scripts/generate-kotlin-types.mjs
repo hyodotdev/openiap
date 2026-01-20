@@ -439,7 +439,8 @@ lines.push(
   "// Run `npm run generate` after updating any *.graphql schema file.",
   '// ============================================================================',
   '',
-  '@file:Suppress("unused", "UNCHECKED_CAST")',
+  '// Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure',
+  '@file:Suppress("UNCHECKED_CAST")',
   ''
 );
 
@@ -657,9 +658,12 @@ const printInput = (inputType) => {
       lines.push(`            val ${propertyName} = ${expression}`);
     });
     // Check required fields are not null
-    const requiredFields = fieldInfos.filter(({ metadata }) => !metadata.nullable);
-    const nullChecks = requiredFields.map(({ propertyName }) => `${propertyName} == null`).join(' || ');
-    lines.push(`            if (${nullChecks}) return null`);
+    // Exclude non-nullable enums since they always have a fallback value (never null)
+    const requiredFields = fieldInfos.filter(({ metadata }) => !metadata.nullable && metadata.kind !== 'enum');
+    if (requiredFields.length > 0) {
+      const nullChecks = requiredFields.map(({ propertyName }) => `${propertyName} == null`).join(' || ');
+      lines.push(`            if (${nullChecks}) return null`);
+    }
     lines.push(`            return ${inputType.name}(`);
     fieldInfos.forEach(({ propertyName }) => {
       // Kotlin smart cast applies after null check, so no !! needed
