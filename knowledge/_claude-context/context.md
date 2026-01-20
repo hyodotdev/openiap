@@ -755,6 +755,7 @@ public func newFeatureIOS(param: String) async throws -> ResultType {
 | `OpenIapModule.swift` | `OpenIapModule+ObjC.swift` |
 
 **Verification**: After updating, run:
+
 ```bash
 swift build  # Verifies ObjC bridge compiles
 ```
