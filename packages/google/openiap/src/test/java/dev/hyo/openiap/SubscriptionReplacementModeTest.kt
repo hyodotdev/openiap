@@ -1,6 +1,7 @@
 package dev.hyo.openiap
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
@@ -149,7 +150,11 @@ class SubscriptionReplacementModeTest {
 
         assertEquals(newValue, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.ChargeFullPrice))
         // Document that legacy value is different
-        assert(legacyValue != newValue) { "Legacy and new API values should differ for CHARGE_FULL_PRICE" }
+        assertNotEquals(
+            "Legacy and new API values should differ for CHARGE_FULL_PRICE",
+            legacyValue,
+            newValue
+        )
     }
 
     @Test
@@ -161,7 +166,11 @@ class SubscriptionReplacementModeTest {
 
         assertEquals(newValue, getSubscriptionProductReplacementModeConstant(SubscriptionReplacementModeAndroid.Deferred))
         // Document that legacy value is different
-        assert(legacyValue != newValue) { "Legacy and new API values should differ for DEFERRED" }
+        assertNotEquals(
+            "Legacy and new API values should differ for DEFERRED",
+            legacyValue,
+            newValue
+        )
     }
 
     // MARK: - Enum JSON serialization tests

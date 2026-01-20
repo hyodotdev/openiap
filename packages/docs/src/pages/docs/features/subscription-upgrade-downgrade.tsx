@@ -1082,54 +1082,64 @@ func format_date(timestamp: int) -> String:
                   <p>
                     <strong>Available replacement modes:</strong>
                   </p>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Mode</th>
-                        <th style={{ textAlign: 'center', padding: '0.5rem' }}>Legacy API</th>
-                        <th style={{ textAlign: 'center', padding: '0.5rem' }}>8.1.0+ API</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.25rem 0.5rem' }}><code>WITH_TIME_PRORATION</code></td>
-                        <td style={{ textAlign: 'center' }}>1</td>
-                        <td style={{ textAlign: 'center' }}>1</td>
-                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change with prorated credit</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_PRORATED_PRICE</code></td>
-                        <td style={{ textAlign: 'center' }}>2</td>
-                        <td style={{ textAlign: 'center' }}>2</td>
-                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge difference (upgrade only)</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.25rem 0.5rem' }}><code>WITHOUT_PRORATION</code></td>
-                        <td style={{ textAlign: 'center' }}>3</td>
-                        <td style={{ textAlign: 'center' }}>3</td>
-                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, no proration</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_FULL_PRICE</code></td>
-                        <td style={{ textAlign: 'center' }}>5</td>
-                        <td style={{ textAlign: 'center' }}>4</td>
-                        <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge full price</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.25rem 0.5rem' }}><code>DEFERRED</code></td>
-                        <td style={{ textAlign: 'center' }}>6</td>
-                        <td style={{ textAlign: 'center' }}>5</td>
-                        <td style={{ padding: '0.25rem 0.5rem' }}>Change at next billing cycle</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '0.25rem 0.5rem' }}><code>KEEP_EXISTING</code></td>
-                        <td style={{ textAlign: 'center' }}>—</td>
-                        <td style={{ textAlign: 'center' }}>6</td>
-                        <td style={{ padding: '0.25rem 0.5rem' }}>Keep existing payment schedule (8.1.0+ only)</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table
+                      style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        marginTop: '0.5rem',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <th style={{ textAlign: 'left', padding: '0.5rem' }}>Mode</th>
+                          <th style={{ textAlign: 'center', padding: '0.5rem' }}>Legacy API</th>
+                          <th style={{ textAlign: 'center', padding: '0.5rem' }}>8.1.0+ API</th>
+                          <th style={{ textAlign: 'left', padding: '0.5rem' }}>Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.25rem 0.5rem' }}><code>WITH_TIME_PRORATION</code></td>
+                          <td style={{ textAlign: 'center' }}>1</td>
+                          <td style={{ textAlign: 'center' }}>1</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change with prorated credit</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_PRORATED_PRICE</code></td>
+                          <td style={{ textAlign: 'center' }}>2</td>
+                          <td style={{ textAlign: 'center' }}>2</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge difference (upgrade only)</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.25rem 0.5rem' }}><code>WITHOUT_PRORATION</code></td>
+                          <td style={{ textAlign: 'center' }}>3</td>
+                          <td style={{ textAlign: 'center' }}>3</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, no proration</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_FULL_PRICE</code></td>
+                          <td style={{ textAlign: 'center' }}>5</td>
+                          <td style={{ textAlign: 'center' }}>4</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge full price</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.25rem 0.5rem' }}><code>DEFERRED</code></td>
+                          <td style={{ textAlign: 'center' }}>6</td>
+                          <td style={{ textAlign: 'center' }}>5</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>Change at next billing cycle</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '0.25rem 0.5rem' }}><code>KEEP_EXISTING</code></td>
+                          <td style={{ textAlign: 'center' }}>—</td>
+                          <td style={{ textAlign: 'center' }}>6</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>Keep existing payment schedule (8.1.0+ only)</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
 
                   <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                     <strong>Note:</strong> Legacy API refers to <code>SubscriptionUpdateParams.ReplacementMode</code>,
