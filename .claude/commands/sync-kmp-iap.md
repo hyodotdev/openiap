@@ -40,11 +40,16 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 
 **YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
 
+> 🚨 **VERSION WARNING:**
+> - **DO NOT** manually edit the `kmp-iap` version in `openiap-versions.json` - CI/CD handles this
+> - **DO** calculate the NEXT version for blog posts based on bump type (`--patch`/`--minor`/`--major`)
+> - See Step 2 and Step 9 for detailed instructions
+
 | Step | Required | Description |
 |------|----------|-------------|
 | 0. Pull Latest | **YES** | `git pull` before any work |
 | 1. Analyze OpenIAP Changes | **YES** | Review what changed in openiap packages |
-| 2. Sync Versions | **YES** | Update openiap-versions.json |
+| 2. Sync Versions | **YES** | Update openiap-versions.json (**except kmp-iap**) |
 | 3. Generate Types | **YES** | `./scripts/generate-types.sh` |
 | 4. Review Native Code | **YES** | Check if iOS/Android implementations need updates |
 | 4.5. **Verify ObjC Bridge** | **YES (iOS)** | Check `OpenIapModule+ObjC.swift` matches Swift functions |
@@ -52,7 +57,7 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 | 6. Run All Checks | **YES** | `./gradlew build test detekt` |
 | 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
 | 8. **Verify Example Code** | **YES** | Check example app uses correct API patterns |
-| 9. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
+| 9. Write Blog Post | **YES** | Create release notes with **NEXT** version |
 | 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
 | 11. Commit & Push | **YES** | Create PR with proper format |
 
@@ -169,6 +174,23 @@ Update kmp-iap's version tracking file to match openiap monorepo.
   "kmp-iap": "<current library version>"
 }
 ```
+
+> ⚠️ **CRITICAL WARNING: DO NOT manually update the `kmp-iap` version field!**
+>
+> The `kmp-iap` version is **automatically updated by CI/CD** when the PR is merged.
+>
+> **What you SHOULD update:**
+> - `gql`: Match openiap monorepo's gql version
+> - `google`: Match openiap monorepo's google version
+> - `apple`: Match openiap monorepo's apple version
+>
+> **What you should NOT update:**
+> - `kmp-iap`: Leave this as-is. CI/CD will bump it after merge.
+>
+> **Why this matters:**
+> - If you manually set `kmp-iap` to a version that doesn't exist yet, the blog post will reference a wrong version
+> - CI/CD determines the next version based on commit messages and current state
+> - Manual edits can cause version mismatch between the actual release and documentation
 
 ---
 
@@ -539,24 +561,51 @@ cd $IAP_REPOS_HOME/kmp-iap
 
 **Every sync MUST have a blog post documenting the changes.**
 
+> ⚠️ **CRITICAL: Blog Post Version Naming**
+>
+> The blog post version should reflect **the version that WILL be released after this PR merges**, NOT the current version in `openiap-versions.json`.
+>
+> **How to determine the correct version:**
+> 1. Check current `kmp-iap` version in `openiap-versions.json`
+> 2. Apply the version bump rule based on `--patch`/`--minor`/`--major`:
+>    - `--patch`: x.y.z → x.y.(z+1)
+>    - `--minor`: x.y.z → x.(y+1).0
+>    - `--major`: x.y.z → (x+1).0.0
+> 3. Use the calculated NEXT version for the blog post
+>
+> **Example:**
+> - Current version: `1.3.3`
+> - Running: `/sync-kmp-iap --patch`
+> - Blog post should reference: `1.3.4` (NOT `1.3.3`)
+>
+> **DO NOT trust the `kmp-iap` field value after editing openiap-versions.json.**
+> The CI/CD will set the actual release version - calculate it yourself for the blog post.
+
 #### 9.1 Create Blog Post File
 
 **Location:** `docs/blog/`
 
-**Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
+**Filename format:** `YYYY-MM-DD-release-<NEXT_VERSION>.md`
+
+**Example:** If current version is `1.3.3` and doing a patch bump:
+- Correct: `2026-01-20-release-1.3.4.md`
+- Incorrect: `2026-01-20-release-1.3.3.md`
 
 #### 9.2 Blog Post Template
 
+> 💡 **Reminder:** Replace `<NEXT_VERSION>` with the calculated next version (see note above).
+> Do NOT copy the current version from `openiap-versions.json`'s `kmp-iap` field.
+
 ```markdown
 ---
-slug: <version>-<short-slug>
-title: <version> - <Short Title>
+slug: release-<NEXT_VERSION>
+title: <NEXT_VERSION> - <Short Title>
 authors: [hyochan]
 tags: [release, openiap, kmp, <platform-tags>]
 date: YYYY-MM-DD
 ---
 
-# <version> Release Notes
+# KMP-IAP <NEXT_VERSION>
 
 This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/updates/notes#<anchor>).
 
@@ -587,6 +636,12 @@ kmpIapInstance.requestSubscription {
 | openiap-gql | <version> |
 | openiap-google | <version> |
 | openiap-apple | <version> |
+
+## Installation
+
+\`\`\`kotlin
+implementation("io.github.hyochan:kmp-iap:<NEXT_VERSION>")
+\`\`\`
 
 For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
 ```
