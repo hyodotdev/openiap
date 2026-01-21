@@ -126,7 +126,7 @@ function Announcements() {
             }}
           >
             <img
-              src="/announcements/godot.png"
+              src="/announcements/godot.webp"
               alt="OpenIAP + Godot"
               style={{
                 width: '100%',

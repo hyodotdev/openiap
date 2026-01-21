@@ -10,7 +10,7 @@ export const LIBRARY_IMAGES = {
   flutter_inapp_purchase:
     'https://hyochan.github.io/flutter_inapp_purchase/img/logo.png',
   'kmp-iap': 'https://hyochan.github.io/kmp-iap/img/logo.png',
-  'godot-iap': '/godot-iap.png',
+  'godot-iap': '/godot-iap.webp',
 } as const;
 
 export type LibraryName = keyof typeof LIBRARY_IMAGES;
