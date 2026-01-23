@@ -1,0 +1,31 @@
+{{#if description}}
+/**
+ * {{{description}}}
+ */
+{{/if}}
+public enum class {{name}}(val rawValue: String) {
+{{#each values}}
+{{#if description}}
+    /**
+     * {{{description}}}
+     */
+{{/if}}
+    {{caseName}}("{{rawValue}}"){{#unless isLast}},{{/unless}}
+{{/each}}
+
+    companion object {
+        fun fromJson(value: String): {{name}} = when (value) {
+{{#each values}}
+            "{{rawValue}}" -> {{../name}}.{{caseName}}
+{{#each legacyValues}}
+{{#unless (eq this ../rawValue)}}
+            "{{this}}" -> {{../../name}}.{{../caseName}}
+{{/unless}}
+{{/each}}
+{{/each}}
+            else -> throw IllegalArgumentException("Unknown {{name}} value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}

@@ -42,7 +42,7 @@ bun install
 
 ### `@hyodotdev/openiap-gql`
 
-GraphQL schema and type generation for all platforms.
+GraphQL schema and **IR-based type generation** for all platforms.
 
 ```bash
 cd packages/gql
@@ -51,11 +51,19 @@ cd packages/gql
 bun run generate
 
 # Generate for specific platform
-bun run generate:ts      # TypeScript
-bun run generate:swift   # Swift
-bun run generate:kotlin  # Kotlin
-bun run generate:dart    # Dart
+bun run generate:ts       # TypeScript (graphql-codegen)
+bun run generate:swift    # Swift (IR-based plugin)
+bun run generate:kotlin   # Kotlin (IR-based plugin)
+bun run generate:dart     # Dart (IR-based plugin)
+bun run generate:gdscript # GDScript (IR-based plugin)
 ```
+
+**Architecture:**
+```text
+GraphQL Schema → Parser → IR (Intermediate Representation) → Language Plugins → Generated Code
+```
+
+See [Code Generation Architecture](#code-generation-architecture) for details.
 
 ### `@hyodotdev/openiap-docs`
 
@@ -275,22 +283,82 @@ Each package has its own scripts. See individual `package.json` files for detail
 ```text
 GraphQL Schema (packages/gql/src/*.graphql)
            ↓
-    Type Generation (bun run generate)
+    [1] Parser (codegen/core/parser.ts)
            ↓
-    ├─→ TypeScript (src/generated/types.ts)
-    ├─→ Swift (src/generated/Types.swift) ──┐
-    ├─→ Kotlin (src/generated/Types.kt) ──┐ │
-    └─→ Dart (src/generated/types.dart)   │ │
-                                          │ │
-                 Auto Sync ───────────────┘ │
-                                            │
-    ┌───────────────────────────────────────┘
-    ↓
+    [2] Transformer → IR (codegen/core/transformer.ts)
+           ↓
+    [3] Language Plugins (codegen/plugins/*.ts)
+           ↓
+    ├─→ TypeScript (src/generated/types.ts)    [graphql-codegen]
+    ├─→ Swift (src/generated/Types.swift)      [IR plugin]
+    ├─→ Kotlin (src/generated/Types.kt)        [IR plugin]
+    ├─→ Dart (src/generated/types.dart)        [IR plugin]
+    └─→ GDScript (src/generated/types.gd)      [IR plugin]
+           ↓
+    Auto Sync (bun run sync)
+           ↓
     ├─→ packages/apple/Sources/Models/Types.swift
-    └─→ packages/google/.../openiap/Types.kt (+ post-processing)
+    └─→ packages/google/.../openiap/Types.kt
 ```
 
 **Key Feature:** One `generate` command updates all platforms automatically!
+
+## 🏗️ Code Generation Architecture
+
+The GQL package uses an **IR-based (Intermediate Representation) code generation system**:
+
+### Directory Structure
+
+```text
+packages/gql/codegen/
+├── index.ts              # Main entry point
+├── core/
+│   ├── types.ts          # IR type definitions (IREnum, IRObject, etc.)
+│   ├── parser.ts         # GraphQL schema parser
+│   ├── transformer.ts    # AST → IR transformer
+│   └── utils.ts          # Case conversion, keyword escaping
+└── plugins/
+    ├── base-plugin.ts    # Abstract base class
+    ├── swift.ts          # Swift: Codable, ErrorCode handling
+    ├── kotlin.ts         # Kotlin: sealed interface, fromJson/toJson
+    ├── dart.ts           # Dart: sealed class, factory constructors
+    └── gdscript.ts       # GDScript: Godot engine types
+```
+
+### IR Types
+
+| IR Type | Description |
+|---------|-------------|
+| `IREnum` | Enum with values, raw values (kebab-case), legacy aliases |
+| `IRInterface` | Protocol/Interface with typed fields |
+| `IRObject` | Struct/Class with fields, implements, union membership |
+| `IRInput` | Input type with required field tracking |
+| `IRUnion` | Union with members, nested union support |
+| `IROperation` | Query/Mutation/Subscription definitions |
+
+### Language Plugin Features
+
+| Plugin | Key Features |
+|--------|--------------|
+| **Swift** | Codable protocol, ErrorCode custom init, platform defaults (ProductIOS) |
+| **Kotlin** | sealed interface, fromJson/toJson, nullable patterns, type casting |
+| **Dart** | extends/implements, factory constructors, sealed class, @override |
+| **GDScript** | _init() pattern, from_json/to_json, Variant for unions |
+
+### Schema Markers
+
+Special comments in GraphQL SDL:
+
+```graphql
+# => Union
+type RequestPurchaseResult {
+  purchase: Purchase    # Generates union variant
+  purchases: [Purchase!]
+}
+
+# Future
+fetchProducts(...): FetchProductsResult  # Wraps in Promise/async
+```
 
 ## 🔄 Common Workflows
 

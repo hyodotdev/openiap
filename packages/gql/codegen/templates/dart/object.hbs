@@ -1,0 +1,34 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+class {{name}}{{implements}} {
+{{#each fields}}
+{{#if annotation}}
+  {{annotation}}
+{{/if}}
+{{#if description}}
+  /// {{{description}}}
+{{/if}}
+  {{declarationType}} {{propertyName}};
+{{/each}}
+
+  {{name}}({{constructorParams}});
+
+  factory {{name}}.fromJson(Map<String, dynamic> json) {
+    return {{name}}(
+{{#each fields}}
+      {{propertyName}}: {{fromJsonExpr}},
+{{/each}}
+    );
+  }
+
+{{#if hasUnionOverride}}
+  @override
+{{/if}}
+  Map<String, dynamic> toJson() => {
+        '__typename': '{{name}}',
+{{#each fields}}
+        '{{graphqlName}}': {{toJsonExpr}},
+{{/each}}
+      };
+}

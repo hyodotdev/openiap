@@ -1,0 +1,11 @@
+{{#if description}}
+/**
+ * {{{description}}}
+ */
+{{/if}}
+public sealed interface {{name}}
+
+{{#each entries}}
+public data class {{className}}(val value: {{type}}) : {{../name}}
+
+{{/each}}

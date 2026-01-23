@@ -213,29 +213,129 @@ Meta Horizon has different APIs from Google Play:
 Before writing or editing anything, **ALWAYS** review:
 - [`packages/gql/CONVENTION.md`](../../packages/gql/CONVENTION.md)
 
+### Code Generation Architecture
+
+The GQL package uses an **IR-based (Intermediate Representation) code generation system**:
+
+```text
+GraphQL Schema (src/*.graphql)
+         ↓
+    [1] Parser (codegen/core/parser.ts)
+         ↓
+    [2] Transformer → IR (codegen/core/transformer.ts)
+         ↓
+    [3] Language Plugins (codegen/plugins/*.ts)
+         ↓
+    Generated Files (src/generated/*)
+```
+
+#### Directory Structure
+
+```text
+packages/gql/codegen/
+├── index.ts              # Main entry point
+├── core/
+│   ├── types.ts          # IR type definitions
+│   ├── parser.ts         # GraphQL schema parser
+│   ├── transformer.ts    # AST → IR transformer
+│   └── utils.ts          # Common utilities (case conversion, keywords)
+├── plugins/
+│   ├── base-plugin.ts    # Abstract base class
+│   ├── swift.ts          # Swift plugin (Codable, ErrorCode handling)
+│   ├── kotlin.ts         # Kotlin plugin (sealed interface, fromJson/toJson)
+│   ├── dart.ts           # Dart plugin (sealed class, factory constructors)
+│   └── gdscript.ts       # GDScript plugin (Godot engine)
+└── templates/            # Handlebars templates (optional)
+```
+
+#### IR (Intermediate Representation)
+
+The IR is a language-agnostic representation of the GraphQL schema:
+
+| IR Type | Description |
+|---------|-------------|
+| `IREnum` | Enum with values, raw values, legacy aliases |
+| `IRInterface` | Protocol/Interface with fields |
+| `IRObject` | Struct/Class with fields, implements, unions |
+| `IRInput` | Input type with fields, required field tracking |
+| `IRUnion` | Union with members, nested union handling |
+| `IROperation` | Query/Mutation/Subscription with fields |
+
+#### Language Plugins
+
+Each plugin handles language-specific requirements:
+
+| Plugin | Features |
+|--------|----------|
+| **Swift** | Codable protocol, ErrorCode custom initializer, platform defaults |
+| **Kotlin** | sealed interface, fromJson/toJson with nullable patterns |
+| **Dart** | extends/implements, factory constructors, sealed class |
+| **GDScript** | _init(), from_json/to_json, Variant type |
+
 ### Scripts
 
 | Script | Description |
 |--------|-------------|
-| `generate:ts` | Generate TypeScript types |
-| `generate:swift` | Generate Swift types |
-| `generate:kotlin` | Generate Kotlin types |
-| `generate:dart` | Generate Dart types |
-| `generate` | Generate all types |
+| `generate:ts` | Generate TypeScript types (graphql-codegen) |
+| `generate:swift` | Generate Swift types (IR-based plugin) |
+| `generate:kotlin` | Generate Kotlin types (IR-based plugin) |
+| `generate:dart` | Generate Dart types (IR-based plugin) |
+| `generate:gdscript` | Generate GDScript types (IR-based plugin) |
+| `generate` | Generate all types + sync to platforms |
 | `sync` | Sync generated types to platform packages |
 
 ### Generating Types
 
 ```bash
 cd packages/gql
+
+# Generate all platform types
 bun run generate
+
+# Generate specific platform
+bun run generate:swift
+bun run generate:kotlin
+bun run generate:dart
+bun run generate:gdscript
 ```
 
-This generates:
-- TypeScript types: `src/generated/types.ts`
-- Swift types: `dist/swift/Types.swift`
-- Kotlin types: `dist/kotlin/Types.kt`
-- Dart types: `dist/dart/types.dart`
+### Generated Files
+
+| File | Platform | Description |
+|------|----------|-------------|
+| `src/generated/types.ts` | TypeScript | Type definitions |
+| `src/generated/Types.swift` | iOS/macOS | Codable structs & enums |
+| `src/generated/Types.kt` | Android | Data classes & sealed interfaces |
+| `src/generated/types.dart` | Flutter | Classes & sealed classes |
+| `src/generated/types.gd` | Godot | GDScript classes |
+
+### Adding a New Language
+
+1. Create `codegen/plugins/<language>.ts` extending `CodegenPlugin`
+2. Implement abstract methods:
+   - `mapScalar()` - Map GraphQL scalars to language types
+   - `mapType()` - Map IR types to language type strings
+   - `generateEnum()`, `generateObject()`, etc.
+3. Register in `codegen/index.ts`
+4. Add script to `package.json`
+
+### Schema Markers
+
+Special comments in GraphQL SDL trigger codegen behavior:
+
+| Marker | Effect |
+|--------|--------|
+| `# => Union` | Generates result union wrapper (e.g., `FetchProductsResult`) |
+| `# Future` | Wraps return type in Promise/async |
+
+Example:
+```graphql
+# => Union
+type RequestPurchaseResult {
+  purchase: Purchase
+  purchases: [Purchase!]
+}
+```
 
 ---
 

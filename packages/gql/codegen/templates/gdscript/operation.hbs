@@ -1,0 +1,15 @@
+# MARK: - {{kind}}
+
+{{#if description}}
+## {{{description}}}
+{{/if}}
+class {{resolverName}}:
+{{#each fields}}
+	## {{description}}
+	var {{propertyName}}: Callable
+
+{{/each}}
+	func _init({{initParams}}) -> void:
+{{#each fields}}
+		self.{{propertyName}} = {{paramName}}
+{{/each}}

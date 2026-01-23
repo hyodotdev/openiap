@@ -1,0 +1,15 @@
+{{#if description}}
+/**
+ * {{{description}}}
+ */
+{{/if}}
+public interface {{name}} {
+{{#each fields}}
+{{#if description}}
+    /**
+     * {{{description}}}
+     */
+{{/if}}
+    val {{propertyName}}: {{type}}
+{{/each}}
+}

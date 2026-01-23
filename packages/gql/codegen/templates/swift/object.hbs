@@ -1,0 +1,14 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+public struct {{name}}: {{conformances}} {
+{{#each fields}}
+{{#if description}}
+    /// {{{description}}}
+{{/if}}
+    public var {{propertyName}}: {{type}}{{defaultValue}}
+{{/each}}
+{{#unless hasFields}}
+    public init() {}
+{{/unless}}
+}

@@ -1,0 +1,27 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+class {{name}} {
+{{#each fields}}
+{{#if description}}
+  /// {{{description}}}
+{{/if}}
+  {{declarationType}} {{propertyName}};
+{{/each}}
+
+  {{name}}({{constructorParams}});
+
+  factory {{name}}.fromJson(Map<String, dynamic> json) {
+    return {{name}}(
+{{#each fields}}
+      {{propertyName}}: {{fromJsonExpr}},
+{{/each}}
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+{{#each fields}}
+        '{{graphqlName}}': {{toJsonExpr}},
+{{/each}}
+      };
+}

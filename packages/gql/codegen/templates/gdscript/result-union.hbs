@@ -1,0 +1,12 @@
+{{#if description}}
+## {{{description}}}
+{{/if}}
+class {{name}}:
+{{#each entries}}
+	var {{fieldName}}: {{type}}
+{{/each}}
+
+	func _init({{initParams}}) -> void:
+{{#each entries}}
+		self.{{fieldName}} = p_{{fieldName}}
+{{/each}}

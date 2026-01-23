@@ -1,0 +1,25 @@
+// MARK: - {{name}} Helpers
+
+{{#each fields}}
+{{#if hasArgs}}
+public typealias {{aliasName}} = ({{paramsSignature}}) async throws -> {{returnType}}
+{{else}}
+public typealias {{aliasName}} = () async throws -> {{returnType}}
+{{/if}}
+{{/each}}
+
+public struct {{handlersName}} {
+{{#each fields}}
+    public var {{escapedName}}: {{aliasName}}?
+{{/each}}
+
+    public init(
+{{#each fields}}
+        {{escapedName}}: {{aliasName}}? = nil{{#unless isLast}},{{/unless}}
+{{/each}}
+    ) {
+{{#each fields}}
+        self.{{escapedName}} = {{escapedName}}
+{{/each}}
+    }
+}

@@ -1,0 +1,11 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+abstract class {{interfaceName}} {
+{{#each fields}}
+{{#if description}}
+  /// {{{description}}}
+{{/if}}
+  Future<{{returnType}}> {{escapedName}}({{argsSignature}});
+{{/each}}
+}

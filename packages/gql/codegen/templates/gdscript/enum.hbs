@@ -1,0 +1,10 @@
+{{#if description}}
+## {{{description}}}
+{{/if}}
+class {{name}}:
+{{#each values}}
+{{#if description}}
+	## {{{description}}}
+{{/if}}
+	const {{caseName}} = "{{rawValue}}"
+{{/each}}

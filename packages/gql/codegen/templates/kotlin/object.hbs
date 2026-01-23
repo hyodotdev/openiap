@@ -1,0 +1,33 @@
+{{#if description}}
+/**
+ * {{{description}}}
+ */
+{{/if}}
+public data class {{name}}(
+{{#each fields}}
+{{#if description}}
+    /**
+     * {{{description}}}
+     */
+{{/if}}
+    {{#if isOverride}}override {{/if}}val {{propertyName}}: {{type}}{{defaultValue}}{{#unless isLast}},{{/unless}}
+{{/each}}
+){{#if implements}} : {{implements}}{{/if}} {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): {{name}} {
+            return {{name}}(
+{{#each fields}}
+                {{propertyName}} = {{fromJsonExpr}},
+{{/each}}
+            )
+        }
+    }
+
+    {{#if hasUnionOverride}}override {{/if}}fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "{{name}}",
+{{#each fields}}
+        "{{graphqlName}}" to {{toJsonExpr}},
+{{/each}}
+    )
+}

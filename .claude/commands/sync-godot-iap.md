@@ -76,9 +76,10 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 
 ## Type Generation Source
 
-**OpenIAP has a built-in GDScript type generator:**
+**OpenIAP has a built-in GDScript type generator (IR-based):**
 
-- **Generator:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
+- **Generator:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/codegen/plugins/gdscript.ts`
+- **Entry Point:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/codegen/index.ts`
 - **Output:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/src/generated/types.gd`
 
 ---
@@ -713,6 +714,7 @@ Now update `docs/docs/` with new API documentation for the new version.
 
 ## References
 
-- **OpenIAP GDScript Generator:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/scripts/generate-gdscript-types.mjs`
+- **OpenIAP GDScript Generator:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/codegen/plugins/gdscript.ts`
+- **OpenIAP Codegen Entry:** `/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/gql/codegen/index.ts`
 - **OpenIAP Docs:** https://openiap.dev/docs
 - **Godot IAP Docs:** Check README.md

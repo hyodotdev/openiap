@@ -1,0 +1,27 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+public enum {{name}}: String, Codable, CaseIterable {
+{{#each values}}
+{{#if description}}
+    /// {{{description}}}
+{{/if}}
+    case {{caseName}} = "{{rawValue}}"
+{{/each}}
+{{#if isErrorCode}}
+
+    /// Custom initializer to handle both kebab-case and camelCase error codes
+    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase
+    public init?(rawValue: String) {
+        // Try direct match first (kebab-case)
+        switch rawValue {
+{{#each values}}
+        case "{{rawValue}}", "{{camelCaseName}}":
+            self = .{{caseName}}
+{{/each}}
+        default:
+            return nil
+        }
+    }
+{{/if}}
+}

@@ -1,0 +1,8 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+public enum {{name}} {
+{{#each entries}}
+    case {{caseName}}({{type}})
+{{/each}}
+}
