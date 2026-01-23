@@ -116,6 +116,10 @@ GraphQL Schema (src/*.graphql)
     [3] Language Plugins (codegen/plugins/*.ts)
          ↓
     Generated Files (src/generated/*)
+         ↓
+    [4] Sync (scripts/sync-to-platforms.mjs)
+         ↓
+    Platform Packages (packages/apple, packages/google)
 ```
 
 ### Directory Structure

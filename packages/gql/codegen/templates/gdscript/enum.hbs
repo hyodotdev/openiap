@@ -1,10 +1,10 @@
 {{#if description}}
-## {{{description}}}
+{{{gd_doc description}}}
 {{/if}}
 class {{name}}:
 {{#each values}}
 {{#if description}}
-	## {{{description}}}
+	{{{gd_doc description}}}
 {{/if}}
 	const {{caseName}} = "{{rawValue}}"
 {{/each}}

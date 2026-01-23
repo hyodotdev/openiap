@@ -1,6 +1,6 @@
 // ============================================================================
 // AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
-// Run `npm run generate` after updating any *.graphql schema file.
+// Run `bun run generate` after updating any *.graphql schema file.
 // ============================================================================
 
 // Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure

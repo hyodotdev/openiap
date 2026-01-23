@@ -448,6 +448,14 @@ export class DartPlugin extends CodegenPlugin {
     const purchaseByPlatforms = this.schema.inputs.find(i => i.name === 'RequestPurchasePropsByPlatforms');
     const subsByPlatforms = this.schema.inputs.find(i => i.name === 'RequestSubscriptionPropsByPlatforms');
 
+    // Log warnings if fallback types are used (schema drift detection)
+    if (!purchaseByPlatforms) {
+      console.warn('[dart] RequestPurchasePropsByPlatforms not found in schema, using fallback types');
+    }
+    if (!subsByPlatforms) {
+      console.warn('[dart] RequestSubscriptionPropsByPlatforms not found in schema, using fallback types');
+    }
+
     const appleName = 'apple';
     const googleName = 'google';
     const appleType = purchaseByPlatforms?.fields.find(f => f.name === 'apple')
@@ -805,7 +813,7 @@ export class DartPlugin extends CodegenPlugin {
   private getOperationReturnType(field: IROperationField): string {
     // Handle VoidResult
     if (field.returnType.name === 'VoidResult') {
-      return field.returnType.nullable ? 'void?' : 'void';
+      return 'void'; // void cannot be nullable in Dart
     }
 
     // Handle single-field wrapper types (e.g., ProductsArgs -> List<Product>)

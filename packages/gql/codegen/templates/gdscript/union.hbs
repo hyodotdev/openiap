@@ -11,13 +11,8 @@ class {{name}}:
 		var typename = json.get("__typename", "")
 		match typename:
 {{#each concreteMembers}}
-{{#if isNested}}
 			"{{typeName}}":
 				return {{../name}}.new({{delegateTo}}.from_json(json))
-{{else}}
-			"{{typeName}}":
-				return {{../name}}.new({{delegateTo}}.from_json(json))
-{{/if}}
 {{/each}}
 		push_error("Unknown __typename for {{name}}: " + typename)
 		return null

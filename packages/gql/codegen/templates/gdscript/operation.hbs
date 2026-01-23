@@ -5,7 +5,9 @@
 {{/if}}
 class {{resolverName}}:
 {{#each fields}}
+{{#if description}}
 	## {{description}}
+{{/if}}
 	var {{propertyName}}: Callable
 
 {{/each}}

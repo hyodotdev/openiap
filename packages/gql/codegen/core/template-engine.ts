@@ -166,6 +166,17 @@ export class TemplateEngine {
       return str ? str.toLowerCase() : '';
     });
 
+    // GDScript doc comment helper - prefixes each line with ##
+    this.handlebars.registerHelper('gd_doc', (str: string) => {
+      if (!str) return '';
+      return str.split('\n').map(line => `## ${line}`).join('\n');
+    });
+
+    // Equality helper for use in subexpressions
+    this.handlebars.registerHelper('eq', (a: unknown, b: unknown) => {
+      return a === b;
+    });
+
     // Array helpers
     this.handlebars.registerHelper('join', (arr: string[], separator: string) => {
       return Array.isArray(arr) ? arr.join(separator) : '';
@@ -175,13 +186,13 @@ export class TemplateEngine {
       return Array.isArray(arr) ? arr.length : 0;
     });
 
-    // Logic helpers
-    this.handlebars.registerHelper('and', (...args: unknown[]) => {
+    // Logic helpers - use regular functions for correct 'this' binding in Handlebars
+    this.handlebars.registerHelper('and', function (...args: unknown[]) {
       const options = args.pop() as Handlebars.HelperOptions;
       return args.every(Boolean) ? options.fn(this) : options.inverse(this);
     });
 
-    this.handlebars.registerHelper('or', (...args: unknown[]) => {
+    this.handlebars.registerHelper('or', function (...args: unknown[]) {
       const options = args.pop() as Handlebars.HelperOptions;
       return args.some(Boolean) ? options.fn(this) : options.inverse(this);
     });

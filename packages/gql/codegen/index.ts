@@ -141,11 +141,18 @@ async function main() {
   await generator.generate();
 }
 
-// Run if executed directly
-main().catch((err) => {
-  console.error('Code generation failed:', err);
-  process.exit(1);
-});
+// Run if executed directly (Bun-compatible check)
+const isMain =
+  typeof Bun !== 'undefined'
+    ? Bun.main === import.meta.path
+    : import.meta.url === `file://${process.argv[1]}`;
+
+if (isMain) {
+  main().catch((err) => {
+    console.error('Code generation failed:', err);
+    process.exit(1);
+  });
+}
 
 // ============================================================================
 // Exports

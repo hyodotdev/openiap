@@ -139,8 +139,8 @@ export class SchemaParser {
           continue;
         }
 
-        // Check for # Future marker
-        if (trimmed.startsWith('#') && trimmed.toLowerCase().includes('future')) {
+        // Check for # Future marker (strict matching to avoid false positives)
+        if (/^#\s*future\b/i.test(trimmed)) {
           expectFutureField = true;
           continue;
         }
