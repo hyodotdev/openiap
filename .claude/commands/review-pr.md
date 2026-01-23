@@ -36,6 +36,7 @@ See [CLAUDE.md](../../CLAUDE.md) and [knowledge/internal/](../../knowledge/inter
 When replying to PR comments:
 
 ### Commit Hash Formatting
+
 **NEVER wrap commit hashes in backticks or code blocks.** GitHub only auto-links plain text commit hashes.
 
 | Format | Example | Result |
@@ -44,14 +45,15 @@ When replying to PR comments:
 | ❌ WRONG | `Fixed in \`f3b5fec\`.` | Plain text, no link |
 
 **Examples of correct replies:**
-```
+
+```text
 Fixed in f3b5fec.
 
 **Changes:**
 - Updated header to use bun run generate
 ```
 
-```
+```text
 Fixed in abc1234 along with other review items.
 ```
 

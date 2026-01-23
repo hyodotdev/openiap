@@ -98,6 +98,12 @@ export class GDScriptPlugin extends CodegenPlugin {
   generate(schema: IRSchema): string {
     this.schema = schema;
 
+    // Clear caches to support plugin reuse
+    this.enumNames.clear();
+    this.objectNames.clear();
+    this.inputNames.clear();
+    this.unionNames.clear();
+
     // Build type name sets for reference
     for (const e of schema.enums) this.enumNames.add(e.name);
     for (const o of schema.objects) this.objectNames.add(o.name);
@@ -521,7 +527,7 @@ export class GDScriptPlugin extends CodegenPlugin {
           this.emit(`\t\tclass Args:`);
           for (const arg of field.args) {
             const argType = this.mapType(arg.type);
-            const argSnakeName = toSnakeCase(arg.name);
+            const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             if (arg.description) {
               this.emit(`\t\t\t## ${arg.description.split('\n')[0]}`);
             }
@@ -531,7 +537,7 @@ export class GDScriptPlugin extends CodegenPlugin {
           this.emit(`\t\t\tstatic func from_dict(data: Dictionary) -> Args:`);
           this.emit(`\t\t\t\tvar obj = Args.new()`);
           for (const arg of field.args) {
-            const argSnakeName = toSnakeCase(arg.name);
+            const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             this.emit(`\t\t\t\tif data.has("${arg.name}") and data["${arg.name}"] != null:`);
             this.emit(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
           }
@@ -540,7 +546,7 @@ export class GDScriptPlugin extends CodegenPlugin {
           this.emit(`\t\t\tfunc to_dict() -> Dictionary:`);
           this.emit(`\t\t\t\tvar dict = {}`);
           for (const arg of field.args) {
-            const argSnakeName = toSnakeCase(arg.name);
+            const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             this.emit(`\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
           }
           this.emit(`\t\t\t\treturn dict`);
@@ -586,8 +592,20 @@ export class GDScriptPlugin extends CodegenPlugin {
       if (field.args.length > 0) {
         this.emit('\tvar args = {}');
         for (const arg of field.args) {
-          const argSnakeName = toSnakeCase(arg.name);
-          if (this.isObjectOrInputByName(arg.type.name)) {
+          const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
+          const isObjOrInput = this.isObjectOrInputType(arg.type);
+          if (isObjOrInput && arg.type.kind === 'list') {
+            // Handle list of objects/inputs
+            this.emit(`\tif ${argSnakeName} != null:`);
+            this.emit(`\t\tvar arr = []`);
+            this.emit(`\t\tfor item in ${argSnakeName}:`);
+            this.emit(`\t\t\tif item != null and item.has_method("to_dict"):`);
+            this.emit(`\t\t\t\tarr.append(item.to_dict())`);
+            this.emit(`\t\t\telse:`);
+            this.emit(`\t\t\t\tarr.append(item)`);
+            this.emit(`\t\targs["${arg.name}"] = arr`);
+          } else if (isObjOrInput) {
+            // Handle single object/input
             this.emit(`\tif ${argSnakeName} != null:`);
             this.emit(`\t\tif ${argSnakeName}.has_method("to_dict"):`);
             this.emit(`\t\t\targs["${arg.name}"] = ${argSnakeName}.to_dict()`);
@@ -608,5 +626,12 @@ export class GDScriptPlugin extends CodegenPlugin {
   private isObjectOrInputByName(typeName: string | undefined): boolean {
     if (!typeName) return false;
     return this.objectNames.has(typeName) || this.inputNames.has(typeName);
+  }
+
+  private isObjectOrInputType(type: IRType): boolean {
+    if (type.kind === 'list' && type.elementType) {
+      return this.isObjectOrInputByName(type.elementType.name);
+    }
+    return this.isObjectOrInputByName(type.name);
   }
 }
