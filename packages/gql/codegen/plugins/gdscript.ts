@@ -199,7 +199,7 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('# ============================================================================');
     this.emit('# AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
     this.emit('# Generated from OpenIAP GraphQL schema (https://openiap.dev)');
-    this.emit('# Run `npm run generate:gdscript` to regenerate this file.');
+    this.emit('# Run `bun run generate` to regenerate this file.');
     this.emit('# ============================================================================');
     this.emit('# Usage: const Types = preload("types.gd")');
     this.emit('#        var store: Types.IapStore = Types.IapStore.APPLE');

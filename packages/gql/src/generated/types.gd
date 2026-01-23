@@ -1,7 +1,7 @@
 # ============================================================================
 # AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
 # Generated from OpenIAP GraphQL schema (https://openiap.dev)
-# Run `npm run generate:gdscript` to regenerate this file.
+# Run `bun run generate` to regenerate this file.
 # ============================================================================
 # Usage: const Types = preload("types.gd")
 #        var store: Types.IapStore = Types.IapStore.APPLE

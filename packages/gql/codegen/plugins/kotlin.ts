@@ -149,7 +149,7 @@ export class KotlinPlugin extends CodegenPlugin {
   generateHeader(): void {
     this.emit('// ============================================================================');
     this.emit('// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
-    this.emit('// Run `npm run generate` after updating any *.graphql schema file.');
+    this.emit('// Run `bun run generate` after updating any *.graphql schema file.');
     this.emit('// ============================================================================');
     this.emit('');
     this.emit('// Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure');

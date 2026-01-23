@@ -157,7 +157,7 @@ export class DartPlugin extends CodegenPlugin {
   generateHeader(): void {
     this.emit('// ============================================================================');
     this.emit('// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
-    this.emit('// Run `npm run generate` after updating any *.graphql schema file.');
+    this.emit('// Run `bun run generate` after updating any *.graphql schema file.');
     this.emit('// ============================================================================');
     this.emit('');
     this.emit('// ignore_for_file: unused_element, unused_field');
