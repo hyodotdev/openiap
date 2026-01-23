@@ -13,10 +13,10 @@
   "scripts": {
     "generate": "bun run generate:ts && bun run generate:swift && bun run generate:kotlin && bun run generate:dart && bun run generate:gdscript && bun run sync",
     "generate:ts": "graphql-codegen --config codegen.ts && bun scripts/fix-generated-types.mjs",
-    "generate:swift": "bun scripts/generate-swift-types.mjs",
-    "generate:kotlin": "bun scripts/generate-kotlin-types.mjs",
-    "generate:dart": "bun scripts/generate-dart-types.mjs",
-    "generate:gdscript": "bun scripts/generate-gdscript-types.mjs",
+    "generate:swift": "bun codegen/index.ts swift",
+    "generate:kotlin": "bun codegen/index.ts kotlin",
+    "generate:dart": "bun codegen/index.ts dart",
+    "generate:gdscript": "bun codegen/index.ts gdscript",
     "sync": "bun scripts/sync-to-platforms.mjs"
   },
   "keywords": [
@@ -33,6 +33,7 @@
     "@graphql-codegen/cli": "^6.0.0",
     "@graphql-codegen/typescript": "^5.0.0",
     "graphql": "^16.11.0",
+    "handlebars": "^4.7.8",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   },

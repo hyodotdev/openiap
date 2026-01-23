@@ -1,0 +1,12 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+sealed class {{name}} {}
+
+{{#each entries}}
+class {{className}} extends {{../name}} {
+  final {{type}} value;
+  {{className}}(this.value);
+}
+
+{{/each}}

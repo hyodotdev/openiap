@@ -1,0 +1,19 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+public protocol {{protocolName}} {
+{{#each fields}}
+{{#if description}}
+    /// {{{description}}}
+{{/if}}
+{{#if hasArgs}}
+{{#if hasSingleArg}}
+    func {{escapedName}}(_ {{argsSignature}}) async throws -> {{returnType}}
+{{else}}
+    func {{escapedName}}({{argsSignature}}) async throws -> {{returnType}}
+{{/if}}
+{{else}}
+    func {{escapedName}}() async throws -> {{returnType}}
+{{/if}}
+{{/each}}
+}

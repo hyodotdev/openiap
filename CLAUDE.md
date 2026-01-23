@@ -54,9 +54,30 @@ openiap/
 
 - `packages/apple/Sources/Models/Types.swift`
 - `packages/google/openiap/src/main/Types.kt`
+- `packages/gql/src/generated/*` - All generated type files
 - `openiap-versions.json` - Managed by CI/CD workflows only
 
-Regenerate types with: `./scripts/generate-types.sh`
+Regenerate types: `cd packages/gql && bun run generate`
+
+### GQL Code Generation System
+
+The type generation uses an **IR-based (Intermediate Representation)** architecture:
+
+```text
+GraphQL Schema → Parser → IR → Language Plugins → Generated Code
+                              ↓
+         codegen/core/     codegen/plugins/
+         ├── types.ts      ├── swift.ts
+         ├── parser.ts     ├── kotlin.ts
+         └── transformer.ts├── dart.ts
+                           └── gdscript.ts
+```
+
+**Language plugins handle:**
+- **Swift**: Codable protocol, ErrorCode custom initializer, platform defaults
+- **Kotlin**: sealed interface, fromJson/toJson with nullable patterns
+- **Dart**: sealed class, factory constructors, extends/implements
+- **GDScript**: _init() pattern, Variant type for unions
 
 ### Git Commit Format
 

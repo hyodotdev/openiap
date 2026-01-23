@@ -1,0 +1,25 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+public struct {{name}}: Codable {
+{{#each fields}}
+{{#if description}}
+    /// {{{description}}}
+{{/if}}
+    public var {{propertyName}}: {{type}}
+{{/each}}
+{{#if hasFields}}
+
+    public init(
+{{#each fields}}
+        {{propertyName}}: {{type}}{{defaultValue}}{{#unless isLast}},{{/unless}}
+{{/each}}
+    ) {
+{{#each fields}}
+        self.{{propertyName}} = {{propertyName}}
+{{/each}}
+    }
+{{else}}
+    public init() {}
+{{/if}}
+}

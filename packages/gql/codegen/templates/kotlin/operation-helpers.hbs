@@ -1,0 +1,15 @@
+// MARK: - {{name}} Helpers
+
+{{#each fields}}
+{{#if hasArgs}}
+public typealias {{aliasName}} = suspend ({{paramsSignature}}) -> {{returnType}}
+{{else}}
+public typealias {{aliasName}} = suspend () -> {{returnType}}
+{{/if}}
+{{/each}}
+
+public data class {{handlersName}}(
+{{#each fields}}
+    val {{escapedName}}: {{aliasName}}? = null{{#unless isLast}},{{/unless}}
+{{/each}}
+)

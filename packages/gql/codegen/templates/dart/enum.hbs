@@ -1,0 +1,28 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+enum {{name}} {
+{{#each values}}
+{{#if description}}
+  /// {{{description}}}
+{{/if}}
+  {{caseName}}('{{rawValue}}'){{#unless isLast}},{{/unless}}{{#if isLast}};{{/if}}
+{{/each}}
+
+  const {{name}}(this.rawValue);
+  final String rawValue;
+
+  static {{name}} fromJson(String value) {
+    return switch (value) {
+{{#each values}}
+      '{{rawValue}}' => {{caseName}},
+{{#each legacyValues}}
+      '{{this}}' => {{../caseName}},
+{{/each}}
+{{/each}}
+      _ => throw ArgumentError('Unknown {{name}} value: $value'),
+    };
+  }
+
+  String toJson() => rawValue;
+}

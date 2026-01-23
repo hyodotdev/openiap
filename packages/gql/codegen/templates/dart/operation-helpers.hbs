@@ -1,0 +1,13 @@
+// MARK: - {{name}} Helpers
+
+{{#each fields}}
+typedef {{aliasName}} = Future<{{returnType}}> Function({{paramsSignature}});
+{{/each}}
+
+class {{handlersName}} {
+{{#each fields}}
+  {{aliasName}}? {{escapedName}};
+{{/each}}
+
+  {{handlersName}}({{constructorParams}});
+}

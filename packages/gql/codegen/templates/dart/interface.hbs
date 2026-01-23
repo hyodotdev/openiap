@@ -1,0 +1,13 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+abstract class {{name}} {
+{{#each fields}}
+{{#if description}}
+  /// {{{description}}}
+{{/if}}
+  {{type}} get {{propertyName}};
+{{/each}}
+
+  Map<String, dynamic> toJson();
+}

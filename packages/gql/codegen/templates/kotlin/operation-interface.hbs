@@ -1,0 +1,15 @@
+{{#if description}}
+/**
+ * {{{description}}}
+ */
+{{/if}}
+public interface {{interfaceName}} {
+{{#each fields}}
+{{#if description}}
+    /**
+     * {{{description}}}
+     */
+{{/if}}
+    suspend fun {{escapedName}}({{argsSignature}}): {{returnType}}
+{{/each}}
+}

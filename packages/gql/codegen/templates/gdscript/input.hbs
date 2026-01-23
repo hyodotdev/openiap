@@ -1,0 +1,29 @@
+{{#if description}}
+## {{{description}}}
+{{/if}}
+class {{name}}:
+{{#each fields}}
+{{#if description}}
+	## {{{description}}}
+{{/if}}
+	var {{propertyName}}: {{type}}
+{{/each}}
+
+	func _init({{initParams}}) -> void:
+{{#each fields}}
+		self.{{propertyName}} = {{paramName}}
+{{/each}}
+
+	static func from_json(json: Dictionary) -> {{name}}:
+		return {{name}}.new(
+{{#each fields}}
+			{{fromJsonExpr}}{{#unless isLast}},{{/unless}}
+{{/each}}
+		)
+
+	func to_json() -> Dictionary:
+		return {
+{{#each fields}}
+			"{{graphqlName}}": {{toJsonExpr}}{{#unless isLast}},{{/unless}}
+{{/each}}
+		}

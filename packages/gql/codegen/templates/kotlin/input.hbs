@@ -1,0 +1,47 @@
+{{#if description}}
+/**
+ * {{{description}}}
+ */
+{{/if}}
+public data class {{name}}(
+{{#each fields}}
+{{#if description}}
+    /**
+     * {{{description}}}
+     */
+{{/if}}
+    val {{propertyName}}: {{type}}{{defaultValue}}{{#unless isLast}},{{/unless}}
+{{/each}}
+) {
+    companion object {
+{{#if hasRequiredFields}}
+        fun fromJson(json: Map<String, Any?>): {{name}}? {
+{{#each fields}}
+            val {{propertyName}} = {{fromJsonExpr}}
+{{/each}}
+{{#if requiredFieldsNullCheck}}
+            if ({{requiredFieldsNullCheck}}) return null
+{{/if}}
+            return {{name}}(
+{{#each fields}}
+                {{propertyName}} = {{propertyName}},
+{{/each}}
+            )
+        }
+{{else}}
+        fun fromJson(json: Map<String, Any?>): {{name}} {
+            return {{name}}(
+{{#each fields}}
+                {{propertyName}} = {{fromJsonExpr}},
+{{/each}}
+            )
+        }
+{{/if}}
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+{{#each fields}}
+        "{{graphqlName}}" to {{toJsonExpr}},
+{{/each}}
+    )
+}

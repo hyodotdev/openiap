@@ -97,3 +97,88 @@ This repo standardizes schema and identifier naming to improve clarity across pl
   - When feeding new APIs into the openiap.dev docs, always add this `# Future`
     comment so the codegen post-processing rewrites the generated types to
     return `Promise<…>` and the documentation stays accurate.
+
+---
+
+## Code Generation Architecture
+
+The GQL package uses an **IR-based (Intermediate Representation)** code generation system.
+
+### Generation Flow
+
+```text
+GraphQL Schema (src/*.graphql)
+         ↓
+    [1] Parser (codegen/core/parser.ts)
+         ↓
+    [2] Transformer → IR (codegen/core/transformer.ts)
+         ↓
+    [3] Language Plugins (codegen/plugins/*.ts)
+         ↓
+    Generated Files (src/generated/*)
+         ↓
+    [4] Sync (scripts/sync-to-platforms.mjs)
+         ↓
+    Platform Packages (packages/apple, packages/google)
+```
+
+### Directory Structure
+
+```text
+codegen/
+├── index.ts              # Main entry point
+├── core/
+│   ├── types.ts          # IR type definitions
+│   ├── parser.ts         # GraphQL schema parser
+│   ├── transformer.ts    # AST → IR transformer
+│   └── utils.ts          # Case conversion, keyword escaping
+└── plugins/
+    ├── base-plugin.ts    # Abstract base class
+    ├── swift.ts          # Swift plugin
+    ├── kotlin.ts         # Kotlin plugin
+    ├── dart.ts           # Dart plugin
+    └── gdscript.ts       # GDScript plugin
+```
+
+### IR Types
+
+| IR Type | Description |
+|---------|-------------|
+| `IREnum` | Enum with values, raw values (kebab-case), legacy aliases |
+| `IRInterface` | Protocol/Interface with typed fields |
+| `IRObject` | Struct/Class with fields, implements, union membership |
+| `IRInput` | Input type with required field tracking |
+| `IRUnion` | Union with members, nested union support |
+| `IROperation` | Query/Mutation/Subscription definitions |
+
+### Language Plugin Features
+
+| Plugin | Key Features |
+|--------|--------------|
+| **Swift** | Codable protocol, ErrorCode custom initializer, platform defaults |
+| **Kotlin** | sealed interface, fromJson/toJson, nullable patterns |
+| **Dart** | sealed class, factory constructors, extends/implements |
+| **GDScript** | _init() pattern, from_json/to_json, Variant type |
+
+### Scripts
+
+```bash
+# Generate all platform types
+bun run generate
+
+# Generate specific platform
+bun run generate:swift
+bun run generate:kotlin
+bun run generate:dart
+bun run generate:gdscript
+```
+
+### Adding a New Language
+
+1. Create `codegen/plugins/<language>.ts` extending `CodegenPlugin`
+2. Implement abstract methods:
+   - `mapScalar(name)` - Map GraphQL scalars to language types
+   - `mapType(type)` - Map IR types to language type strings
+   - `generateEnum()`, `generateObject()`, `generateUnion()`, etc.
+3. Register in `codegen/index.ts`
+4. Add script to `package.json`

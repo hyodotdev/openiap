@@ -1,0 +1,23 @@
+{{#if description}}
+## {{{description}}}
+{{/if}}
+class {{name}}:
+	var value: Variant
+
+	func _init(p_value: Variant) -> void:
+		self.value = p_value
+
+	static func from_json(json: Dictionary) -> {{name}}:
+		var typename = json.get("__typename", "")
+		match typename:
+{{#each concreteMembers}}
+			"{{typeName}}":
+				return {{../name}}.new({{delegateTo}}.from_json(json))
+{{/each}}
+		push_error("Unknown __typename for {{name}}: " + typename)
+		return null
+
+	func to_json() -> Dictionary:
+		if value != null and value.has_method("to_json"):
+			return value.to_json()
+		return {}

@@ -31,11 +31,30 @@ When reviewing, check these project-specific rules:
 
 See [CLAUDE.md](../../CLAUDE.md) and [knowledge/internal/](../../knowledge/internal/) for full conventions.
 
-## Reply Format Rules
+## Reply Format Rules (CRITICAL)
 
 When replying to PR comments:
 
-- **Commit hash references**: Write commit hashes as plain text, NOT in code blocks
-  - CORRECT: `Fixed in f3b5fec.`
-  - WRONG: `Fixed in \`f3b5fec\`.`
-  - This ensures GitHub auto-links the commit hash to the actual commit
+### Commit Hash Formatting
+
+**NEVER wrap commit hashes in backticks or code blocks.** GitHub only auto-links plain text commit hashes.
+
+| Format | Example | Result |
+|--------|---------|--------|
+| ✅ CORRECT | `Fixed in f3b5fec.` | Clickable link to commit |
+| ❌ WRONG | `Fixed in \`f3b5fec\`.` | Plain text, no link |
+
+**Examples of correct replies:**
+
+```text
+Fixed in f3b5fec.
+
+**Changes:**
+- Updated header to use bun run generate
+```
+
+```text
+Fixed in abc1234 along with other review items.
+```
+
+**Do NOT use backticks around the commit hash** - this breaks GitHub's auto-linking feature.

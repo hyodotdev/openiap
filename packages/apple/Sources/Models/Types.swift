@@ -1,6 +1,6 @@
 // ============================================================================
 // AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
-// Run `npm run generate` after updating any *.graphql schema file.
+// Run `bun run generate` after updating any *.graphql schema file.
 // ============================================================================
 
 import Foundation

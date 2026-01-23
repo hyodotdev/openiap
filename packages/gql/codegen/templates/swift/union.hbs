@@ -1,0 +1,24 @@
+{{#if description}}
+/// {{{description}}}
+{{/if}}
+public enum {{name}}{{conformances}} {
+{{#each members}}
+    case {{caseName}}({{name}})
+{{/each}}
+{{#if hasInterfaceFields}}
+{{#each interfaceFields}}
+
+{{#if description}}
+    /// {{{description}}}
+{{/if}}
+    public var {{propertyName}}: {{type}} {
+        switch self {
+{{#each ../members}}
+        case let .{{caseName}}(value):
+            return value.{{../propertyName}}
+{{/each}}
+        }
+    }
+{{/each}}
+{{/if}}
+}
