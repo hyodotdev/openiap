@@ -83,7 +83,7 @@ final class AppAccountTokenTests: XCTestCase {
             XCTAssertEqual(purchaseError.code, .developerError)
             XCTAssertEqual(purchaseError.productId, "dev.hyo.premium")
             XCTAssertTrue(purchaseError.message.contains("UUID"))
-            XCTAssertTrue(purchaseError.message.contains("user-123"))
+            // Note: Error message intentionally does not include the token value for security reasons
         }
     }
 
@@ -224,11 +224,10 @@ final class AppAccountTokenTests: XCTestCase {
     // MARK: - Error Message Content Tests
 
     func testAppAccountToken_ErrorMessage_ContainsGuidance() throws {
-        let invalidToken = "my-custom-user-id"
         let props = RequestPurchaseIosProps(
             advancedCommerceData: nil,
             andDangerouslyFinishTransactionAutomatically: nil,
-            appAccountToken: invalidToken,
+            appAccountToken: "my-custom-user-id",
             quantity: nil,
             sku: "dev.hyo.premium",
             withOffer: nil
@@ -241,7 +240,8 @@ final class AppAccountTokenTests: XCTestCase {
             }
             // Error message should contain helpful information
             XCTAssertTrue(purchaseError.message.contains("UUID"), "Error should mention UUID requirement")
-            XCTAssertTrue(purchaseError.message.contains(invalidToken), "Error should show the invalid value")
+            // Note: Error message intentionally does NOT include the token value for security reasons
+            // (developers may mistakenly pass PII or sensitive identifiers)
             XCTAssertTrue(purchaseError.message.lowercased().contains("apple"), "Error should mention Apple behavior")
         }
     }

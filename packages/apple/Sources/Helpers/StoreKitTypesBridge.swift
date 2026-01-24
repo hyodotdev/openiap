@@ -370,11 +370,12 @@ enum StoreKitTypesBridge {
                 // If a non-UUID value is provided, Apple silently returns null for this field.
                 // Fail fast with a clear error message so developers can identify the issue.
                 // Reference: https://openiap.dev/docs/types/request
-                OpenIapLog.error("❌ Invalid appAccountToken format: '\(token)'. Must be a valid UUID (e.g., '550e8400-e29b-41d4-a716-446655440000')")
+                // Note: We intentionally do NOT log the token value as it may contain sensitive data.
+                OpenIapLog.error("❌ Invalid appAccountToken format. Must be a valid UUID (e.g., '550e8400-e29b-41d4-a716-446655440000')")
                 throw PurchaseError.make(
                     code: .developerError,
                     productId: props.sku,
-                    message: "appAccountToken must be a valid UUID format (e.g., '550e8400-e29b-41d4-a716-446655440000'). Received: '\(token)'. Apple silently returns null for non-UUID values."
+                    message: "appAccountToken must be a valid UUID format (e.g., '550e8400-e29b-41d4-a716-446655440000'). Apple silently returns null for non-UUID values."
                 )
             }
             options.insert(.appAccountToken(uuid))
