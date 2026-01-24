@@ -459,7 +459,14 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                       <td>
                         <code>appAccountToken</code>
                       </td>
-                      <td>UUID linking purchase to your server's user</td>
+                      <td>
+                        UUID linking purchase to your server's user.{' '}
+                        <strong>Must be a valid UUID format</strong> (e.g.,{' '}
+                        <code>550e8400-e29b-41d4-a716-446655440000</code>). If a
+                        non-UUID value is provided, Apple will silently return{' '}
+                        <code>null</code> for this field in the purchase
+                        response.
+                      </td>
                     </tr>
                     <tr>
                       <td>

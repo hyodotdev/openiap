@@ -26,6 +26,63 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 - **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option
 - Both new purchase options are back-deployed to iOS 15
 
+## appAccountToken
+
+A UUID that associates a purchase with a user account in your system. This property allows you to correlate App Store transactions with users in your backend.
+
+### Important: UUID Format Requirement
+
+**The `appAccountToken` must be a valid UUID format.** If you provide a non-UUID string (e.g., `"user-123"` or `"my-account-id"`), Apple's StoreKit will silently return `null` for this field in the transaction response.
+
+#### Valid UUID Examples
+
+```swift
+// Valid UUIDs - these will be returned correctly
+"550e8400-e29b-41d4-a716-446655440000"
+"6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+UUID().uuidString  // Generate new UUID
+```
+
+#### Invalid Examples (Will Return null)
+
+```swift
+// Invalid - NOT UUID format, Apple returns null silently
+"user-123"
+"my-account-token"
+"abc123"
+```
+
+### Usage in Purchase Options
+
+```swift
+let appAccountToken = UUID()
+let result = try await product.purchase(options: [
+    .appAccountToken(appAccountToken)
+])
+```
+
+### Retrieving from Transaction
+
+```swift
+let transaction: Transaction
+if let token = transaction.appAccountToken {
+    // Token will only be present if a valid UUID was provided during purchase
+    print("App Account Token: \(token)")
+}
+```
+
+### Best Practices
+
+1. **Generate UUIDs per user**: Create and store a UUID for each user in your system
+2. **Use consistent tokens**: Use the same UUID for all purchases from the same user
+3. **Server-side mapping**: Map the UUID to your internal user ID on your server
+4. **Don't use user IDs directly**: Convert your user IDs to UUIDs rather than using them directly
+
+### References
+
+- [Apple Developer Documentation: appAccountToken](https://developer.apple.com/documentation/storekit/transaction/appaccounttoken)
+- [GitHub Issue: expo-iap #128](https://github.com/hyochan/expo-iap/issues/128)
+
 ## Product
 
 A type that describes an in-app purchase product.

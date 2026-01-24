@@ -247,7 +247,9 @@ function TypesPurchase() {
                       </td>
                       <td>
                         Your server's user identifier (UUID you provided at
-                        purchase)
+                        purchase). Only returned if a valid UUID format was
+                        provided during purchase—non-UUID values result in{' '}
+                        <code>null</code>.
                       </td>
                     </tr>
                     <tr>
