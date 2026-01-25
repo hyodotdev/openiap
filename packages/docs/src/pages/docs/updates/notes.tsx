@@ -93,7 +93,7 @@ result.error                  // optional error`}
               </tr>
             </thead>
             <tbody>
-              <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>ExternalPurchase</code></td><td style={{ textAlign: 'center' }}>15.4+</td><td>Basic external purchase notice</td></tr>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>ExternalPurchase</code></td><td style={{ textAlign: 'center' }}>17.4+</td><td>Basic external purchase notice</td></tr>
               <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>ExternalPurchaseCustomLink</code></td><td style={{ textAlign: 'center' }}>18.1+</td><td>Custom links with token-based reporting</td></tr>
             </tbody>
           </table>
@@ -1506,7 +1506,7 @@ verifyPurchase({
           <ul>
             <li>
               <strong>iOS External Purchase</strong> - StoreKit External
-              Purchase API support (iOS 15.4+, iOS 18.2+ recommended)
+              Purchase API support (iOS 17.4+, iOS 18.2+ recommended)
             </li>
             <li>
               <strong>Android Alternative Billing</strong> - Google Play

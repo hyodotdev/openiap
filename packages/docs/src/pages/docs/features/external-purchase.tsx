@@ -52,7 +52,7 @@ function ExternalPurchase() {
             <tr>
               <td>iOS</td>
               <td>External Purchase URL</td>
-              <td>iOS 15.4+ (Notice Sheet), iOS 18.2+ (New APIs)</td>
+              <td>iOS 17.4+ (Notice Sheet), iOS 18.2+ (New APIs)</td>
               <td>StoreKit 2</td>
             </tr>
             <tr>
@@ -316,7 +316,7 @@ func handle_external_purchase_flow() -> void:
                 <h4>Requirements</h4>
                 <ul>
                   <li>
-                    <strong>iOS 15.4+</strong> - Minimum version for External
+                    <strong>iOS 17.4+</strong> - Minimum version for External
                     Purchase API
                   </li>
                   <li>
@@ -575,7 +575,7 @@ func handle_external_purchase_flow() -> void:
                       <td>FeatureNotSupported Error</td>
                       <td>iOS version too old</td>
                       <td>
-                        Requires iOS 15.4+ (notice sheet), iOS 18.2+ (new APIs)
+                        Requires iOS 17.4+ (notice sheet), iOS 18.2+ (new APIs)
                       </td>
                     </tr>
                   </tbody>
