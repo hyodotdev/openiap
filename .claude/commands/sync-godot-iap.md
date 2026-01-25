@@ -49,7 +49,7 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 | 4. Review Native Code | **YES** | Check if GDExtension code needs updates |
 | 5. Update GDScript API | **IF NEEDED** | Add new functions to `iap.gd`, `store.gd` |
 | 6. Run All Checks | **YES** | Editor test, GDUnit4 tests |
-| 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
+| 7. **Write/Update Tests** | **YES** | MUST write tests for new types/features - DO NOT SKIP |
 | 8. **Verify Example Code** | **YES** | Check example scenes use correct API patterns |
 | 9. Write Blog Post | **YES** | Create release notes |
 | 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
@@ -336,11 +336,24 @@ godot --headless -s addons/gdunit4/test_runner.gd
 
 ---
 
-### Step 7: Verify Tests (REQUIRED)
+### Step 7: Write/Update Tests (REQUIRED)
 
-**CRITICAL: All tests must cover new features and field name changes. DO NOT SKIP.**
+**🚨 CRITICAL: You MUST write tests for any new types, fields, or features added in this sync. DO NOT SKIP this step - incomplete tests will cause the PR to fail review.**
 
-#### 7.1 Check Existing Test Coverage
+> **Why this matters:** Tests ensure type serialization works correctly and prevent regressions. Every new field must be tested.
+
+#### 7.1 Identify What Needs Tests
+
+First, identify ALL new types/fields from the sync:
+
+```bash
+cd $IAP_REPOS_HOME/godot-iap
+
+# See what types changed
+git diff addons/openiap/types.gd | grep "^+" | head -50
+```
+
+#### 7.2 Check Existing Test Coverage
 
 ```bash
 cd $IAP_REPOS_HOME/godot-iap
@@ -352,9 +365,9 @@ find . -name "*test*.gd" -o -name "*_test.gd"
 grep -rn "func test_" test/ 2>/dev/null || grep -rn "func test_" . --include="*test*.gd"
 ```
 
-#### 7.2 Verify New Features Are Tested
+#### 7.3 Required Test Coverage (MUST WRITE)
 
-For each new type or field added in the sync:
+**You MUST write tests for ALL new types/fields. Examples:**
 
 1. **Check if tests exist for new types:**
    ```gdscript
@@ -377,18 +390,40 @@ For each new type or field added in the sync:
        assert_eq(restored.new_field, "value")
    ```
 
-#### 7.3 Add Missing Tests
+#### 7.4 Write New Tests (MANDATORY)
 
-If tests don't exist for new features:
+**For EVERY new type or field, you MUST create tests:**
 
-1. Create test file in appropriate location
-2. Add tests for:
+1. Create test file in appropriate location (e.g., `test/unit/test_new_types.gd`)
+2. **REQUIRED tests for each new type:**
    - Type instantiation with new fields
    - Serialization (`to_dict()`) includes new fields
    - Deserialization (`from_dict()`) parses new fields
    - Default values for optional fields
 
-#### 7.4 Run All Tests
+```gdscript
+# test/unit/test_new_feature.gd
+extends GutTest
+
+func test_new_type_instantiation():
+    var obj = NewType.new()
+    obj.new_field = "test_value"
+    assert_eq(obj.new_field, "test_value")
+
+func test_new_type_serialization():
+    var obj = NewType.new()
+    obj.new_field = "test_value"
+    var dict = obj.to_dict()
+    assert_true(dict.has("new_field"))
+    assert_eq(dict["new_field"], "test_value")
+
+func test_new_type_deserialization():
+    var dict = {"new_field": "test_value"}
+    var obj = NewType.from_dict(dict)
+    assert_eq(obj.new_field, "test_value")
+```
+
+#### 7.5 Run All Tests (Verify Your New Tests Pass)
 
 ```bash
 # Run GDUnit4 tests
@@ -397,7 +432,7 @@ godot --headless -s addons/gdunit4/test_runner.gd
 # Verify all tests pass
 ```
 
-**If tests fail, fix before continuing.**
+**⚠️ DO NOT proceed to Step 8 until ALL tests pass, including the new tests you just wrote.**
 
 ---
 
