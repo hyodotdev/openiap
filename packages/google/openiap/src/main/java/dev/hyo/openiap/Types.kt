@@ -362,7 +362,60 @@ public enum class ExternalLinkTypeAndroid(val rawValue: String) {
 }
 
 /**
- * User actions on external purchase notice sheet (iOS 18.2+)
+ * Notice types for ExternalPurchaseCustomLink (iOS 18.1+).
+ * Determines the style of disclosure notice to display.
+ * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/noticetype
+ */
+public enum class ExternalPurchaseCustomLinkNoticeTypeIOS(val rawValue: String) {
+    /**
+     * Notice type indicating external purchases will be displayed in a browser
+     * or destination of the app's choice.
+     */
+    Browser("browser");
+
+    companion object {
+        fun fromJson(value: String): ExternalPurchaseCustomLinkNoticeTypeIOS = when (value) {
+            "browser" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
+            "Browser" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
+            else -> throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkNoticeTypeIOS value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Token types for ExternalPurchaseCustomLink (iOS 18.1+).
+ * Used to request different types of external purchase tokens for reporting to Apple.
+ * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+ */
+public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
+    /**
+     * Token for customer acquisition tracking.
+     * Use this when a new customer makes their first purchase through external link.
+     */
+    Acquisition("acquisition"),
+    /**
+     * Token for ongoing services tracking.
+     * Use this for existing customers making additional purchases.
+     */
+    Services("services");
+
+    companion object {
+        fun fromJson(value: String): ExternalPurchaseCustomLinkTokenTypeIOS = when (value) {
+            "acquisition" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
+            "Acquisition" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
+            "services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
+            "Services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
+            else -> throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkTokenTypeIOS value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * User actions on external purchase notice sheet (iOS 15.4+)
  */
 public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
     /**
@@ -1555,7 +1608,68 @@ public data class ExternalOfferReportingDetailsAndroid(
 }
 
 /**
- * Result of presenting an external purchase link (iOS 18.2+)
+ * Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+).
+ */
+public data class ExternalPurchaseCustomLinkNoticeResultIOS(
+    /**
+     * Whether the user chose to continue to external purchase
+     */
+    val continued: Boolean,
+    /**
+     * Optional error message if the presentation failed
+     */
+    val error: String? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseCustomLinkNoticeResultIOS {
+            return ExternalPurchaseCustomLinkNoticeResultIOS(
+                continued = json["continued"] as? Boolean ?: false,
+                error = json["error"] as? String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ExternalPurchaseCustomLinkNoticeResultIOS",
+        "continued" to continued,
+        "error" to error,
+    )
+}
+
+/**
+ * Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
+ */
+public data class ExternalPurchaseCustomLinkTokenResultIOS(
+    /**
+     * Optional error message if token retrieval failed
+     */
+    val error: String? = null,
+    /**
+     * The external purchase token string.
+     * Report this token to Apple's External Purchase Server API.
+     */
+    val token: String? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseCustomLinkTokenResultIOS {
+            return ExternalPurchaseCustomLinkTokenResultIOS(
+                error = json["error"] as? String,
+                token = json["token"] as? String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ExternalPurchaseCustomLinkTokenResultIOS",
+        "error" to error,
+        "token" to token,
+    )
+}
+
+/**
+ * Result of presenting an external purchase link
  */
 public data class ExternalPurchaseLinkResultIOS(
     /**
@@ -1585,13 +1699,20 @@ public data class ExternalPurchaseLinkResultIOS(
 }
 
 /**
- * Result of presenting external purchase notice sheet (iOS 18.2+)
+ * Result of presenting external purchase notice sheet (iOS 15.4+)
+ * Returns the token when user continues to external purchase.
  */
 public data class ExternalPurchaseNoticeResultIOS(
     /**
      * Optional error message if the presentation failed
      */
     val error: String? = null,
+    /**
+     * External purchase token returned when user continues (iOS 15.4+).
+     * This token should be reported to Apple's External Purchase Server API.
+     * Only present when result is Continue.
+     */
+    val externalPurchaseToken: String? = null,
     /**
      * Notice result indicating user action
      */
@@ -1602,6 +1723,7 @@ public data class ExternalPurchaseNoticeResultIOS(
         fun fromJson(json: Map<String, Any?>): ExternalPurchaseNoticeResultIOS {
             return ExternalPurchaseNoticeResultIOS(
                 error = json["error"] as? String,
+                externalPurchaseToken = json["externalPurchaseToken"] as? String,
                 result = (json["result"] as? String)?.let { ExternalPurchaseNoticeAction.fromJson(it) } ?: ExternalPurchaseNoticeAction.Continue,
             )
         }
@@ -1610,6 +1732,7 @@ public data class ExternalPurchaseNoticeResultIOS(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "ExternalPurchaseNoticeResultIOS",
         "error" to error,
+        "externalPurchaseToken" to externalPurchaseToken,
         "result" to result.toJson(),
     )
 }
@@ -4408,11 +4531,13 @@ public interface MutationResolver {
      */
     suspend fun presentCodeRedemptionSheetIOS(): Boolean
     /**
-     * Present external purchase custom link with StoreKit UI (iOS 18.2+)
+     * Present external purchase custom link with StoreKit UI
      */
     suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
     /**
-     * Present external purchase notice sheet (iOS 18.2+)
+     * Present external purchase notice sheet (iOS 15.4+).
+     * Uses ExternalPurchase.presentNoticeSheet() which returns a token when user continues.
+     * Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
      */
     suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
     /**
@@ -4441,6 +4566,13 @@ public interface MutationResolver {
      */
     suspend fun showAlternativeBillingDialogAndroid(): Boolean
     /**
+     * Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
+     * Displays the system disclosure notice sheet for custom external purchase links.
+     * Call this after a deliberate customer interaction before linking out to external purchases.
+     * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+     */
+    suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS
+    /**
      * Open subscription management UI and return changed purchases (iOS 15+)
      */
     suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS>
@@ -4467,7 +4599,8 @@ public interface MutationResolver {
  */
 public interface QueryResolver {
     /**
-     * Check if external purchase notice sheet can be presented (iOS 18.2+)
+     * Check if external purchase notice sheet can be presented (iOS 17.4+)
+     * Uses ExternalPurchase.canPresent
      */
     suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean
     /**
@@ -4490,6 +4623,12 @@ public interface QueryResolver {
      * Get all available purchases for the current user
      */
     suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
+    /**
+     * Get external purchase token for reporting to Apple (iOS 18.1+).
+     * Use this token with Apple's External Purchase Server API to report transactions.
+     * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+     */
+    suspend fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): ExternalPurchaseCustomLinkTokenResultIOS
     /**
      * Retrieve all pending transactions in the StoreKit queue
      */
@@ -4518,6 +4657,12 @@ public interface QueryResolver {
      * Check whether the user has active subscriptions
      */
     suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean
+    /**
+     * Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
+     * Returns true if the app can use custom external purchase links.
+     * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+     */
+    suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean
     /**
      * Check introductory offer eligibility for a subscription group
      */
@@ -4595,6 +4740,7 @@ public typealias MutationRequestPurchaseHandler = suspend (params: RequestPurcha
 public typealias MutationRequestPurchaseOnPromotedProductIOSHandler = suspend () -> Boolean
 public typealias MutationRestorePurchasesHandler = suspend () -> Unit
 public typealias MutationShowAlternativeBillingDialogAndroidHandler = suspend () -> Boolean
+public typealias MutationShowExternalPurchaseCustomLinkNoticeIOSHandler = suspend (noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) -> ExternalPurchaseCustomLinkNoticeResultIOS
 public typealias MutationShowManageSubscriptionsIOSHandler = suspend () -> List<PurchaseIOS>
 public typealias MutationSyncIOSHandler = suspend () -> Boolean
 public typealias MutationValidateReceiptHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResult
@@ -4622,6 +4768,7 @@ public data class MutationHandlers(
     val requestPurchaseOnPromotedProductIOS: MutationRequestPurchaseOnPromotedProductIOSHandler? = null,
     val restorePurchases: MutationRestorePurchasesHandler? = null,
     val showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler? = null,
+    val showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = null,
     val showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = null,
     val syncIOS: MutationSyncIOSHandler? = null,
     val validateReceipt: MutationValidateReceiptHandler? = null,
@@ -4637,6 +4784,7 @@ public typealias QueryFetchProductsHandler = suspend (params: ProductRequest) ->
 public typealias QueryGetActiveSubscriptionsHandler = suspend (subscriptionIds: List<String>?) -> List<ActiveSubscription>
 public typealias QueryGetAppTransactionIOSHandler = suspend () -> AppTransaction?
 public typealias QueryGetAvailablePurchasesHandler = suspend (options: PurchaseOptions?) -> List<Purchase>
+public typealias QueryGetExternalPurchaseCustomLinkTokenIOSHandler = suspend (tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) -> ExternalPurchaseCustomLinkTokenResultIOS
 public typealias QueryGetPendingTransactionsIOSHandler = suspend () -> List<PurchaseIOS>
 public typealias QueryGetPromotedProductIOSHandler = suspend () -> ProductIOS?
 public typealias QueryGetReceiptDataIOSHandler = suspend () -> String?
@@ -4644,6 +4792,7 @@ public typealias QueryGetStorefrontHandler = suspend () -> String
 public typealias QueryGetStorefrontIOSHandler = suspend () -> String
 public typealias QueryGetTransactionJwsIOSHandler = suspend (sku: String) -> String?
 public typealias QueryHasActiveSubscriptionsHandler = suspend (subscriptionIds: List<String>?) -> Boolean
+public typealias QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler = suspend () -> Boolean
 public typealias QueryIsEligibleForIntroOfferIOSHandler = suspend (groupID: String) -> Boolean
 public typealias QueryIsTransactionVerifiedIOSHandler = suspend (sku: String) -> Boolean
 public typealias QueryLatestTransactionIOSHandler = suspend (sku: String) -> PurchaseIOS?
@@ -4657,6 +4806,7 @@ public data class QueryHandlers(
     val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler? = null,
     val getAppTransactionIOS: QueryGetAppTransactionIOSHandler? = null,
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler? = null,
+    val getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = null,
     val getPendingTransactionsIOS: QueryGetPendingTransactionsIOSHandler? = null,
     val getPromotedProductIOS: QueryGetPromotedProductIOSHandler? = null,
     val getReceiptDataIOS: QueryGetReceiptDataIOSHandler? = null,
@@ -4664,6 +4814,7 @@ public data class QueryHandlers(
     val getStorefrontIOS: QueryGetStorefrontIOSHandler? = null,
     val getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler? = null,
     val hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = null,
+    val isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = null,
     val isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = null,
     val isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = null,
     val latestTransactionIOS: QueryLatestTransactionIOSHandler? = null,
