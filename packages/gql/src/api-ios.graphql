@@ -12,10 +12,30 @@ extend type Query {
   # Future
   getPromotedProductIOS: ProductIOS
   """
-  Check if external purchase notice sheet can be presented (iOS 18.2+)
+  Check if external purchase notice sheet can be presented (iOS 17.4+)
+  Uses ExternalPurchase.canPresent
   """
   # Future
   canPresentExternalPurchaseNoticeIOS: Boolean!
+  """
+  Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
+  Returns true if the app can use custom external purchase links.
+  Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+  """
+  # Future
+  isEligibleForExternalPurchaseCustomLinkIOS: Boolean!
+  """
+  Get external purchase token for reporting to Apple (iOS 18.1+).
+  Use this token with Apple's External Purchase Server API to report transactions.
+  Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+  """
+  # Future
+  getExternalPurchaseCustomLinkTokenIOS(
+    """
+    Token type: acquisition (new customers) or services (existing customers)
+    """
+    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS!
+  ): ExternalPurchaseCustomLinkTokenResultIOS!
   """
   Retrieve all pending transactions in the StoreKit queue
   """
@@ -104,13 +124,28 @@ extend type Mutation {
   # Future
   presentCodeRedemptionSheetIOS: Boolean!
   """
-  Present external purchase notice sheet (iOS 18.2+)
+  Present external purchase notice sheet (iOS 15.4+).
+  Uses ExternalPurchase.presentNoticeSheet() which returns a token when user continues.
+  Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
   """
   # Future
   presentExternalPurchaseNoticeSheetIOS: ExternalPurchaseNoticeResultIOS!
   """
-  Present external purchase custom link with StoreKit UI (iOS 18.2+)
+  Present external purchase custom link with StoreKit UI
   """
   # Future
   presentExternalPurchaseLinkIOS(url: String!): ExternalPurchaseLinkResultIOS!
+  """
+  Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
+  Displays the system disclosure notice sheet for custom external purchase links.
+  Call this after a deliberate customer interaction before linking out to external purchases.
+  Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+  """
+  # Future
+  showExternalPurchaseCustomLinkNoticeIOS(
+    """
+    Notice type determining the style of disclosure
+    """
+    noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS!
+  ): ExternalPurchaseCustomLinkNoticeResultIOS!
 }

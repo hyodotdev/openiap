@@ -497,7 +497,8 @@ type AppTransaction {
 }
 
 """
-Result of presenting external purchase notice sheet (iOS 18.2+)
+Result of presenting external purchase notice sheet (iOS 15.4+)
+Returns the token when user continues to external purchase.
 """
 type ExternalPurchaseNoticeResultIOS {
   """
@@ -508,10 +509,16 @@ type ExternalPurchaseNoticeResultIOS {
   Optional error message if the presentation failed
   """
   error: String
+  """
+  External purchase token returned when user continues (iOS 15.4+).
+  This token should be reported to Apple's External Purchase Server API.
+  Only present when result is Continue.
+  """
+  externalPurchaseToken: String
 }
 
 """
-User actions on external purchase notice sheet (iOS 18.2+)
+User actions on external purchase notice sheet (iOS 15.4+)
 """
 enum ExternalPurchaseNoticeAction {
   """
@@ -525,7 +532,7 @@ enum ExternalPurchaseNoticeAction {
 }
 
 """
-Result of presenting an external purchase link (iOS 18.2+)
+Result of presenting an external purchase link
 """
 type ExternalPurchaseLinkResultIOS {
   """
@@ -534,6 +541,72 @@ type ExternalPurchaseLinkResultIOS {
   success: Boolean!
   """
   Optional error message if the presentation failed
+  """
+  error: String
+}
+
+# ============================================================================
+# ExternalPurchaseCustomLink Types (iOS 18.1+)
+# For apps using custom external purchase links with token-based reporting
+# Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink
+# ============================================================================
+
+"""
+Token types for ExternalPurchaseCustomLink (iOS 18.1+).
+Used to request different types of external purchase tokens for reporting to Apple.
+Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+"""
+enum ExternalPurchaseCustomLinkTokenTypeIOS {
+  """
+  Token for customer acquisition tracking.
+  Use this when a new customer makes their first purchase through external link.
+  """
+  Acquisition
+  """
+  Token for ongoing services tracking.
+  Use this for existing customers making additional purchases.
+  """
+  Services
+}
+
+"""
+Notice types for ExternalPurchaseCustomLink (iOS 18.1+).
+Determines the style of disclosure notice to display.
+Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/noticetype
+"""
+enum ExternalPurchaseCustomLinkNoticeTypeIOS {
+  """
+  Notice type indicating external purchases will be displayed in a browser
+  or destination of the app's choice.
+  """
+  Browser
+}
+
+"""
+Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+).
+"""
+type ExternalPurchaseCustomLinkNoticeResultIOS {
+  """
+  Whether the user chose to continue to external purchase
+  """
+  continued: Boolean!
+  """
+  Optional error message if the presentation failed
+  """
+  error: String
+}
+
+"""
+Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
+"""
+type ExternalPurchaseCustomLinkTokenResultIOS {
+  """
+  The external purchase token string.
+  Report this token to Apple's External Purchase Server API.
+  """
+  token: String
+  """
+  Optional error message if token retrieval failed
   """
   error: String
 }
