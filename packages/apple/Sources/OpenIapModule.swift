@@ -1113,10 +1113,23 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             do {
                 let result = try await ExternalPurchase.presentNoticeSheet()
                 switch result {
-                case .continuedWithExternalPurchaseToken(_):
-                    return ExternalPurchaseNoticeResultIOS(error: nil, result: .continue)
-                default:
-                    // Unexpected result type - should not normally happen
+                case .continuedWithExternalPurchaseToken(let token):
+                    // Return the token for reporting to Apple's External Purchase Server API
+                    // The token is a String type in StoreKit
+                    return ExternalPurchaseNoticeResultIOS(
+                        error: nil,
+                        externalPurchaseToken: token,
+                        result: .continue
+                    )
+                case .cancelled:
+                    // User dismissed the notice sheet
+                    return ExternalPurchaseNoticeResultIOS(
+                        error: nil,
+                        externalPurchaseToken: nil,
+                        result: .dismissed
+                    )
+                @unknown default:
+                    // Handle future cases gracefully
                     throw makePurchaseError(
                         code: .unknown,
                         message: "Unexpected result from external purchase notice sheet"
@@ -1125,6 +1138,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             } catch let error as PurchaseError {
                 return ExternalPurchaseNoticeResultIOS(
                     error: error.message,
+                    externalPurchaseToken: nil,
                     result: .dismissed
                 )
             } catch {
@@ -1134,6 +1148,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 )
                 return ExternalPurchaseNoticeResultIOS(
                     error: purchaseError.message,
+                    externalPurchaseToken: nil,
                     result: .dismissed
                 )
             }
@@ -1173,6 +1188,118 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         #else
         throw makePurchaseError(code: .featureNotSupported)
         #endif // canImport(UIKit)
+    }
+
+    // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
+
+    public func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool {
+        try await ensureConnection()
+        // iOS 18.1+: ExternalPurchaseCustomLink.isEligible
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *) {
+            return await ExternalPurchaseCustomLink.isEligible
+        } else {
+            return false
+        }
+    }
+
+    public func getExternalPurchaseCustomLinkTokenIOS(
+        _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS {
+        try await ensureConnection()
+        // iOS 18.1+: ExternalPurchaseCustomLink.token(for:)
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *) {
+            guard await ExternalPurchaseCustomLink.isEligible else {
+                return ExternalPurchaseCustomLinkTokenResultIOS(
+                    error: "App is not eligible for ExternalPurchaseCustomLink",
+                    token: nil
+                )
+            }
+
+            do {
+                // Token type is a String parameter: "acquisition" or "services"
+                let tokenTypeString: String = switch tokenType {
+                case .acquisition:
+                    "acquisition"
+                case .services:
+                    "services"
+                }
+
+                guard let token = try await ExternalPurchaseCustomLink.token(for: tokenTypeString) else {
+                    return ExternalPurchaseCustomLinkTokenResultIOS(
+                        error: "Failed to retrieve external purchase token",
+                        token: nil
+                    )
+                }
+                return ExternalPurchaseCustomLinkTokenResultIOS(
+                    error: nil,
+                    token: token.value
+                )
+            } catch {
+                return ExternalPurchaseCustomLinkTokenResultIOS(
+                    error: "Failed to get external purchase token: \(error.localizedDescription)",
+                    token: nil
+                )
+            }
+        } else {
+            throw makePurchaseError(
+                code: .featureNotSupported,
+                message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, tvOS 18.1+, watchOS 11.1+, or visionOS 2.1+"
+            )
+        }
+    }
+
+    public func showExternalPurchaseCustomLinkNoticeIOS(
+        _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS {
+        try await ensureConnection()
+        // iOS 18.1+: ExternalPurchaseCustomLink.showNotice(type:)
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *) {
+            guard await ExternalPurchaseCustomLink.isEligible else {
+                return ExternalPurchaseCustomLinkNoticeResultIOS(
+                    continued: false,
+                    error: "App is not eligible for ExternalPurchaseCustomLink"
+                )
+            }
+
+            do {
+                let storeKitNoticeType: ExternalPurchaseCustomLink.NoticeType = switch noticeType {
+                case .browser:
+                    .browser
+                }
+
+                let result = try await ExternalPurchaseCustomLink.showNotice(type: storeKitNoticeType)
+                switch result {
+                case .continued:
+                    return ExternalPurchaseCustomLinkNoticeResultIOS(
+                        continued: true,
+                        error: nil
+                    )
+                case .cancelled:
+                    return ExternalPurchaseCustomLinkNoticeResultIOS(
+                        continued: false,
+                        error: nil
+                    )
+                @unknown default:
+                    return ExternalPurchaseCustomLinkNoticeResultIOS(
+                        continued: false,
+                        error: "Unknown notice result"
+                    )
+                }
+            } catch {
+                return ExternalPurchaseCustomLinkNoticeResultIOS(
+                    continued: false,
+                    error: "Failed to show notice: \(error.localizedDescription)"
+                )
+            }
+        } else {
+            throw makePurchaseError(
+                code: .featureNotSupported,
+                message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, tvOS 18.1+, watchOS 11.1+, or visionOS 2.1+"
+            )
+        }
     }
 
     // MARK: - Event Listener Registration
