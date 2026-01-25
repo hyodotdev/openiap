@@ -576,7 +576,8 @@ for (const file of schemaFiles) {
 const wrapReturns = (interfaceName) => {
   const pattern = new RegExp(`export interface ${interfaceName} \\\{\\n([\\s\\S]*?)\\n\\}`, 'g');
   content = content.replace(pattern, (match, body) => {
-    const transformed = body.replace(/(\s*)([A-Za-z0-9_]+)(\??: )(?!Promise<)([^;]+);/g, (line, indent, name, sep, type) => {
+    // Use multiline mode and [^;\n]+ to prevent matching across lines
+    const transformed = body.replace(/^(\s*)([A-Za-z0-9_]+)(\??: )(?!Promise<)([^;\n]+);$/gm, (line, indent, name, sep, type) => {
       if (!futureFields.has(name)) {
         return line;
       }
