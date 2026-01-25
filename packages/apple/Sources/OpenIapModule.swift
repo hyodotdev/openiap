@@ -1218,15 +1218,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
 
             do {
-                // Token type is a String parameter: "acquisition" or "services"
-                let tokenTypeString: String = switch tokenType {
-                case .acquisition:
-                    "acquisition"
-                case .services:
-                    "services"
-                }
-
-                guard let token = try await ExternalPurchaseCustomLink.token(for: tokenTypeString) else {
+                // Token type is a String parameter, use enum's rawValue directly
+                guard let token = try await ExternalPurchaseCustomLink.token(for: tokenType.rawValue) else {
                     return ExternalPurchaseCustomLinkTokenResultIOS(
                         error: "Failed to retrieve external purchase token",
                         token: nil
