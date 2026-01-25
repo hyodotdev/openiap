@@ -221,7 +221,28 @@ public enum ExternalLinkTypeAndroid: String, Codable, CaseIterable {
     case linkToAppDownload = "link-to-app-download"
 }
 
-/// User actions on external purchase notice sheet (iOS 18.2+)
+/// Notice types for ExternalPurchaseCustomLink (iOS 18.1+).
+/// Determines the style of disclosure notice to display.
+/// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/noticetype
+public enum ExternalPurchaseCustomLinkNoticeTypeIOS: String, Codable, CaseIterable {
+    /// Notice type indicating external purchases will be displayed in a browser
+    /// or destination of the app's choice.
+    case browser = "browser"
+}
+
+/// Token types for ExternalPurchaseCustomLink (iOS 18.1+).
+/// Used to request different types of external purchase tokens for reporting to Apple.
+/// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+public enum ExternalPurchaseCustomLinkTokenTypeIOS: String, Codable, CaseIterable {
+    /// Token for customer acquisition tracking.
+    /// Use this when a new customer makes their first purchase through external link.
+    case acquisition = "acquisition"
+    /// Token for ongoing services tracking.
+    /// Use this for existing customers making additional purchases.
+    case services = "services"
+}
+
+/// User actions on external purchase notice sheet (iOS 15.4+)
 public enum ExternalPurchaseNoticeAction: String, Codable, CaseIterable {
     /// User chose to continue to external purchase
     case `continue` = "continue"
@@ -636,7 +657,24 @@ public struct ExternalOfferReportingDetailsAndroid: Codable {
     public var externalTransactionToken: String
 }
 
-/// Result of presenting an external purchase link (iOS 18.2+)
+/// Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+).
+public struct ExternalPurchaseCustomLinkNoticeResultIOS: Codable {
+    /// Whether the user chose to continue to external purchase
+    public var continued: Bool
+    /// Optional error message if the presentation failed
+    public var error: String?
+}
+
+/// Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
+public struct ExternalPurchaseCustomLinkTokenResultIOS: Codable {
+    /// Optional error message if token retrieval failed
+    public var error: String?
+    /// The external purchase token string.
+    /// Report this token to Apple's External Purchase Server API.
+    public var token: String?
+}
+
+/// Result of presenting an external purchase link
 public struct ExternalPurchaseLinkResultIOS: Codable {
     /// Optional error message if the presentation failed
     public var error: String?
@@ -644,10 +682,15 @@ public struct ExternalPurchaseLinkResultIOS: Codable {
     public var success: Bool
 }
 
-/// Result of presenting external purchase notice sheet (iOS 18.2+)
+/// Result of presenting external purchase notice sheet (iOS 15.4+)
+/// Returns the token when user continues to external purchase.
 public struct ExternalPurchaseNoticeResultIOS: Codable {
     /// Optional error message if the presentation failed
     public var error: String?
+    /// External purchase token returned when user continues (iOS 15.4+).
+    /// This token should be reported to Apple's External Purchase Server API.
+    /// Only present when result is Continue.
+    public var externalPurchaseToken: String?
     /// Notice result indicating user action
     public var result: ExternalPurchaseNoticeAction
 }
@@ -2232,9 +2275,11 @@ public protocol MutationResolver {
     func launchExternalLinkAndroid(_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
     /// Present the App Store code redemption sheet
     func presentCodeRedemptionSheetIOS() async throws -> Bool
-    /// Present external purchase custom link with StoreKit UI (iOS 18.2+)
+    /// Present external purchase custom link with StoreKit UI
     func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
-    /// Present external purchase notice sheet (iOS 18.2+)
+    /// Present external purchase notice sheet (iOS 15.4+).
+    /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when user continues.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
     func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
     /// Initiate a purchase flow; rely on events for final state
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
@@ -2253,6 +2298,11 @@ public protocol MutationResolver {
     /// Returns true if user accepted, false if user canceled
     /// Throws OpenIapError.NotPrepared if billing client not ready
     func showAlternativeBillingDialogAndroid() async throws -> Bool
+    /// Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
+    /// Displays the system disclosure notice sheet for custom external purchase links.
+    /// Call this after a deliberate customer interaction before linking out to external purchases.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+    func showExternalPurchaseCustomLinkNoticeIOS(_ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS
     /// Open subscription management UI and return changed purchases (iOS 15+)
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS]
     /// Force a StoreKit sync for transactions (iOS 15+)
@@ -2267,7 +2317,8 @@ public protocol MutationResolver {
 
 /// GraphQL root query operations.
 public protocol QueryResolver {
-    /// Check if external purchase notice sheet can be presented (iOS 18.2+)
+    /// Check if external purchase notice sheet can be presented (iOS 17.4+)
+    /// Uses ExternalPurchase.canPresent
     func canPresentExternalPurchaseNoticeIOS() async throws -> Bool
     /// Get current StoreKit 2 entitlements (iOS 15+)
     func currentEntitlementIOS(_ sku: String) async throws -> PurchaseIOS?
@@ -2279,6 +2330,10 @@ public protocol QueryResolver {
     func getAppTransactionIOS() async throws -> AppTransaction?
     /// Get all available purchases for the current user
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase]
+    /// Get external purchase token for reporting to Apple (iOS 18.1+).
+    /// Use this token with Apple's External Purchase Server API to report transactions.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+    func getExternalPurchaseCustomLinkTokenIOS(_ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) async throws -> ExternalPurchaseCustomLinkTokenResultIOS
     /// Retrieve all pending transactions in the StoreKit queue
     func getPendingTransactionsIOS() async throws -> [PurchaseIOS]
     /// Get the currently promoted product (iOS 11+)
@@ -2293,6 +2348,10 @@ public protocol QueryResolver {
     func getTransactionJwsIOS(_ sku: String) async throws -> String?
     /// Check whether the user has active subscriptions
     func hasActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> Bool
+    /// Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
+    /// Returns true if the app can use custom external purchase links.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+    func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool
     /// Check introductory offer eligibility for a subscription group
     func isEligibleForIntroOfferIOS(_ groupID: String) async throws -> Bool
     /// Verify a StoreKit 2 transaction signature
@@ -2348,6 +2407,7 @@ public typealias MutationRequestPurchaseHandler = (_ params: RequestPurchaseProp
 public typealias MutationRequestPurchaseOnPromotedProductIOSHandler = () async throws -> Bool
 public typealias MutationRestorePurchasesHandler = () async throws -> Void
 public typealias MutationShowAlternativeBillingDialogAndroidHandler = () async throws -> Bool
+public typealias MutationShowExternalPurchaseCustomLinkNoticeIOSHandler = (_ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS
 public typealias MutationShowManageSubscriptionsIOSHandler = () async throws -> [PurchaseIOS]
 public typealias MutationSyncIOSHandler = () async throws -> Bool
 public typealias MutationValidateReceiptHandler = (_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
@@ -2375,6 +2435,7 @@ public struct MutationHandlers {
     public var requestPurchaseOnPromotedProductIOS: MutationRequestPurchaseOnPromotedProductIOSHandler?
     public var restorePurchases: MutationRestorePurchasesHandler?
     public var showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler?
+    public var showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler?
     public var showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler?
     public var syncIOS: MutationSyncIOSHandler?
     public var validateReceipt: MutationValidateReceiptHandler?
@@ -2402,6 +2463,7 @@ public struct MutationHandlers {
         requestPurchaseOnPromotedProductIOS: MutationRequestPurchaseOnPromotedProductIOSHandler? = nil,
         restorePurchases: MutationRestorePurchasesHandler? = nil,
         showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler? = nil,
+        showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = nil,
         showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = nil,
         syncIOS: MutationSyncIOSHandler? = nil,
         validateReceipt: MutationValidateReceiptHandler? = nil,
@@ -2428,6 +2490,7 @@ public struct MutationHandlers {
         self.requestPurchaseOnPromotedProductIOS = requestPurchaseOnPromotedProductIOS
         self.restorePurchases = restorePurchases
         self.showAlternativeBillingDialogAndroid = showAlternativeBillingDialogAndroid
+        self.showExternalPurchaseCustomLinkNoticeIOS = showExternalPurchaseCustomLinkNoticeIOS
         self.showManageSubscriptionsIOS = showManageSubscriptionsIOS
         self.syncIOS = syncIOS
         self.validateReceipt = validateReceipt
@@ -2444,6 +2507,7 @@ public typealias QueryFetchProductsHandler = (_ params: ProductRequest) async th
 public typealias QueryGetActiveSubscriptionsHandler = (_ subscriptionIds: [String]?) async throws -> [ActiveSubscription]
 public typealias QueryGetAppTransactionIOSHandler = () async throws -> AppTransaction?
 public typealias QueryGetAvailablePurchasesHandler = (_ options: PurchaseOptions?) async throws -> [Purchase]
+public typealias QueryGetExternalPurchaseCustomLinkTokenIOSHandler = (_ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) async throws -> ExternalPurchaseCustomLinkTokenResultIOS
 public typealias QueryGetPendingTransactionsIOSHandler = () async throws -> [PurchaseIOS]
 public typealias QueryGetPromotedProductIOSHandler = () async throws -> ProductIOS?
 public typealias QueryGetReceiptDataIOSHandler = () async throws -> String?
@@ -2451,6 +2515,7 @@ public typealias QueryGetStorefrontHandler = () async throws -> String
 public typealias QueryGetStorefrontIOSHandler = () async throws -> String
 public typealias QueryGetTransactionJwsIOSHandler = (_ sku: String) async throws -> String?
 public typealias QueryHasActiveSubscriptionsHandler = (_ subscriptionIds: [String]?) async throws -> Bool
+public typealias QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler = () async throws -> Bool
 public typealias QueryIsEligibleForIntroOfferIOSHandler = (_ groupID: String) async throws -> Bool
 public typealias QueryIsTransactionVerifiedIOSHandler = (_ sku: String) async throws -> Bool
 public typealias QueryLatestTransactionIOSHandler = (_ sku: String) async throws -> PurchaseIOS?
@@ -2464,6 +2529,7 @@ public struct QueryHandlers {
     public var getActiveSubscriptions: QueryGetActiveSubscriptionsHandler?
     public var getAppTransactionIOS: QueryGetAppTransactionIOSHandler?
     public var getAvailablePurchases: QueryGetAvailablePurchasesHandler?
+    public var getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler?
     public var getPendingTransactionsIOS: QueryGetPendingTransactionsIOSHandler?
     public var getPromotedProductIOS: QueryGetPromotedProductIOSHandler?
     public var getReceiptDataIOS: QueryGetReceiptDataIOSHandler?
@@ -2471,6 +2537,7 @@ public struct QueryHandlers {
     public var getStorefrontIOS: QueryGetStorefrontIOSHandler?
     public var getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler?
     public var hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler?
+    public var isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler?
     public var isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler?
     public var isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler?
     public var latestTransactionIOS: QueryLatestTransactionIOSHandler?
@@ -2484,6 +2551,7 @@ public struct QueryHandlers {
         getActiveSubscriptions: QueryGetActiveSubscriptionsHandler? = nil,
         getAppTransactionIOS: QueryGetAppTransactionIOSHandler? = nil,
         getAvailablePurchases: QueryGetAvailablePurchasesHandler? = nil,
+        getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = nil,
         getPendingTransactionsIOS: QueryGetPendingTransactionsIOSHandler? = nil,
         getPromotedProductIOS: QueryGetPromotedProductIOSHandler? = nil,
         getReceiptDataIOS: QueryGetReceiptDataIOSHandler? = nil,
@@ -2491,6 +2559,7 @@ public struct QueryHandlers {
         getStorefrontIOS: QueryGetStorefrontIOSHandler? = nil,
         getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler? = nil,
         hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = nil,
+        isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = nil,
         isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = nil,
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = nil,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = nil,
@@ -2503,6 +2572,7 @@ public struct QueryHandlers {
         self.getActiveSubscriptions = getActiveSubscriptions
         self.getAppTransactionIOS = getAppTransactionIOS
         self.getAvailablePurchases = getAvailablePurchases
+        self.getExternalPurchaseCustomLinkTokenIOS = getExternalPurchaseCustomLinkTokenIOS
         self.getPendingTransactionsIOS = getPendingTransactionsIOS
         self.getPromotedProductIOS = getPromotedProductIOS
         self.getReceiptDataIOS = getReceiptDataIOS
@@ -2510,6 +2580,7 @@ public struct QueryHandlers {
         self.getStorefrontIOS = getStorefrontIOS
         self.getTransactionJwsIOS = getTransactionJwsIOS
         self.hasActiveSubscriptions = hasActiveSubscriptions
+        self.isEligibleForExternalPurchaseCustomLinkIOS = isEligibleForExternalPurchaseCustomLinkIOS
         self.isEligibleForIntroOfferIOS = isEligibleForIntroOfferIOS
         self.isTransactionVerifiedIOS = isTransactionVerifiedIOS
         self.latestTransactionIOS = latestTransactionIOS
