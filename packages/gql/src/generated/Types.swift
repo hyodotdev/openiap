@@ -242,7 +242,7 @@ public enum ExternalPurchaseCustomLinkTokenTypeIOS: String, Codable, CaseIterabl
     case services = "services"
 }
 
-/// User actions on external purchase notice sheet (iOS 15.4+)
+/// User actions on external purchase notice sheet (iOS 17.4+)
 public enum ExternalPurchaseNoticeAction: String, Codable, CaseIterable {
     /// User chose to continue to external purchase
     case `continue` = "continue"
@@ -682,12 +682,12 @@ public struct ExternalPurchaseLinkResultIOS: Codable {
     public var success: Bool
 }
 
-/// Result of presenting external purchase notice sheet (iOS 15.4+)
+/// Result of presenting external purchase notice sheet (iOS 17.4+)
 /// Returns the token when user continues to external purchase.
 public struct ExternalPurchaseNoticeResultIOS: Codable {
     /// Optional error message if the presentation failed
     public var error: String?
-    /// External purchase token returned when user continues (iOS 15.4+).
+    /// External purchase token returned when user continues (iOS 17.4+).
     /// This token should be reported to Apple's External Purchase Server API.
     /// Only present when result is Continue.
     public var externalPurchaseToken: String?
@@ -2277,7 +2277,7 @@ public protocol MutationResolver {
     func presentCodeRedemptionSheetIOS() async throws -> Bool
     /// Present external purchase custom link with StoreKit UI
     func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
-    /// Present external purchase notice sheet (iOS 15.4+).
+    /// Present external purchase notice sheet (iOS 17.4+).
     /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when user continues.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
     func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS

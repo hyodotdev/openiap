@@ -129,7 +129,7 @@ enum ExternalPurchaseCustomLinkTokenTypeIOS {
 	SERVICES = 1,
 }
 
-## User actions on external purchase notice sheet (iOS 15.4+)
+## User actions on external purchase notice sheet (iOS 17.4+)
 enum ExternalPurchaseNoticeAction {
 	## User chose to continue to external purchase
 	CONTINUE = 0,
@@ -906,13 +906,13 @@ class ExternalPurchaseLinkResultIOS:
 		dict["error"] = error
 		return dict
 
-## Result of presenting external purchase notice sheet (iOS 15.4+) Returns the token when user continues to external purchase.
+## Result of presenting external purchase notice sheet (iOS 17.4+) Returns the token when user continues to external purchase.
 class ExternalPurchaseNoticeResultIOS:
 	## Notice result indicating user action
 	var result: ExternalPurchaseNoticeAction
 	## Optional error message if the presentation failed
 	var error: String
-	## External purchase token returned when user continues (iOS 15.4+).
+	## External purchase token returned when user continues (iOS 17.4+).
 	var external_purchase_token: String
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseNoticeResultIOS:
@@ -4977,7 +4977,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present external purchase notice sheet (iOS 15.4+).
+	## Present external purchase notice sheet (iOS 17.4+).
 	class presentExternalPurchaseNoticeSheetIOSField:
 		const name = "presentExternalPurchaseNoticeSheetIOS"
 		const snake_name = "present_external_purchase_notice_sheet_ios"
@@ -5385,7 +5385,7 @@ static func sync_ios_args() -> Dictionary:
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present external purchase notice sheet (iOS 15.4+).
+## Present external purchase notice sheet (iOS 17.4+).
 static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
 	return {}
 
