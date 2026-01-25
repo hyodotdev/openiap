@@ -11,30 +11,11 @@ Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-
 ## Usage
 
 ```bash
-/sync-godot-iap [--patch | --minor | --major]
+/sync-godot-iap
 ```
 
-### Version Bump Arguments
-
-| Argument | Description | Versioned Docs Required |
-|----------|-------------|-------------------------|
-| `--patch` | Patch version bump (x.x.+1) - Bug fixes, type-only changes | NO |
-| `--minor` | Minor version bump (x.+1.0) - New features, non-breaking | **YES** |
-| `--major` | Major version bump (+1.0.0) - Breaking changes | **YES** |
-
-**Default:** If no argument provided, you will be prompted to choose the version bump type.
-
-### When to Use Each
-
-| Change Type | Version Bump |
-|-------------|--------------|
-| Type-only changes (no new API) | `--patch` |
-| Bug fixes | `--patch` |
-| New fields on existing types | `--patch` |
-| New API functions | `--minor` |
-| New features (non-breaking) | `--minor` |
-| Breaking API changes | `--major` |
-| Removed/renamed functions | `--major` |
+> **Note:** godot-iap version is managed automatically by CI/CD. Do NOT manually bump versions.
+> The CI will determine the appropriate version based on semantic-release conventions.
 
 ## CRITICAL: Mandatory Steps Checklist
 
@@ -491,24 +472,26 @@ godot --editor .
 
 **Every sync MUST have a blog post documenting the changes.**
 
+> **IMPORTANT:** godot-iap version is determined by CI/CD automatically. Do NOT predict or specify the version in filenames or content. Use OpenIAP gql version for reference instead.
+
 #### 9.1 Create Blog Post File
 
 **Location:** `docs/blog/` or `README.md` changelog section
 
-**Filename format:** `YYYY-MM-DD-<version>-<short-description>.md`
+**Filename format:** `YYYY-MM-DD-openiap-<gql-version>.md` (use OpenIAP gql version, NOT godot-iap version)
 
 #### 9.2 Blog Post Template
 
 ```markdown
 ---
-slug: <version>-<short-slug>
-title: <version> - <Short Title>
+slug: openiap-sync-<gql-version>
+title: OpenIAP Sync <gql-version>
 authors: [hyochan]
 tags: [release, openiap, godot, <platform-tags>]
 date: YYYY-MM-DD
 ---
 
-# <version> Release Notes
+# OpenIAP Sync
 
 This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/updates/notes#<anchor>).
 
@@ -667,72 +650,45 @@ class ProductIOS:
 
 ---
 
-## Version Bump & Versioned Docs
+## Versioning
 
-### Automatic Version Determination
+### Automatic Version Management
 
-Based on the `--patch`, `--minor`, or `--major` argument passed to the sync command.
+**IMPORTANT:** godot-iap version is managed automatically by CI/CD using semantic-release.
 
-### Versioned Docs (REQUIRED for Minor/Major)
+- **DO NOT** manually bump versions in `plugin.cfg` or any other files
+- **DO NOT** predict or specify godot-iap version in blog posts or filenames
+- **DO** use OpenIAP gql version for blog post references (e.g., `openiap-sync-1.3.16`)
 
-**CRITICAL: For `--minor` or `--major` version bumps, you MUST create versioned documentation.**
+The CI will automatically determine the appropriate version based on:
+- Commit message conventions (feat:, fix:, etc.)
+- Breaking change indicators
+
+### Versioned Docs (For Major API Changes)
+
+If there are significant API changes, you may need to create versioned documentation.
 
 Docusaurus versioned docs preserve documentation for previous versions so users on older SDK versions can reference the correct API.
 
-#### Step 1: Create Version Snapshot
+#### When to Create Versioned Docs
 
-Before updating docs for the new version, snapshot the current docs:
+- New API functions added
+- Breaking API changes
+- Significant feature additions
+
+#### How to Create Versioned Docs
 
 ```bash
 cd $IAP_REPOS_HOME/godot-iap/docs
 
-# Create a versioned snapshot (e.g., if current is 1.0, new minor will be 1.1)
+# Create a versioned snapshot of current docs
 npm run docusaurus docs:version <CURRENT_VERSION>
-
-# Example: If bumping from 1.0 to 1.1
-npm run docusaurus docs:version 1.0
 ```
 
 This creates:
-- `versioned_docs/version-1.0/` - Copy of current documentation
-- `versioned_sidebars/version-1.0-sidebars.json` - Sidebar config for that version
+- `versioned_docs/version-X.X/` - Copy of current documentation
+- `versioned_sidebars/version-X.X-sidebars.json` - Sidebar config for that version
 - Updates `versions.json` with the new version entry
-
-#### Step 2: Update docusaurus.config.ts
-
-Add the new version to the versions config:
-
-```typescript
-// docs/docusaurus.config.ts
-versions: {
-  current: {
-    label: '1.1 (Current)',  // Update to new version
-    path: '',
-  },
-  '1.0': {                   // Add previous version
-    label: '1.0',
-    path: '1.0',
-  },
-  // ... older versions
-},
-```
-
-#### Step 3: Update Current Docs
-
-Now update `docs/docs/` with new API documentation for the new version.
-
-#### When NOT to Create Versioned Docs
-
-- `--patch` version bumps (bug fixes, type-only changes)
-- Changes that don't affect user-facing API documentation
-
-### Version Bump Checklist
-
-| Bump Type | Create Versioned Docs | Update docusaurus.config.ts | Update Current Docs |
-|-----------|----------------------|----------------------------|---------------------|
-| `--patch` | NO | NO | If API docs changed |
-| `--minor` | **YES** | **YES** | **YES** |
-| `--major` | **YES** | **YES** | **YES** |
 
 ---
 
