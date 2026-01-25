@@ -221,7 +221,7 @@ struct AppTransaction {
         <AnchorLink id="present-external-purchase-notice-sheet-ios" level="h3">
           presentExternalPurchaseNoticeSheetIOS
         </AnchorLink>
-        <p>Present Apple's compliance notice sheet (iOS 15.4+).</p>
+        <p>Present Apple's compliance notice sheet (iOS 17.4+).</p>
         <CodeBlock language="swift">{`func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
 
 struct ExternalPurchaseNoticeResultIOS {
@@ -256,7 +256,7 @@ let result = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(
 
         <div className="alert-card alert-card--info">
           <p>
-            <strong>Requirements:</strong> iOS 15.4+ for notice sheet, iOS 18.2+
+            <strong>Requirements:</strong> iOS 17.4+ for notice sheet, iOS 18.2+
             for custom links. App must have StoreKit external purchase
             entitlement.
           </p>

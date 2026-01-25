@@ -457,7 +457,7 @@ public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
 }
 
 /**
- * User actions on external purchase notice sheet (iOS 15.4+)
+ * User actions on external purchase notice sheet (iOS 17.4+)
  */
 public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
     /**
@@ -1785,7 +1785,7 @@ public data class ExternalPurchaseLinkResultIOS(
 }
 
 /**
- * Result of presenting external purchase notice sheet (iOS 15.4+)
+ * Result of presenting external purchase notice sheet (iOS 17.4+)
  * Returns the token when user continues to external purchase.
  */
 public data class ExternalPurchaseNoticeResultIOS(
@@ -1794,7 +1794,7 @@ public data class ExternalPurchaseNoticeResultIOS(
      */
     val error: String? = null,
     /**
-     * External purchase token returned when user continues (iOS 15.4+).
+     * External purchase token returned when user continues (iOS 17.4+).
      * This token should be reported to Apple's External Purchase Server API.
      * Only present when result is Continue.
      */
@@ -4621,7 +4621,7 @@ public interface MutationResolver {
      */
     suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
     /**
-     * Present external purchase notice sheet (iOS 15.4+).
+     * Present external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.presentNoticeSheet() which returns a token when user continues.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
      */

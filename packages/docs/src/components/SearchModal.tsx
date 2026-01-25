@@ -575,7 +575,7 @@ const apiData: ApiItem[] = [
     id: 'external-purchase-link-ios',
     title: 'External Purchase Link (iOS)',
     category: 'Types (iOS)',
-    description: 'iOS external purchase APIs: canPresent, presentNoticeSheet, presentLink (iOS 15.4+)',
+    description: 'iOS external purchase APIs: canPresent, presentNoticeSheet, presentLink (iOS 17.4+)',
     path: '/docs/types/alternative#external-purchase-link',
   },
 

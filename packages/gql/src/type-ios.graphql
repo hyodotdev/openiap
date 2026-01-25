@@ -497,7 +497,7 @@ type AppTransaction {
 }
 
 """
-Result of presenting external purchase notice sheet (iOS 15.4+)
+Result of presenting external purchase notice sheet (iOS 17.4+)
 Returns the token when user continues to external purchase.
 """
 type ExternalPurchaseNoticeResultIOS {
@@ -510,7 +510,7 @@ type ExternalPurchaseNoticeResultIOS {
   """
   error: String
   """
-  External purchase token returned when user continues (iOS 15.4+).
+  External purchase token returned when user continues (iOS 17.4+).
   This token should be reported to Apple's External Purchase Server API.
   Only present when result is Continue.
   """
@@ -518,7 +518,7 @@ type ExternalPurchaseNoticeResultIOS {
 }
 
 """
-User actions on external purchase notice sheet (iOS 15.4+)
+User actions on external purchase notice sheet (iOS 17.4+)
 """
 enum ExternalPurchaseNoticeAction {
   """

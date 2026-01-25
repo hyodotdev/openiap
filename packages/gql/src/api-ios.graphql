@@ -124,7 +124,7 @@ extend type Mutation {
   # Future
   presentCodeRedemptionSheetIOS: Boolean!
   """
-  Present external purchase notice sheet (iOS 15.4+).
+  Present external purchase notice sheet (iOS 17.4+).
   Uses ExternalPurchase.presentNoticeSheet() which returns a token when user continues.
   Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
   """

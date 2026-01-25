@@ -40,7 +40,7 @@ function TypesAlternative() {
             <s><code>AlternativeBillingModeAndroid</code></s> - <strong>Deprecated:</strong> Use <code>BillingProgramAndroid</code> instead
           </li>
           <li>
-            <a href="#external-purchase-link-ios">External Purchase Link APIs</a> for iOS 15.4+ and 18.2+
+            <a href="#external-purchase-link-ios">External Purchase Link APIs</a> for iOS 17.4+ and 18.2+
           </li>
           <li>
             For Android alternative billing, use the{' '}
@@ -1008,7 +1008,7 @@ if result.is_available:
         <p>
           iOS-specific feature for redirecting users to an external website for
           payment using Apple&apos;s StoreKit <code>ExternalPurchase</code> API.
-          Available from iOS 15.4+ (notice sheet) and iOS 18.2+ (custom links).
+          Available from iOS 17.4+ (notice sheet) and iOS 18.2+ (custom links).
         </p>
 
         <blockquote className="info-note">
@@ -1046,7 +1046,7 @@ if result.is_available:
                 Present Apple&apos;s compliance notice sheet (required before
                 external purchase)
               </td>
-              <td>iOS 15.4+</td>
+              <td>iOS 17.4+</td>
             </tr>
             <tr>
               <td>
@@ -1345,7 +1345,7 @@ Future<void> handleExternalPurchase(String externalUrl) async {
           <tbody>
             <tr>
               <td>Platform</td>
-              <td>iOS 15.4+ (notice sheet), iOS 18.2+ (custom links)</td>
+              <td>iOS 17.4+ (notice sheet), iOS 18.2+ (custom links)</td>
             </tr>
             <tr>
               <td>Entitlement</td>
