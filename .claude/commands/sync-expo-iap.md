@@ -49,7 +49,7 @@ Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-ia
 | 4. Review Native Code | **YES** | Check if iOS/Android modules need updates |
 | 5. Update API Exports | **IF NEEDED** | Add new functions to index.ts, useIAP.ts |
 | 6. Run All Checks | **YES** | `bun run lint:ci`, `bun run test`, example tests |
-| 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
+| 7. **Write/Update Tests** | **YES** | MUST write tests for new types/features - DO NOT SKIP |
 | 8. **Verify Example Code** | **YES** | Check `example/` app uses correct API patterns |
 | 9. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
 | 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
@@ -318,11 +318,24 @@ cd example && bun run test && cd ..
 
 ---
 
-### Step 7: Verify Tests (REQUIRED)
+### Step 7: Write/Update Tests (REQUIRED)
 
-**CRITICAL: Tests MUST cover any new features or field name changes. DO NOT SKIP.**
+**🚨 CRITICAL: You MUST write tests for any new types, fields, or features added in this sync. DO NOT SKIP this step - incomplete tests will cause the PR to fail review.**
 
-#### 7.1 Check Existing Tests
+> **Why this matters:** Tests ensure type serialization works correctly and prevent regressions. Every new field must be tested.
+
+#### 7.1 Identify What Needs Tests
+
+First, identify ALL new types/fields from the sync:
+
+```bash
+cd /Users/crossplatformkorea/Github/hyochan/expo-iap
+
+# See what types changed
+git diff src/types.ts | grep "^+" | head -50
+```
+
+#### 7.2 Check Existing Tests
 
 ```bash
 cd /Users/crossplatformkorea/Github/hyochan/expo-iap
@@ -334,18 +347,18 @@ ls -la src/__tests__/
 grep -r "offerToken\|DiscountOffer\|SubscriptionOffer" src/__tests__/
 ```
 
-#### 7.2 Required Test Coverage
+#### 7.3 Required Test Coverage (MUST WRITE)
 
-For new features or field changes, verify or add tests for:
+**You MUST write tests for ALL of the following:**
 
 - **Type serialization/deserialization**: Test JSON roundtrips
 - **Input field naming**: Test that input types use correct field names (no suffix for Android-specific input types)
 - **Response field naming**: Test that response types use correct field names (with Android suffix for cross-platform types)
 - **API integration**: Test that new fields are passed correctly to native code
 
-#### 7.3 Add Missing Tests
+#### 7.4 Write New Tests (MANDATORY)
 
-If tests don't exist for new features:
+**For EVERY new type or field, create tests like this:**
 
 ```typescript
 // src/__tests__/standardized-offer-types.test.ts
@@ -376,11 +389,15 @@ describe('RequestPurchaseAndroidProps', () => {
 });
 ```
 
-#### 7.4 Run Tests
+#### 7.5 Run Tests (Verify Your New Tests Pass)
 
 ```bash
 bun run test
+
+# If tests fail, FIX THEM before proceeding
 ```
+
+**⚠️ DO NOT proceed to Step 8 until ALL tests pass, including the new tests you just wrote.**
 
 ---
 

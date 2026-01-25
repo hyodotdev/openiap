@@ -55,7 +55,7 @@ Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap)
 | 4.5. **Verify ObjC Bridge** | **YES (iOS)** | Check `OpenIapModule+ObjC.swift` matches Swift functions |
 | 5. Update API Exports | **IF NEEDED** | Add new functions, type aliases, DSL builders |
 | 6. Run All Checks | **YES** | `./gradlew build test detekt` |
-| 7. **Verify Tests** | **YES** | Ensure tests cover new features/field changes |
+| 7. **Write/Update Tests** | **YES** | MUST write tests for new types/features - DO NOT SKIP |
 | 8. **Verify Example Code** | **YES** | Check example app uses correct API patterns |
 | 9. Write Blog Post | **YES** | Create release notes with **NEXT** version |
 | 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
@@ -425,11 +425,32 @@ cd $IAP_REPOS_HOME/kmp-iap
 
 ---
 
-### Step 7: Verify Tests (REQUIRED)
+### Step 7: Write/Update Tests (REQUIRED)
 
-**CRITICAL: All tests must cover new features and field name changes. DO NOT SKIP.**
+**🚨 CRITICAL: You MUST write tests for any new types, fields, or features added in this sync. DO NOT SKIP this step - incomplete tests will cause the PR to fail review.**
 
-#### 7.1 Check Existing Test Coverage
+#### 7.1 Identify What Needs Tests
+
+Before writing tests, identify what changed:
+
+```bash
+cd $IAP_REPOS_HOME/kmp-iap
+
+# Check what types/fields were added or modified
+git diff library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt | head -100
+
+# List new types and fields
+git diff library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt | grep "^+" | grep -E "(data class|val |var |fun )"
+```
+
+Create a checklist of what needs tests:
+- [ ] New data classes
+- [ ] New fields on existing classes
+- [ ] New enum values
+- [ ] New API methods
+- [ ] Changed field names
+
+#### 7.2 Check Existing Test Coverage
 
 ```bash
 cd $IAP_REPOS_HOME/kmp-iap
@@ -441,9 +462,9 @@ find . -name "*Test.kt" -o -name "*Tests.kt"
 grep -rn "fun.*test" library/src/commonTest/ library/src/androidTest/ library/src/iosTest/ 2>/dev/null
 ```
 
-#### 7.2 Verify New Features Are Tested
+#### 7.3 Required Test Coverage (MUST WRITE)
 
-For each new type or field added in the sync:
+**You MUST write tests for each new type or field added in the sync:**
 
 1. **Check if tests exist for new types:**
    ```kotlin
@@ -470,9 +491,9 @@ For each new type or field added in the sync:
    }
    ```
 
-#### 7.3 Add Missing Tests
+#### 7.4 Write New Tests (MANDATORY)
 
-If tests don't exist for new features:
+**You MUST write tests for new features. If tests don't exist:**
 
 1. Create test file in `library/src/commonTest/kotlin/`
 2. Add tests for:
@@ -482,7 +503,7 @@ If tests don't exist for new features:
    - Default values for optional fields
    - Platform-specific DSL builders
 
-#### 7.4 Run All Tests
+#### 7.5 Run Tests
 
 ```bash
 cd $IAP_REPOS_HOME/kmp-iap
@@ -494,7 +515,7 @@ cd $IAP_REPOS_HOME/kmp-iap
 ./gradlew :library:check
 ```
 
-**If tests fail, fix before continuing.**
+**⚠️ WARNING: DO NOT proceed to Step 8 until all tests pass. If tests fail, fix them before continuing.**
 
 ---
 
