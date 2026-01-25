@@ -4559,12 +4559,19 @@ class Query:
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
 				if data.has("tokenType") and data["tokenType"] != null:
-					obj.token_type = data["tokenType"]
+					var enum_str = data["tokenType"]
+					if enum_str is String and EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING.has(enum_str):
+						obj.token_type = EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING[enum_str]
+					else:
+						obj.token_type = enum_str
 				return obj
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["tokenType"] = token_type
+				if EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES.has(token_type):
+					dict["tokenType"] = EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES[token_type]
+				else:
+					dict["tokenType"] = token_type
 				return dict
 		const return_type = "ExternalPurchaseCustomLinkTokenResultIOS"
 		const is_array = false
@@ -5017,12 +5024,19 @@ class Mutation:
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
 				if data.has("noticeType") and data["noticeType"] != null:
-					obj.notice_type = data["noticeType"]
+					var enum_str = data["noticeType"]
+					if enum_str is String and EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_FROM_STRING.has(enum_str):
+						obj.notice_type = EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_FROM_STRING[enum_str]
+					else:
+						obj.notice_type = enum_str
 				return obj
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["noticeType"] = notice_type
+				if EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES.has(notice_type):
+					dict["noticeType"] = EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES[notice_type]
+				else:
+					dict["noticeType"] = notice_type
 				return dict
 		const return_type = "ExternalPurchaseCustomLinkNoticeResultIOS"
 		const is_array = false
@@ -5104,12 +5118,19 @@ class Mutation:
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
 				if data.has("program") and data["program"] != null:
-					obj.program = data["program"]
+					var enum_str = data["program"]
+					if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
+						obj.program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+					else:
+						obj.program = enum_str
 				return obj
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["program"] = program
+				if BILLING_PROGRAM_ANDROID_VALUES.has(program):
+					dict["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]
+				else:
+					dict["program"] = program
 				return dict
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
@@ -5124,12 +5145,19 @@ class Mutation:
 			static func from_dict(data: Dictionary) -> Args:
 				var obj = Args.new()
 				if data.has("program") and data["program"] != null:
-					obj.program = data["program"]
+					var enum_str = data["program"]
+					if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
+						obj.program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+					else:
+						obj.program = enum_str
 				return obj
 
 			func to_dict() -> Dictionary:
 				var dict = {}
-				dict["program"] = program
+				if BILLING_PROGRAM_ANDROID_VALUES.has(program):
+					dict["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]
+				else:
+					dict["program"] = program
 				return dict
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false

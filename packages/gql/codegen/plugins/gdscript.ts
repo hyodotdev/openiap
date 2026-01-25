@@ -539,7 +539,16 @@ export class GDScriptPlugin extends CodegenPlugin {
           for (const arg of field.args) {
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
             this.emit(`\t\t\t\tif data.has("${arg.name}") and data["${arg.name}"] != null:`);
-            this.emit(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
+            if (arg.type.kind === 'enum') {
+              const enumReverseLookup = toConstantCase(arg.type.name!) + '_FROM_STRING';
+              this.emit(`\t\t\t\t\tvar enum_str = data["${arg.name}"]`);
+              this.emit(`\t\t\t\t\tif enum_str is String and ${enumReverseLookup}.has(enum_str):`);
+              this.emit(`\t\t\t\t\t\tobj.${argSnakeName} = ${enumReverseLookup}[enum_str]`);
+              this.emit(`\t\t\t\t\telse:`);
+              this.emit(`\t\t\t\t\t\tobj.${argSnakeName} = enum_str`);
+            } else {
+              this.emit(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
+            }
           }
           this.emit(`\t\t\t\treturn obj`);
           this.emit('');
@@ -547,7 +556,15 @@ export class GDScriptPlugin extends CodegenPlugin {
           this.emit(`\t\t\t\tvar dict = {}`);
           for (const arg of field.args) {
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
-            this.emit(`\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
+            if (arg.type.kind === 'enum') {
+              const enumConstName = toConstantCase(arg.type.name!) + '_VALUES';
+              this.emit(`\t\t\t\tif ${enumConstName}.has(${argSnakeName}):`);
+              this.emit(`\t\t\t\t\tdict["${arg.name}"] = ${enumConstName}[${argSnakeName}]`);
+              this.emit(`\t\t\t\telse:`);
+              this.emit(`\t\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
+            } else {
+              this.emit(`\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
+            }
           }
           this.emit(`\t\t\t\treturn dict`);
         } else {
