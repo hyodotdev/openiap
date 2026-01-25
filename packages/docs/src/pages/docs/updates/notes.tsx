@@ -26,6 +26,88 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
+    {
+      id: 'gql-1-3-16-apple-1-3-14',
+      date: new Date('2026-01-26'),
+      element: (
+        <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
+          <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
+            📅 openiap-gql v1.3.16 / openiap-apple v1.3.14 - ExternalPurchaseCustomLink Support (iOS 18.1+)
+          </AnchorLink>
+
+          <p><strong>New: ExternalPurchaseCustomLink API Support</strong></p>
+          <p>
+            Added full support for Apple's <code>ExternalPurchaseCustomLink</code> API (iOS 18.1+) for apps using
+            custom external purchase links with token-based reporting.
+          </p>
+
+          <p style={{ marginTop: '1rem' }}><strong>New APIs:</strong></p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Method</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>isEligibleForExternalPurchaseCustomLinkIOS()</code></td><td>Check if app can use ExternalPurchaseCustomLink API</td></tr>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>getExternalPurchaseCustomLinkTokenIOS(tokenType)</code></td><td>Get token for reporting to Apple's External Purchase Server API</td></tr>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>showExternalPurchaseCustomLinkNoticeIOS(noticeType)</code></td><td>Show CustomLink-specific disclosure notice sheet</td></tr>
+            </tbody>
+          </table>
+
+          <p style={{ marginTop: '1rem' }}><strong>New Types:</strong></p>
+          <ul>
+            <li><code>ExternalPurchaseCustomLinkTokenTypeIOS</code> - Token types: <code>acquisition</code>, <code>services</code></li>
+            <li><code>ExternalPurchaseCustomLinkNoticeTypeIOS</code> - Notice types: <code>browser</code></li>
+            <li><code>ExternalPurchaseCustomLinkTokenResultIOS</code> - Token result with <code>token</code> and <code>error</code></li>
+            <li><code>ExternalPurchaseCustomLinkNoticeResultIOS</code> - Notice result with <code>continued</code> and <code>error</code></li>
+          </ul>
+
+          <hr style={{ margin: '1rem 0', borderColor: 'var(--border-color)' }} />
+
+          <p><strong>Improved: presentExternalPurchaseNoticeSheetIOS()</strong></p>
+          <p>
+            Now returns <code>externalPurchaseToken</code> field when user continues. This token is required for
+            reporting transactions to Apple's External Purchase Server API.
+          </p>
+          <pre style={{ background: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem', overflow: 'auto' }}>
+{`// Before
+result.result  // "continue" or "dismissed"
+result.error   // optional error
+
+// After (v1.3.14+)
+result.result                 // "continue" or "dismissed"
+result.externalPurchaseToken  // Token string (when result is "continue")
+result.error                  // optional error`}
+          </pre>
+
+          <p style={{ marginTop: '1rem' }}><strong>API Distinction:</strong></p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>API</th>
+                <th style={{ textAlign: 'center', padding: '0.5rem' }}>iOS Version</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Use Case</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>ExternalPurchase</code></td><td style={{ textAlign: 'center' }}>15.4+</td><td>Basic external purchase notice</td></tr>
+              <tr><td style={{ padding: '0.25rem 0.5rem' }}><code>ExternalPurchaseCustomLink</code></td><td style={{ textAlign: 'center' }}>18.1+</td><td>Custom links with token-based reporting</td></tr>
+            </tbody>
+          </table>
+
+          <p><strong>References:</strong></p>
+          <ul>
+            <li><a href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink" target="_blank" rel="noopener noreferrer">Apple ExternalPurchaseCustomLink Documentation</a></li>
+            <li><a href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)" target="_blank" rel="noopener noreferrer">token(for:) API Reference</a></li>
+            <li><a href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)" target="_blank" rel="noopener noreferrer">showNotice(type:) API Reference</a></li>
+            <li><a href="https://github.com/dooboolab-community/react-native-iap/discussions/3135" target="_blank" rel="noopener noreferrer">Feature Request Discussion #3135</a></li>
+          </ul>
+        </div>
+      ),
+    },
     // GQL 1.3.15 / Google 1.3.27 / Apple 1.3.13 - Jan 21, 2026
     {
       id: 'gql-1-3-15-google-1-3-27-apple-1-3-13',
