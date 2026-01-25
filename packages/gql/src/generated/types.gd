@@ -115,7 +115,21 @@ enum ExternalLinkTypeAndroid {
 	LINK_TO_APP_DOWNLOAD = 2,
 }
 
-## User actions on external purchase notice sheet (iOS 18.2+)
+## Notice types for ExternalPurchaseCustomLink (iOS 18.1+). Determines the style of disclosure notice to display. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/noticetype
+enum ExternalPurchaseCustomLinkNoticeTypeIOS {
+	## Notice type indicating external purchases will be displayed in a browser or destination of the app's choice.
+	BROWSER = 0,
+}
+
+## Token types for ExternalPurchaseCustomLink (iOS 18.1+). Used to request different types of external purchase tokens for reporting to Apple. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+enum ExternalPurchaseCustomLinkTokenTypeIOS {
+	## Token for customer acquisition tracking. Use this when a new customer makes their first purchase through external link.
+	ACQUISITION = 0,
+	## Token for ongoing services tracking. Use this for existing customers making additional purchases.
+	SERVICES = 1,
+}
+
+## User actions on external purchase notice sheet (iOS 15.4+)
 enum ExternalPurchaseNoticeAction {
 	## User chose to continue to external purchase
 	CONTINUE = 0,
@@ -829,7 +843,49 @@ class ExternalOfferReportingDetailsAndroid:
 		dict["externalTransactionToken"] = external_transaction_token
 		return dict
 
-## Result of presenting an external purchase link (iOS 18.2+)
+## Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+).
+class ExternalPurchaseCustomLinkNoticeResultIOS:
+	## Whether the user chose to continue to external purchase
+	var continued: bool
+	## Optional error message if the presentation failed
+	var error: String
+
+	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkNoticeResultIOS:
+		var obj = ExternalPurchaseCustomLinkNoticeResultIOS.new()
+		if data.has("continued") and data["continued"] != null:
+			obj.continued = data["continued"]
+		if data.has("error") and data["error"] != null:
+			obj.error = data["error"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["continued"] = continued
+		dict["error"] = error
+		return dict
+
+## Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
+class ExternalPurchaseCustomLinkTokenResultIOS:
+	## The external purchase token string.
+	var token: String
+	## Optional error message if token retrieval failed
+	var error: String
+
+	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkTokenResultIOS:
+		var obj = ExternalPurchaseCustomLinkTokenResultIOS.new()
+		if data.has("token") and data["token"] != null:
+			obj.token = data["token"]
+		if data.has("error") and data["error"] != null:
+			obj.error = data["error"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["token"] = token
+		dict["error"] = error
+		return dict
+
+## Result of presenting an external purchase link
 class ExternalPurchaseLinkResultIOS:
 	## Whether the user completed the external purchase flow
 	var success: bool
@@ -850,12 +906,14 @@ class ExternalPurchaseLinkResultIOS:
 		dict["error"] = error
 		return dict
 
-## Result of presenting external purchase notice sheet (iOS 18.2+)
+## Result of presenting external purchase notice sheet (iOS 15.4+) Returns the token when user continues to external purchase.
 class ExternalPurchaseNoticeResultIOS:
 	## Notice result indicating user action
 	var result: ExternalPurchaseNoticeAction
 	## Optional error message if the presentation failed
 	var error: String
+	## External purchase token returned when user continues (iOS 15.4+).
+	var external_purchase_token: String
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseNoticeResultIOS:
 		var obj = ExternalPurchaseNoticeResultIOS.new()
@@ -867,6 +925,8 @@ class ExternalPurchaseNoticeResultIOS:
 				obj.result = enum_str
 		if data.has("error") and data["error"] != null:
 			obj.error = data["error"]
+		if data.has("externalPurchaseToken") and data["externalPurchaseToken"] != null:
+			obj.external_purchase_token = data["externalPurchaseToken"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -876,6 +936,7 @@ class ExternalPurchaseNoticeResultIOS:
 		else:
 			dict["result"] = result
 		dict["error"] = error
+		dict["externalPurchaseToken"] = external_purchase_token
 		return dict
 
 ## Limited quantity information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
@@ -4001,6 +4062,15 @@ const EXTERNAL_LINK_TYPE_ANDROID_VALUES = {
 	ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD: "link-to-app-download"
 }
 
+const EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES = {
+	ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER: "browser"
+}
+
+const EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES = {
+	ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION: "acquisition",
+	ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES: "services"
+}
+
 const EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES = {
 	ExternalPurchaseNoticeAction.CONTINUE: "continue",
 	ExternalPurchaseNoticeAction.DISMISSED: "dismissed"
@@ -4205,6 +4275,15 @@ const EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING = {
 	"unspecified": ExternalLinkTypeAndroid.UNSPECIFIED,
 	"link-to-digital-content-offer": ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER,
 	"link-to-app-download": ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD
+}
+
+const EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_FROM_STRING = {
+	"browser": ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER
+}
+
+const EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING = {
+	"acquisition": ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION,
+	"services": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES
 }
 
 const EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING = {
@@ -4451,13 +4530,43 @@ class Query:
 		const return_type = "ProductIOS"
 		const is_array = false
 
-	## Check if external purchase notice sheet can be presented (iOS 18.2+)
+	## Check if external purchase notice sheet can be presented (iOS 17.4+)
 	class canPresentExternalPurchaseNoticeIOSField:
 		const name = "canPresentExternalPurchaseNoticeIOS"
 		const snake_name = "can_present_external_purchase_notice_ios"
 		class Args:
 			pass
 		const return_type = "Boolean"
+		const is_array = false
+
+	## Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
+	class isEligibleForExternalPurchaseCustomLinkIOSField:
+		const name = "isEligibleForExternalPurchaseCustomLinkIOS"
+		const snake_name = "is_eligible_for_external_purchase_custom_link_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Get external purchase token for reporting to Apple (iOS 18.1+).
+	class getExternalPurchaseCustomLinkTokenIOSField:
+		const name = "getExternalPurchaseCustomLinkTokenIOS"
+		const snake_name = "get_external_purchase_custom_link_token_ios"
+		class Args:
+			## Token type: acquisition (new customers) or services (existing customers)
+			var token_type: ExternalPurchaseCustomLinkTokenTypeIOS
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("tokenType") and data["tokenType"] != null:
+					obj.token_type = data["tokenType"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var dict = {}
+				dict["tokenType"] = token_type
+				return dict
+		const return_type = "ExternalPurchaseCustomLinkTokenResultIOS"
 		const is_array = false
 
 	## Retrieve all pending transactions in the StoreKit queue
@@ -4868,7 +4977,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present external purchase notice sheet (iOS 18.2+)
+	## Present external purchase notice sheet (iOS 15.4+).
 	class presentExternalPurchaseNoticeSheetIOSField:
 		const name = "presentExternalPurchaseNoticeSheetIOS"
 		const snake_name = "present_external_purchase_notice_sheet_ios"
@@ -4877,7 +4986,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseNoticeResultIOS"
 		const is_array = false
 
-	## Present external purchase custom link with StoreKit UI (iOS 18.2+)
+	## Present external purchase custom link with StoreKit UI
 	class presentExternalPurchaseLinkIOSField:
 		const name = "presentExternalPurchaseLinkIOS"
 		const snake_name = "present_external_purchase_link_ios"
@@ -4895,6 +5004,27 @@ class Mutation:
 				dict["url"] = url
 				return dict
 		const return_type = "ExternalPurchaseLinkResultIOS"
+		const is_array = false
+
+	## Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
+	class showExternalPurchaseCustomLinkNoticeIOSField:
+		const name = "showExternalPurchaseCustomLinkNoticeIOS"
+		const snake_name = "show_external_purchase_custom_link_notice_ios"
+		class Args:
+			## Notice type determining the style of disclosure
+			var notice_type: ExternalPurchaseCustomLinkNoticeTypeIOS
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("noticeType") and data["noticeType"] != null:
+					obj.notice_type = data["noticeType"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var dict = {}
+				dict["noticeType"] = notice_type
+				return dict
+		const return_type = "ExternalPurchaseCustomLinkNoticeResultIOS"
 		const is_array = false
 
 	## Acknowledge a non-consumable purchase or subscription
@@ -5076,9 +5206,19 @@ static func get_storefront_ios_args() -> Dictionary:
 static func get_promoted_product_ios_args() -> Dictionary:
 	return {}
 
-## Check if external purchase notice sheet can be presented (iOS 18.2+)
+## Check if external purchase notice sheet can be presented (iOS 17.4+)
 static func can_present_external_purchase_notice_ios_args() -> Dictionary:
 	return {}
+
+## Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
+static func is_eligible_for_external_purchase_custom_link_ios_args() -> Dictionary:
+	return {}
+
+## Get external purchase token for reporting to Apple (iOS 18.1+).
+static func get_external_purchase_custom_link_token_ios_args(token_type: ExternalPurchaseCustomLinkTokenTypeIOS) -> Dictionary:
+	var args = {}
+	args["tokenType"] = token_type
+	return args
 
 ## Retrieve all pending transactions in the StoreKit queue
 static func get_pending_transactions_ios_args() -> Dictionary:
@@ -5245,14 +5385,20 @@ static func sync_ios_args() -> Dictionary:
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present external purchase notice sheet (iOS 18.2+)
+## Present external purchase notice sheet (iOS 15.4+).
 static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present external purchase custom link with StoreKit UI (iOS 18.2+)
+## Present external purchase custom link with StoreKit UI
 static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
 	var args = {}
 	args["url"] = url
+	return args
+
+## Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
+static func show_external_purchase_custom_link_notice_ios_args(notice_type: ExternalPurchaseCustomLinkNoticeTypeIOS) -> Dictionary:
+	var args = {}
+	args["noticeType"] = notice_type
 	return args
 
 ## Acknowledge a non-consumable purchase or subscription

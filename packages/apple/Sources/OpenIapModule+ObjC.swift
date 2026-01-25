@@ -687,6 +687,66 @@ import StoreKit
         }
     }
 
+    // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
+
+    @available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *)
+    @objc func isEligibleForExternalPurchaseCustomLinkIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
+        Task {
+            do {
+                let isEligible = try await isEligibleForExternalPurchaseCustomLinkIOS()
+                completion(isEligible, nil)
+            } catch {
+                completion(false, error)
+            }
+        }
+    }
+
+    @available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *)
+    @objc func getExternalPurchaseCustomLinkTokenIOSWithTokenType(
+        _ tokenTypeString: String,
+        completion: @escaping (Any?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                guard let tokenType = ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenTypeString) else {
+                    let error = PurchaseError(
+                        code: .developerError,
+                        message: "Invalid token type: \(tokenTypeString). Use 'acquisition' or 'services'"
+                    )
+                    throw error
+                }
+                let result = try await getExternalPurchaseCustomLinkTokenIOS(tokenType)
+                let dictionary = OpenIapSerialization.encode(result)
+                completion(dictionary, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
+    @available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *)
+    @objc func showExternalPurchaseCustomLinkNoticeIOSWithNoticeType(
+        _ noticeTypeString: String,
+        completion: @escaping (Any?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                guard let noticeType = ExternalPurchaseCustomLinkNoticeTypeIOS(rawValue: noticeTypeString) else {
+                    let error = PurchaseError(
+                        code: .developerError,
+                        message: "Invalid notice type: \(noticeTypeString). Use 'browser'"
+                    )
+                    throw error
+                }
+                let result = try await showExternalPurchaseCustomLinkNoticeIOS(noticeType)
+                let dictionary = OpenIapSerialization.encode(result)
+                completion(dictionary, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     // MARK: - Event Listeners
 
     @objc func addPurchaseUpdatedListener(_ callback: @escaping (NSDictionary) -> Void) -> NSObject {

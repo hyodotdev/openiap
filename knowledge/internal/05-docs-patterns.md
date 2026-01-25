@@ -105,3 +105,44 @@ src/components/
 - Delete unused components, functions, and imports immediately
 - Don't keep commented-out code
 - Remove unused variables and parameters
+
+---
+
+## Release Notes Pattern
+
+### Location
+
+Release notes are located at `packages/docs/src/pages/docs/updates/notes.tsx`.
+
+### Adding New Release Notes
+
+1. Add new entry at the **top** of the `allNotes` array
+2. Follow the existing pattern with `id`, `date`, and `element`
+3. Use semantic IDs like `gql-1-3-16-apple-1-3-14`
+
+```tsx
+const allNotes: Note[] = [
+  // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
+  {
+    id: 'gql-1-3-16-apple-1-3-14',
+    date: new Date('2026-01-26'),
+    element: (
+      <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
+        <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
+          📅 openiap-gql v1.3.16 / openiap-apple v1.3.14 - Feature Description
+        </AnchorLink>
+        {/* Content here */}
+      </div>
+    ),
+  },
+  // ... older notes
+];
+```
+
+### Required Elements
+
+- **AnchorLink**: For deep linking to specific release
+- **Version info**: Package names and versions in title
+- **Date**: In format `new Date('YYYY-MM-DD')`
+- **References**: Links to Apple/Google documentation when applicable
+- **Issue links**: Reference GitHub issues when fixing bugs
