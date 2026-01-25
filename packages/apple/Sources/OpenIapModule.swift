@@ -1081,13 +1081,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return []
     }
 
-    // MARK: - External Purchase (iOS 15.4+, macOS 14.4+, tvOS 17.4+)
+    // MARK: - External Purchase (iOS 17.4+, macOS 14.4+, tvOS 17.4+)
 
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
         try await ensureConnection()
-        // iOS 17.4+, macOS 15.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.canPresent
+        // iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.canPresent
         // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/canpresent
-        if #available(iOS 17.4, macOS 15.4, tvOS 17.4, watchOS 10.4, *) {
+        if #available(iOS 17.4, macOS 14.4, tvOS 17.4, watchOS 10.4, *) {
             return await ExternalPurchase.canPresent
         } else {
             return false
@@ -1096,18 +1096,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
         try await ensureConnection()
-        // iOS 15.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.presentNoticeSheet
-        // Note: canPresent is iOS 17.4+, so we check it conditionally
+        // iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+: ExternalPurchase.presentNoticeSheet
         // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
-        if #available(iOS 15.4, macOS 14.4, tvOS 17.4, watchOS 10.4, *) {
-            // canPresent requires iOS 17.4+, so only check on supported versions
-            if #available(iOS 17.4, macOS 15.4, tvOS 17.4, watchOS 10.4, *) {
-                guard await ExternalPurchase.canPresent else {
-                    throw makePurchaseError(
-                        code: .featureNotSupported,
-                        message: "External purchase notice sheet is not available"
-                    )
-                }
+        if #available(iOS 17.4, macOS 14.4, tvOS 17.4, watchOS 10.4, *) {
+            guard await ExternalPurchase.canPresent else {
+                throw makePurchaseError(
+                    code: .featureNotSupported,
+                    message: "External purchase notice sheet is not available"
+                )
             }
 
             do {
@@ -1155,7 +1151,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         } else {
             throw makePurchaseError(
                 code: .featureNotSupported,
-                message: "External purchase notice sheet requires iOS 15.4+, macOS 14.4+, tvOS 17.4+, or watchOS 10.4+"
+                message: "External purchase notice sheet requires iOS 17.4+, macOS 14.4+, tvOS 17.4+, or watchOS 10.4+"
             )
         }
     }
