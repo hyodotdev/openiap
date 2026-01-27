@@ -165,6 +165,19 @@ function Subscription() {
             to verify purchases client-side, and implement server-side
             validation for authoritative subscription status.
           </p>
+          <p>
+            <strong>Recommendation</strong>: Use{' '}
+            <a
+              href="https://iapkit.com"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              iapkit
+            </a>{' '}
+            for server-side verification to get unified subscription data across
+            both platforms—including all the iOS-only fields for Android
+            subscriptions.
+          </p>
         </Accordion>
       </section>
 
