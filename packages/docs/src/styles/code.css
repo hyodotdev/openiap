@@ -136,14 +136,14 @@ code:not([class*='language-']) {
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
   font-size: 0.85em;
   padding: 0.15em 0.35em;
-  background: rgba(175, 184, 193, 0.2);
+  background: rgba(197, 177, 159, 0.2);
   border-radius: 4px;
-  color: #d63384;
+  color: #8b6545;
 }
 
 :root.dark code:not([class*='language-']) {
-  background: rgba(110, 118, 129, 0.3);
-  color: #ff7eb6;
+  background: rgba(197, 177, 159, 0.15);
+  color: #c5b19f;
 }
 
 /* Code with language class (syntax highlighted) */

@@ -372,8 +372,7 @@
   margin-bottom: 0;
 }
 
-.terminology-note code {
-  background: rgba(197, 177, 159, 0.15);
+.terminology-note code:not([class*='language-']) {
   padding: 0.2rem 0.4rem;
   border-radius: 0.25rem;
   font-size: 0.9em;
@@ -400,9 +399,6 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-:root.dark .terminology-note code {
-  background: rgba(197, 177, 159, 0.25);
-}
 
 /* Anchor Links */
 .anchor-heading {
@@ -940,6 +936,27 @@
 
 .tldr-content li:last-child {
   margin-bottom: 0;
+}
+
+.tldr-content a {
+  color: #8b6545;
+  text-decoration: none;
+}
+
+.tldr-content a:hover {
+  text-decoration: underline;
+}
+
+.tldr-content a code:not([class*='language-']) {
+  color: inherit;
+}
+
+:root.dark .tldr-content a {
+  color: #c5b19f;
+}
+
+:root.dark .tldr-content a code:not([class*='language-']) {
+  color: inherit;
 }
 
 :root.dark .doc-page .tldr-box {

@@ -42,14 +42,47 @@ function PurchaseAPIs() {
         </ul>
       </TLDRBox>
 
-      <div className="alert-card alert-card--warning">
-        <p>
-          <strong>Important:</strong> <code>requestPurchase</code> is
-          event-based, not promise-based. Set up{' '}
-          <code>purchaseUpdatedListener</code> before calling it. See{' '}
-          <Link to="/docs/events">Events</Link> for details.
-        </p>
-      </div>
+      <section>
+        <AnchorLink id="terminology" level="h2">
+          Terminology
+        </AnchorLink>
+
+        <AnchorLink id="request-apis" level="h3">
+          Request APIs
+        </AnchorLink>
+        <blockquote className="terminology-note">
+          <p>
+            <strong>⚠️ Important:</strong> APIs starting with{' '}
+            <code>request</code> are event-based operations, not promise-based.
+          </p>
+          <p>
+            While these APIs return values for various purposes, you should{' '}
+            <strong>
+              not rely on their return values for actual purchase results
+            </strong>
+            . Instead, listen for events through{' '}
+            <code>purchaseUpdatedListener</code> or{' '}
+            <code>purchaseErrorListener</code>.
+          </p>
+          <p>
+            This is because Apple's purchase system is fundamentally
+            event-based, not promise-based. For more details, see this{' '}
+            <a
+              href="https://github.com/hyochan/react-native-iap/issues/307#issuecomment-449208083"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              issue comment
+            </a>
+            .
+          </p>
+          <p>
+            The <code>request</code> prefix indicates that these are event
+            requests - use the appropriate listeners to handle the actual
+            results.
+          </p>
+        </blockquote>
+      </section>
 
       <section>
         <AnchorLink id="request-purchase" level="h2">
