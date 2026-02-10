@@ -188,6 +188,15 @@ function TypesAndroid() {
               </td>
               <td>Quantity-limited offer availability</td>
             </tr>
+            <tr>
+              <td>
+                <code>purchaseOptionId</code>
+              </td>
+              <td>
+                <code>string | null</code>
+              </td>
+              <td>Purchase option ID to identify which option was selected (7.0+)</td>
+            </tr>
           </tbody>
         </table>
 

@@ -547,8 +547,81 @@ function TypesPurchase() {
                         )
                       </td>
                     </tr>
+                    <tr>
+                      <td>
+                        <code>pendingPurchaseUpdateAndroid</code>
+                      </td>
+                      <td>
+                        Pending subscription upgrade/downgrade details. When a user
+                        initiates a plan change, this contains the new product IDs
+                        and purchase token for the pending transaction. Returns null
+                        if no pending update exists. See{' '}
+                        <a href="#pending-purchase-update-android">
+                          PendingPurchaseUpdateAndroid
+                        </a>{' '}
+                        below. (
+                        <a
+                          href="https://developer.android.com/reference/com/android/billingclient/api/Purchase.PendingPurchaseUpdate"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Billing Library 5.0+
+                        </a>
+                        )
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
+
+                <div style={{ marginTop: '1rem' }}>
+                  <AnchorLink id="pending-purchase-update-android" level="h4">
+                    PendingPurchaseUpdateAndroid{' '}
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'normal' }}>
+                      (from{' '}
+                      <a
+                        href="https://developer.android.com/reference/com/android/billingclient/api/Purchase.PendingPurchaseUpdate"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Purchase.PendingPurchaseUpdate
+                      </a>
+                      )
+                    </span>
+                  </AnchorLink>
+                  <p>
+                    Contains details about a pending subscription upgrade or downgrade.
+                    When a user changes their subscription plan, the new plan may be
+                    pending until the current billing period ends.
+                  </p>
+                  <table className="doc-table" style={{ marginTop: '0.5rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Summary</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <code>products</code>
+                        </td>
+                        <td>
+                          List of product IDs for the pending purchase update.
+                          These are the new products the user is switching to.
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>purchaseToken</code>
+                        </td>
+                        <td>
+                          Unique token identifying the pending transaction.
+                          Use this to track or manage the pending update.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </>
             ),
           }}
