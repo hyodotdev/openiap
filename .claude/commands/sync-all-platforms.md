@@ -654,6 +654,93 @@ git commit -m "docs: sync with openiap v1.x.x - update API docs"
 
 ---
 
+## Create Pull Requests (REQUIRED)
+
+**CRITICAL: You MUST create a PR for each platform SDK after pushing. DO NOT skip this step.**
+
+### Find Related OpenIAP PR
+
+If this sync was triggered by an OpenIAP PR, include it in PR descriptions:
+
+```bash
+# Find recent OpenIAP PRs related to this sync
+gh pr list --repo hyodotdev/openiap --state merged --limit 5
+```
+
+### Create PRs for All Platforms
+
+For each platform, create a PR with the OpenIAP PR reference:
+
+```bash
+# expo-iap
+cd $IAP_REPOS_HOME/expo-iap
+gh pr create --title "feat: sync with openiap v<gql-version>" --body "$(cat <<'EOF'
+## Summary
+- Sync with OpenIAP v<gql-version>
+
+## Related
+- OpenIAP PR: <openiap-pr-url>
+- OpenIAP Release Notes: https://www.openiap.dev/docs/updates/notes#gql-<version>
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+
+# react-native-iap
+cd $IAP_REPOS_HOME/react-native-iap
+gh pr create --title "feat: sync with openiap v<gql-version>" --body "..."
+
+# flutter_inapp_purchase
+cd $IAP_REPOS_HOME/flutter_inapp_purchase
+gh pr create --title "feat: sync with openiap v<gql-version>" --body "..."
+
+# kmp-iap
+cd $IAP_REPOS_HOME/kmp-iap
+gh pr create --title "feat: sync with openiap v<gql-version>" --body "..."
+
+# godot-iap
+cd $IAP_REPOS_HOME/godot-iap
+gh pr create --title "feat: sync with openiap v<gql-version>" --body "..."
+```
+
+### PR Body Template
+
+Use this template for all platform PRs:
+
+```markdown
+## Summary
+
+- Sync with OpenIAP v<gql-version>
+- <List specific new features/changes>
+
+## Related
+
+- OpenIAP PR: <openiap-pr-url-if-applicable>
+- OpenIAP Release Notes: https://www.openiap.dev/docs/updates/notes#gql-<version>
+
+## Changes
+
+- Update openiap-versions.json (gql: <ver>, apple: <ver>, google: <ver>)
+- Regenerate types
+- <List other changes>
+- Add release blog post
+- Update llms.txt
+
+## Test Plan
+
+- [ ] Lint/analyze passes
+- [ ] Tests pass
+- [ ] Example app builds successfully
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+```
+
+### Return PR URLs
+
+After creating all PRs, note the URLs to share with the user.
+
+---
+
 ## Post-Sync Verification
 
 1. **All platforms build successfully**

@@ -54,7 +54,8 @@ Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan
 | 8. **Verify Example Code** | **YES** | Check `example/` app uses correct API patterns |
 | 9. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
 | 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
-| 11. Commit & Push | **YES** | Create PR with proper format |
+| 11. Commit & Push | **YES** | Commit changes and push to remote |
+| 12. **Create PR** | **YES** | Create PR with OpenIAP PR reference |
 
 ## Project Overview
 
@@ -712,6 +713,60 @@ EOF
 ```bash
 git push -u origin feat/openiap-sync-<gql-version>
 ```
+
+---
+
+### Step 12: Create Pull Request (REQUIRED)
+
+**CRITICAL: You MUST create a PR after pushing. DO NOT skip this step.**
+
+#### 12.1 Find Related OpenIAP PR (if applicable)
+
+If this sync was triggered by an OpenIAP PR, include it in the PR description:
+
+```bash
+# Find recent OpenIAP PRs related to this sync
+gh pr list --repo hyodotdev/openiap --state merged --limit 5
+```
+
+#### 12.2 Create PR with OpenIAP Reference
+
+```bash
+cd $IAP_REPOS_HOME/react-native-iap
+
+gh pr create --title "feat: sync with openiap v<gql-version>" --body "$(cat <<'EOF'
+## Summary
+
+- Sync with OpenIAP v<gql-version>
+- <List specific new features/changes>
+
+## Related
+
+- OpenIAP PR: <openiap-pr-url-if-applicable>
+- OpenIAP Release Notes: https://www.openiap.dev/docs/updates/notes#gql-<version>
+
+## Changes
+
+- Update openiap-versions.json (gql: <ver>, apple: <ver>, google: <ver>)
+- Regenerate TypeScript types
+- <List other changes>
+- Add release blog post
+- Update llms.txt
+
+## Test Plan
+
+- [ ] `yarn typecheck` passes
+- [ ] `yarn lint` passes
+- [ ] `yarn test` passes
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+#### 12.3 Return PR URL
+
+After creating the PR, note the URL to share with the user.
 
 ---
 
