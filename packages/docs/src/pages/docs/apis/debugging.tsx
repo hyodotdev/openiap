@@ -144,8 +144,9 @@ OpenIapLog.enable(false)`}</CodeBlock>
 let purchasedBasePlanId: string | null = null;
 
 const handlePurchase = async (basePlanId: string) => {
-  const offers = product.subscriptionOfferDetailsAndroid ?? [];
-  const offer = offers.find(o => o.basePlanId === basePlanId && !o.offerId);
+  // Use subscriptionOffers (cross-platform standardized type)
+  const offers = product.subscriptionOffers ?? [];
+  const offer = offers.find(o => o.basePlanIdAndroid === basePlanId && !o.id);
 
   // Store it before purchase
   purchasedBasePlanId = basePlanId;
@@ -155,7 +156,7 @@ const handlePurchase = async (basePlanId: string) => {
       google: {
         skus: [subscriptionGroupId],
         subscriptionOffers: [
-          { sku: subscriptionGroupId, offerToken: offer.offerToken },
+          { sku: subscriptionGroupId, offerToken: offer?.offerTokenAndroid },
         ],
       },
     },
