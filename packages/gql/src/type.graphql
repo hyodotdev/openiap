@@ -598,6 +598,13 @@ type DiscountOffer {
   [Android] Rental details if this is a rental offer.
   """
   rentalDetailsAndroid: RentalDetailsAndroid
+
+  """
+  [Android] Purchase option ID for this offer.
+  Used to identify which purchase option the user selected.
+  Available in Google Play Billing Library 7.0+
+  """
+  purchaseOptionIdAndroid: String
 }
 
 """
@@ -718,6 +725,13 @@ type SubscriptionOffer {
   Contains detailed pricing information for each phase (trial, intro, regular).
   """
   pricingPhasesAndroid: PricingPhasesAndroid
+
+  """
+  [Android] Installment plan details for this subscription offer.
+  Only set for installment subscription plans; null for non-installment plans.
+  Available in Google Play Billing Library 7.0+
+  """
+  installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid
 }
 
 # Initialization configuration
