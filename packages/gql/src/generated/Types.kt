@@ -1511,6 +1511,12 @@ public data class DiscountOffer(
      */
     val price: Double,
     /**
+     * [Android] Purchase option ID for this offer.
+     * Used to identify which purchase option the user selected.
+     * Available in Google Play Billing Library 7.0+
+     */
+    val purchaseOptionIdAndroid: String? = null,
+    /**
      * [Android] Rental details if this is a rental offer.
      */
     val rentalDetailsAndroid: RentalDetailsAndroid? = null,
@@ -1540,6 +1546,7 @@ public data class DiscountOffer(
                 percentageDiscountAndroid = (json["percentageDiscountAndroid"] as? Number)?.toInt(),
                 preorderDetailsAndroid = (json["preorderDetailsAndroid"] as? Map<String, Any?>)?.let { PreorderDetailsAndroid.fromJson(it) },
                 price = (json["price"] as? Number)?.toDouble() ?: 0.0,
+                purchaseOptionIdAndroid = json["purchaseOptionIdAndroid"] as? String,
                 rentalDetailsAndroid = (json["rentalDetailsAndroid"] as? Map<String, Any?>)?.let { RentalDetailsAndroid.fromJson(it) },
                 type = (json["type"] as? String)?.let { DiscountOfferType.fromJson(it) } ?: DiscountOfferType.Introductory,
                 validTimeWindowAndroid = (json["validTimeWindowAndroid"] as? Map<String, Any?>)?.let { ValidTimeWindowAndroid.fromJson(it) },
@@ -1561,6 +1568,7 @@ public data class DiscountOffer(
         "percentageDiscountAndroid" to percentageDiscountAndroid,
         "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
         "price" to price,
+        "purchaseOptionIdAndroid" to purchaseOptionIdAndroid,
         "rentalDetailsAndroid" to rentalDetailsAndroid?.toJson(),
         "type" to type.toJson(),
         "validTimeWindowAndroid" to validTimeWindowAndroid?.toJson(),
@@ -1832,6 +1840,43 @@ public data class FetchProductsResultProducts(val value: List<Product>?) : Fetch
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
 
 /**
+ * Installment plan details for subscription offers (Android)
+ * Contains information about the installment plan commitment.
+ * Available in Google Play Billing Library 7.0+
+ */
+public data class InstallmentPlanDetailsAndroid(
+    /**
+     * Committed payments count after a user signs up for this subscription plan.
+     * For example, for a monthly subscription with commitmentPaymentsCount of 12,
+     * users will be charged monthly for 12 months after signup.
+     */
+    val commitmentPaymentsCount: Int,
+    /**
+     * Subsequent committed payments count after the subscription plan renews.
+     * For example, for a monthly subscription with subsequentCommitmentPaymentsCount of 12,
+     * users will be committed to another 12 monthly payments when the plan renews.
+     * Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
+     */
+    val subsequentCommitmentPaymentsCount: Int
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): InstallmentPlanDetailsAndroid {
+            return InstallmentPlanDetailsAndroid(
+                commitmentPaymentsCount = (json["commitmentPaymentsCount"] as? Number)?.toInt() ?: 0,
+                subsequentCommitmentPaymentsCount = (json["subsequentCommitmentPaymentsCount"] as? Number)?.toInt() ?: 0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "InstallmentPlanDetailsAndroid",
+        "commitmentPaymentsCount" to commitmentPaymentsCount,
+        "subsequentCommitmentPaymentsCount" to subsequentCommitmentPaymentsCount,
+    )
+}
+
+/**
  * Limited quantity information for one-time purchase offers (Android)
  * Available in Google Play Billing Library 7.0+
  */
@@ -1859,6 +1904,42 @@ public data class LimitedQuantityInfoAndroid(
         "__typename" to "LimitedQuantityInfoAndroid",
         "maximumQuantity" to maximumQuantity,
         "remainingQuantity" to remainingQuantity,
+    )
+}
+
+/**
+ * Pending purchase update for subscription upgrades/downgrades (Android)
+ * When a user initiates a subscription change (upgrade/downgrade), the new purchase
+ * may be pending until the current billing period ends. This type contains the
+ * details of the pending change.
+ * Available in Google Play Billing Library 5.0+
+ */
+public data class PendingPurchaseUpdateAndroid(
+    /**
+     * Product IDs for the pending purchase update.
+     * These are the new products the user is switching to.
+     */
+    val products: List<String>,
+    /**
+     * Purchase token for the pending transaction.
+     * Use this token to track or manage the pending purchase update.
+     */
+    val purchaseToken: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): PendingPurchaseUpdateAndroid {
+            return PendingPurchaseUpdateAndroid(
+                products = (json["products"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                purchaseToken = json["purchaseToken"] as? String ?: "",
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "PendingPurchaseUpdateAndroid",
+        "products" to products,
+        "purchaseToken" to purchaseToken,
     )
 }
 
@@ -2076,6 +2157,12 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
     val priceAmountMicros: String,
     val priceCurrencyCode: String,
     /**
+     * Purchase option ID for this offer (Android)
+     * Used to identify which purchase option the user selected.
+     * Available in Google Play Billing Library 7.0+
+     */
+    val purchaseOptionId: String? = null,
+    /**
      * Rental details for rental offers
      */
     val rentalDetailsAndroid: RentalDetailsAndroid? = null,
@@ -2098,6 +2185,7 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
                 preorderDetailsAndroid = (json["preorderDetailsAndroid"] as? Map<String, Any?>)?.let { PreorderDetailsAndroid.fromJson(it) },
                 priceAmountMicros = json["priceAmountMicros"] as? String ?: "",
                 priceCurrencyCode = json["priceCurrencyCode"] as? String ?: "",
+                purchaseOptionId = json["purchaseOptionId"] as? String,
                 rentalDetailsAndroid = (json["rentalDetailsAndroid"] as? Map<String, Any?>)?.let { RentalDetailsAndroid.fromJson(it) },
                 validTimeWindow = (json["validTimeWindow"] as? Map<String, Any?>)?.let { ValidTimeWindowAndroid.fromJson(it) },
             )
@@ -2116,6 +2204,7 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
         "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
         "priceAmountMicros" to priceAmountMicros,
         "priceCurrencyCode" to priceCurrencyCode,
+        "purchaseOptionId" to purchaseOptionId,
         "rentalDetailsAndroid" to rentalDetailsAndroid?.toJson(),
         "validTimeWindow" to validTimeWindow?.toJson(),
     )
@@ -2288,6 +2377,12 @@ public data class ProductSubscriptionAndroid(
  */
 public data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,
+    /**
+     * Installment plan details for this subscription offer.
+     * Only set for installment subscription plans; null for non-installment plans.
+     * Available in Google Play Billing Library 7.0+
+     */
+    val installmentPlanDetails: InstallmentPlanDetailsAndroid? = null,
     val offerId: String? = null,
     val offerTags: List<String>,
     val offerToken: String,
@@ -2298,6 +2393,7 @@ public data class ProductSubscriptionAndroidOfferDetails(
         fun fromJson(json: Map<String, Any?>): ProductSubscriptionAndroidOfferDetails {
             return ProductSubscriptionAndroidOfferDetails(
                 basePlanId = json["basePlanId"] as? String ?: "",
+                installmentPlanDetails = (json["installmentPlanDetails"] as? Map<String, Any?>)?.let { InstallmentPlanDetailsAndroid.fromJson(it) },
                 offerId = json["offerId"] as? String,
                 offerTags = (json["offerTags"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
                 offerToken = json["offerToken"] as? String ?: "",
@@ -2309,6 +2405,7 @@ public data class ProductSubscriptionAndroidOfferDetails(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "ProductSubscriptionAndroidOfferDetails",
         "basePlanId" to basePlanId,
+        "installmentPlanDetails" to installmentPlanDetails?.toJson(),
         "offerId" to offerId,
         "offerTags" to offerTags,
         "offerToken" to offerToken,
@@ -2434,6 +2531,13 @@ public data class PurchaseAndroid(
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
+    /**
+     * Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
+     * Contains the new products and purchase token for the pending transaction.
+     * Returns null if no pending update exists.
+     * Available in Google Play Billing Library 5.0+
+     */
+    val pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = null,
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
@@ -2463,6 +2567,7 @@ public data class PurchaseAndroid(
                 obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
                 obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
                 packageNameAndroid = json["packageNameAndroid"] as? String,
+                pendingPurchaseUpdateAndroid = (json["pendingPurchaseUpdateAndroid"] as? Map<String, Any?>)?.let { PendingPurchaseUpdateAndroid.fromJson(it) },
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 productId = json["productId"] as? String ?: "",
                 purchaseState = (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } ?: PurchaseState.Pending,
@@ -2490,6 +2595,7 @@ public data class PurchaseAndroid(
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
         "packageNameAndroid" to packageNameAndroid,
+        "pendingPurchaseUpdateAndroid" to pendingPurchaseUpdateAndroid?.toJson(),
         "platform" to platform.toJson(),
         "productId" to productId,
         "purchaseState" to purchaseState.toJson(),
@@ -2901,6 +3007,12 @@ public data class SubscriptionOffer(
      */
     val id: String,
     /**
+     * [Android] Installment plan details for this subscription offer.
+     * Only set for installment subscription plans; null for non-installment plans.
+     * Available in Google Play Billing Library 7.0+
+     */
+    val installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = null,
+    /**
      * [iOS] Key identifier for signature validation.
      * Used with server-side signature generation for promotional offers.
      */
@@ -2971,6 +3083,7 @@ public data class SubscriptionOffer(
                 currency = json["currency"] as? String,
                 displayPrice = json["displayPrice"] as? String ?: "",
                 id = json["id"] as? String ?: "",
+                installmentPlanDetailsAndroid = (json["installmentPlanDetailsAndroid"] as? Map<String, Any?>)?.let { InstallmentPlanDetailsAndroid.fromJson(it) },
                 keyIdentifierIOS = json["keyIdentifierIOS"] as? String,
                 localizedPriceIOS = json["localizedPriceIOS"] as? String,
                 nonceIOS = json["nonceIOS"] as? String,
@@ -2995,6 +3108,7 @@ public data class SubscriptionOffer(
         "currency" to currency,
         "displayPrice" to displayPrice,
         "id" to id,
+        "installmentPlanDetailsAndroid" to installmentPlanDetailsAndroid?.toJson(),
         "keyIdentifierIOS" to keyIdentifierIOS,
         "localizedPriceIOS" to localizedPriceIOS,
         "nonceIOS" to nonceIOS,
