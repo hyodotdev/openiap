@@ -668,6 +668,8 @@ class DiscountOffer:
 	var preorder_details_android: PreorderDetailsAndroid
 	## [Android] Rental details if this is a rental offer.
 	var rental_details_android: RentalDetailsAndroid
+	## [Android] Purchase option ID for this offer.
+	var purchase_option_id_android: String
 
 	static func from_dict(data: Dictionary) -> DiscountOffer:
 		var obj = DiscountOffer.new()
@@ -717,6 +719,8 @@ class DiscountOffer:
 				obj.rental_details_android = RentalDetailsAndroid.from_dict(data["rentalDetailsAndroid"])
 			else:
 				obj.rental_details_android = data["rentalDetailsAndroid"]
+		if data.has("purchaseOptionIdAndroid") and data["purchaseOptionIdAndroid"] != null:
+			obj.purchase_option_id_android = data["purchaseOptionIdAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -751,6 +755,7 @@ class DiscountOffer:
 			dict["rentalDetailsAndroid"] = rental_details_android.to_dict()
 		else:
 			dict["rentalDetailsAndroid"] = rental_details_android
+		dict["purchaseOptionIdAndroid"] = purchase_option_id_android
 		return dict
 
 ## iOS DiscountOffer (output type). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
@@ -939,6 +944,27 @@ class ExternalPurchaseNoticeResultIOS:
 		dict["externalPurchaseToken"] = external_purchase_token
 		return dict
 
+## Installment plan details for subscription offers (Android) Contains information about the installment plan commitment. Available in Google Play Billing Library 7.0+
+class InstallmentPlanDetailsAndroid:
+	## Committed payments count after a user signs up for this subscription plan.
+	var commitment_payments_count: int
+	## Subsequent committed payments count after the subscription plan renews.
+	var subsequent_commitment_payments_count: int
+
+	static func from_dict(data: Dictionary) -> InstallmentPlanDetailsAndroid:
+		var obj = InstallmentPlanDetailsAndroid.new()
+		if data.has("commitmentPaymentsCount") and data["commitmentPaymentsCount"] != null:
+			obj.commitment_payments_count = data["commitmentPaymentsCount"]
+		if data.has("subsequentCommitmentPaymentsCount") and data["subsequentCommitmentPaymentsCount"] != null:
+			obj.subsequent_commitment_payments_count = data["subsequentCommitmentPaymentsCount"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["commitmentPaymentsCount"] = commitment_payments_count
+		dict["subsequentCommitmentPaymentsCount"] = subsequent_commitment_payments_count
+		return dict
+
 ## Limited quantity information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class LimitedQuantityInfoAndroid:
 	## Maximum quantity a user can purchase
@@ -958,6 +984,27 @@ class LimitedQuantityInfoAndroid:
 		var dict = {}
 		dict["maximumQuantity"] = maximum_quantity
 		dict["remainingQuantity"] = remaining_quantity
+		return dict
+
+## Pending purchase update for subscription upgrades/downgrades (Android) When a user initiates a subscription change (upgrade/downgrade), the new purchase may be pending until the current billing period ends. This type contains the details of the pending change. Available in Google Play Billing Library 5.0+
+class PendingPurchaseUpdateAndroid:
+	## Product IDs for the pending purchase update.
+	var products: Array[String]
+	## Purchase token for the pending transaction.
+	var purchase_token: String
+
+	static func from_dict(data: Dictionary) -> PendingPurchaseUpdateAndroid:
+		var obj = PendingPurchaseUpdateAndroid.new()
+		if data.has("products") and data["products"] != null:
+			obj.products = data["products"]
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
+			obj.purchase_token = data["purchaseToken"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["products"] = products
+		dict["purchaseToken"] = purchase_token
 		return dict
 
 ## Pre-order details for one-time purchase products (Android) Available in Google Play Billing Library 8.1.0+
@@ -1227,6 +1274,8 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 	var preorder_details_android: PreorderDetailsAndroid
 	## Rental details for rental offers
 	var rental_details_android: RentalDetailsAndroid
+	## Purchase option ID for this offer (Android)
+	var purchase_option_id: String
 
 	static func from_dict(data: Dictionary) -> ProductAndroidOneTimePurchaseOfferDetail:
 		var obj = ProductAndroidOneTimePurchaseOfferDetail.new()
@@ -1269,6 +1318,8 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 				obj.rental_details_android = RentalDetailsAndroid.from_dict(data["rentalDetailsAndroid"])
 			else:
 				obj.rental_details_android = data["rentalDetailsAndroid"]
+		if data.has("purchaseOptionId") and data["purchaseOptionId"] != null:
+			obj.purchase_option_id = data["purchaseOptionId"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -1300,6 +1351,7 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 			dict["rentalDetailsAndroid"] = rental_details_android.to_dict()
 		else:
 			dict["rentalDetailsAndroid"] = rental_details_android
+		dict["purchaseOptionId"] = purchase_option_id
 		return dict
 
 class ProductIOS:
@@ -1587,6 +1639,8 @@ class ProductSubscriptionAndroidOfferDetails:
 	var offer_token: String
 	var offer_tags: Array[String]
 	var pricing_phases: PricingPhasesAndroid
+	## Installment plan details for this subscription offer.
+	var installment_plan_details: InstallmentPlanDetailsAndroid
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionAndroidOfferDetails:
 		var obj = ProductSubscriptionAndroidOfferDetails.new()
@@ -1603,6 +1657,11 @@ class ProductSubscriptionAndroidOfferDetails:
 				obj.pricing_phases = PricingPhasesAndroid.from_dict(data["pricingPhases"])
 			else:
 				obj.pricing_phases = data["pricingPhases"]
+		if data.has("installmentPlanDetails") and data["installmentPlanDetails"] != null:
+			if data["installmentPlanDetails"] is Dictionary:
+				obj.installment_plan_details = InstallmentPlanDetailsAndroid.from_dict(data["installmentPlanDetails"])
+			else:
+				obj.installment_plan_details = data["installmentPlanDetails"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -1615,6 +1674,10 @@ class ProductSubscriptionAndroidOfferDetails:
 			dict["pricingPhases"] = pricing_phases.to_dict()
 		else:
 			dict["pricingPhases"] = pricing_phases
+		if installment_plan_details != null and installment_plan_details.has_method("to_dict"):
+			dict["installmentPlanDetails"] = installment_plan_details.to_dict()
+		else:
+			dict["installmentPlanDetails"] = installment_plan_details
 		return dict
 
 class ProductSubscriptionIOS:
@@ -1828,6 +1891,8 @@ class PurchaseAndroid:
 	var obfuscated_profile_id_android: String
 	## Whether the subscription is suspended (Android)
 	var is_suspended_android: bool
+	## Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
+	var pending_purchase_update_android: PendingPurchaseUpdateAndroid
 
 	static func from_dict(data: Dictionary) -> PurchaseAndroid:
 		var obj = PurchaseAndroid.new()
@@ -1885,6 +1950,11 @@ class PurchaseAndroid:
 			obj.obfuscated_profile_id_android = data["obfuscatedProfileIdAndroid"]
 		if data.has("isSuspendedAndroid") and data["isSuspendedAndroid"] != null:
 			obj.is_suspended_android = data["isSuspendedAndroid"]
+		if data.has("pendingPurchaseUpdateAndroid") and data["pendingPurchaseUpdateAndroid"] != null:
+			if data["pendingPurchaseUpdateAndroid"] is Dictionary:
+				obj.pending_purchase_update_android = PendingPurchaseUpdateAndroid.from_dict(data["pendingPurchaseUpdateAndroid"])
+			else:
+				obj.pending_purchase_update_android = data["pendingPurchaseUpdateAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -1919,6 +1989,10 @@ class PurchaseAndroid:
 		dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
 		dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
 		dict["isSuspendedAndroid"] = is_suspended_android
+		if pending_purchase_update_android != null and pending_purchase_update_android.has_method("to_dict"):
+			dict["pendingPurchaseUpdateAndroid"] = pending_purchase_update_android.to_dict()
+		else:
+			dict["pendingPurchaseUpdateAndroid"] = pending_purchase_update_android
 		return dict
 
 class PurchaseError:
@@ -2383,6 +2457,8 @@ class SubscriptionOffer:
 	var offer_tags_android: Array[String]
 	## [Android] Pricing phases for this subscription offer.
 	var pricing_phases_android: PricingPhasesAndroid
+	## [Android] Installment plan details for this subscription offer.
+	var installment_plan_details_android: InstallmentPlanDetailsAndroid
 
 	static func from_dict(data: Dictionary) -> SubscriptionOffer:
 		var obj = SubscriptionOffer.new()
@@ -2436,6 +2512,11 @@ class SubscriptionOffer:
 				obj.pricing_phases_android = PricingPhasesAndroid.from_dict(data["pricingPhasesAndroid"])
 			else:
 				obj.pricing_phases_android = data["pricingPhasesAndroid"]
+		if data.has("installmentPlanDetailsAndroid") and data["installmentPlanDetailsAndroid"] != null:
+			if data["installmentPlanDetailsAndroid"] is Dictionary:
+				obj.installment_plan_details_android = InstallmentPlanDetailsAndroid.from_dict(data["installmentPlanDetailsAndroid"])
+			else:
+				obj.installment_plan_details_android = data["installmentPlanDetailsAndroid"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2470,6 +2551,10 @@ class SubscriptionOffer:
 			dict["pricingPhasesAndroid"] = pricing_phases_android.to_dict()
 		else:
 			dict["pricingPhasesAndroid"] = pricing_phases_android
+		if installment_plan_details_android != null and installment_plan_details_android.has_method("to_dict"):
+			dict["installmentPlanDetailsAndroid"] = installment_plan_details_android.to_dict()
+		else:
+			dict["installmentPlanDetailsAndroid"] = installment_plan_details_android
 		return dict
 
 ## iOS subscription offer details. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer

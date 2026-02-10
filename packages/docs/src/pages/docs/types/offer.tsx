@@ -235,6 +235,15 @@ function TypesOffer() {
               </td>
               <td>Rental offer details</td>
             </tr>
+            <tr>
+              <td>
+                <code>purchaseOptionIdAndroid</code>
+              </td>
+              <td>
+                <code>String</code>
+              </td>
+              <td>Purchase option ID for identifying which purchase option was selected (7.0+)</td>
+            </tr>
           </tbody>
         </table>
 
@@ -263,6 +272,7 @@ function TypesOffer() {
   limitedQuantityInfoAndroid?: LimitedQuantityInfoAndroid;
   preorderDetailsAndroid?: PreorderDetailsAndroid;
   rentalDetailsAndroid?: RentalDetailsAndroid;
+  purchaseOptionIdAndroid?: string;
 }
 
 enum DiscountOfferType {
@@ -292,6 +302,7 @@ enum DiscountOfferType {
     let limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid?
     let preorderDetailsAndroid: PreorderDetailsAndroid?
     let rentalDetailsAndroid: RentalDetailsAndroid?
+    let purchaseOptionIdAndroid: String?
 }
 
 enum DiscountOfferType: String, Codable {
@@ -320,7 +331,8 @@ enum DiscountOfferType: String, Codable {
     val validTimeWindowAndroid: ValidTimeWindowAndroid? = null,
     val limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid? = null,
     val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
-    val rentalDetailsAndroid: RentalDetailsAndroid? = null
+    val rentalDetailsAndroid: RentalDetailsAndroid? = null,
+    val purchaseOptionIdAndroid: String? = null
 )
 
 enum class DiscountOfferType {
@@ -350,6 +362,7 @@ enum class DiscountOfferType {
   final LimitedQuantityInfoAndroid? limitedQuantityInfoAndroid;
   final PreorderDetailsAndroid? preorderDetailsAndroid;
   final RentalDetailsAndroid? rentalDetailsAndroid;
+  final String? purchaseOptionIdAndroid;
 
   DiscountOffer({
     this.id,
@@ -367,6 +380,7 @@ enum class DiscountOfferType {
     this.limitedQuantityInfoAndroid,
     this.preorderDetailsAndroid,
     this.rentalDetailsAndroid,
+    this.purchaseOptionIdAndroid,
   });
 }
 
@@ -398,6 +412,7 @@ var valid_time_window_android: ValidTimeWindowAndroid
 var limited_quantity_info_android: LimitedQuantityInfoAndroid
 var preorder_details_android: PreorderDetailsAndroid
 var rental_details_android: RentalDetailsAndroid
+var purchase_option_id_android: String
 
 enum DiscountOfferType {
     INTRODUCTORY,
@@ -627,6 +642,15 @@ enum DiscountOfferType {
               </td>
               <td>Pricing phases (trial, intro, regular)</td>
             </tr>
+            <tr>
+              <td>
+                <code>installmentPlanDetailsAndroid</code>
+              </td>
+              <td>
+                <code>InstallmentPlanDetailsAndroid</code>
+              </td>
+              <td>Installment plan details for subscription commitments (7.0+)</td>
+            </tr>
           </tbody>
         </table>
 
@@ -660,6 +684,12 @@ enum DiscountOfferType {
   offerTokenAndroid?: string;
   offerTagsAndroid?: string[];
   pricingPhasesAndroid?: PricingPhasesAndroid;
+  installmentPlanDetailsAndroid?: InstallmentPlanDetailsAndroid;
+}
+
+interface InstallmentPlanDetailsAndroid {
+  commitmentPaymentsCount: number;
+  subsequentCommitmentPaymentsCount: number;
 }
 
 interface SubscriptionPeriod {
@@ -707,6 +737,12 @@ enum PaymentMode {
     let offerTokenAndroid: String?
     let offerTagsAndroid: [String]?
     let pricingPhasesAndroid: PricingPhasesAndroid?
+    let installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid?
+}
+
+struct InstallmentPlanDetailsAndroid: Codable {
+    let commitmentPaymentsCount: Int
+    let subsequentCommitmentPaymentsCount: Int
 }
 
 struct SubscriptionPeriod: Codable {
@@ -753,7 +789,13 @@ enum PaymentMode: String, Codable {
     val basePlanIdAndroid: String? = null,
     val offerTokenAndroid: String? = null,
     val offerTagsAndroid: List<String>? = null,
-    val pricingPhasesAndroid: PricingPhasesAndroid? = null
+    val pricingPhasesAndroid: PricingPhasesAndroid? = null,
+    val installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = null
+)
+
+data class InstallmentPlanDetailsAndroid(
+    val commitmentPaymentsCount: Int,
+    val subsequentCommitmentPaymentsCount: Int
 )
 
 data class SubscriptionPeriod(
@@ -794,6 +836,7 @@ enum class PaymentMode {
   final String? offerTokenAndroid;
   final List<String>? offerTagsAndroid;
   final PricingPhasesAndroid? pricingPhasesAndroid;
+  final InstallmentPlanDetailsAndroid? installmentPlanDetailsAndroid;
 
   SubscriptionOffer({
     required this.id,
@@ -814,6 +857,17 @@ enum class PaymentMode {
     this.offerTokenAndroid,
     this.offerTagsAndroid,
     this.pricingPhasesAndroid,
+    this.installmentPlanDetailsAndroid,
+  });
+}
+
+class InstallmentPlanDetailsAndroid {
+  final int commitmentPaymentsCount;
+  final int subsequentCommitmentPaymentsCount;
+
+  InstallmentPlanDetailsAndroid({
+    required this.commitmentPaymentsCount,
+    required this.subsequentCommitmentPaymentsCount,
   });
 }
 
@@ -854,6 +908,11 @@ var base_plan_id_android: String
 var offer_token_android: String
 var offer_tags_android: Array[String]
 var pricing_phases_android: PricingPhasesAndroid
+var installment_plan_details_android: InstallmentPlanDetailsAndroid
+
+class InstallmentPlanDetailsAndroid:
+    var commitment_payments_count: int
+    var subsequent_commitment_payments_count: int
 
 class SubscriptionPeriod:
     var unit: SubscriptionPeriodUnit

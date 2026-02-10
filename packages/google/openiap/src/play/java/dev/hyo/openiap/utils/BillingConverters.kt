@@ -7,8 +7,10 @@ import dev.hyo.openiap.DiscountOffer
 import dev.hyo.openiap.DiscountOfferType
 import dev.hyo.openiap.IapPlatform
 import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.InstallmentPlanDetailsAndroid
 import dev.hyo.openiap.LimitedQuantityInfoAndroid
 import dev.hyo.openiap.PaymentMode
+import dev.hyo.openiap.PendingPurchaseUpdateAndroid
 import dev.hyo.openiap.PricingPhaseAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.Product
@@ -103,6 +105,9 @@ internal object BillingConverters {
             )
         }
 
+        // Extract purchase option ID if available (Billing Library 7.0+)
+        val purchaseOptId = runCatching { purchaseOptionId }.getOrNull()
+
         return ProductAndroidOneTimePurchaseOfferDetail(
             offerId = runCatching { offerId }.getOrNull(),
             offerToken = offerToken ?: "",
@@ -115,7 +120,8 @@ internal object BillingConverters {
             validTimeWindow = timeWindow,
             limitedQuantityInfo = quantityInfo,
             preorderDetailsAndroid = preorder,
-            rentalDetailsAndroid = rental
+            rentalDetailsAndroid = rental,
+            purchaseOptionId = purchaseOptId
         )
     }
 
@@ -161,7 +167,8 @@ internal object BillingConverters {
                     rentalPeriod = details.rentalPeriod,
                     rentalExpirationPeriod = runCatching { details.rentalExpirationPeriod }.getOrNull()
                 )
-            }
+            },
+            purchaseOptionIdAndroid = runCatching { purchaseOptionId }.getOrNull()
         )
     }
 
@@ -239,6 +246,14 @@ internal object BillingConverters {
             else -> DiscountOfferType.Introductory
         }
 
+        // Extract installment plan details if available (Billing Library 7.0+)
+        val installmentDetails = runCatching { installmentPlanDetails }?.getOrNull()?.let { details ->
+            InstallmentPlanDetailsAndroid(
+                commitmentPaymentsCount = details.installmentPlanCommitmentPaymentsCount,
+                subsequentCommitmentPaymentsCount = details.subsequentInstallmentPlanCommitmentPaymentsCount
+            )
+        }
+
         return SubscriptionOffer(
             id = offerId ?: basePlanId,
             displayPrice = displayPrice,
@@ -262,7 +277,8 @@ internal object BillingConverters {
                         recurrenceMode = phase.recurrenceMode
                     )
                 }
-            )
+            ),
+            installmentPlanDetailsAndroid = installmentDetails
         )
     }
 
@@ -320,6 +336,14 @@ internal object BillingConverters {
 
         // Convert to deprecated format (for backwards compatibility)
         val pricingDetails = offers.map { offer ->
+            // Extract installment plan details if available (Billing Library 7.0+)
+            val installmentDetails = runCatching { offer.installmentPlanDetails }?.getOrNull()?.let { details ->
+                InstallmentPlanDetailsAndroid(
+                    commitmentPaymentsCount = details.installmentPlanCommitmentPaymentsCount,
+                    subsequentCommitmentPaymentsCount = details.subsequentInstallmentPlanCommitmentPaymentsCount
+                )
+            }
+
             ProductSubscriptionAndroidOfferDetails(
                 basePlanId = offer.basePlanId,
                 offerId = offer.offerId,
@@ -336,7 +360,8 @@ internal object BillingConverters {
                             recurrenceMode = phase.recurrenceMode
                         )
                     }
-                )
+                ),
+                installmentPlanDetails = installmentDetails
             )
         }
 
@@ -393,6 +418,14 @@ internal object BillingConverters {
             null
         }
 
+        // Extract pending purchase update for subscription upgrades/downgrades (Billing Library 5.0+)
+        val pendingUpdate = runCatching { pendingPurchaseUpdate }?.getOrNull()?.let { update ->
+            PendingPurchaseUpdateAndroid(
+                products = update.products,
+                purchaseToken = update.purchaseToken
+            )
+        }
+
         return PurchaseAndroid(
             autoRenewingAndroid = isAutoRenewing,
             currentPlanId = basePlanId,
@@ -403,6 +436,7 @@ internal object BillingConverters {
             isAcknowledgedAndroid = isAcknowledged,
             isAutoRenewing = isAutoRenewing,
             isSuspendedAndroid = isSuspended,
+            pendingPurchaseUpdateAndroid = pendingUpdate,
             obfuscatedAccountIdAndroid = accountIdentifiers?.obfuscatedAccountId,
             obfuscatedProfileIdAndroid = accountIdentifiers?.obfuscatedProfileId,
             packageNameAndroid = packageName,

@@ -185,6 +185,33 @@ type ProductAndroidOneTimePurchaseOfferDetail
   Rental details for rental offers
   """
   rentalDetailsAndroid: RentalDetailsAndroid
+  """
+  Purchase option ID for this offer (Android)
+  Used to identify which purchase option the user selected.
+  Available in Google Play Billing Library 7.0+
+  """
+  purchaseOptionId: String
+}
+
+"""
+Installment plan details for subscription offers (Android)
+Contains information about the installment plan commitment.
+Available in Google Play Billing Library 7.0+
+"""
+type InstallmentPlanDetailsAndroid {
+  """
+  Committed payments count after a user signs up for this subscription plan.
+  For example, for a monthly subscription with commitmentPaymentsCount of 12,
+  users will be charged monthly for 12 months after signup.
+  """
+  commitmentPaymentsCount: Int!
+  """
+  Subsequent committed payments count after the subscription plan renews.
+  For example, for a monthly subscription with subsequentCommitmentPaymentsCount of 12,
+  users will be committed to another 12 monthly payments when the plan renews.
+  Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
+  """
+  subsequentCommitmentPaymentsCount: Int!
 }
 
 """
@@ -199,6 +226,12 @@ type ProductSubscriptionAndroidOfferDetails
   offerToken: String!
   offerTags: [String!]!
   pricingPhases: PricingPhasesAndroid!
+  """
+  Installment plan details for this subscription offer.
+  Only set for installment subscription plans; null for non-installment plans.
+  Available in Google Play Billing Library 7.0+
+  """
+  installmentPlanDetails: InstallmentPlanDetailsAndroid
 }
 
 type ProductAndroid implements ProductCommon {
@@ -344,6 +377,33 @@ type PurchaseAndroid implements PurchaseCommon {
   Available in Google Play Billing Library 8.1.0+
   """
   isSuspendedAndroid: Boolean
+  """
+  Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
+  Contains the new products and purchase token for the pending transaction.
+  Returns null if no pending update exists.
+  Available in Google Play Billing Library 5.0+
+  """
+  pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid
+}
+
+"""
+Pending purchase update for subscription upgrades/downgrades (Android)
+When a user initiates a subscription change (upgrade/downgrade), the new purchase
+may be pending until the current billing period ends. This type contains the
+details of the pending change.
+Available in Google Play Billing Library 5.0+
+"""
+type PendingPurchaseUpdateAndroid {
+  """
+  Product IDs for the pending purchase update.
+  These are the new products the user is switching to.
+  """
+  products: [String!]!
+  """
+  Purchase token for the pending transaction.
+  Use this token to track or manage the pending purchase update.
+  """
+  purchaseToken: String!
 }
 
 # Android inputs

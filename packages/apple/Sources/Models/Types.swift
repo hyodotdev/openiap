@@ -610,6 +610,10 @@ public struct DiscountOffer: Codable {
     public var preorderDetailsAndroid: PreorderDetailsAndroid?
     /// Numeric price value
     public var price: Double
+    /// [Android] Purchase option ID for this offer.
+    /// Used to identify which purchase option the user selected.
+    /// Available in Google Play Billing Library 7.0+
+    public var purchaseOptionIdAndroid: String?
     /// [Android] Rental details if this is a rental offer.
     public var rentalDetailsAndroid: RentalDetailsAndroid?
     /// Type of discount offer
@@ -701,6 +705,21 @@ public enum FetchProductsResult {
     case subscriptions([ProductSubscription]?)
 }
 
+/// Installment plan details for subscription offers (Android)
+/// Contains information about the installment plan commitment.
+/// Available in Google Play Billing Library 7.0+
+public struct InstallmentPlanDetailsAndroid: Codable {
+    /// Committed payments count after a user signs up for this subscription plan.
+    /// For example, for a monthly subscription with commitmentPaymentsCount of 12,
+    /// users will be charged monthly for 12 months after signup.
+    public var commitmentPaymentsCount: Int
+    /// Subsequent committed payments count after the subscription plan renews.
+    /// For example, for a monthly subscription with subsequentCommitmentPaymentsCount of 12,
+    /// users will be committed to another 12 monthly payments when the plan renews.
+    /// Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
+    public var subsequentCommitmentPaymentsCount: Int
+}
+
 /// Limited quantity information for one-time purchase offers (Android)
 /// Available in Google Play Billing Library 7.0+
 public struct LimitedQuantityInfoAndroid: Codable {
@@ -708,6 +727,20 @@ public struct LimitedQuantityInfoAndroid: Codable {
     public var maximumQuantity: Int
     /// Remaining quantity the user can still purchase
     public var remainingQuantity: Int
+}
+
+/// Pending purchase update for subscription upgrades/downgrades (Android)
+/// When a user initiates a subscription change (upgrade/downgrade), the new purchase
+/// may be pending until the current billing period ends. This type contains the
+/// details of the pending change.
+/// Available in Google Play Billing Library 5.0+
+public struct PendingPurchaseUpdateAndroid: Codable {
+    /// Product IDs for the pending purchase update.
+    /// These are the new products the user is switching to.
+    public var products: [String]
+    /// Purchase token for the pending transaction.
+    /// Use this token to track or manage the pending purchase update.
+    public var purchaseToken: String
 }
 
 /// Pre-order details for one-time purchase products (Android)
@@ -793,6 +826,10 @@ public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
     public var preorderDetailsAndroid: PreorderDetailsAndroid?
     public var priceAmountMicros: String
     public var priceCurrencyCode: String
+    /// Purchase option ID for this offer (Android)
+    /// Used to identify which purchase option the user selected.
+    /// Available in Google Play Billing Library 7.0+
+    public var purchaseOptionId: String?
     /// Rental details for rental offers
     public var rentalDetailsAndroid: RentalDetailsAndroid?
     /// Valid time window for the offer
@@ -862,6 +899,10 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
 /// @see https://openiap.dev/docs/types#subscription-offer
 public struct ProductSubscriptionAndroidOfferDetails: Codable {
     public var basePlanId: String
+    /// Installment plan details for this subscription offer.
+    /// Only set for installment subscription plans; null for non-installment plans.
+    /// Available in Google Play Billing Library 7.0+
+    public var installmentPlanDetails: InstallmentPlanDetailsAndroid?
     public var offerId: String?
     public var offerTags: [String]
     public var offerToken: String
@@ -918,6 +959,11 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var obfuscatedAccountIdAndroid: String?
     public var obfuscatedProfileIdAndroid: String?
     public var packageNameAndroid: String?
+    /// Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
+    /// Contains the new products and purchase token for the pending transaction.
+    /// Returns null if no pending update exists.
+    /// Available in Google Play Billing Library 5.0+
+    public var pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid?
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
@@ -1067,6 +1113,10 @@ public struct SubscriptionOffer: Codable {
     /// - iOS: Discount identifier from App Store Connect
     /// - Android: offerId from ProductSubscriptionAndroidOfferDetails
     public var id: String
+    /// [Android] Installment plan details for this subscription offer.
+    /// Only set for installment subscription plans; null for non-installment plans.
+    /// Available in Google Play Billing Library 7.0+
+    public var installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid?
     /// [iOS] Key identifier for signature validation.
     /// Used with server-side signature generation for promotional offers.
     public var keyIdentifierIOS: String?

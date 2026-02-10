@@ -1,6 +1,7 @@
 package dev.hyo.openiap
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -522,5 +523,490 @@ class StandardizedOfferTypesTest {
 
         assertEquals("consumable_gems", purchaseProps.skus.first())
         assertEquals("flash_sale_token", purchaseProps.offerToken)
+    }
+
+    // MARK: - purchaseOptionIdAndroid Tests (Issue #77)
+
+    @Test
+    fun `DiscountOffer supports purchaseOptionIdAndroid`() {
+        val offer = DiscountOffer(
+            id = "option_offer",
+            displayPrice = "$4.99",
+            price = 4.99,
+            currency = "USD",
+            type = DiscountOfferType.OneTime,
+            offerTokenAndroid = "token_abc",
+            purchaseOptionIdAndroid = "purchase_option_001"
+        )
+
+        assertEquals("purchase_option_001", offer.purchaseOptionIdAndroid)
+    }
+
+    @Test
+    fun `DiscountOffer toJson includes purchaseOptionIdAndroid`() {
+        val offer = DiscountOffer(
+            id = "test_offer",
+            displayPrice = "$2.99",
+            price = 2.99,
+            currency = "USD",
+            type = DiscountOfferType.OneTime,
+            purchaseOptionIdAndroid = "option_xyz"
+        )
+
+        val json = offer.toJson()
+        assertEquals("option_xyz", json["purchaseOptionIdAndroid"])
+    }
+
+    @Test
+    fun `DiscountOffer fromJson parses purchaseOptionIdAndroid`() {
+        val json = mapOf<String, Any?>(
+            "id" to "offer_100",
+            "displayPrice" to "$1.99",
+            "price" to 1.99,
+            "currency" to "USD",
+            "type" to "one-time",
+            "purchaseOptionIdAndroid" to "parsed_option_id"
+        )
+
+        val offer = DiscountOffer.fromJson(json)
+        assertEquals("parsed_option_id", offer.purchaseOptionIdAndroid)
+    }
+
+    @Test
+    fun `DiscountOffer allows null purchaseOptionIdAndroid`() {
+        val offer = DiscountOffer(
+            id = "basic_offer",
+            displayPrice = "$4.99",
+            price = 4.99,
+            currency = "USD",
+            type = DiscountOfferType.OneTime
+        )
+
+        assertNull(offer.purchaseOptionIdAndroid)
+    }
+
+    // MARK: - InstallmentPlanDetailsAndroid Tests
+
+    @Test
+    fun `InstallmentPlanDetailsAndroid creation and toJson`() {
+        val details = InstallmentPlanDetailsAndroid(
+            commitmentPaymentsCount = 12,
+            subsequentCommitmentPaymentsCount = 12
+        )
+
+        assertEquals(12, details.commitmentPaymentsCount)
+        assertEquals(12, details.subsequentCommitmentPaymentsCount)
+
+        val json = details.toJson()
+        assertEquals(12, json["commitmentPaymentsCount"])
+        assertEquals(12, json["subsequentCommitmentPaymentsCount"])
+    }
+
+    @Test
+    fun `InstallmentPlanDetailsAndroid fromJson`() {
+        val json = mapOf(
+            "commitmentPaymentsCount" to 6,
+            "subsequentCommitmentPaymentsCount" to 0
+        )
+
+        val details = InstallmentPlanDetailsAndroid.fromJson(json)
+        assertEquals(6, details.commitmentPaymentsCount)
+        assertEquals(0, details.subsequentCommitmentPaymentsCount)
+    }
+
+    @Test
+    fun `InstallmentPlanDetailsAndroid zero subsequent means revert to normal plan`() {
+        val details = InstallmentPlanDetailsAndroid(
+            commitmentPaymentsCount = 12,
+            subsequentCommitmentPaymentsCount = 0
+        )
+
+        // subsequentCommitmentPaymentsCount = 0 means plan reverts to normal upon renewal
+        assertEquals(0, details.subsequentCommitmentPaymentsCount)
+    }
+
+    // MARK: - SubscriptionOffer installmentPlanDetailsAndroid Tests
+
+    @Test
+    fun `SubscriptionOffer supports installmentPlanDetailsAndroid`() {
+        val installmentDetails = InstallmentPlanDetailsAndroid(
+            commitmentPaymentsCount = 12,
+            subsequentCommitmentPaymentsCount = 12
+        )
+
+        val offer = SubscriptionOffer(
+            id = "installment_sub",
+            displayPrice = "$9.99/month",
+            price = 9.99,
+            currency = "USD",
+            type = DiscountOfferType.Introductory,
+            basePlanIdAndroid = "monthly_installment",
+            offerTokenAndroid = "install_token",
+            installmentPlanDetailsAndroid = installmentDetails
+        )
+
+        assertEquals(12, offer.installmentPlanDetailsAndroid?.commitmentPaymentsCount)
+        assertEquals(12, offer.installmentPlanDetailsAndroid?.subsequentCommitmentPaymentsCount)
+    }
+
+    @Test
+    fun `SubscriptionOffer toJson includes installmentPlanDetailsAndroid`() {
+        val offer = SubscriptionOffer(
+            id = "sub_with_installment",
+            displayPrice = "$5.99",
+            price = 5.99,
+            currency = "USD",
+            type = DiscountOfferType.Promotional,
+            installmentPlanDetailsAndroid = InstallmentPlanDetailsAndroid(
+                commitmentPaymentsCount = 6,
+                subsequentCommitmentPaymentsCount = 6
+            )
+        )
+
+        val json = offer.toJson()
+        @Suppress("UNCHECKED_CAST")
+        val installmentJson = json["installmentPlanDetailsAndroid"] as? Map<String, Any?>
+        assertEquals(6, installmentJson?.get("commitmentPaymentsCount"))
+        assertEquals(6, installmentJson?.get("subsequentCommitmentPaymentsCount"))
+    }
+
+    @Test
+    fun `SubscriptionOffer fromJson parses installmentPlanDetailsAndroid`() {
+        val json = mapOf<String, Any?>(
+            "id" to "parsed_installment_offer",
+            "displayPrice" to "$7.99",
+            "price" to 7.99,
+            "currency" to "USD",
+            "type" to "introductory",
+            "installmentPlanDetailsAndroid" to mapOf(
+                "commitmentPaymentsCount" to 24,
+                "subsequentCommitmentPaymentsCount" to 12
+            )
+        )
+
+        val offer = SubscriptionOffer.fromJson(json)
+        assertEquals(24, offer.installmentPlanDetailsAndroid?.commitmentPaymentsCount)
+        assertEquals(12, offer.installmentPlanDetailsAndroid?.subsequentCommitmentPaymentsCount)
+    }
+
+    @Test
+    fun `SubscriptionOffer allows null installmentPlanDetailsAndroid`() {
+        val offer = SubscriptionOffer(
+            id = "regular_sub",
+            displayPrice = "$9.99",
+            price = 9.99,
+            currency = "USD",
+            type = DiscountOfferType.Introductory
+        )
+
+        assertNull(offer.installmentPlanDetailsAndroid)
+    }
+
+    // MARK: - ProductAndroidOneTimePurchaseOfferDetail purchaseOptionId Tests
+
+    @Test
+    fun `ProductAndroidOneTimePurchaseOfferDetail supports purchaseOptionId`() {
+        val offerDetail = ProductAndroidOneTimePurchaseOfferDetail(
+            offerId = "offer_001",
+            offerToken = "token_abc",
+            offerTags = listOf("sale"),
+            formattedPrice = "$4.99",
+            priceAmountMicros = "4990000",
+            priceCurrencyCode = "USD",
+            purchaseOptionId = "purchase_opt_xyz"
+        )
+
+        assertEquals("purchase_opt_xyz", offerDetail.purchaseOptionId)
+    }
+
+    @Test
+    fun `ProductAndroidOneTimePurchaseOfferDetail toJson includes purchaseOptionId`() {
+        val offerDetail = ProductAndroidOneTimePurchaseOfferDetail(
+            offerId = "offer_002",
+            offerToken = "token_def",
+            offerTags = emptyList(),
+            formattedPrice = "$2.99",
+            priceAmountMicros = "2990000",
+            priceCurrencyCode = "USD",
+            purchaseOptionId = "opt_id_123"
+        )
+
+        val json = offerDetail.toJson()
+        assertEquals("opt_id_123", json["purchaseOptionId"])
+    }
+
+    @Test
+    fun `ProductAndroidOneTimePurchaseOfferDetail fromJson parses purchaseOptionId`() {
+        val json = mapOf<String, Any?>(
+            "offerId" to "parsed_offer",
+            "offerToken" to "parsed_token",
+            "offerTags" to listOf("tag1"),
+            "formattedPrice" to "$1.99",
+            "priceAmountMicros" to "1990000",
+            "priceCurrencyCode" to "EUR",
+            "purchaseOptionId" to "parsed_purchase_option"
+        )
+
+        val offerDetail = ProductAndroidOneTimePurchaseOfferDetail.fromJson(json)
+        assertEquals("parsed_purchase_option", offerDetail.purchaseOptionId)
+    }
+
+    // MARK: - ProductSubscriptionAndroidOfferDetails installmentPlanDetails Tests
+
+    @Test
+    fun `ProductSubscriptionAndroidOfferDetails supports installmentPlanDetails`() {
+        val pricingPhases = PricingPhasesAndroid(
+            pricingPhaseList = listOf(
+                PricingPhaseAndroid(
+                    billingCycleCount = 0,
+                    billingPeriod = "P1M",
+                    formattedPrice = "$9.99",
+                    priceAmountMicros = "9990000",
+                    priceCurrencyCode = "USD",
+                    recurrenceMode = 1
+                )
+            )
+        )
+
+        val offerDetails = ProductSubscriptionAndroidOfferDetails(
+            basePlanId = "monthly_installment",
+            offerId = null,
+            offerToken = "install_token",
+            offerTags = listOf("installment"),
+            pricingPhases = pricingPhases,
+            installmentPlanDetails = InstallmentPlanDetailsAndroid(
+                commitmentPaymentsCount = 12,
+                subsequentCommitmentPaymentsCount = 0
+            )
+        )
+
+        assertEquals(12, offerDetails.installmentPlanDetails?.commitmentPaymentsCount)
+        assertEquals(0, offerDetails.installmentPlanDetails?.subsequentCommitmentPaymentsCount)
+    }
+
+    @Test
+    fun `ProductSubscriptionAndroidOfferDetails toJson includes installmentPlanDetails`() {
+        val pricingPhases = PricingPhasesAndroid(
+            pricingPhaseList = listOf(
+                PricingPhaseAndroid(
+                    billingCycleCount = 0,
+                    billingPeriod = "P1M",
+                    formattedPrice = "$7.99",
+                    priceAmountMicros = "7990000",
+                    priceCurrencyCode = "USD",
+                    recurrenceMode = 1
+                )
+            )
+        )
+
+        val offerDetails = ProductSubscriptionAndroidOfferDetails(
+            basePlanId = "yearly_base",
+            offerId = "promo_offer",
+            offerToken = "promo_token",
+            offerTags = emptyList(),
+            pricingPhases = pricingPhases,
+            installmentPlanDetails = InstallmentPlanDetailsAndroid(
+                commitmentPaymentsCount = 6,
+                subsequentCommitmentPaymentsCount = 6
+            )
+        )
+
+        val json = offerDetails.toJson()
+        @Suppress("UNCHECKED_CAST")
+        val installmentJson = json["installmentPlanDetails"] as? Map<String, Any?>
+        assertEquals(6, installmentJson?.get("commitmentPaymentsCount"))
+        assertEquals(6, installmentJson?.get("subsequentCommitmentPaymentsCount"))
+    }
+
+    @Test
+    fun `ProductSubscriptionAndroidOfferDetails fromJson parses installmentPlanDetails`() {
+        val json = mapOf<String, Any?>(
+            "basePlanId" to "parsed_base",
+            "offerId" to null,
+            "offerToken" to "parsed_token",
+            "offerTags" to listOf("monthly"),
+            "pricingPhases" to mapOf(
+                "pricingPhaseList" to listOf(
+                    mapOf(
+                        "billingCycleCount" to 0,
+                        "billingPeriod" to "P1M",
+                        "formattedPrice" to "$9.99",
+                        "priceAmountMicros" to "9990000",
+                        "priceCurrencyCode" to "USD",
+                        "recurrenceMode" to 1
+                    )
+                )
+            ),
+            "installmentPlanDetails" to mapOf(
+                "commitmentPaymentsCount" to 24,
+                "subsequentCommitmentPaymentsCount" to 12
+            )
+        )
+
+        val offerDetails = ProductSubscriptionAndroidOfferDetails.fromJson(json)
+        assertEquals(24, offerDetails.installmentPlanDetails?.commitmentPaymentsCount)
+        assertEquals(12, offerDetails.installmentPlanDetails?.subsequentCommitmentPaymentsCount)
+    }
+
+    // MARK: - PendingPurchaseUpdateAndroid Tests
+
+    @Test
+    fun `PendingPurchaseUpdateAndroid creation and toJson`() {
+        val pendingUpdate = PendingPurchaseUpdateAndroid(
+            products = listOf("premium_monthly", "premium_yearly"),
+            purchaseToken = "pending_token_abc123"
+        )
+
+        assertEquals(listOf("premium_monthly", "premium_yearly"), pendingUpdate.products)
+        assertEquals("pending_token_abc123", pendingUpdate.purchaseToken)
+
+        val json = pendingUpdate.toJson()
+        @Suppress("UNCHECKED_CAST")
+        assertEquals(listOf("premium_monthly", "premium_yearly"), json["products"] as List<String>)
+        assertEquals("pending_token_abc123", json["purchaseToken"])
+    }
+
+    @Test
+    fun `PendingPurchaseUpdateAndroid fromJson`() {
+        val json = mapOf(
+            "products" to listOf("basic_plan", "pro_plan"),
+            "purchaseToken" to "token_xyz789"
+        )
+
+        val pendingUpdate = PendingPurchaseUpdateAndroid.fromJson(json)
+        assertEquals(listOf("basic_plan", "pro_plan"), pendingUpdate.products)
+        assertEquals("token_xyz789", pendingUpdate.purchaseToken)
+    }
+
+    @Test
+    fun `PendingPurchaseUpdateAndroid single product upgrade`() {
+        val pendingUpdate = PendingPurchaseUpdateAndroid(
+            products = listOf("premium_yearly"),
+            purchaseToken = "upgrade_token"
+        )
+
+        // Single product upgrade scenario
+        assertEquals(1, pendingUpdate.products.size)
+        assertEquals("premium_yearly", pendingUpdate.products.first())
+    }
+
+    // MARK: - PurchaseAndroid with pendingPurchaseUpdateAndroid Tests
+
+    @Test
+    fun `PurchaseAndroid supports pendingPurchaseUpdateAndroid`() {
+        val pendingUpdate = PendingPurchaseUpdateAndroid(
+            products = listOf("premium_yearly"),
+            purchaseToken = "pending_upgrade_token"
+        )
+
+        val purchase = PurchaseAndroid(
+            id = "order_123",
+            productId = "premium_monthly",
+            transactionDate = 1700000000000.0,
+            purchaseToken = "current_token",
+            store = IapStore.Google,
+            platform = IapPlatform.Android,
+            quantity = 1,
+            purchaseState = PurchaseState.Purchased,
+            isAutoRenewing = true,
+            pendingPurchaseUpdateAndroid = pendingUpdate
+        )
+
+        assertNotNull(purchase.pendingPurchaseUpdateAndroid)
+        assertEquals(listOf("premium_yearly"), purchase.pendingPurchaseUpdateAndroid?.products)
+        assertEquals("pending_upgrade_token", purchase.pendingPurchaseUpdateAndroid?.purchaseToken)
+    }
+
+    @Test
+    fun `PurchaseAndroid toJson includes pendingPurchaseUpdateAndroid`() {
+        val purchase = PurchaseAndroid(
+            id = "order_456",
+            productId = "basic_plan",
+            transactionDate = 1700000000000.0,
+            store = IapStore.Google,
+            platform = IapPlatform.Android,
+            quantity = 1,
+            purchaseState = PurchaseState.Purchased,
+            isAutoRenewing = true,
+            pendingPurchaseUpdateAndroid = PendingPurchaseUpdateAndroid(
+                products = listOf("pro_plan"),
+                purchaseToken = "upgrade_token_789"
+            )
+        )
+
+        val json = purchase.toJson()
+        @Suppress("UNCHECKED_CAST")
+        val pendingJson = json["pendingPurchaseUpdateAndroid"] as? Map<String, Any?>
+        assertNotNull(pendingJson)
+        assertEquals(listOf("pro_plan"), pendingJson?.get("products"))
+        assertEquals("upgrade_token_789", pendingJson?.get("purchaseToken"))
+    }
+
+    @Test
+    fun `PurchaseAndroid fromJson parses pendingPurchaseUpdateAndroid`() {
+        val json = mapOf<String, Any?>(
+            "id" to "order_789",
+            "productId" to "starter_plan",
+            "transactionDate" to 1700000000000.0,
+            "store" to "google",
+            "platform" to "android",
+            "quantity" to 1,
+            "purchaseState" to "purchased",
+            "isAutoRenewing" to true,
+            "pendingPurchaseUpdateAndroid" to mapOf(
+                "products" to listOf("enterprise_plan"),
+                "purchaseToken" to "enterprise_upgrade_token"
+            )
+        )
+
+        val purchase = PurchaseAndroid.fromJson(json)
+        assertNotNull(purchase.pendingPurchaseUpdateAndroid)
+        assertEquals(listOf("enterprise_plan"), purchase.pendingPurchaseUpdateAndroid?.products)
+        assertEquals("enterprise_upgrade_token", purchase.pendingPurchaseUpdateAndroid?.purchaseToken)
+    }
+
+    @Test
+    fun `PurchaseAndroid allows null pendingPurchaseUpdateAndroid`() {
+        val purchase = PurchaseAndroid(
+            id = "order_no_pending",
+            productId = "regular_product",
+            transactionDate = 1700000000000.0,
+            store = IapStore.Google,
+            platform = IapPlatform.Android,
+            quantity = 1,
+            purchaseState = PurchaseState.Purchased,
+            isAutoRenewing = false
+        )
+
+        assertNull(purchase.pendingPurchaseUpdateAndroid)
+    }
+
+    @Test
+    fun `PurchaseAndroid pendingPurchaseUpdateAndroid use case - subscription downgrade`() {
+        // Scenario: User on yearly plan downgrades to monthly
+        // The downgrade is pending until the yearly period ends
+        val purchase = PurchaseAndroid(
+            id = "yearly_order",
+            productId = "premium_yearly",
+            transactionDate = 1700000000000.0,
+            store = IapStore.Google,
+            platform = IapPlatform.Android,
+            quantity = 1,
+            purchaseState = PurchaseState.Purchased,
+            isAutoRenewing = true,
+            currentPlanId = "yearly",
+            pendingPurchaseUpdateAndroid = PendingPurchaseUpdateAndroid(
+                products = listOf("premium_monthly"),
+                purchaseToken = "downgrade_pending_token"
+            )
+        )
+
+        // Current purchase is still yearly
+        assertEquals("premium_yearly", purchase.productId)
+        assertEquals("yearly", purchase.currentPlanId)
+
+        // But there's a pending downgrade to monthly
+        assertNotNull(purchase.pendingPurchaseUpdateAndroid)
+        assertEquals("premium_monthly", purchase.pendingPurchaseUpdateAndroid?.products?.first())
     }
 }
