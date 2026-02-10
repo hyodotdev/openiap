@@ -21,18 +21,22 @@
             "console": "integratedTerminal"
         },
         {
-            "type": "node-terminal",
-            "request": "launch",
             "name": "📝 GQL: Generate Types",
-            "command": "bun run generate",
-            "cwd": "${workspaceFolder}/packages/gql"
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "bun run generate"],
+            "cwd": "${workspaceFolder}/packages/gql",
+            "console": "integratedTerminal"
         },
         {
-            "type": "node-terminal",
-            "request": "launch",
             "name": "📚 Docs: Dev Server",
-            "command": "bun run dev",
-            "cwd": "${workspaceFolder}/packages/docs"
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "bun run dev"],
+            "cwd": "${workspaceFolder}/packages/docs",
+            "console": "integratedTerminal"
         },
         {
             "type": "node-terminal",
