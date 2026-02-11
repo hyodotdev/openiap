@@ -7,6 +7,7 @@ interface SEOProps {
   keywords?: string;
   type?: 'website' | 'article';
   image?: string;
+  includeAppSchema?: boolean;
 }
 
 const BASE_URL = 'https://openiap.dev';
@@ -22,6 +23,7 @@ function SEO({
   keywords,
   type = 'website',
   image,
+  includeAppSchema = false,
 }: SEOProps) {
   const pageTitle = title ? `${title} | OpenIAP` : DEFAULT_TITLE;
   const pageDescription = description || DEFAULT_DESCRIPTION;
@@ -73,7 +75,9 @@ function SEO({
       <meta name="twitter:image" content={imageUrl} />
 
       {/* Schema.org JSON-LD */}
-      <script type="application/ld+json">{JSON.stringify(schemaOrg)}</script>
+      {includeAppSchema && (
+        <script type="application/ld+json">{JSON.stringify(schemaOrg)}</script>
+      )}
     </Helmet>
   );
 }

@@ -11,6 +11,7 @@ User-agent: Claude-Web
 User-agent: Anthropic-AI
 User-agent: PerplexityBot
 User-agent: Google-Extended
+Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
 

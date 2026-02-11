@@ -12,6 +12,7 @@ function Home() {
         description="OpenIAP standardizes in-app purchases across iOS, Android, React Native, Flutter, Kotlin Multiplatform, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS."
         path="/"
         keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, React Native IAP, Flutter IAP, Kotlin Multiplatform, cross-platform payments, mobile monetization"
+        includeAppSchema
       />
       <section className="hero">
         <div className="hero-container">
@@ -57,10 +58,8 @@ function Home() {
               flexWrap: 'wrap',
             }}
           >
-            <a
-              href="https://github.com/dooboolab-community/react-native-iap"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/languages"
               style={{ textDecoration: 'none', textAlign: 'center' }}
             >
               <div
@@ -70,6 +69,7 @@ function Home() {
                   color: 'var(--primary-color)',
                 }}
               >
+                {/* Aggregate stars across ecosystem repos - update periodically */}
                 4K+
               </div>
               <div
@@ -80,7 +80,7 @@ function Home() {
               >
                 Combined Stars
               </div>
-            </a>
+            </Link>
             <div style={{ textAlign: 'center' }}>
               <div
                 style={{

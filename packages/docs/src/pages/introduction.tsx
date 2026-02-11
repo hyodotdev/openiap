@@ -10,6 +10,7 @@ function Introduction() {
         description="OpenIAP is a unified specification for in-app purchases across iOS, Android, and XR platforms. One GraphQL schema generates type-safe code for Swift, Kotlin, TypeScript, Dart, and GDScript."
         path="/introduction"
         keywords="OpenIAP, in-app purchase specification, StoreKit 2, Google Play Billing, cross-platform IAP, type-safe IAP, GraphQL schema"
+        includeAppSchema
       />
       <div className="content-wrapper">
         {/* Title */}
@@ -166,8 +167,11 @@ function Introduction() {
               <img
                 src="/ecosystem.png"
                 alt="OpenIAP Architecture - GraphQL schema generates native modules"
+                width={800}
+                height={450}
                 style={{
                   maxWidth: '100%',
+                  height: 'auto',
                   borderRadius: '8px',
                   border: '1px solid var(--border-color)',
                 }}
@@ -231,21 +235,22 @@ src/generated/types.gd                       # GDScript types`}
               marginBottom: '1rem',
             }}
           >
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
-              target="_blank"
-              rel="noopener noreferrer"
+            <div
               style={{
-                display: 'block',
                 padding: '1rem',
                 background: 'var(--bg-secondary)',
                 borderRadius: '8px',
                 border: '1px solid var(--border-color)',
-                textDecoration: 'none',
               }}
             >
               <strong style={{ color: 'var(--text-primary)' }}>
-                openiap-apple
+                <a
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple
+                </a>
               </strong>
               <p
                 style={{
@@ -264,22 +269,23 @@ src/generated/types.gd                       # GDScript types`}
                 </a>
                 . Supports iOS 15+, macOS 12+, visionOS 1.0+.
               </p>
-            </a>
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
-              target="_blank"
-              rel="noopener noreferrer"
+            </div>
+            <div
               style={{
-                display: 'block',
                 padding: '1rem',
                 background: 'var(--bg-secondary)',
                 borderRadius: '8px',
                 border: '1px solid var(--border-color)',
-                textDecoration: 'none',
               }}
             >
               <strong style={{ color: 'var(--text-primary)' }}>
-                openiap-google
+                <a
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google
+                </a>
               </strong>
               <p
                 style={{
@@ -298,7 +304,7 @@ src/generated/types.gd                       # GDScript types`}
                 </a>
                 . Supports Android 5.0+ (API 21+).
               </p>
-            </a>
+            </div>
           </div>
         </section>
 
