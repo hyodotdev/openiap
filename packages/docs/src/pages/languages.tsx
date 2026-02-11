@@ -6,9 +6,9 @@ function Languages() {
     <div className="page-container">
       <SEO
         title="Implementations"
-        description="Libraries that implement the OpenIAP specification for React Native, Flutter, Kotlin Multiplatform, and more."
+        description="Production-ready IAP libraries implementing OpenIAP: react-native-iap, expo-iap, flutter_inapp_purchase, kmp-iap, and godot-iap. Type-safe in-app purchases for every framework."
         path="/languages"
-        keywords="react-native-iap, expo-iap, flutter_inapp_purchase, kmp-iap, IAP libraries"
+        keywords="react-native-iap, expo-iap, flutter_inapp_purchase, kmp-iap, godot-iap, IAP SDK, in-app purchase library, mobile payments SDK, cross-platform IAP"
       />
       <div className="content-wrapper">
         <h1>OpenIAP Implementations</h1>

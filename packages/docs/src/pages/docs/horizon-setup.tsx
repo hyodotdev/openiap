@@ -6,9 +6,9 @@ function HorizonSetup() {
     <div className="doc-page">
       <SEO
         title="Horizon OS Setup"
-        description="Setting up in-app purchases for Meta Horizon OS (Quest devices) using OpenIAP's unified Android SDK."
+        description="Meta Quest in-app purchase setup guide. Configure Horizon OS IAP for Quest 2, Quest 3, and Quest Pro using OpenIAP's unified Android SDK with Meta's billing system."
         path="/docs/horizon-setup"
-        keywords="Meta Quest IAP, Horizon OS, VR in-app purchase"
+        keywords="Meta Quest IAP, Horizon OS setup, VR in-app purchase, Quest 3 billing, Meta Quest Store, XR monetization, Quest subscription"
       />
       <h1>Horizon OS Setup Guide</h1>
       <p>

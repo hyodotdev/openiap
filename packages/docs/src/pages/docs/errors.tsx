@@ -12,9 +12,9 @@ function Errors() {
     <div className="doc-page">
       <SEO
         title="Error Codes"
-        description="OpenIAP error codes and handling - PurchaseError structure, error constants, and troubleshooting guide."
+        description="OpenIAP error codes reference. Handle PurchaseError, user cancellation, network errors, and platform-specific error codes for iOS and Android."
         path="/docs/errors"
-        keywords="IAP errors, PurchaseError, error handling"
+        keywords="IAP errors, PurchaseError, error codes, user cancelled, network error, billing unavailable, item already owned, IAP troubleshooting"
       />
       <h1>Error Codes</h1>
 

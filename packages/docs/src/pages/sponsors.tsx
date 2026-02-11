@@ -6,8 +6,9 @@ function Sponsors() {
     <div className="page-container">
       <SEO
         title="Sponsors"
-        description="Support OpenIAP development and help standardize in-app purchases across platforms."
+        description="Support OpenIAP development - the open-source initiative standardizing in-app purchases across iOS, Android, and emerging XR platforms. Backed by Meta."
         path="/sponsors"
+        keywords="OpenIAP sponsors, open source sponsorship, IAP development support, Meta sponsor, mobile payments open source"
       />
       <div className="content-wrapper" style={{ textAlign: 'center' }}>
         <h1>Support OpenIAP</h1>

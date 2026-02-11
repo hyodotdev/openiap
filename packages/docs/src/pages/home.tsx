@@ -7,7 +7,13 @@ import SEO from '../components/SEO';
 function Home() {
   return (
     <div className="home">
-      <SEO path="/" />
+      <SEO
+        title="Unified In-App Purchase Specification"
+        description="OpenIAP standardizes in-app purchases across iOS, Android, React Native, Flutter, Kotlin Multiplatform, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS."
+        path="/"
+        keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, React Native IAP, Flutter IAP, Kotlin Multiplatform, cross-platform payments, mobile monetization"
+        includeAppSchema
+      />
       <section className="hero">
         <div className="hero-container">
           <img
@@ -39,9 +45,21 @@ function Home() {
             </Link>
           </div>
           <p className="hero-subtitle">
-            Unifying fragmented IAP implementations across platforms,
-            frameworks, and emerging technologies
+            Stop rewriting IAP code for every platform. One API for iOS,
+            Android, Vision Pro, and Meta Quest.
           </p>
+          {/* Quick Stats */}
+          <div className="quick-stats">
+            <Link to="/languages" className="quick-stats-item">
+              {/* Aggregate stars across ecosystem repos - update periodically */}
+              <div className="quick-stats-value">4K+</div>
+              <div className="quick-stats-label">Combined Stars</div>
+            </Link>
+            <div className="quick-stats-item">
+              <div className="quick-stats-value">5+</div>
+              <div className="quick-stats-label">Framework Libraries</div>
+            </div>
+          </div>
           <div className="hero-actions">
             <Link to="/introduction" className="btn btn-primary">
               Get Started
@@ -141,6 +159,42 @@ function Home() {
         </div>
       </section>
 
+      {/* Key Benefits */}
+      <section className="home-section">
+        <div className="section-container">
+          <h2 className="section-title">Why Developers Choose OpenIAP</h2>
+          <p className="section-subtitle">
+            Build revenue-generating features faster with less code
+          </p>
+          <div className="key-benefits">
+            <div className="key-benefit-card">
+              <div className="key-benefit-value">1x</div>
+              <h3>Learn Once</h3>
+              <p>
+                Master one API instead of learning different patterns for iOS,
+                Android, and every framework
+              </p>
+            </div>
+            <div className="key-benefit-card">
+              <div className="key-benefit-value">0</div>
+              <h3>Runtime Errors</h3>
+              <p>
+                Type-safe generated code catches mistakes at compile time, not
+                in production
+              </p>
+            </div>
+            <div className="key-benefit-card">
+              <div className="key-benefit-value">100%</div>
+              <h3>Platform Features</h3>
+              <p>
+                Full access to StoreKit 2 and Play Billing v8 — no features
+                hidden or abstracted away
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="home-section section-problem">
         <div className="section-container">
           <h2>The Problem We're Solving</h2>
@@ -202,21 +256,10 @@ function Home() {
               </p>
             </div>
             <div className="benefit">
-              <h3>
-                XR-Compatible{' '}
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    marginLeft: '0.5rem',
-                  }}
-                >
-                  (WIP)
-                </span>
-              </h3>
+              <h3>XR-Compatible</h3>
               <p>
-                Horizon OS, Android XR, Vision Pro - new realities need
-                purchases. OpenIAP is ready for the spatial computing era.
+                Horizon OS and Vision Pro supported. Android XR coming soon.
+                OpenIAP is ready for the spatial computing era.
               </p>
             </div>
           </div>

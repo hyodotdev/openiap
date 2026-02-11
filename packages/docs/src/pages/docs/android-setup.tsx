@@ -5,9 +5,9 @@ function AndroidSetup() {
     <div className="doc-page">
       <SEO
         title="Android Setup"
-        description="Complete guide to setting up in-app purchases for Android - Google Play Console, Billing Library, and testing."
+        description="Complete Android in-app purchase setup guide. Configure Google Play Console, integrate Play Billing Library v8, create products, and test purchases with license testers."
         path="/docs/android-setup"
-        keywords="Android IAP setup, Google Play Billing, Play Console"
+        keywords="Android IAP setup, Google Play Billing, Play Console setup, Play Billing Library 8, Android subscription setup, license tester, IAP testing"
       />
       <h1>Android Setup Guide</h1>
       <p>

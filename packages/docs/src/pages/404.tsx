@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Home, ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import SEO from '../components/SEO';
 
 export default function NotFound() {
   const [isDark, setIsDark] = useState(false);
@@ -22,15 +23,21 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div
-      style={{
-        minHeight: '70vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-      }}
-    >
+    <>
+      <SEO
+        title="Page Not Found"
+        description="The page you're looking for doesn't exist. Return to OpenIAP documentation for in-app purchase guides and API references."
+        path="/404"
+      />
+      <div
+        style={{
+          minHeight: '70vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem',
+        }}
+      >
       <div
         style={{
           textAlign: 'center',
@@ -143,5 +150,6 @@ export default function NotFound() {
         </div>
       </div>
     </div>
+    </>
   );
 }

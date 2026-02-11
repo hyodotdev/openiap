@@ -12,9 +12,9 @@ function Events() {
     <div className="doc-page">
       <SEO
         title="Events"
-        description="OpenIAP event system - purchaseUpdatedListener, purchaseErrorListener, and event-driven architecture for in-app purchases."
+        description="OpenIAP event-driven architecture for purchase handling. Set up purchaseUpdatedListener and purchaseErrorListener to handle transactions asynchronously."
         path="/docs/events"
-        keywords="IAP events, purchaseUpdatedListener, purchaseErrorListener"
+        keywords="IAP events, purchaseUpdatedListener, purchaseErrorListener, purchase listener, transaction events, async purchase handling"
       />
       <h1>Events</h1>
 

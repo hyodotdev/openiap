@@ -10,8 +10,9 @@ function Ecosystem() {
     <div className="doc-page">
       <SEO
         title="Ecosystem"
-        description="Explore the OpenIAP ecosystem - a unified in-app purchase specification across iOS, Android, React Native, Flutter, and Kotlin Multiplatform."
+        description="OpenIAP ecosystem overview. Native modules (openiap-apple, openiap-google) power framework implementations for React Native, Flutter, Kotlin Multiplatform, and Godot."
         path="/docs/ecosystem"
+        keywords="OpenIAP ecosystem, openiap-apple, openiap-google, IAP architecture, native modules, cross-platform IAP"
       />
       <h1>Ecosystem</h1>
       <p>

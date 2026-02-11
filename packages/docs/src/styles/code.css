@@ -9,8 +9,8 @@ pre.code-block {
   overflow-x: auto;
   overflow-y: hidden;
   font-family: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
+  font-size: 0.9375rem;
+  line-height: 1.6;
   margin: var(--spacing-md) 0;
   position: relative;
   scrollbar-width: thin;
@@ -164,7 +164,7 @@ pre code {
   padding: 0;
   white-space: pre;
   display: block;
-  font-size: var(--font-size-sm);
+  font-size: 0.9375rem;
   border-radius: 0;
 }
 
