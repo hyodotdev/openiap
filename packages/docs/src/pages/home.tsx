@@ -49,56 +49,15 @@ function Home() {
             Android, Vision Pro, and Meta Quest.
           </p>
           {/* Quick Stats */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '2.5rem',
-              marginBottom: '1.5rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <Link
-              to="/languages"
-              style={{ textDecoration: 'none', textAlign: 'center' }}
-            >
-              <div
-                style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: 'var(--primary-color)',
-                }}
-              >
-                {/* Aggregate stars across ecosystem repos - update periodically */}
-                4K+
-              </div>
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                Combined Stars
-              </div>
+          <div className="quick-stats">
+            <Link to="/languages" className="quick-stats-item">
+              {/* Aggregate stars across ecosystem repos - update periodically */}
+              <div className="quick-stats-value">4K+</div>
+              <div className="quick-stats-label">Combined Stars</div>
             </Link>
-            <div style={{ textAlign: 'center' }}>
-              <div
-                style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: 'var(--primary-color)',
-                }}
-              >
-                5+
-              </div>
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                Framework Libraries
-              </div>
+            <div className="quick-stats-item">
+              <div className="quick-stats-value">5+</div>
+              <div className="quick-stats-label">Framework Libraries</div>
             </div>
           </div>
           <div className="hero-actions">
@@ -203,122 +162,31 @@ function Home() {
       {/* Key Benefits */}
       <section className="home-section">
         <div className="section-container">
-          <h2 style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
-            Why Developers Choose OpenIAP
-          </h2>
-          <p
-            className="section-subtitle"
-            style={{ textAlign: 'center', marginBottom: '2rem' }}
-          >
+          <h2 className="section-title">Why Developers Choose OpenIAP</h2>
+          <p className="section-subtitle">
             Build revenue-generating features faster with less code
           </p>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '1.5rem',
-              maxWidth: '900px',
-              margin: '0 auto',
-            }}
-          >
-            <div
-              style={{
-                padding: '2rem',
-                background: 'var(--bg-secondary)',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                textAlign: 'center',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '2.5rem',
-                  fontWeight: '700',
-                  color: 'var(--primary-color)',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                1x
-              </div>
-              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>
-                Learn Once
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.9rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: '1.6',
-                }}
-              >
+          <div className="key-benefits">
+            <div className="key-benefit-card">
+              <div className="key-benefit-value">1x</div>
+              <h3>Learn Once</h3>
+              <p>
                 Master one API instead of learning different patterns for iOS,
                 Android, and every framework
               </p>
             </div>
-            <div
-              style={{
-                padding: '2rem',
-                background: 'var(--bg-secondary)',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                textAlign: 'center',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '2.5rem',
-                  fontWeight: '700',
-                  color: 'var(--primary-color)',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                0
-              </div>
-              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>
-                Runtime Errors
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.9rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: '1.6',
-                }}
-              >
+            <div className="key-benefit-card">
+              <div className="key-benefit-value">0</div>
+              <h3>Runtime Errors</h3>
+              <p>
                 Type-safe generated code catches mistakes at compile time, not
                 in production
               </p>
             </div>
-            <div
-              style={{
-                padding: '2rem',
-                background: 'var(--bg-secondary)',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                textAlign: 'center',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '2.5rem',
-                  fontWeight: '700',
-                  color: 'var(--primary-color)',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                100%
-              </div>
-              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>
-                Platform Features
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.9rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: '1.6',
-                }}
-              >
+            <div className="key-benefit-card">
+              <div className="key-benefit-value">100%</div>
+              <h3>Platform Features</h3>
+              <p>
                 Full access to StoreKit 2 and Play Billing v8 — no features
                 hidden or abstracted away
               </p>
