@@ -98,9 +98,9 @@ function APIsIndex() {
     <div className="doc-page">
       <SEO
         title="APIs"
-        description="OpenIAP API reference - comprehensive documentation for all in-app purchase APIs across iOS and Android platforms."
+        description="OpenIAP API reference for iOS StoreKit 2 and Android Play Billing. initConnection, fetchProducts, requestPurchase, finishTransaction, and platform-specific methods."
         path="/docs/apis"
-        keywords="IAP API, initConnection, fetchProducts, requestPurchase, finishTransaction, verifyPurchase"
+        keywords="OpenIAP API, IAP API reference, initConnection, fetchProducts, requestPurchase, finishTransaction, verifyPurchase, StoreKit 2 API, Play Billing API"
       />
       <h1>APIs</h1>
       <p>

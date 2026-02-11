@@ -2,31 +2,31 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://openiap.dev/</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://openiap.dev/introduction</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://openiap.dev/languages</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/tutorials</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/sponsors</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -34,43 +34,43 @@
   <!-- Documentation -->
   <url>
     <loc>https://openiap.dev/docs/ecosystem</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/lifecycle</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/lifecycle/subscription</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/types</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/apis</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/events</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/errors</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -78,19 +78,19 @@
   <!-- Setup Guides -->
   <url>
     <loc>https://openiap.dev/docs/ios-setup</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/android-setup</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/horizon-setup</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -98,31 +98,31 @@
   <!-- Features -->
   <url>
     <loc>https://openiap.dev/docs/features/purchase</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/features/subscription</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/features/offer-code-redemption</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/features/external-purchase</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/features/subscription-upgrade-downgrade</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -130,19 +130,19 @@
   <!-- Updates -->
   <url>
     <loc>https://openiap.dev/docs/updates/announcements</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/updates/notes</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://openiap.dev/docs/updates/versions</loc>
-    <lastmod>2025-11-26</lastmod>
+    <lastmod>2026-02-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

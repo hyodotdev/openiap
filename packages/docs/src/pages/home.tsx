@@ -7,7 +7,12 @@ import SEO from '../components/SEO';
 function Home() {
   return (
     <div className="home">
-      <SEO path="/" />
+      <SEO
+        title="Unified In-App Purchase Specification"
+        description="OpenIAP standardizes in-app purchases across iOS, Android, React Native, Flutter, Kotlin Multiplatform, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS."
+        path="/"
+        keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, React Native IAP, Flutter IAP, Kotlin Multiplatform, cross-platform payments, mobile monetization"
+      />
       <section className="hero">
         <div className="hero-container">
           <img
@@ -39,9 +44,63 @@ function Home() {
             </Link>
           </div>
           <p className="hero-subtitle">
-            Unifying fragmented IAP implementations across platforms,
-            frameworks, and emerging technologies
+            Stop rewriting IAP code for every platform. One API for iOS,
+            Android, Vision Pro, and Meta Quest.
           </p>
+          {/* Quick Stats */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '2.5rem',
+              marginBottom: '1.5rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <a
+              href="https://github.com/dooboolab-community/react-native-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: 'none', textAlign: 'center' }}
+            >
+              <div
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: 'var(--primary-color)',
+                }}
+              >
+                4K+
+              </div>
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                Combined Stars
+              </div>
+            </a>
+            <div style={{ textAlign: 'center' }}>
+              <div
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: 'var(--primary-color)',
+                }}
+              >
+                5+
+              </div>
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                Framework Libraries
+              </div>
+            </div>
+          </div>
           <div className="hero-actions">
             <Link to="/introduction" className="btn btn-primary">
               Get Started

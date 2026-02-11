@@ -10,7 +10,7 @@
     <title>OpenIAP - Unified Specification for In-App Purchases</title>
     <meta name="title" content="OpenIAP - Unified Specification for In-App Purchases" />
     <meta name="description" content="OpenIAP is a unified specification for in-app purchases across platforms, frameworks, and emerging technologies. Standardizing IAP implementations to reduce fragmentation." />
-    <meta name="keywords" content="IAP, in-app purchase, mobile development, iOS, Android, StoreKit, Google Play Billing, React Native, Flutter, Kotlin Multiplatform" />
+    <meta name="keywords" content="IAP, in-app purchase, mobile development, iOS, Android, StoreKit 2, Google Play Billing, React Native, Flutter, Kotlin Multiplatform, Godot, Unity, visionOS, Vision Pro, Meta Quest, Horizon OS, subscription, consumable, non-consumable" />
     <meta name="author" content="OpenIAP" />
     
     <!-- Open Graph / Facebook -->
@@ -35,6 +35,10 @@
     
     <!-- Favicon variations -->
     <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
+
+    <!-- AI/LLM Context (llms.txt standard) -->
+    <link rel="alternate" type="text/plain" title="LLM Context" href="/llms.txt" />
+    <link rel="alternate" type="text/plain" title="LLM Full Context" href="/llms-full.txt" />
     
     <!-- Schema.org JSON-LD -->
     <script type="application/ld+json">
@@ -44,15 +48,33 @@
       "name": "OpenIAP",
       "url": "https://openiap.dev",
       "description": "OpenIAP is a unified specification for in-app purchases across platforms, frameworks, and emerging technologies.",
+      "inLanguage": "en",
       "author": {
         "@type": "Organization",
         "name": "OpenIAP",
-        "url": "https://openiap.dev"
+        "url": "https://openiap.dev",
+        "logo": "https://openiap.dev/logo.png",
+        "sameAs": [
+          "https://github.com/hyodotdev/openiap",
+          "https://github.com/hyochan/react-native-iap",
+          "https://github.com/hyochan/expo-iap"
+        ]
       },
       "potentialAction": {
         "@type": "SearchAction",
         "target": "https://openiap.dev/docs?search={search_term_string}",
         "query-input": "required name=search_term_string"
+      },
+      "about": {
+        "@type": "SoftwareApplication",
+        "name": "OpenIAP",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "iOS, Android, visionOS, Horizon OS",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
       }
     }
     </script>

@@ -9,9 +9,9 @@ function Tutorials() {
     <div className="page-container">
       <SEO
         title="Tutorials"
-        description="Comprehensive guides for iOS and Android in-app purchase setup, purchase verification (receipt validation), and platform-specific implementation."
+        description="Step-by-step guides for iOS StoreKit 2 and Android Play Billing setup. Learn purchase verification, receipt validation, and best practices for in-app purchases."
         path="/tutorials"
-        keywords="IAP tutorial, StoreKit 2, Google Play Billing, purchase verification, receipt validation"
+        keywords="IAP tutorial, StoreKit 2 tutorial, Google Play Billing guide, purchase verification, receipt validation, iOS IAP setup, Android IAP setup"
       />
       <div className="content-wrapper">
         <h1>Tutorials</h1>
