@@ -203,6 +203,15 @@ function Home() {
       {/* Key Benefits */}
       <section className="home-section">
         <div className="section-container">
+          <h2 style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+            Why Developers Choose OpenIAP
+          </h2>
+          <p
+            className="section-subtitle"
+            style={{ textAlign: 'center', marginBottom: '2rem' }}
+          >
+            Build revenue-generating features faster with less code
+          </p>
           <div
             style={{
               display: 'grid',
@@ -379,21 +388,10 @@ function Home() {
               </p>
             </div>
             <div className="benefit">
-              <h3>
-                XR-Compatible{' '}
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    marginLeft: '0.5rem',
-                  }}
-                >
-                  (WIP)
-                </span>
-              </h3>
+              <h3>XR-Compatible</h3>
               <p>
-                Horizon OS, Android XR, Vision Pro - new realities need
-                purchases. OpenIAP is ready for the spatial computing era.
+                Horizon OS and Vision Pro supported. Android XR coming soon.
+                OpenIAP is ready for the spatial computing era.
               </p>
             </div>
           </div>

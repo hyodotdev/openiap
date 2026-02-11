@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
+import CodeBlock from '../components/CodeBlock';
 
 function Introduction() {
   return (
@@ -29,13 +30,14 @@ function Introduction() {
         {/* The Problem */}
         <section className="intro-section">
           <h2>The Problem</h2>
-          <p style={{ lineHeight: '1.8', marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1.5rem' }}>
             In-app purchase implementations are fragmented across platforms and
             frameworks. Each library defines its own API surface, type
             definitions, and event patterns. This creates several challenges:
           </p>
           <ul
             style={{
+              fontSize: '1.05rem',
               lineHeight: '1.8',
               marginBottom: '1.5rem',
               paddingLeft: '1.5rem',
@@ -62,7 +64,7 @@ function Introduction() {
               reliable IAP code because no two libraries work the same way
             </li>
           </ul>
-          <p style={{ lineHeight: '1.8', color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', color: 'var(--text-secondary)' }}>
             New platforms like{' '}
             <a
               href="https://developer.apple.com/visionos/"
@@ -79,12 +81,13 @@ function Introduction() {
         {/* The Solution */}
         <section className="intro-section">
           <h2>The Solution</h2>
-          <p style={{ lineHeight: '1.8', marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1.5rem' }}>
             OpenIAP provides a single source of truth for IAP implementations.
             The specification defines:
           </p>
           <ul
             style={{
+              fontSize: '1.05rem',
               lineHeight: '1.8',
               marginBottom: '1.5rem',
               paddingLeft: '1.5rem',
@@ -147,7 +150,7 @@ function Introduction() {
         {/* Architecture */}
         <section className="intro-section">
           <h2>Architecture</h2>
-          <p style={{ lineHeight: '1.8', marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1.5rem' }}>
             OpenIAP uses a schema-driven approach. A single GraphQL schema
             defines all types and operations, which are then generated into
             native code for each target platform.
@@ -182,7 +185,7 @@ function Introduction() {
           </div>
 
           <h3>Code Generation</h3>
-          <p style={{ lineHeight: '1.8', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1rem' }}>
             The{' '}
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/packages/gql"
@@ -200,7 +203,7 @@ function Introduction() {
               borderRadius: '8px',
               padding: '1rem',
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.875rem',
+              fontSize: '1rem',
               overflowX: 'auto',
               marginBottom: '1.5rem',
               border: '1px solid var(--border-color)',
@@ -216,7 +219,7 @@ src/generated/types.gd                       # GDScript types`}
           </div>
 
           <h3>Native Modules</h3>
-          <p style={{ lineHeight: '1.8', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1rem' }}>
             Two native modules implement the specification on top of platform
             APIs:
           </p>
@@ -247,7 +250,7 @@ src/generated/types.gd                       # GDScript types`}
               <p
                 style={{
                   margin: '0.5rem 0 0',
-                  fontSize: '0.875rem',
+                  fontSize: '1rem',
                   color: 'var(--text-secondary)',
                 }}
               >
@@ -281,7 +284,7 @@ src/generated/types.gd                       # GDScript types`}
               <p
                 style={{
                   margin: '0.5rem 0 0',
-                  fontSize: '0.875rem',
+                  fontSize: '1rem',
                   color: 'var(--text-secondary)',
                 }}
               >
@@ -304,7 +307,7 @@ src/generated/types.gd                       # GDScript types`}
           <h2>API Design</h2>
 
           <h3>Naming Conventions</h3>
-          <p style={{ lineHeight: '1.8', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1rem' }}>
             OpenIAP uses consistent naming across all implementations:
           </p>
           <div
@@ -317,7 +320,7 @@ src/generated/types.gd                       # GDScript types`}
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                fontSize: '0.875rem',
+                fontSize: '1rem',
               }}
             >
               <thead>
@@ -365,24 +368,12 @@ src/generated/types.gd                       # GDScript types`}
           </div>
 
           <h3>Type Safety</h3>
-          <p style={{ lineHeight: '1.8', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1rem' }}>
             Generated types ensure compile-time safety. Platform-specific fields
             use suffixes to prevent accidental cross-platform usage:
           </p>
-          <div
-            style={{
-              background: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              padding: '1rem',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.875rem',
-              overflowX: 'auto',
-              marginBottom: '1.5rem',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <pre style={{ margin: 0 }}>
-              {`// Cross-platform fields (no suffix)
+          <CodeBlock language="typescript">
+            {`// Cross-platform fields (no suffix)
 interface Product {
   id: string;
   title: string;
@@ -401,31 +392,18 @@ interface Purchase {
   purchaseTokenAndroid?: string;
   orderIdAndroid?: string;
 }`}
-            </pre>
-          </div>
+          </CodeBlock>
         </section>
 
         {/* Purchase Flow */}
         <section className="intro-section">
           <h2>Purchase Flow</h2>
-          <p style={{ lineHeight: '1.8', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1rem' }}>
             The standard purchase flow works identically across all OpenIAP
             implementations:
           </p>
-          <div
-            style={{
-              background: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              padding: '1rem',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.875rem',
-              overflowX: 'auto',
-              marginBottom: '1.5rem',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <pre style={{ margin: 0 }}>
-              {`// 1. Initialize connection
+          <CodeBlock language="typescript">
+            {`// 1. Initialize connection
 await initConnection();
 
 // 2. Set up listeners (event-based, not promise-based)
@@ -463,9 +441,15 @@ await requestPurchase({
 // 8. Cleanup on unmount
 subscription.remove();
 await endConnection();`}
-            </pre>
-          </div>
-          <p style={{ lineHeight: '1.8', color: 'var(--text-secondary)' }}>
+          </CodeBlock>
+          <p
+            style={{
+              fontSize: '1.05rem',
+              lineHeight: '1.8',
+              color: 'var(--text-secondary)',
+              marginTop: '1rem',
+            }}
+          >
             See <Link to="/docs/lifecycle">Purchase Lifecycle</Link> for
             detailed flow documentation.
           </p>
@@ -484,7 +468,7 @@ await endConnection();`}
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                fontSize: '0.875rem',
+                fontSize: '1rem',
               }}
             >
               <thead>
@@ -551,7 +535,7 @@ await endConnection();`}
         {/* Framework Implementations */}
         <section className="intro-section">
           <h2>Framework Implementations</h2>
-          <p style={{ lineHeight: '1.8', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1rem' }}>
             Production-ready libraries implementing the OpenIAP specification:
           </p>
           <div
@@ -564,7 +548,7 @@ await endConnection();`}
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                fontSize: '0.875rem',
+                fontSize: '1rem',
               }}
             >
               <thead>
@@ -690,7 +674,7 @@ await endConnection();`}
               </tbody>
             </table>
           </div>
-          <p style={{ color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)' }}>
             <Link to="/languages">View all implementations →</Link>
           </p>
         </section>
@@ -698,7 +682,7 @@ await endConnection();`}
         {/* Getting Started */}
         <section className="intro-section">
           <h2>Getting Started</h2>
-          <p style={{ lineHeight: '1.8', marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '1.05rem', lineHeight: '1.8', marginBottom: '1.5rem' }}>
             Choose your framework to get started:
           </p>
           <div
