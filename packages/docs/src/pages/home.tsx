@@ -200,6 +200,124 @@ function Home() {
         </div>
       </section>
 
+      {/* Key Benefits */}
+      <section className="home-section">
+        <div className="section-container">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '1.5rem',
+              maxWidth: '900px',
+              margin: '0 auto',
+            }}
+          >
+            <div
+              style={{
+                padding: '2rem',
+                background: 'var(--bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                textAlign: 'center',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '2.5rem',
+                  fontWeight: '700',
+                  color: 'var(--primary-color)',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                1x
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>
+                Learn Once
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.9rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.6',
+                }}
+              >
+                Master one API instead of learning different patterns for iOS,
+                Android, and every framework
+              </p>
+            </div>
+            <div
+              style={{
+                padding: '2rem',
+                background: 'var(--bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                textAlign: 'center',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '2.5rem',
+                  fontWeight: '700',
+                  color: 'var(--primary-color)',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                0
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>
+                Runtime Errors
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.9rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.6',
+                }}
+              >
+                Type-safe generated code catches mistakes at compile time, not
+                in production
+              </p>
+            </div>
+            <div
+              style={{
+                padding: '2rem',
+                background: 'var(--bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                textAlign: 'center',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '2.5rem',
+                  fontWeight: '700',
+                  color: 'var(--primary-color)',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                100%
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>
+                Platform Features
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.9rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.6',
+                }}
+              >
+                Full access to StoreKit 2 and Play Billing v8 — no features
+                hidden or abstracted away
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="home-section section-problem">
         <div className="section-container">
           <h2>The Problem We're Solving</h2>
