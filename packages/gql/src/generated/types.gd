@@ -296,22 +296,22 @@ enum SubscriptionReplacementModeAndroid {
 # ============================================================================
 
 class ActiveSubscription:
-	var product_id: String
-	var is_active: bool
-	var expiration_date_ios: float
-	var auto_renewing_android: bool
-	var environment_ios: String
+	var product_id: String = ""
+	var is_active: bool = false
+	var expiration_date_ios: float = 0.0
+	var auto_renewing_android: bool = false
+	var environment_ios: String = ""
 	## @deprecated iOS only - use daysUntilExpirationIOS instead.
-	var will_expire_soon: bool
-	var days_until_expiration_ios: float
-	var transaction_id: String
-	var purchase_token: String
-	var transaction_date: float
-	var base_plan_id_android: String
+	var will_expire_soon: bool = false
+	var days_until_expiration_ios: float = 0.0
+	var transaction_id: String = ""
+	var purchase_token: String = ""
+	var transaction_date: float = 0.0
+	var base_plan_id_android: String = ""
 	## Required for subscription upgrade/downgrade on Android
-	var purchase_token_android: String
+	var purchase_token_android: String = ""
 	## The current plan identifier. This is:
-	var current_plan_id: String
+	var current_plan_id: String = ""
 	## Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,
 	var renewal_info_ios: RenewalInfoIOS
 
@@ -372,19 +372,19 @@ class ActiveSubscription:
 		return dict
 
 class AppTransaction:
-	var bundle_id: String
-	var app_version: String
-	var original_app_version: String
-	var original_purchase_date: float
-	var device_verification: String
-	var device_verification_nonce: String
-	var environment: String
-	var signed_date: float
-	var app_id: float
-	var app_version_id: float
-	var preorder_date: float
-	var app_transaction_id: String
-	var original_platform: String
+	var bundle_id: String = ""
+	var app_version: String = ""
+	var original_app_version: String = ""
+	var original_purchase_date: float = 0.0
+	var device_verification: String = ""
+	var device_verification_nonce: String = ""
+	var environment: String = ""
+	var signed_date: float = 0.0
+	var app_id: float = 0.0
+	var app_version_id: float = 0.0
+	var preorder_date: float = 0.0
+	var app_transaction_id: String = ""
+	var original_platform: String = ""
 
 	static func from_dict(data: Dictionary) -> AppTransaction:
 		var obj = AppTransaction.new()
@@ -436,7 +436,7 @@ class AppTransaction:
 ## Result of checking billing program availability (Android) Available in Google Play Billing Library 8.2.0+
 class BillingProgramAvailabilityResultAndroid:
 	## Whether the billing program is available for the user
-	var is_available: bool
+	var is_available: bool = false
 	## The billing program that was checked
 	var billing_program: BillingProgramAndroid
 
@@ -466,7 +466,7 @@ class BillingProgramReportingDetailsAndroid:
 	## The billing program that the reporting details are associated with
 	var billing_program: BillingProgramAndroid
 	## External transaction token used to report transactions made outside of Google Play Billing.
-	var external_transaction_token: String
+	var external_transaction_token: String = ""
 
 	static func from_dict(data: Dictionary) -> BillingProgramReportingDetailsAndroid:
 		var obj = BillingProgramReportingDetailsAndroid.new()
@@ -492,9 +492,9 @@ class BillingProgramReportingDetailsAndroid:
 ## Extended billing result with sub-response code (Android) Available in Google Play Billing Library 8.0.0+
 class BillingResultAndroid:
 	## The response code from the billing operation
-	var response_code: int
+	var response_code: int = 0
 	## Debug message from the billing library
-	var debug_message: String
+	var debug_message: String = ""
 	## Sub-response code for more granular error information (8.0+).
 	var sub_response_code: SubResponseCodeAndroid
 
@@ -525,7 +525,7 @@ class BillingResultAndroid:
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
 class DeveloperProvidedBillingDetailsAndroid:
 	## External transaction token used to report transactions made through developer billing.
-	var external_transaction_token: String
+	var external_transaction_token: String = ""
 
 	static func from_dict(data: Dictionary) -> DeveloperProvidedBillingDetailsAndroid:
 		var obj = DeveloperProvidedBillingDetailsAndroid.new()
@@ -541,9 +541,9 @@ class DeveloperProvidedBillingDetailsAndroid:
 ## Discount amount details for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class DiscountAmountAndroid:
 	## Discount amount in micro-units (1,000,000 = 1 unit of currency)
-	var discount_amount_micros: String
+	var discount_amount_micros: String = ""
 	## Formatted discount amount with currency sign (e.g., "$4.99")
-	var formatted_discount_amount: String
+	var formatted_discount_amount: String = ""
 
 	static func from_dict(data: Dictionary) -> DiscountAmountAndroid:
 		var obj = DiscountAmountAndroid.new()
@@ -562,7 +562,7 @@ class DiscountAmountAndroid:
 ## Discount display information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class DiscountDisplayInfoAndroid:
 	## Percentage discount (e.g., 33 for 33% off)
-	var percentage_discount: int
+	var percentage_discount: int = 0
 	## Absolute discount amount details
 	var discount_amount: DiscountAmountAndroid
 
@@ -588,14 +588,14 @@ class DiscountDisplayInfoAndroid:
 
 ## Discount information returned from the store. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class DiscountIOS:
-	var identifier: String
-	var type: String
-	var number_of_periods: int
-	var price: String
-	var price_amount: float
+	var identifier: String = ""
+	var type: String = ""
+	var number_of_periods: int = 0
+	var price: String = ""
+	var price_amount: float = 0.0
 	var payment_mode: PaymentModeIOS
-	var subscription_period: String
-	var localized_price: String
+	var subscription_period: String = ""
+	var localized_price: String = ""
 
 	static func from_dict(data: Dictionary) -> DiscountIOS:
 		var obj = DiscountIOS.new()
@@ -639,27 +639,27 @@ class DiscountIOS:
 ## Standardized one-time product discount offer. Provides a unified interface for one-time purchase discounts across platforms.  Currently supported on Android (Google Play Billing 7.0+). iOS does not support one-time purchase discounts in the same way.  @see https://openiap.dev/docs/features/discount
 class DiscountOffer:
 	## Unique identifier for the offer.
-	var id: String
+	var id: String = ""
 	## Formatted display price string (e.g., "$4.99")
-	var display_price: String
+	var display_price: String = ""
 	## Numeric price value
-	var price: float
+	var price: float = 0.0
 	## Currency code (ISO 4217, e.g., "USD")
-	var currency: String
+	var currency: String = ""
 	## Type of discount offer
 	var type: DiscountOfferType
 	## [Android] Offer token required for purchase.
-	var offer_token_android: String
+	var offer_token_android: String = ""
 	## [Android] List of tags associated with this offer.
-	var offer_tags_android: Array[String]
+	var offer_tags_android: Array[String] = []
 	## [Android] Original full price in micro-units before discount.
-	var full_price_micros_android: String
+	var full_price_micros_android: String = ""
 	## [Android] Percentage discount (e.g., 33 for 33% off).
-	var percentage_discount_android: int
+	var percentage_discount_android: int = 0
 	## [Android] Fixed discount amount in micro-units.
-	var discount_amount_micros_android: String
+	var discount_amount_micros_android: String = ""
 	## [Android] Formatted discount amount string (e.g., "$5.00 OFF").
-	var formatted_discount_amount_android: String
+	var formatted_discount_amount_android: String = ""
 	## [Android] Valid time window for the offer.
 	var valid_time_window_android: ValidTimeWindowAndroid
 	## [Android] Limited quantity information.
@@ -669,7 +669,7 @@ class DiscountOffer:
 	## [Android] Rental details if this is a rental offer.
 	var rental_details_android: RentalDetailsAndroid
 	## [Android] Purchase option ID for this offer.
-	var purchase_option_id_android: String
+	var purchase_option_id_android: String = ""
 
 	static func from_dict(data: Dictionary) -> DiscountOffer:
 		var obj = DiscountOffer.new()
@@ -761,15 +761,15 @@ class DiscountOffer:
 ## iOS DiscountOffer (output type). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class DiscountOfferIOS:
 	## Discount identifier
-	var identifier: String
+	var identifier: String = ""
 	## Key identifier for validation
-	var key_identifier: String
+	var key_identifier: String = ""
 	## Cryptographic nonce
-	var nonce: String
+	var nonce: String = ""
 	## Signature for validation
-	var signature: String
+	var signature: String = ""
 	## Timestamp of discount offer
-	var timestamp: float
+	var timestamp: float = 0.0
 
 	static func from_dict(data: Dictionary) -> DiscountOfferIOS:
 		var obj = DiscountOfferIOS.new()
@@ -795,9 +795,9 @@ class DiscountOfferIOS:
 		return dict
 
 class EntitlementIOS:
-	var sku: String
-	var transaction_id: String
-	var json_representation: String
+	var sku: String = ""
+	var transaction_id: String = ""
+	var json_representation: String = ""
 
 	static func from_dict(data: Dictionary) -> EntitlementIOS:
 		var obj = EntitlementIOS.new()
@@ -819,7 +819,7 @@ class EntitlementIOS:
 ## External offer availability result (Android) @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferAvailabilityResultAndroid:
 	## Whether external offers are available for the user
-	var is_available: bool
+	var is_available: bool = false
 
 	static func from_dict(data: Dictionary) -> ExternalOfferAvailabilityResultAndroid:
 		var obj = ExternalOfferAvailabilityResultAndroid.new()
@@ -835,7 +835,7 @@ class ExternalOfferAvailabilityResultAndroid:
 ## External offer reporting details (Android) @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferReportingDetailsAndroid:
 	## External transaction token for reporting external offer transactions
-	var external_transaction_token: String
+	var external_transaction_token: String = ""
 
 	static func from_dict(data: Dictionary) -> ExternalOfferReportingDetailsAndroid:
 		var obj = ExternalOfferReportingDetailsAndroid.new()
@@ -851,9 +851,9 @@ class ExternalOfferReportingDetailsAndroid:
 ## Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+).
 class ExternalPurchaseCustomLinkNoticeResultIOS:
 	## Whether the user chose to continue to external purchase
-	var continued: bool
+	var continued: bool = false
 	## Optional error message if the presentation failed
-	var error: String
+	var error: String = ""
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkNoticeResultIOS:
 		var obj = ExternalPurchaseCustomLinkNoticeResultIOS.new()
@@ -872,9 +872,9 @@ class ExternalPurchaseCustomLinkNoticeResultIOS:
 ## Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
 class ExternalPurchaseCustomLinkTokenResultIOS:
 	## The external purchase token string.
-	var token: String
+	var token: String = ""
 	## Optional error message if token retrieval failed
-	var error: String
+	var error: String = ""
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkTokenResultIOS:
 		var obj = ExternalPurchaseCustomLinkTokenResultIOS.new()
@@ -893,9 +893,9 @@ class ExternalPurchaseCustomLinkTokenResultIOS:
 ## Result of presenting an external purchase link
 class ExternalPurchaseLinkResultIOS:
 	## Whether the user completed the external purchase flow
-	var success: bool
+	var success: bool = false
 	## Optional error message if the presentation failed
-	var error: String
+	var error: String = ""
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseLinkResultIOS:
 		var obj = ExternalPurchaseLinkResultIOS.new()
@@ -916,9 +916,9 @@ class ExternalPurchaseNoticeResultIOS:
 	## Notice result indicating user action
 	var result: ExternalPurchaseNoticeAction
 	## Optional error message if the presentation failed
-	var error: String
+	var error: String = ""
 	## External purchase token returned when user continues (iOS 17.4+).
-	var external_purchase_token: String
+	var external_purchase_token: String = ""
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseNoticeResultIOS:
 		var obj = ExternalPurchaseNoticeResultIOS.new()
@@ -947,9 +947,9 @@ class ExternalPurchaseNoticeResultIOS:
 ## Installment plan details for subscription offers (Android) Contains information about the installment plan commitment. Available in Google Play Billing Library 7.0+
 class InstallmentPlanDetailsAndroid:
 	## Committed payments count after a user signs up for this subscription plan.
-	var commitment_payments_count: int
+	var commitment_payments_count: int = 0
 	## Subsequent committed payments count after the subscription plan renews.
-	var subsequent_commitment_payments_count: int
+	var subsequent_commitment_payments_count: int = 0
 
 	static func from_dict(data: Dictionary) -> InstallmentPlanDetailsAndroid:
 		var obj = InstallmentPlanDetailsAndroid.new()
@@ -968,9 +968,9 @@ class InstallmentPlanDetailsAndroid:
 ## Limited quantity information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class LimitedQuantityInfoAndroid:
 	## Maximum quantity a user can purchase
-	var maximum_quantity: int
+	var maximum_quantity: int = 0
 	## Remaining quantity the user can still purchase
-	var remaining_quantity: int
+	var remaining_quantity: int = 0
 
 	static func from_dict(data: Dictionary) -> LimitedQuantityInfoAndroid:
 		var obj = LimitedQuantityInfoAndroid.new()
@@ -989,9 +989,9 @@ class LimitedQuantityInfoAndroid:
 ## Pending purchase update for subscription upgrades/downgrades (Android) When a user initiates a subscription change (upgrade/downgrade), the new purchase may be pending until the current billing period ends. This type contains the details of the pending change. Available in Google Play Billing Library 5.0+
 class PendingPurchaseUpdateAndroid:
 	## Product IDs for the pending purchase update.
-	var products: Array[String]
+	var products: Array[String] = []
 	## Purchase token for the pending transaction.
-	var purchase_token: String
+	var purchase_token: String = ""
 
 	static func from_dict(data: Dictionary) -> PendingPurchaseUpdateAndroid:
 		var obj = PendingPurchaseUpdateAndroid.new()
@@ -1010,9 +1010,9 @@ class PendingPurchaseUpdateAndroid:
 ## Pre-order details for one-time purchase products (Android) Available in Google Play Billing Library 8.1.0+
 class PreorderDetailsAndroid:
 	## Pre-order presale end time in milliseconds since epoch.
-	var preorder_presale_end_time_millis: String
+	var preorder_presale_end_time_millis: String = ""
 	## Pre-order release time in milliseconds since epoch.
-	var preorder_release_time_millis: String
+	var preorder_release_time_millis: String = ""
 
 	static func from_dict(data: Dictionary) -> PreorderDetailsAndroid:
 		var obj = PreorderDetailsAndroid.new()
@@ -1029,12 +1029,12 @@ class PreorderDetailsAndroid:
 		return dict
 
 class PricingPhaseAndroid:
-	var formatted_price: String
-	var price_currency_code: String
-	var billing_period: String
-	var billing_cycle_count: int
-	var price_amount_micros: String
-	var recurrence_mode: int
+	var formatted_price: String = ""
+	var price_currency_code: String = ""
+	var billing_period: String = ""
+	var billing_cycle_count: int = 0
+	var price_amount_micros: String = ""
+	var recurrence_mode: int = 0
 
 	static func from_dict(data: Dictionary) -> PricingPhaseAndroid:
 		var obj = PricingPhaseAndroid.new()
@@ -1063,7 +1063,7 @@ class PricingPhaseAndroid:
 		return dict
 
 class PricingPhasesAndroid:
-	var pricing_phase_list: Array[PricingPhaseAndroid]
+	var pricing_phase_list: Array[PricingPhaseAndroid] = []
 
 	static func from_dict(data: Dictionary) -> PricingPhasesAndroid:
 		var obj = PricingPhasesAndroid.new()
@@ -1092,27 +1092,27 @@ class PricingPhasesAndroid:
 		return dict
 
 class ProductAndroid:
-	var id: String
-	var title: String
-	var description: String
+	var id: String = ""
+	var title: String = ""
+	var description: String = ""
 	var type: ProductType
-	var display_name: String
-	var display_price: String
-	var currency: String
-	var price: float
-	var debug_description: String
+	var display_name: String = ""
+	var display_price: String = ""
+	var currency: String = ""
+	var price: float = 0.0
+	var debug_description: String = ""
 	var platform: IapPlatform
-	var name_android: String
+	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
 	var product_status_android: ProductStatusAndroid
 	## Standardized discount offers for one-time products.
-	var discount_offers: Array[DiscountOffer]
+	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers.
-	var subscription_offers: Array[SubscriptionOffer]
+	var subscription_offers: Array[SubscriptionOffer] = []
 	## One-time purchase offer details including discounts (Android)
-	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail]
+	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails]
+	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails] = []
 
 	static func from_dict(data: Dictionary) -> ProductAndroid:
 		var obj = ProductAndroid.new()
@@ -1254,16 +1254,16 @@ class ProductAndroid:
 ## One-time purchase offer details (Android). Available in Google Play Billing Library 7.0+ @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#discount-offer
 class ProductAndroidOneTimePurchaseOfferDetail:
 	## Offer ID
-	var offer_id: String
+	var offer_id: String = ""
 	## Offer token for use in BillingFlowParams when purchasing
-	var offer_token: String
+	var offer_token: String = ""
 	## List of offer tags
-	var offer_tags: Array[String]
-	var price_currency_code: String
-	var formatted_price: String
-	var price_amount_micros: String
+	var offer_tags: Array[String] = []
+	var price_currency_code: String = ""
+	var formatted_price: String = ""
+	var price_amount_micros: String = ""
 	## Full (non-discounted) price in micro-units
-	var full_price_micros: String
+	var full_price_micros: String = ""
 	## Discount display information
 	var discount_display_info: DiscountDisplayInfoAndroid
 	## Valid time window for the offer
@@ -1275,7 +1275,7 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 	## Rental details for rental offers
 	var rental_details_android: RentalDetailsAndroid
 	## Purchase option ID for this offer (Android)
-	var purchase_option_id: String
+	var purchase_option_id: String = ""
 
 	static func from_dict(data: Dictionary) -> ProductAndroidOneTimePurchaseOfferDetail:
 		var obj = ProductAndroidOneTimePurchaseOfferDetail.new()
@@ -1355,22 +1355,22 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 		return dict
 
 class ProductIOS:
-	var id: String
-	var title: String
-	var description: String
+	var id: String = ""
+	var title: String = ""
+	var description: String = ""
 	var type: ProductType
-	var display_name: String
-	var display_price: String
-	var currency: String
-	var price: float
-	var debug_description: String
+	var display_name: String = ""
+	var display_price: String = ""
+	var currency: String = ""
+	var price: float = 0.0
+	var debug_description: String = ""
 	var platform: IapPlatform
-	var display_name_ios: String
-	var is_family_shareable_ios: bool
-	var json_representation_ios: String
+	var display_name_ios: String = ""
+	var is_family_shareable_ios: bool = false
+	var json_representation_ios: String = ""
 	var type_ios: ProductTypeIOS
 	## Standardized subscription offers.
-	var subscription_offers: Array[SubscriptionOffer]
+	var subscription_offers: Array[SubscriptionOffer] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_info_ios: SubscriptionInfoIOS
 
@@ -1473,27 +1473,27 @@ class ProductIOS:
 		return dict
 
 class ProductSubscriptionAndroid:
-	var id: String
-	var title: String
-	var description: String
+	var id: String = ""
+	var title: String = ""
+	var description: String = ""
 	var type: ProductType
-	var display_name: String
-	var display_price: String
-	var currency: String
-	var price: float
-	var debug_description: String
+	var display_name: String = ""
+	var display_price: String = ""
+	var currency: String = ""
+	var price: float = 0.0
+	var debug_description: String = ""
 	var platform: IapPlatform
-	var name_android: String
+	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
 	var product_status_android: ProductStatusAndroid
 	## Standardized discount offers for one-time products.
-	var discount_offers: Array[DiscountOffer]
+	var discount_offers: Array[DiscountOffer] = []
 	## Standardized subscription offers.
-	var subscription_offers: Array[SubscriptionOffer]
+	var subscription_offers: Array[SubscriptionOffer] = []
 	## One-time purchase offer details including discounts (Android)
-	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail]
+	var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails]
+	var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails] = []
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionAndroid:
 		var obj = ProductSubscriptionAndroid.new()
@@ -1634,10 +1634,10 @@ class ProductSubscriptionAndroid:
 
 ## Subscription offer details (Android). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class ProductSubscriptionAndroidOfferDetails:
-	var base_plan_id: String
-	var offer_id: String
-	var offer_token: String
-	var offer_tags: Array[String]
+	var base_plan_id: String = ""
+	var offer_id: String = ""
+	var offer_token: String = ""
+	var offer_tags: Array[String] = []
 	var pricing_phases: PricingPhasesAndroid
 	## Installment plan details for this subscription offer.
 	var installment_plan_details: InstallmentPlanDetailsAndroid
@@ -1681,32 +1681,32 @@ class ProductSubscriptionAndroidOfferDetails:
 		return dict
 
 class ProductSubscriptionIOS:
-	var id: String
-	var title: String
-	var description: String
+	var id: String = ""
+	var title: String = ""
+	var description: String = ""
 	var type: ProductType
-	var display_name: String
-	var display_price: String
-	var currency: String
-	var price: float
-	var debug_description: String
+	var display_name: String = ""
+	var display_price: String = ""
+	var currency: String = ""
+	var price: float = 0.0
+	var debug_description: String = ""
 	var platform: IapPlatform
-	var display_name_ios: String
-	var is_family_shareable_ios: bool
-	var json_representation_ios: String
+	var display_name_ios: String = ""
+	var is_family_shareable_ios: bool = false
+	var json_representation_ios: String = ""
 	var type_ios: ProductTypeIOS
 	## Standardized subscription offers.
-	var subscription_offers: Array[SubscriptionOffer]
+	var subscription_offers: Array[SubscriptionOffer] = []
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var subscription_info_ios: SubscriptionInfoIOS
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-	var discounts_ios: Array[DiscountIOS]
-	var introductory_price_ios: String
-	var introductory_price_as_amount_ios: String
+	var discounts_ios: Array[DiscountIOS] = []
+	var introductory_price_ios: String = ""
+	var introductory_price_as_amount_ios: String = ""
 	var introductory_price_payment_mode_ios: PaymentModeIOS
-	var introductory_price_number_of_periods_ios: String
+	var introductory_price_number_of_periods_ios: String = ""
 	var introductory_price_subscription_period_ios: SubscriptionPeriodIOS
-	var subscription_period_number_ios: String
+	var subscription_period_number_ios: String = ""
 	var subscription_period_unit_ios: SubscriptionPeriodIOS
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionIOS:
@@ -1868,29 +1868,29 @@ class ProductSubscriptionIOS:
 		return dict
 
 class PurchaseAndroid:
-	var id: String
-	var product_id: String
-	var ids: Array[String]
-	var transaction_id: String
-	var transaction_date: float
-	var purchase_token: String
+	var id: String = ""
+	var product_id: String = ""
+	var ids: Array[String] = []
+	var transaction_id: String = ""
+	var transaction_date: float = 0.0
+	var purchase_token: String = ""
 	## Store where purchase was made
 	var store: IapStore
 	var platform: IapPlatform
-	var quantity: int
+	var quantity: int = 0
 	var purchase_state: PurchaseState
-	var is_auto_renewing: bool
-	var current_plan_id: String
-	var data_android: String
-	var signature_android: String
-	var auto_renewing_android: bool
-	var is_acknowledged_android: bool
-	var package_name_android: String
-	var developer_payload_android: String
-	var obfuscated_account_id_android: String
-	var obfuscated_profile_id_android: String
+	var is_auto_renewing: bool = false
+	var current_plan_id: String = ""
+	var data_android: String = ""
+	var signature_android: String = ""
+	var auto_renewing_android: bool = false
+	var is_acknowledged_android: bool = false
+	var package_name_android: String = ""
+	var developer_payload_android: String = ""
+	var obfuscated_account_id_android: String = ""
+	var obfuscated_profile_id_android: String = ""
 	## Whether the subscription is suspended (Android)
-	var is_suspended_android: bool
+	var is_suspended_android: bool = false
 	## Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
 	var pending_purchase_update_android: PendingPurchaseUpdateAndroid
 
@@ -1997,8 +1997,8 @@ class PurchaseAndroid:
 
 class PurchaseError:
 	var code: ErrorCode
-	var message: String
-	var product_id: String
+	var message: String = ""
+	var product_id: String = ""
 
 	static func from_dict(data: Dictionary) -> PurchaseError:
 		var obj = PurchaseError.new()
@@ -2025,40 +2025,40 @@ class PurchaseError:
 		return dict
 
 class PurchaseIOS:
-	var id: String
-	var product_id: String
-	var ids: Array[String]
-	var transaction_date: float
-	var purchase_token: String
+	var id: String = ""
+	var product_id: String = ""
+	var ids: Array[String] = []
+	var transaction_date: float = 0.0
+	var purchase_token: String = ""
 	## Store where purchase was made
 	var store: IapStore
 	var platform: IapPlatform
-	var quantity: int
+	var quantity: int = 0
 	var purchase_state: PurchaseState
-	var is_auto_renewing: bool
-	var current_plan_id: String
-	var transaction_id: String
-	var quantity_ios: int
-	var original_transaction_date_ios: float
-	var original_transaction_identifier_ios: String
-	var app_account_token: String
-	var expiration_date_ios: float
-	var web_order_line_item_id_ios: String
-	var environment_ios: String
-	var storefront_country_code_ios: String
-	var app_bundle_id_ios: String
-	var subscription_group_id_ios: String
-	var is_upgraded_ios: bool
-	var ownership_type_ios: String
-	var reason_ios: String
-	var reason_string_representation_ios: String
-	var transaction_reason_ios: String
-	var revocation_date_ios: float
-	var revocation_reason_ios: String
+	var is_auto_renewing: bool = false
+	var current_plan_id: String = ""
+	var transaction_id: String = ""
+	var quantity_ios: int = 0
+	var original_transaction_date_ios: float = 0.0
+	var original_transaction_identifier_ios: String = ""
+	var app_account_token: String = ""
+	var expiration_date_ios: float = 0.0
+	var web_order_line_item_id_ios: String = ""
+	var environment_ios: String = ""
+	var storefront_country_code_ios: String = ""
+	var app_bundle_id_ios: String = ""
+	var subscription_group_id_ios: String = ""
+	var is_upgraded_ios: bool = false
+	var ownership_type_ios: String = ""
+	var reason_ios: String = ""
+	var reason_string_representation_ios: String = ""
+	var transaction_reason_ios: String = ""
+	var revocation_date_ios: float = 0.0
+	var revocation_reason_ios: String = ""
 	var offer_ios: PurchaseOfferIOS
-	var currency_code_ios: String
-	var currency_symbol_ios: String
-	var country_code_ios: String
+	var currency_code_ios: String = ""
+	var currency_symbol_ios: String = ""
+	var country_code_ios: String = ""
 	var renewal_info_ios: RenewalInfoIOS
 
 	static func from_dict(data: Dictionary) -> PurchaseIOS:
@@ -2205,9 +2205,9 @@ class PurchaseIOS:
 		return dict
 
 class PurchaseOfferIOS:
-	var id: String
-	var type: String
-	var payment_mode: String
+	var id: String = ""
+	var type: String = ""
+	var payment_mode: String = ""
 
 	static func from_dict(data: Dictionary) -> PurchaseOfferIOS:
 		var obj = PurchaseOfferIOS.new()
@@ -2227,8 +2227,8 @@ class PurchaseOfferIOS:
 		return dict
 
 class RefundResultIOS:
-	var status: String
-	var message: String
+	var status: String = ""
+	var message: String = ""
 
 	static func from_dict(data: Dictionary) -> RefundResultIOS:
 		var obj = RefundResultIOS.new()
@@ -2246,25 +2246,25 @@ class RefundResultIOS:
 
 ## Subscription renewal information from Product.SubscriptionInfo.RenewalInfo https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 class RenewalInfoIOS:
-	var json_representation: String
-	var will_auto_renew: bool
-	var auto_renew_preference: String
+	var json_representation: String = ""
+	var will_auto_renew: bool = false
+	var auto_renew_preference: String = ""
 	## When subscription expires due to cancellation/billing issue
-	var expiration_reason: String
+	var expiration_reason: String = ""
 	## Grace period expiration date (milliseconds since epoch)
-	var grace_period_expiration_date: float
+	var grace_period_expiration_date: float = 0.0
 	## True if subscription failed to renew due to billing issue and is retrying
-	var is_in_billing_retry: bool
+	var is_in_billing_retry: bool = false
 	## Product ID that will be used on next renewal (when user upgrades/downgrades)
-	var pending_upgrade_product_id: String
+	var pending_upgrade_product_id: String = ""
 	## User's response to subscription price increase
-	var price_increase_status: String
+	var price_increase_status: String = ""
 	## Expected renewal date (milliseconds since epoch)
-	var renewal_date: float
+	var renewal_date: float = 0.0
 	## Offer ID applied to next renewal (promotional offer, subscription offer code, etc.)
-	var renewal_offer_id: String
+	var renewal_offer_id: String = ""
 	## Type of offer applied to next renewal
-	var renewal_offer_type: String
+	var renewal_offer_type: String = ""
 
 	static func from_dict(data: Dictionary) -> RenewalInfoIOS:
 		var obj = RenewalInfoIOS.new()
@@ -2310,9 +2310,9 @@ class RenewalInfoIOS:
 ## Rental details for one-time purchase products that can be rented (Android) Available in Google Play Billing Library 7.0+
 class RentalDetailsAndroid:
 	## Rental period in ISO 8601 format (e.g., P7D for 7 days)
-	var rental_period: String
+	var rental_period: String = ""
 	## Rental expiration period in ISO 8601 format
-	var rental_expiration_period: String
+	var rental_expiration_period: String = ""
 
 	static func from_dict(data: Dictionary) -> RentalDetailsAndroid:
 		var obj = RentalDetailsAndroid.new()
@@ -2331,7 +2331,7 @@ class RentalDetailsAndroid:
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
 	## Whether the purchase is valid (not falsified).
-	var is_valid: bool
+	var is_valid: bool = false
 	## The current state of the purchase.
 	var state: IapkitPurchaseState
 
@@ -2368,8 +2368,8 @@ class RequestVerifyPurchaseWithIapkitResult:
 
 class SubscriptionInfoIOS:
 	var introductory_offer: SubscriptionOfferIOS
-	var promotional_offers: Array[SubscriptionOfferIOS]
-	var subscription_group_id: String
+	var promotional_offers: Array[SubscriptionOfferIOS] = []
+	var subscription_group_id: String = ""
 	var subscription_period: SubscriptionPeriodValueIOS
 
 	static func from_dict(data: Dictionary) -> SubscriptionInfoIOS:
@@ -2422,39 +2422,39 @@ class SubscriptionInfoIOS:
 ## Standardized subscription discount/promotional offer. Provides a unified interface for subscription offers across iOS and Android.  Both platforms support subscription offers with different implementations: - iOS: Introductory offers, promotional offers with server-side signatures - Android: Offer tokens with pricing phases  @see https://openiap.dev/docs/types/ios#discount-offer @see https://openiap.dev/docs/types/android#subscription-offer
 class SubscriptionOffer:
 	## Unique identifier for the offer.
-	var id: String
+	var id: String = ""
 	## Formatted display price string (e.g., "$9.99/month")
-	var display_price: String
+	var display_price: String = ""
 	## Numeric price value
-	var price: float
+	var price: float = 0.0
 	## Currency code (ISO 4217, e.g., "USD")
-	var currency: String
+	var currency: String = ""
 	## Type of subscription offer (Introductory or Promotional)
 	var type: DiscountOfferType
 	## Subscription period for this offer
 	var period: SubscriptionPeriod
 	## Number of periods the offer applies
-	var period_count: int
+	var period_count: int = 0
 	## Payment mode during the offer period
 	var payment_mode: PaymentMode
 	## [iOS] Key identifier for signature validation.
-	var key_identifier_ios: String
+	var key_identifier_ios: String = ""
 	## [iOS] Cryptographic nonce (UUID) for signature validation.
-	var nonce_ios: String
+	var nonce_ios: String = ""
 	## [iOS] Server-generated signature for promotional offer validation.
-	var signature_ios: String
+	var signature_ios: String = ""
 	## [iOS] Timestamp when the signature was generated.
-	var timestamp_ios: float
+	var timestamp_ios: float = 0.0
 	## [iOS] Number of billing periods for this discount.
-	var number_of_periods_ios: int
+	var number_of_periods_ios: int = 0
 	## [iOS] Localized price string.
-	var localized_price_ios: String
+	var localized_price_ios: String = ""
 	## [Android] Base plan identifier.
-	var base_plan_id_android: String
+	var base_plan_id_android: String = ""
 	## [Android] Offer token required for purchase.
-	var offer_token_android: String
+	var offer_token_android: String = ""
 	## [Android] List of tags associated with this offer.
-	var offer_tags_android: Array[String]
+	var offer_tags_android: Array[String] = []
 	## [Android] Pricing phases for this subscription offer.
 	var pricing_phases_android: PricingPhasesAndroid
 	## [Android] Installment plan details for this subscription offer.
@@ -2559,12 +2559,12 @@ class SubscriptionOffer:
 
 ## iOS subscription offer details. @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class SubscriptionOfferIOS:
-	var display_price: String
-	var id: String
+	var display_price: String = ""
+	var id: String = ""
 	var payment_mode: PaymentModeIOS
 	var period: SubscriptionPeriodValueIOS
-	var period_count: int
-	var price: float
+	var period_count: int = 0
+	var price: float = 0.0
 	var type: SubscriptionOfferTypeIOS
 
 	static func from_dict(data: Dictionary) -> SubscriptionOfferIOS:
@@ -2621,7 +2621,7 @@ class SubscriptionPeriod:
 	## The period unit (day, week, month, year)
 	var unit: SubscriptionPeriodUnit
 	## The number of units (e.g., 1 for monthly, 3 for quarterly)
-	var value: int
+	var value: int = 0
 
 	static func from_dict(data: Dictionary) -> SubscriptionPeriod:
 		var obj = SubscriptionPeriod.new()
@@ -2646,7 +2646,7 @@ class SubscriptionPeriod:
 
 class SubscriptionPeriodValueIOS:
 	var unit: SubscriptionPeriodIOS
-	var value: int
+	var value: int = 0
 
 	static func from_dict(data: Dictionary) -> SubscriptionPeriodValueIOS:
 		var obj = SubscriptionPeriodValueIOS.new()
@@ -2670,7 +2670,7 @@ class SubscriptionPeriodValueIOS:
 		return dict
 
 class SubscriptionStatusIOS:
-	var state: String
+	var state: String = ""
 	var renewal_info: RenewalInfoIOS
 
 	static func from_dict(data: Dictionary) -> SubscriptionStatusIOS:
@@ -2696,9 +2696,9 @@ class SubscriptionStatusIOS:
 ## User Choice Billing event details (Android) Fired when a user selects alternative billing in the User Choice Billing dialog
 class UserChoiceBillingDetails:
 	## Token that must be reported to Google Play within 24 hours
-	var external_transaction_token: String
+	var external_transaction_token: String = ""
 	## List of product IDs selected by the user
-	var products: Array[String]
+	var products: Array[String] = []
 
 	static func from_dict(data: Dictionary) -> UserChoiceBillingDetails:
 		var obj = UserChoiceBillingDetails.new()
@@ -2717,9 +2717,9 @@ class UserChoiceBillingDetails:
 ## Valid time window for when an offer is available (Android) Available in Google Play Billing Library 7.0+
 class ValidTimeWindowAndroid:
 	## Start time in milliseconds since epoch
-	var start_time_millis: String
+	var start_time_millis: String = ""
 	## End time in milliseconds since epoch
-	var end_time_millis: String
+	var end_time_millis: String = ""
 
 	static func from_dict(data: Dictionary) -> ValidTimeWindowAndroid:
 		var obj = ValidTimeWindowAndroid.new()
@@ -2736,24 +2736,24 @@ class ValidTimeWindowAndroid:
 		return dict
 
 class VerifyPurchaseResultAndroid:
-	var auto_renewing: bool
-	var beta_product: bool
-	var cancel_date: float
-	var cancel_reason: String
-	var deferred_date: float
-	var deferred_sku: String
-	var free_trial_end_date: float
-	var grace_period_end_date: float
-	var parent_product_id: String
-	var product_id: String
-	var product_type: String
-	var purchase_date: float
-	var quantity: int
-	var receipt_id: String
-	var renewal_date: float
-	var term: String
-	var term_sku: String
-	var test_transaction: bool
+	var auto_renewing: bool = false
+	var beta_product: bool = false
+	var cancel_date: float = 0.0
+	var cancel_reason: String = ""
+	var deferred_date: float = 0.0
+	var deferred_sku: String = ""
+	var free_trial_end_date: float = 0.0
+	var grace_period_end_date: float = 0.0
+	var parent_product_id: String = ""
+	var product_id: String = ""
+	var product_type: String = ""
+	var purchase_date: float = 0.0
+	var quantity: int = 0
+	var receipt_id: String = ""
+	var renewal_date: float = 0.0
+	var term: String = ""
+	var term_sku: String = ""
+	var test_transaction: bool = false
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultAndroid:
 		var obj = VerifyPurchaseResultAndroid.new()
@@ -2820,9 +2820,9 @@ class VerifyPurchaseResultAndroid:
 ## Result from Meta Horizon verify_entitlement API. Returns verification status and grant time for the entitlement.
 class VerifyPurchaseResultHorizon:
 	## Whether the entitlement verification succeeded.
-	var success: bool
+	var success: bool = false
 	## Unix timestamp (seconds) when the entitlement was granted.
-	var grant_time: float
+	var grant_time: float = 0.0
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultHorizon:
 		var obj = VerifyPurchaseResultHorizon.new()
@@ -2840,11 +2840,11 @@ class VerifyPurchaseResultHorizon:
 
 class VerifyPurchaseResultIOS:
 	## Whether the receipt is valid
-	var is_valid: bool
+	var is_valid: bool = false
 	## Receipt data string
-	var receipt_data: String
+	var receipt_data: String = ""
 	## JWS representation
-	var jws_representation: String
+	var jws_representation: String = ""
 	## Latest transaction if available
 	var latest_transaction: Variant
 
@@ -2869,8 +2869,8 @@ class VerifyPurchaseResultIOS:
 		return dict
 
 class VerifyPurchaseWithProviderError:
-	var message: String
-	var code: String
+	var message: String = ""
+	var code: String = ""
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderError:
 		var obj = VerifyPurchaseWithProviderError.new()
@@ -2891,7 +2891,7 @@ class VerifyPurchaseWithProviderResult:
 	## IAPKit verification result
 	var iapkit: RequestVerifyPurchaseWithIapkitResult
 	## Error details if verification failed
-	var errors: Array[VerifyPurchaseWithProviderError]
+	var errors: Array[VerifyPurchaseWithProviderError] = []
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderResult:
 		var obj = VerifyPurchaseWithProviderResult.new()
@@ -2939,7 +2939,7 @@ class VerifyPurchaseWithProviderResult:
 		return dict
 
 class VoidResult:
-	var success: bool
+	var success: bool = false
 
 	static func from_dict(data: Dictionary) -> VoidResult:
 		var obj = VoidResult.new()
@@ -2958,9 +2958,9 @@ class VoidResult:
 
 class AndroidSubscriptionOfferInput:
 	## Product SKU
-	var sku: String
+	var sku: String = ""
 	## Offer token
-	var offer_token: String
+	var offer_token: String = ""
 
 	static func from_dict(data: Dictionary) -> AndroidSubscriptionOfferInput:
 		var obj = AndroidSubscriptionOfferInput.new()
@@ -2980,9 +2980,9 @@ class AndroidSubscriptionOfferInput:
 
 class DeepLinkOptions:
 	## Android SKU to open (required on Android)
-	var sku_android: String
+	var sku_android: String = ""
 	## Android package name to target (required on Android)
-	var package_name_android: String
+	var package_name_android: String = ""
 
 	static func from_dict(data: Dictionary) -> DeepLinkOptions:
 		var obj = DeepLinkOptions.new()
@@ -3005,7 +3005,7 @@ class DeveloperBillingOptionParamsAndroid:
 	## The billing program (should be EXTERNAL_PAYMENTS for external payments flow)
 	var billing_program: BillingProgramAndroid
 	## The URI where the external payment will be processed
-	var link_uri: String
+	var link_uri: String = ""
 	## The launch mode for the external payment link
 	var launch_mode: DeveloperBillingLaunchModeAndroid
 
@@ -3045,15 +3045,15 @@ class DeveloperBillingOptionParamsAndroid:
 
 class DiscountOfferInputIOS:
 	## Discount identifier
-	var identifier: String
+	var identifier: String = ""
 	## Key identifier for validation
-	var key_identifier: String
+	var key_identifier: String = ""
 	## Cryptographic nonce
-	var nonce: String
+	var nonce: String = ""
 	## Signature for validation
-	var signature: String
+	var signature: String = ""
 	## Timestamp of discount offer
-	var timestamp: float
+	var timestamp: float = 0.0
 
 	static func from_dict(data: Dictionary) -> DiscountOfferInputIOS:
 		var obj = DiscountOfferInputIOS.new()
@@ -3129,7 +3129,7 @@ class LaunchExternalLinkParamsAndroid:
 	## The type of the external link
 	var link_type: ExternalLinkTypeAndroid
 	## The URI where the content will be accessed from
-	var link_uri: String
+	var link_uri: String = ""
 
 	static func from_dict(data: Dictionary) -> LaunchExternalLinkParamsAndroid:
 		var obj = LaunchExternalLinkParamsAndroid.new()
@@ -3177,7 +3177,7 @@ class LaunchExternalLinkParamsAndroid:
 		return dict
 
 class ProductRequest:
-	var skus: Array[String]
+	var skus: Array[String] = []
 	var type: ProductQueryType
 
 	static func from_dict(data: Dictionary) -> ProductRequest:
@@ -3206,9 +3206,9 @@ class ProductRequest:
 ## JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025). New signature format using compact JWS string for promotional offers. This provides a simpler alternative to the legacy signature-based promotional offers. Back-deployed to iOS 15.
 class PromotionalOfferJWSInputIOS:
 	## The promotional offer identifier from App Store Connect
-	var offer_id: String
+	var offer_id: String = ""
 	## Compact JWS string signed by your server.
-	var jws: String
+	var jws: String = ""
 
 	static func from_dict(data: Dictionary) -> PromotionalOfferJWSInputIOS:
 		var obj = PromotionalOfferJWSInputIOS.new()
@@ -3227,18 +3227,18 @@ class PromotionalOfferJWSInputIOS:
 		return dict
 
 class PurchaseInput:
-	var id: String
-	var product_id: String
-	var ids: Array[String]
-	var transaction_date: float
-	var purchase_token: String
+	var id: String = ""
+	var product_id: String = ""
+	var ids: Array[String] = []
+	var transaction_date: float = 0.0
+	var purchase_token: String = ""
 	## Store where purchase was made
 	var store: IapStore
 	## @deprecated Use store instead
 	var platform: IapPlatform
-	var quantity: int
+	var quantity: int = 0
 	var purchase_state: PurchaseState
-	var is_auto_renewing: bool
+	var is_auto_renewing: bool = false
 
 	static func from_dict(data: Dictionary) -> PurchaseInput:
 		var obj = PurchaseInput.new()
@@ -3311,11 +3311,11 @@ class PurchaseInput:
 
 class PurchaseOptions:
 	## Also emit results through the iOS event listeners
-	var also_publish_to_event_listener_ios: bool
+	var also_publish_to_event_listener_ios: bool = false
 	## Limit to currently active items on iOS
-	var only_include_active_items_ios: bool
+	var only_include_active_items_ios: bool = false
 	## Include suspended subscriptions in the result (Android 8.1+).
-	var include_suspended_android: bool
+	var include_suspended_android: bool = false
 
 	static func from_dict(data: Dictionary) -> PurchaseOptions:
 		var obj = PurchaseOptions.new()
@@ -3339,15 +3339,15 @@ class PurchaseOptions:
 
 class RequestPurchaseAndroidProps:
 	## List of product SKUs
-	var skus: Array[String]
+	var skus: Array[String] = []
 	## Obfuscated account ID
-	var obfuscated_account_id: String
+	var obfuscated_account_id: String = ""
 	## Obfuscated profile ID
-	var obfuscated_profile_id: String
+	var obfuscated_profile_id: String = ""
 	## Personalized offer flag.
-	var is_offer_personalized: bool
+	var is_offer_personalized: bool = false
 	## Offer token for one-time purchase discounts (7.0+).
-	var offer_token: String
+	var offer_token: String = ""
 	## Developer billing option parameters for external payments flow (8.3.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
@@ -3391,17 +3391,17 @@ class RequestPurchaseAndroidProps:
 
 class RequestPurchaseIosProps:
 	## Product SKU
-	var sku: String
+	var sku: String = ""
 	## Auto-finish transaction (dangerous)
-	var and_dangerously_finish_transaction_automatically: bool
+	var and_dangerously_finish_transaction_automatically: bool = false
 	## App account token for user tracking
-	var app_account_token: String
+	var app_account_token: String = ""
 	## Purchase quantity
-	var quantity: int
+	var quantity: int = 0
 	## Promotional offer to apply (subscriptions only, ignored for one-time purchases).
 	var with_offer: DiscountOfferInputIOS
 	## Advanced commerce data token (iOS 15+).
-	var advanced_commerce_data: String
+	var advanced_commerce_data: String = ""
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseIosProps:
 		var obj = RequestPurchaseIosProps.new()
@@ -3449,7 +3449,7 @@ class RequestPurchaseProps:
 	## Explicit purchase type hint (defaults to in-app)
 	var type: ProductQueryType
 	## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
-	var use_alternative_billing: bool
+	var use_alternative_billing: bool = false
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
@@ -3555,19 +3555,19 @@ class RequestPurchasePropsByPlatforms:
 
 class RequestSubscriptionAndroidProps:
 	## List of subscription SKUs
-	var skus: Array[String]
+	var skus: Array[String] = []
 	## Obfuscated account ID
-	var obfuscated_account_id: String
+	var obfuscated_account_id: String = ""
 	## Obfuscated profile ID
-	var obfuscated_profile_id: String
+	var obfuscated_profile_id: String = ""
 	## Personalized offer flag.
-	var is_offer_personalized: bool
+	var is_offer_personalized: bool = false
 	## Purchase token for upgrades/downgrades
-	var purchase_token: String
+	var purchase_token: String = ""
 	## Replacement mode for subscription changes
-	var replacement_mode: int
+	var replacement_mode: int = 0
 	## Subscription offers
-	var subscription_offers: Array[AndroidSubscriptionOfferInput]
+	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
 	## Product-level replacement parameters (8.1.0+)
 	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
 	## Developer billing option parameters for external payments flow (8.3.0+).
@@ -3642,10 +3642,10 @@ class RequestSubscriptionAndroidProps:
 		return dict
 
 class RequestSubscriptionIosProps:
-	var sku: String
-	var and_dangerously_finish_transaction_automatically: bool
-	var app_account_token: String
-	var quantity: int
+	var sku: String = ""
+	var and_dangerously_finish_transaction_automatically: bool = false
+	var app_account_token: String = ""
+	var quantity: int = 0
 	## Promotional offer to apply for subscription purchases.
 	var with_offer: DiscountOfferInputIOS
 	## Win-back offer to apply (iOS 18+)
@@ -3653,9 +3653,9 @@ class RequestSubscriptionIosProps:
 	## JWS promotional offer (iOS 15+, WWDC 2025).
 	var promotional_offer_jws: PromotionalOfferJWSInputIOS
 	## Override introductory offer eligibility (iOS 15+, WWDC 2025).
-	var introductory_offer_eligibility: bool
+	var introductory_offer_eligibility: bool = false
 	## Advanced commerce data token (iOS 15+).
-	var advanced_commerce_data: String
+	var advanced_commerce_data: String = ""
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionIosProps:
 		var obj = RequestSubscriptionIosProps.new()
@@ -3780,7 +3780,7 @@ class RequestSubscriptionPropsByPlatforms:
 
 class RequestVerifyPurchaseWithIapkitAppleProps:
 	## The JWS token returned with the purchase response.
-	var jws: String
+	var jws: String = ""
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAppleProps:
 		var obj = RequestVerifyPurchaseWithIapkitAppleProps.new()
@@ -3796,7 +3796,7 @@ class RequestVerifyPurchaseWithIapkitAppleProps:
 
 class RequestVerifyPurchaseWithIapkitGoogleProps:
 	## The token provided to the user's device when the product or subscription was purchased.
-	var purchase_token: String
+	var purchase_token: String = ""
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitGoogleProps:
 		var obj = RequestVerifyPurchaseWithIapkitGoogleProps.new()
@@ -3813,7 +3813,7 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 ## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token)
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
-	var api_key: String
+	var api_key: String = ""
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
@@ -3854,7 +3854,7 @@ class RequestVerifyPurchaseWithIapkitProps:
 ## Product-level subscription replacement parameters (Android) Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams Available in Google Play Billing Library 8.1.0+
 class SubscriptionProductReplacementParamsAndroid:
 	## The old product ID that needs to be replaced
-	var old_product_id: String
+	var old_product_id: String = ""
 	## The replacement mode for this product change
 	var replacement_mode: SubscriptionReplacementModeAndroid
 
@@ -3884,7 +3884,7 @@ class SubscriptionProductReplacementParamsAndroid:
 ## Apple App Store verification parameters. Used for server-side receipt validation via App Store Server API.
 class VerifyPurchaseAppleOptions:
 	## Product SKU to validate
-	var sku: String
+	var sku: String = ""
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseAppleOptions:
 		var obj = VerifyPurchaseAppleOptions.new()
@@ -3901,15 +3901,15 @@ class VerifyPurchaseAppleOptions:
 ## Google Play Store verification parameters. Used for server-side receipt validation via Google Play Developer API.  ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
 class VerifyPurchaseGoogleOptions:
 	## Product SKU to validate
-	var sku: String
+	var sku: String = ""
 	## Android package name (e.g., com.example.app)
-	var package_name: String
+	var package_name: String = ""
 	## Purchase token from the purchase response.
-	var purchase_token: String
+	var purchase_token: String = ""
 	## Google OAuth2 access token for API authentication.
-	var access_token: String
+	var access_token: String = ""
 	## Whether this is a subscription purchase (affects API endpoint used)
-	var is_sub: bool
+	var is_sub: bool = false
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseGoogleOptions:
 		var obj = VerifyPurchaseGoogleOptions.new()
@@ -3942,11 +3942,11 @@ class VerifyPurchaseGoogleOptions:
 ## Meta Horizon (Quest) verification parameters. Used for server-side entitlement verification via Meta's S2S API. POST https://graph.oculus.com/$APP_ID/verify_entitlement  ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
 class VerifyPurchaseHorizonOptions:
 	## The SKU for the add-on item, defined in Meta Developer Dashboard
-	var sku: String
+	var sku: String = ""
 	## The user ID of the user whose purchase you want to verify
-	var user_id: String
+	var user_id: String = ""
 	## Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
-	var access_token: String
+	var access_token: String = ""
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseHorizonOptions:
 		var obj = VerifyPurchaseHorizonOptions.new()
@@ -4051,7 +4051,7 @@ class VerifyPurchaseWithProviderProps:
 ## Win-back offer input for iOS 18+ (StoreKit 2) Win-back offers are used to re-engage churned subscribers. The offer is automatically presented via StoreKit Message when eligible, or can be applied programmatically during purchase.
 class WinBackOfferInputIOS:
 	## The win-back offer ID from App Store Connect
-	var offer_id: String
+	var offer_id: String = ""
 
 	static func from_dict(data: Dictionary) -> WinBackOfferInputIOS:
 		var obj = WinBackOfferInputIOS.new()

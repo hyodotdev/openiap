@@ -81,6 +81,49 @@ export class GDScriptPlugin extends CodegenPlugin {
     return toSnakeCase(name);
   }
 
+  /**
+   * Get default value initializer for GDScript types.
+   * Primitives get default values to avoid null issues.
+   * Objects/Inputs remain nullable (no default).
+   */
+  private getDefaultValue(type: IRType): string | null {
+    // Lists get empty array default
+    if (type.kind === 'list') {
+      return '[]';
+    }
+
+    // Objects and inputs remain nullable
+    if (this.objectNames.has(type.name!) || this.inputNames.has(type.name!)) {
+      return null;
+    }
+
+    // Unions (Variant) remain nullable
+    if (type.kind === 'union') {
+      return null;
+    }
+
+    // Enums - no default, they should be set explicitly
+    if (type.kind === 'enum' || this.enumNames.has(type.name!)) {
+      return null;
+    }
+
+    // Scalars get type-appropriate defaults
+    const gdType = this.mapScalar(type.name!);
+    switch (gdType) {
+      case 'int':
+        return '0';
+      case 'float':
+        return '0.0';
+      case 'bool':
+        return 'false';
+      case 'String':
+        return '""';
+      default:
+        // Variant or unknown types remain nullable
+        return null;
+    }
+  }
+
   private getGdscriptFieldName(fieldName: string, typeName: string | null = null): string {
     if (typeName) {
       const key = `${typeName}.${fieldName}`;
@@ -286,7 +329,12 @@ export class GDScriptPlugin extends CodegenPlugin {
         }
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irObject.name);
-        this.emit(`\tvar ${fieldName}: ${gdType}`);
+        const defaultValue = this.getDefaultValue(field.type);
+        if (defaultValue !== null) {
+          this.emit(`\tvar ${fieldName}: ${gdType} = ${defaultValue}`);
+        } else {
+          this.emit(`\tvar ${fieldName}: ${gdType}`);
+        }
       }
 
       // from_dict method
@@ -403,7 +451,12 @@ export class GDScriptPlugin extends CodegenPlugin {
         }
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irInput.name);
-        this.emit(`\tvar ${fieldName}: ${gdType}`);
+        const defaultValue = this.getDefaultValue(field.type);
+        if (defaultValue !== null) {
+          this.emit(`\tvar ${fieldName}: ${gdType} = ${defaultValue}`);
+        } else {
+          this.emit(`\tvar ${fieldName}: ${gdType}`);
+        }
       }
 
       // from_dict method
