@@ -503,13 +503,13 @@ enum StoreKitTypesBridge {
     }
 
     /// Returns the currency code from the product's price format style.
-    /// Uses iOS 16+ API when available, falls back to Locale for iOS 15.
+    /// Uses iOS 16+ API when available, falls back to product's locale for iOS 15.
     static func currencyCode(from product: StoreKit.Product) -> String? {
         if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
             return product.priceFormatStyle.currencyCode
         } else {
-            // iOS 15 fallback - use locale's currency
-            return Locale.current.currencyCode
+            // iOS 15 fallback - use currency from the product's locale (not device locale)
+            return product.priceFormatStyle.locale.currencyCode
         }
     }
 }
