@@ -414,7 +414,7 @@ public final class OpenIapStore: ObservableObject {
         try await module.getStorefrontIOS()
     }
 
-    @available(iOS 16.0, macOS 14.0, *)
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     public func getAppTransactionIOS() async throws -> AppTransaction? {
         try await module.getAppTransactionIOS()
     }
