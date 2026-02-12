@@ -9,7 +9,8 @@ import UIKit
 import AppKit
 #endif
 
-@available(iOS 15.0, macOS 14.0, *)
+/// - SeeAlso: https://developer.apple.com/documentation/storekit/in-app_purchase
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public static let shared = OpenIapModule()
 
@@ -140,7 +141,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let nonRenewingSubs: [ProductSubscription] = fetchedProducts.compactMap { product in
                 guard product.type == .nonRenewable else { return nil }
                 return .productSubscriptionIos(ProductSubscriptionIOS(
-                    currency: product.priceFormatStyle.currencyCode,
+                    currency: StoreKitTypesBridge.currencyCode(from: product) ?? "",
                     debugDescription: product.description,
                     description: product.description,
                     discountsIOS: nil,  // StoreKit: Non-renewing subscriptions don't support discounts

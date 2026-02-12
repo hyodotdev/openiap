@@ -2,7 +2,8 @@ import Foundation
 
 /// Utilities to bridge OpenIAP models to dictionary payloads and decode
 /// dynamic dictionaries back into strongly typed models.
-@available(iOS 15.0, tvOS 15.0, macOS 12.0, *)
+/// - SeeAlso: https://developer.apple.com/documentation/storekit
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public enum OpenIapSerialization {
     // MARK: - Shared Encoder / Decoder
 

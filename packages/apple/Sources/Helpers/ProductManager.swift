@@ -2,7 +2,8 @@ import Foundation
 import StoreKit
 
 /// Thread-safe product manager backed by Swift actor
-@available(iOS 15.0, macOS 12.0, *)
+/// - SeeAlso: https://developer.apple.com/documentation/storekit/product
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 actor ProductManager {
     private var products: [String: StoreKit.Product] = [:]
     

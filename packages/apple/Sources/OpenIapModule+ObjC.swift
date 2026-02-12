@@ -2,8 +2,9 @@ import Foundation
 import StoreKit
 
 // MARK: - Objective-C Bridge for Kotlin Multiplatform
+// SeeAlso: https://developer.apple.com/documentation/storekit/in-app_purchase
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 @objc public extension OpenIapModule {
 
     // MARK: - Connection Management

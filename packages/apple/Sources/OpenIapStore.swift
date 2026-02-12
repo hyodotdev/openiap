@@ -3,7 +3,8 @@ import StoreKit
 
 /// Convenience store for OpenIapModule with managed listeners and state
 /// Requires explicit initConnection() and endConnection() calls
-@available(iOS 15.0, macOS 14.0, *)
+/// - SeeAlso: https://developer.apple.com/documentation/storekit/in-app_purchase
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 @MainActor
 public final class OpenIapStore: ObservableObject {
 
@@ -576,7 +577,7 @@ public final class OpenIapStore: ObservableObject {
 
 // MARK: - Internal Helpers
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension OpenIAP.Product {
     func asIOS() -> ProductIOS? {
         switch self {
@@ -588,7 +589,7 @@ private extension OpenIAP.Product {
     }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension OpenIAP.ProductSubscription {
     func asIOS() -> ProductSubscriptionIOS? {
         switch self {
@@ -600,7 +601,7 @@ private extension OpenIAP.ProductSubscription {
     }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension OpenIAP.Purchase {
     func asIOS() -> PurchaseIOS? {
         switch self {
@@ -621,7 +622,7 @@ private extension OpenIAP.Purchase {
     }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension RequestPurchaseProps {
     var iosSku: String? {
         switch request {
@@ -635,7 +636,7 @@ private extension RequestPurchaseProps {
 
 // MARK: - Nested UI Status Types
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public extension OpenIapStore {
     struct IapStatus {
         public var loadings: LoadingStates = LoadingStates()

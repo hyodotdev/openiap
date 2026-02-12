@@ -2,7 +2,9 @@ import Foundation
 import os.log
 import StoreKit
 
-@available(iOS 15.0, macOS 14.0, *)
+/// Thread-safe state manager for IAP transactions
+/// - SeeAlso: https://developer.apple.com/documentation/storekit/transaction
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 actor IapState {
     private(set) var isInitialized: Bool = false
     private var pendingTransactions: [String: Transaction] = [:]

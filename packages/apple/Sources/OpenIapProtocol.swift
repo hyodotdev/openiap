@@ -18,19 +18,21 @@ extension RequestPurchaseIosProps: IosPropsProtocol {}
 extension RequestSubscriptionIosProps: IosPropsProtocol {}
 
 // MARK: - Event Listeners
+// SeeAlso: https://developer.apple.com/documentation/storekit/transaction
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public typealias PurchaseUpdatedListener = @Sendable (Purchase) -> Void
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public typealias PurchaseErrorListener = @Sendable (PurchaseError) -> Void
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public typealias PromotedProductListener = @Sendable (String) -> Void
 
 // MARK: - Protocol
+// SeeAlso: https://developer.apple.com/documentation/storekit/in-app_purchase
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public protocol OpenIapModuleProtocol {
     // Connection Management
     func initConnection() async throws -> Bool
