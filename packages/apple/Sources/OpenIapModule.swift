@@ -341,9 +341,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         do {
             // iOS 17.0+, tvOS 17.0+, macOS 15.2+: Use purchase(confirmIn:options:) for better purchase confirmation UI
             // Reference: https://developer.apple.com/documentation/storekit/product/purchase(confirmin:options:)-6dj6y
-            #if os(iOS) || os(tvOS)
-            // iOS/tvOS: Use UIWindowScene (not available on watchOS)
-            if #available(iOS 17.0, tvOS 17.0, *) {
+            #if os(iOS) || os(tvOS) || os(visionOS)
+            // iOS/tvOS/visionOS: Use UIWindowScene (not available on watchOS)
+            if #available(iOS 17.0, tvOS 17.0, visionOS 1.0, *) {
                 let scene: UIWindowScene? = await MainActor.run {
                     UIApplication.shared.connectedScenes.first as? UIWindowScene
                 }
