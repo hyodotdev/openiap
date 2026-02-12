@@ -1,7 +1,9 @@
 import Foundation
 import StoreKit
 
-@available(iOS 15.0, macOS 14.0, *)
+/// Bridge between StoreKit types and OpenIAP types
+/// - SeeAlso: https://developer.apple.com/documentation/storekit/product
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 enum StoreKitTypesBridge {
     static func product(from product: StoreKit.Product) async -> Product {
         .productIos(await productIOS(from: product))
@@ -14,7 +16,7 @@ enum StoreKitTypesBridge {
 
     static func productIOS(from product: StoreKit.Product) async -> ProductIOS {
         ProductIOS(
-            currency: product.priceFormatStyle.currencyCode,
+            currency: currencyCode(from: product) ?? "",
             debugDescription: product.description,
             description: product.description,
             displayName: product.displayName,
@@ -73,7 +75,7 @@ enum StoreKitTypesBridge {
         let standardizedOffers = makeStandardizedSubscriptionOffers(from: subscription)
 
         return ProductSubscriptionIOS(
-            currency: product.priceFormatStyle.currencyCode,
+            currency: currencyCode(from: product) ?? "",
             debugDescription: product.description,
             description: product.description,
             discountsIOS: discountsIOS,
@@ -499,9 +501,20 @@ enum StoreKitTypesBridge {
         }
         return options
     }
+
+    /// Returns the currency code from the product's price format style.
+    /// Uses iOS 16+ API when available, falls back to product's locale for iOS 15.
+    static func currencyCode(from product: StoreKit.Product) -> String? {
+        if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+            return product.priceFormatStyle.currencyCode
+        } else {
+            // iOS 15 fallback - use currency from the product's locale (not device locale)
+            return product.priceFormatStyle.locale.currencyCode
+        }
+    }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension StoreKitTypesBridge {
     static func makeSubscriptionInfo(from info: StoreKit.Product.SubscriptionInfo?) -> SubscriptionInfoIOS? {
         guard let info else { return nil }
@@ -875,7 +888,7 @@ private extension StoreKitTypesBridge {
     }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension StoreKit.Product.SubscriptionOffer.PaymentMode {
     var paymentModeIOS: PaymentModeIOS {
         switch self {
@@ -897,7 +910,7 @@ private extension StoreKit.Product.SubscriptionOffer.PaymentMode {
     }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension StoreKit.Product.SubscriptionPeriod.Unit {
     var subscriptionPeriodIOS: SubscriptionPeriodIOS {
         switch self {
@@ -921,12 +934,12 @@ private extension StoreKit.Product.SubscriptionPeriod.Unit {
     }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension StoreKit.Product.SubscriptionPeriod {
     var iso8601: String { "P\(value)\(unit.isoComponent)" }
 }
 
-@available(iOS 15.0, macOS 14.0, *)
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension StoreKit.Product.SubscriptionPeriod.Unit {
     var isoComponent: String {
         switch self {
