@@ -69,7 +69,7 @@ public protocol OpenIapModuleProtocol {
 
     // Store Information
     func getStorefrontIOS() async throws -> String
-    @available(iOS 16.0, macOS 14.0, *)
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     func getAppTransactionIOS() async throws -> AppTransaction?
 
     // Subscription Management
