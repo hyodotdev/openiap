@@ -11,6 +11,7 @@ on:
           - patch
           - minor
           - major
+          - current
         default: patch
 
 env:
@@ -36,27 +37,33 @@ jobs:
         CURRENT_VERSION=$(jq -r '.google' openiap-versions.json)
         echo "Current version: $CURRENT_VERSION"
 
-        # Parse version components
-        IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+        if [ "${{ github.event.inputs.version }}" = "current" ]; then
+          NEW_VERSION="$CURRENT_VERSION"
+          echo "Using current version (no bump): $NEW_VERSION"
+          echo "skip_version_commit=true" >> $GITHUB_OUTPUT
+        else
+          # Parse version components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
-        # Bump version based on input
-        case "${{ github.event.inputs.version }}" in
-          major)
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-            ;;
-          minor)
-            MINOR=$((MINOR + 1))
-            PATCH=0
-            ;;
-          patch)
-            PATCH=$((PATCH + 1))
-            ;;
-        esac
+          # Bump version based on input
+          case "${{ github.event.inputs.version }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
 
-        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-        echo "New version: $NEW_VERSION"
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "New version: $NEW_VERSION"
+        fi
         echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
         echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
@@ -64,23 +71,33 @@ jobs:
       id: check_tag
       env:
         VERSION: ${{ steps.version.outputs.version }}
+        SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}
       run: |
         if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "❌ Tag google-$VERSION already exists. Skipping release."
-          exit 1
+          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Tag google-$VERSION already exists. Will reuse existing tag (current mode)."
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "❌ Tag google-$VERSION already exists. Use 'current' to retry with existing version."
+            exit 1
+          fi
+        elif git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
+          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Legacy tag google-v$VERSION already exists. Will reuse existing tag (current mode)."
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "❌ Legacy tag google-v$VERSION already exists. Use 'current' to retry with existing version."
+            exit 1
+          fi
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✓ Tag google-$VERSION does not exist, proceeding with release"
         fi
-
-        if git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "❌ Legacy tag google-v$VERSION already exists. Choose a new version."
-          exit 1
-        fi
-
-        echo "exists=false" >> $GITHUB_OUTPUT
-        echo "✓ Tag google-$VERSION does not exist, proceeding with release"
 
     - name: Update version in openiap-versions.json
+      if: steps.version.outputs.skip_version_commit != 'true'
       working-directory: packages/google
       env:
         VERSION: ${{ steps.version.outputs.version }}
@@ -90,9 +107,11 @@ jobs:
         mv temp.json ../../openiap-versions.json
 
     - name: Sync version files
+      if: steps.version.outputs.skip_version_commit != 'true'
       run: ./scripts/sync-versions.sh
 
     - name: Commit version update
+      if: steps.version.outputs.skip_version_commit != 'true'
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
