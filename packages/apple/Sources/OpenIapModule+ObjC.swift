@@ -603,7 +603,7 @@ import StoreKit
         }
     }
 
-    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
+    @available(iOS 16.0, macOS 14.0, *)
     @objc func getAppTransactionIOSWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {
         Task {
             do {
