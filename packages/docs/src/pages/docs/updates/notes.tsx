@@ -26,6 +26,69 @@ function Notes() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // Apple 1.3.15 - Feb 12, 2026
+    {
+      id: 'apple-1-3-15',
+      date: new Date('2026-02-12'),
+      element: (
+        <div key="apple-1-3-15" style={noteCardStyle}>
+          <AnchorLink id="apple-1-3-15" level="h4">
+            📅 openiap-apple v1.3.15 - iOS 15 Compatibility & watchOS Support
+          </AnchorLink>
+
+          <p style={{ marginTop: '0.75rem', marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
+            Fixed iOS 15 compatibility for currency code retrieval, unified platform availability annotations, and added watchOS support.
+          </p>
+
+          {/* Section 1: iOS 15 Compatibility */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.25rem 0' }}>
+              1. iOS 15 Compatibility Fix
+            </h5>
+            <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              Fixed potential crash when using <code>priceFormatStyle.currencyCode</code> on iOS 15 devices.
+              Now uses <code>product.priceFormatStyle.locale.currencyCode</code> as fallback to get the correct App Store currency.
+            </p>
+            <CodeBlock language="swift">{`// iOS 16+: Direct API
+product.priceFormatStyle.currencyCode
+
+// iOS 15: Fallback using product's locale
+product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
+          </div>
+
+          {/* Section 2: watchOS Support */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.25rem 0' }}>
+              2. watchOS Support Added
+            </h5>
+            <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              Added <code>watchOS 8.0+</code> deployment target to podspec and unified all <code>@available</code> annotations.
+            </p>
+            <CodeBlock language="swift">{`@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)`}</CodeBlock>
+          </div>
+
+          {/* Section 3: Documentation Links */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.25rem 0' }}>
+              3. Apple Documentation Links
+            </h5>
+            <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              Added <code>SeeAlso</code> documentation links to all main types for easier navigation to Apple's official StoreKit documentation.
+            </p>
+          </div>
+
+          {/* References */}
+          <details open style={{ marginTop: '1rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: '600', color: 'var(--text-secondary)' }}>References</summary>
+            <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem', fontSize: '0.875rem' }}>
+              <li><a href="https://developer.apple.com/documentation/storekit/product" target="_blank" rel="noopener noreferrer">StoreKit Product Documentation</a></li>
+              <li><a href="https://developer.apple.com/documentation/storekit/in-app_purchase" target="_blank" rel="noopener noreferrer">In-App Purchase Documentation</a></li>
+              <li><a href="https://github.com/hyodotdev/openiap/pull/80" target="_blank" rel="noopener noreferrer">PR #80</a></li>
+            </ul>
+          </details>
+        </div>
+      ),
+    },
     // GQL 1.3.17 / Google 1.3.28 - Feb 11, 2026
     {
       id: 'gql-1-3-17-google-1-3-28',
