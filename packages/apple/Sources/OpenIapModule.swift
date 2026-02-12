@@ -341,9 +341,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         do {
             // iOS 17.0+, tvOS 17.0+, macOS 15.2+: Use purchase(confirmIn:options:) for better purchase confirmation UI
             // Reference: https://developer.apple.com/documentation/storekit/product/purchase(confirmin:options:)-6dj6y
-            #if canImport(UIKit)
-            // iOS/tvOS: Use UIWindowScene
-            if #available(iOS 17.0, tvOS 17.0, *) {
+            #if os(iOS) || os(tvOS) || os(visionOS)
+            // iOS/tvOS/visionOS: Use UIWindowScene (not available on watchOS)
+            if #available(iOS 17.0, tvOS 17.0, visionOS 1.0, *) {
                 let scene: UIWindowScene? = await MainActor.run {
                     UIApplication.shared.connectedScenes.first as? UIWindowScene
                 }
@@ -356,7 +356,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             } else {
                 result = try await product.purchase(options: options)
             }
-            #elseif canImport(AppKit)
+            #elseif os(macOS)
             // macOS: Use NSWindow (macOS 15.2+)
             if #available(macOS 15.2, *) {
                 let window: NSWindow? = await MainActor.run {
@@ -1066,15 +1066,15 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/skpaymentqueue/3566726-presentcoderedemptionsheet
     public func presentCodeRedemptionSheetIOS() async throws -> Bool {
         try await ensureConnection()
-        // tvOS: SKPaymentQueue.presentCodeRedemptionSheet explicitly unavailable on tvOS
-        #if canImport(UIKit) && !os(tvOS)
+        // presentCodeRedemptionSheet is only available on iOS, not tvOS/watchOS/macOS
+        #if os(iOS)
         await MainActor.run {
             SKPaymentQueue.default().presentCodeRedemptionSheet()
         }
         return true
         #else
         throw makePurchaseError(code: .featureNotSupported)
-        #endif // canImport(UIKit) && !os(tvOS)
+        #endif // os(iOS)
     }
 
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
@@ -1159,9 +1159,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
         try await ensureConnection()
-        // UIKit platforms: Open external link using UIApplication.open
+        // UIApplication.open is available on iOS/tvOS/visionOS but not watchOS/macOS
         // Reference: https://developer.apple.com/documentation/uikit/uiapplication/1648685-open
-        #if canImport(UIKit)
+        #if os(iOS) || os(tvOS) || os(visionOS)
         guard let customLink = URL(string: url) else {
             return ExternalPurchaseLinkResultIOS(
                 error: "Invalid URL",
@@ -1184,7 +1184,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
         #else
         throw makePurchaseError(code: .featureNotSupported)
-        #endif // canImport(UIKit)
+        #endif // os(iOS) || os(tvOS) || os(visionOS)
     }
 
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
