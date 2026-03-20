@@ -1093,58 +1093,129 @@ func format_date(timestamp: int) -> String:
                       }}
                     >
                       <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <th style={{ textAlign: 'left', padding: '0.5rem' }}>Mode</th>
-                          <th style={{ textAlign: 'center', padding: '0.5rem' }}>Legacy API</th>
-                          <th style={{ textAlign: 'center', padding: '0.5rem' }}>8.1.0+ API</th>
-                          <th style={{ textAlign: 'left', padding: '0.5rem' }}>Description</th>
+                        <tr
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                          }}
+                        >
+                          <th style={{ textAlign: 'left', padding: '0.5rem' }}>
+                            Mode
+                          </th>
+                          <th
+                            style={{ textAlign: 'center', padding: '0.5rem' }}
+                          >
+                            Legacy API
+                          </th>
+                          <th
+                            style={{ textAlign: 'center', padding: '0.5rem' }}
+                          >
+                            8.1.0+ API
+                          </th>
+                          <th style={{ textAlign: 'left', padding: '0.5rem' }}>
+                            Description
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.25rem 0.5rem' }}><code>WITH_TIME_PRORATION</code></td>
+                        <tr
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                          }}
+                        >
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            <code>WITH_TIME_PRORATION</code>
+                          </td>
                           <td style={{ textAlign: 'center' }}>1</td>
                           <td style={{ textAlign: 'center' }}>1</td>
-                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change with prorated credit</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            Immediate change with prorated credit
+                          </td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_PRORATED_PRICE</code></td>
+                        <tr
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                          }}
+                        >
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            <code>CHARGE_PRORATED_PRICE</code>
+                          </td>
                           <td style={{ textAlign: 'center' }}>2</td>
                           <td style={{ textAlign: 'center' }}>2</td>
-                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge difference (upgrade only)</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            Immediate change, charge difference (upgrade only)
+                          </td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.25rem 0.5rem' }}><code>WITHOUT_PRORATION</code></td>
+                        <tr
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                          }}
+                        >
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            <code>WITHOUT_PRORATION</code>
+                          </td>
                           <td style={{ textAlign: 'center' }}>3</td>
                           <td style={{ textAlign: 'center' }}>3</td>
-                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, no proration</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            Immediate change, no proration
+                          </td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.25rem 0.5rem' }}><code>CHARGE_FULL_PRICE</code></td>
+                        <tr
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                          }}
+                        >
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            <code>CHARGE_FULL_PRICE</code>
+                          </td>
                           <td style={{ textAlign: 'center' }}>5</td>
                           <td style={{ textAlign: 'center' }}>4</td>
-                          <td style={{ padding: '0.25rem 0.5rem' }}>Immediate change, charge full price</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            Immediate change, charge full price
+                          </td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.25rem 0.5rem' }}><code>DEFERRED</code></td>
+                        <tr
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                          }}
+                        >
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            <code>DEFERRED</code>
+                          </td>
                           <td style={{ textAlign: 'center' }}>6</td>
                           <td style={{ textAlign: 'center' }}>5</td>
-                          <td style={{ padding: '0.25rem 0.5rem' }}>Change at next billing cycle</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            Change at next billing cycle
+                          </td>
                         </tr>
                         <tr>
-                          <td style={{ padding: '0.25rem 0.5rem' }}><code>KEEP_EXISTING</code></td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            <code>KEEP_EXISTING</code>
+                          </td>
                           <td style={{ textAlign: 'center' }}>—</td>
                           <td style={{ textAlign: 'center' }}>6</td>
-                          <td style={{ padding: '0.25rem 0.5rem' }}>Keep existing payment schedule (8.1.0+ only)</td>
+                          <td style={{ padding: '0.25rem 0.5rem' }}>
+                            Keep existing payment schedule (8.1.0+ only)
+                          </td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
 
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                    <strong>Note:</strong> Legacy API refers to <code>SubscriptionUpdateParams.ReplacementMode</code>,
-                    8.1.0+ API refers to <code>SubscriptionProductReplacementParams.ReplacementMode</code>.
-                    The integer values differ for CHARGE_FULL_PRICE and DEFERRED between APIs.
+                  <p
+                    style={{
+                      fontSize: '0.875rem',
+                      color: 'var(--text-secondary)',
+                      marginTop: '0.5rem',
+                    }}
+                  >
+                    <strong>Note:</strong> Legacy API refers to{' '}
+                    <code>SubscriptionUpdateParams.ReplacementMode</code>,
+                    8.1.0+ API refers to{' '}
+                    <code>
+                      SubscriptionProductReplacementParams.ReplacementMode
+                    </code>
+                    . The integer values differ for CHARGE_FULL_PRICE and
+                    DEFERRED between APIs.
                   </p>
 
                   <p>
@@ -1155,13 +1226,18 @@ func format_date(timestamp: int) -> String:
                 </Accordion>
 
                 <Accordion
-                  title={<>🆕 Billing Library 8.1.0+: Per-Product Replacement Params</>}
+                  title={
+                    <>
+                      🆕 Billing Library 8.1.0+: Per-Product Replacement Params
+                    </>
+                  }
                   variant="tip"
                 >
                   <p>
                     Starting with Google Play Billing Library 8.1.0, you can use{' '}
-                    <code>subscriptionProductReplacementParams</code> for more granular
-                    control over subscription replacements at the product level:
+                    <code>subscriptionProductReplacementParams</code> for more
+                    granular control over subscription replacements at the
+                    product level:
                   </p>
 
                   <ul>
@@ -1180,10 +1256,10 @@ func format_date(timestamp: int) -> String:
                   </ul>
 
                   <p>
-                    This API is useful when you need different replacement behaviors
-                    for different products in a multi-product purchase scenario.
-                    The new <code>KEEP_EXISTING</code> mode is only available through
-                    this API.
+                    This API is useful when you need different replacement
+                    behaviors for different products in a multi-product purchase
+                    scenario. The new <code>KEEP_EXISTING</code> mode is only
+                    available through this API.
                   </p>
                 </Accordion>
               </section>
@@ -1347,7 +1423,8 @@ if current_sub:
 
                 <ol>
                   <li>
-                    <strong>Use DEFERRED replacement mode</strong> (Legacy API: 6, 8.1.0+ API: 5)
+                    <strong>Use DEFERRED replacement mode</strong> (Legacy API:
+                    6, 8.1.0+ API: 5)
                   </li>
                   <li>No immediate charge to the user</li>
                   <li>User keeps premium access until current period ends</li>
@@ -1503,10 +1580,16 @@ if premium_purchase:
                 </Accordion>
 
                 <Accordion
-                  title={<>📝 Code Example: Using subscriptionProductReplacementParams (8.1.0+)</>}
+                  title={
+                    <>
+                      📝 Code Example: Using
+                      subscriptionProductReplacementParams (8.1.0+)
+                    </>
+                  }
                 >
                   <p>
-                    For more granular control, use the new per-product replacement params API:
+                    For more granular control, use the new per-product
+                    replacement params API:
                   </p>
                   <LanguageTabs>
                     {{
@@ -1743,16 +1826,16 @@ for purchase in purchases:
                 <ol>
                   <li>
                     <strong>Specify replacement mode when needed</strong>: Pass{' '}
-                    <code>replacementMode</code> when you want to
-                    override the default configured in Google Play Console
+                    <code>replacementMode</code> when you want to override the
+                    default configured in Google Play Console
                   </li>
                   <li>
                     <strong>Use WITH_TIME_PRORATION for upgrades</strong> to
                     give users credit for unused time
                   </li>
                   <li>
-                    <strong>Use DEFERRED for downgrades</strong> to let
-                    users keep premium features until period ends
+                    <strong>Use DEFERRED for downgrades</strong> to let users
+                    keep premium features until period ends
                   </li>
                   <li>
                     <strong>Handle DEFERRED mode correctly</strong>: When using

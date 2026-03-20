@@ -25,17 +25,28 @@ function TypesPurchase() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#purchase"><code>Purchase</code></a> - Union of PurchaseIOS and PurchaseAndroid
+            <a href="#purchase">
+              <code>Purchase</code>
+            </a>{' '}
+            - Union of PurchaseIOS and PurchaseAndroid
           </li>
           <li>
-            <a href="#purchase-state"><code>PurchaseState</code></a> - Pending, Purchased, Unknown
+            <a href="#purchase-state">
+              <code>PurchaseState</code>
+            </a>{' '}
+            - Pending, Purchased, Unknown
           </li>
           <li>
-            <a href="#active-subscription"><code>ActiveSubscription</code></a> - Unified subscription status view
+            <a href="#active-subscription">
+              <code>ActiveSubscription</code>
+            </a>{' '}
+            - Unified subscription status view
           </li>
           <li>
-            <a href="#renewal-info-ios"><code>renewalInfoIOS</code></a> - iOS renewal details (auto-renew,
-            expiration reason)
+            <a href="#renewal-info-ios">
+              <code>renewalInfoIOS</code>
+            </a>{' '}
+            - iOS renewal details (auto-renew, expiration reason)
           </li>
         </ul>
       </TLDRBox>
@@ -86,10 +97,20 @@ function TypesPurchase() {
             </tr>
           </tbody>
         </table>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-          Note: iOS StoreKit 2 only returns <code>Transaction</code> objects on successful purchases,
-          so iOS purchases always have <code>Purchased</code> state. See{' '}
-          <a href="/docs/updates/notes#gql-1-3-11-google-1-3-20">release notes</a> for details.
+        <p
+          style={{
+            fontSize: '0.875rem',
+            color: 'var(--text-secondary)',
+            marginTop: '0.5rem',
+          }}
+        >
+          Note: iOS StoreKit 2 only returns <code>Transaction</code> objects on
+          successful purchases, so iOS purchases always have{' '}
+          <code>Purchased</code> state. See{' '}
+          <a href="/docs/updates/notes#gql-1-3-11-google-1-3-20">
+            release notes
+          </a>{' '}
+          for details.
         </p>
 
         <AnchorLink id="purchase-common" level="h3">
@@ -145,14 +166,16 @@ function TypesPurchase() {
                 <code>store</code>
               </td>
               <td>
-                Store discriminator: <code>"apple"</code>,{' '}
-                <code>"google"</code>, or <code>"horizon"</code>
+                Store discriminator: <code>"apple"</code>, <code>"google"</code>
+                , or <code>"horizon"</code>
               </td>
             </tr>
             <tr>
               <td>
                 <code style={{ textDecoration: 'line-through' }}>platform</code>{' '}
-                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                <span
+                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
+                >
                   (deprecated)
                 </span>
               </td>
@@ -552,10 +575,11 @@ function TypesPurchase() {
                         <code>pendingPurchaseUpdateAndroid</code>
                       </td>
                       <td>
-                        Pending subscription upgrade/downgrade details. When a user
-                        initiates a plan change, this contains the new product IDs
-                        and purchase token for the pending transaction. Returns null
-                        if no pending update exists. See{' '}
+                        Pending subscription upgrade/downgrade details. When a
+                        user initiates a plan change, this contains the new
+                        product IDs and purchase token for the pending
+                        transaction. Returns null if no pending update exists.
+                        See{' '}
                         <a href="#pending-purchase-update-android">
                           PendingPurchaseUpdateAndroid
                         </a>{' '}
@@ -589,9 +613,10 @@ function TypesPurchase() {
                     </span>
                   </AnchorLink>
                   <p>
-                    Contains details about a pending subscription upgrade or downgrade.
-                    When a user changes their subscription plan, the new plan may be
-                    pending until the current billing period ends.
+                    Contains details about a pending subscription upgrade or
+                    downgrade. When a user changes their subscription plan, the
+                    new plan may be pending until the current billing period
+                    ends.
                   </p>
                   <table className="doc-table" style={{ marginTop: '0.5rem' }}>
                     <thead>
@@ -615,8 +640,8 @@ function TypesPurchase() {
                           <code>purchaseToken</code>
                         </td>
                         <td>
-                          Unique token identifying the pending transaction.
-                          Use this to track or manage the pending update.
+                          Unique token identifying the pending transaction. Use
+                          this to track or manage the pending update.
                         </td>
                       </tr>
                     </tbody>
@@ -663,7 +688,9 @@ function TypesPurchase() {
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>willExpireSoon</code>{' '}
+                <code style={{ textDecoration: 'line-through' }}>
+                  willExpireSoon
+                </code>{' '}
                 <span className="deprecated">deprecated</span>
               </td>
               <td>

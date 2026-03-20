@@ -50,7 +50,8 @@ function HorizonSetup() {
             </a>
           </li>
           <li>
-            <code>openiap-google@1.3.2</code> or later installed (Horizon flavor support added in 1.3.2)
+            <code>openiap-google@1.3.2</code> or later installed (Horizon flavor
+            support added in 1.3.2)
           </li>
           <li>A Meta Quest device for testing (Quest 2, Quest 3, Quest Pro)</li>
         </ul>
@@ -129,9 +130,7 @@ function HorizonSetup() {
               </li>
             </ul>
           </li>
-          <li>
-            Set the Product ID (SKU) - This must match your code exactly
-          </li>
+          <li>Set the Product ID (SKU) - This must match your code exactly</li>
           <li>Configure pricing and availability</li>
           <li>Save and activate the product</li>
         </ul>
@@ -162,7 +161,7 @@ function HorizonSetup() {
           Add your Horizon App ID to <code>AndroidManifest.xml</code>:
         </p>
         <CodeBlock language="xml">
-{`<manifest>
+          {`<manifest>
   <application>
     <!-- Add this meta-data inside <application> -->
     <meta-data
@@ -206,10 +205,11 @@ function HorizonSetup() {
           </a>
         </h3>
         <p>
-          The simplest approach - the build flavor you select determines which billing SDK is compiled into your APK:
+          The simplest approach - the build flavor you select determines which
+          billing SDK is compiled into your APK:
         </p>
         <CodeBlock language="kotlin">
-{`// Kotlin - Default constructor
+          {`// Kotlin - Default constructor
 val store = OpenIapStore(context)
 
 // Build with horizonDebug/horizonRelease:
@@ -228,7 +228,7 @@ val store = OpenIapStore(context)
         </h3>
         <p>Force Horizon billing even on non-Quest devices (for testing):</p>
         <CodeBlock language="kotlin">
-{`// Kotlin
+          {`// Kotlin
 val store = OpenIapStore(
     context,
     store = "horizon",
@@ -245,7 +245,7 @@ val store = OpenIapStore(
           </a>
         </h3>
         <CodeBlock language="kotlin">
-{`// Initialize store (uses build flavor)
+          {`// Initialize store (uses build flavor)
 val store = OpenIapStore(context)
 
 // Connect to billing
@@ -308,7 +308,7 @@ lifecycleScope.launch {
           </a>
         </h3>
         <CodeBlock language="javascript">
-{`# Connect Quest via USB
+          {`# Connect Quest via USB
 adb devices
 
 # Install your APK
@@ -347,10 +347,11 @@ adb logcat | grep OpenIap`}
           </a>
         </h3>
         <p>
-          Create or update <code>local.properties</code> in your project root with your Horizon App ID:
+          Create or update <code>local.properties</code> in your project root
+          with your Horizon App ID:
         </p>
         <CodeBlock language="javascript">
-{`# local.properties
+          {`# local.properties
 sdk.dir=/path/to/Android/sdk
 
 # Add your Horizon OS App ID
@@ -364,10 +365,11 @@ horizon.app.id=YOUR_HORIZON_APP_ID`}
           </a>
         </h3>
         <p>
-          Configure Android build flavors to support both Google Play and Horizon OS:
+          Configure Android build flavors to support both Google Play and
+          Horizon OS:
         </p>
         <CodeBlock language="kotlin">
-{`// build.gradle.kts
+          {`// build.gradle.kts
 val localProperties = Properties().apply {
     val localPropertiesFile = rootProject.file("local.properties")
     if (localPropertiesFile.exists()) {
@@ -403,19 +405,22 @@ android {
           </a>
         </h3>
         <p>
-          Android Studio provides build variants for each flavor. Select the variant from the Build Variants panel:
+          Android Studio provides build variants for each flavor. Select the
+          variant from the Build Variants panel:
         </p>
         <ul>
           <li>
-            <strong>horizonDebug</strong> - Horizon OS billing (for Quest devices)
+            <strong>horizonDebug</strong> - Horizon OS billing (for Quest
+            devices)
           </li>
           <li>
-            <strong>playDebug</strong> - Google Play billing (for phones/tablets)
+            <strong>playDebug</strong> - Google Play billing (for
+            phones/tablets)
           </li>
         </ul>
         <p>
-          Build separate APKs for each platform: horizonDebug/horizonRelease for Quest devices,
-          playDebug/playRelease for Android phones/tablets.
+          Build separate APKs for each platform: horizonDebug/horizonRelease for
+          Quest devices, playDebug/playRelease for Android phones/tablets.
         </p>
 
         <div
@@ -429,8 +434,12 @@ android {
         >
           <strong>💡 Tip:</strong> To change build variant in Android Studio:
           <ol style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-            <li>Open "Build Variants" panel (View → Tool Windows → Build Variants)</li>
-            <li>Select your desired variant (e.g., "horizonDebug" or "playDebug")</li>
+            <li>
+              Open "Build Variants" panel (View → Tool Windows → Build Variants)
+            </li>
+            <li>
+              Select your desired variant (e.g., "horizonDebug" or "playDebug")
+            </li>
             <li>Click the "Run" button to build and install</li>
           </ol>
         </div>
@@ -443,7 +452,7 @@ android {
         </h3>
         <p>Alternatively, build from command line:</p>
         <CodeBlock language="javascript">
-{`# Build for Horizon OS (Meta Quest devices)
+          {`# Build for Horizon OS (Meta Quest devices)
 ./gradlew assembleHorizonDebug
 
 # Build for Google Play (Android phones/tablets)
@@ -470,7 +479,9 @@ android {
           </li>
           <li>Check that your app is registered in Horizon Developer Hub</li>
           <li>Ensure the device is connected to internet</li>
-          <li>Check logs: <code>adb logcat | grep OpenIap</code></li>
+          <li>
+            Check logs: <code>adb logcat | grep OpenIap</code>
+          </li>
         </ul>
 
         <h3>Products Not Found</h3>
@@ -478,14 +489,19 @@ android {
           <li>Verify products are created and activated in Developer Hub</li>
           <li>Check that SKU/Product IDs match exactly (case-sensitive)</li>
           <li>Ensure your test account has access to the products</li>
-          <li>Wait a few minutes after creating products for them to propagate</li>
+          <li>
+            Wait a few minutes after creating products for them to propagate
+          </li>
         </ul>
 
         <h3>Purchase Flow Not Starting</h3>
         <ul>
           <li>Ensure you're logged into a Meta account on the device</li>
           <li>Verify the test user has permission to test purchases</li>
-          <li>Check that the activity context is valid when calling requestPurchase</li>
+          <li>
+            Check that the activity context is valid when calling
+            requestPurchase
+          </li>
         </ul>
       </section>
 

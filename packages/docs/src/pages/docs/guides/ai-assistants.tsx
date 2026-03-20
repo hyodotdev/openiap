@@ -82,7 +82,9 @@ function AIAssistants() {
             <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
               <strong>Concise API overview (~300 lines)</strong>
             </p>
-            <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}
+            >
               <li>Installation basics</li>
               <li>API signatures</li>
               <li>Core types</li>
@@ -109,7 +111,9 @@ function AIAssistants() {
             <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
               <strong>Complete API documentation (~1000 lines)</strong>
             </p>
-            <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}
+            >
               <li>Full configuration options</li>
               <li>Complete API documentation</li>
               <li>All type definitions</li>
@@ -138,8 +142,7 @@ function AIAssistants() {
             Click <strong>Add new doc</strong>
           </li>
           <li>
-            Enter URL:{' '}
-            <code>https://openiap.dev/llms.txt</code>
+            Enter URL: <code>https://openiap.dev/llms.txt</code>
           </li>
           <li>
             Name it <strong>OpenIAP</strong>

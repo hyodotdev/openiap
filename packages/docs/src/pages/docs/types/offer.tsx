@@ -125,7 +125,11 @@ function TypesOffer() {
               <td>
                 <code>DiscountOfferType!</code>
               </td>
-              <td>Type of offer: <code>Introductory</code>, <code>Promotional</code>, <code>WinBack</code> (iOS 18+), or <code>OneTime</code></td>
+              <td>
+                Type of offer: <code>Introductory</code>,{' '}
+                <code>Promotional</code>, <code>WinBack</code> (iOS 18+), or{' '}
+                <code>OneTime</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -242,7 +246,10 @@ function TypesOffer() {
               <td>
                 <code>String</code>
               </td>
-              <td>Purchase option ID for identifying which purchase option was selected (7.0+)</td>
+              <td>
+                Purchase option ID for identifying which purchase option was
+                selected (7.0+)
+              </td>
             </tr>
           </tbody>
         </table>
@@ -490,7 +497,10 @@ enum DiscountOfferType {
               <td>
                 <code>DiscountOfferType!</code>
               </td>
-              <td><code>Introductory</code>, <code>Promotional</code>, or <code>WinBack</code> (iOS 18+)</td>
+              <td>
+                <code>Introductory</code>, <code>Promotional</code>, or{' '}
+                <code>WinBack</code> (iOS 18+)
+              </td>
             </tr>
             <tr>
               <td>
@@ -649,7 +659,9 @@ enum DiscountOfferType {
               <td>
                 <code>InstallmentPlanDetailsAndroid</code>
               </td>
-              <td>Installment plan details for subscription commitments (7.0+)</td>
+              <td>
+                Installment plan details for subscription commitments (7.0+)
+              </td>
             </tr>
           </tbody>
         </table>

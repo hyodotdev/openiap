@@ -391,21 +391,24 @@ export const apiData: ApiItem[] = [
     id: 'types-product',
     title: 'Product Types',
     category: 'Types',
-    description: 'Product, SubscriptionProduct, Unified Platform Types, Storefront',
+    description:
+      'Product, SubscriptionProduct, Unified Platform Types, Storefront',
     path: '/docs/types/product',
   },
   {
     id: 'product',
     title: 'Product',
     category: 'Types',
-    description: 'Base product type: id, title, description, price, currency, type',
+    description:
+      'Base product type: id, title, description, price, currency, type',
     path: '/docs/types/product#product',
   },
   {
     id: 'subscription-product',
     title: 'SubscriptionProduct',
     category: 'Types',
-    description: 'Subscription product with pricing phases, intro offers, billing periods',
+    description:
+      'Subscription product with pricing phases, intro offers, billing periods',
     path: '/docs/types/product#product-subscription',
   },
   {
@@ -426,42 +429,48 @@ export const apiData: ApiItem[] = [
     id: 'purchase',
     title: 'Purchase',
     category: 'Types',
-    description: 'Purchase transaction: id, productId, transactionDate, transactionReceipt',
+    description:
+      'Purchase transaction: id, productId, transactionDate, transactionReceipt',
     path: '/docs/types/purchase#purchase',
   },
   {
     id: 'purchase-state',
     title: 'PurchaseState',
     category: 'Types',
-    description: 'Purchase state enum: purchased, pending, failed, restored, deferred',
+    description:
+      'Purchase state enum: purchased, pending, failed, restored, deferred',
     path: '/docs/types/purchase#purchase-state',
   },
   {
     id: 'active-subscription',
     title: 'ActiveSubscription',
     category: 'Types',
-    description: 'Active subscription: id, productId, isActive from getActiveSubscriptions()',
+    description:
+      'Active subscription: id, productId, isActive from getActiveSubscriptions()',
     path: '/docs/types/purchase#active-subscription',
   },
   {
     id: 'types-request',
     title: 'Request Types',
     category: 'Types',
-    description: 'ProductRequest, RequestPurchaseProps, platform-specific request types',
+    description:
+      'ProductRequest, RequestPurchaseProps, platform-specific request types',
     path: '/docs/types/request',
   },
   {
     id: 'types-verification',
     title: 'Verification Types',
     category: 'Types',
-    description: 'VerifyPurchaseProps, IAPKit integration, purchase verification',
+    description:
+      'VerifyPurchaseProps, IAPKit integration, purchase verification',
     path: '/docs/types/verification',
   },
   {
     id: 'types-ios',
     title: 'iOS Types',
     category: 'Types',
-    description: 'DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction',
+    description:
+      'DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction',
     path: '/docs/types/ios',
   },
   {
@@ -475,7 +484,8 @@ export const apiData: ApiItem[] = [
     id: 'types-alternative',
     title: 'Alternative Billing Types',
     category: 'Types',
-    description: 'AlternativeBillingModeAndroid, InitConnectionConfig, External Purchase Link',
+    description:
+      'AlternativeBillingModeAndroid, InitConnectionConfig, External Purchase Link',
     path: '/docs/types/alternative',
   },
 
@@ -484,14 +494,16 @@ export const apiData: ApiItem[] = [
     id: 'discount-offer',
     title: 'DiscountOffer',
     category: 'Types (iOS)',
-    description: 'iOS promotional offer for purchase: identifier, keyIdentifier, nonce, signature, timestamp',
+    description:
+      'iOS promotional offer for purchase: identifier, keyIdentifier, nonce, signature, timestamp',
     path: '/docs/types/ios#discount-offer',
   },
   {
     id: 'discount',
     title: 'Discount',
     category: 'Types (iOS)',
-    description: 'iOS discount info: identifier, type, numberOfPeriods, price, paymentMode, subscriptionPeriod',
+    description:
+      'iOS discount info: identifier, type, numberOfPeriods, price, paymentMode, subscriptionPeriod',
     path: '/docs/types/ios#discount',
   },
   {
@@ -505,7 +517,8 @@ export const apiData: ApiItem[] = [
     id: 'payment-mode',
     title: 'PaymentMode',
     category: 'Types (iOS)',
-    description: 'iOS payment mode for offers: FreeTrial, PayAsYouGo, PayUpFront',
+    description:
+      'iOS payment mode for offers: FreeTrial, PayAsYouGo, PayUpFront',
     path: '/docs/types/ios#payment-mode',
   },
   {
@@ -519,7 +532,8 @@ export const apiData: ApiItem[] = [
     id: 'app-transaction',
     title: 'AppTransaction',
     category: 'Types (iOS)',
-    description: 'iOS app transaction info: bundleId, appVersion, originalAppVersion, environment',
+    description:
+      'iOS app transaction info: bundleId, appVersion, originalAppVersion, environment',
     path: '/docs/types/ios#app-transaction',
   },
 
@@ -528,14 +542,16 @@ export const apiData: ApiItem[] = [
     id: 'subscription-offer',
     title: 'SubscriptionOffer',
     category: 'Types (Android)',
-    description: 'Android subscription offer: sku, offerToken for Play Billing purchases',
+    description:
+      'Android subscription offer: sku, offerToken for Play Billing purchases',
     path: '/docs/types/android#subscription-offer',
   },
   {
     id: 'pricing-phase',
     title: 'PricingPhase',
     category: 'Types (Android)',
-    description: 'Android pricing phase: billingPeriod, formattedPrice, priceAmountMicros, recurrenceMode',
+    description:
+      'Android pricing phase: billingPeriod, formattedPrice, priceAmountMicros, recurrenceMode',
     path: '/docs/types/android#pricing-phase',
   },
   {
@@ -558,14 +574,16 @@ export const apiData: ApiItem[] = [
     id: 'init-connection-config',
     title: 'InitConnectionConfig',
     category: 'Types',
-    description: 'Configuration for initConnection: alternativeBillingModeAndroid',
+    description:
+      'Configuration for initConnection: alternativeBillingModeAndroid',
     path: '/docs/types/alternative#init-connection-config',
   },
   {
     id: 'external-purchase-link-ios',
     title: 'External Purchase Link (iOS)',
     category: 'Types (iOS)',
-    description: 'iOS external purchase APIs: canPresent, presentNoticeSheet, presentLink (iOS 17.4+)',
+    description:
+      'iOS external purchase APIs: canPresent, presentNoticeSheet, presentLink (iOS 17.4+)',
     path: '/docs/types/alternative#external-purchase-link',
   },
 
@@ -574,28 +592,32 @@ export const apiData: ApiItem[] = [
     id: 'request-purchase-ios-props',
     title: 'RequestPurchaseIosProps',
     category: 'Types (iOS)',
-    description: 'iOS purchase request parameters: sku, appAccountToken, quantity, withOffer',
+    description:
+      'iOS purchase request parameters: sku, appAccountToken, quantity, withOffer',
     path: '/docs/types/request#request-purchase-ios-props',
   },
   {
     id: 'request-purchase-android-props',
     title: 'RequestPurchaseAndroidProps',
     category: 'Types (Android)',
-    description: 'Android purchase request parameters: skus, obfuscatedAccountId, isOfferPersonalized',
+    description:
+      'Android purchase request parameters: skus, obfuscatedAccountId, isOfferPersonalized',
     path: '/docs/types/request#request-purchase-android-props',
   },
   {
     id: 'request-subscription-ios-props',
     title: 'RequestSubscriptionIosProps',
     category: 'Types (iOS)',
-    description: 'iOS subscription request parameters (same as RequestPurchaseIosProps)',
+    description:
+      'iOS subscription request parameters (same as RequestPurchaseIosProps)',
     path: '/docs/types/request#request-subscription-ios-props',
   },
   {
     id: 'request-subscription-android-props',
     title: 'RequestSubscriptionAndroidProps',
     category: 'Types (Android)',
-    description: 'Android subscription request: purchaseToken, replacementMode, subscriptionOffers',
+    description:
+      'Android subscription request: purchaseToken, replacementMode, subscriptionOffers',
     path: '/docs/types/request#request-subscription-android-props',
   },
 
@@ -604,21 +626,24 @@ export const apiData: ApiItem[] = [
     id: 'product-ios',
     title: 'ProductIOS',
     category: 'Types (iOS)',
-    description: 'iOS product fields: typeIOS, isFamilyShareableIOS, subscriptionOffers',
+    description:
+      'iOS product fields: typeIOS, isFamilyShareableIOS, subscriptionOffers',
     path: '/docs/types/product#product-ios',
   },
   {
     id: 'product-android',
     title: 'ProductAndroid',
     category: 'Types (Android)',
-    description: 'Android product fields: nameAndroid, discountOffers, subscriptionOffers',
+    description:
+      'Android product fields: nameAndroid, discountOffers, subscriptionOffers',
     path: '/docs/types/product#product-android',
   },
   {
     id: 'subscription-product-ios',
     title: 'SubscriptionProductIOS',
     category: 'Types (iOS)',
-    description: 'iOS subscription fields: subscriptionOffers, introductoryPriceIOS, subscriptionPeriodUnitIOS',
+    description:
+      'iOS subscription fields: subscriptionOffers, introductoryPriceIOS, subscriptionPeriodUnitIOS',
     path: '/docs/types/product#subscription-product-ios',
   },
   {
@@ -634,35 +659,40 @@ export const apiData: ApiItem[] = [
     id: 'purchase-ios',
     title: 'PurchaseIOS',
     category: 'Types (iOS)',
-    description: 'iOS purchase fields: originalTransactionDateIOS, expirationDateIOS, renewalInfoIOS',
+    description:
+      'iOS purchase fields: originalTransactionDateIOS, expirationDateIOS, renewalInfoIOS',
     path: '/docs/types/purchase#purchase-ios',
   },
   {
     id: 'purchase-android',
     title: 'PurchaseAndroid',
     category: 'Types (Android)',
-    description: 'Android purchase fields: dataAndroid, signatureAndroid, isAcknowledgedAndroid',
+    description:
+      'Android purchase fields: dataAndroid, signatureAndroid, isAcknowledgedAndroid',
     path: '/docs/types/purchase#purchase-android',
   },
   {
     id: 'renewal-info-ios',
     title: 'RenewalInfoIOS',
     category: 'Types (iOS)',
-    description: 'iOS subscription renewal info: willAutoRenew, expirationReason, gracePeriodExpirationDate',
+    description:
+      'iOS subscription renewal info: willAutoRenew, expirationReason, gracePeriodExpirationDate',
     path: '/docs/types/purchase#renewal-info-ios',
   },
   {
     id: 'active-subscription-ios',
     title: 'ActiveSubscriptionIOS',
     category: 'Types (iOS)',
-    description: 'iOS active subscription: expirationDateIOS, environmentIOS, daysUntilExpirationIOS',
+    description:
+      'iOS active subscription: expirationDateIOS, environmentIOS, daysUntilExpirationIOS',
     path: '/docs/types/purchase#active-subscription-ios',
   },
   {
     id: 'active-subscription-android',
     title: 'ActiveSubscriptionAndroid',
     category: 'Types (Android)',
-    description: 'Android active subscription: autoRenewingAndroid, basePlanIdAndroid, purchaseTokenAndroid',
+    description:
+      'Android active subscription: autoRenewingAndroid, basePlanIdAndroid, purchaseTokenAndroid',
     path: '/docs/types/purchase#active-subscription-android',
   },
 
@@ -671,14 +701,16 @@ export const apiData: ApiItem[] = [
     id: 'verify-purchase-result-ios',
     title: 'VerifyPurchaseResultIOS',
     category: 'Types (iOS)',
-    description: 'iOS verification result: isValid, receiptData, jwsRepresentation, latestTransaction',
+    description:
+      'iOS verification result: isValid, receiptData, jwsRepresentation, latestTransaction',
     path: '/docs/types/verification#verify-purchase-result-ios',
   },
   {
     id: 'verify-purchase-result-android',
     title: 'VerifyPurchaseResultAndroid',
     category: 'Types (Android)',
-    description: 'Android verification result: autoRenewing, cancelDate, renewalDate, transactionId',
+    description:
+      'Android verification result: autoRenewing, cancelDate, renewalDate, transactionId',
     path: '/docs/types/verification#verify-purchase-result-android',
   },
   {

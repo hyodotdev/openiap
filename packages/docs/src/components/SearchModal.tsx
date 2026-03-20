@@ -19,7 +19,7 @@ function highlightMatch(text: string, query: string) {
       </mark>
     ) : (
       part
-    ),
+    )
   );
 }
 
@@ -39,7 +39,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
         api.description?.toLowerCase().includes(query) ||
         api.parameters?.toLowerCase().includes(query) ||
         api.returns?.toLowerCase().includes(query) ||
-        api.category.toLowerCase().includes(query),
+        api.category.toLowerCase().includes(query)
     );
   }, [searchQuery]);
 
@@ -48,7 +48,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
       navigate(api.path);
       onClose();
     },
-    [navigate, onClose],
+    [navigate, onClose]
   );
 
   useEffect(() => {
@@ -77,7 +77,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex((prev) =>
-          prev < filteredApis.length - 1 ? prev + 1 : prev,
+          prev < filteredApis.length - 1 ? prev + 1 : prev
         );
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -100,7 +100,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setSearchQuery(e.target.value);
       setSelectedIndex(0);
     },
-    [],
+    []
   );
 
   if (!isOpen) return null;
@@ -202,7 +202,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
         </div>
       </div>
     </>,
-    document.body,
+    document.body
   );
 }
 

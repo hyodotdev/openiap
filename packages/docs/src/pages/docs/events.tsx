@@ -990,13 +990,22 @@ subscription.cancel();`}</CodeBlock>
             </tr>
             <tr>
               <td>Event</td>
-              <td><code>UserChoiceBillingAndroid</code></td>
-              <td><code>DeveloperProvidedBillingAndroid</code></td>
+              <td>
+                <code>UserChoiceBillingAndroid</code>
+              </td>
+              <td>
+                <code>DeveloperProvidedBillingAndroid</code>
+              </td>
             </tr>
             <tr>
               <td>Setup</td>
-              <td><code>AlternativeBillingModeAndroid.UserChoice</code></td>
-              <td><code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> + <code>developerBillingOption</code> in requestPurchase</td>
+              <td>
+                <code>AlternativeBillingModeAndroid.UserChoice</code>
+              </td>
+              <td>
+                <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> +{' '}
+                <code>developerBillingOption</code> in requestPurchase
+              </td>
             </tr>
           </tbody>
         </table>

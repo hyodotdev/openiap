@@ -26,18 +26,28 @@ function PurchaseAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#request-purchase"><code>requestPurchase</code></a>: Initiate purchase (event-based, not
-            promise-based)
+            <a href="#request-purchase">
+              <code>requestPurchase</code>
+            </a>
+            : Initiate purchase (event-based, not promise-based)
           </li>
           <li>
-            <a href="#finish-transaction"><code>finishTransaction</code></a>: Complete transaction after
-            verification
+            <a href="#finish-transaction">
+              <code>finishTransaction</code>
+            </a>
+            : Complete transaction after verification
           </li>
           <li>
-            <a href="#restore-purchases"><code>restorePurchases</code></a>: Restore user's previous purchases
+            <a href="#restore-purchases">
+              <code>restorePurchases</code>
+            </a>
+            : Restore user's previous purchases
           </li>
           <li>
-            <a href="#get-storefront"><code>getStorefront</code></a>: Get user's country/region
+            <a href="#get-storefront">
+              <code>getStorefront</code>
+            </a>
+            : Get user's country/region
           </li>
         </ul>
       </TLDRBox>

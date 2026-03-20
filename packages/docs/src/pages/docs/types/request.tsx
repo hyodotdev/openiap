@@ -18,24 +18,33 @@ function TypesRequest() {
         keywords="IAP types, ProductRequest, RequestPurchaseProps, TypeScript, Swift, Kotlin"
       />
       <h1>Request Types</h1>
-      <p>
-        Type definitions for requesting products and initiating purchases.
-      </p>
+      <p>Type definitions for requesting products and initiating purchases.</p>
 
       <TLDRBox>
         <ul>
           <li>
-            <a href="#product-request"><code>ProductRequest</code></a> - Parameters for fetchProducts()
+            <a href="#product-request">
+              <code>ProductRequest</code>
+            </a>{' '}
+            - Parameters for fetchProducts()
           </li>
           <li>
-            <a href="#request-purchase-props"><code>RequestPurchaseProps</code></a> - Top-level arguments for
-            requestPurchase()
+            <a href="#request-purchase-props">
+              <code>RequestPurchaseProps</code>
+            </a>{' '}
+            - Top-level arguments for requestPurchase()
           </li>
           <li>
-            <a href="#platform-specific-request-props">Platform-specific props</a> for Apple (iOS) and Google (Android)
+            <a href="#platform-specific-request-props">
+              Platform-specific props
+            </a>{' '}
+            for Apple (iOS) and Google (Android)
           </li>
           <li>
-            <a href="#subscription-request-props">Subscription-specific props</a> with upgrade/downgrade support
+            <a href="#subscription-request-props">
+              Subscription-specific props
+            </a>{' '}
+            with upgrade/downgrade support
           </li>
         </ul>
       </TLDRBox>
@@ -354,20 +363,28 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
             <tr>
               <td>
                 <code style={{ textDecoration: 'line-through' }}>ios</code>{' '}
-                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                <span
+                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
+                >
                   (deprecated)
                 </span>
               </td>
-              <td>Use <code>apple</code> instead</td>
+              <td>
+                Use <code>apple</code> instead
+              </td>
             </tr>
             <tr>
               <td>
                 <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
-                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                <span
+                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
+                >
                   (deprecated)
                 </span>
               </td>
-              <td>Use <code>google</code> instead</td>
+              <td>
+                Use <code>google</code> instead
+              </td>
             </tr>
           </tbody>
         </table>
@@ -388,34 +405,43 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
               <td>
                 <code>apple</code>
               </td>
-              <td>Apple subscription parameters (RequestSubscriptionIosProps)</td>
+              <td>
+                Apple subscription parameters (RequestSubscriptionIosProps)
+              </td>
             </tr>
             <tr>
               <td>
                 <code>google</code>
               </td>
               <td>
-                Google subscription parameters
-                (RequestSubscriptionAndroidProps)
+                Google subscription parameters (RequestSubscriptionAndroidProps)
               </td>
             </tr>
             <tr>
               <td>
                 <code style={{ textDecoration: 'line-through' }}>ios</code>{' '}
-                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                <span
+                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
+                >
                   (deprecated)
                 </span>
               </td>
-              <td>Use <code>apple</code> instead</td>
+              <td>
+                Use <code>apple</code> instead
+              </td>
             </tr>
             <tr>
               <td>
                 <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
-                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                <span
+                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
+                >
                   (deprecated)
                 </span>
               </td>
-              <td>Use <code>google</code> instead</td>
+              <td>
+                Use <code>google</code> instead
+              </td>
             </tr>
           </tbody>
         </table>
@@ -535,8 +561,8 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>offerToken</code>
                       </td>
                       <td>
-                        Offer token for one-time purchase discounts (7.0+).
-                        Pass the <code>offerToken</code> from{' '}
+                        Offer token for one-time purchase discounts (7.0+). Pass
+                        the <code>offerToken</code> from{' '}
                         <code>oneTimePurchaseOfferDetailsAndroid</code> or{' '}
                         <code>discountOffers</code> to apply a discount.
                       </td>

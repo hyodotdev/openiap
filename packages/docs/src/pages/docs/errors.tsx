@@ -311,7 +311,9 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
           <tbody>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>ReceiptFailed</code>
+                <code style={{ textDecoration: 'line-through' }}>
+                  ReceiptFailed
+                </code>
               </td>
               <td>
                 <code>PurchaseVerificationFailed</code>
@@ -319,7 +321,9 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>ReceiptFinished</code>
+                <code style={{ textDecoration: 'line-through' }}>
+                  ReceiptFinished
+                </code>
               </td>
               <td>
                 <code>PurchaseVerificationFinished</code>
@@ -327,7 +331,9 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>ReceiptFinishedFailed</code>
+                <code style={{ textDecoration: 'line-through' }}>
+                  ReceiptFinishedFailed
+                </code>
               </td>
               <td>
                 <code>PurchaseVerificationFinishFailed</code>

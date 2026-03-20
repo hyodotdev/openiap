@@ -1064,8 +1064,8 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                 <p>
                   When a subscription group has multiple base plans (weekly,
                   monthly, yearly), there is no way to determine which specific
-                  plan was purchased from the client-side{' '}
-                  <code>Purchase</code> object alone.
+                  plan was purchased from the client-side <code>Purchase</code>{' '}
+                  object alone.
                 </p>
 
                 <h4>What This Means</h4>

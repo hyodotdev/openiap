@@ -195,7 +195,9 @@ function TypesAndroid() {
               <td>
                 <code>string | null</code>
               </td>
-              <td>Purchase option ID to identify which option was selected (7.0+)</td>
+              <td>
+                Purchase option ID to identify which option was selected (7.0+)
+              </td>
             </tr>
           </tbody>
         </table>

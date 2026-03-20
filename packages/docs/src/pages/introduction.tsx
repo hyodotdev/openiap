@@ -550,9 +550,7 @@ await endConnection();`}
         {/* Getting Started */}
         <section className="intro-section">
           <h2>Getting Started</h2>
-          <p className="intro-text">
-            Choose your framework to get started:
-          </p>
+          <p className="intro-text">Choose your framework to get started:</p>
           <div className="getting-started-grid">
             <Link to="/docs/apis" className="getting-started-card">
               <strong>API Reference</strong>

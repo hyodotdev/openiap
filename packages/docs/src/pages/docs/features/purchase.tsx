@@ -57,7 +57,9 @@ function Purchase() {
             issues:
           </p>
           <ul>
-            <li>Android: Purchases refunded after 3 days if not acknowledged</li>
+            <li>
+              Android: Purchases refunded after 3 days if not acknowledged
+            </li>
             <li>iOS: Transaction replays on every app launch</li>
             <li>Both: Users cannot repurchase consumables</li>
           </ul>
@@ -405,7 +407,6 @@ await purchase_product("com.app.coins_100")`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
-
       </section>
 
       <section>
@@ -596,9 +597,7 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
               <td>
                 <code>true</code>
               </td>
-              <td>
-                Product can be purchased again (coins, gems, etc.)
-              </td>
+              <td>Product can be purchased again (coins, gems, etc.)</td>
             </tr>
             <tr>
               <td>Non-Consumable</td>
@@ -793,9 +792,7 @@ func handle_purchase(purchase: Purchase) -> void:
         <AnchorLink id="complete-example" level="h2">
           Complete Example
         </AnchorLink>
-        <p>
-          Here's a complete implementation combining all steps:
-        </p>
+        <p>Here's a complete implementation combining all steps:</p>
 
         <LanguageTabs>
           {{
@@ -1262,9 +1259,7 @@ func _exit_tree() -> void:
             <tr>
               <td>Android purchase refunded</td>
               <td>Not acknowledged within 3 days</td>
-              <td>
-                Finish transaction immediately after verification
-              </td>
+              <td>Finish transaction immediately after verification</td>
             </tr>
             <tr>
               <td>Cannot repurchase consumable</td>

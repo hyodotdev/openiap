@@ -59,7 +59,10 @@ function ExternalPurchase() {
               <td>Android</td>
               <td>Alternative Billing / Billing Programs</td>
               <td>Android 6.0+ (API 23)</td>
-              <td>Google Play Billing 6.2+ (legacy), 8.2.0+ (recommended), 8.3.0+ (External Payments)</td>
+              <td>
+                Google Play Billing 6.2+ (legacy), 8.2.0+ (recommended), 8.3.0+
+                (External Payments)
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1112,17 +1115,17 @@ func handle_user_choice_purchase(product_id: String) -> void:
                     <code>showAlternativeBillingInformationDialog</code>,{' '}
                     <code>createAlternativeBillingReportingToken</code>) are
                     deprecated in Google Play Billing Library 8.2.0+. For new
-                    implementations, use the <strong>Billing Programs API</strong>{' '}
-                    described below.
+                    implementations, use the{' '}
+                    <strong>Billing Programs API</strong> described below.
                   </p>
                 </div>
 
                 <h4>Billing Programs API (8.2.0+)</h4>
                 <p>
                   Google Play Billing Library 8.2.0 introduces the new{' '}
-                  <strong>Billing Programs API</strong> which replaces the legacy
-                  alternative billing APIs. This provides better support for
-                  External Content Links and External Offers.
+                  <strong>Billing Programs API</strong> which replaces the
+                  legacy alternative billing APIs. This provides better support
+                  for External Content Links and External Offers.
                 </p>
 
                 <h5>Program Types</h5>
@@ -1132,8 +1135,8 @@ func handle_user_choice_purchase(product_id: String) -> void:
                     external content (e.g., reader apps, music streaming)
                   </li>
                   <li>
-                    <strong>ExternalOffer</strong> - For apps offering alternative
-                    payment options
+                    <strong>ExternalOffer</strong> - For apps offering
+                    alternative payment options
                   </li>
                 </ul>
 
@@ -1416,20 +1419,38 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>checkAlternativeBillingAvailability()</code></td>
-                      <td><code>isBillingProgramAvailable(program)</code></td>
+                      <td>
+                        <code>checkAlternativeBillingAvailability()</code>
+                      </td>
+                      <td>
+                        <code>isBillingProgramAvailable(program)</code>
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>showAlternativeBillingInformationDialog()</code></td>
-                      <td><code>launchExternalLink(activity, params)</code></td>
+                      <td>
+                        <code>showAlternativeBillingInformationDialog()</code>
+                      </td>
+                      <td>
+                        <code>launchExternalLink(activity, params)</code>
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>createAlternativeBillingReportingToken()</code></td>
-                      <td><code>createBillingProgramReportingDetails(program)</code></td>
+                      <td>
+                        <code>createAlternativeBillingReportingToken()</code>
+                      </td>
+                      <td>
+                        <code>
+                          createBillingProgramReportingDetails(program)
+                        </code>
+                      </td>
                     </tr>
                     <tr>
-                      <td><code>enableAlternativeBillingOnly()</code></td>
-                      <td><code>enableBillingProgram(program)</code></td>
+                      <td>
+                        <code>enableAlternativeBillingOnly()</code>
+                      </td>
+                      <td>
+                        <code>enableBillingProgram(program)</code>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1437,17 +1458,17 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                 <h4>External Payments (8.3.0+ - Japan Only)</h4>
                 <p>
                   Google Play Billing Library 8.3.0 introduces the{' '}
-                  <strong>External Payments</strong> program, currently available
-                  only in Japan. This presents a side-by-side choice between Google
-                  Play Billing and the developer's external payment option directly
-                  in the purchase flow.
+                  <strong>External Payments</strong> program, currently
+                  available only in Japan. This presents a side-by-side choice
+                  between Google Play Billing and the developer's external
+                  payment option directly in the purchase flow.
                 </p>
 
                 <div className="alert-card alert-card--info">
                   <p>
-                    <strong>ℹ️ Availability:</strong> The External Payments program
-                    is currently only available in Japan. Users in other regions
-                    will not see the developer billing option. Check{' '}
+                    <strong>ℹ️ Availability:</strong> The External Payments
+                    program is currently only available in Japan. Users in other
+                    regions will not see the developer billing option. Check{' '}
                     <code>isBillingProgramAvailable(EXTERNAL_PAYMENTS)</code> to
                     verify availability.
                   </p>
@@ -1456,20 +1477,23 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                 <h5>Key Differences from Other Programs</h5>
                 <ul>
                   <li>
-                    <strong>Side-by-side choice:</strong> User sees both Google Play
-                    and developer payment options in the same purchase dialog
+                    <strong>Side-by-side choice:</strong> User sees both Google
+                    Play and developer payment options in the same purchase
+                    dialog
                   </li>
                   <li>
-                    <strong>DeveloperProvidedBillingListener:</strong> New callback
-                    when user selects developer billing (different from UserChoiceBillingListener)
+                    <strong>DeveloperProvidedBillingListener:</strong> New
+                    callback when user selects developer billing (different from
+                    UserChoiceBillingListener)
                   </li>
                   <li>
                     <strong>DeveloperBillingOptionParams:</strong> Configure the
                     developer billing option in BillingFlowParams
                   </li>
                   <li>
-                    <strong>EnableBillingProgramParams:</strong> Required to enable
-                    EXTERNAL_PAYMENTS with DeveloperProvidedBillingListener
+                    <strong>EnableBillingProgramParams:</strong> Required to
+                    enable EXTERNAL_PAYMENTS with
+                    DeveloperProvidedBillingListener
                   </li>
                 </ul>
 
@@ -1789,37 +1813,64 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                   <tbody>
                     <tr>
                       <td>0</td>
-                      <td><code>enableBillingProgram(EXTERNAL_PAYMENTS)</code></td>
-                      <td>Enable External Payments program BEFORE initConnection</td>
+                      <td>
+                        <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code>
+                      </td>
+                      <td>
+                        Enable External Payments program BEFORE initConnection
+                      </td>
                     </tr>
                     <tr>
                       <td>1</td>
-                      <td><code>addDeveloperProvidedBillingListener()</code></td>
-                      <td>Register callback for when user selects developer billing</td>
+                      <td>
+                        <code>addDeveloperProvidedBillingListener()</code>
+                      </td>
+                      <td>
+                        Register callback for when user selects developer
+                        billing
+                      </td>
                     </tr>
                     <tr>
                       <td>2</td>
-                      <td><code>isBillingProgramAvailable(EXTERNAL_PAYMENTS)</code></td>
+                      <td>
+                        <code>
+                          isBillingProgramAvailable(EXTERNAL_PAYMENTS)
+                        </code>
+                      </td>
                       <td>Check if available (Japan only)</td>
                     </tr>
                     <tr>
                       <td>3</td>
-                      <td><code>requestPurchase(developerBillingOption: ...)</code></td>
-                      <td>Launch purchase with developer billing option configured</td>
+                      <td>
+                        <code>
+                          requestPurchase(developerBillingOption: ...)
+                        </code>
+                      </td>
+                      <td>
+                        Launch purchase with developer billing option configured
+                      </td>
                     </tr>
                     <tr>
                       <td>4</td>
                       <td>User Choice Dialog</td>
-                      <td>User sees side-by-side choice: Google Play or Developer Billing</td>
+                      <td>
+                        User sees side-by-side choice: Google Play or Developer
+                        Billing
+                      </td>
                     </tr>
                     <tr>
                       <td>5a</td>
-                      <td>If Google Play: <code>onPurchaseSuccess</code></td>
+                      <td>
+                        If Google Play: <code>onPurchaseSuccess</code>
+                      </td>
                       <td>Normal Google Play purchase flow</td>
                     </tr>
                     <tr>
                       <td>5b</td>
-                      <td>If Developer: <code>DeveloperProvidedBillingListener</code></td>
+                      <td>
+                        If Developer:{' '}
+                        <code>DeveloperProvidedBillingListener</code>
+                      </td>
                       <td>Callback receives externalTransactionToken</td>
                     </tr>
                     <tr>
@@ -1830,7 +1881,10 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                     <tr>
                       <td>7</td>
                       <td>Report Token</td>
-                      <td>Report externalTransactionToken to Google within 24 hours</td>
+                      <td>
+                        Report externalTransactionToken to Google within 24
+                        hours
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1857,18 +1911,23 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                   </thead>
                   <tbody>
                     <tr>
-                      <td><code>LAUNCH_IN_EXTERNAL_BROWSER_OR_APP</code></td>
                       <td>
-                        Google Play will launch the linkUri in an external browser
-                        or eligible app. Use this for web-based payment flows.
+                        <code>LAUNCH_IN_EXTERNAL_BROWSER_OR_APP</code>
+                      </td>
+                      <td>
+                        Google Play will launch the linkUri in an external
+                        browser or eligible app. Use this for web-based payment
+                        flows.
                       </td>
                     </tr>
                     <tr>
-                      <td><code>CALLER_WILL_LAUNCH_LINK</code></td>
                       <td>
-                        Google Play returns control to your app without launching.
-                        Your app handles launching the payment flow. Use this for
-                        in-app payment experiences.
+                        <code>CALLER_WILL_LAUNCH_LINK</code>
+                      </td>
+                      <td>
+                        Google Play returns control to your app without
+                        launching. Your app handles launching the payment flow.
+                        Use this for in-app payment experiences.
                       </td>
                     </tr>
                   </tbody>
@@ -2104,9 +2163,7 @@ func _ready_user_choice() -> void:
                       <td>
                         <code>enableBillingProgram(program)</code>
                       </td>
-                      <td>
-                        Enable billing program BEFORE initConnection
-                      </td>
+                      <td>Enable billing program BEFORE initConnection</td>
                     </tr>
                     <tr>
                       <td>1</td>
@@ -2123,7 +2180,8 @@ func _ready_user_choice() -> void:
                         <code>launchExternalLink(activity, params)</code>
                       </td>
                       <td>
-                        Launch external link (browser or app) with configured params
+                        Launch external link (browser or app) with configured
+                        params
                       </td>
                     </tr>
                     <tr>
@@ -2137,15 +2195,21 @@ func _ready_user_choice() -> void:
                     <tr>
                       <td>4</td>
                       <td>
-                        <code>createBillingProgramReportingDetails(program)</code>
+                        <code>
+                          createBillingProgramReportingDetails(program)
+                        </code>
                       </td>
-                      <td>After successful payment, create reporting details with token</td>
+                      <td>
+                        After successful payment, create reporting details with
+                        token
+                      </td>
                     </tr>
                     <tr>
                       <td>5</td>
                       <td>Token Reporting</td>
                       <td>
-                        Send externalTransactionToken to Google Play backend within 24 hours
+                        Send externalTransactionToken to Google Play backend
+                        within 24 hours
                       </td>
                     </tr>
                     <tr>

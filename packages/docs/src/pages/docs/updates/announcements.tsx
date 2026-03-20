@@ -573,7 +573,7 @@ function Announcements() {
 
   // Sort by date (newest first)
   const sortedAnnouncements = [...announcements].sort(
-    (a, b) => b.date.getTime() - a.date.getTime(),
+    (a, b) => b.date.getTime() - a.date.getTime()
   );
 
   return (

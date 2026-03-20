@@ -26,10 +26,18 @@ function ConnectionAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            Call <a href="#init-connection"><code>initConnection()</code></a> on app start
+            Call{' '}
+            <a href="#init-connection">
+              <code>initConnection()</code>
+            </a>{' '}
+            on app start
           </li>
           <li>
-            Call <a href="#end-connection"><code>endConnection()</code></a> on app close or unmount
+            Call{' '}
+            <a href="#end-connection">
+              <code>endConnection()</code>
+            </a>{' '}
+            on app close or unmount
           </li>
           <li>Android supports alternative billing configuration</li>
         </ul>

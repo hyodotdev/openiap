@@ -114,7 +114,7 @@ function Pagination({
                 <span key={index} className="pagination-ellipsis">
                   {page}
                 </span>
-              ),
+              )
             )}
           </div>
         )}
