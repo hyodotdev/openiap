@@ -197,7 +197,8 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-xs) var(--spacing-lg) var(--spacing-xs) calc(var(--spacing-lg) + 0.5rem);
+  padding: var(--spacing-xs) var(--spacing-lg) var(--spacing-xs)
+    calc(var(--spacing-lg) + 0.5rem);
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   text-decoration: none;
@@ -398,7 +399,6 @@
   border-left-color: var(--primary-light);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
-
 
 /* Anchor Links */
 .anchor-heading {

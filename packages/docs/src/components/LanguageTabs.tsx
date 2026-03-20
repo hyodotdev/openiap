@@ -40,9 +40,7 @@ function LanguageTabs({ children }: LanguageTabsProps) {
           </button>
         ))}
       </div>
-      <div className="language-tabs-content">
-        {children[activeTab]}
-      </div>
+      <div className="language-tabs-content">{children[activeTab]}</div>
     </div>
   );
 }

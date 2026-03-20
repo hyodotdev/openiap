@@ -1,6 +1,7 @@
 package dev.hyo.openiap.helpers
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductQueryType
@@ -14,7 +15,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 /**
- * Suspend function to wait for purchase update (Horizon)
+ * Suspend function to wait for a purchase update via listener.
+ * Shared between Play and Horizon flavors.
  */
 internal suspend fun onPurchaseUpdated(
     addListener: (OpenIapPurchaseUpdateListener) -> Unit,
@@ -31,7 +33,8 @@ internal suspend fun onPurchaseUpdated(
 }
 
 /**
- * Suspend function to wait for purchase error (Horizon)
+ * Suspend function to wait for a purchase error via listener.
+ * Shared between Play and Horizon flavors.
  */
 internal suspend fun onPurchaseError(
     addListener: (OpenIapPurchaseErrorListener) -> Unit,
@@ -48,7 +51,8 @@ internal suspend fun onPurchaseError(
 }
 
 /**
- * Data class for Android purchase arguments (Horizon)
+ * Data class representing parsed Android purchase arguments.
+ * Shared between Play and Horizon flavors.
  */
 internal data class AndroidPurchaseArgs(
     val skus: List<String>,
@@ -60,12 +64,14 @@ internal data class AndroidPurchaseArgs(
     val replacementMode: Int?,
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>?,
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
+    val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
     val type: ProductQueryType,
     val useAlternativeBilling: Boolean?
 )
 
 /**
- * Extension function to convert RequestPurchaseProps to AndroidPurchaseArgs (Horizon)
+ * Extension function to convert RequestPurchaseProps to AndroidPurchaseArgs.
+ * Shared between Play and Horizon flavors.
  */
 internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
     return when (val payload = request) {
@@ -83,6 +89,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 replacementMode = null,
                 subscriptionOffers = null,
                 subscriptionProductReplacementParams = null,
+                developerBillingOption = params.developerBillingOption,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
@@ -106,6 +113,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 replacementMode = params.replacementMode,
                 subscriptionOffers = params.subscriptionOffers,
                 subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,
+                developerBillingOption = params.developerBillingOption,
                 type = type,
                 useAlternativeBilling = useAlternativeBilling
             )
@@ -114,7 +122,8 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
 }
 
 /**
- * Extension function to convert OpenIapError to PurchaseError (Horizon)
+ * Extension function to convert OpenIapError to PurchaseError.
+ * Shared between Play and Horizon flavors.
  */
 internal fun OpenIapError.toPurchaseError(): PurchaseError {
     val code = runCatching { ErrorCode.fromJson(this.code) }.getOrElse { ErrorCode.Unknown }

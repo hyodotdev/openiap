@@ -28,11 +28,13 @@ function DebuggingAPIs() {
         <ul>
           <li>Logging is disabled by default in production</li>
           <li>
-            <a href="#enable-logging">Enable with <code>OpenIapLog.enable(true)</code></a>
+            <a href="#enable-logging">
+              Enable with <code>OpenIapLog.enable(true)</code>
+            </a>
           </li>
           <li>
-            <a href="#common-warnings">Android basePlanId limitation</a>: Use client-side tracking or backend
-            validation
+            <a href="#common-warnings">Android basePlanId limitation</a>: Use
+            client-side tracking or backend validation
           </li>
         </ul>
       </TLDRBox>
@@ -180,10 +182,9 @@ onPurchaseSuccess: async (purchase) => {
         <h4>2. IAPKit Backend Validation (Recommended)</h4>
         <IapKitBanner />
         <p>
-          Use{' '}
-          <code>verifyPurchaseWithProvider</code> with IAPKit to get accurate{' '}
-          <code>basePlanId</code> from Google Play Developer API. The response
-          includes <code>offerDetails.basePlanId</code>:
+          Use <code>verifyPurchaseWithProvider</code> with IAPKit to get
+          accurate <code>basePlanId</code> from Google Play Developer API. The
+          response includes <code>offerDetails.basePlanId</code>:
         </p>
         <CodeBlock language="typescript">{`import { verifyPurchaseWithProvider } from 'expo-iap';
 

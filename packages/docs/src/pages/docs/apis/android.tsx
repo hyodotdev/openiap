@@ -26,15 +26,22 @@ function AndroidAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#acknowledge-purchase-android"><code>acknowledgePurchaseAndroid</code></a>: Acknowledge non-consumable
-            purchases
+            <a href="#acknowledge-purchase-android">
+              <code>acknowledgePurchaseAndroid</code>
+            </a>
+            : Acknowledge non-consumable purchases
           </li>
           <li>
-            <a href="#consume-purchase-android"><code>consumePurchaseAndroid</code></a>: Consume consumable purchases
+            <a href="#consume-purchase-android">
+              <code>consumePurchaseAndroid</code>
+            </a>
+            : Consume consumable purchases
           </li>
           <li>
-            <a href="#alternative-billing-android"><strong>Alternative Billing</strong></a>: 3-step flow for external
-            payment processing
+            <a href="#alternative-billing-android">
+              <strong>Alternative Billing</strong>
+            </a>
+            : 3-step flow for external payment processing
           </li>
         </ul>
       </TLDRBox>
@@ -97,7 +104,10 @@ function AndroidAPIs() {
           </p>
         </div>
 
-        <AnchorLink id="check-alternative-billing-availability-android" level="h3">
+        <AnchorLink
+          id="check-alternative-billing-availability-android"
+          level="h3"
+        >
           checkAlternativeBillingAvailabilityAndroid
         </AnchorLink>
         <p>
@@ -346,7 +356,10 @@ suspend fun launchExternalLink(
 // - linkType: ExternalLinkTypeAndroid
 // - linkUri: String (your external URL)`}</CodeBlock>
 
-        <AnchorLink id="create-billing-program-reporting-details-android" level="h3">
+        <AnchorLink
+          id="create-billing-program-reporting-details-android"
+          level="h3"
+        >
           createBillingProgramReportingDetailsAndroid
         </AnchorLink>
         <p>

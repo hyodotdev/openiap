@@ -88,7 +88,9 @@ function Subscription() {
                 <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
               </tr>
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>Pending upgrade/downgrade</td>
+                <td style={{ padding: '0.75rem' }}>
+                  Pending upgrade/downgrade
+                </td>
                 <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                   ✅ <code>pendingUpgradeProductId</code>
                 </td>
@@ -145,8 +147,7 @@ function Subscription() {
             <Link to="/docs/types#renewal-info-ios">
               <code>RenewalInfoIOS</code>
             </Link>
-            , but server validation is still
-            recommended for production apps.
+            , but server validation is still recommended for production apps.
           </p>
           <p>
             <strong>Android</strong>: Only <code>isAutoRenewing</code> available
@@ -229,8 +230,8 @@ function Subscription() {
         </p>
         <ul>
           <li>
-            <strong>iOS</strong>: App Store Server API +{' '}
-            App Store Server Notifications V2
+            <strong>iOS</strong>: App Store Server API + App Store Server
+            Notifications V2
           </li>
           <li>
             <strong>Android</strong>: Google Play Developer API + RTDN
@@ -238,9 +239,14 @@ function Subscription() {
           </li>
         </ul>
 
-        <Accordion title={<>💡 Easy Server Verification with IAPKit</>} variant="tip" defaultOpen>
+        <Accordion
+          title={<>💡 Easy Server Verification with IAPKit</>}
+          variant="tip"
+          defaultOpen
+        >
           <p>
-            Setting up server-side verification can be complex. OpenIAP's partner{' '}
+            Setting up server-side verification can be complex. OpenIAP's
+            partner{' '}
             <a
               href={IAPKIT_URL}
               target="_blank"
@@ -249,12 +255,13 @@ function Subscription() {
             >
               IAPKit
             </a>{' '}
-            provides a simple, unified API for server-side receipt validation across
-            both iOS and Android platforms.
+            provides a simple, unified API for server-side receipt validation
+            across both iOS and Android platforms.
           </p>
           <p>
-            With IAPKit, you can verify purchases, manage subscriptions, and handle
-            webhooks without building complex server infrastructure from scratch.
+            With IAPKit, you can verify purchases, manage subscriptions, and
+            handle webhooks without building complex server infrastructure from
+            scratch.
           </p>
           <p>
             Learn more about IAPKit integration in our{' '}
@@ -264,11 +271,15 @@ function Subscription() {
               rel="noopener noreferrer"
             >
               announcement
-            </a>.
+            </a>
+            .
           </p>
         </Accordion>
 
-        <Accordion title={<>⚠️ Why server-side validation?</>} variant="warning">
+        <Accordion
+          title={<>⚠️ Why server-side validation?</>}
+          variant="warning"
+        >
           <ul>
             <li>
               <strong>Authoritative source</strong>: Client data can be
@@ -287,8 +298,8 @@ function Subscription() {
               manipulation
             </li>
             <li>
-              <strong>Analytics</strong>: Track subscription metrics and
-              revenue server-side
+              <strong>Analytics</strong>: Track subscription metrics and revenue
+              server-side
             </li>
           </ul>
         </Accordion>
@@ -357,8 +368,12 @@ function Subscription() {
                 <div>1. initConnection()</div>
                 <div>2. getAvailablePurchases() → [PurchaseAndroid]</div>
                 <div>3. For each purchase:</div>
-                <div style={{ paddingLeft: '1.5rem' }}>→ check purchaseState</div>
-                <div style={{ paddingLeft: '1.5rem' }}>→ check isAcknowledged</div>
+                <div style={{ paddingLeft: '1.5rem' }}>
+                  → check purchaseState
+                </div>
+                <div style={{ paddingLeft: '1.5rem' }}>
+                  → check isAcknowledged
+                </div>
                 <div style={{ paddingLeft: '1.5rem' }}>
                   → validate with server
                 </div>
@@ -368,7 +383,9 @@ function Subscription() {
                 <div style={{ paddingLeft: '1.5rem' }}>
                   → finishTransaction() if not acknowledged
                 </div>
-                <div style={{ marginTop: '0.5rem', color: 'var(--text-warning)' }}>
+                <div
+                  style={{ marginTop: '0.5rem', color: 'var(--text-warning)' }}
+                >
                   ⚠️ Unacknowledged purchases auto-refund after 3 days
                 </div>
               </div>
@@ -436,14 +453,16 @@ function Subscription() {
                   finishTransaction()
                 </div>
                 <div style={{ paddingLeft: '1.5rem' }}>
-                  • <strong>PENDING (2)</strong> → awaiting payment (slow payment
-                  methods)
+                  • <strong>PENDING (2)</strong> → awaiting payment (slow
+                  payment methods)
                 </div>
                 <div style={{ paddingLeft: '1.5rem' }}>
                   • <strong>UNSPECIFIED (0)</strong> → unknown state, handle as
                   error
                 </div>
-                <div style={{ marginTop: '0.5rem', color: 'var(--text-warning)' }}>
+                <div
+                  style={{ marginTop: '0.5rem', color: 'var(--text-warning)' }}
+                >
                   ⚠️ Must acknowledge within 3 days or auto-refund
                 </div>
               </div>
@@ -773,7 +792,8 @@ function Subscription() {
               <strong>Without server validation:</strong>
             </div>
             <div style={{ paddingLeft: '1rem' }}>
-              • getAvailablePurchases() may still return the purchase temporarily
+              • getAvailablePurchases() may still return the purchase
+              temporarily
             </div>
             <div style={{ paddingLeft: '1rem' }}>
               • ❌ App grants access (incorrect - refunded!)
@@ -868,10 +888,9 @@ function Subscription() {
                   <Link to="/docs/types#renewal-info-ios">
                     <code>RenewalInfoIOS</code>
                   </Link>{' '}
-                  type contains
-                  detailed renewal information that lets you build subscription
-                  management UI without server calls. However, server validation
-                  is still recommended for production apps.
+                  type contains detailed renewal information that lets you build
+                  subscription management UI without server calls. However,
+                  server validation is still recommended for production apps.
                 </p>
 
                 <AnchorLink id="ios-renewal-info" level="h3">
@@ -947,10 +966,10 @@ function Subscription() {
                 <ol>
                   <li>
                     <strong>Immediately after upgrade</strong>: The{' '}
-                    <code>productId</code> may still show the old tier (monthly),
-                    but <code>autoRenewPreference</code> shows the new tier
-                    (yearly). The <code>pendingUpgradeProductId</code> is set to
-                    the new tier.
+                    <code>productId</code> may still show the old tier
+                    (monthly), but <code>autoRenewPreference</code> shows the
+                    new tier (yearly). The <code>pendingUpgradeProductId</code>{' '}
+                    is set to the new tier.
                   </li>
                   <li>
                     <strong>After processing (few minutes)</strong>: The{' '}
@@ -983,7 +1002,8 @@ function Subscription() {
                   <p>
                     This logic is already calculated in{' '}
                     <code>pendingUpgradeProductId</code> by comparing{' '}
-                    <code>productId</code> with <code>autoRenewPreference</code>.
+                    <code>productId</code> with <code>autoRenewPreference</code>
+                    .
                   </p>
                 </Accordion>
 
@@ -1084,7 +1104,9 @@ function Subscription() {
                     - Get detailed subscription status
                   </li>
                   <li>
-                    <Link to="/docs/types#renewal-info-ios">RenewalInfoIOS</Link>{' '}
+                    <Link to="/docs/types#renewal-info-ios">
+                      RenewalInfoIOS
+                    </Link>{' '}
                     - Type reference
                   </li>
                 </ul>

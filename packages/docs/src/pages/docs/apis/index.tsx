@@ -20,8 +20,10 @@ const legacyAnchorRedirects: Record<string, string> = {
   'restore-purchases': '/docs/apis/purchase#restore-purchases',
   'get-storefront': '/docs/apis/purchase#get-storefront',
   // Subscription
-  'get-active-subscriptions': '/docs/apis/subscription#get-active-subscriptions',
-  'has-active-subscriptions': '/docs/apis/subscription#has-active-subscriptions',
+  'get-active-subscriptions':
+    '/docs/apis/subscription#get-active-subscriptions',
+  'has-active-subscriptions':
+    '/docs/apis/subscription#has-active-subscriptions',
   'deep-link-to-subscriptions':
     '/docs/apis/subscription#deep-link-to-subscriptions',
   // Validation
@@ -41,7 +43,8 @@ const legacyAnchorRedirects: Record<string, string> = {
   'subscription-status-ios': '/docs/apis/ios#subscription-status-ios',
   'current-entitlement-ios': '/docs/apis/ios#current-entitlement-ios',
   'latest-transaction-ios': '/docs/apis/ios#latest-transaction-ios',
-  'show-manage-subscriptions-ios': '/docs/apis/ios#show-manage-subscriptions-ios',
+  'show-manage-subscriptions-ios':
+    '/docs/apis/ios#show-manage-subscriptions-ios',
   'begin-refund-request-ios': '/docs/apis/ios#begin-refund-request-ios',
   'is-transaction-verified-ios': '/docs/apis/ios#is-transaction-verified-ios',
   'get-transaction-jws-ios': '/docs/apis/ios#get-transaction-jws-ios',
@@ -111,25 +114,49 @@ function APIsIndex() {
       <TLDRBox title="API Categories">
         <ul>
           <li>
-            <Link to="/docs/apis/connection"><strong>Connection</strong></Link>: Initialize and manage store connection
+            <Link to="/docs/apis/connection">
+              <strong>Connection</strong>
+            </Link>
+            : Initialize and manage store connection
           </li>
           <li>
-            <Link to="/docs/apis/products"><strong>Products</strong></Link>: Fetch product information
+            <Link to="/docs/apis/products">
+              <strong>Products</strong>
+            </Link>
+            : Fetch product information
           </li>
           <li>
-            <Link to="/docs/apis/purchase"><strong>Purchase</strong></Link>: Request and complete purchases
+            <Link to="/docs/apis/purchase">
+              <strong>Purchase</strong>
+            </Link>
+            : Request and complete purchases
           </li>
           <li>
-            <Link to="/docs/apis/subscription"><strong>Subscription</strong></Link>: Manage subscriptions
+            <Link to="/docs/apis/subscription">
+              <strong>Subscription</strong>
+            </Link>
+            : Manage subscriptions
           </li>
           <li>
-            <Link to="/docs/apis/validation"><strong>Validation</strong></Link>: Verify purchases server-side
+            <Link to="/docs/apis/validation">
+              <strong>Validation</strong>
+            </Link>
+            : Verify purchases server-side
           </li>
           <li>
-            <Link to="/docs/apis/ios"><strong>iOS APIs</strong></Link> | <Link to="/docs/apis/android"><strong>Android APIs</strong></Link>
+            <Link to="/docs/apis/ios">
+              <strong>iOS APIs</strong>
+            </Link>{' '}
+            |{' '}
+            <Link to="/docs/apis/android">
+              <strong>Android APIs</strong>
+            </Link>
           </li>
           <li>
-            <Link to="/docs/apis/debugging"><strong>Debugging</strong></Link>: Error handling and troubleshooting
+            <Link to="/docs/apis/debugging">
+              <strong>Debugging</strong>
+            </Link>
+            : Error handling and troubleshooting
           </li>
         </ul>
       </TLDRBox>

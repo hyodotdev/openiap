@@ -21,26 +21,35 @@ function TypesVerification() {
       <h1>Verification Types</h1>
       <p>
         Type definitions for purchase verification with{' '}
-        <code>verifyPurchase()</code> and <code>verifyPurchaseWithProvider()</code>.
+        <code>verifyPurchase()</code> and{' '}
+        <code>verifyPurchaseWithProvider()</code>.
       </p>
 
       <TLDRBox>
         <ul>
           <li>
-            <a href="#verify-purchase-props"><code>VerifyPurchaseProps</code></a> - Input for verifyPurchase() with
-            platform-specific params
+            <a href="#verify-purchase-props">
+              <code>VerifyPurchaseProps</code>
+            </a>{' '}
+            - Input for verifyPurchase() with platform-specific params
           </li>
           <li>
-            <a href="#verify-purchase-result"><code>VerifyPurchaseResult</code></a> - Platform-specific verification
-            results
+            <a href="#verify-purchase-result">
+              <code>VerifyPurchaseResult</code>
+            </a>{' '}
+            - Platform-specific verification results
           </li>
           <li>
-            <a href="#verify-purchase-with-provider-props"><code>VerifyPurchaseWithProviderProps</code></a> - IAPKit integration
-            input
+            <a href="#verify-purchase-with-provider-props">
+              <code>VerifyPurchaseWithProviderProps</code>
+            </a>{' '}
+            - IAPKit integration input
           </li>
           <li>
-            <a href="#iapkit-purchase-state"><code>IapkitPurchaseState</code></a> - Unified purchase states from
-            IAPKit
+            <a href="#iapkit-purchase-state">
+              <code>IapkitPurchaseState</code>
+            </a>{' '}
+            - Unified purchase states from IAPKit
           </li>
         </ul>
       </TLDRBox>
@@ -70,8 +79,7 @@ function TypesVerification() {
                 <code>apple</code>
               </td>
               <td>
-                Apple App Store verification options. Contains:{' '}
-                <code>sku</code>
+                Apple App Store verification options. Contains: <code>sku</code>
               </td>
             </tr>
             <tr>
@@ -79,10 +87,9 @@ function TypesVerification() {
                 <code>google</code>
               </td>
               <td>
-                Google Play verification options. Contains:{' '}
-                <code>sku</code>, <code>packageName</code>,{' '}
-                <code>purchaseToken</code>, <code>accessToken</code>,{' '}
-                <code>isSub</code>
+                Google Play verification options. Contains: <code>sku</code>,{' '}
+                <code>packageName</code>, <code>purchaseToken</code>,{' '}
+                <code>accessToken</code>, <code>isSub</code>
               </td>
             </tr>
             <tr>
@@ -586,7 +593,10 @@ function TypesVerification() {
               <td>
                 <code>'inauthentic'</code>
               </td>
-              <td>Purchase failed authenticity validation (potentially fraudulent).</td>
+              <td>
+                Purchase failed authenticity validation (potentially
+                fraudulent).
+              </td>
             </tr>
           </tbody>
         </table>

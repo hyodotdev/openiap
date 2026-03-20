@@ -75,11 +75,20 @@ function Tutorials() {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
               }}
             >
-              <span style={{ color: 'var(--text-primary)', fontWeight: '500', fontSize: 'var(--font-size-sm)' }}>
+              <span
+                style={{
+                  color: 'var(--text-primary)',
+                  fontWeight: '500',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
                 Android Billing Library 8.0.0 Release
               </span>
               <span
-                style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-xs)' }}
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: 'var(--font-size-xs)',
+                }}
               >
                 2025-06-30
               </span>
@@ -108,11 +117,20 @@ function Tutorials() {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
               }}
             >
-              <span style={{ color: 'var(--text-primary)', fontWeight: '500', fontSize: 'var(--font-size-sm)' }}>
+              <span
+                style={{
+                  color: 'var(--text-primary)',
+                  fontWeight: '500',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
                 What's new in StoreKit and In-App Purchase
               </span>
               <span
-                style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-xs)' }}
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: 'var(--font-size-xs)',
+                }}
               >
                 2025-06-10
               </span>

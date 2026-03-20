@@ -15,6 +15,7 @@ import { DartPlugin } from './plugins/dart.js';
 import { GDScriptPlugin } from './plugins/gdscript.js';
 import type { CodegenPlugin } from './plugins/base-plugin.js';
 import type { IRSchema } from './core/types.js';
+import { lintSchema, formatLintResults } from './core/schema-linter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -55,6 +56,18 @@ export class CodeGenerator {
     // Parse and transform schema
     this.log('Parsing GraphQL schema...');
     const parsedSchema = parseSchema();
+
+    // Lint schema conventions
+    this.log('Linting schema conventions...');
+    const lintResults = lintSchema(parsedSchema);
+    const lintOutput = formatLintResults(lintResults);
+    this.log(lintOutput);
+
+    const lintErrors = lintResults.filter((r) => r.level === 'error');
+    if (lintErrors.length > 0) {
+      throw new Error(`Schema lint failed with ${lintErrors.length} error(s). Fix the above issues before generating code.`);
+    }
+
     this.schema = transformSchema(parsedSchema);
     this.log(`Found ${this.schema.enums.length} enums, ${this.schema.objects.length} objects, ${this.schema.unions.length} unions`);
 
@@ -149,7 +162,16 @@ const isMain =
 
 if (isMain) {
   main().catch((err) => {
-    console.error('Code generation failed:', err);
+    console.error('\n❌ Code generation failed:');
+    if (err instanceof Error) {
+      console.error(`  ${err.message}`);
+      if (err.stack) {
+        console.error('\nStack trace:');
+        console.error(err.stack);
+      }
+    } else {
+      console.error(err);
+    }
     process.exit(1);
   });
 }
@@ -165,3 +187,5 @@ export { KotlinPlugin } from './plugins/kotlin.js';
 export { DartPlugin } from './plugins/dart.js';
 export { GDScriptPlugin } from './plugins/gdscript.js';
 export type { IRSchema, IREnum, IRObject, IRUnion, IRType } from './core/types.js';
+export { lintSchema, formatLintResults } from './core/schema-linter.js';
+export type { LintResult, LintOptions } from './core/schema-linter.js';

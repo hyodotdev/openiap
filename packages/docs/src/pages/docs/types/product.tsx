@@ -24,17 +24,28 @@ function TypesProduct() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#product"><code>Product</code></a> - Union of ProductIOS and ProductAndroid
+            <a href="#product">
+              <code>Product</code>
+            </a>{' '}
+            - Union of ProductIOS and ProductAndroid
           </li>
           <li>
-            <a href="#product-subscription"><code>SubscriptionProduct</code></a> - Extends Product with subscription
-            fields
+            <a href="#product-subscription">
+              <code>SubscriptionProduct</code>
+            </a>{' '}
+            - Extends Product with subscription fields
           </li>
           <li>
-            <a href="#store-discriminators"><code>store</code></a> discriminator: "apple", "google", or "horizon"
+            <a href="#store-discriminators">
+              <code>store</code>
+            </a>{' '}
+            discriminator: "apple", "google", or "horizon"
           </li>
           <li>
-            <a href="#storefront"><code>Storefront</code></a> - User's store region (ISO 3166-1 alpha-2)
+            <a href="#storefront">
+              <code>Storefront</code>
+            </a>{' '}
+            - User's store region (ISO 3166-1 alpha-2)
           </li>
         </ul>
       </TLDRBox>
@@ -117,14 +128,16 @@ function TypesProduct() {
                 <code>store</code>
               </td>
               <td>
-                Store discriminator: <code>"apple"</code>,{' '}
-                <code>"google"</code>, or <code>"horizon"</code>
+                Store discriminator: <code>"apple"</code>, <code>"google"</code>
+                , or <code>"horizon"</code>
               </td>
             </tr>
             <tr>
               <td>
                 <code style={{ textDecoration: 'line-through' }}>platform</code>{' '}
-                <span style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}>
+                <span
+                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
+                >
                   (deprecated)
                 </span>
               </td>
@@ -221,15 +234,14 @@ function TypesProduct() {
                         Array of one-time purchase offers. Each offer contains:{' '}
                         <code>formattedPrice</code>,{' '}
                         <code>priceAmountMicros</code>,{' '}
-                        <code>priceCurrencyCode</code>,{' '}
-                        <code>offerToken</code>,{' '}
+                        <code>priceCurrencyCode</code>, <code>offerToken</code>,{' '}
                         <code>discountDisplayInfo</code> (discount info),{' '}
                         <code>fullPriceMicros</code> (original price),{' '}
                         <code>validTimeWindow</code>,{' '}
                         <code>limitedQuantityInfo</code>,{' '}
                         <code>preorderDetailsAndroid</code>,{' '}
-                        <code>rentalDetailsAndroid</code>.
-                        See <a href="/docs/features/discount">Discounts</a>.
+                        <code>rentalDetailsAndroid</code>. See{' '}
+                        <a href="/docs/features/discount">Discounts</a>.
                         Requires{' '}
                         <a
                           href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
@@ -255,11 +267,10 @@ function TypesProduct() {
                         <code>productStatusAndroid</code>
                       </td>
                       <td>
-                        Product fetch status code. Values: <code>OK</code> (success),{' '}
-                        <code>NOT_FOUND</code> (SKU doesn't exist),{' '}
-                        <code>NO_OFFERS_AVAILABLE</code> (user not eligible for any offers),{' '}
-                        <code>UNKNOWN</code>.
-                        Requires{' '}
+                        Product fetch status code. Values: <code>OK</code>{' '}
+                        (success), <code>NOT_FOUND</code> (SKU doesn't exist),{' '}
+                        <code>NO_OFFERS_AVAILABLE</code> (user not eligible for
+                        any offers), <code>UNKNOWN</code>. Requires{' '}
                         <a
                           href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
                           target="_blank"
@@ -433,9 +444,9 @@ function TypesProduct() {
           Unified Platform Types
         </AnchorLink>
         <p>
-          These types combine platform-specific types with a{' '}
-          <code>store</code> discriminator for type-safe handling across Apple,
-          Google, and Horizon stores.
+          These types combine platform-specific types with a <code>store</code>{' '}
+          discriminator for type-safe handling across Apple, Google, and Horizon
+          stores.
         </p>
 
         <AnchorLink id="store-discriminators" level="h3">
@@ -481,8 +492,8 @@ function TypesProduct() {
         </table>
         <blockquote className="info-note">
           <p>
-            <strong>Note:</strong> The <code>platform</code> field is deprecated.
-            Use <code>store</code> instead.
+            <strong>Note:</strong> The <code>platform</code> field is
+            deprecated. Use <code>store</code> instead.
           </p>
         </blockquote>
 

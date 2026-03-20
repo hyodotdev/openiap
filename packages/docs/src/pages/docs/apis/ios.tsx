@@ -25,19 +25,28 @@ function IOSAPIs() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#transaction-management"><strong>Transaction Management</strong></a>: clearTransactionIOS,
-            getPendingTransactionsIOS
+            <a href="#transaction-management">
+              <strong>Transaction Management</strong>
+            </a>
+            : clearTransactionIOS, getPendingTransactionsIOS
           </li>
           <li>
-            <a href="#subscription-management"><strong>Subscription</strong></a>: subscriptionStatusIOS,
-            showManageSubscriptionsIOS
+            <a href="#subscription-management">
+              <strong>Subscription</strong>
+            </a>
+            : subscriptionStatusIOS, showManageSubscriptionsIOS
           </li>
           <li>
-            <a href="#external-purchase-ios"><strong>External Purchase</strong></a>: iOS 17.4+ external purchase flow
+            <a href="#external-purchase-ios">
+              <strong>External Purchase</strong>
+            </a>
+            : iOS 17.4+ external purchase flow
           </li>
           <li>
-            <a href="#verification-ios"><strong>Verification</strong></a>: isTransactionVerifiedIOS,
-            getTransactionJwsIOS
+            <a href="#verification-ios">
+              <strong>Verification</strong>
+            </a>
+            : isTransactionVerifiedIOS, getTransactionJwsIOS
           </li>
         </ul>
       </TLDRBox>
@@ -153,9 +162,7 @@ func getStorefrontIOS() async throws -> String`}</CodeBlock>
         <AnchorLink id="get-transaction-jws-ios" level="h3">
           getTransactionJwsIOS
         </AnchorLink>
-        <p>
-          Get the transaction JWS for server-side validation (iOS 15+).
-        </p>
+        <p>Get the transaction JWS for server-side validation (iOS 15+).</p>
         <CodeBlock language="swift">{`func getTransactionJwsIOS(sku: String) async throws -> String?`}</CodeBlock>
 
         <AnchorLink id="get-receipt-data-ios" level="h3">
@@ -290,8 +297,9 @@ func requestPurchaseOnPromotedProductIOS() async throws -> Bool`}</CodeBlock>
         <p>
           In StoreKit 2, promoted products can be purchased directly via the
           standard purchase flow. When a user taps a promoted product in the App
-          Store, the <code>promotedProductListenerIOS</code> event fires with the
-          product ID. Use this ID to call <code>requestPurchase()</code> directly.
+          Store, the <code>promotedProductListenerIOS</code> event fires with
+          the product ID. Use this ID to call <code>requestPurchase()</code>{' '}
+          directly.
         </p>
         <CodeBlock language="swift">{`// Recommended approach
 let subscription = promotedProductListenerIOS { productId in

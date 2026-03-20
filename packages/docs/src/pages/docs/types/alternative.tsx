@@ -26,21 +26,36 @@ function TypesAlternative() {
       <TLDRBox>
         <ul>
           <li>
-            <a href="#billing-programs"><code>BillingProgramAndroid</code></a> - USER_CHOICE_BILLING (7.0+),
-            EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, EXTERNAL_PAYMENTS (8.2.0+, 8.3.0+)
+            <a href="#billing-programs">
+              <code>BillingProgramAndroid</code>
+            </a>{' '}
+            - USER_CHOICE_BILLING (7.0+), EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER,
+            EXTERNAL_PAYMENTS (8.2.0+, 8.3.0+)
           </li>
           <li>
-            <a href="#init-connection-config"><code>InitConnectionConfig.enableBillingProgramAndroid</code></a> - Recommended way to enable billing programs
+            <a href="#init-connection-config">
+              <code>InitConnectionConfig.enableBillingProgramAndroid</code>
+            </a>{' '}
+            - Recommended way to enable billing programs
           </li>
           <li>
-            <a href="#developer-billing-option"><code>DeveloperBillingOptionParamsAndroid</code></a> - Configure
-            external payments in purchase flow (8.3.0+)
+            <a href="#developer-billing-option">
+              <code>DeveloperBillingOptionParamsAndroid</code>
+            </a>{' '}
+            - Configure external payments in purchase flow (8.3.0+)
           </li>
           <li>
-            <s><code>AlternativeBillingModeAndroid</code></s> - <strong>Deprecated:</strong> Use <code>BillingProgramAndroid</code> instead
+            <s>
+              <code>AlternativeBillingModeAndroid</code>
+            </s>{' '}
+            - <strong>Deprecated:</strong> Use{' '}
+            <code>BillingProgramAndroid</code> instead
           </li>
           <li>
-            <a href="#external-purchase-link-ios">External Purchase Link APIs</a> for iOS 17.4+ and 18.2+
+            <a href="#external-purchase-link-ios">
+              External Purchase Link APIs
+            </a>{' '}
+            for iOS 17.4+ and 18.2+
           </li>
           <li>
             For Android alternative billing, use the{' '}
@@ -61,13 +76,24 @@ function TypesAlternative() {
         </p>
 
         <AnchorLink id="alternative-billing-mode-android" level="h3">
-          AlternativeBillingModeAndroid <span style={{ color: 'var(--text-warning)', fontSize: '0.875rem' }}>(Deprecated)</span>
+          AlternativeBillingModeAndroid{' '}
+          <span style={{ color: 'var(--text-warning)', fontSize: '0.875rem' }}>
+            (Deprecated)
+          </span>
         </AnchorLink>
         <div className="warning-box" style={{ marginBottom: '1rem' }}>
-          <strong>Deprecated:</strong> Use <code>enableBillingProgramAndroid</code> with <code>BillingProgramAndroid</code> instead.
+          <strong>Deprecated:</strong> Use{' '}
+          <code>enableBillingProgramAndroid</code> with{' '}
+          <code>BillingProgramAndroid</code> instead.
           <ul style={{ marginBottom: 0 }}>
-            <li><code>USER_CHOICE</code> → <code>BillingProgramAndroid.USER_CHOICE_BILLING</code></li>
-            <li><code>ALTERNATIVE_ONLY</code> → <code>BillingProgramAndroid.EXTERNAL_OFFER</code></li>
+            <li>
+              <code>USER_CHOICE</code> →{' '}
+              <code>BillingProgramAndroid.USER_CHOICE_BILLING</code>
+            </li>
+            <li>
+              <code>ALTERNATIVE_ONLY</code> →{' '}
+              <code>BillingProgramAndroid.EXTERNAL_OFFER</code>
+            </li>
           </ul>
         </div>
         <p>
@@ -128,9 +154,11 @@ function TypesAlternative() {
                 <code>enableBillingProgramAndroid</code>
               </td>
               <td>
-                <strong>(Recommended)</strong> Enable a specific billing program during connection.
-                Use <code>USER_CHOICE_BILLING</code> for user choice, <code>EXTERNAL_OFFER</code> for alternative only,
-                or <code>EXTERNAL_PAYMENTS</code> for Japan external payments (8.3.0+).
+                <strong>(Recommended)</strong> Enable a specific billing program
+                during connection. Use <code>USER_CHOICE_BILLING</code> for user
+                choice, <code>EXTERNAL_OFFER</code> for alternative only, or{' '}
+                <code>EXTERNAL_PAYMENTS</code> for Japan external payments
+                (8.3.0+).
               </td>
             </tr>
             <tr>
@@ -138,7 +166,9 @@ function TypesAlternative() {
                 <code>alternativeBillingModeAndroid</code>
               </td>
               <td>
-                <span style={{ color: 'var(--text-warning)' }}>(Deprecated)</span>{' '}
+                <span style={{ color: 'var(--text-warning)' }}>
+                  (Deprecated)
+                </span>{' '}
                 Use <code>enableBillingProgramAndroid</code> instead.
               </td>
             </tr>
@@ -453,8 +483,8 @@ await iap.request_purchase(props)
           Alternative Billing Only Complete Example
         </AnchorLink>
         <p>
-          With External Offer mode (replaces Alternative Only), all purchases go through your
-          alternative payment system. Google Play is not shown:
+          With External Offer mode (replaces Alternative Only), all purchases go
+          through your alternative payment system. Google Play is not shown:
         </p>
         <LanguageTabs>
           {{
@@ -670,8 +700,8 @@ if payment_result.success:
           Billing Programs (Android 8.2.0+)
         </AnchorLink>
         <p>
-          Google Play Billing Library 8.2.0+ introduces the Billing Programs API,
-          which provides a more structured approach to external offers and
+          Google Play Billing Library 8.2.0+ introduces the Billing Programs
+          API, which provides a more structured approach to external offers and
           content links. Version 8.3.0 adds External Payments for Japan.
         </p>
 
@@ -679,7 +709,9 @@ if payment_result.success:
           BillingProgramAndroid
         </AnchorLink>
         <p>
-          Enum for different billing program types. Use with <code>enableBillingProgramAndroid</code> in <code>InitConnectionConfig</code>:
+          Enum for different billing program types. Use with{' '}
+          <code>enableBillingProgramAndroid</code> in{' '}
+          <code>InitConnectionConfig</code>:
         </p>
         <table className="doc-table">
           <thead>
@@ -704,7 +736,8 @@ if payment_result.success:
                 <code>EXTERNAL_CONTENT_LINK</code>
               </td>
               <td>
-                For apps that link to external content (reader apps, music streaming)
+                For apps that link to external content (reader apps, music
+                streaming)
               </td>
               <td>8.2.0+</td>
             </tr>
@@ -713,7 +746,8 @@ if payment_result.success:
                 <code>EXTERNAL_OFFER</code>
               </td>
               <td>
-                For apps offering alternative payment options (replaces ALTERNATIVE_ONLY)
+                For apps offering alternative payment options (replaces
+                ALTERNATIVE_ONLY)
               </td>
               <td>8.2.0+</td>
             </tr>
@@ -722,7 +756,8 @@ if payment_result.success:
                 <code>EXTERNAL_PAYMENTS</code>
               </td>
               <td>
-                Side-by-side choice between Google Play and developer billing (Japan only)
+                Side-by-side choice between Google Play and developer billing
+                (Japan only)
               </td>
               <td>8.3.0+</td>
             </tr>
@@ -733,7 +768,8 @@ if payment_result.success:
           DeveloperBillingOptionParamsAndroid
         </AnchorLink>
         <p>
-          Parameters for configuring developer billing option in purchase flow (8.3.0+):
+          Parameters for configuring developer billing option in purchase flow
+          (8.3.0+):
         </p>
         <table className="doc-table">
           <thead>
@@ -762,9 +798,7 @@ if payment_result.success:
               <td>
                 <code>String</code>
               </td>
-              <td>
-                URL where the external payment will be processed
-              </td>
+              <td>URL where the external payment will be processed</td>
             </tr>
             <tr>
               <td>
@@ -773,9 +807,7 @@ if payment_result.success:
               <td>
                 <code>DeveloperBillingLaunchModeAndroid</code>
               </td>
-              <td>
-                How to launch the external payment link
-              </td>
+              <td>How to launch the external payment link</td>
             </tr>
           </tbody>
         </table>
@@ -783,9 +815,7 @@ if payment_result.success:
         <AnchorLink id="developer-billing-launch-mode" level="h3">
           DeveloperBillingLaunchModeAndroid
         </AnchorLink>
-        <p>
-          How the external payment URL is launched:
-        </p>
+        <p>How the external payment URL is launched:</p>
         <table className="doc-table">
           <thead>
             <tr>
@@ -816,9 +846,7 @@ if payment_result.success:
         <AnchorLink id="developer-provided-billing-details" level="h3">
           DeveloperProvidedBillingDetailsAndroid
         </AnchorLink>
-        <p>
-          Details received when user selects developer billing (8.3.0+):
-        </p>
+        <p>Details received when user selects developer billing (8.3.0+):</p>
         <table className="doc-table">
           <thead>
             <tr>
@@ -836,7 +864,8 @@ if payment_result.success:
                 <code>String</code>
               </td>
               <td>
-                Token to report external transaction to Google (must report within 24 hours)
+                Token to report external transaction to Google (must report
+                within 24 hours)
               </td>
             </tr>
           </tbody>
@@ -991,8 +1020,8 @@ if result.is_available:
           <p>
             <strong>Token Reporting:</strong> When a user completes a purchase
             through developer billing, you must report the{' '}
-            <code>externalTransactionToken</code> to Google Play within 24 hours.
-            See{' '}
+            <code>externalTransactionToken</code> to Google Play within 24
+            hours. See{' '}
             <Link to="/docs/features/external-purchase#external-payments-830---japan-only">
               External Payments documentation
             </Link>{' '}
