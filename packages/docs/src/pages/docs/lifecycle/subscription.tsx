@@ -34,108 +34,80 @@ function Subscription() {
           requires server-side calls for detailed information.
         </p>
 
-        <div
-          style={{
-            overflowX: 'auto',
-            margin: '1.5rem 0',
-          }}
-        >
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '0.9rem',
-            }}
-          >
+        <div style={{ overflowX: 'auto' }}>
+          <table>
             <thead>
-              <tr
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  borderBottom: '2px solid var(--border-color)',
-                }}
-              >
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>
-                  Information
-                </th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>
-                  iOS Client
-                </th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>
-                  Android Client
-                </th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>
-                  Server (Both)
-                </th>
+              <tr>
+                <th>Information</th>
+                <th style={{ textAlign: 'center' }}>iOS Client</th>
+                <th style={{ textAlign: 'center' }}>Android Client</th>
+                <th style={{ textAlign: 'center' }}>Server (Both)</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>Auto-renew status</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <tr>
+                <td>Auto-renew status</td>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>willAutoRenew</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>isAutoRenewing</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>Next renewal product</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <tr>
+                <td>Next renewal product</td>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>autoRenewPreference</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>❌</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>
-                  Pending upgrade/downgrade
-                </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <tr>
+                <td>Pending upgrade/downgrade</td>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>pendingUpgradeProductId</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>❌</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>Expiration reason</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <tr>
+                <td>Expiration reason</td>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>expirationReason</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>❌</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>Grace period status</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <tr>
+                <td>Grace period status</td>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>gracePeriodExpirationDate</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>❌</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>Billing retry status</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <tr>
+                <td>Billing retry status</td>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>isInBillingRetry</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>❌</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>Renewal date</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <tr>
+                <td>Renewal date</td>
+                <td style={{ textAlign: 'center' }}>
                   ✅ <code>renewalDate</code>
                 </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>❌</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem' }}>
-                  Detailed subscription state
-                </td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>❌</td>
-                <td style={{ padding: '0.75rem', textAlign: 'center' }}>✅</td>
+              <tr>
+                <td>Detailed subscription state</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
+                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
             </tbody>
           </table>
@@ -324,29 +296,16 @@ function Subscription() {
         <PlatformTabs>
           {{
             ios: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>1. initConnection()</div>
                 <div>2. getAvailablePurchases() → [PurchaseIOS]</div>
                 <div>3. For each purchase:</div>
-                <div style={{ paddingLeft: '1.5rem' }}>
-                  → check transactionState
-                </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
-                  → validate with server
-                </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">→ check transactionState</div>
+                <div className="lifecycle-indent">→ validate with server</div>
+                <div className="lifecycle-indent">
                   → update local entitlements
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → finishTransaction() for unfinished transactions
                 </div>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
@@ -355,32 +314,17 @@ function Subscription() {
               </div>
             ),
             android: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>1. initConnection()</div>
                 <div>2. getAvailablePurchases() → [PurchaseAndroid]</div>
                 <div>3. For each purchase:</div>
-                <div style={{ paddingLeft: '1.5rem' }}>
-                  → check purchaseState
-                </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
-                  → check isAcknowledged
-                </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
-                  → validate with server
-                </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">→ check purchaseState</div>
+                <div className="lifecycle-indent">→ check isAcknowledged</div>
+                <div className="lifecycle-indent">→ validate with server</div>
+                <div className="lifecycle-indent">
                   → update local entitlements
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → finishTransaction() if not acknowledged
                 </div>
                 <div
@@ -403,60 +347,42 @@ function Subscription() {
         <PlatformTabs>
           {{
             ios: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>1. requestPurchase(sku) → StoreKit payment sheet</div>
                 <div>2. purchaseUpdatedListener receives PurchaseIOS</div>
                 <div>3. Check transactionState:</div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • <strong>purchased</strong> → validate → deliver →
                   finishTransaction()
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • <strong>pending</strong> → payment processing, wait for
                   update
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • <strong>failed</strong> → show error, check
                   purchaseErrorListener
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • <strong>deferred</strong> → Ask to Buy (parental approval
                   needed)
                 </div>
               </div>
             ),
             android: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>1. requestPurchase(sku) → Google Play payment sheet</div>
                 <div>2. purchaseUpdatedListener receives PurchaseAndroid</div>
                 <div>3. Check purchaseState:</div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • <strong>PURCHASED (1)</strong> → validate → deliver →
                   finishTransaction()
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • <strong>PENDING (2)</strong> → awaiting payment (slow
                   payment methods)
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • <strong>UNSPECIFIED (0)</strong> → unknown state, handle as
                   error
                 </div>
@@ -480,58 +406,40 @@ function Subscription() {
         <PlatformTabs>
           {{
             ios: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>1. getActiveSubscriptions() → [ActiveSubscriptionIOS]</div>
                 <div>2. For each subscription:</div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • isActive = true → grant access
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • check renewalInfoIOS for details:
                 </div>
-                <div style={{ paddingLeft: '3rem' }}>
+                <div className="lifecycle-indent-2">
                   - willAutoRenew = false → show renewal prompt
                 </div>
-                <div style={{ paddingLeft: '3rem' }}>
+                <div className="lifecycle-indent-2">
                   - isInBillingRetry = true → show payment issue
                 </div>
-                <div style={{ paddingLeft: '3rem' }}>
+                <div className="lifecycle-indent-2">
                   - pendingUpgradeProductId → show pending change
                 </div>
-                <div style={{ paddingLeft: '3rem' }}>
+                <div className="lifecycle-indent-2">
                   - expirationDate → show expiry info
                 </div>
                 <div>3. No active subscriptions → revoke access</div>
               </div>
             ),
             android: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>
                   1. getActiveSubscriptions() → [ActiveSubscriptionAndroid]
                 </div>
                 <div>2. For each subscription:</div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • isActive = true → grant access
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • check isAutoRenewing only (limited client data)
                 </div>
                 <div>3. No active subscriptions → revoke access</div>
@@ -554,69 +462,51 @@ function Subscription() {
         <PlatformTabs>
           {{
             ios: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>
                   <strong>Detection:</strong> willAutoRenew = false
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>
                   <strong>User still has access:</strong>
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • Until expirationDate (available in renewalInfoIOS)
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>
                   <strong>Actions:</strong>
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → Show "subscription ends on [expirationDate]"
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → Offer re-subscribe option
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → Keep access until expiration
                 </div>
               </div>
             ),
             android: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>
                   <strong>Detection:</strong> isAutoRenewing = false
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>
                   <strong>User still has access:</strong>
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   • Until server-side expiryTime (not available client-side)
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>
                   <strong>Actions:</strong>
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → Query server for exact expiry date
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → Offer re-subscribe option
                 </div>
-                <div style={{ paddingLeft: '1.5rem' }}>
+                <div className="lifecycle-indent">
                   → Keep access until server confirms expiry
                 </div>
               </div>
@@ -630,17 +520,7 @@ function Subscription() {
         <p>
           When a subscription expires (cancelled + period ended), revoke access:
         </p>
-        <div
-          style={{
-            backgroundColor: 'var(--bg-secondary)',
-            padding: '1rem 1.5rem',
-            borderRadius: '8px',
-            fontFamily: 'monospace',
-            fontSize: '0.9rem',
-            lineHeight: '1.6',
-            margin: '1rem 0',
-          }}
-        >
+        <div className="lifecycle-flow" style={{ margin: '1rem 0' }}>
           <div>
             1. getActiveSubscriptions() returns empty or no matching product
           </div>
@@ -659,16 +539,7 @@ function Subscription() {
         <PlatformTabs>
           {{
             ios: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>1. User taps "Restore Purchases"</div>
                 <div>2. getAvailablePurchases() → [PurchaseIOS]</div>
                 <div>3. StoreKit fetches from Apple ID's purchase history</div>
@@ -682,16 +553,7 @@ function Subscription() {
               </div>
             ),
             android: (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  padding: '1rem 1.5rem',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                }}
-              >
+              <div className="lifecycle-flow">
                 <div>1. User taps "Restore Purchases"</div>
                 <div>2. getAvailablePurchases() → [PurchaseAndroid]</div>
                 <div>
@@ -719,59 +581,42 @@ function Subscription() {
           correct handling:
         </p>
 
-        <div
-          style={{
-            backgroundColor: 'var(--bg-secondary)',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            margin: '1rem 0',
-          }}
-        >
+        <div className="lifecycle-flow" style={{ margin: '1rem 0' }}>
           <div style={{ marginBottom: '1rem' }}>
             <strong>Timeline: Cancelled Subscription</strong>
           </div>
-          <div
-            style={{
-              fontFamily: 'monospace',
-              fontSize: '0.9rem',
-              lineHeight: '1.8',
-            }}
-          >
-            <div>
-              <strong>Day 1:</strong> User cancels subscription
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • Subscription still valid until Day 30 (billing period end)
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • iOS: willAutoRenew = false
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • Android: isAutoRenewing = false
-            </div>
+          <div>
+            <strong>Day 1:</strong> User cancels subscription
+          </div>
+          <div className="lifecycle-indent">
+            • Subscription still valid until Day 30 (billing period end)
+          </div>
+          <div className="lifecycle-indent">• iOS: willAutoRenew = false</div>
+          <div className="lifecycle-indent">
+            • Android: isAutoRenewing = false
+          </div>
 
-            <div style={{ marginTop: '0.75rem' }}>
-              <strong>Day 15:</strong> User restores purchases
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • getAvailablePurchases() returns the purchase (not expired)
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • ✅ Grant access (still valid until Day 30)
-            </div>
+          <div style={{ marginTop: '0.75rem' }}>
+            <strong>Day 15:</strong> User restores purchases
+          </div>
+          <div className="lifecycle-indent">
+            • getAvailablePurchases() returns the purchase (not expired)
+          </div>
+          <div className="lifecycle-indent">
+            • ✅ Grant access (still valid until Day 30)
+          </div>
 
-            <div style={{ marginTop: '0.75rem' }}>
-              <strong>Day 35:</strong> User restores purchases
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • iOS: currentEntitlements returns empty (expired)
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • Android: queryPurchases returns empty (expired)
-            </div>
-            <div style={{ paddingLeft: '1rem', fontSize: '0.85rem' }}>
-              • ✅ No access (correctly expired)
-            </div>
+          <div style={{ marginTop: '0.75rem' }}>
+            <strong>Day 35:</strong> User restores purchases
+          </div>
+          <div className="lifecycle-indent">
+            • iOS: currentEntitlements returns empty (expired)
+          </div>
+          <div className="lifecycle-indent">
+            • Android: queryPurchases returns empty (expired)
+          </div>
+          <div className="lifecycle-indent">
+            • ✅ No access (correctly expired)
           </div>
         </div>
 
@@ -1450,14 +1295,7 @@ function Subscription() {
             marginTop: '1.5rem',
           }}
         >
-          <div
-            style={{
-              padding: '1.5rem',
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-            }}
-          >
+          <div className="lifecycle-summary-card">
             <h3 style={{ marginTop: 0 }}>iOS</h3>
             <ul style={{ marginBottom: 0 }}>
               <li>
@@ -1475,14 +1313,7 @@ function Subscription() {
             </ul>
           </div>
 
-          <div
-            style={{
-              padding: '1.5rem',
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-            }}
-          >
+          <div className="lifecycle-summary-card">
             <h3 style={{ marginTop: 0 }}>Android</h3>
             <ul style={{ marginBottom: 0 }}>
               <li>

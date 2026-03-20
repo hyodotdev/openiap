@@ -216,7 +216,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     public func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
         try await ensureConnection()
-        let iosProps = try resolveIosPurchaseProps(from: params)
+        let iosProps = try resolveIOSPurchaseProps(from: params)
         let sku = iosProps.sku
         let product = try await storeProduct(for: sku)
         let options = try StoreKitTypesBridge.purchaseOptions(from: iosProps, product: product)
@@ -1382,7 +1382,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Resolves iOS purchase props from request params.
     /// Returns either RequestPurchaseIosProps or RequestSubscriptionIosProps based on request type.
-    private func resolveIosPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
+    private func resolveIOSPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
         switch params.request {
         case let .purchase(platforms):
             if let ios = platforms.ios {
