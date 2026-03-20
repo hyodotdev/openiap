@@ -1,12 +1,14 @@
 import { signal } from '@preact/signals-react';
 
-// Search Modal state - use boolean directly
-export const searchModalSignal = signal(false);
+// Search Modal state signal (object-based pattern for extensibility)
+export const searchModalSignal = signal({
+  isOpen: false,
+});
 
 export const openSearchModal = () => {
-  searchModalSignal.value = true;
+  searchModalSignal.value = { isOpen: true };
 };
 
 export const closeSearchModal = () => {
-  searchModalSignal.value = false;
+  searchModalSignal.value = { isOpen: false };
 };

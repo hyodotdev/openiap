@@ -1,6 +1,12 @@
 /**
  * Template-based Plugin for Code Generation
  *
+ * @deprecated This plugin is not currently registered in the codegen pipeline.
+ * It was an experimental approach using Handlebars templates. All active
+ * language plugins (Swift, Kotlin, Dart, GDScript) extend CodegenPlugin
+ * directly. Consider removing this file if not needed, or register it
+ * in codegen/index.ts if you plan to use template-based generation.
+ *
  * Base class that uses Handlebars templates for common structures
  * while allowing language-specific customization through hooks.
  */

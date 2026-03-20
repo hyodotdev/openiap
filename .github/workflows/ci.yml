@@ -206,6 +206,10 @@ jobs:
         working-directory: packages/docs
         run: bun run lint
 
+      - name: Format check
+        working-directory: packages/docs
+        run: bunx prettier --check "src/**/*.{ts,tsx,css}"
+
       - name: Build
         working-directory: packages/docs
         run: bun run build
