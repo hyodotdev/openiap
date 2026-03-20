@@ -522,7 +522,7 @@ export const apiData: ApiItem[] = [
     path: '/docs/types/ios#payment-mode',
   },
   {
-    id: 'subscription-status-ios',
+    id: 'subscription-status-ios-type',
     title: 'SubscriptionStatusIOS',
     category: 'Types (iOS)',
     description: 'iOS subscription status from StoreKit 2: state, renewalInfo',

@@ -9,9 +9,13 @@ interface SearchModalProps {
   onClose: () => void;
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function highlightMatch(text: string, query: string) {
   if (!query) return text;
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, 'gi'));
   return parts.map((part, index) =>
     part.toLowerCase() === query.toLowerCase() ? (
       <mark key={index} className="search-highlight">
