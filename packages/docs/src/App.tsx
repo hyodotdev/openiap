@@ -15,12 +15,12 @@ import { searchModalSignal, closeSearchModal } from './lib/signals';
 import { effect } from '@preact/signals-react';
 
 function App() {
-  const [isSearchOpen, setIsSearchOpen] = useState(searchModalSignal.value.isOpen);
+  const [isSearchOpen, setIsSearchOpen] = useState(searchModalSignal.value);
 
   useEffect(() => {
     // Subscribe to signal changes
     const unsubscribe = effect(() => {
-      setIsSearchOpen(searchModalSignal.value.isOpen);
+      setIsSearchOpen(searchModalSignal.value);
     });
 
     return () => unsubscribe();

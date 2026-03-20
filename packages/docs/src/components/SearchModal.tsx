@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
-import { apiData } from '../lib/searchData';
-import { useSearchKeyboard } from '../hooks/useSearchKeyboard';
+import { useNavigate } from 'react-router-dom';
+import { apiData, type ApiItem } from '../lib/searchData';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -27,6 +27,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const filteredApis = useMemo(() => {
     if (!searchQuery) return [];
@@ -42,13 +43,13 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
     );
   }, [searchQuery]);
 
-  const { handleApiSelect } = useSearchKeyboard({
-    isOpen,
-    filteredApis,
-    selectedIndex,
-    setSelectedIndex,
-    onClose,
-  });
+  const handleApiSelect = useCallback(
+    (api: ApiItem) => {
+      navigate(api.path);
+      onClose();
+    },
+    [navigate, onClose],
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -66,6 +67,33 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < filteredApis.length - 1 ? prev + 1 : prev,
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      } else if (e.key === 'Enter' && filteredApis.length > 0) {
+        e.preventDefault();
+        const selectedApi = filteredApis[selectedIndex];
+        if (selectedApi) {
+          handleApiSelect(selectedApi);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, filteredApis, selectedIndex, onClose, handleApiSelect]);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
