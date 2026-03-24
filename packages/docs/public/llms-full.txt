@@ -1764,7 +1764,7 @@ let result = try await ExternalPurchase.open(url: externalURL)
 
 ### Ecosystem Libraries
 - expo-iap: https://github.com/hyochan/expo-iap
-- react-native-iap: https://github.com/dooboolab-community/react-native-iap
-- flutter_inapp_purchase: https://github.com/dooboolab-community/flutter_inapp_purchase
+- react-native-iap: https://github.com/hyochan/react-native-iap
+- flutter_inapp_purchase: https://github.com/hyochan/flutter_inapp_purchase
 - godot-iap: https://github.com/hyochan/godot-iap
-- kmp-iap: https://github.com/nicoseng/kmp-iap
+- kmp-iap: https://github.com/hyochan/kmp-iap

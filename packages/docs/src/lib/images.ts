@@ -32,7 +32,7 @@ export const LIBRARIES: LibraryInfo[] = [
     name: 'react-native-iap',
     displayName: 'react-native-iap',
     description: 'React Native & Expo (Nitro Modules)',
-    url: 'https://github.com/dooboolab-community/react-native-iap',
+    url: 'https://github.com/hyochan/react-native-iap',
     image: LIBRARY_IMAGES['react-native-iap'],
   },
   {
@@ -46,14 +46,14 @@ export const LIBRARIES: LibraryInfo[] = [
     name: 'flutter_inapp_purchase',
     displayName: 'flutter_inapp_purchase',
     description: 'Flutter',
-    url: 'https://github.com/dooboolab-community/flutter_inapp_purchase',
+    url: 'https://github.com/hyochan/flutter_inapp_purchase',
     image: LIBRARY_IMAGES['flutter_inapp_purchase'],
   },
   {
     name: 'kmp-iap',
     displayName: 'kmp-iap',
     description: 'Kotlin Multiplatform',
-    url: 'https://github.com/nicoseng/kmp-iap',
+    url: 'https://github.com/hyochan/kmp-iap',
     image: LIBRARY_IMAGES['kmp-iap'],
   },
   {

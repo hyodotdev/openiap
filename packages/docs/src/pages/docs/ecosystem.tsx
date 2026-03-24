@@ -123,7 +123,7 @@ function Ecosystem() {
         <ul style={{ listStyle: 'none', padding: 0 }}>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/dooboolab-community/react-native-iap"
+              href="https://github.com/hyochan/react-native-iap"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -147,7 +147,7 @@ function Ecosystem() {
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/dooboolab-community/flutter_inapp_purchase"
+              href="https://github.com/hyochan/flutter_inapp_purchase"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -157,7 +157,7 @@ function Ecosystem() {
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/nicoseng/kmp-iap"
+              href="https://github.com/hyochan/kmp-iap"
               target="_blank"
               rel="noopener noreferrer"
             >

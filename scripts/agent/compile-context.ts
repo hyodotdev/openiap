@@ -47,7 +47,7 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   // Read all external API docs
   const externalFiles = await glob(
     path.join(CONFIG.knowledgeRoot, "external/**/*.md"),
-    { absolute: true }
+    { absolute: true },
   );
 
   // Combine all external docs for llms-full.txt
@@ -129,10 +129,10 @@ dependencies:
 
 ### Ecosystem Libraries
 - expo-iap: https://github.com/hyochan/expo-iap
-- react-native-iap: https://github.com/dooboolab-community/react-native-iap
-- flutter_inapp_purchase: https://github.com/dooboolab-community/flutter_inapp_purchase
+- react-native-iap: https://github.com/hyochan/react-native-iap
+- flutter_inapp_purchase: https://github.com/hyochan/flutter_inapp_purchase
 - godot-iap: https://github.com/hyochan/godot-iap
-- kmp-iap: https://github.com/nicoseng/kmp-iap
+- kmp-iap: https://github.com/hyochan/kmp-iap
 `;
 
   // Generate llms.txt (quick reference - condensed version)
@@ -345,8 +345,14 @@ interface PurchaseError {
   fs.writeFileSync(llmsPath, quickContent);
   fs.writeFileSync(llmsFullPath, fullContent);
 
-  console.log(chalk.green(`  ✓ llms.txt: ${(quickContent.length / 1024).toFixed(1)} KB`));
-  console.log(chalk.green(`  ✓ llms-full.txt: ${(fullContent.length / 1024).toFixed(1)} KB`));
+  console.log(
+    chalk.green(`  ✓ llms.txt: ${(quickContent.length / 1024).toFixed(1)} KB`),
+  );
+  console.log(
+    chalk.green(
+      `  ✓ llms-full.txt: ${(fullContent.length / 1024).toFixed(1)} KB`,
+    ),
+  );
 
   return { quick: quickContent.length, full: fullContent.length };
 }
@@ -394,7 +400,7 @@ These rules define OpenIAP's development philosophy.
 
   const internalFiles = await glob(
     path.join(CONFIG.knowledgeRoot, "internal/**/*.md"),
-    { absolute: true }
+    { absolute: true },
   );
 
   for (const filePath of internalFiles.sort()) {
@@ -408,7 +414,9 @@ These rules define OpenIAP's development philosophy.
     output += "\n\n---\n\n";
   }
 
-  console.log(chalk.green(`  ✓ ${internalFiles.length} internal files processed`));
+  console.log(
+    chalk.green(`  ✓ ${internalFiles.length} internal files processed`),
+  );
 
   // =========================================================================
   // EXTERNAL API DOCS (REFERENCE)
@@ -426,7 +434,7 @@ Use this documentation for API details, but **ALWAYS adapt patterns to match Int
 
   const externalFiles = await glob(
     path.join(CONFIG.knowledgeRoot, "external/**/*.md"),
-    { absolute: true }
+    { absolute: true },
   );
 
   for (const filePath of externalFiles.sort()) {
@@ -440,7 +448,9 @@ Use this documentation for API details, but **ALWAYS adapt patterns to match Int
     output += "\n\n---\n\n";
   }
 
-  console.log(chalk.green(`  ✓ ${externalFiles.length} external files processed`));
+  console.log(
+    chalk.green(`  ✓ ${externalFiles.length} external files processed`),
+  );
 
   // =========================================================================
   // PROJECT STRUCTURE
@@ -499,18 +509,38 @@ openiap/
   console.log(chalk.bold.cyan("═".repeat(60)));
   console.log(chalk.magenta(`  Internal Rules: ${internalFiles.length} files`));
   console.log(chalk.cyan(`  External Docs:  ${externalFiles.length} files`));
-  console.log(chalk.white(`  context.md:     ${(output.length / 1024).toFixed(1)} KB`));
-  console.log(chalk.white(`  llms.txt:       ${(llmsStats.quick / 1024).toFixed(1)} KB`));
-  console.log(chalk.white(`  llms-full.txt:  ${(llmsStats.full / 1024).toFixed(1)} KB`));
+  console.log(
+    chalk.white(`  context.md:     ${(output.length / 1024).toFixed(1)} KB`),
+  );
+  console.log(
+    chalk.white(`  llms.txt:       ${(llmsStats.quick / 1024).toFixed(1)} KB`),
+  );
+  console.log(
+    chalk.white(`  llms-full.txt:  ${(llmsStats.full / 1024).toFixed(1)} KB`),
+  );
   console.log(chalk.green(`\n  ✓ Output: ${outputPath}`));
-  console.log(chalk.green(`  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms.txt")}`));
-  console.log(chalk.green(`  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms-full.txt")}`));
+  console.log(
+    chalk.green(`  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms.txt")}`),
+  );
+  console.log(
+    chalk.green(
+      `  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms-full.txt")}`,
+    ),
+  );
 
   console.log(chalk.bold.green("\n✅ Context compilation complete!\n"));
   console.log(chalk.white("Usage with Claude Code:"));
-  console.log(chalk.gray(`  claude --context ${path.relative(CONFIG.projectRoot, outputPath)}\n`));
+  console.log(
+    chalk.gray(
+      `  claude --context ${path.relative(CONFIG.projectRoot, outputPath)}\n`,
+    ),
+  );
   console.log(chalk.white("Or in an existing session:"));
-  console.log(chalk.gray(`  /context add ${path.relative(CONFIG.projectRoot, outputPath)}\n`));
+  console.log(
+    chalk.gray(
+      `  /context add ${path.relative(CONFIG.projectRoot, outputPath)}\n`,
+    ),
+  );
 }
 
 // ============================================================================

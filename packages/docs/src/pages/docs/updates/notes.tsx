@@ -516,7 +516,7 @@ result.error                  // optional error`}</CodeBlock>
               </li>
               <li>
                 <a
-                  href="https://github.com/dooboolab-community/react-native-iap/discussions/3135"
+                  href="https://github.com/hyochan/react-native-iap/discussions/3135"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

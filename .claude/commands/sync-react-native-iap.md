@@ -16,46 +16,46 @@ Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan
 
 ### Version Bump Arguments
 
-| Argument | Description | Versioned Docs Required |
-|----------|-------------|-------------------------|
-| `--patch` | Patch version bump (x.x.+1) - Bug fixes, type-only changes | NO |
-| `--minor` | Minor version bump (x.+1.0) - New features, non-breaking | **YES** |
-| `--major` | Major version bump (+1.0.0) - Breaking changes | **YES** |
+| Argument  | Description                                                | Versioned Docs Required |
+| --------- | ---------------------------------------------------------- | ----------------------- |
+| `--patch` | Patch version bump (x.x.+1) - Bug fixes, type-only changes | NO                      |
+| `--minor` | Minor version bump (x.+1.0) - New features, non-breaking   | **YES**                 |
+| `--major` | Major version bump (+1.0.0) - Breaking changes             | **YES**                 |
 
 **Default:** If no argument provided, you will be prompted to choose the version bump type.
 
 ### When to Use Each
 
-| Change Type | Version Bump |
-|-------------|--------------|
-| Type-only changes (no new API) | `--patch` |
-| Bug fixes | `--patch` |
-| New fields on existing types | `--patch` |
-| New API functions | `--minor` |
-| New features (non-breaking) | `--minor` |
-| Breaking API changes | `--major` |
-| Removed/renamed functions | `--major` |
+| Change Type                    | Version Bump |
+| ------------------------------ | ------------ |
+| Type-only changes (no new API) | `--patch`    |
+| Bug fixes                      | `--patch`    |
+| New fields on existing types   | `--patch`    |
+| New API functions              | `--minor`    |
+| New features (non-breaking)    | `--minor`    |
+| Breaking API changes           | `--major`    |
+| Removed/renamed functions      | `--major`    |
 
 ## CRITICAL: Mandatory Steps Checklist
 
 **YOU MUST COMPLETE ALL THESE STEPS. DO NOT SKIP ANY.**
 
-| Step | Required | Description |
-|------|----------|-------------|
-| 0. Pull Latest | **YES** | `git pull` before any work |
-| 1. Analyze OpenIAP Changes | **YES** | Review what changed in openiap packages |
-| 2. Sync Versions | **YES** | Update openiap-versions.json |
-| 3. Generate Types | **YES** | `yarn generate:types` |
-| 4. Review Native Code | **YES** | Check if iOS/Android modules need updates |
-| 5. Update API Exports | **IF NEEDED** | Add new functions to index.ts |
-| 5.5. **Verify Nitro Modules** | **YES** | Check Nitro bridge spec and regenerate if needed |
-| 6. Run All Checks | **YES** | `yarn typecheck`, `yarn test` |
-| 7. **Write/Update Tests** | **YES** | MUST write tests for new types/features - DO NOT SKIP |
-| 8. **Verify Example Code** | **YES** | Check `example/` app uses correct API patterns |
-| 9. Write Blog Post | **YES** | Create release notes in `docs/blog/` |
-| 10. **Verify llms.txt** | **YES** | Always review and update AI reference docs |
-| 11. Commit & Push | **YES** | Commit changes and push to remote |
-| 12. **Create PR** | **YES** | Create PR with OpenIAP PR reference |
+| Step                          | Required      | Description                                           |
+| ----------------------------- | ------------- | ----------------------------------------------------- |
+| 0. Pull Latest                | **YES**       | `git pull` before any work                            |
+| 1. Analyze OpenIAP Changes    | **YES**       | Review what changed in openiap packages               |
+| 2. Sync Versions              | **YES**       | Update openiap-versions.json                          |
+| 3. Generate Types             | **YES**       | `yarn generate:types`                                 |
+| 4. Review Native Code         | **YES**       | Check if iOS/Android modules need updates             |
+| 5. Update API Exports         | **IF NEEDED** | Add new functions to index.ts                         |
+| 5.5. **Verify Nitro Modules** | **YES**       | Check Nitro bridge spec and regenerate if needed      |
+| 6. Run All Checks             | **YES**       | `yarn typecheck`, `yarn test`                         |
+| 7. **Write/Update Tests**     | **YES**       | MUST write tests for new types/features - DO NOT SKIP |
+| 8. **Verify Example Code**    | **YES**       | Check `example/` app uses correct API patterns        |
+| 9. Write Blog Post            | **YES**       | Create release notes in `docs/blog/`                  |
+| 10. **Verify llms.txt**       | **YES**       | Always review and update AI reference docs            |
+| 11. Commit & Push             | **YES**       | Commit changes and push to remote                     |
+| 12. **Create PR**             | **YES**       | Create PR with OpenIAP PR reference                   |
 
 ## Project Overview
 
@@ -66,20 +66,20 @@ Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan
 
 ## Key Files
 
-| File | Purpose | Auto-Generated |
-|------|---------|----------------|
-| `src/types.ts` | TypeScript types from OpenIAP | YES |
-| `src/specs/RnIap.nitro.ts` | Nitro bridge spec | NO |
-| `src/utils/type-bridge.ts` | Type converters | NO |
-| `src/index.ts` | Public API | NO |
-| `src/hooks/useIAP.ts` | React hook | NO |
-| `ios/HybridRnIap.swift` | iOS implementation | NO |
-| `android/.../HybridRnIap.kt` | Android implementation | NO |
-| `nitrogen/generated/` | Nitro bridge code | YES |
-| `openiap-versions.json` | Version tracking | NO |
-| `docs/blog/` | Release blog posts | NO |
-| `docs/static/llms.txt` | AI reference (short) | NO |
-| `docs/static/llms-full.txt` | AI reference (detailed) | NO |
+| File                         | Purpose                       | Auto-Generated |
+| ---------------------------- | ----------------------------- | -------------- |
+| `src/types.ts`               | TypeScript types from OpenIAP | YES            |
+| `src/specs/RnIap.nitro.ts`   | Nitro bridge spec             | NO             |
+| `src/utils/type-bridge.ts`   | Type converters               | NO             |
+| `src/index.ts`               | Public API                    | NO             |
+| `src/hooks/useIAP.ts`        | React hook                    | NO             |
+| `ios/HybridRnIap.swift`      | iOS implementation            | NO             |
+| `android/.../HybridRnIap.kt` | Android implementation        | NO             |
+| `nitrogen/generated/`        | Nitro bridge code             | YES            |
+| `openiap-versions.json`      | Version tracking              | NO             |
+| `docs/blog/`                 | Release blog posts            | NO             |
+| `docs/static/llms.txt`       | AI reference (short)          | NO             |
+| `docs/static/llms-full.txt`  | AI reference (detailed)       | NO             |
 
 ---
 
@@ -118,6 +118,7 @@ git log -10 --oneline -- packages/gql/
 ```
 
 Look for:
+
 - New types/interfaces added
 - New fields on existing types
 - Breaking changes to type signatures
@@ -130,6 +131,7 @@ git log -10 --oneline -- packages/apple/
 ```
 
 Check `packages/apple/Sources/` for:
+
 - New public functions in `OpenIapModule.swift`
 - New types in `Types.swift`
 - Changes to serialization
@@ -142,6 +144,7 @@ git log -10 --oneline -- packages/google/
 ```
 
 Check `packages/google/openiap/src/main/` for:
+
 - New public functions in `OpenIapModule.kt`
 - New types in `Types.kt`
 - Changes to Billing Library integration
@@ -149,6 +152,7 @@ Check `packages/google/openiap/src/main/` for:
 #### 1.5 Document Changes Found
 
 Create a mental checklist:
+
 - [ ] New types added?
 - [ ] New API methods exposed?
 - [ ] Breaking changes?
@@ -187,6 +191,7 @@ git diff src/types.ts
 ```
 
 **Analyze the type diff carefully:**
+
 - New interfaces/types?
 - New fields on existing types?
 - Changed field types?
@@ -207,6 +212,7 @@ You must verify that react-native-iap's native code actually passes new options/
 **Verification steps:**
 
 1. Check what new fields were added to request props in types:
+
    ```bash
    git diff src/types.ts | grep -A5 "RequestPurchaseIosProps\|RequestSubscriptionIosProps\|PurchaseOptions"
    ```
@@ -226,11 +232,13 @@ You must verify that react-native-iap's native code actually passes new options/
 **Verification steps:**
 
 1. Check what new fields were added to Android types:
+
    ```bash
    git diff src/types.ts | grep -A5 "Android"
    ```
 
 2. **CRITICAL**: Check if react-native-iap's native functions pass options to OpenIAP:
+
    ```bash
    # Look for functions that might need options parameter updates
    grep -n "openIap\." android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt | head -20
@@ -259,15 +267,16 @@ grep -A20 "getAvailablePurchases" src/index.ts
 
 #### 4.4 Decision Matrix (Updated)
 
-| Change Type | Action Required |
-|-------------|-----------------|
+| Change Type                     | Action Required                                     |
+| ------------------------------- | --------------------------------------------------- |
 | New types only (response types) | NO code change - OpenIAP returns them automatically |
-| New INPUT option fields | **CHECK** - verify native code passes the option |
-| New API function | YES - add wrapper in both native + TS |
-| Breaking type change | YES - check serialization compatibility |
-| New platform feature | YES - add wrapper + expose to JS |
+| New INPUT option fields         | **CHECK** - verify native code passes the option    |
+| New API function                | YES - add wrapper in both native + TS               |
+| Breaking type change            | YES - check serialization compatibility             |
+| New platform feature            | YES - add wrapper + expose to JS                    |
 
 **Common mistakes to catch:**
+
 - TypeScript has the option in types, but native code passes `null` instead of the options object
 - Android native doesn't parse the new option from the params map
 - Nitro bridge spec doesn't include new field
@@ -283,6 +292,7 @@ If new API functions were added to the native modules:
 **Location:** `src/specs/RnIap.nitro.ts`
 
 If types changed that affect the bridge:
+
 ```bash
 # Regenerate Nitro bridge files
 yarn specs
@@ -334,8 +344,8 @@ For new types added in `src/types.ts`, verify they are correctly mapped in the N
 // ✅ CORRECT: New request type includes new fields
 interface RequestPurchaseAndroidSpec {
   skus: string[];
-  offerToken?: string;       // New field from OpenIAP sync
-  isOfferPersonalized?: boolean;  // New field from OpenIAP sync
+  offerToken?: string; // New field from OpenIAP sync
+  isOfferPersonalized?: boolean; // New field from OpenIAP sync
 }
 
 // ❌ WRONG: Missing new fields in spec
@@ -381,22 +391,22 @@ grep -n "offerToken\|isOfferPersonalized" nitrogen/generated/shared/**/*.hpp 2>/
 
 #### 5.5.5 Common Nitro Module Issues
 
-| Issue | Symptom | Fix |
-|-------|---------|-----|
-| New field not in spec | TypeScript compiles but field is `undefined` at runtime | Add field to `src/specs/RnIap.nitro.ts` |
-| Spec not regenerated | Old bridge code used, new features don't work | Run `yarn specs` then `yarn prepare` |
-| Type mismatch | Runtime errors or silent data loss | Fix type in spec to match native expectation |
-| Missing optional marker | Crash when field is null | Add `?` to optional fields in spec |
+| Issue                   | Symptom                                                 | Fix                                          |
+| ----------------------- | ------------------------------------------------------- | -------------------------------------------- |
+| New field not in spec   | TypeScript compiles but field is `undefined` at runtime | Add field to `src/specs/RnIap.nitro.ts`      |
+| Spec not regenerated    | Old bridge code used, new features don't work           | Run `yarn specs` then `yarn prepare`         |
+| Type mismatch           | Runtime errors or silent data loss                      | Fix type in spec to match native expectation |
+| Missing optional marker | Crash when field is null                                | Add `?` to optional fields in spec           |
 
 #### 5.5.6 Decision Matrix for Nitro Updates
 
-| Change Type | Nitro Spec Update | Regenerate |
-|-------------|-------------------|------------|
-| New response type fields | NO (auto-mapped) | NO |
-| New request type fields | **YES** - add to spec | **YES** |
-| New API function | **YES** - add function to spec | **YES** |
-| Type name change | **YES** - update spec | **YES** |
-| Optional → Required | **YES** - update spec | **YES** |
+| Change Type              | Nitro Spec Update              | Regenerate |
+| ------------------------ | ------------------------------ | ---------- |
+| New response type fields | NO (auto-mapped)               | NO         |
+| New request type fields  | **YES** - add to spec          | **YES**    |
+| New API function         | **YES** - add function to spec | **YES**    |
+| Type name change         | **YES** - update spec          | **YES**    |
+| Optional → Required      | **YES** - update spec          | **YES**    |
 
 ---
 
@@ -468,26 +478,26 @@ grep -r "offerToken\|DiscountOffer\|SubscriptionOffer" src/__tests__/
 
 ```typescript
 // src/__tests__/standardized-offer-types.test.ts
-describe('New Feature', () => {
-  it('should have correct structure', () => {
+describe("New Feature", () => {
+  it("should have correct structure", () => {
     const offer: DiscountOffer = {
-      id: 'test',
-      displayPrice: '$4.99',
+      id: "test",
+      displayPrice: "$4.99",
       price: 4.99,
-      currency: 'USD',
-      type: 'one-time',
-      offerTokenAndroid: 'token123', // Response field WITH suffix
+      currency: "USD",
+      type: "one-time",
+      offerTokenAndroid: "token123", // Response field WITH suffix
     };
-    expect(offer.offerTokenAndroid).toBe('token123');
+    expect(offer.offerTokenAndroid).toBe("token123");
   });
 
-  it('should use correct input field naming', () => {
+  it("should use correct input field naming", () => {
     // Input fields WITHOUT suffix (parent type indicates platform)
     const request: RequestPurchaseAndroidProps = {
-      skus: ['sku1'],
-      offerToken: 'token123', // Input field NO suffix
+      skus: ["sku1"],
+      offerToken: "token123", // Input field NO suffix
     };
-    expect(request.offerToken).toBe('token123');
+    expect(request.offerToken).toBe("token123");
   });
 });
 ```
@@ -524,11 +534,11 @@ Ensure example code follows correct patterns:
 ```typescript
 // ✅ CORRECT: Input fields without Android suffix
 const request = {
-  apple: { sku: 'product_id' },
+  apple: { sku: "product_id" },
   google: {
-    skus: ['product_id'],
+    skus: ["product_id"],
     offerToken: offer.offerTokenAndroid, // Input: no suffix
-    obfuscatedAccountId: 'account123',   // Input: no suffix
+    obfuscatedAccountId: "account123", // Input: no suffix
   },
 };
 
@@ -568,7 +578,7 @@ yarn ios  # or yarn android
 
 #### 9.2 Blog Post Template
 
-```markdown
+````markdown
 ---
 slug: <version>-<short-slug>
 title: <version> - <Short Title>
@@ -590,6 +600,7 @@ This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/up
 ```typescript
 // Example usage
 ```
+````
 
 ## Bug Fixes
 
@@ -597,14 +608,15 @@ This release syncs with [OpenIAP v<gql-version>](https://www.openiap.dev/docs/up
 
 ## OpenIAP Versions
 
-| Package | Version |
-|---------|---------|
-| openiap-gql | <version> |
+| Package        | Version   |
+| -------------- | --------- |
+| openiap-gql    | <version> |
 | openiap-google | <version> |
-| openiap-apple | <version> |
+| openiap-apple  | <version> |
 
 For detailed changes, see the [OpenIAP Release Notes](https://www.openiap.dev/docs/updates/notes#<anchor>).
-```
+
+````
 
 #### 9.3 Blog Post Guidelines
 
@@ -630,49 +642,51 @@ cd $IAP_REPOS_HOME/react-native-iap
 # Check current AI reference docs
 cat docs/static/llms.txt | head -100
 cat docs/static/llms-full.txt | head -200
-```
+````
 
 #### 10.2 What MUST Be Updated
 
 **Always update llms.txt for:**
 
-| Change Type | Update Required |
-|-------------|-----------------|
-| New API functions | **YES** - Add function signature and example |
-| New types (input/response) | **YES** - Add type definition |
-| New fields on existing types | **YES** - Update type definition |
-| Field name changes | **YES** - Update field names in examples |
-| Deprecations | **YES** - Add deprecation notice |
-| Breaking changes | **YES** - Add migration example |
-| Bug fixes | IF affects usage patterns |
+| Change Type                  | Update Required                              |
+| ---------------------------- | -------------------------------------------- |
+| New API functions            | **YES** - Add function signature and example |
+| New types (input/response)   | **YES** - Add type definition                |
+| New fields on existing types | **YES** - Update type definition             |
+| Field name changes           | **YES** - Update field names in examples     |
+| Deprecations                 | **YES** - Add deprecation notice             |
+| Breaking changes             | **YES** - Add migration example              |
+| Bug fixes                    | IF affects usage patterns                    |
 
 #### 10.3 llms.txt Update Template
 
 For new features, add sections like:
 
-```markdown
+````markdown
 ### New Feature Name (v14.x.x+)
 
 ```typescript
 // Example usage for one-time purchase discounts
-const product = products.find(p => p.id === 'premium_unlock');
+const product = products.find((p) => p.id === "premium_unlock");
 const discountOffer = product?.discountOffers?.[0];
 
 await requestPurchase({
   request: {
-    apple: { sku: 'premium_unlock' },
+    apple: { sku: "premium_unlock" },
     google: {
-      skus: ['premium_unlock'],
-      offerToken: discountOffer?.offerTokenAndroid,  // Apply discount
+      skus: ["premium_unlock"],
+      offerToken: discountOffer?.offerTokenAndroid, // Apply discount
     },
   },
-  type: 'in-app',
+  type: "in-app",
 });
 ```
+````
 
 #### 10.4 Verify llms.txt Is Complete
 
 Check that llms.txt includes:
+
 - [ ] All public API functions
 - [ ] All major types with their fields
 - [ ] Usage examples for common patterns
@@ -815,6 +829,7 @@ npm run docusaurus docs:version 14.5
 ```
 
 This creates:
+
 - `versioned_docs/version-14.5/` - Copy of current documentation
 - `versioned_sidebars/version-14.5-sidebars.json` - Sidebar config for that version
 - Updates `versions.json` with the new version entry
@@ -850,10 +865,10 @@ Now update `docs/docs/` with new API documentation for the new version.
 ### Version Bump Checklist
 
 | Bump Type | Create Versioned Docs | Update docusaurus.config.ts | Update Current Docs |
-|-----------|----------------------|----------------------------|---------------------|
-| `--patch` | NO | NO | If API docs changed |
-| `--minor` | **YES** | **YES** | **YES** |
-| `--major` | **YES** | **YES** | **YES** |
+| --------- | --------------------- | --------------------------- | ------------------- |
+| `--patch` | NO                    | NO                          | If API docs changed |
+| `--minor` | **YES**               | **YES**                     | **YES**             |
+| `--major` | **YES**               | **YES**                     | **YES**             |
 
 ---
 
@@ -871,4 +886,4 @@ Now update `docs/docs/` with new API documentation for the new version.
 
 - **CLAUDE.md:** `$IAP_REPOS_HOME/react-native-iap/CLAUDE.md`
 - **OpenIAP Docs:** https://openiap.dev/docs
-- **react-native-iap Docs:** https://react-native-iap.dooboolab.com
+- **react-native-iap Docs:** https://hyochan.github.io/react-native-iap

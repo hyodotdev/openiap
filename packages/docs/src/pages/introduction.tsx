@@ -437,7 +437,7 @@ await endConnection();`}
                 <tr>
                   <td>
                     <a
-                      href="https://github.com/dooboolab-community/react-native-iap"
+                      href="https://github.com/hyochan/react-native-iap"
                       target="_blank"
                       rel="noopener noreferrer"
                     >

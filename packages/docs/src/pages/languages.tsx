@@ -84,7 +84,7 @@ function Languages() {
             <pre className="code-snippet">{`npm install react-native-iap`}</pre>
             <div className="language-links">
               <a
-                href="https://github.com/dooboolab-community/react-native-iap"
+                href="https://github.com/hyochan/react-native-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
