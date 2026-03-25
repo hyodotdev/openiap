@@ -14,7 +14,7 @@ val openIapVersion: String = versionsJson["google"]?.toString() ?: "1.0.0"
 
 android {
     namespace = "io.github.hyochan.openiap"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 23
@@ -78,8 +78,8 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
     // Billing libraries per flavor (completely independent):
     // - Play flavor uses Google Play Billing (main/ source uses it)
@@ -99,7 +99,7 @@ dependencies {
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     
     // JSON handling
     implementation("com.google.code.gson:gson:2.10.1")
