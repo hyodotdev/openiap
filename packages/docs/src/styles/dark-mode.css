@@ -75,13 +75,14 @@
 }
 
 :root.dark .btn-secondary {
-  background: rgba(24, 24, 31, 0.8);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--primary-light);
+  border-color: var(--primary-light);
 }
 
 :root.dark .btn-secondary:hover {
-  background: var(--bg-secondary);
+  background: var(--primary-light);
+  color: var(--bg-primary);
   border-color: var(--primary-light);
 }
 

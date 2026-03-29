@@ -38,6 +38,11 @@ import Announcements from './updates/announcements';
 import Notes from './updates/notes';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
+import FoundationGovernance from './foundation/governance';
+import FoundationOnePager from './foundation/one-pager';
+import FoundationSponsorship from './foundation/sponsorship';
+import FoundationRoadmapBudget from './foundation/roadmap-budget';
+import FoundationFoundingSupporters from './foundation/founding-supporters';
 import NotFound from '../404';
 
 function Docs() {
@@ -246,6 +251,26 @@ function Docs() {
               </NavLink>
             </li>
           </ul>
+          <h3 style={{ marginTop: '2rem' }}>Foundation</h3>
+          <ul>
+            <MenuDropdown
+              title="About"
+              titleTo="/docs/foundation/about"
+              items={[
+                { to: '/docs/foundation/governance', label: 'Governance' },
+                { to: '/docs/foundation/sponsorship', label: 'Sponsorship' },
+                {
+                  to: '/docs/foundation/roadmap-budget',
+                  label: 'Roadmap & Budget',
+                },
+                {
+                  to: '/docs/foundation/founding-supporters',
+                  label: 'Founding Supporters',
+                },
+              ]}
+              onItemClick={closeSidebar}
+            />
+          </ul>
           <h3 style={{ marginTop: '2rem' }}>Updates</h3>
           <ul>
             <li>
@@ -327,6 +352,23 @@ function Docs() {
           <Route path="horizon-setup" element={<HorizonSetup />} />
           <Route path="example" element={<Example />} />
           <Route path="guides/ai-assistants" element={<AIAssistants />} />
+          <Route path="foundation/about" element={<FoundationOnePager />} />
+          <Route
+            path="foundation/governance"
+            element={<FoundationGovernance />}
+          />
+          <Route
+            path="foundation/sponsorship"
+            element={<FoundationSponsorship />}
+          />
+          <Route
+            path="foundation/roadmap-budget"
+            element={<FoundationRoadmapBudget />}
+          />
+          <Route
+            path="foundation/founding-supporters"
+            element={<FoundationFoundingSupporters />}
+          />
           <Route path="updates/announcements" element={<Announcements />} />
           <Route path="updates/notes" element={<Notes />} />
           <Route path="updates/versions" element={<Versions />} />

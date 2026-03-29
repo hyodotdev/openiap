@@ -22,12 +22,13 @@
 
 .btn-secondary {
   background: transparent;
-  color: var(--text-primary);
-  border-color: var(--border-color);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-secondary);
+  background: var(--primary-color);
+  color: white;
   border-color: var(--primary-color);
 }
 
