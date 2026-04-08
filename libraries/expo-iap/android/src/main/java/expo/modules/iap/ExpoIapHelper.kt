@@ -55,18 +55,45 @@ object ExpoIapHelper {
     }
 
     fun parseRequestPurchaseParams(params: Map<String, Any?>): RequestPurchaseParams {
-        val type = params["type"] as? String
+        // Support nested request.google / request.android structure
+        // If the params contain a "request" key with nested platform-specific data,
+        // extract and flatten it before parsing.
+        val effective: Map<String, Any?> = run {
+            val request = params["request"] as? Map<*, *>
+            if (request != null) {
+                val nested = (request["google"] as? Map<*, *>)
+                    ?: (request["android"] as? Map<*, *>)
+                if (nested != null) {
+                    val flat = mutableMapOf<String, Any?>()
+                    // Carry over top-level fields like type, useAlternativeBilling
+                    for ((k, v) in params) {
+                        if (k is String && k != "request") flat[k] = v
+                    }
+                    // Overlay platform-specific fields
+                    for ((k, v) in nested) {
+                        if (k is String) flat[k] = v
+                    }
+                    flat
+                } else {
+                    params
+                }
+            } else {
+                params
+            }
+        }
+
+        val type = effective["type"] as? String
         val skus: List<String> =
-            (params["skus"] as? List<*>)?.filterIsInstance<String>()
-                ?: (params["skuArr"] as? List<*>)?.filterIsInstance<String>()
+            (effective["skus"] as? List<*>)?.filterIsInstance<String>()
+                ?: (effective["skuArr"] as? List<*>)?.filterIsInstance<String>()
                 ?: emptyList()
-        val obfuscatedAccountId = params["obfuscatedAccountId"] as? String
-        val obfuscatedProfileId = params["obfuscatedProfileId"] as? String
-        val isOfferPersonalized = params["isOfferPersonalized"] as? Boolean ?: false
+        val obfuscatedAccountId = effective["obfuscatedAccountId"] as? String
+        val obfuscatedProfileId = effective["obfuscatedProfileId"] as? String
+        val isOfferPersonalized = effective["isOfferPersonalized"] as? Boolean ?: false
         val offerTokenArr =
-            (params["offerTokenArr"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            (effective["offerTokenArr"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
         val explicitSubscriptionOffers =
-            (params["subscriptionOffers"] as? List<*>)?.mapNotNull { rawOffer ->
+            (effective["subscriptionOffers"] as? List<*>)?.mapNotNull { rawOffer ->
                 val offerMap = rawOffer as? Map<*, *> ?: return@mapNotNull null
                 val sku = offerMap["sku"] as? String
                 val offerToken = offerMap["offerToken"] as? String
@@ -76,10 +103,10 @@ object ExpoIapHelper {
                     AndroidSubscriptionOfferInput(offerToken = offerToken, sku = sku)
                 }
             } ?: emptyList()
-        val purchaseToken = params["purchaseToken"] as? String
-        val replacementMode = params["replacementMode"] as? Number
+        val purchaseToken = effective["purchaseToken"] as? String
+        val replacementMode = effective["replacementMode"] as? Number
         val subscriptionProductReplacementParams =
-            (params["subscriptionProductReplacementParams"] as? Map<*, *>)?.let { paramsMap ->
+            (effective["subscriptionProductReplacementParams"] as? Map<*, *>)?.let { paramsMap ->
                 val oldProductId = paramsMap["oldProductId"] as? String
                 val replacementModeStr = paramsMap["replacementMode"] as? String
                 if (oldProductId.isNullOrEmpty() || replacementModeStr.isNullOrEmpty()) {
@@ -92,7 +119,7 @@ object ExpoIapHelper {
                 }
             }
         // offerToken for one-time purchase discounts (Android 7.0+)
-        val offerToken = params["offerToken"] as? String
+        val offerToken = effective["offerToken"] as? String
 
         return RequestPurchaseParams(
             type = type,

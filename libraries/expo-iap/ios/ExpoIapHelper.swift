@@ -19,6 +19,7 @@ final class IapException: GenericException<(code: String, message: String, produ
     }
 }
 
+@MainActor
 enum ExpoIapHelper {
     // Disambiguate Subscription type to the one provided by OpenIAP
     private static var listeners: [OpenIAP.Subscription] = []
