@@ -55,7 +55,8 @@ function isMissingModuleError(error: unknown, moduleName: string): boolean {
 export const NATIVE_ERROR_CODES: Record<string, unknown> = new Proxy(
   {} as Record<string, unknown>,
   {
-    get(_, prop) {
+    get(target, prop) {
+      if (typeof prop === 'symbol') return Reflect.get(target, prop);
       return (getResolved().module.ERROR_CODES || {})[prop as string];
     },
   },
@@ -72,7 +73,8 @@ export function getNativeModule() {
 }
 
 export default new Proxy({} as any, {
-  get(_, prop) {
+  get(target, prop) {
+    if (typeof prop === 'symbol') return Reflect.get(target, prop);
     if (prop === 'USING_ONSIDE_SDK') {
       return getResolved().name === 'ExpoIapOnside';
     }

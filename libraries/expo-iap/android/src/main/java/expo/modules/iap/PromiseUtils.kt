@@ -50,13 +50,11 @@ object PromiseUtils {
     }
 }
 
-const val TAG = "IapPromises"
-
 fun Promise.safeResolve(value: Any?) {
     try {
         this.resolve(value)
     } catch (e: RuntimeException) {
-        Log.d(TAG, "Already consumed ${e.message}")
+        Log.d(PromiseUtils.TAG, "Already consumed ${e.message}")
     }
 }
 
@@ -80,6 +78,6 @@ fun Promise.safeReject(
     try {
         this.reject(code, message, throwable)
     } catch (e: RuntimeException) {
-        Log.d(TAG, "Already consumed ${e.message}")
+        Log.d(PromiseUtils.TAG, "Already consumed ${e.message}")
     }
 }

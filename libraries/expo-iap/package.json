@@ -37,13 +37,13 @@
     "expo-iap",
     "ExpoIap"
   ],
-  "repository": "https://github.com/hyochan/expo-iap",
+  "repository": "https://github.com/hyodotdev/openiap",
   "bugs": {
-    "url": "https://github.com/hyochan/expo-iap/issues"
+    "url": "https://github.com/hyodotdev/openiap/issues"
   },
   "author": "hyochan <hyochan.dev@gmail.com> (https://github.com/hyochan)",
   "license": "MIT",
-  "homepage": "https://github.com/hyochan/expo-iap#readme",
+  "homepage": "https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap#readme",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.0",
