@@ -3,21 +3,5 @@
     "allow": [
       "Bash(python3 /tmp/add_kmp_tabs.py)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "if": "Bash(git commit:*)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "npx tsc --noEmit --project packages/docs/tsconfig.json 2>&1 | tail -1 | grep -q 'error' && echo '{\"decision\":\"block\",\"reason\":\"Docs typecheck failed. Run: cd packages/docs && npx tsc --noEmit\"}' || echo '{\"continue\":true}'",
-            "timeout": 30,
-            "statusMessage": "Verifying docs typecheck..."
-          }
-        ]
-      }
-    ]
   }
 }

@@ -2,7 +2,7 @@
  * Tests for iapkitApiKey config plugin option
  */
 
-import {withIap} from '../../plugin/src/withIAP';
+import {withIap} from '../../plugin/build/withIAP';
 
 // Mock expo/config-plugins
 jest.mock('expo/config-plugins', () => {
