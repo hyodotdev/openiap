@@ -19,6 +19,11 @@ jobs:
       ios: ${{ steps.filter.outputs.ios }}
       docs: ${{ steps.filter.outputs.docs }}
       agent: ${{ steps.filter.outputs.agent }}
+      react-native-iap: ${{ steps.filter.outputs.react-native-iap }}
+      expo-iap: ${{ steps.filter.outputs.expo-iap }}
+      flutter-iap: ${{ steps.filter.outputs.flutter-iap }}
+      godot-iap: ${{ steps.filter.outputs.godot-iap }}
+      kmp-iap: ${{ steps.filter.outputs.kmp-iap }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +56,20 @@ jobs:
             agent:
               - 'scripts/agent/**'
               - '.github/workflows/ci.yml'
+            react-native-iap:
+              - 'libraries/react-native-iap/**'
+              - 'packages/gql/src/generated/types.ts'
+            expo-iap:
+              - 'libraries/expo-iap/**'
+              - 'packages/gql/src/generated/types.ts'
+            flutter-iap:
+              - 'libraries/flutter_inapp_purchase/**'
+              - 'packages/gql/src/generated/types.dart'
+            godot-iap:
+              - 'libraries/godot-iap/**'
+              - 'packages/gql/src/generated/types.gd'
+            kmp-iap:
+              - 'libraries/kmp-iap/**'
 
   test-gql:
     name: Test GQL Types
@@ -246,3 +265,86 @@ jobs:
       - name: Run tests
         working-directory: scripts/agent
         run: bun test
+
+  test-react-native-iap:
+    name: Test react-native-iap
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.react-native-iap == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+      - name: Install Yarn 3
+        run: corepack enable && corepack prepare yarn@3.6.1 --activate
+      - name: Install dependencies
+        working-directory: libraries/react-native-iap
+        run: yarn install --immutable
+      - name: Type check
+        working-directory: libraries/react-native-iap
+        run: yarn lint:tsc
+
+  test-expo-iap:
+    name: Test expo-iap
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.expo-iap == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.38"
+      - name: Install dependencies
+        working-directory: libraries/expo-iap
+        run: bun install
+      - name: Lint
+        working-directory: libraries/expo-iap
+        run: bun run lint:tsc
+      - name: Test
+        working-directory: libraries/expo-iap
+        run: bun run test
+
+  test-flutter-iap:
+    name: Test flutter_inapp_purchase
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.flutter-iap == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.x"
+      - name: Install dependencies
+        working-directory: libraries/flutter_inapp_purchase
+        run: flutter pub get
+      - name: Analyze
+        working-directory: libraries/flutter_inapp_purchase
+        run: flutter analyze
+      - name: Test
+        working-directory: libraries/flutter_inapp_purchase
+        run: flutter test
+
+  test-kmp-iap:
+    name: Test kmp-iap
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.kmp-iap == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - name: Build library
+        working-directory: libraries/kmp-iap
+        run: chmod +x gradlew && ./gradlew :library:build
