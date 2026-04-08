@@ -20,7 +20,7 @@ Pod::Spec.new do |s|
   # NOTE: tvOS requires 16.0 because openiap dependency has minimum tvOS deployment target of 16.0
   s.platforms      = { :ios => '13.4', :tvos => '16.0' }
   s.swift_version  = '5.9'
-  s.source         = { git: 'https://github.com/hyodotdev/openiap' }
+  s.source         = { :path => '.' }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
