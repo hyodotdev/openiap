@@ -74,3 +74,6 @@ jobs:
       - name: Test
         run: npx jest
 
+      - name: Test plugin
+        run: bun run test:plugin
+

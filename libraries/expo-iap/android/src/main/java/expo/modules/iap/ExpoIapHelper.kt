@@ -2,6 +2,7 @@ package expo.modules.iap
 
 import android.util.Log
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
@@ -215,7 +216,7 @@ object ExpoIapHelper {
                 // Emit as purchase error so user knows something went wrong
                 val errorPayload =
                     mapOf(
-                        "code" to "purchase-error",
+                        "code" to OpenIapError.PurchaseFailed.CODE,
                         "message" to "Failed to process purchase update: ${error.message}",
                     )
                 runCatching {
@@ -246,7 +247,7 @@ object ExpoIapHelper {
                 // Critical: if we can't emit the original error, at least try to emit a generic one
                 val fallbackPayload =
                     mapOf(
-                        "code" to "unknown",
+                        "code" to OpenIapError.UnknownError.CODE,
                         "message" to "Failed to emit purchase error: ${error.message}",
                     )
                 runCatching {
@@ -261,7 +262,7 @@ object ExpoIapHelper {
                 }.onFailure { android.util.Log.e(TAG, "Failed to send fallback error event", it) }
             }
             // Also reject any pending purchase promises to match iOS behavior
-            val errorCode = errorJson["code"] as? String ?: "purchase-error"
+            val errorCode = errorJson["code"] as? String ?: OpenIapError.PurchaseFailed.CODE
             val errorMessage = errorJson["message"] as? String ?: "Purchase failed"
             rejectPurchasePromises(errorCode, errorMessage, null)
         }
