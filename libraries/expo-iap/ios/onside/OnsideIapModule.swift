@@ -224,7 +224,7 @@ public final class ExpoIapOnsideModule: Module {
             try await ensureObserverRegistered()
 
             let productId = purchasePayload["productId"] as? String
-            let txId = purchasePayload["transactionIdentifier"] as? String
+            let txId = purchasePayload["transactionId"] as? String
 
             let queue = await Onside.defaultPaymentQueue()
 
@@ -382,8 +382,11 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["description"] = product.localizedDescription
         dictionary["displayName"] = product.localizedTitle
         dictionary["displayNameIOS"] = product.localizedTitle
-        //TODO: formatted price
-        dictionary["displayPrice"] = product.price.value
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = product.price.currencyCode ?? ""
+        let formattedPrice = formatter.string(from: NSDecimalNumber(decimal: product.price.value)) ?? "\(product.price.value)"
+        dictionary["displayPrice"] = formattedPrice
         dictionary["currency"] = product.price.currencyCode ?? ""
         dictionary["price"] = product.price.value
         dictionary["type"] = "in-app"
@@ -405,11 +408,13 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["quantity"] = 1
         dictionary["isAutoRenewing"] = false
         dictionary["purchaseState"] = mapPurchaseState(transaction.transactionState)
-        dictionary["transactionDate"] = Int(Date().timeIntervalSince1970 * 1000)
+        let txDate = transaction.transactionDate ?? Date()
+        dictionary["transactionDate"] = Int(txDate.timeIntervalSince1970 * 1000)
         dictionary["currencyCodeIOS"] = product.price.currencyCode ?? ""
-        //TODO: symbol
-        //dictionary["currencySymbolIOS"] = product.price.value
-        dictionary["currencySymbolIOS"] = ""
+        let currencyFormatter = NumberFormatter()
+        currencyFormatter.numberStyle = .currency
+        currencyFormatter.currencyCode = product.price.currencyCode ?? ""
+        dictionary["currencySymbolIOS"] = currencyFormatter.currencySymbol ?? ""
 
         dictionary["storefrontCountryCodeIOS"] = transaction.storefront.countryCode ?? ""
         dictionary["purchaseToken"] = nil
@@ -422,6 +427,10 @@ public final class ExpoIapOnsideModule: Module {
 
     // Build a JSON string from known product fields (no Encodable conformance required)
     private func makeProductJSONRepresentation(from product: OnsideProduct) throws -> String {
+        let priceFormatter = NumberFormatter()
+        priceFormatter.numberStyle = .currency
+        priceFormatter.currencyCode = product.price.currencyCode ?? ""
+        let formattedPrice = priceFormatter.string(from: NSDecimalNumber(decimal: product.price.value)) ?? "\(product.price.value)"
         let jsonObject: [String: Any] = [
             "id": product.productIdentifier,
             "title": product.localizedTitle,
@@ -429,7 +438,7 @@ public final class ExpoIapOnsideModule: Module {
             "price": [
                 "value": product.price.value,
                 "currencyCode": product.price.currencyCode ?? "",
-                "formatted": product.price.value,
+                "formatted": formattedPrice,
             ],
             "isFamilyShareable": false,
             "platform": "ios",
