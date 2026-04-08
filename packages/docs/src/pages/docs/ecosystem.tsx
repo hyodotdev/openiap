@@ -131,8 +131,7 @@ function Ecosystem() {
             </a>
             : React Native library for in-app purchases. Can be installed
             directly without Expo modules. Also provides an Expo plugin for Expo
-            projects.{' '}
-            <a href="/docs/setup/react-native">Setup Guide</a>
+            projects. <a href="/docs/setup/react-native">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
@@ -144,8 +143,7 @@ function Ecosystem() {
             </a>
             : Expo module for in-app purchases. Requires expo-modules-core to be
             installed in React Native CLI projects. Offers better integration
-            with Expo ecosystem.{' '}
-            <a href="/docs/setup/expo">Setup Guide</a>
+            with Expo ecosystem. <a href="/docs/setup/expo">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a

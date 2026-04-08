@@ -48,9 +48,7 @@ function FlutterSetup() {
           <li>
             Android: Requires <strong>minSdkVersion 21+</strong>
           </li>
-          <li>
-            Enable In-App Purchase capability in Xcode for iOS
-          </li>
+          <li>Enable In-App Purchase capability in Xcode for iOS</li>
         </ul>
       </section>
 
@@ -111,7 +109,9 @@ void dispose() {
             margin: '1rem 0',
           }}
         >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code> after verifying a purchase. On Android, unfinished purchases are automatically refunded after 3 days.
+          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
+          after verifying a purchase. On Android, unfinished purchases are
+          automatically refunded after 3 days.
         </div>
 
         <h3 id="fetch-products" className="anchor-heading">
@@ -120,9 +120,7 @@ void dispose() {
             #
           </a>
         </h3>
-        <p>
-          Use explicit type parameters for proper type inference:
-        </p>
+        <p>Use explicit type parameters for proper type inference:</p>
         <CodeBlock language="dart">
           {`// In-app products
 final products = await iap.fetchProducts<Product>(
@@ -246,10 +244,18 @@ final allPurchases = await iap.getAvailablePurchases(
         </h2>
         <h3>Products not found</h3>
         <ul>
-          <li>Ensure all agreements are signed in App Store Connect / Google Play Console</li>
-          <li>Verify banking, legal, and tax information is complete and approved</li>
+          <li>
+            Ensure all agreements are signed in App Store Connect / Google Play
+            Console
+          </li>
+          <li>
+            Verify banking, legal, and tax information is complete and approved
+          </li>
           <li>Check that bundle ID / package name matches exactly</li>
-          <li>Products must be in "Ready to Submit" status (Apple) or "Active" (Google)</li>
+          <li>
+            Products must be in "Ready to Submit" status (Apple) or "Active"
+            (Google)
+          </li>
           <li>Wait 15-30 minutes after creating products before testing</li>
         </ul>
       </section>

@@ -51,7 +51,9 @@ dependencies {
           <li>
             iOS: CocoaPods integration with <code>openiap-apple</code>
           </li>
-          <li>Android: Google Play Billing via <code>openiap-google</code></li>
+          <li>
+            Android: Google Play Billing via <code>openiap-google</code>
+          </li>
         </ul>
       </section>
 
@@ -124,7 +126,9 @@ scope.launch {
             margin: '1rem 0',
           }}
         >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code> after verifying a purchase. On Android, unfinished purchases are automatically refunded after 3 days.
+          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
+          after verifying a purchase. On Android, unfinished purchases are
+          automatically refunded after 3 days.
         </div>
 
         <h3 id="products-purchase" className="anchor-heading">
@@ -214,10 +218,18 @@ kmpIAP.endConnection()`}
         </h2>
         <h3>Products not found</h3>
         <ul>
-          <li>Ensure all agreements are signed in App Store Connect / Google Play Console</li>
-          <li>Verify banking, legal, and tax information is complete and approved</li>
+          <li>
+            Ensure all agreements are signed in App Store Connect / Google Play
+            Console
+          </li>
+          <li>
+            Verify banking, legal, and tax information is complete and approved
+          </li>
           <li>Check that bundle ID / package name matches exactly</li>
-          <li>Products must be in "Ready to Submit" status (Apple) or "Active" (Google)</li>
+          <li>
+            Products must be in "Ready to Submit" status (Apple) or "Active"
+            (Google)
+          </li>
           <li>Wait 15-30 minutes after creating products before testing</li>
         </ul>
       </section>

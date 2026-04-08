@@ -1,12 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
-type Language =
-  | 'swift'
-  | 'kotlin'
-  | 'typescript'
-  | 'dart'
-  | 'kmp'
-  | 'gdscript';
+type Language = 'swift' | 'kotlin' | 'typescript' | 'dart' | 'kmp' | 'gdscript';
 
 interface LanguageTabsProps {
   children: {
@@ -43,7 +37,7 @@ function LanguageTabs({ children }: LanguageTabsProps) {
   );
 
   const [activeTab, setActiveTab] = useState<Language>(
-    availableLanguages[0] ?? 'swift',
+    availableLanguages[0] ?? 'swift'
   );
 
   return (

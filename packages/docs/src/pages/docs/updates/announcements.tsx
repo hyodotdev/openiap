@@ -117,7 +117,9 @@ function Announcements() {
             and point to the monorepo going forward.
           </p>
 
-          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>Why Monorepo?</h3>
+          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>
+            Why Monorepo?
+          </h3>
           <ul
             style={{
               paddingLeft: '1.5rem',
@@ -134,8 +136,8 @@ function Announcements() {
             <li>
               <strong>Faster development cycle</strong> — Developers can work
               across native modules and framework SDKs simultaneously using
-              local source references, without waiting for intermediate
-              releases during development.
+              local source references, without waiting for intermediate releases
+              during development.
             </li>
             <li>
               <strong>AI-friendly codebase</strong> — With all code co-located,
@@ -150,7 +152,9 @@ function Announcements() {
             </li>
           </ul>
 
-          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>Notable Changes</h3>
+          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>
+            Notable Changes
+          </h3>
           <ul
             style={{
               paddingLeft: '1.5rem',
@@ -165,8 +169,8 @@ function Announcements() {
               removed — expo-iap is the recommended library for Expo projects.
             </li>
             <li>
-              <strong>DuplicatePurchase error code</strong>: Now an official part
-              of the OpenIAP spec. Previously react-native-iap only, now
+              <strong>DuplicatePurchase error code</strong>: Now an official
+              part of the OpenIAP spec. Previously react-native-iap only, now
               available across all platforms.
             </li>
           </ul>

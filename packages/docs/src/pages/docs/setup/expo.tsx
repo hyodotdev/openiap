@@ -62,9 +62,7 @@ function ExpoSetup() {
             #
           </a>
         </h3>
-        <p>
-          Set the deployment target to iOS 15.0+ in your app config:
-        </p>
+        <p>Set the deployment target to iOS 15.0+ in your app config:</p>
         <CodeBlock language="typescript">
           {`// app.json
 {
@@ -183,7 +181,9 @@ function Store() {
             margin: '1rem 0',
           }}
         >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code> after verifying a purchase. On Android, unfinished purchases are automatically refunded after 3 days.
+          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
+          after verifying a purchase. On Android, unfinished purchases are
+          automatically refunded after 3 days.
         </div>
 
         <div
@@ -214,12 +214,8 @@ function Store() {
             Uses <code>npx expo install</code> instead of{' '}
             <code>npm install</code>
           </li>
-          <li>
-            Supports Expo managed workflow (no manual native code needed)
-          </li>
-          <li>
-            Uses Expo modules architecture instead of Nitro Modules
-          </li>
+          <li>Supports Expo managed workflow (no manual native code needed)</li>
+          <li>Uses Expo modules architecture instead of Nitro Modules</li>
           <li>Same API surface and hook behavior as react-native-iap</li>
         </ul>
       </section>
@@ -232,8 +228,8 @@ function Store() {
           </a>
         </h2>
         <p>
-          Errors are automatically normalized to the <code>ErrorCode</code> enum.
-          Use the provided helper functions:
+          Errors are automatically normalized to the <code>ErrorCode</code>{' '}
+          enum. Use the provided helper functions:
         </p>
         <CodeBlock language="typescript">
           {`import {
@@ -313,10 +309,18 @@ switch (error.code) {
         </h2>
         <h3>Products not found</h3>
         <ul>
-          <li>Ensure all agreements are signed in App Store Connect / Google Play Console</li>
-          <li>Verify banking, legal, and tax information is complete and approved</li>
+          <li>
+            Ensure all agreements are signed in App Store Connect / Google Play
+            Console
+          </li>
+          <li>
+            Verify banking, legal, and tax information is complete and approved
+          </li>
           <li>Check that bundle ID / package name matches exactly</li>
-          <li>Products must be in "Ready to Submit" status (Apple) or "Active" (Google)</li>
+          <li>
+            Products must be in "Ready to Submit" status (Apple) or "Active"
+            (Google)
+          </li>
           <li>Wait 15-30 minutes after creating products before testing</li>
         </ul>
       </section>

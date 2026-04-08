@@ -44,7 +44,8 @@ function Testing() {
             </a>
           </li>
           <li>
-            On your device, go to <strong>Settings &rarr; App Store &rarr; Sandbox Account</strong>{' '}
+            On your device, go to{' '}
+            <strong>Settings &rarr; App Store &rarr; Sandbox Account</strong>{' '}
             (iOS 14+) and sign in with the sandbox Apple ID
           </li>
           <li>Run your app — purchases will use the sandbox environment</li>
@@ -84,8 +85,8 @@ function Testing() {
         </p>
         <ol>
           <li>
-            Create a StoreKit Configuration file in Xcode (File &rarr; New &rarr;
-            File &rarr; StoreKit Configuration File)
+            Create a StoreKit Configuration file in Xcode (File &rarr; New
+            &rarr; File &rarr; StoreKit Configuration File)
           </li>
           <li>Define your products and subscriptions in the configuration</li>
           <li>
@@ -135,12 +136,11 @@ function Testing() {
         <AnchorLink id="clear-sandbox-purchases-ios" level="h3">
           Clearing Sandbox Purchase History
         </AnchorLink>
-        <p>
-          To reset sandbox purchase history on iOS:
-        </p>
+        <p>To reset sandbox purchase history on iOS:</p>
         <ol>
           <li>
-            Go to <strong>Settings &rarr; App Store &rarr; Sandbox Account</strong>
+            Go to{' '}
+            <strong>Settings &rarr; App Store &rarr; Sandbox Account</strong>
           </li>
           <li>Tap your sandbox account</li>
           <li>
@@ -178,9 +178,7 @@ function Testing() {
             </a>{' '}
             &rarr; Settings &rarr; License testing
           </li>
-          <li>
-            Add the Gmail addresses of your testers
-          </li>
+          <li>Add the Gmail addresses of your testers</li>
           <li>
             Set the license response to <strong>RESPOND_NORMALLY</strong>
           </li>
@@ -208,9 +206,9 @@ function Testing() {
           >
             Google Play Console
           </a>
-          . This gives you a test link that testers can use to install
-          the app. The app must be installed from the Play Store (not sideloaded)
-          for billing to work properly.
+          . This gives you a test link that testers can use to install the app.
+          The app must be installed from the Play Store (not sideloaded) for
+          billing to work properly.
         </p>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
           Reference:{' '}
@@ -239,8 +237,7 @@ function Testing() {
             <strong>Test card, always declines</strong> — Purchase is rejected
           </li>
           <li>
-            <strong>Test card, slow</strong> — Simulates a slow network
-            response
+            <strong>Test card, slow</strong> — Simulates a slow network response
           </li>
         </ul>
         <p>
@@ -251,9 +248,7 @@ function Testing() {
         <AnchorLink id="clear-test-purchases-android" level="h3">
           Clearing Test Purchases
         </AnchorLink>
-        <p>
-          To clear test purchases on Android:
-        </p>
+        <p>To clear test purchases on Android:</p>
         <ul>
           <li>
             Consumable products are automatically consumed when purchased by
@@ -292,8 +287,8 @@ function Testing() {
             information in the respective console
           </li>
           <li>
-            <strong>Bundle ID:</strong> The app's bundle identifier must
-            exactly match what is configured in the store
+            <strong>Bundle ID:</strong> The app's bundle identifier must exactly
+            match what is configured in the store
           </li>
           <li>
             <strong>Product IDs:</strong> Verify product identifiers match
@@ -340,17 +335,18 @@ function Testing() {
             margin: '1rem 0',
           }}
         >
-          <strong>Warning:</strong> Failing to call <code>finishTransaction</code>{' '}
-          is the most common cause of purchase issues. Always finish
-          transactions after delivering content, even if verification fails.
+          <strong>Warning:</strong> Failing to call{' '}
+          <code>finishTransaction</code> is the most common cause of purchase
+          issues. Always finish transactions after delivering content, even if
+          verification fails.
         </div>
 
         <AnchorLink id="connection-failed" level="h3">
           Connection Failed
         </AnchorLink>
         <p>
-          If you receive connection errors when trying to fetch products or
-          make purchases:
+          If you receive connection errors when trying to fetch products or make
+          purchases:
         </p>
         <ul>
           <li>
@@ -363,8 +359,8 @@ function Testing() {
             Play Services
           </li>
           <li>
-            On iOS, verify the device has network access and is signed in with
-            a valid (sandbox or production) Apple ID
+            On iOS, verify the device has network access and is signed in with a
+            valid (sandbox or production) Apple ID
           </li>
           <li>
             Always call <code>endConnection</code> when the app is closing or
@@ -393,10 +389,18 @@ function Testing() {
         </ul>
 
         <h4>iOS Sandbox Subscription Renewal Rates</h4>
-        <table style={{ width: '100%', borderCollapse: 'collapse', margin: '1rem 0' }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            margin: '1rem 0',
+          }}
+        >
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Production</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>
+                Production
+              </th>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Sandbox</th>
             </tr>
           </thead>
@@ -409,7 +413,10 @@ function Testing() {
               ['6 months', '30 minutes'],
               ['1 year', '1 hour'],
             ].map(([prod, sandbox]) => (
-              <tr key={prod} style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <tr
+                key={prod}
+                style={{ borderBottom: '1px solid var(--border-color)' }}
+              >
                 <td style={{ padding: '0.5rem' }}>{prod}</td>
                 <td style={{ padding: '0.5rem' }}>{sandbox}</td>
               </tr>
@@ -456,9 +463,8 @@ function Testing() {
             <code>yarn android</code>)
           </li>
           <li>
-            For Expo: use a development build (
-            <code>npx expo run:ios</code>) — Expo Go does not support native
-            modules like IAP
+            For Expo: use a development build (<code>npx expo run:ios</code>) —
+            Expo Go does not support native modules like IAP
           </li>
         </ul>
 
@@ -467,8 +473,8 @@ function Testing() {
         </AnchorLink>
         <ul>
           <li>
-            Run <code>flutter run</code> on a connected real device for the
-            best testing experience
+            Run <code>flutter run</code> on a connected real device for the best
+            testing experience
           </li>
           <li>
             The iOS simulator supports basic StoreKit testing with a local
@@ -485,8 +491,9 @@ function Testing() {
         </AnchorLink>
         <ul>
           <li>
-            In-app purchases <strong>cannot be tested in the Godot editor</strong>.
-            You must export the project to a real device.
+            In-app purchases{' '}
+            <strong>cannot be tested in the Godot editor</strong>. You must
+            export the project to a real device.
           </li>
           <li>
             For Android: export an APK, sign it, and upload to an internal

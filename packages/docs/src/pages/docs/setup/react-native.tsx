@@ -27,8 +27,8 @@ function ReactNativeSetup() {
         }}
       >
         Use this if you're using React Native CLI or bare workflow. If you're
-        using Expo, we recommend{' '}
-        <a href="/docs/setup/expo">expo-iap</a> instead.
+        using Expo, we recommend <a href="/docs/setup/expo">expo-iap</a>{' '}
+        instead.
       </div>
 
       <div
@@ -94,7 +94,9 @@ npm install react-native-iap`}
             Requires <strong>compileSdkVersion 34+</strong>
           </li>
           <li>No additional native configuration needed</li>
-          <li>Uses Google Play Billing 8.0+ with automatic service reconnection</li>
+          <li>
+            Uses Google Play Billing 8.0+ with automatic service reconnection
+          </li>
         </ul>
       </section>
 
@@ -188,9 +190,7 @@ function Store() {
             #
           </a>
         </h3>
-        <p>
-          After calling methods, consume state from the hook:
-        </p>
+        <p>After calling methods, consume state from the hook:</p>
         <ul>
           <li>
             <code>products</code> — Populated after <code>fetchProducts()</code>
@@ -205,7 +205,8 @@ function Store() {
           </li>
           <li>
             <code>activeSubscriptions</code> — Populated after{' '}
-            <code>getActiveSubscriptions()</code>. Also returns the value directly.
+            <code>getActiveSubscriptions()</code>. Also returns the value
+            directly.
           </li>
         </ul>
 
@@ -265,8 +266,8 @@ await endConnection();`}
           </a>
         </h2>
         <p>
-          Errors are automatically normalized to the <code>ErrorCode</code> enum.
-          Use the provided helper functions:
+          Errors are automatically normalized to the <code>ErrorCode</code>{' '}
+          enum. Use the provided helper functions:
         </p>
         <CodeBlock language="typescript">
           {`import {
@@ -346,10 +347,18 @@ switch (error.code) {
         </h2>
         <h3>Products not found</h3>
         <ul>
-          <li>Ensure all agreements are signed in App Store Connect / Google Play Console</li>
-          <li>Verify banking, legal, and tax information is complete and approved</li>
+          <li>
+            Ensure all agreements are signed in App Store Connect / Google Play
+            Console
+          </li>
+          <li>
+            Verify banking, legal, and tax information is complete and approved
+          </li>
           <li>Check that bundle ID / package name matches exactly</li>
-          <li>Products must be in "Ready to Submit" status (Apple) or "Active" (Google)</li>
+          <li>
+            Products must be in "Ready to Submit" status (Apple) or "Active"
+            (Google)
+          </li>
           <li>Wait 15-30 minutes after creating products before testing</li>
         </ul>
         <h3>Build errors</h3>
