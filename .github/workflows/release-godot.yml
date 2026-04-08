@@ -11,6 +11,8 @@ on:
           - patch
           - minor
           - major
+          - current
+          - rc-bump
         default: patch
       prerelease:
         description: "Publish as prerelease (-rc.1)"
@@ -50,10 +52,28 @@ jobs:
           VERSION_TYPE="${{ inputs.version }}"
           IS_PRERELEASE="${{ inputs.prerelease }}"
           CURRENT_VERSION=$(grep -E '^version=' addons/godot-iap/plugin.cfg | cut -d'"' -f2)
+
+          if [ "$VERSION_TYPE" = "current" ]; then
+            echo "VERSION=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            if [[ "$CURRENT_VERSION" == *-* ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
           BASE_VERSION="${CURRENT_VERSION%%-*}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
-          if [ "$IS_PRERELEASE" = "true" ]; then
+          if [ "$VERSION_TYPE" = "rc-bump" ]; then
+            RC_NUM=$(echo "$CURRENT_VERSION" | sed -n 's/.*-rc\.\([0-9]*\)/\1/p')
+            if [ -z "$RC_NUM" ]; then
+              echo "::error::Current version $CURRENT_VERSION is not an rc version."
+              exit 1
+            fi
+            NEW_VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
+          elif [ "$IS_PRERELEASE" = "true" ]; then
             case "$VERSION_TYPE" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
               minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
@@ -77,6 +97,7 @@ jobs:
           fi
 
       - name: Update version in plugin.cfg
+        if: ${{ inputs.version != 'current' }}
         run: |
           sed -i '' 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' addons/godot-iap/plugin.cfg
 
@@ -157,12 +178,16 @@ jobs:
           zip -r ../godot-iap-${{ steps.version.outputs.VERSION }}.zip addons
 
       - name: Commit and tag
+        if: ${{ inputs.version != 'current' }}
         run: |
           git add addons/godot-iap/plugin.cfg
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): godot-iap ${{ steps.version.outputs.VERSION }}"
           fi
           git tag -f godot-iap-${{ steps.version.outputs.VERSION }}
+          git stash --include-untracked || true
+          git pull --rebase origin main
+          git stash pop || true
           git push --follow-tags
 
       - name: Create Release

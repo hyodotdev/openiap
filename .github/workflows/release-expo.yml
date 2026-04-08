@@ -11,6 +11,8 @@ on:
           - patch
           - minor
           - major
+          - current
+          - rc-bump
         default: patch
       prerelease:
         description: "Publish as prerelease (-rc.1)"
@@ -168,7 +170,21 @@ jobs:
           VERSION_TYPE="${{ inputs.version }}"
           IS_PRERELEASE="${{ inputs.prerelease }}"
 
-          if [ "$IS_PRERELEASE" = "true" ]; then
+          if [ "$VERSION_TYPE" = "current" ]; then
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+            if [[ "$NEW_VERSION" == *-* ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          if [ "$VERSION_TYPE" = "rc-bump" ]; then
+            # Bump rc number: 4.0.0-rc.0 → 4.0.0-rc.1
+            npm version prerelease --preid=rc --no-git-tag-version
+          elif [ "$IS_PRERELEASE" = "true" ]; then
             npm version "pre${VERSION_TYPE}" --preid=rc --no-git-tag-version
           else
             npm version "$VERSION_TYPE" --no-git-tag-version
@@ -186,6 +202,7 @@ jobs:
         run: bun run prepare
 
       - name: Commit and tag
+        if: ${{ inputs.version != 'current' }}
         run: |
           NEW_VERSION="${{ steps.bump.outputs.version }}"
           git add package.json
@@ -193,7 +210,19 @@ jobs:
           git tag "expo-iap-${NEW_VERSION}"
 
       - name: Push commit and tags
-        run: git push --follow-tags
+        if: ${{ inputs.version != 'current' }}
+        run: |
+          git stash --include-untracked
+          git pull --rebase origin main
+          git stash pop || true
+          git push --follow-tags
+
+      - name: Resolve symlinks for npm publish
+        run: |
+          # npm ignores symlinks — replace with real file
+          if [ -L openiap-versions.json ]; then
+            cp --remove-destination "$(readlink openiap-versions.json)" openiap-versions.json
+          fi
 
       - name: Ensure npm CLI v11.5.1 or later (required for OIDC)
         run: npm install -g npm@latest

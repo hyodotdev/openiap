@@ -1,5 +1,6 @@
 // Mock the native module first
 jest.mock('../../ExpoIapModule', () =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('../../__mocks__/ExpoIapModule'),
 );
 

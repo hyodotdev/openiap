@@ -1,4 +1,5 @@
 // Mock native module and RN
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock('../ExpoIapModule', () => require('../__mocks__/ExpoIapModule'));
 jest.mock('react-native', () => ({
   Platform: {OS: 'ios', select: jest.fn((obj: any) => obj.ios)},

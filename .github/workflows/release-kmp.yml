@@ -11,6 +11,8 @@ on:
           - patch
           - minor
           - major
+          - current
+          - rc-bump
         default: patch
       prerelease:
         description: "Publish as prerelease (-rc.1)"
@@ -58,10 +60,30 @@ jobs:
           VERSION_TYPE="${{ inputs.version }}"
           IS_PRERELEASE="${{ inputs.prerelease }}"
           CURRENT_VERSION=$(jq -r '.["kmp-iap"]' openiap-versions.json)
+
+          if [ "$VERSION_TYPE" = "current" ]; then
+            echo "VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+            echo "VERSION=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            if [[ "$CURRENT_VERSION" == *-* ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+            echo "libraryVersion=$CURRENT_VERSION" >> local.properties
+            exit 0
+          fi
+
           BASE_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/(-[a-zA-Z]+(\.[0-9]+)?)+$//')
           IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
-          if [ "$IS_PRERELEASE" = "true" ]; then
+          if [ "$VERSION_TYPE" = "rc-bump" ]; then
+            RC_NUM=$(echo "$CURRENT_VERSION" | sed -n 's/.*-rc\.\([0-9]*\)/\1/p')
+            if [ -z "$RC_NUM" ]; then
+              echo "::error::Current version $CURRENT_VERSION is not an rc version."
+              exit 1
+            fi
+            VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
+          elif [ "$IS_PRERELEASE" = "true" ]; then
             case "$VERSION_TYPE" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
               minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
@@ -87,24 +109,32 @@ jobs:
           echo "libraryVersion=$VERSION" >> local.properties
 
       - name: Update openiap-versions.json
+        if: ${{ inputs.version != 'current' }}
         run: |
           jq --arg version "${{ env.VERSION }}" '.["kmp-iap"] = $version' openiap-versions.json > tmp.json && mv tmp.json openiap-versions.json
 
       - name: Regenerate podspec with correct version
+        if: ${{ inputs.version != 'current' }}
         run: ./gradlew :library:podspec
 
       - name: Update podspec to read openiap-versions.json dynamically
+        if: ${{ inputs.version != 'current' }}
         run: ./gradlew :library:updatePodspecDependency
 
       - name: Update README version
+        if: ${{ inputs.version != 'current' }}
         run: ./gradlew :library:updateReadmeVersion
 
       - name: Commit version updates
+        if: ${{ inputs.version != 'current' }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add README.md library/library.podspec openiap-versions.json
           git diff --staged --quiet || git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
+          git stash --include-untracked || true
+          git pull --rebase origin main || true
+          git stash pop || true
           git push || echo "No changes to commit"
 
       - name: Build and test
