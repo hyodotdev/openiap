@@ -61,7 +61,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
 /**
  * Check if user is eligible for introductory offer
  *
- * @param groupId The subscription group ID
+ * @param groupId - The subscription group ID
  * @returns Promise resolving to true if eligible
  * @throws Error if called on non-iOS platform
  *
@@ -69,11 +69,11 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
  */
 export const isEligibleForIntroOfferIOS: QueryField<
   'isEligibleForIntroOfferIOS'
-> = async (groupID) => {
-  if (!groupID) {
-    throw new Error('isEligibleForIntroOfferIOS requires a groupID');
+> = async (groupId) => {
+  if (!groupId) {
+    throw new Error('isEligibleForIntroOfferIOS requires a groupId');
   }
-  return ExpoIapModule.isEligibleForIntroOfferIOS(groupID);
+  return ExpoIapModule.isEligibleForIntroOfferIOS(groupId);
 };
 
 /**

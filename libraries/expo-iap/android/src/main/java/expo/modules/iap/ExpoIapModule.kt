@@ -166,7 +166,7 @@ class ExpoIapModule : Module() {
 
             AsyncFunction("fetchProducts") { type: String, skuArr: Array<String>, promise: Promise ->
                 ExpoIapLog.payload(
-                    "fetchProductsAndroid",
+                    "fetchProducts",
                     mapOf("type" to type, "skus" to skuArr.toList()),
                 )
                 scope.launch {
@@ -180,26 +180,26 @@ class ExpoIapModule : Module() {
                                 is FetchProductsResultSubscriptions -> result.value.orEmpty().map { it.toJson() }
                                 else -> emptyList<Map<String, Any?>>()
                             }
-                        ExpoIapLog.result("fetchProductsAndroid", payload)
+                        ExpoIapLog.result("fetchProducts", payload)
                         promise.resolve(payload)
                     } catch (e: Exception) {
-                        ExpoIapLog.failure("fetchProductsAndroid", e)
+                        ExpoIapLog.failure("fetchProducts", e)
                         promise.reject(OpenIapError.QueryProduct.CODE, e.message, null)
                     }
                 }
             }
 
             AsyncFunction("getAvailableItems") { options: Map<String, Any?>?, promise: Promise ->
-                ExpoIapLog.payload("getAvailableItemsAndroid", options)
+                ExpoIapLog.payload("getAvailableItems", options)
                 scope.launch {
                     try {
                         val purchaseOptions = options?.let { PurchaseOptions.fromJson(it) }
                         val purchases = openIap.getAvailablePurchases(purchaseOptions)
                         val payload = purchases.map { it.toJson() }
-                        ExpoIapLog.result("getAvailableItemsAndroid", payload)
+                        ExpoIapLog.result("getAvailableItems", payload)
                         promise.resolve(payload)
                     } catch (e: Exception) {
-                        ExpoIapLog.failure("getAvailableItemsAndroid", e)
+                        ExpoIapLog.failure("getAvailableItems", e)
                         promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
@@ -238,7 +238,7 @@ class ExpoIapModule : Module() {
             }
 
             AsyncFunction("requestPurchase") { params: Map<String, Any?>, promise: Promise ->
-                ExpoIapLog.payload("requestPurchaseAndroid", params)
+                ExpoIapLog.payload("requestPurchase", params)
                 val parsedParams = ExpoIapHelper.parseRequestPurchaseParams(params)
 
                 val productType =
@@ -319,12 +319,12 @@ class ExpoIapModule : Module() {
                                 else -> emptyList()
                             }
                         ExpoIapLog.result(
-                            "requestPurchaseAndroid",
+                            "requestPurchase",
                             purchases.map { it.toJson() },
                         )
                         ExpoIapHelper.resolvePurchasePromises(purchases.map { it.toJson() })
                     } catch (e: Exception) {
-                        ExpoIapLog.failure("requestPurchaseAndroid", e)
+                        ExpoIapLog.failure("requestPurchase", e)
                         val errorMap =
                             if (e is OpenIapError) {
                                 e.toJSON()

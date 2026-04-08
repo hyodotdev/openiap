@@ -102,16 +102,16 @@ describe('iOS Module Functions', () => {
         'com.example.subscriptions.monthly',
       ];
 
-      for (const groupID of testCases) {
+      for (const groupId of testCases) {
         (
           ExpoIapModule.isEligibleForIntroOfferIOS as jest.Mock
         ).mockResolvedValue(true);
 
-        await isEligibleForIntroOfferIOS(groupID);
+        await isEligibleForIntroOfferIOS(groupId);
 
         expect(
           ExpoIapModule.isEligibleForIntroOfferIOS,
-        ).toHaveBeenLastCalledWith(groupID);
+        ).toHaveBeenLastCalledWith(groupId);
       }
     });
 
@@ -129,7 +129,7 @@ describe('iOS Module Functions', () => {
     it('should throw when groupId missing', async () => {
       // @ts-expect-error force undefined to exercise runtime guard
       await expect(isEligibleForIntroOfferIOS(undefined)).rejects.toThrow(
-        /requires a groupID/,
+        /requires a groupId/,
       );
     });
   });
