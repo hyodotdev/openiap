@@ -11,8 +11,6 @@ on:
           - patch
           - minor
           - major
-          - rc
-          - promote
         default: patch
       prerelease:
         description: "Publish as prerelease (-rc.1)"
@@ -63,20 +61,7 @@ jobs:
           BASE_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/(-[a-zA-Z]+(\.[0-9]+)?)+$//')
           IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
-          if [ "$VERSION_TYPE" = "promote" ]; then
-            if ! echo "$CURRENT_VERSION" | grep -q '\-rc\.'; then
-              echo "::error::Current version $CURRENT_VERSION is not an rc version."
-              exit 1
-            fi
-            VERSION="${BASE_VERSION}"
-          elif [ "$VERSION_TYPE" = "rc" ]; then
-            RC_NUM=$(echo "$CURRENT_VERSION" | sed -n 's/.*-rc\.\([0-9]*\)/\1/p')
-            if [ -z "$RC_NUM" ]; then
-              echo "::error::Current version $CURRENT_VERSION is not an rc version."
-              exit 1
-            fi
-            VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
-          elif [ "$IS_PRERELEASE" = "true" ]; then
+          if [ "$IS_PRERELEASE" = "true" ]; then
             case "$VERSION_TYPE" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
               minor) MINOR=$((MINOR + 1)); PATCH=0 ;;

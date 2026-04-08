@@ -11,8 +11,6 @@ on:
           - patch
           - minor
           - major
-          - rc
-          - promote
           - current
         default: patch
       prerelease:
@@ -53,19 +51,6 @@ jobs:
           NEW_VERSION="$CURRENT_VERSION"
           echo "Using current version (no bump): $NEW_VERSION"
           echo "skip_version_commit=true" >> $GITHUB_OUTPUT
-        elif [ "$VERSION_TYPE" = "promote" ]; then
-          if ! echo "$CURRENT_VERSION" | grep -q '\-rc\.'; then
-            echo "::error::Current version $CURRENT_VERSION is not an rc version."
-            exit 1
-          fi
-          NEW_VERSION="${BASE_VERSION}"
-        elif [ "$VERSION_TYPE" = "rc" ]; then
-          RC_NUM=$(echo "$CURRENT_VERSION" | sed -n 's/.*-rc\.\([0-9]*\)/\1/p')
-          if [ -z "$RC_NUM" ]; then
-            echo "::error::Current version $CURRENT_VERSION is not an rc version."
-            exit 1
-          fi
-          NEW_VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
         elif [ "$IS_PRERELEASE" = "true" ]; then
           case "$VERSION_TYPE" in
             major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;

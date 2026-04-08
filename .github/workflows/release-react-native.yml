@@ -11,8 +11,6 @@ on:
           - patch
           - minor
           - major
-          - rc
-          - promote
         default: patch
       prerelease:
         description: "Publish as prerelease (-rc.1)"
@@ -168,14 +166,7 @@ jobs:
           VERSION_TYPE="${{ inputs.version }}"
           IS_PRERELEASE="${{ inputs.prerelease }}"
 
-          if [ "$VERSION_TYPE" = "promote" ]; then
-            # Promote rc to stable: strip -rc.N suffix
-            CURRENT=$(node -p "require('./package.json').version")
-            BASE=$(echo "$CURRENT" | sed 's/-rc\.[0-9]*//')
-            npm version "$BASE" --no-git-tag-version
-          elif [ "$VERSION_TYPE" = "rc" ]; then
-            npm version prerelease --preid=rc --no-git-tag-version
-          elif [ "$IS_PRERELEASE" = "true" ]; then
+          if [ "$IS_PRERELEASE" = "true" ]; then
             npm version "pre${VERSION_TYPE}" --preid=rc --no-git-tag-version
           else
             npm version "$VERSION_TYPE" --no-git-tag-version
