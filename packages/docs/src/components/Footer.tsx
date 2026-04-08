@@ -54,7 +54,7 @@ function Footer() {
               <ul>
                 <li>
                   <a
-                    href="https://github.com/hyochan/openiap.dev"
+                    href="https://github.com/hyodotdev/openiap"
                     target="_blank"
                     rel="noopener noreferrer"
                   >

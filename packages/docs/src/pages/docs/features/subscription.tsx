@@ -190,6 +190,35 @@ subscription?.discountsIOS?.forEach { discount ->
     println("Promo: \${discount.identifier} - \${discount.localizedPrice}")
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+// KMP iOS target
+val kmpIAP = KmpIAP()
+
+// Fetch subscription products
+kmpIAP.fetchProducts(
+    skus = listOf("premium_monthly"),
+    type = ProductQueryType.Subs
+)
+
+val subscription = kmpIAP.iosProducts
+    .filterIsInstance<ProductIOS>()
+    .find { it.id == "premium_monthly" }
+
+// Check for introductory offer
+subscription?.subscriptionInfoIOS?.introductoryOffer?.let { introOffer ->
+    println("Intro offer: \${introOffer.displayPrice}")
+    println("Payment mode: \${introOffer.paymentMode}")
+    println("Period: \${introOffer.period.unit} x \${introOffer.periodCount}")
+}
+
+// Check for promotional offers
+subscription?.discountsIOS?.forEach { discount ->
+    println("Promo: \${discount.identifier} - \${discount.localizedPrice}")
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -320,6 +349,29 @@ fun displayIntroOffer(subscription: ProductIOS): String? {
 
 // Check eligibility
 val isEligible = iapStore.isEligibleForIntroOfferIOS(sku = "premium_monthly")
+if (isEligible) {
+    subscription?.let { displayIntroOffer(it)?.let(::println) }
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+// KMP iOS target
+fun displayIntroOffer(subscription: ProductIOS): String? {
+    val offer = subscription.subscriptionInfoIOS?.introductoryOffer
+        ?: return null
+
+    return when (offer.paymentMode) {
+        "free-trial" -> "\${offer.periodCount} \${offer.period.unit.lowercase()}(s) free trial"
+        "pay-as-you-go" -> "\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
+        "pay-up-front" -> "\${offer.displayPrice} for first \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
+        else -> null
+    }
+}
+
+// Check eligibility
+val isEligible = kmpIAP.isEligibleForIntroOfferIOS(sku = "premium_monthly")
 if (isEligible) {
     subscription?.let { displayIntroOffer(it)?.let(::println) }
 }`}</CodeBlock>
@@ -483,6 +535,41 @@ suspend fun purchaseWithPromoOffer(
     )
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+// KMP iOS target
+suspend fun purchaseWithPromoOffer(
+    subscriptionId: String,
+    offerId: String
+) {
+    // 1. Generate signature on your backend
+    val nonce = java.util.UUID.randomUUID().toString()
+    val timestamp = System.currentTimeMillis()
+
+    val signatureResponse = generateSignatureOnServer(
+        productId = subscriptionId,
+        offerId = offerId,
+        nonce = nonce,
+        timestamp = timestamp
+    )
+
+    // 2. Purchase with the promotional offer
+    kmpIAP.requestPurchase(
+        sku = subscriptionId,
+        type = ProductQueryType.Subs,
+        withOffer = DiscountOfferInputIOS(
+            identifier = offerId,
+            keyIdentifier = signatureResponse.keyIdentifier,
+            nonce = nonce,
+            signature = signatureResponse.signature,
+            timestamp = timestamp
+        ),
+        autoFinish = false
+    )
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`Future<void> purchaseWithPromoOffer(
   String subscriptionId,
@@ -607,6 +694,21 @@ suspend fun purchaseSubscription(subscriptionId: String) {
     )
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+// KMP iOS target
+suspend fun purchaseSubscription(subscriptionId: String) {
+    // Simply request purchase
+    // Intro offer is applied automatically when eligible
+    kmpIAP.requestPurchase(
+        sku = subscriptionId,
+        type = ProductQueryType.Subs,
+        autoFinish = false
+    )
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`Future<void> purchaseSubscription(String subscriptionId) async {
   // iOS: Simply request purchase
@@ -685,6 +787,24 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                       <CodeBlock language="swift">{`// Android-only - use Kotlin for Android implementation`}</CodeBlock>
                     ),
                     kotlin: (
+                      <CodeBlock language="kotlin">{`data class SubscriptionOfferDetailsAndroid(
+    val basePlanId: String,       // Base plan identifier
+    val offerId: String? = null,  // Offer ID (null for base plan)
+    val offerTags: List<String>,  // Tags for categorization
+    val offerToken: String,       // Required for purchase
+    val pricingPhases: PricingPhasesAndroid
+)
+
+data class PricingPhaseAndroid(
+    val formattedPrice: String,      // e.g., "$9.99"
+    val priceAmountMicros: Long,     // Price in micros
+    val priceCurrencyCode: String,   // e.g., "USD"
+    val billingPeriod: String,       // e.g., "P1M" (1 month)
+    val billingCycleCount: Int,      // Number of cycles
+    val recurrenceMode: Int          // 1=infinite, 2=finite, 3=non-recurring
+)`}</CodeBlock>
+                    ),
+                    kmp: (
                       <CodeBlock language="kotlin">{`data class SubscriptionOfferDetailsAndroid(
     val basePlanId: String,       // Base plan identifier
     val offerId: String? = null,  // Offer ID (null for base plan)
@@ -785,6 +905,43 @@ iapStore.fetchProducts(request)
 
 // Access Android offer details
 val subscriptions = iapStore.subscriptions.value
+    .filterIsInstance<ProductSubscriptionAndroid>()
+
+val subscription = subscriptions.find { it.id == "premium_monthly" }
+
+subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
+    println("Base Plan: \${offer.basePlanId}")
+    println("Offer ID: \${offer.offerId ?: "Base plan"}")
+    println("Offer Token: \${offer.offerToken}")
+
+    // Check pricing phases
+    offer.pricingPhases.pricingPhaseList.forEach { phase ->
+        when {
+            phase.priceAmountMicros == 0L ->
+                println("Free trial: \${phase.billingPeriod}")
+            phase.recurrenceMode == 2 ->
+                println("Intro: \${phase.formattedPrice} for \${phase.billingPeriod}")
+            else ->
+                println("Regular: \${phase.formattedPrice} per \${phase.billingPeriod}")
+        }
+    }
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+val kmpIAP = KmpIAP()
+
+// Fetch subscription products
+val request = ProductRequest(
+    skus = listOf("premium_monthly"),
+    type = ProductQueryType.Subs
+)
+kmpIAP.fetchProducts(request)
+
+// Access Android offer details
+val subscriptions = kmpIAP.subscriptions.value
     .filterIsInstance<ProductSubscriptionAndroid>()
 
 val subscription = subscriptions.find { it.id == "premium_monthly" }
@@ -950,6 +1107,46 @@ suspend fun purchaseSubscription(subscriptionId: String) {
     )
 
     iapStore.requestPurchase(props)
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.*
+
+suspend fun purchaseSubscription(subscriptionId: String) {
+    val subscription = kmpIAP.subscriptions.value
+        .filterIsInstance<ProductSubscriptionAndroid>()
+        .find { it.id == subscriptionId }
+        ?: return
+
+    // Build subscriptionOffers from fetched data
+    val subscriptionOffers = subscription.subscriptionOfferDetailsAndroid
+        ?.mapNotNull { offer ->
+            offer.offerToken?.let { token ->
+                AndroidSubscriptionOfferInput(
+                    sku = subscriptionId,
+                    offerToken = token
+                )
+            }
+        } ?: emptyList()
+
+    if (subscriptionOffers.isEmpty()) {
+        println("No subscription offers available")
+        return
+    }
+
+    val props = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Subscription(
+            RequestSubscriptionPropsByPlatforms(
+                android = RequestSubscriptionAndroidProps(
+                    skus = listOf(subscriptionId),
+                    subscriptionOffers = subscriptionOffers // Required
+                )
+            )
+        ),
+        type = ProductQueryType.Subs
+    )
+
+    kmpIAP.requestPurchase(props)
 }`}</CodeBlock>
                     ),
                     dart: (
@@ -1168,6 +1365,50 @@ suspend fun handlePurchase(basePlanId: String) {
     purchasedBasePlanId = basePlanId
 
     iapStore.requestPurchase(
+        RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionPropsByPlatforms(
+                    android = RequestSubscriptionAndroidProps(
+                        skus = listOf(subscriptionGroupId),
+                        subscriptionOffers = listOf(
+                            AndroidSubscriptionOfferInput(
+                                sku = subscriptionGroupId,
+                                offerToken = offer?.offerToken ?: ""
+                            )
+                        )
+                    )
+                )
+            ),
+            type = ProductQueryType.Subs
+        )
+    )
+}
+
+// 2. Use YOUR tracked value in purchase callback
+fun onPurchaseSuccess(purchase: PurchaseAndroid) {
+    // DON'T use purchase.currentPlanId - it may be wrong!
+    val actualBasePlanId = purchasedBasePlanId
+
+    // Save to your backend
+    saveToBackend(
+        purchaseToken = purchase.purchaseToken,
+        basePlanId = actualBasePlanId,
+        productId = purchase.productId
+    )
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`// 1. Store basePlanId BEFORE calling requestPurchase
+var purchasedBasePlanId: String? = null
+
+suspend fun handlePurchase(basePlanId: String) {
+    val offers = subscription.subscriptionOfferDetailsAndroid ?: return
+    val offer = offers.find { it.basePlanId == basePlanId && it.offerId == null }
+
+    // Store it before purchase
+    purchasedBasePlanId = basePlanId
+
+    kmpIAP.requestPurchase(
         RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Subscription(
                 RequestSubscriptionPropsByPlatforms(
@@ -1480,6 +1721,64 @@ suspend fun purchaseWithOffer(
     )
 
     iapStore.requestPurchase(props)
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`enum class OfferType { Base, Introductory, Promotional }
+
+fun selectOffer(
+    subscription: ProductSubscriptionAndroid,
+    offerType: OfferType
+): SubscriptionOfferDetailsAndroid? {
+    val offers = subscription.subscriptionOfferDetailsAndroid ?: return null
+
+    return when (offerType) {
+        OfferType.Base -> offers.find { it.offerId == null }
+        OfferType.Introductory -> offers.find { offer ->
+            offer.pricingPhases.pricingPhaseList.any { phase ->
+                phase.priceAmountMicros == 0L || phase.recurrenceMode == 2
+            }
+        }
+        OfferType.Promotional -> offers.find { offer ->
+            offer.offerTags.any { it.contains("promo", true) }
+        }
+    }
+}
+
+// Purchase with selected offer
+suspend fun purchaseWithOffer(
+    subscriptionId: String,
+    offerType: OfferType
+) {
+    val subscription = kmpIAP.subscriptions.value
+        .filterIsInstance<ProductSubscriptionAndroid>()
+        .find { it.id == subscriptionId }
+        ?: return
+
+    val selectedOffer = selectOffer(subscription, offerType)
+        ?: run {
+            println("Selected offer not found")
+            return
+        }
+
+    val props = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Subscription(
+            RequestSubscriptionPropsByPlatforms(
+                android = RequestSubscriptionAndroidProps(
+                    skus = listOf(subscriptionId),
+                    subscriptionOffers = listOf(
+                        AndroidSubscriptionOfferInput(
+                            sku = subscriptionId,
+                            offerToken = selectedOffer.offerToken
+                        )
+                    )
+                )
+            )
+        ),
+        type = ProductQueryType.Subs
+    )
+
+    kmpIAP.requestPurchase(props)
 }`}</CodeBlock>
                     ),
                     dart: (
@@ -1876,6 +2175,23 @@ suspend fun verifySubscription(purchase: PurchaseAndroid): Boolean {
     }
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+suspend fun verifySubscription(purchase: PurchaseAndroid): Boolean {
+    return try {
+        val result = kmpIAP.verifyPurchase(
+            purchase = purchase,
+            serverUrl = "https://your-server.com/api/verify-android"
+        )
+        result.isValid
+    } catch (e: Exception) {
+        println("Verification error: \${e.message}")
+        false
+    }
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'dart:io';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -1972,6 +2288,24 @@ if (hasActive) {
 
 // Get all active subscriptions
 val activeSubscriptions = iapStore.getActiveSubscriptions()
+activeSubscriptions.forEach { subscription ->
+    println("Active subscription: \${subscription.productId}")
+    subscription.expirationDate?.let { expiration ->
+        println("Expires: $expiration")
+    }
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+// Check if user has any active subscription
+val hasActive = kmpIAP.hasActiveSubscriptions()
+if (hasActive) {
+    println("User has premium access")
+}
+
+// Get all active subscriptions
+val activeSubscriptions = kmpIAP.getActiveSubscriptions()
 activeSubscriptions.forEach { subscription ->
     println("Active subscription: \${subscription.productId}")
     subscription.expirationDate?.let { expiration ->
@@ -2285,6 +2619,70 @@ suspend fun checkFromActiveSubscriptions() {
     }
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+// Note: subscriptionStatusIOS is iOS-only
+// For KMP iOS target:
+suspend fun checkSubscriptionStatus(sku: String): Pair<Boolean, String> {
+    val statuses = kmpIAP.subscriptionStatusIOS(sku = sku)
+
+    for (status in statuses) {
+        return when (status.state) {
+            "subscribed" -> {
+                println("✅ Active subscription")
+                true to "active"
+            }
+            "expired" -> {
+                println("❌ Subscription expired")
+                false to "expired"
+            }
+            "revoked" -> {
+                println("💰 Subscription was refunded")
+                false to "refunded"
+            }
+            "inGracePeriod" -> {
+                println("⚠️ Billing issue - grace period active")
+                true to "grace_period"
+            }
+            "inBillingRetryPeriod" -> {
+                println("🔄 Billing retry in progress")
+                true to "billing_retry"
+            }
+            else -> continue
+        }
+    }
+
+    return false to "unknown"
+}
+
+// Using ActiveSubscription for quick checks (works on iOS)
+suspend fun checkFromActiveSubscriptions() {
+    val subs = kmpIAP.getActiveSubscriptions()
+
+    for (sub in subs) {
+        val renewalInfo = sub.renewalInfoIOS
+
+        // Check if cancelled
+        val isCancelled = renewalInfo?.willAutoRenew == false
+
+        // Check expiration reason
+        val expirationReason = renewalInfo?.expirationReason
+
+        // Check if expired
+        val isExpired = sub.expirationDateIOS?.let {
+            it < System.currentTimeMillis()
+        } ?: false
+
+        println("Product: \${sub.productId}")
+        println("  Active: \${sub.isActive}")
+        println("  Cancelled: $isCancelled")
+        println("  Expired: $isExpired")
+        expirationReason?.let { println("  Expiration Reason: $it") }
+    }
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -2507,6 +2905,57 @@ import kotlinx.coroutines.withContext
 // Client-side: Can only check if purchase exists
 suspend fun checkAndroidSubscription(): Map<String, Any> {
     val purchases = iapStore.getAvailablePurchases()
+
+    val subscriptionPurchases = purchases.filter {
+        it.productId.contains("subscription")
+    }
+
+    if (subscriptionPurchases.isEmpty()) {
+        println("No subscription purchases found")
+        return mapOf("hasAccess" to false)
+    }
+
+    // ⚠️ Purchase exists, but client cannot determine:
+    // - If it's expired
+    // - If it's been refunded
+    // - If it's cancelled
+    // Must verify on server for accurate status
+
+    val purchase = subscriptionPurchases.first()
+    println("Purchase found: \${purchase.productId}")
+    println("Purchase token: \${purchase.purchaseToken}")
+
+    // Send to server for verification
+    val serverResult = withContext(Dispatchers.IO) {
+        verifyOnServer(
+            purchaseToken = purchase.purchaseToken ?: "",
+            productId = purchase.productId,
+            packageName = purchase.packageNameAndroid ?: ""
+        )
+    }
+
+    // Server uses Google Play Developer API to get:
+    // - expiryTimeMillis
+    // - cancelReason (0=user, 1=system, 2=replaced, 3=developer)
+    // - paymentState
+    // - acknowledgementState
+
+    return mapOf(
+        "hasAccess" to serverResult.isActive,
+        "status" to serverResult.status,
+        "expiresAt" to serverResult.expiryTimeMillis
+    )
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+// Client-side: Can only check if purchase exists
+suspend fun checkAndroidSubscription(): Map<String, Any> {
+    val purchases = kmpIAP.getAvailablePurchases()
 
     val subscriptionPurchases = purchases.filter {
         it.productId.contains("subscription")
@@ -2813,6 +3262,14 @@ func manageSubscriptions() async {
 // Open subscription management page
 fun manageSubscriptions() {
     iapStore.deepLinkToSubscriptions()
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+// Open subscription management page
+fun manageSubscriptions() {
+    kmpIAP.deepLinkToSubscriptions()
 }`}</CodeBlock>
             ),
             dart: (

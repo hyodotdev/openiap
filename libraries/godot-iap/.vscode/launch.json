@@ -1,0 +1,95 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🔨 iOS: Build Framework",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["ios"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🔨 Android: Build Framework",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["android"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🍎 iOS: Build & Run",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["run-ios"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🤖 Android: Build & Run",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["run-android"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "📦 Release iOS: Local Build",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["test-ios"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "📦 Release Android: Local Build",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["test-android"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "📦 Release iOS: GitHub Release",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["release-ios"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "📦 Release Android: GitHub Release",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["release-android"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🎮 Godot: Run Example",
+      "type": "godot",
+      "request": "launch",
+      "project": "${workspaceFolder}/Example",
+      "scene": "res://main.tscn",
+      "editor_path": "${config:godot_tools.editor_path}",
+      "debug": true
+    },
+    {
+      "name": "📚 Docs: Dev Server",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/docs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

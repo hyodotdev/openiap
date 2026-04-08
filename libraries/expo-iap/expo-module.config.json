@@ -1,0 +1,17 @@
+{
+  "platforms": [
+    "ios",
+    "android"
+  ],
+  "ios": {
+    "modules": [
+      "ExpoIapModule"
+    ],
+    "appDelegateSubscribers": []
+  },
+  "android": {
+    "modules": [
+      "expo.modules.iap.ExpoIapModule"
+    ]
+  }
+}

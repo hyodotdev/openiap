@@ -1541,6 +1541,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         case .billingUnavailable: return "Billing unavailable"
         case .featureNotSupported: return "Feature not supported on this platform"
         case .emptySkuList: return "Empty SKU list provided"
+        case .duplicatePurchase: return "Duplicate purchase update detected"
         }
     }
 

@@ -68,6 +68,9 @@ interface InitConnectionConfig {
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun initConnection(config: InitConnectionConfig? = null): Boolean`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun initConnection(config: InitConnectionConfig? = null): Boolean`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});`}</CodeBlock>
             ),
@@ -102,6 +105,21 @@ openIapStore.initConnection()
 
 // With alternative billing
 openIapStore.initConnection(
+    InitConnectionConfig(
+        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    )
+)`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+// Standard connection
+kmpIAP.initConnection()
+
+// With alternative billing
+kmpIAP.initConnection(
     InitConnectionConfig(
         alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
     )
@@ -151,6 +169,9 @@ var success = await iap.init_connection(config)`}</CodeBlock>
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun endConnection(): Boolean`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun endConnection(): Boolean`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<bool> endConnection();`}</CodeBlock>
             ),
@@ -180,6 +201,9 @@ useEffect(() => {
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`openIapStore.endConnection()`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`kmpIAP.endConnection()`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.endConnection();`}</CodeBlock>

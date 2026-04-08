@@ -1,0 +1,224 @@
+name: "Release: react-native-iap"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - rc
+          - promote
+        default: patch
+      prerelease:
+        description: "Publish as prerelease (-rc.1)"
+        required: false
+        default: false
+        type: boolean
+      create_release:
+        description: "Also create a GitHub Release"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  validate-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GRADLE_OPTS: '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError"'
+    defaults:
+      run:
+        working-directory: libraries/react-native-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install Yarn 3
+        run: corepack enable && corepack prepare yarn@3.6.1 --activate
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate nitrogen code
+        run: yarn nitrogen
+
+      - name: Install JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Build Android library
+        working-directory: libraries/react-native-iap/example/android
+        run: ./gradlew :react-native-iap:assembleDebug --stacktrace
+
+  validate-ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      XCODE_VERSION: 16.4
+    defaults:
+      run:
+        working-directory: libraries/react-native-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install Yarn 3
+        run: corepack enable && corepack prepare yarn@3.6.1 --activate
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate nitrogen code
+        run: yarn nitrogen
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cocoapods/repos/trunk
+            libraries/react-native-iap/example/ios/Pods
+          key: ${{ runner.os }}-pods-rniap-${{ hashFiles('libraries/react-native-iap/example/ios/Podfile.lock') }}
+
+      - name: Install Ruby dependencies
+        working-directory: libraries/react-native-iap/example
+        run: bundle install
+
+      - name: Install CocoaPods dependencies
+        working-directory: libraries/react-native-iap/example/ios
+        run: bundle exec pod install
+
+      - name: Build iOS library
+        working-directory: libraries/react-native-iap/example/ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace example.xcworkspace \
+            -scheme example \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+  deploy:
+    needs: [validate-android, validate-ios]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libraries/react-native-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Disable Corepack
+        run: corepack disable
+
+      - name: Install dependencies
+        run: node .yarn/releases/yarn-3.6.1.cjs install --immutable
+
+      - name: Lint
+        run: |
+          node .yarn/releases/yarn-3.6.1.cjs lint:tsc
+          npx eslint --ext .ts,.tsx,.js,.jsx src plugin/src
+
+      - name: Configure Git user
+        run: |
+          git config user.name "react-native-iap bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: bump
+        run: |
+          VERSION_TYPE="${{ inputs.version }}"
+          IS_PRERELEASE="${{ inputs.prerelease }}"
+
+          if [ "$VERSION_TYPE" = "promote" ]; then
+            # Promote rc to stable: strip -rc.N suffix
+            CURRENT=$(node -p "require('./package.json').version")
+            BASE=$(echo "$CURRENT" | sed 's/-rc\.[0-9]*//')
+            npm version "$BASE" --no-git-tag-version
+          elif [ "$VERSION_TYPE" = "rc" ]; then
+            npm version prerelease --preid=rc --no-git-tag-version
+          elif [ "$IS_PRERELEASE" = "true" ]; then
+            npm version "pre${VERSION_TYPE}" --preid=rc --no-git-tag-version
+          else
+            npm version "$VERSION_TYPE" --no-git-tag-version
+          fi
+
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$NEW_VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare package (build + codegen)
+        run: node .yarn/releases/yarn-3.6.1.cjs prepare
+
+      - name: Commit and tag
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.version }}"
+          git add package.json
+          git commit -m "chore(release): react-native-iap ${NEW_VERSION}"
+          git tag "react-native-iap-${NEW_VERSION}"
+
+      - name: Push commit and tags
+        run: git push --follow-tags
+
+      - name: Ensure npm CLI v11.5.1 or later (required for OIDC)
+        run: npm install -g npm@latest
+
+      - name: Publish to npm with OIDC trusted publishing
+        run: |
+          if [ "${{ steps.bump.outputs.is_prerelease }}" = "true" ]; then
+            npm publish --tag next --access public --provenance
+          else
+            npm publish --access public --provenance
+          fi
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: react-native-iap-${{ steps.bump.outputs.version }}
+          name: react-native-iap ${{ steps.bump.outputs.version }}
+          draft: false
+          prerelease: ${{ steps.bump.outputs.is_prerelease }}
+          generate_release_notes: true

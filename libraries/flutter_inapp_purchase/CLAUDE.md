@@ -1,0 +1,235 @@
+# Implementation Guidelines
+
+## API Changes
+
+### fetchProducts API (Updated)
+
+The `fetchProducts` method is a generic method. Use explicit type parameter for proper type inference:
+
+```dart
+// For InApp products - specify <Product>
+final products = await iap.fetchProducts<Product>(
+  skus: ['product_id_1', 'product_id_2'],
+  type: ProductQueryType.InApp, // Optional, defaults to InApp
+);
+
+// For subscriptions - specify <ProductSubscription>
+final subscriptions = await iap.fetchProducts<ProductSubscription>(
+  skus: ['sub_id_1', 'sub_id_2'],
+  type: ProductQueryType.Subs,
+);
+
+// For all products - specify <ProductCommon>
+final allProducts = await iap.fetchProducts<ProductCommon>(
+  skus: [...],
+  type: ProductQueryType.All,
+);
+
+// Simple iteration with type safety
+for (final product in products) {
+  print('${product.title}: ${product.displayPrice}');
+}
+```
+
+**Note:** Always use explicit type parameter for proper type inference and IDE support.
+
+### getAvailablePurchases API (v6.4.6+)
+
+The `getAvailablePurchases` method now supports `PurchaseOptions` for OpenIAP compliance:
+
+```dart
+// Get active purchases only (default behavior)
+final activePurchases = await iap.getAvailablePurchases();
+
+// Get all purchases including expired subscriptions (iOS)
+final allPurchases = await iap.getAvailablePurchases(
+  PurchaseOptions(
+    onlyIncludeActiveItemsIOS: false,  // Include expired subscriptions
+    alsoPublishToEventListenerIOS: true,  // Optional: publish to event listener
+  ),
+);
+```
+
+**Note**: `getPurchaseHistories()` is deprecated. Use `getAvailablePurchases()` with options instead.
+
+## Flutter-Specific Guidelines
+
+### Generated Files
+
+- `lib/types.dart` is generated from the OpenIAP GraphQL schema (`packages/gql`). Never edit it by hand.
+- In monorepo: run `./scripts/sync-versions.sh` from the repo root to sync types from `packages/gql/src/generated/types.dart`.
+- Standalone: run `./scripts/generate-type.sh` to download from GitHub Releases.
+- If the generation script fails, fix the schema in `packages/gql/` instead of patching the output manually.
+
+### Using `lib/types.dart`
+
+- Follow the generated-handler convention documented in `CONVENTION.md` so exported APIs stay aligned with the OpenIAP schema.
+
+### Documentation Style
+
+- **Avoid using emojis** in documentation, especially in headings
+- Keep documentation clean and professional for better readability
+- Focus on clear, concise technical writing
+
+### Pre-Commit Checks
+
+**Pre-commit hooks are now set up** to automatically run these checks before each commit. If any check fails, the commit will be blocked.
+
+Before committing any changes, run these commands in order and ensure ALL pass:
+
+1. **Format check**: `git ls-files '*.dart' | grep -v '^lib/types.dart$' | xargs dart format --page-width 80 --output=none --set-exit-if-changed`
+   - This matches the CI formatter and skips the generated `lib/types.dart`
+   - If it fails, run the same command without `--set-exit-if-changed` (or drop the `--output` flag) to auto-format, then retry
+   - Always format code before committing to maintain consistent style
+2. **Lint check**: `flutter analyze`
+   - Fix any lint issues before committing
+   - Pay attention to type inference errors and explicitly specify type arguments when needed
+3. **Test validation**: `flutter test`
+   - All tests must pass
+   - When you need coverage data, run `flutter test --coverage` then `dart run tool/filter_coverage.dart` to strip `lib/types.dart` from reports
+4. **Final verification**: Re-run `dart format --set-exit-if-changed .` to confirm no formatting issues
+5. Only commit if ALL checks succeed with exit code 0
+
+**Manual check script**: You can also run `./scripts/pre-commit-checks.sh` to manually execute all checks.
+
+### Code Coverage (Codecov)
+
+This project uses Codecov with two checks: **codecov/patch** (new/modified lines) and **codecov/project** (overall project coverage). Both must pass for CI to succeed.
+
+**When adding or modifying code:**
+
+1. Always write tests for new code paths - aim for full branch coverage of your changes
+2. After writing tests, run coverage locally to verify:
+
+   ```bash
+   flutter test --coverage
+   dart run tool/filter_coverage.dart
+   ```
+
+3. The project target is `auto` (must not decrease from base branch). If codecov/project fails, add more tests until overall coverage meets or exceeds the base
+4. Focus coverage on:
+   - All new public methods and their error paths
+   - Both `on PlatformException catch` and generic `catch` blocks
+   - Extension methods and utility functions
+   - Edge cases (null values, empty strings, missing fields)
+5. Files with 0% coverage are easy wins - prioritize testing those first when coverage needs improvement
+
+**Configuration:** `.codecov.yml` - `lib/types.dart` is ignored (generated file).
+
+### Commit Message Convention
+
+- Follow the Angular commit style: `<type>: <short summary>` (50 characters max).
+- Use lowercase `type` (e.g., `feat`, `fix`, `docs`, `chore`, `test`).
+- Keep the summary concise and descriptive; avoid punctuation at the end.
+
+**Important**:
+
+- Use `--set-exit-if-changed` flag to match CI behavior and catch formatting issues locally before they cause CI failures
+- When using generic functions like `showModalBottomSheet`, always specify explicit type arguments (e.g., `showModalBottomSheet<void>`) to avoid type inference errors
+
+### Platform-Specific Naming Conventions
+
+- **iOS-related code**: Use `IOS` suffix (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`)
+  - When iOS is not the final suffix, use `Ios` (e.g., `IosManager`, `IosHelper`)
+  - For field names with iOS in the middle: use `Id` before `IOS` (e.g., `subscriptionGroupIdIOS`, `webOrderLineItemIdIOS`)
+- **Android-related code**: Use `Android` suffix (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`)
+- **IAP-related code**: When IAP is not the final suffix, use `Iap` (e.g., `IapPurchase`, not `IAPPurchase`)
+- **ID vs Id convention**:
+  - Use `Id` consistently across all platforms (e.g., `productId`, `transactionId`, `offerId`)
+  - When combined with platform suffixes: use `Id` before the suffix (e.g., `subscriptionGroupIdIOS`, `webOrderLineItemIdIOS`, `obfuscatedAccountIdAndroid`)
+  - Exception: Standalone iOS fields that end with ID use `ID` (e.g., `transactionID`, `webOrderLineItemID` in iOS-only contexts)
+- This applies to both functions and types
+
+### API Method Naming
+
+- Functions that depend on event results should use `request` prefix (e.g., `requestPurchase`, `requestPurchaseWithBuilder`)
+- Follow OpenIAP terminology: <https://www.openiap.dev/docs/apis#terminology>
+- Do not use generic prefixes like `get`, `find` - refer to the official terminology
+
+## IAP-Specific Guidelines
+
+### OpenIAP Specification
+
+All implementations must follow the OpenIAP specification:
+
+- **APIs**: <https://www.openiap.dev/docs/apis>
+- **Types**: <https://www.openiap.dev/docs/types>
+- **Events**: <https://www.openiap.dev/docs/events>
+- **Errors**: <https://www.openiap.dev/docs/errors>
+
+### Feature Development Process
+
+For new feature proposals:
+
+1. Before implementing, discuss at: <https://github.com/hyodotdev/openiap/discussions>
+2. Get community feedback and consensus
+3. Ensure alignment with OpenIAP standards
+4. Implement following the agreed specification
+
+## Skills
+
+### /commit
+
+Complete workflow for committing changes: branch check, pre-commit checks, commit, push, and PR creation.
+
+**Arguments**: `[options]`
+
+- `--push` or `-p`: Push to remote after commit
+- `--pr`: Create PR after push
+- `--all` or `-a`: Commit all changes at once
+- `<path>`: Commit only specific path (e.g., `lib/`)
+
+**Workflow**:
+
+1. Check current branch (create feature branch if on main)
+2. Run pre-commit checks (format, analyze, test)
+3. Stage and commit changes with conventional commit message
+4. Optionally push and create PR
+
+**Examples**:
+
+- `/commit lib/ --pr` - Commit lib changes and create PR
+- `/commit --all --push` - Commit all and push
+- `/commit android/` - Commit only android changes
+
+See [.claude/commands/commit.md](.claude/commands/commit.md) for full documentation.
+
+### /review-pr
+
+Review and address PR review comments.
+
+**Arguments**: `PR_NUMBER` or `PR_URL` (e.g., `123` or full GitHub URL)
+
+**Workflow**:
+
+1. Fetch unresolved PR review threads
+2. For each comment:
+   - Valid issue -> Fix the code
+   - Invalid/wrong -> Reply with explanation
+3. Run pre-commit checks (format, analyze, test)
+4. If all pass -> Commit and push
+5. Resolve fixed threads with commit hash reply
+
+**Example**: `/review-pr 123`
+
+See [.claude/commands/review-pr.md](.claude/commands/review-pr.md) for full documentation.
+
+### /release
+
+Deploy a new release via GitHub Actions CI.
+
+Releases are automated via the **Deploy (manual)** workflow (`.github/workflows/deploy.yml`). The workflow handles version bumping, CHANGELOG.md generation, pub.dev publishing, and GitHub Release creation.
+
+**How to trigger**:
+
+1. Go to GitHub Actions > "Deploy (manual)" > "Run workflow"
+2. Select version bump type (patch/minor/major)
+3. Optionally create a GitHub Release
+
+The workflow will:
+
+- Bump version in `pubspec.yaml`
+- Auto-generate `CHANGELOG.md` from merged PRs and commits
+- Commit, tag, and push
+- Publish to pub.dev via OIDC trusted publishing
+- Create a GitHub Release with release notes

@@ -1,0 +1,26 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "cSpell.words": [
+    "androidx",
+    "billingclient",
+    "dokka",
+    "FREETRIAL",
+    "hyochan",
+    "IAPKIT",
+    "inapp",
+    "kmpiap",
+    "kotlinx",
+    "minmax",
+    "Multiplatform",
+    "openiap",
+    "PAYASYOUGO",
+    "PAYUPFRONT",
+    "preorder",
+    "readlines",
+    "rgba",
+    "skus",
+    "startswith",
+    "vanniktech",
+    "writelines"
+  ]
+}

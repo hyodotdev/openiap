@@ -3,7 +3,9 @@
     "hyodotdev",
     "Iapkit",
     "openiap",
-    "Skus"
+    "Skus",
+    "Slurper",
+    "JsonSlurper"
   ],
   "files.associations": {
     "*.podspec": "ruby"
@@ -42,5 +44,6 @@
     "editor.tabSize": 4,
     "editor.insertSpaces": true
   },
-  "java.configuration.updateBuildConfiguration": "automatic"
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "gradle.nestedProjects": false
 }

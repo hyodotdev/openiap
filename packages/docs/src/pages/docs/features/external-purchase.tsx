@@ -233,6 +233,47 @@ suspend fun handleExternalPurchaseFlow() {
     }
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.ExternalPurchaseNoticeAction
+
+// iOS 18.2+ External Purchase Flow (from Kotlin Multiplatform)
+suspend fun handleExternalPurchaseFlow() {
+    val kmpIAP = KmpIAP()
+    val externalUrl = "https://your-payment-site.com/checkout"
+
+    try {
+        // Step 1: Check if notice sheet can be presented
+        val canPresent = kmpIAP.canPresentExternalPurchaseNoticeIOS()
+
+        if (!canPresent) {
+            println("External purchase notice sheet not available")
+            return
+        }
+
+        // Step 2: Present notice sheet (Apple's info sheet)
+        val noticeResult = kmpIAP.presentExternalPurchaseNoticeSheetIOS()
+
+        if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
+            // Step 3: Present external purchase link
+            val linkResult = kmpIAP.presentExternalPurchaseLinkIOS(externalUrl)
+
+            if (linkResult.success) {
+                println("User acknowledged external purchase")
+                // User approved external purchase
+                // Call your backend API to initiate purchase
+                // yourBackend.createPurchase(productId, userId)
+            } else {
+                println("External purchase link failed: \${linkResult.error ?: ""}")
+            }
+        } else {
+            println("User dismissed notice sheet")
+        }
+    } catch (e: Exception) {
+        println("External purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -726,6 +767,68 @@ suspend fun handleAlternativeBillingPurchase(productId: String) {
     }
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+// Initialize with Alternative Billing Only mode
+val kmpIAP = KmpIAP(
+    context = applicationContext,
+    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
+)
+
+// Initialize connection
+val config = InitConnectionConfig(
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+)
+kmpIAP.initConnection(config)
+
+// Purchase flow
+suspend fun handleAlternativeBillingPurchase(productId: String) {
+    try {
+        // Step 1: Check availability
+        val isAvailable = kmpIAP.checkAlternativeBillingAvailability()
+        if (!isAvailable) {
+            Log.e("IAP", "Alternative billing not available")
+            return
+        }
+
+        // Step 2: Show Google's information dialog
+        val dialogAccepted = kmpIAP.showAlternativeBillingInformationDialog(activity)
+        if (!dialogAccepted) {
+            Log.d("IAP", "User canceled")
+            return
+        }
+
+        // Step 3: Process payment with your backend API
+        val paymentResult = yourBackend.createPayment(
+            productId = productId,
+            userId = userId,
+            amount = productPrice
+        )
+
+        if (!paymentResult.success) {
+            Log.e("IAP", "Payment failed: \${paymentResult.error}")
+            return
+        }
+
+        // Step 4: Create reporting token (after successful payment)
+        val token = kmpIAP.createAlternativeBillingReportingToken()
+        Log.d("IAP", "Token created: \${token?.take(20)}...")
+
+        // Step 5: Send token to your backend server
+        // Backend will report token to Google Play within 24 hours
+        yourBackend.reportToken(
+            token = token,
+            orderId = paymentResult.orderId,
+            productId = productId
+        )
+
+        Log.d("IAP", "Purchase completed!")
+    } catch (e: Exception) {
+        Log.e("IAP", "Purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -1002,6 +1105,82 @@ suspend fun handleUserChoicePurchase(productId: String) {
     }
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+// Initialize with User Choice mode
+val kmpIAP = KmpIAP(
+    context = applicationContext,
+    alternativeBillingMode = AlternativeBillingMode.USER_CHOICE
+)
+
+// Set user choice billing listener (for alternative billing selection)
+kmpIAP.setUserChoiceBillingListener { details ->
+    Log.d("IAP", "User selected alternative billing")
+    Log.d("IAP", "Token: \${details.externalTransactionToken}")
+    Log.d("IAP", "Products: \${details.products}")
+
+    // Process payment with your backend API
+    lifecycleScope.launch {
+        try {
+            val paymentResult = yourBackend.createPayment(
+                productId = details.products.first(),
+                userId = userId,
+                amount = productPrice
+            )
+
+            if (paymentResult.success) {
+                // Report token to backend (backend will send to Google Play)
+                yourBackend.reportToken(
+                    token = details.externalTransactionToken,
+                    orderId = paymentResult.orderId,
+                    productId = details.products.first()
+                )
+                Log.d("IAP", "Alternative billing purchase completed")
+            }
+        } catch (e: Exception) {
+            Log.e("IAP", "Alternative billing payment error: \${e.message}")
+        }
+    }
+}
+
+// Set purchase success listener (for Google Play)
+kmpIAP.onPurchaseSuccess = { purchase ->
+    Log.d("IAP", "Google Play purchase: \${purchase.productId}")
+    // Handle Google Play purchase
+}
+
+// Initialize connection
+val config = InitConnectionConfig(
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+)
+kmpIAP.initConnection(config)
+
+// Purchase flow - Google shows selection dialog automatically
+suspend fun handleUserChoicePurchase(productId: String) {
+    try {
+        kmpIAP.setActivity(activity)
+
+        val props = RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(
+                        skus = listOf(productId)
+                    )
+                )
+            ),
+            type = ProductQueryType.InApp
+        )
+
+        kmpIAP.requestPurchase(props)
+
+        // If user selects Google Play → onPurchaseSuccess callback
+        // If user selects alternative → UserChoiceBillingListener callback
+    } catch (e: Exception) {
+        Log.e("IAP", "Purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -1265,6 +1444,75 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
 
         // Step 4: Create reporting details (replaces createAlternativeBillingToken)
         val reportingDetails = iapStore.createBillingProgramReportingDetails(
+            BillingProgramAndroid.ExternalOffer
+        )
+        Log.d("IAP", "Token created: \${reportingDetails.externalTransactionToken.take(20)}...")
+
+        // Step 5: Send token to your backend server
+        yourBackend.reportToken(
+            token = reportingDetails.externalTransactionToken,
+            orderId = paymentResult.orderId,
+            productId = productId
+        )
+
+        Log.d("IAP", "Purchase completed!")
+    } catch (e: Exception) {
+        Log.e("IAP", "Purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+// Initialize store
+val kmpIAP = KmpIAP(context = applicationContext)
+
+// Step 0: Enable billing program BEFORE initConnection
+kmpIAP.enableBillingProgram(BillingProgramAndroid.ExternalOffer)
+// or BillingProgramAndroid.ExternalContentLink
+
+kmpIAP.initConnection(null)
+
+// Purchase flow with Billing Programs API (8.2.0+)
+suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
+    try {
+        // Step 1: Check if billing program is available
+        val result = kmpIAP.isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)
+        if (!result.isAvailable) {
+            Log.e("IAP", "External offer program not available")
+            return
+        }
+
+        // Step 2: Launch external link (replaces showAlternativeBillingDialog)
+        val launched = kmpIAP.launchExternalLink(
+            activity,
+            LaunchExternalLinkParamsAndroid(
+                billingProgram = BillingProgramAndroid.ExternalOffer,
+                launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+                linkUri = "https://your-payment-site.com/checkout"
+            )
+        )
+
+        if (!launched) {
+            Log.e("IAP", "Failed to launch external link")
+            return
+        }
+
+        // Step 3: Process payment with your backend API
+        val paymentResult = yourBackend.createPayment(
+            productId = productId,
+            userId = userId,
+            amount = productPrice
+        )
+
+        if (!paymentResult.success) {
+            Log.e("IAP", "Payment failed: \${paymentResult.error}")
+            return
+        }
+
+        // Step 4: Create reporting details (replaces createAlternativeBillingToken)
+        val reportingDetails = kmpIAP.createBillingProgramReportingDetails(
             BillingProgramAndroid.ExternalOffer
         )
         Log.d("IAP", "Token created: \${reportingDetails.externalTransactionToken.take(20)}...")
@@ -1670,6 +1918,90 @@ suspend fun handlePurchaseWithExternalPayments(productId: String) {
     }
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+// Initialize store
+val kmpIAP = KmpIAP(context = applicationContext)
+
+// Step 0: Enable External Payments program BEFORE initConnection
+kmpIAP.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
+
+kmpIAP.initConnection(null)
+
+// Step 1: Set up listener for when user selects developer billing
+kmpIAP.addDeveloperProvidedBillingListener { details ->
+    Log.d("IAP", "User selected developer billing")
+    Log.d("IAP", "External transaction token: \${details.externalTransactionToken}")
+
+    // Step 2: Process payment with your backend
+    lifecycleScope.launch {
+        try {
+            val paymentResult = yourBackend.createPayment(
+                productId = currentProductId,
+                userId = userId,
+                amount = productPrice
+            )
+
+            if (paymentResult.success) {
+                // Step 3: Report the external transaction token to Google
+                // This must be done within 24 hours
+                yourBackend.reportExternalTransaction(
+                    token = details.externalTransactionToken,
+                    orderId = paymentResult.orderId,
+                    productId = currentProductId
+                )
+
+                Log.d("IAP", "External payment completed and reported!")
+            }
+        } catch (e: Exception) {
+            Log.e("IAP", "External payment error: \${e.message}")
+        }
+    }
+}
+
+// Purchase flow with External Payments
+suspend fun handlePurchaseWithExternalPayments(productId: String) {
+    try {
+        // Check if External Payments is available (Japan only)
+        val result = kmpIAP.isBillingProgramAvailable(
+            BillingProgramAndroid.ExternalPayments
+        )
+        if (!result.isAvailable) {
+            Log.w("IAP", "External Payments not available (not in Japan)")
+            // Fall back to standard Google Play purchase
+            return
+        }
+
+        kmpIAP.setActivity(activity)
+
+        // Launch purchase with developer billing option
+        // User will see side-by-side choice dialog
+        val props = RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(
+                        skus = listOf(productId),
+                        developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                            billingProgram = BillingProgramAndroid.ExternalPayments,
+                            linkUri = "https://your-payment-site.com/checkout",
+                            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
+                        )
+                    )
+                )
+            ),
+            type = ProductQueryType.InApp
+        )
+
+        kmpIAP.requestPurchase(props)
+
+        // If user selects Google Play → onPurchaseSuccess callback
+        // If user selects developer billing → DeveloperProvidedBillingListener callback
+    } catch (e: Exception) {
+        Log.e("IAP", "Purchase error: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -1987,6 +2319,21 @@ val config = InitConnectionConfig(
     // or AlternativeBillingModeAndroid.UserChoice
 )
 iapStore.initConnection(config)`}</CodeBlock>
+                    ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`// Method 1: Set mode during initialization
+val kmpIAP = KmpIAP(
+    context = applicationContext,
+    alternativeBillingMode = AlternativeBillingMode.ALTERNATIVE_ONLY
+    // or AlternativeBillingMode.USER_CHOICE
+)
+
+// Method 2: Set mode when initializing connection
+val config = InitConnectionConfig(
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+    // or AlternativeBillingModeAndroid.UserChoice
+)
+kmpIAP.initConnection(config)`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -2382,7 +2729,7 @@ func _ready_user_choice() -> void:
                 <ul>
                   <li>
                     <a
-                      href="https://github.com/hyochan/expo-iap/blob/main/example/ios/OpenIapExample/Screens/AlternativeBillingScreen.swift"
+                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example/ios/OpenIapExample/Screens/AlternativeBillingScreen.swift"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -2409,7 +2756,7 @@ func _ready_user_choice() -> void:
                 <ul>
                   <li>
                     <a
-                      href="https://github.com/hyochan/expo-iap/blob/main/example/android/app/src/main/java/dev/hyo/martie/screens/AlternativeBillingScreen.kt"
+                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example/android/app/src/main/java/dev/hyo/martie/screens/AlternativeBillingScreen.kt"
                       target="_blank"
                       rel="noopener noreferrer"
                     >

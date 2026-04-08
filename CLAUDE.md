@@ -24,6 +24,12 @@ openiap/
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library
 │   └── apple/         # iOS/macOS library
+├── libraries/         # Framework SDK implementations
+│   ├── react-native-iap/  # React Native (npm)
+│   ├── expo-iap/          # Expo (npm)
+│   ├── flutter_inapp_purchase/  # Flutter (pub.dev)
+│   ├── godot-iap/         # Godot 4.x (GitHub Release)
+│   └── kmp-iap/           # Kotlin Multiplatform (Maven Central)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
@@ -34,13 +40,19 @@ openiap/
 
 ## Required Pre-Work
 
-**CRITICAL**: Before writing or editing anything in a package:
+**CRITICAL**: Before writing or editing anything in a package or library:
 
 1. **Read the relevant knowledge files** from `knowledge/internal/`
 2. **Check the package-specific CONVENTION.md**:
    - [`packages/gql/CONVENTION.md`](packages/gql/CONVENTION.md)
    - [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)
    - [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
+3. **For framework libraries, read the library-specific CLAUDE.md**:
+   - [`libraries/react-native-iap/CLAUDE.md`](libraries/react-native-iap/CLAUDE.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
+   - [`libraries/expo-iap/CLAUDE.md`](libraries/expo-iap/CLAUDE.md) — Bun, Expo Modules, iOS podspec 13.4 workaround, tvOS 16.0 requirement
+   - [`libraries/flutter_inapp_purchase/CLAUDE.md`](libraries/flutter_inapp_purchase/CLAUDE.md) — Flutter/Dart, generated types.dart, fetchProducts generic API
+   - [`libraries/godot-iap/CLAUDE.md`](libraries/godot-iap/CLAUDE.md) — GDScript conventions, GDExtension (iOS), AAR plugin (Android)
+   - [`libraries/kmp-iap/CLAUDE.md`](libraries/kmp-iap/CLAUDE.md) — Kotlin Multiplatform, Flow-based API, CocoaPods iOS integration
 
 ## Key Rules Summary
 
@@ -52,12 +64,21 @@ openiap/
 
 ### Auto-Generated Files (DO NOT EDIT)
 
-- `packages/apple/Sources/Models/Types.swift`
-- `packages/google/openiap/src/main/Types.kt`
-- `packages/gql/src/generated/*` - All generated type files
+- `packages/gql/src/generated/*` - All generated type files (SSOT)
+- `packages/apple/Sources/Models/Types.swift` - Synced from GQL
+- `packages/google/openiap/src/main/Types.kt` - Synced from GQL
+- `libraries/react-native-iap/src/types.ts` - Synced from GQL
+- `libraries/expo-iap/src/types.ts` - Synced from GQL
+- `libraries/flutter_inapp_purchase/lib/types.dart` - Synced from GQL
+- `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
 - `openiap-versions.json` - Managed by CI/CD workflows only
 
-Regenerate types: `cd packages/gql && bun run generate`
+Regenerate and sync types:
+
+```bash
+cd packages/gql && bun run generate  # Generate types from GraphQL schema
+cd ../.. && ./scripts/sync-versions.sh  # Sync to all packages and libraries
+```
 
 ### GQL Code Generation System
 

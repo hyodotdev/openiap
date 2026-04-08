@@ -66,6 +66,9 @@ function SubscriptionAPIs() {
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<List<ActiveSubscription>> getActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
             ),
@@ -113,6 +116,19 @@ for sub in subscriptions {
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`val subscriptions = openIapStore.getActiveSubscriptions()
+
+for (sub in subscriptions) {
+    if (sub.autoRenewingAndroid == false) {
+        println("Subscription cancelled")
+    }
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+val subscriptions = kmpIAP.getActiveSubscriptions()
 
 for (sub in subscriptions) {
     if (sub.autoRenewingAndroid == false) {
@@ -187,6 +203,9 @@ for sub in subscriptions:
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<bool> hasActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
             ),
@@ -217,6 +236,9 @@ if (isPremium) {
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`val isPremium = openIapStore.hasActiveSubscriptions()`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`val isPremium = kmpIAP.hasActiveSubscriptions()`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`final isPremium = await FlutterInappPurchase.instance.hasActiveSubscriptions();`}</CodeBlock>
@@ -262,6 +284,9 @@ interface DeepLinkOptions {
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<void> deepLinkToSubscriptions({String? skuAndroid, String? packageNameAndroid});`}</CodeBlock>
             ),
@@ -292,6 +317,14 @@ try await OpenIapModule.shared.deepLinkToSubscriptions()`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`openIapStore.deepLinkToSubscriptions(
+    DeepLinkOptions(
+        skuAndroid = "com.app.premium",
+        packageNameAndroid = "com.yourcompany.app"
+    )
+)`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`kmpIAP.deepLinkToSubscriptions(
     DeepLinkOptions(
         skuAndroid = "com.app.premium",
         packageNameAndroid = "com.yourcompany.app"

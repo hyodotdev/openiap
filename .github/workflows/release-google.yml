@@ -4,15 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Choose version bump type'
+        description: 'Version bump type'
         required: true
         type: choice
         options:
           - patch
           - minor
           - major
+          - rc
+          - promote
           - current
         default: patch
+      prerelease:
+        description: 'Publish as prerelease (-rc.1)'
+        required: false
+        default: false
+        type: boolean
 
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
@@ -37,35 +44,51 @@ jobs:
         CURRENT_VERSION=$(jq -r '.google' openiap-versions.json)
         echo "Current version: $CURRENT_VERSION"
 
-        if [ "${{ github.event.inputs.version }}" = "current" ]; then
+        VERSION_TYPE="${{ github.event.inputs.version }}"
+        IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+        BASE_VERSION="${CURRENT_VERSION%%-*}"
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+        if [ "$VERSION_TYPE" = "current" ]; then
           NEW_VERSION="$CURRENT_VERSION"
           echo "Using current version (no bump): $NEW_VERSION"
           echo "skip_version_commit=true" >> $GITHUB_OUTPUT
-        else
-          # Parse version components
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-
-          # Bump version based on input
-          case "${{ github.event.inputs.version }}" in
-            major)
-              MAJOR=$((MAJOR + 1))
-              MINOR=0
-              PATCH=0
-              ;;
-            minor)
-              MINOR=$((MINOR + 1))
-              PATCH=0
-              ;;
-            patch)
-              PATCH=$((PATCH + 1))
-              ;;
+        elif [ "$VERSION_TYPE" = "promote" ]; then
+          if ! echo "$CURRENT_VERSION" | grep -q '\-rc\.'; then
+            echo "::error::Current version $CURRENT_VERSION is not an rc version."
+            exit 1
+          fi
+          NEW_VERSION="${BASE_VERSION}"
+        elif [ "$VERSION_TYPE" = "rc" ]; then
+          RC_NUM=$(echo "$CURRENT_VERSION" | sed -n 's/.*-rc\.\([0-9]*\)/\1/p')
+          if [ -z "$RC_NUM" ]; then
+            echo "::error::Current version $CURRENT_VERSION is not an rc version."
+            exit 1
+          fi
+          NEW_VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
+        elif [ "$IS_PRERELEASE" = "true" ]; then
+          case "$VERSION_TYPE" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
           esac
-
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-rc.1"
+        else
+          case "$VERSION_TYPE" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-          echo "New version: $NEW_VERSION"
         fi
+
         echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
         echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        if [[ "$NEW_VERSION" == *-* ]]; then
+          echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Check if tag already exists
       id: check_tag
@@ -273,29 +296,13 @@ jobs:
           zip -r release-artifacts.zip release-artifacts/
         fi
 
-    - name: Create and push tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-        # Check if tag already exists
-        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
-          echo "Tag google-$VERSION already exists"
-        else
-          git tag "google-$VERSION"
-          git push origin "google-$VERSION"
-          echo "✅ Created and pushed tag google-$VERSION"
-        fi
-
     - name: Generate release notes
       id: release_notes
       env:
         VERSION: ${{ steps.version.outputs.version }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Get the previous google tag
+        # Get the previous google tag BEFORE creating the new one
         PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/google-*' | head -n 1)
 
         if [ -z "$PREV_TAG" ]; then
@@ -363,6 +370,20 @@ jobs:
         - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
         EOF
 
+    - name: Create and push tag
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
+          echo "Tag google-$VERSION already exists"
+        else
+          git tag "google-$VERSION"
+          git push origin "google-$VERSION"
+        fi
+
     - name: Create GitHub Release
       working-directory: packages/google
       env:
@@ -379,8 +400,13 @@ jobs:
         fi
 
         # Generate release notes with changelog
+        PRERELEASE_FLAG=""
+        if [[ "$VERSION" == *-* ]]; then
+          PRERELEASE_FLAG="--prerelease"
+        fi
+
         gh release create "google-$VERSION" \
           $ARTIFACTS \
           --title "Google $VERSION" \
-          --latest \
+          $PRERELEASE_FLAG \
           --notes-file /tmp/release-notes.md

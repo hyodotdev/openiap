@@ -210,7 +210,8 @@ public enum class ErrorCode(val rawValue: String) {
     ItemNotOwned("item-not-owned"),
     BillingUnavailable("billing-unavailable"),
     FeatureNotSupported("feature-not-supported"),
-    EmptySkuList("empty-sku-list")
+    EmptySkuList("empty-sku-list"),
+    DuplicatePurchase("duplicate-purchase")
 
     companion object {
         fun fromJson(value: String): ErrorCode = when (value) {
@@ -325,6 +326,9 @@ public enum class ErrorCode(val rawValue: String) {
             "empty-sku-list" -> ErrorCode.EmptySkuList
             "EMPTY_SKU_LIST" -> ErrorCode.EmptySkuList
             "EmptySkuList" -> ErrorCode.EmptySkuList
+            "duplicate-purchase" -> ErrorCode.DuplicatePurchase
+            "DUPLICATE_PURCHASE" -> ErrorCode.DuplicatePurchase
+            "DuplicatePurchase" -> ErrorCode.DuplicatePurchase
             else -> throw IllegalArgumentException("Unknown ErrorCode value: $value")
         }
     }

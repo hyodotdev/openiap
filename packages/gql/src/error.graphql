@@ -42,6 +42,7 @@ enum ErrorCode {
   BillingUnavailable
   FeatureNotSupported
   EmptySkuList
+  DuplicatePurchase
 }
 
 # Purchase error payload delivered through listeners and API responses

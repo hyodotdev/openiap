@@ -128,11 +128,11 @@ dependencies:
 - GitHub: https://github.com/hyodotdev/openiap
 
 ### Ecosystem Libraries
-- expo-iap: https://github.com/hyochan/expo-iap
-- react-native-iap: https://github.com/hyochan/react-native-iap
-- flutter_inapp_purchase: https://github.com/hyochan/flutter_inapp_purchase
-- godot-iap: https://github.com/hyochan/godot-iap
-- kmp-iap: https://github.com/hyochan/kmp-iap
+- expo-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap
+- react-native-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap
+- flutter_inapp_purchase: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
+- godot-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap
+- kmp-iap: https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap
 `;
 
   // Generate llms.txt (quick reference - condensed version)

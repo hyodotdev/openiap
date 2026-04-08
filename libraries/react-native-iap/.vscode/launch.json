@@ -1,0 +1,107 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🔧 RN - iOS Simulator",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "yarn && yarn prepare && cd example/ios && pod install && cd ../.. && RN_IAP_DEV_MODE=true yarn example ios"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "RN_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "📱 RN - iOS Device",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "yarn && yarn prepare && cd example/ios && pod install && cd ../.. && RN_IAP_DEV_MODE=true yarn example ios --device"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "RN_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "🤖 RN - Android",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "yarn && yarn prepare && RN_IAP_DEV_MODE=true yarn example android"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "RN_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "🚀 Expo - iOS Simulator",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "yarn && yarn prepare && cd example-expo && bun install && cd .. && cp ios/*.swift example-expo/node_modules/react-native-iap/nitrogen/generated/ios/ && cp -r lib example-expo/node_modules/react-native-iap/ && cp -r nitrogen example-expo/node_modules/react-native-iap/ && cd example-expo && bun ios"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "📱 Expo - iOS Device",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "yarn && yarn prepare && cd example-expo && bun install && cd .. && cp ios/*.swift example-expo/node_modules/react-native-iap/nitrogen/generated/ios/ && cp -r lib example-expo/node_modules/react-native-iap/ && cp -r nitrogen example-expo/node_modules/react-native-iap/ && cd example-expo && bun ios --device"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "🤖 Expo - Android",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "yarn && yarn prepare && cd example-expo && bun install && cd .. &&  cp -r lib example-expo/node_modules/react-native-iap/ && cp -r nitrogen example-expo/node_modules/react-native-iap/ && cd example-expo && bun android"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "📚 Start Documentation",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/docs",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "bun install && bun start"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}

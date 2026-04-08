@@ -1,0 +1,9 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="boltGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFA500"/>
+    </linearGradient>
+  </defs>
+  <path d="M148 8L48 136H116L108 248L208 120H140L148 8Z" fill="url(#boltGradient)" stroke="#CC8400" stroke-width="8" stroke-linejoin="round"/>
+</svg>

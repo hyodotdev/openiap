@@ -23,7 +23,7 @@ function Languages() {
         <div className="languages-grid">
           <div className="language-card">
             <img
-              src="/openiap-apple.png"
+              src="/logo.webp"
               alt="OpenIAP Apple"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -44,7 +44,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="/openiap-google.png"
+              src="/logo.webp"
               alt="OpenIAP Google"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -84,7 +84,7 @@ function Languages() {
             <pre className="code-snippet">{`npm install react-native-iap`}</pre>
             <div className="language-links">
               <a
-                href="https://github.com/hyochan/react-native-iap"
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -117,7 +117,7 @@ function Languages() {
             <pre className="code-snippet">{`npm install expo-iap`}</pre>
             <div className="language-links">
               <a
-                href="https://github.com/hyochan/expo-iap"
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -147,7 +147,7 @@ function Languages() {
             <pre className="code-snippet">{`flutter pub add flutter_inapp_purchase`}</pre>
             <div className="language-links">
               <a
-                href="https://github.com/hyochan/flutter_inapp_purchase"
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -177,7 +177,7 @@ function Languages() {
             <pre className="code-snippet">{`implementation("io.github.hyochan:kmp-iap:1.0.0-rc.6")`}</pre>
             <div className="language-links">
               <a
-                href="https://github.com/hyochan/kmp-iap"
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -207,7 +207,7 @@ function Languages() {
             <pre className="code-snippet">
               Download from{' '}
               <a
-                href="https://github.com/hyochan/godot-iap/releases"
+                href="https://github.com/hyodotdev/openiap/releases"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'var(--primary-color)' }}
@@ -217,7 +217,7 @@ function Languages() {
             </pre>
             <div className="language-links">
               <a
-                href="https://github.com/hyochan/godot-iap"
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -225,7 +225,7 @@ function Languages() {
                 View on GitHub →
               </a>
               <a
-                href="https://github.com/hyochan/godot-iap"
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
                 className="learn-more"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -243,7 +243,7 @@ function Languages() {
             or framework? We'd love to include your library here!
           </p>
           <a
-            href="https://github.com/hyochan/openiap.dev/pulls"
+            href="https://github.com/hyodotdev/openiap/pulls"
             className="btn btn-primary"
             target="_blank"
             rel="noopener noreferrer"

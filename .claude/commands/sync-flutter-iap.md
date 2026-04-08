@@ -1,6 +1,6 @@
 # Sync Changes to flutter_inapp_purchase
 
-Synchronize OpenIAP changes to the [flutter_inapp_purchase](https://github.com/hyochan/flutter_inapp_purchase) repository.
+Synchronize OpenIAP changes to the [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) library.
 
 **Target Repository:** `$IAP_REPOS_HOME/flutter_inapp_purchase`
 

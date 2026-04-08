@@ -1,0 +1,92 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docusaurus: Install Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/docs"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docusaurus: Start Dev Server",
+      "type": "shell",
+      "command": "bun run start",
+      "options": {
+        "cwd": "${workspaceFolder}/docs"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Docusaurus: Build",
+      "type": "shell",
+      "command": "bun run build",
+      "options": {
+        "cwd": "${workspaceFolder}/docs"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docusaurus: Clear Cache",
+      "type": "shell",
+      "command": "bun run clear",
+      "options": {
+        "cwd": "${workspaceFolder}/docs"
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Pub Get",
+      "type": "shell",
+      "command": "flutter pub get",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Run Tests",
+      "type": "shell",
+      "command": "flutter test",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

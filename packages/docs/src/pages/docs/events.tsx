@@ -53,6 +53,14 @@ function Events() {
     DeveloperProvidedBillingAndroid // 8.3.0+
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`enum class IapEvent {
+    PurchaseUpdated,
+    PurchaseError,
+    UserChoiceBillingAndroid,
+    DeveloperProvidedBillingAndroid // 8.3.0+
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`enum IapEvent {
   purchaseUpdated,
@@ -100,6 +108,10 @@ var purchaseUpdates: AsyncStream<Purchase>
 var purchaseUpdatedPublisher: AnyPublisher<Purchase, Never>`}</CodeBlock>
             ),
             kotlin: (
+              <CodeBlock language="kotlin">{`// Flow approach
+val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
+            ),
+            kmp: (
               <CodeBlock language="kotlin">{`// Flow approach
 val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
             ),
@@ -180,6 +192,29 @@ openIapStore.setPurchaseUpdatedListener { purchase ->
     println("Purchase updated: \${purchase.productId}")
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+// Using Flow
+lifecycleScope.launch {
+    kmpIAP.purchaseUpdates.collect { purchase ->
+        println("Purchase updated: \${purchase.productId}")
+
+        // Validate and deliver
+        if (validateReceipt(purchase)) {
+            deliverProduct(purchase.productId)
+            kmpIAP.finishTransaction(purchase, isConsumable = false)
+        }
+    }
+}
+
+// Or with callback
+kmpIAP.setPurchaseUpdatedListener { purchase ->
+    println("Purchase updated: \${purchase.productId}")
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -241,8 +276,11 @@ func _exit_tree():
           <li>Validate receipt with backend service</li>
           <li>Deliver purchased content to user</li>
           <li>
-            Acknowledge purchase with platform (iOS: finishTransaction, Android:
-            acknowledgePurchase)
+            Finish transaction with{' '}
+            <Link to="/docs/apis/purchase#finish-transaction">
+              finishTransaction
+            </Link>{' '}
+            (handles acknowledgment on both platforms)
           </li>
           <li>Update application state</li>
         </ol>
@@ -270,6 +308,10 @@ var purchaseErrors: AsyncStream<PurchaseError>
 var purchaseErrorPublisher: AnyPublisher<PurchaseError, Never>`}</CodeBlock>
             ),
             kotlin: (
+              <CodeBlock language="kotlin">{`// Flow approach
+val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
+            ),
+            kmp: (
               <CodeBlock language="kotlin">{`// Flow approach
 val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
             ),
@@ -369,6 +411,39 @@ openIapStore.setPurchaseErrorListener { error ->
     println("Purchase error: \${error.code}")
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+// Using Flow
+lifecycleScope.launch {
+    kmpIAP.purchaseErrors.collect { error ->
+        println("Purchase error: \${error.code} - \${error.message}")
+
+        when (error.code) {
+            OpenIapError.UserCancelled -> {
+                // User cancelled - no action needed
+            }
+            OpenIapError.AlreadyOwned -> {
+                // Restore purchases instead
+                kmpIAP.restorePurchases()
+            }
+            OpenIapError.NetworkError -> {
+                showRetryDialog()
+            }
+            else -> {
+                showErrorMessage(error.message)
+            }
+        }
+    }
+}
+
+// Or with callback
+kmpIAP.setPurchaseErrorListener { error ->
+    println("Purchase error: \${error.code}")
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -454,6 +529,9 @@ var promotedProducts: AsyncStream<String>
 var promotedProductPublisher: AnyPublisher<String, Never>`}</CodeBlock>
             ),
             kotlin: (
+              <CodeBlock language="kotlin">{`// iOS only - not available on Android`}</CodeBlock>
+            ),
+            kmp: (
               <CodeBlock language="kotlin">{`// iOS only - not available on Android`}</CodeBlock>
             ),
             dart: (
@@ -631,6 +709,10 @@ subscription.cancel();`}</CodeBlock>
               <CodeBlock language="kotlin">{`// Flow approach
 val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`// Flow approach
+val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Stream<UserChoiceBillingDetails> get userChoiceBillingStream;
 // Android only`}</CodeBlock>
@@ -696,6 +778,36 @@ openIapStore.setUserChoiceBillingListener { details ->
     println("User chose alternative billing for: \${details.products}")
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+// Using Flow
+lifecycleScope.launch {
+    kmpIAP.userChoiceBillingEvents.collect { details ->
+        println("User chose alternative billing")
+        println("Products: \${details.products}")
+        println("Token: \${details.externalTransactionToken}")
+
+        // Process payment with your backend
+        val paymentResult = processPaymentWithBackend(
+            products = details.products,
+            token = details.externalTransactionToken
+        )
+
+        if (paymentResult.success) {
+            // Backend should report token to Google Play within 24 hours
+            grantUserAccess(details.products)
+        }
+    }
+}
+
+// Or with callback
+kmpIAP.setUserChoiceBillingListener { details ->
+    println("User chose alternative billing for: \${details.products}")
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -736,6 +848,12 @@ subscription.cancel();`}</CodeBlock>
               <CodeBlock language="swift">{`// Android only - not available on iOS`}</CodeBlock>
             ),
             kotlin: (
+              <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
+    val externalTransactionToken: String,
+    val products: List<String>
+)`}</CodeBlock>
+            ),
+            kmp: (
               <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
     val externalTransactionToken: String,
     val products: List<String>
@@ -844,6 +962,12 @@ fun addDeveloperProvidedBillingListener(
     listener: OpenIapDeveloperProvidedBillingListener
 )`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`// Callback approach
+fun addDeveloperProvidedBillingListener(
+    listener: OpenIapDeveloperProvidedBillingListener
+)`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Stream<DeveloperProvidedBillingDetails> get developerProvidedBillingStream;
 // Android only (8.3.0+)`}</CodeBlock>
@@ -903,6 +1027,30 @@ openIapStore.addDeveloperProvidedBillingListener { details ->
     }
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+// Using callback
+kmpIAP.addDeveloperProvidedBillingListener { details ->
+    println("User selected developer billing")
+    println("Token: \${details.externalTransactionToken}")
+
+    lifecycleScope.launch {
+        // Process payment with your payment system
+        val paymentResult = processPaymentWithYourGateway(
+            token = details.externalTransactionToken
+        )
+
+        if (paymentResult.success) {
+            // IMPORTANT: Report the token to Google Play within 24 hours
+            reportExternalTransactionToGoogle(details.externalTransactionToken)
+            grantUserAccess()
+        }
+    }
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -942,6 +1090,11 @@ subscription.cancel();`}</CodeBlock>
               <CodeBlock language="swift">{`// Android only - not available on iOS`}</CodeBlock>
             ),
             kotlin: (
+              <CodeBlock language="kotlin">{`data class DeveloperProvidedBillingDetailsAndroid(
+    val externalTransactionToken: String
+)`}</CodeBlock>
+            ),
+            kmp: (
               <CodeBlock language="kotlin">{`data class DeveloperProvidedBillingDetailsAndroid(
     val externalTransactionToken: String
 )`}</CodeBlock>

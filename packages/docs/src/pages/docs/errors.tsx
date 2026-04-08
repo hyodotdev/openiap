@@ -48,6 +48,13 @@ function Errors() {
     val productId: String? = null // Related product SKU (if applicable)
 )`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`data class PurchaseError(
+    val code: String,           // Error code constant
+    val message: String,        // Human-readable message
+    val productId: String? = null // Related product SKU (if applicable)
+)`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`class PurchaseError {
   final String code;      // Error code constant
@@ -649,6 +656,50 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
 }`}</CodeBlock>
             ),
             kotlin: (
+              <CodeBlock language="kotlin">{`enum class OpenIapError {
+    Unknown,
+    UserCancelled,
+    UserError,
+    ItemUnavailable,
+    RemoteError,
+    NetworkError,
+    ServiceError,
+    // @deprecated Use PurchaseVerificationFailed instead
+    ReceiptFailed,
+    // @deprecated Use PurchaseVerificationFinished instead
+    ReceiptFinished,
+    // @deprecated Use PurchaseVerificationFinishFailed instead
+    ReceiptFinishedFailed,
+    PurchaseVerificationFailed,
+    PurchaseVerificationFinished,
+    PurchaseVerificationFinishFailed,
+    NotPrepared,
+    NotEnded,
+    AlreadyOwned,
+    DeveloperError,
+    BillingResponseJsonParseError,
+    DeferredPayment,
+    Interrupted,
+    IapNotAvailable,
+    PurchaseError,
+    SyncError,
+    TransactionValidationFailed,
+    ActivityUnavailable,
+    AlreadyPrepared,
+    Pending,
+    ConnectionClosed,
+    InitConnection,
+    ServiceDisconnected,
+    QueryProduct,
+    SkuNotFound,
+    SkuOfferMismatch,
+    ItemNotOwned,
+    BillingUnavailable,
+    FeatureNotSupported,
+    EmptySkuList,
+}`}</CodeBlock>
+            ),
+            kmp: (
               <CodeBlock language="kotlin">{`enum class OpenIapError {
     Unknown,
     UserCancelled,

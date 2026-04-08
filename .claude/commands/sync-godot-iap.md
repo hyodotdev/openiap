@@ -1,6 +1,6 @@
 # Sync Changes to godot-iap
 
-Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyochan/godot-iap) repository.
+Synchronize OpenIAP changes to the [godot-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap) library.
 
 **Target Repository:** `$IAP_REPOS_HOME/godot-iap`
 

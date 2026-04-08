@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://c7m3n5p8q2r4s"]
+
+[ext_resource type="Texture2D" path="res://bolt.svg" id="1_bolt"]
+[ext_resource type="Script" path="res://obstacle.gd" id="2_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_obs"]
+size = Vector2(50, 50)
+
+[node name="Obstacle" type="Area2D"]
+script = ExtResource("2_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("1_bolt")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+scale = Vector2(1.5, 1.5)
+shape = SubResource("RectangleShape2D_obs")

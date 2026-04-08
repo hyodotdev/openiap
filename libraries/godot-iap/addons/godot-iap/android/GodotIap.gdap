@@ -1,0 +1,8 @@
+[config]
+name="GodotIap"
+binary_type="local"
+binary="GodotIap.release.aar"
+
+[dependencies]
+local=[]
+remote=["com.android.billingclient:billing:7.1.1", "io.github.hyochan.openiap:openiap-google:1.3.28"]

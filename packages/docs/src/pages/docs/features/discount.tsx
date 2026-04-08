@@ -178,6 +178,51 @@ data class LimitedQuantityInfoAndroid(
     val remainingQuantity: Int
 )`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`data class ProductAndroidOneTimePurchaseOfferDetail(
+    // Offer identification
+    val offerId: String?,
+    val offerToken: String,
+    val offerTags: List<String>,
+
+    // Pricing
+    val formattedPrice: String,      // "$4.99"
+    val priceCurrencyCode: String,   // "USD"
+    val priceAmountMicros: String,   // "4990000"
+
+    // Discount information (only for discounted offers)
+    val fullPriceMicros: String?,           // Original price: "9990000"
+    val discountDisplayInfo: DiscountDisplayInfoAndroid?,
+
+    // Time and quantity limits
+    val validTimeWindow: ValidTimeWindowAndroid?,
+    val limitedQuantityInfo: LimitedQuantityInfoAndroid?,
+
+    // Special offer types
+    val preorderDetailsAndroid: PreorderDetailsAndroid?,
+    val rentalDetailsAndroid: RentalDetailsAndroid?
+)
+
+data class DiscountDisplayInfoAndroid(
+    val percentageDiscount: Int?,  // 50 for 50% off
+    val discountAmount: DiscountAmountAndroid?
+)
+
+data class DiscountAmountAndroid(
+    val discountAmountMicros: String,       // "5000000"
+    val formattedDiscountAmount: String     // "$5.00"
+)
+
+data class ValidTimeWindowAndroid(
+    val startTimeMillis: String,
+    val endTimeMillis: String
+)
+
+data class LimitedQuantityInfoAndroid(
+    val maximumQuantity: Int,
+    val remainingQuantity: Int
+)`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`class ProductAndroidOneTimePurchaseOfferDetail {
   // Offer identification
@@ -301,9 +346,42 @@ products.forEach { product ->
     }
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+val products = kmpIAP.fetchProducts(
+    ProductRequest(
+        skus = listOf("premium_feature", "coins_100"),
+        type = ProductQueryType.InApp
+    )
+)
+
+products.forEach { product ->
+    val offers = product.oneTimePurchaseOfferDetailsAndroid
+
+    if (!offers.isNullOrEmpty()) {
+        val firstOffer = offers.first()
+        val hasDiscount = firstOffer.discountDisplayInfo != null
+
+        println("Product: \${product.id}")
+        println("Display Price: \${product.displayPrice}")
+
+        if (hasDiscount) {
+            val discount = firstOffer.discountDisplayInfo
+            val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+            val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
+
+            println("Original Price: $fullPrice")
+            println("Discount: \${discount?.percentageDiscount}% OFF")
+        }
+    }
+}`}</CodeBlock>
+            ),
             dart: (
-              <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.getProducts(
-  ['premium_feature', 'coins_100'],
+              <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['premium_feature', 'coins_100'],
 );
 
 for (final product in products) {
@@ -567,6 +645,99 @@ fun ProductCard(
     }
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`@Composable
+fun ProductCard(
+    product: ProductAndroid,
+    onPurchase: () -> Unit
+) {
+    val firstOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
+    val discountInfo = firstOffer?.discountDisplayInfo
+    val hasDiscount = discountInfo != null
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = product.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = product.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Original price with strikethrough
+                if (hasDiscount && firstOffer?.fullPriceMicros != null) {
+                    val fullPriceMicros = firstOffer.fullPriceMicros?.toLongOrNull() ?: 0L
+                    val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
+                    Text(
+                        text = "\${firstOffer.priceCurrencyCode} \${String.format("%.2f", fullPrice)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textDecoration = TextDecoration.LineThrough
+                    )
+                }
+
+                // Current (discounted) price
+                Text(
+                    text = product.displayPrice,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (hasDiscount) Color(0xFF34C759) else MaterialTheme.colorScheme.primary
+                )
+
+                // Discount badge
+                if (hasDiscount) {
+                    val discountText = when {
+                        discountInfo?.percentageDiscount != null ->
+                            "\${discountInfo.percentageDiscount}% OFF"
+                        discountInfo?.discountAmount != null ->
+                            "\${discountInfo.discountAmount?.formattedDiscountAmount} OFF"
+                        else -> "SALE"
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFFFF3B30).copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            text = discountText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF3B30)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onPurchase,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Buy Now")
+            }
+        }
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Product card with discount display (Godot Control)
 extends PanelContainer
@@ -703,6 +874,40 @@ fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferVa
     }
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`data class OfferValidity(
+    val isValid: Boolean,
+    val message: String
+)
+
+fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferValidity {
+    val timeWindow = offer.validTimeWindow
+        ?: return OfferValidity(true, "Always available")
+
+    val now = System.currentTimeMillis()
+    val startTime = timeWindow.startTimeMillis.toLongOrNull() ?: 0L
+    val endTime = timeWindow.endTimeMillis.toLongOrNull() ?: 0L
+
+    if (now < startTime) {
+        val startsIn = java.util.Date(startTime)
+        return OfferValidity(false, "Starts on \${startsIn}")
+    }
+
+    if (now > endTime) {
+        return OfferValidity(false, "Offer expired")
+    }
+
+    val endsIn = endTime - now
+    val hoursLeft = (endsIn / (1000 * 60 * 60)).toInt()
+    val daysLeft = hoursLeft / 24
+
+    return if (daysLeft > 0) {
+        OfferValidity(true, "Ends in $daysLeft days")
+    } else {
+        OfferValidity(true, "Ends in $hoursLeft hours")
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`func check_offer_validity(offer: ProductAndroidOneTimePurchaseOfferDetail) -> Dictionary:
     var time_window = offer.valid_time_window
@@ -804,6 +1009,29 @@ fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): 
     return QuantityAvailability(true, "$remainingQuantity of $maximumQuantity available")
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`data class QuantityAvailability(
+    val isAvailable: Boolean,
+    val message: String?
+)
+
+fun checkQuantityAvailability(offer: ProductAndroidOneTimePurchaseOfferDetail): QuantityAvailability {
+    val quantityInfo = offer.limitedQuantityInfo
+        ?: return QuantityAvailability(true, null)
+
+    val (maximumQuantity, remainingQuantity) = quantityInfo
+
+    if (remainingQuantity <= 0) {
+        return QuantityAvailability(false, "Sold out - limit reached")
+    }
+
+    if (remainingQuantity <= 3) {
+        return QuantityAvailability(true, "Only $remainingQuantity left!")
+    }
+
+    return QuantityAvailability(true, "$remainingQuantity of $maximumQuantity available")
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`func check_quantity_availability(offer: ProductAndroidOneTimePurchaseOfferDetail) -> Dictionary:
     var quantity_info = offer.limited_quantity_info
@@ -881,6 +1109,35 @@ async function purchaseWithOffer(
         ?: throw IllegalStateException("Invalid offer index")
 
     iapStore.requestPurchase(
+        activity = activity,
+        props = RequestPurchaseProps(
+            type = ProductQueryType.InApp,
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(
+                        skus = listOf(product.id),
+                        // Include offerTokenAndroid for discounted purchases (Android 7.0+)
+                        offerToken = selectedOffer.offerToken
+                    )
+                )
+            )
+        )
+    )
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun purchaseWithOffer(
+    activity: Activity,
+    product: ProductAndroid,
+    offerIndex: Int = 0
+) {
+    val offers = product.oneTimePurchaseOfferDetailsAndroid
+        ?: throw IllegalStateException("No offers available")
+
+    val selectedOffer = offers.getOrNull(offerIndex)
+        ?: throw IllegalStateException("Invalid offer index")
+
+    kmpIAP.requestPurchase(
         activity = activity,
         props = RequestPurchaseProps(
             type = ProductQueryType.InApp,

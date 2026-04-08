@@ -1,6 +1,6 @@
 # Sync Changes to expo-iap
 
-Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyochan/expo-iap) repository.
+Synchronize OpenIAP changes to the [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap) library.
 
 **Target Repository:** `$IAP_REPOS_HOME/expo-iap`
 

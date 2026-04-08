@@ -1,0 +1,51 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Android - Run Example",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "${workspaceFolder}/.vscode/run_android.sh",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "iOS - Run Example",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "bash -lc \"if [ \\\"${input:iosTarget}\\\" = \\\"device\\\" ]; then \\\"${workspaceFolder}/.vscode/run_ios_device.sh\\\"; else \\\"${workspaceFolder}/.vscode/run_ios.sh\\\"; fi\"",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Xcode - Open iOS Project",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "open example/iosApp/iosApp.xcodeproj",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Docs - Start Dev Server",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "cd docs && npm start",
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "iosTarget",
+      "type": "pickString",
+      "description": "Choose how to run the iOS example",
+      "options": [
+        {
+          "label": "Simulator (default)",
+          "value": "simulator"
+        },
+        {
+          "label": "Physical Device",
+          "value": "device"
+        }
+      ],
+      "default": "simulator"
+    }
+  ]
+}

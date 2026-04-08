@@ -141,6 +141,25 @@ suspend fun redeemCode() {
     }
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+// KMP iOS target
+val kmpIAP = KmpIAP()
+
+suspend fun redeemCode() {
+    try {
+        val result = kmpIAP.presentCodeRedemptionSheetIOS()
+        if (result) {
+            println("Code redemption sheet presented successfully")
+            // The system handles the redemption process
+            // Listen for purchase updates via purchaseFlow
+        }
+    } catch (e: Exception) {
+        println("Failed to present code redemption sheet: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -288,6 +307,45 @@ class RedemptionManager {
     }
 }`}</CodeBlock>
                     ),
+                    kmp: (
+                      <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+import kotlinx.coroutines.*
+
+// KMP iOS target
+class RedemptionManager {
+    private val kmpIAP = KmpIAP()
+    private var purchaseJob: Job? = null
+
+    fun initialize(scope: CoroutineScope) {
+        // Listen for purchases from code redemption
+        purchaseJob = scope.launch {
+            kmpIAP.purchaseFlow.collect { purchase ->
+                println("Purchase from code redemption: \${purchase.productId}")
+
+                // Verify and finish the transaction
+                val isValid = verifyPurchaseOnServer(purchase)
+                if (isValid) {
+                    kmpIAP.finishTransaction(purchase, isConsumable = false)
+                    println("Redemption completed successfully")
+                }
+            }
+        }
+    }
+
+    suspend fun redeemCode() {
+        try {
+            kmpIAP.presentCodeRedemptionSheetIOS()
+        } catch (e: Exception) {
+            println("Error: \${e.message}")
+        }
+    }
+
+    fun dispose() {
+        purchaseJob?.cancel()
+    }
+}`}</CodeBlock>
+                    ),
                     dart: (
                       <CodeBlock language="dart">{`import 'dart:async';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -417,6 +475,23 @@ const redeemWithCode = async (code: string) => {
                       <CodeBlock language="swift">{`// Android-only - use presentCodeRedemptionSheetIOS() for iOS`}</CodeBlock>
                     ),
                     kotlin: (
+                      <CodeBlock language="kotlin">{`import android.content.Intent
+import android.net.Uri
+
+// Open Play Store redemption page
+fun openRedeemPage(context: Context) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem"))
+    context.startActivity(intent)
+}
+
+// Open with pre-filled code
+fun redeemWithCode(context: Context, code: String) {
+    val url = "https://play.google.com/redeem?code=\$code"
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+    context.startActivity(intent)
+}`}</CodeBlock>
+                    ),
+                    kmp: (
                       <CodeBlock language="kotlin">{`import android.content.Intent
 import android.net.Uri
 

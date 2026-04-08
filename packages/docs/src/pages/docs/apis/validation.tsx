@@ -75,6 +75,9 @@ function ValidationAPIs() {
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<VerifyPurchaseResult> verifyPurchase(VerifyPurchaseProps options);`}</CodeBlock>
             ),
@@ -107,6 +110,11 @@ if (result.isValid) {
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`val result = openIapStore.verifyPurchase(
+    VerifyPurchaseProps(purchase = purchase, serverUrl = "https://your-server.com/api/verify")
+)`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`val result = kmpIAP.verifyPurchase(
     VerifyPurchaseProps(purchase = purchase, serverUrl = "https://your-server.com/api/verify")
 )`}</CodeBlock>
             ),
@@ -192,6 +200,19 @@ if (result.iapkit?.isValid && result.iapkit?.state === 'entitled') {
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`val result = module.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "your-api-key",
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = purchase.purchaseToken
+            )
+        ),
+        provider = PurchaseVerificationProvider.Iapkit
+    )
+)`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`val result = kmpIAP.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "your-api-key",

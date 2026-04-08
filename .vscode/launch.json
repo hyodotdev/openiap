@@ -39,18 +39,89 @@
             "console": "integratedTerminal"
         },
         {
-            "type": "node-terminal",
+            "name": "📱 RN IAP: iOS",
+            "type": "node",
             "request": "launch",
-            "name": "🧪 Test: Apple (Swift)",
-            "command": "swift test",
-            "cwd": "${workspaceFolder}/packages/apple"
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "cd .. && yarn install && yarn prepare && cd example && yarn install && bundle install && yarn ios --device"],
+            "cwd": "${workspaceFolder}/libraries/react-native-iap/example",
+            "console": "integratedTerminal"
         },
         {
-            "type": "node-terminal",
+            "name": "📱 RN IAP: Android",
+            "type": "node",
             "request": "launch",
-            "name": "🧪 Test: Google (Android)",
-            "command": "./gradlew :openiap:test",
-            "cwd": "${workspaceFolder}/packages/google"
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "cd .. && yarn install && yarn prepare && cd example && yarn install && yarn android"],
+            "cwd": "${workspaceFolder}/libraries/react-native-iap/example",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "📱 Expo IAP: iOS",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "bun install && bun run prepare && cd example && bun install && bunx expo prebuild && bunx expo run:ios --device"],
+            "cwd": "${workspaceFolder}/libraries/expo-iap",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "📱 Expo IAP: Android",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "bun install && bun run prepare && cd example && bun install && bunx expo prebuild && bunx expo run:android"],
+            "cwd": "${workspaceFolder}/libraries/expo-iap",
+            "console": "integratedTerminal"
+        },
+        // Flutter iOS debug: "flutter run" may fail to connect to Dart VM service
+        // on physical iPad (service protocol connection reset). This is a known
+        // Flutter tooling issue. Workaround: open ios/Runner.xcworkspace in Xcode.
+        // Ref: https://github.com/flutter/flutter/issues/145879
+        {
+            "name": "🦋 Flutter IAP: iOS",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "cd .. && flutter pub get && cd example && flutter pub get && flutter run"],
+            "cwd": "${workspaceFolder}/libraries/flutter_inapp_purchase/example",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🦋 Flutter IAP: Android",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "cd .. && flutter pub get && cd example && flutter pub get && flutter run"],
+            "cwd": "${workspaceFolder}/libraries/flutter_inapp_purchase/example",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🎮 Godot IAP: Open in Editor",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "open -a Godot Example/project.godot"],
+            "cwd": "${workspaceFolder}/libraries/godot-iap",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🧩 KMP IAP: iOS (Xcode)",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "./gradlew :library:podGenIos && ./gradlew :library:podInstallSyntheticIos && ./gradlew :example:composeApp:linkDebugFrameworkIosArm64 && open example/iosApp/iosApp.xcodeproj"],
+            "cwd": "${workspaceFolder}/libraries/kmp-iap",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🧩 KMP IAP: Android",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "./gradlew :example:composeApp:installDebug"],
+            "cwd": "${workspaceFolder}/libraries/kmp-iap",
+            "console": "integratedTerminal"
         }
     ]
 }

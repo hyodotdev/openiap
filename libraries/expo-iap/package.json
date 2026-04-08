@@ -1,0 +1,70 @@
+{
+  "name": "expo-iap",
+  "version": "3.4.13",
+  "description": "In App Purchase module in Expo",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "expo-module build",
+    "clean": "expo-module clean",
+    "lint": "eslint --ext .ts,.tsx,.js,.jsx src",
+    "lint:eslint": "eslint --fix 'src/**/*.{ts,tsx}' 'plugin/src/**/*.{ts,tsx}'",
+    "lint:prettier": "prettier --write \"**/*.{md,js,jsx,ts,tsx}\"",
+    "lint:tsc": "tsc -p tsconfig.json --noEmit --skipLibCheck",
+    "lint:kt": "sh -c 'command -v ktlint >/dev/null 2>&1 && ktlint --format ./android || { echo \"ktlint not installed; skipping\"; exit 0; }'",
+    "lint:ci": "bun run lint:tsc && bun run lint:eslint && bun run lint:prettier && bun run lint:kt",
+    "test": "jest && bun run test:plugin",
+    "test:plugin": "cd plugin && bunx jest",
+    "test:coverage": "jest --coverage",
+    "prepare": "bun clean:plugin && bun clean && expo-module prepare && sh -c 'command -v husky >/dev/null 2>&1 && husky install || { echo \"husky not installed; skipping\"; exit 0; }'",
+    "expo-module": "expo-module",
+    "open:ios": "xed example/ios",
+    "open:android": "open -a \"Android Studio\" example/android",
+    "lint:kotlin": "ktlint --format ./android",
+    "build:plugin": "tsc --build plugin",
+    "clean:plugin": "expo-module clean plugin",
+    "lint:plugin": "eslint plugin/src/*",
+    "docs:start": "cd docs && bun run start",
+    "docs:build": "cd docs && bun run build",
+    "docs:serve": "cd docs && bun run serve",
+    "docs:install": "cd docs && bun install",
+    "generate:types": "node scripts/update-types.mjs",
+    "generate:icon": "npx sharp-cli resize 32 32 -i docs/static/img/icon.png -o docs/static/img/favicon-32x32.png && npx sharp-cli resize 16 16 -i docs/static/img/icon.png -o docs/static/img/favicon-16x16.png && npx sharp-cli resize 180 180 -i docs/static/img/icon.png -o docs/static/img/apple-touch-icon.png && npx sharp-cli resize 192 192 -i docs/static/img/icon.png -o docs/static/img/android-chrome-192x192.png && npx sharp-cli resize 512 512 -i docs/static/img/icon.png -o docs/static/img/android-chrome-512x512.png && npx sharp-cli resize 150 150 -i docs/static/img/icon.png -o docs/static/img/mstile-150x150.png && npx sharp-cli resize 1200 630 -i docs/static/img/icon.png -o docs/static/img/og-image.png && npx sharp-cli resize 1200 600 -i docs/static/img/icon.png -o docs/static/img/twitter-card.png && npx sharp-cli resize 16 16 -i docs/static/img/icon.png -o docs/static/img/favicon.png && cp docs/static/img/favicon-16x16.png docs/static/img/favicon.ico"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "expo-iap",
+    "ExpoIap"
+  ],
+  "repository": "https://github.com/hyochan/expo-iap",
+  "bugs": {
+    "url": "https://github.com/hyochan/expo-iap/issues"
+  },
+  "author": "hyochan <hyochan.dev@gmail.com> (https://github.com/hyochan)",
+  "license": "MIT",
+  "homepage": "https://github.com/hyochan/expo-iap#readme",
+  "devDependencies": {
+    "@jest/globals": "^30.0.5",
+    "@types/jest": "^30.0.0",
+    "@types/react": "~19.1.7",
+    "@types/react-test-renderer": "^19.1.0",
+    "eslint": "8.57.0",
+    "eslint-config-expo": "^9.2.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.4.1",
+    "expo-module-scripts": "^4.1.7",
+    "expo-modules-core": "^2.4.0",
+    "husky": "^9.0.11",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.1"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "expo": {
+    "plugin": "./app.plugin.js"
+  }
+}

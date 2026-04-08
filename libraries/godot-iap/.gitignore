@@ -1,0 +1,82 @@
+# Godot-specific
+.godot/
+godot-cpp/
+*.import
+*.uid
+!Example/*.import
+export.cfg
+
+# Example - exported projects
+Example/ExportIOS/
+Example/ExportAndroid/
+Example/ios/*
+!Example/ios/.gitkeep
+Example/android/*
+!Example/android/.gitkeep
+
+# Build output
+bin/
+!addons/godot-iap/bin/
+build/
+*.os
+*.obj
+*.o
+*.so
+*.dylib
+*.dll
+
+# Android
+android/.gradle/
+android/build/
+android/local.properties
+android/libs/
+android/*.aar
+
+# iOS - Old native plugin (deprecated, now using GDExtension)
+/ios/
+
+# iOS GDExtension - Build artifacts
+ios-gdextension/.build/
+ios-gdextension/.build-xcode/
+ios-gdextension/.build-xcode-macos/
+ios-gdextension/.swiftpm/
+ios-gdextension/Package.resolved
+
+# SwiftGodot (cloned dependency)
+SwiftGodot/
+
+# SCons
+.sconsign.dblite
+*.pyc
+
+# IDE
+.vscode/settings.json
+.idea/
+*.sublime-*
+
+# Claude Code
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Docs
+docs/.docusaurus/
+docs/node_modules/
+
+# Android binaries are committed to git (like iOS frameworks) for Asset Library compatibility
+# addons/godot-iap/android/*.aar - TRACKED
+
+# Old Android binaries in bin/ (deprecated location, use addons/godot-iap/android/ instead)
+addons/godot-iap/bin/android/
+
+# iOS frameworks are committed to git for faster CI builds
+# addons/godot-iap/bin/ios/ - TRACKED
+
+# TestProject - for testing release builds locally (not tracked in git)
+TestProject/

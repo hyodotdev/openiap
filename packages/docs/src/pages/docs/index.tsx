@@ -33,11 +33,17 @@ import SubscriptionUpgradeDowngrade from './features/subscription-upgrade-downgr
 import IOSSetup from './ios-setup';
 import AndroidSetup from './android-setup';
 import HorizonSetup from './horizon-setup';
+import ReactNativeSetup from './setup/react-native';
+import ExpoSetup from './setup/expo';
+import FlutterSetup from './setup/flutter';
+import GodotSetup from './setup/godot';
+import KmpSetup from './setup/kmp';
 import Example from './example';
 import Announcements from './updates/announcements';
 import Notes from './updates/notes';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
+import Testing from './guides/testing';
 import FoundationGovernance from './foundation/governance';
 import FoundationOnePager from './foundation/one-pager';
 import FoundationSponsorship from './foundation/sponsorship';
@@ -175,6 +181,18 @@ function Docs() {
               items={[{ to: '/docs/horizon-setup', label: 'Horizon OS' }]}
               onItemClick={closeSidebar}
             />
+            <MenuDropdown
+              title="Framework Setup"
+              titleTo="/docs/setup/react-native"
+              items={[
+                { to: '/docs/setup/react-native', label: 'React Native' },
+                { to: '/docs/setup/expo', label: 'Expo' },
+                { to: '/docs/setup/flutter', label: 'Flutter' },
+                { to: '/docs/setup/godot', label: 'Godot' },
+                { to: '/docs/setup/kmp', label: 'Kotlin Multiplatform' },
+              ]}
+              onItemClick={closeSidebar}
+            />
             <li>
               <NavLink
                 to="/docs/guides/ai-assistants"
@@ -182,6 +200,15 @@ function Docs() {
                 onClick={closeSidebar}
               >
                 AI Assistants
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/guides/testing"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Testing & Sandbox
               </NavLink>
             </li>
             <li>
@@ -350,8 +377,14 @@ function Docs() {
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
+          <Route path="setup/react-native" element={<ReactNativeSetup />} />
+          <Route path="setup/expo" element={<ExpoSetup />} />
+          <Route path="setup/flutter" element={<FlutterSetup />} />
+          <Route path="setup/godot" element={<GodotSetup />} />
+          <Route path="setup/kmp" element={<KmpSetup />} />
           <Route path="example" element={<Example />} />
           <Route path="guides/ai-assistants" element={<AIAssistants />} />
+          <Route path="guides/testing" element={<Testing />} />
           <Route path="foundation/about" element={<FoundationOnePager />} />
           <Route
             path="foundation/governance"

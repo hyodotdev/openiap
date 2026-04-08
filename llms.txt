@@ -1,0 +1,134 @@
+# OpenIAP Quick Reference
+
+> OpenIAP: Unified cross-platform in-app purchase SDK
+> Documentation: https://openiap.dev
+> Full Reference: https://openiap.dev/llms-full.txt
+> GitHub: https://github.com/hyodotdev/openiap
+
+## Overview
+
+OpenIAP provides a standardized protocol for implementing in-app purchases across all platforms. One spec, consistent APIs, platform-specific optimizations.
+
+## Installation
+
+### React Native (react-native-iap)
+```bash
+npm install react-native-iap
+```
+Requires: iOS 15.0+ / Android compileSdk 34+
+
+### Expo (expo-iap)
+```bash
+npx expo install expo-iap
+```
+Requires: iOS 15.0+ / Android compileSdk 34+
+
+### Flutter (flutter_inapp_purchase)
+```bash
+flutter pub add flutter_inapp_purchase
+```
+Requires: iOS 15.0+ / Android minSdk 21+
+
+### Godot (godot-iap)
+Download from Godot Asset Library → extract to `addons/godot-iap/`
+Requires: Godot 4.x
+
+### Kotlin Multiplatform (kmp-iap)
+```kotlin
+implementation("io.github.hyochan.kmpiap:library:1.3.8")
+```
+
+### iOS Native (Swift Package Manager)
+```
+https://github.com/hyodotdev/openiap (openiap-apple)
+```
+
+### Android Native (Gradle)
+```kotlin
+implementation("io.github.hyochan.openiap:openiap-google:1.3.28")
+```
+
+## Core APIs (All Platforms)
+
+```
+initConnection(config?)        → boolean       Initialize store connection
+endConnection()                → boolean       Close store connection
+fetchProducts(skus, type?)     → Product[]     Get product details
+requestPurchase(props)         → void          Start purchase (event-based)
+finishTransaction(purchase)    → void          Complete transaction
+restorePurchases()             → void          Restore completed purchases
+getAvailablePurchases()        → Purchase[]    Get unfinished purchases
+getStorefront()                → string        Get storefront country code
+getActiveSubscriptions(ids?)   → ActiveSub[]   Get active subscriptions
+hasActiveSubscriptions(ids?)   → boolean       Check active subscription
+deepLinkToSubscriptions()      → void          Open subscription management
+```
+
+## Usage
+
+### TypeScript (React Native / Expo)
+```typescript
+import { initConnection, fetchProducts, requestPurchase, finishTransaction } from 'react-native-iap';
+
+await initConnection();
+const products = await fetchProducts({ skus: ['premium'] });
+await requestPurchase({ request: { apple: { sku: 'premium' } } });
+```
+
+### Dart (Flutter)
+```dart
+final iap = FlutterInappPurchase.instance;
+await iap.initConnection();
+final products = await iap.fetchProducts<Product>(skus: ['premium']);
+await iap.requestPurchase(sku: 'premium');
+```
+
+### GDScript (Godot)
+```gdscript
+var result = GodotIapPlugin.init_connection()
+var products = GodotIapPlugin.fetch_products(request)
+var purchase = GodotIapPlugin.request_purchase(props)
+```
+
+### Kotlin (KMP)
+```kotlin
+val kmpIAP = KmpIAP()
+kmpIAP.initConnection()
+val products = kmpIAP.fetchProducts(skus = listOf("premium"))
+kmpIAP.requestPurchase(sku = "premium")
+```
+
+## Events
+
+```
+purchaseUpdated  → Purchase      Fires on successful purchase
+purchaseError    → PurchaseError Fires on purchase failure
+```
+
+## Error Codes
+
+All errors use kebab-case `ErrorCode` enum:
+- `user-cancelled` — User cancelled purchase
+- `item-unavailable` — Product not in store
+- `network-error` — No network connection
+- `service-error` — Store service error
+- `already-owned` — Item already owned
+- `not-prepared` — Store not initialized
+- `duplicate-purchase` — Duplicate purchase detected
+
+## Purchase Flow
+
+1. `initConnection()` — Initialize
+2. `fetchProducts()` — Load products
+3. `requestPurchase()` — Start purchase
+4. Listen for `purchaseUpdated` event
+5. Validate receipt on your server
+6. `finishTransaction()` — Complete (critical: Android auto-refunds after 3 days if not called)
+
+## Links
+
+- Docs: https://openiap.dev
+- GitHub: https://github.com/hyodotdev/openiap
+- APIs: https://openiap.dev/docs/apis
+- Types: https://openiap.dev/docs/types
+- Errors: https://openiap.dev/docs/errors
