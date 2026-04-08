@@ -39,7 +39,11 @@ For each comment:
 1. **Read the code** mentioned in the comment
 2. **Fix it** immediately
 3. **Commit and push**
-4. **Reply** with the commit hash
+4. **Reply** with the commit hash (plain text, no backticks)
+5. **Resolve the conversation** via GraphQL API:
+```bash
+gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "THREAD_ID"}) { thread { isResolved } } }'
+```
 
 ## Reply Format Rules (CRITICAL)
 
