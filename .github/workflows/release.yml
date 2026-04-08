@@ -62,7 +62,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          jq --arg version "$VERSION" '.gql = $version | .docs = $version' openiap-versions.json > openiap-versions.tmp
+          jq --arg version "$VERSION" '.docs = $version' openiap-versions.json > openiap-versions.tmp
           mv openiap-versions.tmp openiap-versions.json
           echo "Updated openiap-versions.json:"
           cat openiap-versions.json
@@ -81,10 +81,6 @@ jobs:
           git add openiap-versions.json packages/*/openiap-versions.json
           git commit -m "chore: bump docs to $VERSION"
           git push origin main
-
-      - name: Regenerate types
-        working-directory: packages/gql
-        run: bun run generate
 
       - name: Create Git tag
         env:
