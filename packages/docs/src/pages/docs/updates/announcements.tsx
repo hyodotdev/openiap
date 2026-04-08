@@ -176,8 +176,8 @@ function Announcements() {
             <li>
               <strong>expo-iap naming fix</strong>:{' '}
               <code>isEligibleForIntroOfferIOS</code> parameter renamed from{' '}
-              <code>groupID</code> to <code>groupId</code> to follow the
-              OpenIAP <code>Id</code> (not <code>ID</code>) naming convention.
+              <code>groupID</code> to <code>groupId</code> to follow the OpenIAP{' '}
+              <code>Id</code> (not <code>ID</code>) naming convention.
             </li>
           </ul>
 
