@@ -1,19 +1,9 @@
 import {
   ConfigPlugin,
+  WarningAggregator,
   withEntitlementsPlist,
   withInfoPlist,
 } from 'expo/config-plugins';
-
-// Log a message only once per Node process
-const logOnce = (() => {
-  const printed = new Set<string>();
-  return (msg: string) => {
-    if (!printed.has(msg)) {
-      console.log(msg);
-      printed.add(msg);
-    }
-  };
-})();
 
 export interface IOSAlternativeBillingConfig {
   /** Country codes where external purchases are supported (ISO 3166-1 alpha-2) */
@@ -44,16 +34,18 @@ export const withIosAlternativeBilling: ConfigPlugin<
   config = withEntitlementsPlist(config, (config) => {
     // Always add basic external purchase entitlement when countries are specified
     config.modResults['com.apple.developer.storekit.external-purchase'] = true;
-    logOnce(
-      '✅ Added com.apple.developer.storekit.external-purchase to entitlements',
+    WarningAggregator.addWarningIOS(
+      'expo-iap',
+      'Added com.apple.developer.storekit.external-purchase to entitlements',
     );
 
     // Add external purchase link entitlement if enabled
     if (options.enableExternalPurchaseLink) {
       config.modResults['com.apple.developer.storekit.external-purchase-link'] =
         true;
-      logOnce(
-        '✅ Added com.apple.developer.storekit.external-purchase-link to entitlements',
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        'Added com.apple.developer.storekit.external-purchase-link to entitlements',
       );
     }
 
@@ -62,8 +54,9 @@ export const withIosAlternativeBilling: ConfigPlugin<
       config.modResults[
         'com.apple.developer.storekit.external-purchase-link-streaming'
       ] = true;
-      logOnce(
-        '✅ Added com.apple.developer.storekit.external-purchase-link-streaming to entitlements',
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        'Added com.apple.developer.storekit.external-purchase-link-streaming to entitlements',
       );
     }
 
@@ -76,39 +69,35 @@ export const withIosAlternativeBilling: ConfigPlugin<
 
     // 1. SKExternalPurchase (Required)
     plist.SKExternalPurchase = options.countries;
-    logOnce(
-      `✅ Added SKExternalPurchase with countries: ${options.countries?.join(
-        ', ',
-      )}`,
+    WarningAggregator.addWarningIOS(
+      'expo-iap',
+      `Added SKExternalPurchase with countries: ${options.countries?.join(', ')}`,
     );
 
     // 2. SKExternalPurchaseLink (Optional - iOS 15.4+)
     if (options.links && Object.keys(options.links).length > 0) {
       plist.SKExternalPurchaseLink = options.links;
-      logOnce(
-        `✅ Added SKExternalPurchaseLink for ${
-          Object.keys(options.links).length
-        } countries`,
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        `Added SKExternalPurchaseLink for ${Object.keys(options.links).length} countries`,
       );
     }
 
     // 3. SKExternalPurchaseMultiLink (iOS 17.5+)
     if (options.multiLinks && Object.keys(options.multiLinks).length > 0) {
       plist.SKExternalPurchaseMultiLink = options.multiLinks;
-      logOnce(
-        `✅ Added SKExternalPurchaseMultiLink for ${
-          Object.keys(options.multiLinks).length
-        } countries`,
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        `Added SKExternalPurchaseMultiLink for ${Object.keys(options.multiLinks).length} countries`,
       );
     }
 
     // 4. SKExternalPurchaseCustomLinkRegions (iOS 18.1+)
     if (options.customLinkRegions && options.customLinkRegions.length > 0) {
       plist.SKExternalPurchaseCustomLinkRegions = options.customLinkRegions;
-      logOnce(
-        `✅ Added SKExternalPurchaseCustomLinkRegions: ${options.customLinkRegions.join(
-          ', ',
-        )}`,
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        `Added SKExternalPurchaseCustomLinkRegions: ${options.customLinkRegions.join(', ')}`,
       );
     }
 
@@ -119,10 +108,9 @@ export const withIosAlternativeBilling: ConfigPlugin<
     ) {
       plist.SKExternalPurchaseLinkStreamingRegions =
         options.streamingLinkRegions;
-      logOnce(
-        `✅ Added SKExternalPurchaseLinkStreamingRegions: ${options.streamingLinkRegions.join(
-          ', ',
-        )}`,
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        `Added SKExternalPurchaseLinkStreamingRegions: ${options.streamingLinkRegions.join(', ')}`,
       );
     }
 

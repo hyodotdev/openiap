@@ -31,7 +31,9 @@ describe('withIosAlternativeBilling', () => {
 
     const result = withIosAlternativeBilling(baseConfig, options);
 
-    // Check that config plugins were applied
+    // Config plugins (withEntitlementsPlist/withInfoPlist) register deferred mods on the config
+    // object. We can't inspect modResults without running the full mod compiler, so we verify
+    // the config was returned and passed through correctly.
     expect(result).toBeDefined();
     expect(result.name).toBe('test-app');
   });

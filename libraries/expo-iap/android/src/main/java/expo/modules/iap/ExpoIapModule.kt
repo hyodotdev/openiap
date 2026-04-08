@@ -325,12 +325,10 @@ class ExpoIapModule : Module() {
                         ExpoIapHelper.resolvePurchasePromises(purchases.map { it.toJson() })
                     } catch (e: Exception) {
                         ExpoIapLog.failure("requestPurchaseAndroid", e)
-                        // Try to use toJSON() if available (OpenIAP PurchaseError), otherwise create a generic error map
                         val errorMap =
-                            runCatching {
-                                @Suppress("UNCHECKED_CAST")
-                                e.javaClass.getMethod("toJSON").invoke(e) as Map<String, Any?>
-                            }.getOrElse {
+                            if (e is OpenIapError) {
+                                e.toJSON()
+                            } else {
                                 mapOf(
                                     "code" to OpenIapError.PurchaseFailed.CODE,
                                     "message" to (e.message ?: "Purchase failed"),
