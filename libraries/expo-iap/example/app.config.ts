@@ -1,8 +1,8 @@
 import type {ConfigContext, ExpoConfig} from '@expo/config';
 
 const LOCAL_OPENIAP_PATHS = {
-  ios: '/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/apple',
-  android: '/Users/crossplatformkorea/Github/hyodotdev/openiap/packages/google',
+  ios: '../../../packages/apple',
+  android: '../../../packages/google',
 } as const;
 
 export default ({config}: ConfigContext): ExpoConfig => {

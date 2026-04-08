@@ -10,6 +10,6 @@ module.exports = {
     ],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
-  roots: ['<rootDir>/__tests__'],
+  roots: ['<rootDir>/__tests__', '<rootDir>/src/__tests__'],
   testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
 };

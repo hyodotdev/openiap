@@ -64,6 +64,10 @@ jobs:
         IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
         if [ -n "$TARGET_VERSION" ]; then
+          if [[ ! "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid target_version: $TARGET_VERSION. Must be semver (e.g., 1.3.5 or 1.3.5-rc.1)"
+            exit 1
+          fi
           NEW_VERSION="$TARGET_VERSION"
           echo "Using manual version: $NEW_VERSION"
         elif [ "$VERSION_TYPE" = "current" ]; then
