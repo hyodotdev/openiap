@@ -134,11 +134,41 @@ jobs:
         else
           git commit -m "chore(apple): bump version to $VERSION"
 
-          # Pull latest changes before pushing
-          git pull --rebase origin main || true
-
-          # Retry push up to 3 times with exponential backoff
+          # Push with retry, handling concurrent release conflicts
           for i in 1 2 3; do
+            # Pull latest changes before pushing
+            if ! git pull --rebase origin main; then
+              echo "⚠️ Rebase conflict detected, auto-resolving version files..."
+
+              # Auto-resolve openiap-versions.json conflicts by merging JSON keys
+              for conflict_file in $(git diff --name-only --diff-filter=U); do
+                if [[ "$conflict_file" == *"openiap-versions.json" ]]; then
+                  # Get versions from both sides and merge
+                  git show REBASE_HEAD:"$conflict_file" > /tmp/ours.json 2>/dev/null || true
+                  git show HEAD:"$conflict_file" > /tmp/theirs.json 2>/dev/null || true
+
+                  if [ -s /tmp/ours.json ] && [ -s /tmp/theirs.json ]; then
+                    # Merge: take all keys from both, our changes (apple version) win on conflict
+                    jq -s '.[0] * .[1]' /tmp/theirs.json /tmp/ours.json > /tmp/merged.json
+                    cp /tmp/merged.json "$conflict_file"
+                  else
+                    # Fallback: accept ours
+                    git checkout --theirs "$conflict_file" 2>/dev/null || git checkout --ours "$conflict_file"
+                  fi
+                  git add "$conflict_file"
+                else
+                  echo "❌ Unexpected conflict in $conflict_file"
+                  exit 1
+                fi
+              done
+
+              # Also re-sync docs copy after merge
+              cp openiap-versions.json packages/docs/openiap-versions.json
+              git add packages/docs/openiap-versions.json
+
+              GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
+            fi
+
             if git push origin main; then
               echo "✅ Successfully pushed version update"
               break
