@@ -114,7 +114,7 @@ jobs:
 
       - name: Install CocoaPods dependencies
         working-directory: libraries/expo-iap/example/ios
-        run: pod install
+        run: pod install --repo-update
 
       - name: Build iOS library
         working-directory: libraries/expo-iap/example/ios

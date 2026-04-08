@@ -112,7 +112,7 @@ jobs:
 
       - name: Install CocoaPods dependencies
         working-directory: libraries/react-native-iap/example/ios
-        run: bundle exec pod install
+        run: bundle exec pod install --repo-update
 
       - name: Build iOS library
         working-directory: libraries/react-native-iap/example/ios
