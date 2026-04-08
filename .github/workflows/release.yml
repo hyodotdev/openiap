@@ -1,4 +1,4 @@
-name: Release
+name: "Release: Docs"
 
 on:
   workflow_dispatch:
@@ -29,34 +29,19 @@ jobs:
       - name: Calculate new version
         id: version
         run: |
-          # Read current gql version from openiap-versions.json
-          CURRENT_VERSION=$(jq -r '.gql' openiap-versions.json)
+          CURRENT_VERSION=$(jq -r '.docs' openiap-versions.json)
           echo "Current version: $CURRENT_VERSION"
 
-          # If "current" is selected, use existing version without bumping
           if [ "${{ github.event.inputs.version }}" = "current" ]; then
             NEW_VERSION="$CURRENT_VERSION"
             echo "Using current version (no bump): $NEW_VERSION"
           else
-            # Parse version components
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-
-            # Bump version based on input
             case "${{ github.event.inputs.version }}" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
             esac
-
             NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
             echo "New version: $NEW_VERSION"
           fi
@@ -77,10 +62,8 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # Update gql and docs versions using jq
           jq --arg version "$VERSION" '.gql = $version | .docs = $version' openiap-versions.json > openiap-versions.tmp
           mv openiap-versions.tmp openiap-versions.json
-
           echo "Updated openiap-versions.json:"
           cat openiap-versions.json
 
@@ -96,46 +79,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add openiap-versions.json packages/*/openiap-versions.json
-          git commit -m "chore: bump gql and docs to $VERSION"
+          git commit -m "chore: bump docs to $VERSION"
           git push origin main
 
       - name: Regenerate types
         working-directory: packages/gql
         run: bun run generate
-
-      - name: Package artifacts
-        run: |
-          mkdir -p artifacts
-          zip -j artifacts/openiap-typescript.zip packages/gql/src/generated/types.ts
-          zip -j artifacts/openiap-dart.zip packages/gql/src/generated/types.dart
-          zip -j artifacts/openiap-kotlin.zip packages/gql/src/generated/Types.kt
-          zip -j artifacts/openiap-swift.zip packages/gql/src/generated/Types.swift
-          zip -j artifacts/openiap-gdscript.zip packages/gql/src/generated/types.gd
-
-      - name: Delete existing tag and release if re-releasing same version
-        if: github.event.inputs.version == 'current'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG_NAME="gql-$VERSION"
-
-          # Delete existing release if it exists
-          if gh release view "$TAG_NAME" &>/dev/null; then
-            echo "Deleting existing release: $TAG_NAME"
-            gh release delete "$TAG_NAME" --yes
-          fi
-
-          # Delete existing tag if it exists (both local and remote)
-          if git rev-parse "$TAG_NAME" &>/dev/null; then
-            echo "Deleting existing local tag: $TAG_NAME"
-            git tag -d "$TAG_NAME" || true
-          fi
-
-          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
-            echo "Deleting existing remote tag: $TAG_NAME"
-            git push origin --delete "$TAG_NAME" || true
-          fi
 
       - name: Create Git tag
         env:
@@ -143,38 +92,18 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          TAG_NAME="gql-$VERSION"
+          TAG_NAME="docs-$VERSION"
           git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
           git push origin "$TAG_NAME"
 
-      - name: Publish release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: gql-${{ steps.version.outputs.version }}
-          name: GQL ${{ steps.version.outputs.version }}
-          files: |
-            artifacts/openiap-typescript.zip
-            artifacts/openiap-dart.zip
-            artifacts/openiap-kotlin.zip
-            artifacts/openiap-swift.zip
-            artifacts/openiap-gdscript.zip
+          tag_name: docs-${{ steps.version.outputs.version }}
+          name: Docs ${{ steps.version.outputs.version }}
           generate_release_notes: true
           body: |
-            ## OpenIAP GQL ${{ steps.version.outputs.version }}
-
-            ### Artifacts
-            This release includes autogenerated types for multiple platforms:
-            - **TypeScript**: `openiap-typescript.zip`
-            - **Dart**: `openiap-dart.zip`
-            - **Kotlin**: `openiap-kotlin.zip`
-            - **Swift**: `openiap-swift.zip`
-            - **GDScript**: `openiap-gdscript.zip`
-
-            ### Usage in other projects
-            You can download these artifacts and use them in:
-            - react-native-iap
-            - expo-iap
-            - Any other project that needs OpenIAP types
+            ## OpenIAP Docs ${{ steps.version.outputs.version }}
 
             ### Documentation
             - [Documentation](https://openiap.dev)
