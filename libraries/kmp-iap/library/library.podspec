@@ -1,7 +1,7 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'library'
     spec.version                  = '1.3.8'
-    spec.homepage                 = 'https://github.com/hyochan/kmp-iap'
+    spec.homepage                 = 'https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap'
     spec.source                   = { :http=> ''}
     spec.authors                  = ''
     spec.license                  = ''

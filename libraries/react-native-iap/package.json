@@ -78,14 +78,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hyochan/react-native-iap.git"
+    "url": "git+https://github.com/hyodotdev/openiap.git"
   },
   "author": "hyochan <hyo@hyo.dev> (https://github.com/hyochan)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/hyochan/react-native-iap/issues"
+    "url": "https://github.com/hyodotdev/openiap/issues"
   },
-  "homepage": "https://github.com/hyochan/react-native-iap",
+  "homepage": "https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },

@@ -3,7 +3,7 @@
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT IAP                                  */
-/*                     https://github.com/hyochan/godot-iap               */
+/*                     https://github.com/hyodotdev/openiap               */
 /**************************************************************************/
 /* Copyright (c) 2024-present                                             */
 /*                                                                        */

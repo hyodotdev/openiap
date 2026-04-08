@@ -25,7 +25,7 @@ Pod::Spec.new do |s|
   # get a clear CocoaPods error instead of a vague SwiftCompile failure.
   # Platform versions match OpenIAP requirements: iOS 15+, macOS 14+, tvOS 16+, watchOS 8+
   s.platforms    = { :ios => '15.0', :tvos => '16.0', :macos => '14.0', :watchos => '8.0', :visionos => 1.0 }
-  s.source       = { :git => "https://github.com/hyochan/react-native-iap.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/hyodotdev/openiap.git", :tag => "#{s.version}" }
 
   s.source_files = [
     "ios/**/*.{swift}",
