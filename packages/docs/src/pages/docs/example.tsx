@@ -1,15 +1,19 @@
+import AnchorLink from '../../components/AnchorLink';
 import PlatformTabs from '../../components/PlatformTabs';
 import SEO from '../../components/SEO';
 import { IAPKIT_URL, trackIapKitClick } from '../../lib/config';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 function Example() {
+  useScrollToHash();
+
   return (
     <div className="doc-page">
       <SEO
         title="Example"
-        description="How to run OpenIAP iOS and Android example app"
+        description="How to run OpenIAP iOS, Android, and framework example apps"
         path="/docs/example"
-        keywords="OpenIAP example, iOS example app, Android example app, IAP testing"
+        keywords="OpenIAP example, iOS example app, Android example app, React Native IAP, Expo IAP, Flutter IAP, Godot IAP, KMP IAP, IAP testing"
       />
       <h1>Example</h1>
       <p>
@@ -797,6 +801,175 @@ android {
           ),
         }}
       </PlatformTabs>
+
+      <section>
+        <AnchorLink id="framework-examples" level="h2">
+          Framework Examples
+        </AnchorLink>
+        <p>
+          Each framework library includes a working example app that
+          demonstrates how to integrate OpenIAP. Use these as a starting point
+          for your own implementation.
+        </p>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1rem',
+            marginTop: '1rem',
+          }}
+        >
+          <div
+            style={{
+              padding: '1.5rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap/example"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                React Native (CLI)
+              </a>
+            </h4>
+            <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem 0' }}>
+              Bare React Native app with full IAP flow.
+            </p>
+            <pre className="code-block">{`cd libraries/react-native-iap/example
+yarn install
+yarn ios`}</pre>
+            <p
+              style={{
+                fontSize: '0.85rem',
+                margin: '0.75rem 0 0 0',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              Also see the{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap/example-expo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                Expo-based example
+              </a>{' '}
+              in the same library.
+            </p>
+          </div>
+
+          <div
+            style={{
+              padding: '1.5rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                Expo IAP
+              </a>
+            </h4>
+            <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem 0' }}>
+              Expo-managed app with IAP integration.
+            </p>
+            <pre className="code-block">{`cd libraries/expo-iap/example
+bun install
+bun ios`}</pre>
+          </div>
+
+          <div
+            style={{
+              padding: '1.5rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase/example"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                Flutter
+              </a>
+            </h4>
+            <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem 0' }}>
+              Flutter example with full purchase and subscription flow.
+            </p>
+            <pre className="code-block">{`cd libraries/flutter_inapp_purchase/example
+flutter run`}</pre>
+          </div>
+
+          <div
+            style={{
+              padding: '1.5rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap/Example"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                Godot
+              </a>
+            </h4>
+            <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem 0' }}>
+              Godot project with in-app purchase demo scene.
+            </p>
+            <pre className="code-block">{`# Open in Godot editor
+libraries/godot-iap/Example/project.godot`}</pre>
+          </div>
+
+          <div
+            style={{
+              padding: '1.5rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <h4 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap/example"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                Kotlin Multiplatform
+              </a>
+            </h4>
+            <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem 0' }}>
+              KMP example targeting Android (Gradle) and iOS (Xcode).
+            </p>
+            <pre className="code-block">{`cd libraries/kmp-iap/example
+
+# Android: build with Gradle
+./gradlew :composeApp:assembleDebug
+
+# iOS: open iosApp/ in Xcode`}</pre>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

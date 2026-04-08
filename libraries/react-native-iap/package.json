@@ -1,0 +1,171 @@
+{
+  "name": "react-native-iap",
+  "version": "14.7.20",
+  "description": "React Native In-App Purchases module for iOS and Android using Nitro",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./lib/typescript/src/index.d.ts",
+      "default": "./lib/module/index.js",
+      "react-native": "./src/index.ts"
+    },
+    "./plugin": "./app.plugin.js",
+    "./app.plugin.js": "./app.plugin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib",
+    "plugin",
+    "android",
+    "ios",
+    "cpp",
+    "nitrogen",
+    "nitro.json",
+    "openiap-versions.json",
+    "*.podspec",
+    "app.plugin.js",
+    "react-native.config.js",
+    "!ios/build",
+    "!android/build",
+    "!android/gradle",
+    "!android/gradlew",
+    "!android/gradlew.bat",
+    "!android/local.properties",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__",
+    "!**/.*"
+  ],
+  "scripts": {
+    "build:plugin": "tsc --build plugin",
+    "setup:expo": "cd example-expo && bun setup",
+    "example": "yarn workspace rn-iap-example",
+    "example:ios": "yarn workspace rn-iap-example ios",
+    "example:android": "yarn workspace rn-iap-example android",
+    "example:start": "yarn workspace rn-iap-example start",
+    "typecheck": "yarn typecheck:lib && yarn typecheck:expo",
+    "typecheck:lib": "yarn tsc --noEmit",
+    "typecheck:expo": "cd example-expo && bun run typecheck",
+    "clean": "rm -rf android/build node_modules/**/android/build lib nitrogen/generated",
+    "lint": "eslint --ext .ts,.tsx,.js,.jsx src",
+    "lint:eslint": "eslint --fix 'src/**/*.{ts,tsx}' 'plugin/src/**/*.{ts,tsx}'",
+    "lint:prettier": "prettier --write \"**/*.{md,js,jsx,ts,tsx}\" \"!example-expo/**\"",
+    "lint:tsc": "tsc -p tsconfig.json --noEmit --skipLibCheck",
+    "lint:ci": "yarn lint:tsc && yarn lint:eslint && yarn lint:prettier",
+    "prepare": "npx tsx scripts/check-nitro-versions.ts && bob build && yarn nitrogen && yarn build:plugin",
+    "nitrogen": "node --stack-size=65536 node_modules/nitrogen/lib/index.js",
+    "specs": "yarn nitrogen --logLevel=\"debug\"",
+    "test": "jest --coverage",
+    "test:library": "jest --coverage",
+    "test:example": "yarn workspace rn-iap-example test --coverage",
+    "test:plugin": "cd example-expo/plugin && bun test",
+    "test:all": "yarn test:library && yarn test:example",
+    "test:ci": "jest --maxWorkers=2 --coverage",
+    "test:ci:example": "yarn workspace rn-iap-example test --coverage",
+    "prepare:husky": "husky install",
+    "precommit": "lint-staged",
+    "ci:check": "./scripts/ci-check.sh",
+    "generate:types": "node scripts/update-types.mjs",
+    "generate:icon": "cd docs/static/img && npx sharp-cli resize 32 32 --input icon.png --output favicon-32x32.png && npx sharp-cli resize 16 16 --input icon.png --output favicon-16x16.png && npx sharp-cli resize 192 192 --input icon.png --output android-chrome-192x192.png && npx sharp-cli resize 512 512 --input icon.png --output android-chrome-512x512.png && npx sharp-cli resize 180 180 --input icon.png --output apple-touch-icon.png && npx sharp-cli resize 1200 630 --input icon.png --output og-image.png && npx sharp-cli resize 150 150 --input icon.png --output favicon.png && npx sharp-cli --input favicon-32x32.png --output favicon.ico",
+    "commitlint": "commitlint"
+  },
+  "keywords": [
+    "react-native",
+    "nitro"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyodotdev/openiap.git"
+  },
+  "author": "hyochan <hyo@hyo.dev> (https://github.com/hyochan)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hyodotdev/openiap/issues"
+  },
+  "homepage": "https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-methods": "^7.18.6",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@react-native/eslint-config": "0.81.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^24.4.0",
+    "@types/react": "^19.1.12",
+    "babel-jest": "^30.1.1",
+    "eslint": "^8.57.0",
+    "eslint-config-expo": "^9.2.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "expo": "^53.0.20",
+    "husky": "^8.0.3",
+    "jest": "^30.1.1",
+    "lint-staged": "^15.2.0",
+    "nitrogen": "^0.35.0",
+    "prettier": "^3.3.3",
+    "react": "19.1.0",
+    "react-native": "0.81.1",
+    "react-native-builder-bob": "^0.38.4",
+    "react-native-nitro-modules": "^0.35.0",
+    "react-test-renderer": "^19.1.1",
+    "typescript": "^5.9.2"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-nitro-modules": "^0.35.0"
+  },
+  "workspaces": [
+    "example"
+  ],
+  "eslintIgnore": [
+    "node_modules/",
+    "lib/"
+  ],
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      [
+        "custom",
+        {
+          "script": "nitrogen",
+          "clean": "nitrogen/"
+        }
+      ],
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
+    ]
+  },
+  "lint-staged": {
+    "!(docs)/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "!(docs)/**/*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "packageManager": "yarn@3.6.1"
+}

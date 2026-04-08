@@ -1,0 +1,225 @@
+name: "Release: expo-iap"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - rc
+          - promote
+        default: patch
+      prerelease:
+        description: "Publish as prerelease (-rc.1)"
+        required: false
+        default: false
+        type: boolean
+      create_release:
+        description: "Also create a GitHub Release"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  validate-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GRADLE_OPTS: '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError"'
+    defaults:
+      run:
+        working-directory: libraries/expo-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.38"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install example dependencies
+        working-directory: libraries/expo-iap/example
+        run: bun install
+
+      - name: Install JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Generate native projects (expo prebuild)
+        working-directory: libraries/expo-iap/example
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build Android library
+        working-directory: libraries/expo-iap/example/android
+        run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a --stacktrace
+
+  validate-ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      XCODE_VERSION: 16.4
+    defaults:
+      run:
+        working-directory: libraries/expo-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.38"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install example dependencies
+        working-directory: libraries/expo-iap/example
+        run: bun install
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Generate native projects (expo prebuild)
+        working-directory: libraries/expo-iap/example
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods dependencies
+        working-directory: libraries/expo-iap/example/ios
+        run: pod install
+
+      - name: Build iOS library
+        working-directory: libraries/expo-iap/example/ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace expoiapexample.xcworkspace \
+            -scheme expoiapexample \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+  deploy:
+    needs: [validate-android, validate-ios]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libraries/expo-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.38"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint:ci
+
+      - name: Configure Git user
+        run: |
+          git config user.name "expo-iap bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: bump
+        run: |
+          VERSION_TYPE="${{ inputs.version }}"
+          IS_PRERELEASE="${{ inputs.prerelease }}"
+
+          if [ "$VERSION_TYPE" = "promote" ]; then
+            CURRENT=$(node -p "require('./package.json').version")
+            BASE=$(echo "$CURRENT" | sed 's/-rc\.[0-9]*//')
+            npm version "$BASE" --no-git-tag-version
+          elif [ "$VERSION_TYPE" = "rc" ]; then
+            npm version prerelease --preid=rc --no-git-tag-version
+          elif [ "$IS_PRERELEASE" = "true" ]; then
+            npm version "pre${VERSION_TYPE}" --preid=rc --no-git-tag-version
+          else
+            npm version "$VERSION_TYPE" --no-git-tag-version
+          fi
+
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$NEW_VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare package (build + codegen)
+        run: bun run prepare
+
+      - name: Commit and tag
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.version }}"
+          git add package.json
+          git commit -m "chore(release): expo-iap ${NEW_VERSION}"
+          git tag "expo-iap-${NEW_VERSION}"
+
+      - name: Push commit and tags
+        run: git push --follow-tags
+
+      - name: Ensure npm CLI v11.5.1 or later (required for OIDC)
+        run: npm install -g npm@latest
+
+      - name: Publish to npm with OIDC trusted publishing
+        run: |
+          if [ "${{ steps.bump.outputs.is_prerelease }}" = "true" ]; then
+            npm publish --tag next --access public --provenance
+          else
+            npm publish --access public --provenance
+          fi
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: expo-iap-${{ steps.bump.outputs.version }}
+          name: expo-iap ${{ steps.bump.outputs.version }}
+          draft: false
+          prerelease: ${{ steps.bump.outputs.is_prerelease }}
+          generate_release_notes: true

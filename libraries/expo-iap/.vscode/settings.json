@@ -1,0 +1,108 @@
+{
+  // Editor settings
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // ESLint
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.workingDirectories": [
+    {"directory": ".", "changeProcessCWD": true},
+    {"directory": "example", "changeProcessCWD": true}
+  ],
+
+  // Prettier
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "prettier.configPath": ".prettierrc.js",
+
+  // TypeScript
+  "javascript.preferences.importModuleSpecifier": "relative",
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // Files
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": false,
+    "example/ios/build": true,
+    "example/android/build": true,
+    "example/android/.gradle": true,
+    "build": true,
+    "lib": true
+  },
+
+  // Search
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "example/ios/build": true,
+    "example/android/build": true,
+    "example/ios/Pods": true
+  },
+
+  // React Native Tools
+  "react-native-tools.projectRoot": "example",
+  "react-native-tools.showUserTips": false,
+  "jest.rootPath": "example",
+
+  // Terminal
+  "terminal.integrated.env.osx": {
+    "PATH": "${env:PATH}:/opt/homebrew/bin"
+  },
+
+  // Spell checker
+  "cSpell.words": [
+    "bundler",
+    "codecov",
+    "copilot",
+    "crossplatformkorea",
+    "cursorrules",
+    "docusaurus",
+    "emulator",
+    "expo",
+    "gradle",
+    "hyochan",
+    "hyodotdev",
+    "iap",
+    "iapkit",
+    "inapp",
+    "ktlint",
+    "lcov",
+    "martie",
+    "mobileprovision",
+    "Nami",
+    "openiap",
+    "peaceiris",
+    "podfile",
+    "prebuild",
+    "Pressable",
+    "reanimated",
+    "rncore",
+    "Skus",
+    "storefront",
+    "storekit",
+    "tsdk",
+    "webview",
+    "xcodebuild"
+  ]
+}

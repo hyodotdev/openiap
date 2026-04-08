@@ -48,4 +48,38 @@ copy_file "packages/docs/openiap-versions.json"
 create_symlink "packages/apple/Sources/openiap-versions.json" "../../../openiap-versions.json"
 create_symlink "packages/google/openiap-versions.json" "../../openiap-versions.json"
 
-echo "✅ Version files synced successfully"
+# Libraries use symlinks to root openiap-versions.json
+echo ""
+echo "📦 Syncing to libraries..."
+create_symlink "libraries/react-native-iap/openiap-versions.json" "../../openiap-versions.json"
+create_symlink "libraries/expo-iap/openiap-versions.json" "../../openiap-versions.json"
+create_symlink "libraries/flutter_inapp_purchase/openiap-versions.json" "../../openiap-versions.json"
+create_symlink "libraries/godot-iap/openiap-versions.json" "../../openiap-versions.json"
+create_symlink "libraries/kmp-iap/openiap-versions.json" "../../openiap-versions.json"
+
+# Sync generated types from packages/gql to libraries
+echo ""
+echo "📦 Syncing generated types..."
+GQL_GENERATED="packages/gql/src/generated"
+
+# TypeScript types → react-native-iap, expo-iap
+if [ -f "$GQL_GENERATED/types.ts" ]; then
+    cp "$GQL_GENERATED/types.ts" "libraries/react-native-iap/src/types.ts"
+    echo "  ✓ libraries/react-native-iap/src/types.ts"
+    cp "$GQL_GENERATED/types.ts" "libraries/expo-iap/src/types.ts"
+    echo "  ✓ libraries/expo-iap/src/types.ts"
+fi
+
+# Dart types → flutter_inapp_purchase
+if [ -f "$GQL_GENERATED/types.dart" ]; then
+    cp "$GQL_GENERATED/types.dart" "libraries/flutter_inapp_purchase/lib/types.dart"
+    echo "  ✓ libraries/flutter_inapp_purchase/lib/types.dart"
+fi
+
+# GDScript types → godot-iap
+if [ -f "$GQL_GENERATED/types.gd" ]; then
+    cp "$GQL_GENERATED/types.gd" "libraries/godot-iap/addons/godot-iap/types.gd"
+    echo "  ✓ libraries/godot-iap/addons/godot-iap/types.gd"
+fi
+
+echo "✅ Version files and types synced successfully"

@@ -1,0 +1,46 @@
+name: CI - flutter_inapp_purchase
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'libraries/flutter_inapp_purchase/**'
+      - 'packages/gql/src/generated/types.dart'
+  push:
+    branches: [main]
+    paths:
+      - 'libraries/flutter_inapp_purchase/**'
+      - 'packages/gql/src/generated/types.dart'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: libraries/flutter_inapp_purchase
+
+jobs:
+  analyze-and-test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.x"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test

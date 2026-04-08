@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4B5794"/>
+      <stop offset="100%" style="stop-color:#3E458E"/>
+    </linearGradient>
+  </defs>
+  <rect width="124" height="124" x="2" y="2" fill="url(#bg)" stroke="#252565" stroke-width="4" rx="20"/>
+  <!-- Shopping bag -->
+  <path d="M32 50 L32 100 Q32 108 40 108 L88 108 Q96 108 96 100 L96 50 Z"
+        fill="#fff" stroke="#252565" stroke-width="3"/>
+  <!-- Bag handle -->
+  <path d="M48 50 L48 38 Q48 28 64 28 Q80 28 80 38 L80 50"
+        fill="none" stroke="#252565" stroke-width="4" stroke-linecap="round"/>
+  <!-- Dollar sign -->
+  <text x="64" y="88" font-family="Arial, sans-serif" font-size="42" font-weight="bold"
+        fill="#4B5794" text-anchor="middle">$</text>
+  <!-- Sparkle top right -->
+  <circle cx="100" cy="24" r="4" fill="#FFD700"/>
+  <circle cx="108" cy="32" r="2" fill="#FFD700"/>
+</svg>

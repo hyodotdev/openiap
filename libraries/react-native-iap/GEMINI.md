@@ -1,0 +1,1 @@
+/Users/crossplatformkorea/Github/hyochan/react-native-iap/CLAUDE.md

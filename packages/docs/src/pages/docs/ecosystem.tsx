@@ -117,13 +117,13 @@ function Ecosystem() {
       <section>
         <h2>Third Parties</h2>
         <p>
-          The following libraries are not included in the OpenIAP monorepo but
-          are part of the ecosystem.
+          The following libraries are included in the OpenIAP monorepo under{' '}
+          <code>libraries/</code> and are part of the ecosystem.
         </p>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyochan/react-native-iap"
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -131,11 +131,11 @@ function Ecosystem() {
             </a>
             : React Native library for in-app purchases. Can be installed
             directly without Expo modules. Also provides an Expo plugin for Expo
-            projects.
+            projects. <a href="/docs/setup/react-native">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyochan/expo-iap"
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -143,37 +143,40 @@ function Ecosystem() {
             </a>
             : Expo module for in-app purchases. Requires expo-modules-core to be
             installed in React Native CLI projects. Offers better integration
-            with Expo ecosystem.
+            with Expo ecosystem. <a href="/docs/setup/expo">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyochan/flutter_inapp_purchase"
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
               target="_blank"
               rel="noopener noreferrer"
             >
               <strong>flutter_inapp_purchase</strong>
             </a>
-            : Flutter plugin for in-app purchases.
+            : Flutter plugin for in-app purchases.{' '}
+            <a href="/docs/setup/flutter">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyochan/kmp-iap"
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
               target="_blank"
               rel="noopener noreferrer"
             >
               <strong>kmp-iap</strong>
             </a>
-            : Kotlin Multiplatform library for in-app purchases.
+            : Kotlin Multiplatform library for in-app purchases.{' '}
+            <a href="/docs/setup/kmp">Setup Guide</a>
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyochan/godot-iap"
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
               target="_blank"
               rel="noopener noreferrer"
             >
               <strong>godot-iap</strong>
             </a>
-            : Godot plugin for in-app purchases using GDScript.
+            : Godot plugin for in-app purchases using GDScript.{' '}
+            <a href="/docs/setup/godot">Setup Guide</a>
           </li>
         </ul>
       </section>

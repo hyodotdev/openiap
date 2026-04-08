@@ -1,0 +1,41 @@
+# Documentation site (not needed for pub.dev)
+
+docs/
+
+# Development files
+
+.vscode/
+.claude/
+
+# CI/CD files
+
+.github/
+
+# Example app
+
+example/
+
+# Test files
+
+test/
+
+!example/ios/Flutter/ephemeral/flutter_lldb_helper.py
+!example/ios/Flutter/ephemeral/flutter_lldbinit
+
+# Build and coverage artifacts
+
+build/
+coverage/
+
+# More
+
+analysis_options.yaml
+issue_template.md
+CONTRIBUTING.md
+CLAUDE.md
+GEMINI.md
+KINDLE.md
+
+# IDE metadata
+
+\*.iml

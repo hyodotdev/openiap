@@ -67,6 +67,9 @@ interface ProductRequest {
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): List<Product>`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): List<Product>`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<List<Product>> fetchProducts(ProductRequest request);`}</CodeBlock>
             ),
@@ -109,9 +112,18 @@ products.forEach(product => {
     ProductRequest(skus = listOf("com.app.premium"), type = ProductQueryType.InApp)
 )`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+val products = kmpIAP.fetchProducts(
+    ProductRequest(skus = listOf("com.app.premium"), type = ProductQueryType.InApp)
+)`}</CodeBlock>
+            ),
             dart: (
-              <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.getProducts(
-  ['com.app.premium'],
+              <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.fetchProducts(
+  skus: ['com.app.premium'],
 );`}</CodeBlock>
             ),
             gdscript: (
@@ -166,6 +178,9 @@ interface PurchaseOptions {
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<List<Purchase>> getAvailablePurchases({PurchaseOptions? options});`}</CodeBlock>
             ),
@@ -210,6 +225,13 @@ for (const purchase of purchases) {
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`val purchases = openIapStore.getAvailablePurchases()`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+val purchases = kmpIAP.getAvailablePurchases()`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();`}</CodeBlock>

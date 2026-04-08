@@ -1,0 +1,80 @@
+{
+  // Editor settings
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+
+  // Dart & Flutter settings
+  "dart.flutterSdkPath": null,
+  "dart.doNotFormat": ["lib/types.dart"],
+  "dart.env": {
+    "FLUTTER_ROOT": "${workspaceFolder}"
+  },
+  "[dart]": {
+    "editor.formatOnSave": false,
+    "editor.rulers": [80],
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+
+  // Files to exclude from explorer
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/node_modules": true,
+    "**/.dart_tool": true,
+    "**/.flutter-plugins": true,
+    "**/.flutter-plugins-dependencies": true,
+    "**/.packages": true,
+    "**/build": true,
+    "docs/.docusaurus": true,
+    "docs/build": true
+  },
+
+  // Search exclusions
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "**/.dart_tool": true,
+    "**/build": true,
+    "docs/.docusaurus": true,
+    "docs/build": true
+  },
+
+  // TypeScript/JavaScript settings for Docusaurus
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // Docusaurus specific
+  "typescript.tsdk": "docs/node_modules/typescript/lib",
+  "npm.packageManager": "npm",
+  "cSpell.words": [
+    "gentype",
+    "hyochan",
+    "inapp",
+    "Inapp",
+    "martie",
+    "NONCONSUMABLE",
+    "openiap",
+    "skus"
+  ]
+}

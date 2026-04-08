@@ -1,0 +1,26 @@
+{
+  "recommendations": [
+    // Flutter & Dart
+    "dart-code.dart-code",
+    "dart-code.flutter",
+    
+    // Documentation
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    
+    // Code formatting
+    "esbenp.prettier-vscode",
+    
+    // Git
+    "eamodio.gitlens",
+    
+    // General development
+    "streetsidesoftware.code-spell-checker",
+    "usernamehw.errorlens",
+    "christian-kohler.path-intellisense",
+    
+    // TypeScript/JavaScript (for Docusaurus)
+    "dbaeumer.vscode-eslint",
+    "ms-vscode.vscode-typescript-tslint-plugin"
+  ]
+}

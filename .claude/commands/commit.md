@@ -151,6 +151,33 @@ EOF
 )"
 ```
 
+### 8. Add Labels to PR
+
+After creating the PR, add appropriate labels based on the changes.
+First list available labels with `gh label list`, then add matching ones:
+
+```bash
+gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"
+```
+
+**Label selection guide:**
+- Changes to `packages/apple/` → `📱 iOS`
+- Changes to `packages/google/` → `🤖 android`
+- Changes to `packages/docs/` → `📖 documentation`
+- Changes to `packages/gql/` → `⬡ gql`
+- Changes to `libraries/react-native-iap/` → `react-native-iap`
+- Changes to `libraries/expo-iap/` → `expo-iap`
+- Changes to `libraries/flutter_inapp_purchase/` → `flutter-iap`
+- Changes to `libraries/godot-iap/` → `godot-iap`
+- Changes to `libraries/kmp-iap/` → `kmp-iap`
+- Changes across multiple platforms → `cross-platform`
+- New features → `🎯 feature`
+- Bug fixes → `🐛 bug`
+- Breaking changes → `⚡️ breaking`
+- Documentation only → `📖 documentation`
+- CI/CD changes → `💨 ci`
+- Refactoring → `፦ refactor`
+
 ---
 
 ## Commit Order (CRITICAL)

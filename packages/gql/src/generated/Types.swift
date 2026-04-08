@@ -111,6 +111,7 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case billingUnavailable = "billing-unavailable"
     case featureNotSupported = "feature-not-supported"
     case emptySkuList = "empty-sku-list"
+    case duplicatePurchase = "duplicate-purchase"
 
     /// Custom initializer to handle both kebab-case and camelCase error codes
     /// This ensures compatibility with react-native-iap and other libraries that may send camelCase
@@ -191,6 +192,8 @@ public enum ErrorCode: String, Codable, CaseIterable {
             self = .featureNotSupported
         case "empty-sku-list", "EmptySkuList":
             self = .emptySkuList
+        case "duplicate-purchase", "DuplicatePurchase":
+            self = .duplicatePurchase
         default:
             return nil
         }

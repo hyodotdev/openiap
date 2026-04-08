@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[pre-commit] Running flutter pub get..."
+flutter pub get >/dev/null
+
+echo "[pre-commit] Auto-formatting repo (Dart)..."
+# Format only tracked dart files excluding lib/types.dart
+git ls-files '*.dart' | grep -v '^lib/types.dart$' | xargs dart format --page-width 80 >/dev/null || true
+# Only re-stage modified tracked files to avoid accidentally staging untracked files
+git add -u
+
+echo "[pre-commit] Verifying repo-wide formatting (matches CI)..."
+# Verify formatting on tracked dart files excluding lib/types.dart
+git ls-files '*.dart' | grep -v '^lib/types.dart$' | xargs dart format --page-width 80 --output=none --set-exit-if-changed
+
+echo "[pre-commit] Running analyzer..."
+if [ "${ENFORCE_ANALYZE:-0}" = "1" ]; then
+  flutter analyze
+else
+  flutter analyze || true
+fi
+
+if [ "${SKIP_PRECOMMIT_TESTS:-0}" != "1" ]; then
+  echo "[pre-commit] Running tests (fast fail)..."
+  FAIL_FAST_FLAG=""
+  if [ "${PRECOMMIT_FAIL_FAST:-1}" = "1" ]; then
+    FAIL_FAST_FLAG="--fail-fast"
+  fi
+  flutter test --no-pub $FAIL_FAST_FLAG --concurrency="${PRECOMMIT_TEST_CONCURRENCY:-4}"
+fi
+
+echo "[pre-commit] OK"

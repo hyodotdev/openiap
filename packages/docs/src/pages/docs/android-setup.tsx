@@ -337,44 +337,23 @@ dependencies {
 
         <ul>
           <li>
-            <a
-              href="https://github.com/hyochan/react-native-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              react-native-iap
-            </a>{' '}
-            - For React Native & Expo projects (Nitro Modules)
+            <a href="/docs/setup/react-native">react-native-iap</a> - For React
+            Native projects (Nitro Modules)
           </li>
           <li>
-            <a
-              href="https://github.com/hyochan/expo-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              expo-iap
-            </a>{' '}
-            - For React Native & Expo projects (Expo Modules)
+            <a href="/docs/setup/expo">expo-iap</a> - For Expo projects (Expo
+            Modules)
           </li>
           <li>
-            <a
-              href="https://github.com/hyochan/flutter_inapp_purchase"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              flutter_inapp_purchase
-            </a>{' '}
-            - For Flutter projects
+            <a href="/docs/setup/flutter">flutter_inapp_purchase</a> - For
+            Flutter projects
           </li>
           <li>
-            <a
-              href="https://github.com/hyochan/kmp-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              kmp-iap
-            </a>{' '}
-            - For Kotlin Multiplatform projects
+            <a href="/docs/setup/kmp">kmp-iap</a> - For Kotlin Multiplatform
+            projects
+          </li>
+          <li>
+            <a href="/docs/setup/godot">godot-iap</a> - For Godot 4.x projects
           </li>
         </ul>
 
@@ -484,7 +463,7 @@ dependencies {
           </a>
         </h3>
         <p>
-          <strong>Problem:</strong> getProducts() returns empty array
+          <strong>Problem:</strong> fetchProducts() returns empty array
         </p>
         <p>
           <strong>Solutions:</strong>

@@ -1,30 +1,43 @@
 import { useState, type ReactNode } from 'react';
 
-type Language = 'typescript' | 'swift' | 'kotlin' | 'dart' | 'gdscript';
+type Language = 'swift' | 'kotlin' | 'typescript' | 'dart' | 'kmp' | 'gdscript';
 
 interface LanguageTabsProps {
   children: {
-    typescript?: ReactNode;
     swift?: ReactNode;
     kotlin?: ReactNode;
+    typescript?: ReactNode;
     dart?: ReactNode;
+    kmp?: ReactNode;
     gdscript?: ReactNode;
   };
 }
 
 const LANGUAGE_LABELS: Record<Language, string> = {
-  typescript: 'TypeScript',
   swift: 'Swift',
   kotlin: 'Kotlin',
+  typescript: 'TypeScript',
   dart: 'Dart',
+  kmp: 'Kotlin (KMP)',
   gdscript: 'GDScript',
 };
 
-function LanguageTabs({ children }: LanguageTabsProps) {
-  const [activeTab, setActiveTab] = useState<Language>('typescript');
+const LANGUAGE_ORDER: Language[] = [
+  'swift',
+  'kotlin',
+  'typescript',
+  'dart',
+  'kmp',
+  'gdscript',
+];
 
-  const availableLanguages = (Object.keys(children) as Language[]).filter(
+function LanguageTabs({ children }: LanguageTabsProps) {
+  const availableLanguages = LANGUAGE_ORDER.filter(
     (lang) => children[lang] !== undefined
+  );
+
+  const [activeTab, setActiveTab] = useState<Language>(
+    availableLanguages[0] ?? 'swift'
   );
 
   return (

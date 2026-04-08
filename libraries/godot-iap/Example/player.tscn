@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://b8qk2x3p6e1wy"]
+
+[ext_resource type="Texture2D" path="res://martie.svg" id="1_martie"]
+[ext_resource type="Script" path="res://player.gd" id="2_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(80, 80)
+
+[node name="Player" type="Area2D"]
+script = ExtResource("2_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("1_martie")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_player")
+
+[connection signal="area_entered" from="." to="." method="_on_area_entered"]

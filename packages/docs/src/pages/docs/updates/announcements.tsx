@@ -52,6 +52,144 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2026-04-06: Monorepo consolidation
+    {
+      id: '2026-04-06',
+      date: new Date('2026-04-06'),
+      element: (
+        <div key="2026-04-06" style={cardStyle}>
+          <div style={headerStyle}>
+            <span style={{ fontSize: '2rem' }}>📦</span>
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              All Framework Libraries Are Now in the OpenIAP Monorepo
+            </h2>
+            <a
+              href="#2026-04-06"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>April 6, 2026</p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            All framework libraries are now managed in the{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              OpenIAP monorepo
+            </a>
+            . This consolidation brings unified versioning, shared CI/CD, and
+            consistent development experience across all platforms.
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <a href="/docs/setup/react-native">react-native-iap</a> — React
+              Native (Nitro Modules)
+            </li>
+            <li>
+              <a href="/docs/setup/expo">expo-iap</a> — Expo managed & bare
+              workflow
+            </li>
+            <li>
+              <a href="/docs/setup/flutter">flutter_inapp_purchase</a> — Flutter
+            </li>
+            <li>
+              <a href="/docs/setup/godot">godot-iap</a> — Godot 4.x
+            </li>
+            <li>
+              <a href="/docs/setup/kmp">kmp-iap</a> — Kotlin Multiplatform
+            </li>
+          </ul>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Each library retains its own example apps, CI/CD pipelines, and
+            publishes to its respective registry (npm, pub.dev, Maven Central,
+            Godot Asset Library). The individual repositories will be archived
+            and point to the monorepo going forward.
+          </p>
+
+          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>
+            Why Monorepo?
+          </h3>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Single source of truth</strong> — GraphQL schema, native
+              modules, framework SDKs, generated types, documentation, and CI/CD
+              all live in one repository. A spec change propagates across every
+              platform in one commit.
+            </li>
+            <li>
+              <strong>Faster development cycle</strong> — Developers can work
+              across native modules and framework SDKs simultaneously using
+              local source references, without waiting for intermediate releases
+              during development.
+            </li>
+            <li>
+              <strong>AI-friendly codebase</strong> — With all code co-located,
+              AI assistants can navigate the full dependency graph, understand
+              cross-platform implications, and make consistent changes across
+              Swift, Kotlin, TypeScript, Dart, and GDScript simultaneously.
+            </li>
+            <li>
+              <strong>Unified CI/CD</strong> — One set of release workflows with
+              consistent versioning, prerelease support (rc), and GitHub Release
+              creation across all platforms.
+            </li>
+          </ul>
+
+          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>
+            Notable Changes
+          </h3>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <strong>Expo users</strong>: Use{' '}
+              <a href="/docs/setup/expo">expo-iap</a> instead of
+              react-native-iap. The Expo example in react-native-iap has been
+              removed — expo-iap is the recommended library for Expo projects.
+            </li>
+            <li>
+              <strong>DuplicatePurchase error code</strong>: Now an official
+              part of the OpenIAP spec. Previously react-native-iap only, now
+              available across all platforms.
+            </li>
+            <li>
+              <strong>expo-iap naming fix</strong>:{' '}
+              <code>isEligibleForIntroOfferIOS</code> parameter renamed from{' '}
+              <code>groupID</code> to <code>groupId</code> to follow the OpenIAP{' '}
+              <code>Id</code> (not <code>ID</code>) naming convention.
+            </li>
+          </ul>
+
+          <div style={calloutStyle}>
+            <strong>For existing users:</strong> Package names and installation
+            commands remain the same. No migration required — just update to the
+            next version when it's released from the monorepo.
+          </div>
+        </div>
+      ),
+    },
+
     // 2025-12-31: godot-iap
     {
       id: '2025-12-31',
@@ -79,7 +217,7 @@ function Announcements() {
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             We're excited to announce{' '}
             <a
-              href="https://github.com/hyochan/godot-iap"
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
               target="_blank"
               rel="noopener noreferrer"
               className="external-link"
@@ -111,7 +249,7 @@ function Announcements() {
             </li>
           </ul>
           <a
-            href="https://github.com/hyochan/godot-iap"
+            href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -143,7 +281,7 @@ function Announcements() {
             </a>{' '}
             or check out the{' '}
             <a
-              href="https://github.com/hyochan/godot-iap"
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
               target="_blank"
               rel="noopener noreferrer"
               className="external-link"
@@ -474,7 +612,7 @@ function Announcements() {
               style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
             >
               <img
-                src="/openiap-apple.png"
+                src="/logo.webp"
                 alt="OpenIAP Apple"
                 style={{ width: '56px', height: '56px', borderRadius: '10px' }}
               />
@@ -494,7 +632,7 @@ function Announcements() {
               style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
             >
               <img
-                src="/openiap-google.png"
+                src="/logo.webp"
                 alt="OpenIAP Google"
                 style={{ width: '56px', height: '56px', borderRadius: '10px' }}
               />

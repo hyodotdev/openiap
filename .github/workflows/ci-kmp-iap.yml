@@ -1,0 +1,41 @@
+name: CI - kmp-iap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'libraries/kmp-iap/**'
+  push:
+    branches: [main]
+    paths:
+      - 'libraries/kmp-iap/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: libraries/kmp-iap
+
+jobs:
+  compile-check:
+    name: Compile Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: true
+
+      - name: Compile check
+        run: chmod +x gradlew && ./gradlew :library:compileDebugKotlinAndroid

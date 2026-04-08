@@ -69,7 +69,7 @@ function Sponsors() {
                 }}
               >
                 <img
-                  src="/openiap-apple.png"
+                  src="/logo.webp"
                   alt="openiap-apple"
                   style={{
                     width: '32px',
@@ -93,7 +93,7 @@ function Sponsors() {
                 }}
               >
                 <img
-                  src="/openiap-google.png"
+                  src="/logo.webp"
                   alt="openiap-google"
                   style={{
                     width: '32px',

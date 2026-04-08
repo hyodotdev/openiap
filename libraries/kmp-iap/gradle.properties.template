@@ -1,0 +1,36 @@
+# Copy this file to gradle.properties and fill in your actual values
+# This file should be committed to version control (unlike local.properties)
+
+# Gradle configuration
+org.gradle.jvmargs=-Xmx4096m -XX:+HeapDumpOnOutOfMemoryError
+org.gradle.parallel=true
+org.gradle.caching=true
+org.gradle.daemon=true
+
+# Kotlin configuration
+kotlin.code.style=official
+kotlin.mpp.enableCInteropCommonization=true
+kotlin.mpp.androidSourceSetLayoutVersion=2
+
+# Android configuration
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+
+# Maven Central publishing configuration
+# These are typically set in local.properties or as environment variables
+# Uncomment and set values if needed here instead:
+
+# mavenCentralUsername=your-sonatype-username
+# mavenCentralPassword=your-sonatype-password
+
+# GPG signing configuration
+# These are typically set in local.properties or as environment variables
+# Uncomment and set values if needed here instead:
+
+# signing.keyId=your-key-id-last-8-chars
+# signing.password=your-gpg-passphrase
+# signing.secretKeyRingFile=/path/to/your/secring.gpg
+
+# Alternative in-memory signing (for CI/CD)
+# signing.gnupg.keyName=your-key-id
+# signing.gnupg.passphrase=your-gpg-passphrase

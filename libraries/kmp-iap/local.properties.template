@@ -1,0 +1,18 @@
+# Copy this file to local.properties and fill in your actual values
+# DO NOT commit local.properties to version control
+
+# Maven Central credentials
+mavenCentralUsername=your-sonatype-username
+mavenCentralPassword=your-sonatype-password
+
+# GPG signing configuration
+signing.keyId=your-key-id-last-8-chars
+signing.password=your-gpg-passphrase
+signing.secretKeyRingFile=/path/to/your/secring.gpg
+
+# Alternative: In-memory signing (recommended for CI/CD)
+# signing.gnupg.keyName=your-key-id
+# signing.gnupg.passphrase=your-gpg-passphrase
+
+# Android SDK (if needed for local development)
+# sdk.dir=/path/to/android/sdk

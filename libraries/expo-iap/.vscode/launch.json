@@ -1,0 +1,166 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug iOS Simulator (Expo)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "ios"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Debug iOS Device (Expo)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "ios", "--device"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Debug iOS Device with Clean Build",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "run:ios", "--device", "--clear-cache"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Prebuild for iOS Device",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "prebuild", "--platform", "ios", "--clean"],
+      "console": "integratedTerminal",
+      "env": {
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Debug Android (Expo)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "android"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Start Metro Bundler",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["start"],
+      "console": "integratedTerminal",
+      "env": {
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Run Tests",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["test"],
+      "console": "integratedTerminal",
+      "env": {
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Run Tests with Coverage",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "test:coverage"],
+      "console": "integratedTerminal",
+      "env": {
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Clear Metro Cache",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--clear"],
+      "console": "integratedTerminal",
+      "env": {
+        "EXPO_IAP_DEV_MODE": "true"
+      }
+    },
+    {
+      "name": "Install Pods",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/ios",
+      "runtimeExecutable": "pod",
+      "runtimeArgs": ["install"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Start Documentation",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/docs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start"],
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Local site started at (https?://localhost:[0-9]+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "Build Documentation",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/docs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "build"],
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "iOS Simulator + Metro",
+      "configurations": ["Start Metro Bundler", "Debug iOS Simulator (Expo)"],
+      "stopAll": true
+    },
+    {
+      "name": "iOS Device + Metro",
+      "configurations": ["Start Metro Bundler", "Debug iOS Device (Expo)"],
+      "stopAll": true
+    },
+    {
+      "name": "Android + Metro",
+      "configurations": ["Start Metro Bundler", "Debug Android (Expo)"],
+      "stopAll": true
+    }
+  ]
+}

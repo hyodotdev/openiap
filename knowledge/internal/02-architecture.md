@@ -12,6 +12,12 @@ openiap/
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library (Kotlin)
 │   └── apple/         # iOS/macOS library (Swift)
+├── libraries/         # Framework SDK implementations
+│   ├── react-native-iap/  # React Native (npm, Yarn 3, Nitro Modules)
+│   ├── expo-iap/          # Expo (npm, Bun, Expo Modules)
+│   ├── flutter_inapp_purchase/  # Flutter (pub.dev, Dart)
+│   ├── godot-iap/         # Godot 4.x (GitHub Release, GDScript)
+│   └── kmp-iap/           # Kotlin Multiplatform (Maven Central)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
@@ -20,6 +26,8 @@ openiap/
 │   └── agent/         # RAG Agent scripts
 └── .github/workflows/ # CI/CD workflows
 ```
+
+Libraries reference local `packages/apple` and `packages/google` source directly (not published CocoaPods/Maven artifacts), enabling immediate development without waiting for native releases.
 
 ## Package Responsibilities
 

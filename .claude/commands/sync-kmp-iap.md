@@ -1,6 +1,6 @@
 # Sync Changes to kmp-iap
 
-Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyochan/kmp-iap) repository.
+Synchronize OpenIAP changes to the [kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap) library.
 
 **Target Repository:** `$IAP_REPOS_HOME/kmp-iap`
 

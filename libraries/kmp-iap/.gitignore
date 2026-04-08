@@ -1,0 +1,36 @@
+*.iml
+.gradle
+.idea
+.DS_Store
+build
+captures
+.externalNativeBuild
+.cxx
+local.properties
+xcuserdata
+.kotlin
+#So we don't accidentally commit our private keys
+*.gpg
+*.asc
+gpg-key-spec
+private-key*
+public-key*
+temp_*
+*_backup.*
+key.*
+deploy.md
+PUBLISHING.md
+gpg_key_escaped.txt
+.claude/settings.local.json
+node_modules/
+docs/build/
+docs/.docusaurus/
+docs/.cache-loader/
+native/InAppPurchaseBridge/.build/
+native/InAppPurchaseBridge/DerivedData/
+native/openiap-apple/
+
+# Environment files
+.env
+.env.local
+.env.*.local

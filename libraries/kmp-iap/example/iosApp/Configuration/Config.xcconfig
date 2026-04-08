@@ -1,0 +1,15 @@
+// Include secrets from local file (not committed to git)
+#include? "Secrets.xcconfig"
+
+TEAM_ID=
+
+PRODUCT_NAME=kmp-iap-example
+PRODUCT_BUNDLE_IDENTIFIER=io.github.hyochan.kmpiap.example$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0
+
+// Add OpenIAP framework from library's CocoaPods build for linking
+// The framework will be embedded by the build script
+FRAMEWORK_SEARCH_PATHS = $(inherited) $(SRCROOT)/../../library/build/cocoapods/synthetic/ios/build/$(CONFIGURATION)-$(PLATFORM_NAME)/openiap
+OTHER_LDFLAGS = $(inherited) -framework OpenIAP

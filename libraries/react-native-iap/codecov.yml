@@ -1,0 +1,66 @@
+codecov:
+  require_ci_to_pass: false
+
+coverage:
+  precision: 2
+  round: down
+  range: '50...100'
+
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 5%
+        informational: true
+      library:
+        target: auto
+        threshold: 5%
+        flags:
+          - library
+        paths:
+          - 'src/**'
+          - 'plugin/src/**'
+        informational: false
+    patch:
+      default:
+        target: 60%
+        threshold: 5%
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
+
+comment:
+  layout: 'reach,diff,flags,tree,betaprofiling'
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: false
+
+flags:
+  library:
+    paths:
+      - src/
+      - plugin/
+    carryforward: true
+
+ignore:
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.spec.ts'
+  - '**/*.spec.tsx'
+  - '**/__tests__/**'
+  - '**/__mocks__/**'
+  - '**/nitrogen/**'
+  - '**/node_modules/**'
+  - 'example-expo/**'
+  - 'docs/**'
+  - 'scripts/**'
+  - 'lib/**'
+  - 'src/specs/**'
+  - 'src/index.tsx'
+  - 'example/**'

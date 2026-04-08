@@ -213,6 +213,57 @@ class PurchaseManager(
     }
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+
+class PurchaseManager(
+    private val context: Context,
+    private val lifecycleScope: CoroutineScope
+) {
+    private val kmpIAP = KmpIAP()
+
+    init {
+        setupListeners()
+    }
+
+    private fun setupListeners() {
+        // 1. Collect purchase updates using Flow
+        lifecycleScope.launch {
+            kmpIAP.currentPurchase.collect { purchase ->
+                if (purchase != null) {
+                    println("Purchase received: \${purchase.productId}")
+                    handlePurchase(purchase)
+                }
+            }
+        }
+
+        // 2. Collect error updates
+        lifecycleScope.launch {
+            kmpIAP.purchaseError.collect { error ->
+                if (error != null) {
+                    println("Purchase error: \${error.message}")
+                    handlePurchaseError(error)
+                }
+            }
+        }
+
+        // 3. Initialize connection
+        lifecycleScope.launch {
+            try {
+                val connected = kmpIAP.initConnection()
+                if (connected) {
+                    println("Store connection established")
+                }
+            } catch (e: Exception) {
+                println("Failed to connect: \${e.message}")
+            }
+        }
+    }
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'dart:async';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -371,6 +422,33 @@ suspend fun purchaseProduct(productId: String) {
 // Example usage
 purchaseProduct("com.app.coins_100")`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+suspend fun purchaseProduct(productId: String) {
+    try {
+        val props = RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.InApp(
+                RequestInAppPropsByPlatforms(
+                    android = RequestInAppAndroidProps(
+                        skus = listOf(productId)
+                    )
+                )
+            ),
+            type = ProductQueryType.InApp  // InApp for consumables/non-consumables
+        )
+
+        // Request purchase - result delivered to currentPurchase flow
+        kmpIAP.requestPurchase(props)
+    } catch (e: Exception) {
+        println("Purchase request failed: \${e.message}")
+    }
+}
+
+// Example usage
+purchaseProduct("com.app.coins_100")`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -475,6 +553,30 @@ import dev.hyo.openiap.models.*
 suspend fun verifyOnServer(purchase: PurchaseAndroid): Boolean {
     return try {
         val result = iapStore.verifyPurchase(
+            purchase = purchase,
+            serverUrl = "https://your-server.com/api/verify-android"
+        )
+
+        if (result.isValid) {
+            println("Purchase verified!")
+            true
+        } else {
+            println("Verification failed")
+            false
+        }
+    } catch (e: Exception) {
+        println("Verification error: \${e.message}")
+        false
+    }
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+suspend fun verifyOnServer(purchase: PurchaseAndroid): Boolean {
+    return try {
+        val result = kmpIAP.verifyPurchase(
             purchase = purchase,
             serverUrl = "https://your-server.com/api/verify-android"
         )
@@ -623,23 +725,6 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
             typescript: (
               <CodeBlock language="typescript">{`import { finishTransaction, type Purchase } from 'expo-iap';
 
-const completePurchase = async (
-  purchase: Purchase,
-  isConsumable: boolean
-) => {
-  try {
-    // Finish the transaction
-    // - isConsumable: true = consume the purchase (can buy again)
-    // - isConsumable: false = acknowledge only (one-time purchase)
-    await finishTransaction(purchase, isConsumable);
-
-    console.log('Transaction finished successfully');
-  } catch (error) {
-    console.error('Failed to finish transaction:', error);
-    // Retry finishing the transaction
-  }
-};
-
 // Complete purchase flow in listener
 const handlePurchase = async (purchase: Purchase) => {
   // 1. Verify on server
@@ -652,32 +737,22 @@ const handlePurchase = async (purchase: Purchase) => {
   // 2. Grant the product to user
   await grantProductToUser(purchase.productId);
 
-  // 3. Finish the transaction
+  // 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
+  // - isConsumable: true = consume the purchase (can buy again)
+  // - isConsumable: false = acknowledge only (one-time purchase)
   const isConsumable = purchase.productId.includes('consumable');
-  await completePurchase(purchase, isConsumable);
+  await finishTransaction(purchase, isConsumable);
+
+  console.log('Transaction finished successfully');
 };`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`import OpenIap
 
-func completePurchase(
-    _ purchase: PurchaseIOS,
-    isConsumable: Bool
-) async {
-    let iapStore = OpenIapStore.shared
-
-    do {
-        // Finish the transaction
-        try await iapStore.finishTransaction(purchase, isConsumable: isConsumable)
-        print("Transaction finished successfully")
-    } catch {
-        print("Failed to finish transaction: \\(error.localizedDescription)")
-        // Retry finishing the transaction
-    }
-}
-
 // Complete purchase flow
 func handlePurchase(_ purchase: PurchaseIOS) async {
+    let iapStore = OpenIapStore.shared
+
     // 1. Verify on server
     let isValid = await verifyIOSPurchase(purchase)
     guard isValid else {
@@ -688,29 +763,20 @@ func handlePurchase(_ purchase: PurchaseIOS) async {
     // 2. Grant the product to user
     await grantProductToUser(productId: purchase.productId)
 
-    // 3. Finish the transaction
+    // 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
+    // - isConsumable: true = consume (can buy again)
+    // - isConsumable: false = acknowledge only (one-time purchase)
     let isConsumable = purchase.productId.contains("consumable")
-    await completePurchase(purchase, isConsumable: isConsumable)
+    do {
+        try await iapStore.finishTransaction(purchase: purchase, isConsumable: isConsumable)
+        print("Transaction finished successfully")
+    } catch {
+        print("Failed to finish transaction: \\(error.localizedDescription)")
+    }
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`suspend fun completePurchase(
-    purchase: PurchaseAndroid,
-    isConsumable: Boolean
-) {
-    try {
-        // Finish the transaction
-        // - isConsumable: true = consume (can buy again)
-        // - isConsumable: false = acknowledge only
-        iapStore.finishTransaction(purchase, isConsumable)
-        println("Transaction finished successfully")
-    } catch (e: Exception) {
-        println("Failed to finish transaction: \${e.message}")
-        // Retry finishing the transaction
-    }
-}
-
-// Complete purchase flow
+              <CodeBlock language="kotlin">{`// Complete purchase flow
 suspend fun handlePurchase(purchase: PurchaseAndroid) {
     // 1. Verify on server
     val isValid = verifyAndroidPurchase(purchase)
@@ -722,30 +788,42 @@ suspend fun handlePurchase(purchase: PurchaseAndroid) {
     // 2. Grant the product to user
     grantProductToUser(purchase.productId)
 
-    // 3. Finish the transaction
+    // 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
+    // - isConsumable: true = consume (can buy again)
+    // - isConsumable: false = acknowledge only
     val isConsumable = purchase.productId.contains("consumable", true)
-    completePurchase(purchase, isConsumable)
+    iapStore.finishTransaction(purchase, isConsumable)
+
+    println("Transaction finished successfully")
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`// Complete purchase flow
+suspend fun handlePurchase(purchase: PurchaseAndroid) {
+    // 1. Verify on server
+    val isValid = verifyAndroidPurchase(purchase)
+    if (!isValid) {
+        println("Invalid purchase")
+        return
+    }
+
+    // 2. Grant the product to user
+    grantProductToUser(purchase.productId)
+
+    // 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
+    // - isConsumable: true = consume (can buy again)
+    // - isConsumable: false = acknowledge only
+    val isConsumable = purchase.productId.contains("consumable", true)
+    kmpIAP.finishTransaction(purchase, isConsumable)
+
+    println("Transaction finished successfully")
 }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`Future<void> completePurchase(
-  ProductPurchase purchase,
-  bool isConsumable,
-) async {
+              <CodeBlock language="dart">{`// Complete purchase flow
+Future<void> handlePurchase(ProductPurchase purchase) async {
   final iap = FlutterInappPurchase.instance;
 
-  try {
-    // Finish the transaction
-    await iap.finishTransaction(purchase, isConsumable: isConsumable);
-    print('Transaction finished successfully');
-  } catch (e) {
-    print('Failed to finish transaction: $e');
-    // Retry finishing the transaction
-  }
-}
-
-// Complete purchase flow
-Future<void> handlePurchase(ProductPurchase purchase) async {
   // 1. Verify on server
   final isValid = await verifyPurchase(purchase);
   if (!isValid) {
@@ -756,20 +834,17 @@ Future<void> handlePurchase(ProductPurchase purchase) async {
   // 2. Grant the product to user
   await grantProductToUser(purchase.productId ?? '');
 
-  // 3. Finish the transaction
+  // 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
+  // - isConsumable: true = consume the purchase (can buy again)
+  // - isConsumable: false = acknowledge only (one-time purchase)
   final isConsumable = purchase.productId?.contains('consumable') ?? false;
-  await completePurchase(purchase, isConsumable);
+  await iap.finishTransaction(purchase, isConsumable: isConsumable);
+
+  print('Transaction finished successfully');
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`func complete_purchase(purchase: Purchase, is_consumable: bool) -> void:
-    # Finish the transaction
-    # - is_consumable: true = consume the purchase (can buy again)
-    # - is_consumable: false = acknowledge only (one-time purchase)
-    await iap.finish_transaction(purchase, is_consumable)
-    print("Transaction finished successfully")
-
-# Complete purchase flow in listener
+              <CodeBlock language="gdscript">{`# Complete purchase flow in listener
 func handle_purchase(purchase: Purchase) -> void:
     # 1. Verify on server
     var is_valid = await verify_on_server(purchase)
@@ -780,9 +855,13 @@ func handle_purchase(purchase: Purchase) -> void:
     # 2. Grant the product to user
     await grant_product_to_user(purchase.product_id)
 
-    # 3. Finish the transaction
+    # 3. Finish the transaction (CRITICAL: Android auto-refunds after 3 days!)
+    # - is_consumable: true = consume the purchase (can buy again)
+    # - is_consumable: false = acknowledge only (one-time purchase)
     var is_consumable = "consumable" in purchase.product_id
-    await complete_purchase(purchase, is_consumable)`}</CodeBlock>
+    await iap.finish_transaction(purchase, is_consumable)
+
+    print("Transaction finished successfully")`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -905,7 +984,17 @@ class PurchaseManager: ObservableObject {
 
     init() {
         setupListeners()
-        Task { await loadProducts() }
+        Task {
+            do {
+                try await iapStore.initConnection()
+                products = try await iapStore.fetchProducts(
+                    skus: ["com.app.premium", "com.app.coins_100"],
+                    type: .inapp
+                )
+            } catch {
+                print("Failed to fetch products: \\(error.localizedDescription)")
+            }
+        }
     }
 
     private func setupListeners() {
@@ -921,18 +1010,6 @@ class PurchaseManager: ObservableObject {
                 self?.isProcessing = false
                 print("Purchase error: \\(error.localizedDescription)")
             }
-        }
-    }
-
-    private func loadProducts() async {
-        do {
-            try await iapStore.initConnection()
-            products = try await iapStore.fetchProducts(
-                skus: ["com.app.premium", "com.app.coins_100"],
-                type: .inapp
-            )
-        } catch {
-            print("Failed to load products: \\(error.localizedDescription)")
         }
     }
 
@@ -993,7 +1070,19 @@ class PurchaseManager(
 
     init {
         setupListeners()
-        loadProducts()
+        scope.launch {
+            try {
+                iapStore.initConnection()
+                val request = ProductRequest(
+                    skus = listOf("com.app.premium", "com.app.coins_100"),
+                    type = ProductQueryType.InApp
+                )
+                _products.value = iapStore.fetchProducts(request)
+                    .filterIsInstance<ProductAndroid>()
+            } catch (e: Exception) {
+                println("Failed to fetch products: \${e.message}")
+            }
+        }
     }
 
     private fun setupListeners() {
@@ -1011,22 +1100,6 @@ class PurchaseManager(
                     _isProcessing.value = false
                     println("Purchase error: \${error.message}")
                 }
-            }
-        }
-    }
-
-    private fun loadProducts() {
-        scope.launch {
-            try {
-                iapStore.initConnection()
-                val request = ProductRequest(
-                    skus = listOf("com.app.premium", "com.app.coins_100"),
-                    type = ProductQueryType.InApp
-                )
-                _products.value = iapStore.fetchProducts(request)
-                    .filterIsInstance<ProductAndroid>()
-            } catch (e: Exception) {
-                println("Failed to load products: \${e.message}")
             }
         }
     }
@@ -1073,6 +1146,101 @@ class PurchaseManager(
     }
 }`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+import kotlinx.coroutines.flow.*
+
+class PurchaseManager(
+    private val context: Context,
+    private val scope: CoroutineScope
+) {
+    private val kmpIAP = KmpIAP()
+
+    private val _products = MutableStateFlow<List<ProductAndroid>>(emptyList())
+    val products: StateFlow<List<ProductAndroid>> = _products.asStateFlow()
+
+    private val _isProcessing = MutableStateFlow(false)
+    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+
+    init {
+        setupListeners()
+        scope.launch {
+            try {
+                kmpIAP.initConnection()
+                val request = ProductRequest(
+                    skus = listOf("com.app.premium", "com.app.coins_100"),
+                    type = ProductQueryType.InApp
+                )
+                _products.value = kmpIAP.fetchProducts(request)
+                    .filterIsInstance<ProductAndroid>()
+            } catch (e: Exception) {
+                println("Failed to fetch products: \${e.message}")
+            }
+        }
+    }
+
+    private fun setupListeners() {
+        scope.launch {
+            kmpIAP.currentPurchase.collect { purchase ->
+                if (purchase != null) {
+                    handlePurchase(purchase as PurchaseAndroid)
+                }
+            }
+        }
+
+        scope.launch {
+            kmpIAP.purchaseError.collect { error ->
+                if (error != null) {
+                    _isProcessing.value = false
+                    println("Purchase error: \${error.message}")
+                }
+            }
+        }
+    }
+
+    fun purchase(productId: String) {
+        _isProcessing.value = true
+        scope.launch {
+            try {
+                val props = RequestPurchaseProps(
+                    request = RequestPurchaseProps.Request.InApp(
+                        RequestInAppPropsByPlatforms(
+                            android = RequestInAppAndroidProps(skus = listOf(productId))
+                        )
+                    ),
+                    type = ProductQueryType.InApp
+                )
+                kmpIAP.requestPurchase(props)
+            } catch (e: Exception) {
+                _isProcessing.value = false
+                println("Purchase request failed: \${e.message}")
+            }
+        }
+    }
+
+    private suspend fun handlePurchase(purchase: PurchaseAndroid) {
+        try {
+            // Step 1: Verify
+            val isValid = verifyAndroidPurchase(purchase)
+            if (!isValid) {
+                println("Verification failed")
+                return
+            }
+
+            // Step 2: Grant product
+            grantProductToUser(purchase.productId)
+
+            // Step 3: Finish
+            val isConsumable = purchase.productId.contains("coins", true)
+            kmpIAP.finishTransaction(purchase, isConsumable)
+            println("Purchase completed!")
+        } finally {
+            _isProcessing.value = false
+        }
+    }
+}`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'dart:async';
 import 'dart:io';
@@ -1090,13 +1258,9 @@ class PurchaseManager extends ChangeNotifier {
 
   Future<void> initialize() async {
     await _iap.initConnection();
-    await _loadProducts();
-    _setupListeners();
-  }
-
-  Future<void> _loadProducts() async {
-    products = await _iap.getProducts(['com.app.premium', 'com.app.coins_100']);
+    products = await _iap.fetchProducts(['com.app.premium', 'com.app.coins_100']);
     notifyListeners();
+    _setupListeners();
   }
 
   void _setupListeners() {
@@ -1177,19 +1341,18 @@ const PRODUCT_IDS = ["com.app.premium", "com.app.coins_100"]
 
 func _ready() -> void:
     setup_listeners()
-    await load_products()
 
-func setup_listeners() -> void:
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    await iap.init_connection(null)
-
-func load_products() -> void:
+    # Fetch products directly
     var request = ProductRequest.new()
     request.skus = PRODUCT_IDS
     request.type = ProductQueryType.IN_APP
     products = await iap.fetch_products(request)
     products_loaded.emit()
+
+func setup_listeners() -> void:
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+    await iap.init_connection(null)
 
 func purchase(product_id: String) -> void:
     is_processing = true
@@ -1333,6 +1496,22 @@ useEffect(() => {
               <CodeBlock language="kotlin">{`suspend fun checkPendingPurchases() {
     try {
         val purchases = iapStore.getAvailablePurchases()
+
+        for (purchase in purchases) {
+            // Process each pending purchase
+            if (purchase is PurchaseAndroid) {
+                handlePurchase(purchase)
+            }
+        }
+    } catch (e: Exception) {
+        println("Failed to get pending purchases: \${e.message}")
+    }
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun checkPendingPurchases() {
+    try {
+        val purchases = kmpIAP.getAvailablePurchases()
 
         for (purchase in purchases) {
             // Process each pending purchase

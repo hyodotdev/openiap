@@ -1,0 +1,175 @@
+name: "Release: kmp-iap"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - rc
+          - promote
+        default: patch
+      prerelease:
+        description: "Publish as prerelease (-rc.1)"
+        required: false
+        default: false
+        type: boolean
+      create_release:
+        description: "Also create a GitHub Release"
+        required: false
+        default: true
+        type: boolean
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: libraries/kmp-iap
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Calculate version
+        id: version
+        run: |
+          VERSION_TYPE="${{ inputs.version }}"
+          IS_PRERELEASE="${{ inputs.prerelease }}"
+          CURRENT_VERSION=$(jq -r '.["kmp-iap"]' openiap-versions.json)
+          BASE_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/(-[a-zA-Z]+(\.[0-9]+)?)+$//')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+          if [ "$VERSION_TYPE" = "promote" ]; then
+            if ! echo "$CURRENT_VERSION" | grep -q '\-rc\.'; then
+              echo "::error::Current version $CURRENT_VERSION is not an rc version."
+              exit 1
+            fi
+            VERSION="${BASE_VERSION}"
+          elif [ "$VERSION_TYPE" = "rc" ]; then
+            RC_NUM=$(echo "$CURRENT_VERSION" | sed -n 's/.*-rc\.\([0-9]*\)/\1/p')
+            if [ -z "$RC_NUM" ]; then
+              echo "::error::Current version $CURRENT_VERSION is not an rc version."
+              exit 1
+            fi
+            VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
+          elif [ "$IS_PRERELEASE" = "true" ]; then
+            case "$VERSION_TYPE" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            VERSION="${MAJOR}.${MINOR}.${PATCH}-rc.1"
+          else
+            case "$VERSION_TYPE" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "$VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "libraryVersion=$VERSION" >> local.properties
+
+      - name: Update openiap-versions.json
+        run: |
+          jq --arg version "${{ env.VERSION }}" '.["kmp-iap"] = $version' openiap-versions.json > tmp.json && mv tmp.json openiap-versions.json
+
+      - name: Regenerate podspec with correct version
+        run: ./gradlew :library:podspec
+
+      - name: Update podspec to read openiap-versions.json dynamically
+        run: ./gradlew :library:updatePodspecDependency
+
+      - name: Update README version
+        run: ./gradlew :library:updateReadmeVersion
+
+      - name: Commit version updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md library/library.podspec openiap-versions.json
+          git diff --staged --quiet || git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
+          git push || echo "No changes to commit"
+
+      - name: Build and test
+        run: |
+          ./gradlew :library:build
+          ./gradlew :library:allTests
+
+      - name: Clean build artifacts
+        run: rm -rf library/build/cocoapods
+
+      - name: Build iOS frameworks
+        run: |
+          ./gradlew :library:podGenIos
+          ./gradlew :library:updatePodspecDependency
+          ./gradlew :library:podInstallSyntheticIos
+          ./gradlew :library:podBuildOpeniapIos
+          ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
+          ./gradlew :library:linkPodDebugFrameworkIosArm64
+
+      - name: Publish to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
+
+      - name: Create GitHub Release
+        if: inputs.create_release && success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: kmp-iap-${{ steps.version.outputs.VERSION }}
+          name: kmp-iap ${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: ${{ steps.version.outputs.is_prerelease }}
+          generate_release_notes: true
+
+      - name: Create release artifacts
+        if: inputs.create_release && success()
+        run: |
+          mkdir -p release-artifacts
+          cp library/build/outputs/aar/*.aar release-artifacts/ || true
+          cp library/build/libs/*.jar release-artifacts/ || true
+          zip -r release-artifacts.zip release-artifacts/
+
+      - name: Upload release artifacts
+        if: inputs.create_release && success()
+        uses: softprops/action-gh-release@v2
+        with:
+          files: libraries/kmp-iap/release-artifacts.zip
+          tag_name: kmp-iap-${{ steps.version.outputs.VERSION }}
+          name: kmp-iap ${{ steps.version.outputs.VERSION }}

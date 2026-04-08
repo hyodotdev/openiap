@@ -1,0 +1,68 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "start documentation",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/docs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "open android studio",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "/usr/bin/open",
+      "runtimeArgs": ["-a", "Android Studio", "${workspaceFolder}"],
+      "console": "internalConsole",
+      "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "name": "run ios",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/example",
+      "args": ["-d", "ios"]
+    },
+    {
+      "name": "run ios (device)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/example",
+      "flutterMode": "release",
+      "args": ["-d", "ios"]
+    },
+    {
+      "name": "run android",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/example",
+      "args": ["--flavor", "play"]
+    },
+    {
+      "name": "run horizon",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/example",
+      "args": ["--flavor", "horizon"]
+    },
+    {
+      "name": "run web (chrome)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/example",
+      "args": ["-d", "chrome"]
+    }
+  ]
+}

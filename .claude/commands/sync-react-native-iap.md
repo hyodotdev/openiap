@@ -1,6 +1,6 @@
 # Sync Changes to react-native-iap
 
-Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyochan/react-native-iap) repository.
+Synchronize OpenIAP changes to the [react-native-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap) library.
 
 **Target Repository:** `$IAP_REPOS_HOME/react-native-iap`
 

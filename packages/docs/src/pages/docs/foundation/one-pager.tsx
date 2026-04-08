@@ -161,7 +161,7 @@ function OnePager() {
               </td>
               <td>
                 <a
-                  href="https://github.com/hyochan/react-native-iap"
+                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -176,7 +176,7 @@ function OnePager() {
               </td>
               <td>
                 <a
-                  href="https://github.com/hyochan/expo-iap"
+                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -190,7 +190,7 @@ function OnePager() {
               </td>
               <td>
                 <a
-                  href="https://github.com/hyochan/flutter_inapp_purchase"
+                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -204,7 +204,7 @@ function OnePager() {
               </td>
               <td>
                 <a
-                  href="https://github.com/hyochan/kmp-iap"
+                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -218,7 +218,7 @@ function OnePager() {
               </td>
               <td>
                 <a
-                  href="https://github.com/hyochan/godot-iap"
+                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

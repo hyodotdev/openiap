@@ -1,0 +1,211 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Android Emulator",
+			"type": "shell",
+			"command": "emulator",
+			"args": [
+				"-avd",
+				"Pixel_9_API_36"
+			],
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Build Android Debug",
+			"type": "shell",
+			"command": "./gradlew",
+			"args": [
+				"composeApp:assembleDebug"
+			],
+			"group": "build",
+			"isBackground": false,
+			"options": {
+				"cwd": "${workspaceFolder}/example"
+			},
+			"problemMatcher": [
+				"$gradle"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Install Android Debug",
+			"type": "shell",
+			"command": "./gradlew",
+			"args": [
+				"composeApp:installDebug"
+			],
+			"group": "build",
+			"isBackground": false,
+			"dependsOn": ["Build Android Debug", "Start Android Emulator"],
+			"options": {
+				"cwd": "${workspaceFolder}/example"
+			},
+			"problemMatcher": [
+				"$gradle"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Run Android Debug (Auto)",
+			"type": "shell",
+			"command": "${workspaceFolder}/.vscode/run_android.sh",
+			"group": "build",
+			"isBackground": false,
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gradle"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Build iOS Debug",
+			"type": "shell",
+			"command": "xcodebuild",
+			"args": [
+				"-project",
+				"iosApp/iosApp.xcodeproj",
+				"-scheme",
+				"iosApp",
+				"-configuration",
+				"Debug",
+				"-destination",
+				"platform=iOS Simulator,name=iPhone 16,OS=18.5",
+				"build"
+			],
+			"group": "build",
+			"isBackground": false,
+			"options": {
+				"cwd": "${workspaceFolder}/example"
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Run iOS Simulator",
+			"type": "shell",
+			"command": "${workspaceFolder}/.vscode/run_ios.sh",
+			"group": "build",
+			"isBackground": false,
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Run Desktop Debug",
+			"type": "shell",
+			"command": "./gradlew",
+			"args": [
+				"composeApp:run"
+			],
+			"group": "build",
+			"isBackground": true,
+			"options": {
+				"cwd": "${workspaceFolder}/example"
+			},
+			"problemMatcher": [
+				"$gradle"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Build Library for All Platforms",
+			"type": "shell", 
+			"command": "./gradlew",
+			"args": [
+				":library:build"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Clean and Build Library",
+			"type": "shell",
+			"command": "./gradlew", 
+			"args": [
+				"clean",
+				":library:build"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Check Publishing Tasks",
+			"type": "shell",
+			"command": "./gradlew",
+			"args": [
+				":library:tasks",
+				"--group=publishing"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		}
+	]
+}

@@ -1,0 +1,7 @@
+docs/
+example/
+example-expo/
+build/
+node_modules/
+*.d.ts
+src/types.ts

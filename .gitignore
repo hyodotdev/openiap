@@ -2,6 +2,8 @@
 node_modules/
 bun.lockb
 *.lock
+!libraries/**/yarn.lock
+!libraries/**/bun.lock
 
 # Generated files
 dist/
@@ -11,6 +13,7 @@ build/
 # Synced version files (generated from root openiap-versions.json)
 packages/*/openiap-versions.json
 packages/apple/Sources/openiap-versions.json
+# libraries/*/openiap-versions.json — symlinks to root, tracked in git
 
 # OS
 .DS_Store
@@ -47,3 +50,61 @@ temp/
 # RAG Agent generated outputs (benchmark comparisons)
 _generated/
 scripts/agent/.lancedb/
+
+# ─── Libraries ───
+
+# React Native / Expo
+libraries/*/node_modules/
+libraries/*/.expo/
+libraries/*/example/node_modules/
+libraries/*/example-expo/node_modules/
+libraries/*/example/.expo/
+libraries/*/example-expo/.expo/
+
+# iOS / Xcode
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.xcuserstate
+Pods/
+
+# Android
+*.apk
+*.ap_
+local.properties
+libraries/*/.gradle/
+libraries/*/example/.gradle/
+libraries/*/.cxx/
+
+# Flutter
+.dart_tool/
+.packages
+.pub/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Godot
+.godot/
+godot-cpp/
+*.import
+!libraries/godot-iap/Example/*.import
+
+# KMP
+.kotlin/
+
+# Docusaurus (libraries docs)
+libraries/*/docs/.docusaurus/
+libraries/*/docs/.cache-loader/
+libraries/*/docs/build/

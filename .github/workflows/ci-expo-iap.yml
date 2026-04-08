@@ -1,0 +1,79 @@
+name: CI - expo-iap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'libraries/expo-iap/**'
+      - 'packages/gql/src/generated/types.ts'
+  push:
+    branches: [main]
+    paths:
+      - 'libraries/expo-iap/**'
+      - 'packages/gql/src/generated/types.ts'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: libraries/expo-iap
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.38"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('libraries/expo-iap/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type check
+        run: bun run lint:tsc
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.38"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('libraries/expo-iap/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build plugin
+        run: bun run build:plugin
+
+      - name: Test
+        run: npx jest
+
+      - name: Test plugin
+        run: bun run test:plugin
+

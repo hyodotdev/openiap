@@ -119,6 +119,9 @@ type RequestPurchaseProps =
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): List<Purchase>`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): List<Purchase>`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<Purchase?> requestPurchase(RequestPurchaseProps props);`}</CodeBlock>
             ),
@@ -178,6 +181,20 @@ await requestPurchase({
     )
 )`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+
+kmpIAP.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+        ),
+        type = ProductQueryType.InApp
+    )
+)`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase('com.app.premium');`}</CodeBlock>
             ),
@@ -223,6 +240,9 @@ await iap.request_purchase(props)`}</CodeBlock>
               <CodeBlock language="swift">{`func finishTransaction(_ purchase: Purchase) async throws`}</CodeBlock>
             ),
             kotlin: (
+              <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
+            ),
+            kmp: (
               <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
             ),
             dart: (
@@ -293,6 +313,9 @@ purchaseUpdatedListener(async (purchase) => {
             kotlin: (
               <CodeBlock language="kotlin">{`openIapStore.finishTransaction(purchase, isConsumable = false)`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`kmpIAP.finishTransaction(purchase, isConsumable = false)`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.finishTransaction(purchase);`}</CodeBlock>
             ),
@@ -344,6 +367,9 @@ func _on_purchase_updated(purchase: Purchase):
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun restorePurchases()`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun restorePurchases()`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<void> restorePurchases();`}</CodeBlock>
             ),
@@ -374,6 +400,9 @@ const handleRestore = async () => {
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`openIapStore.restorePurchases()`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`kmpIAP.restorePurchases()`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`await FlutterInappPurchase.instance.restorePurchases();`}</CodeBlock>
@@ -409,6 +438,9 @@ const handleRestore = async () => {
             kotlin: (
               <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`Future<String> getStorefront();`}</CodeBlock>
             ),
@@ -432,6 +464,9 @@ console.log(countryCode); // "US", "JP", "GB", etc.`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`val countryCode = openIapStore.getStorefront()`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`val countryCode = kmpIAP.getStorefront()`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`final countryCode = await FlutterInappPurchase.instance.getStorefront();`}</CodeBlock>

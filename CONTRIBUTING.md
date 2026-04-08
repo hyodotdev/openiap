@@ -2,751 +2,187 @@
 
 This guide explains how to contribute to the OpenIAP monorepo.
 
-## 📁 Project Structure
+## 1. Project Structure
 
-```sh
+```text
 openiap/
 ├── packages/
-│   ├── gql/          # GraphQL schema & type generation
-│   ├── docs/         # Documentation site (openiap.dev)
-│   ├── google/       # Android/Kotlin implementation
-│   └── apple/        # iOS/Swift implementation
-└── package.json      # Workspace configuration
+│   ├── gql/           # GraphQL schema & type generation (SSOT)
+│   ├── docs/          # Documentation site (openiap.dev)
+│   ├── google/        # Android native module (Maven Central)
+│   └── apple/         # iOS native module (CocoaPods/SPM)
+├── libraries/
+│   ├── react-native-iap/          # React Native SDK (npm)
+│   ├── expo-iap/                  # Expo SDK (npm)
+│   ├── flutter_inapp_purchase/    # Flutter SDK (pub.dev)
+│   ├── godot-iap/                 # Godot 4.x plugin (GitHub Release)
+│   └── kmp-iap/                   # Kotlin Multiplatform (Maven Central)
+├── scripts/
+│   └── sync-versions.sh           # Sync types & versions to all packages
+└── .github/workflows/             # CI/CD
 ```
 
-## 🚀 Getting Started
+- **packages/** contains the core native modules and shared infrastructure.
+- **libraries/** contains framework-specific SDKs that wrap the native modules.
+- **scripts/** contains monorepo-wide automation.
 
-### 1. Initial Setup
+## 2. Getting Started
 
-```bash
-# Clone the repository
-git clone https://github.com/hyodotdev/openiap.git
-cd openiap
-
-# Install dependencies for all packages
-bun install
-```
-
-### 2. Development Environment
-
-**Required:**
+### Prerequisites
 
 - [Bun](https://bun.sh/) v1.1.0+
-
-**Optional (platform-specific):**
-
 - For Android: JDK 17+, Gradle
 - For iOS: Xcode, Swift 5.9+
+- For Flutter: Flutter SDK
+- For Godot: Godot 4.x editor
 
-## 📦 Packages Overview
-
-### `@hyodotdev/openiap-gql`
-
-GraphQL schema and **IR-based type generation** for all platforms.
+### Initial Setup
 
 ```bash
-cd packages/gql
+git clone https://github.com/hyodotdev/openiap.git
+cd openiap
+bun install
 
-# Generate types for all platforms
-bun run generate
-
-# Generate for specific platform
-bun run generate:ts       # TypeScript (graphql-codegen)
-bun run generate:swift    # Swift (IR-based plugin)
-bun run generate:kotlin   # Kotlin (IR-based plugin)
-bun run generate:dart     # Dart (IR-based plugin)
-bun run generate:gdscript # GDScript (IR-based plugin)
+# Sync types and versions to all packages and libraries
+./scripts/sync-versions.sh
 ```
 
-**Architecture:**
+Each library uses its own package manager:
+
+| Library | Package Manager |
+|---------|-----------------|
+| react-native-iap | Yarn 3 (Berry) |
+| expo-iap | Bun |
+| flutter_inapp_purchase | Flutter/Dart (`flutter pub`) |
+| godot-iap | N/A (GDScript) |
+| kmp-iap | Gradle |
+
+## 3. Development Workflows
+
+### Adding a New ErrorCode or Type
+
+1. Edit `packages/gql/src/*.graphql`
+2. `cd packages/gql && bun run generate`
+3. `./scripts/sync-versions.sh` (syncs generated types to all libraries)
+4. Update Swift switch statements in `packages/apple/Sources/Models/OpenIapError.swift` and `packages/apple/Sources/OpenIapModule.swift`
+5. Update `COMMON_ERROR_CODE_MAP` in `libraries/react-native-iap/src/utils/errorMapping.ts` and `libraries/expo-iap/src/utils/errorMapping.ts`
+
+### Type Generation Architecture
+
 ```text
 GraphQL Schema → Parser → IR (Intermediate Representation) → Language Plugins → Generated Code
+                                                              ├── swift.ts
+                                                              ├── kotlin.ts
+                                                              ├── dart.ts
+                                                              └── gdscript.ts
 ```
 
-See [Code Generation Architecture](#code-generation-architecture) for details.
+One `bun run generate` command in `packages/gql` produces types for all platforms. Then `sync-versions.sh` copies them to the correct locations in each package and library.
 
-### `@hyodotdev/openiap-docs`
+### Working on a Specific Library
 
-Documentation website at [openiap.dev](https://openiap.dev)
+Each library has its own `CLAUDE.md` with detailed conventions and development instructions:
+
+- `libraries/react-native-iap/CLAUDE.md` -- Nitro Modules, useIAP hook, error handling
+- `libraries/expo-iap/CLAUDE.md` -- Expo Modules, iOS podspec workaround, tvOS support
+- `libraries/flutter_inapp_purchase/CLAUDE.md` -- Generated types.dart, fetchProducts generic API
+- `libraries/godot-iap/CLAUDE.md` -- GDExtension (iOS), AAR plugin (Android)
+- `libraries/kmp-iap/CLAUDE.md` -- Flow-based API, CocoaPods iOS integration
+
+Libraries reference local `packages/apple` and `packages/google` source during development. Published packages use CocoaPods/Maven Central for native dependencies.
+
+### Running Examples
+
+| Library | Command |
+|---------|---------|
+| react-native-iap | `cd libraries/react-native-iap && yarn install && yarn prepare && cd example && yarn install && yarn ios --device` |
+| expo-iap | `cd libraries/expo-iap && bun install && bun run prepare && cd example && bun install && bunx expo run:ios --device` |
+| flutter | `cd libraries/flutter_inapp_purchase && flutter pub get && cd example && flutter pub get && flutter run` |
+| godot | Open `libraries/godot-iap/Example/project.godot` in Godot editor, export to device |
+| kmp | `cd libraries/kmp-iap && ./gradlew :library:podGenIos && ./gradlew :library:podInstallSyntheticIos && ./gradlew :example:composeApp:linkDebugFrameworkIosArm64`, then open in Xcode |
+
+## 4. Release Process
+
+### Release Order (CRITICAL)
+
+Native modules must be released before framework libraries:
+
+1. `packages/apple` -- CocoaPods + SPM (via `release-apple.yml`)
+2. `packages/google` -- Maven Central (via `release-google.yml`)
+3. Framework libraries (can be parallel after steps 1+2):
+   - `release-react-native.yml` -- npm
+   - `release-expo.yml` -- npm
+   - `release-flutter.yml` -- pub.dev
+   - `release-godot.yml` -- GitHub Release
+   - `release-kmp.yml` -- Maven Central
+
+### Prerelease
+
+All workflows support version bumps: `patch` / `minor` / `major` / `rc` / `promote`
+
+- `major` + prerelease checkbox -- X.0.0-rc.1
+- `rc` -- X.0.0-rc.2 (increment prerelease)
+- `promote` -- X.0.0 (stable release from latest rc)
+
+### Version Management
+
+- `openiap-versions.json` at the monorepo root is the single source of truth for all package versions.
+- It is symlinked into all libraries so they can read version info at build time.
+- `./scripts/sync-versions.sh` syncs both versions and generated types across the entire monorepo.
+
+## 5. CI/CD
+
+| Workflow | Scope |
+|----------|-------|
+| `ci.yml` | Core packages (gql, apple, google, docs) |
+| `ci-react-native-iap.yml` | Lint + test |
+| `ci-expo-iap.yml` | Lint + test |
+| `ci-flutter-iap.yml` | Analyze + test |
+| `ci-godot-iap.yml` | Verify files |
+| `ci-kmp-iap.yml` | Compile check |
+
+## 6. Auto-generated Files (DO NOT EDIT)
+
+These files are generated by `bun run generate` in `packages/gql` and synced by `sync-versions.sh`. Never edit them directly:
+
+- `packages/gql/src/generated/*` -- All generated type files (SSOT)
+- `packages/apple/Sources/Models/Types.swift`
+- `packages/google/openiap/src/main/Types.kt`
+- `libraries/react-native-iap/src/types.ts`
+- `libraries/expo-iap/src/types.ts`
+- `libraries/flutter_inapp_purchase/lib/types.dart`
+- `libraries/godot-iap/addons/godot-iap/types.gd`
+- `openiap-versions.json` -- Managed by CI/CD workflows only
+
+To regenerate:
 
 ```bash
-cd packages/docs
-
-# Development server
-bun run dev
-
-# Build for production
-bun run build
-
-# Type checking
-bun run typecheck
-```
-
-### `@hyodotdev/openiap-google`
-
-Android/Kotlin implementation
-
-```bash
-cd packages/google
-
-# Generate types from gql
-bun run generate:types
-
-# Build the library
-bun run build
-
-# Run tests
-bun run test
-```
-
-### `@hyodotdev/openiap-apple`
-
-iOS/Swift implementation
-
-```bash
-cd packages/apple
-
-# Generate types from gql
-bun run generate:types
-
-# Build the library
-bun run build
-
-# Run tests
-bun run test
-```
-
-## 📝 Workflow Scenarios
-
-### Scenario 1: Modifying GraphQL Schema
-
-**When:** Adding new types or APIs
-
-```bash
-# 1. Navigate to gql package
-cd packages/gql
-
-# 2. Edit schema files
-# Modify src/*.graphql files
-
-# 3. Generate types
-bun run generate
-
-# 4. Verify generated files
-ls src/generated/
-# → types.ts, Types.kt, Types.swift, types.dart
-```
-
-**Generated files:**
-
-- `src/generated/types.ts` - TypeScript
-- `src/generated/Types.kt` - Kotlin
-- `src/generated/Types.swift` - Swift
-- `src/generated/types.dart` - Dart
-
-### Scenario 2: Working on Android (Google)
-
-**When:** Modifying Android app or library
-
-```bash
-# 1. Navigate to google package
-cd packages/google
-
-# 2. Write Kotlin code
-# Work in openiap/src/main/java/dev/hyo/openiap/
-
-# 3. Build and test
-./gradlew :openiap:compileDebugKotlin
-./gradlew :openiap:test
-```
-
-**When types are changed:**
-
-```bash
-# Auto-update types after gql schema changes
-cd packages/gql
-bun run generate
-# → Automatically updates Android and iOS types!
-```
-
-**Important:**
-
-- `Types.kt` is auto-generated - **DO NOT edit directly**
-- Place shared utilities in `openiap/src/main/java/dev/hyo/openiap/utils/`
-
-### Scenario 3: Working on iOS (Apple)
-
-**When:** Modifying iOS app or library
-
-```bash
-# 1. Navigate to apple package
-cd packages/apple
-
-# 2. Write Swift code
-# Work in Sources/ directory
-
-# 3. Build and test
-swift build
-swift test
-```
-
-**When types are changed:**
-
-```bash
-# Auto-update types after gql schema changes
-cd packages/gql
-bun run generate
-# → Automatically updates Android and iOS types!
-```
-
-**Important:**
-
-- `Sources/Models/Types.swift` is auto-generated - **DO NOT edit directly**
-- Place helper classes in `Sources/Helpers/`
-
-### Scenario 4: Updating Documentation
-
-**When:** Updating openiap.dev documentation
-
-```bash
-# 1. Navigate to docs package
-cd packages/docs
-
-# 2. Start development server
-bun run dev
-# → http://localhost:5173
-
-# 3. Edit files
-# Work in src/ directory
-
-# 4. Type check and build
-bun run typecheck
-bun run build
-```
-
-## 🛠️ Development Tools
-
-### Running Example Apps
-
-**Using VSCode (Recommended):**
-
-Press `F5` or `Cmd+Shift+P` → "Debug: Select and Start Debugging" and choose:
-
-- 🍎 **Open Apple (iOS) in Xcode** - Opens iOS example in Xcode
-- 🤖 **Open Google (Android) in Android Studio** - Opens Android example
-- 📝 **GQL: Generate Types** - Generates types from GraphQL schema
-- 📚 **Docs: Dev Server** - Starts documentation development server
-
-**Manual Commands:**
-
-```bash
-# Apple (iOS) - Open in Xcode
-cd packages/apple
-open Example/Martie.xcodeproj
-
-# Google (Android) - Open in Android Studio
-cd packages/google
-./scripts/open-android-studio.sh
-
-# Google (Android) - Run from terminal
-cd packages/google
-./gradlew :Example:installDebug && adb shell am start -n dev.hyo.martie/.MainActivity
-```
-
-### Development Scripts
-
-**From Root:**
-
-```bash
-# Build all packages
-bun run build
-
-# Run dev servers (where applicable)
-bun run dev
-
-# Run all tests
-bun run test
-
-# Lint all packages
-bun run lint
-
-# Clean all node_modules
-bun run clean
-```
-
-**Package-Specific:**
-
-Each package has its own scripts. See individual `package.json` files for details.
-
-## 📝 Type Generation Flow
-
-```text
-GraphQL Schema (packages/gql/src/*.graphql)
-           ↓
-    [1] Parser (codegen/core/parser.ts)
-           ↓
-    [2] Transformer → IR (codegen/core/transformer.ts)
-           ↓
-    [3] Language Plugins (codegen/plugins/*.ts)
-           ↓
-    ├─→ TypeScript (src/generated/types.ts)    [graphql-codegen]
-    ├─→ Swift (src/generated/Types.swift)      [IR plugin]
-    ├─→ Kotlin (src/generated/Types.kt)        [IR plugin]
-    ├─→ Dart (src/generated/types.dart)        [IR plugin]
-    └─→ GDScript (src/generated/types.gd)      [IR plugin]
-           ↓
-    Auto Sync (bun run sync)
-           ↓
-    ├─→ packages/apple/Sources/Models/Types.swift
-    └─→ packages/google/.../openiap/Types.kt
-```
-
-**Key Feature:** One `generate` command updates all platforms automatically!
-
-## 🏗️ Code Generation Architecture
-
-The GQL package uses an **IR-based (Intermediate Representation) code generation system**:
-
-### Directory Structure
-
-```text
-packages/gql/codegen/
-├── index.ts              # Main entry point
-├── core/
-│   ├── types.ts          # IR type definitions (IREnum, IRObject, etc.)
-│   ├── parser.ts         # GraphQL schema parser
-│   ├── transformer.ts    # AST → IR transformer
-│   └── utils.ts          # Case conversion, keyword escaping
-└── plugins/
-    ├── base-plugin.ts    # Abstract base class
-    ├── swift.ts          # Swift: Codable, ErrorCode handling
-    ├── kotlin.ts         # Kotlin: sealed interface, fromJson/toJson
-    ├── dart.ts           # Dart: sealed class, factory constructors
-    └── gdscript.ts       # GDScript: Godot engine types
-```
-
-### IR Types
-
-| IR Type | Description |
-|---------|-------------|
-| `IREnum` | Enum with values, raw values (kebab-case), legacy aliases |
-| `IRInterface` | Protocol/Interface with typed fields |
-| `IRObject` | Struct/Class with fields, implements, union membership |
-| `IRInput` | Input type with required field tracking |
-| `IRUnion` | Union with members, nested union support |
-| `IROperation` | Query/Mutation/Subscription definitions |
-
-### Language Plugin Features
-
-| Plugin | Key Features |
-|--------|--------------|
-| **Swift** | Codable protocol, ErrorCode custom init, platform defaults (ProductIOS) |
-| **Kotlin** | sealed interface, fromJson/toJson, nullable patterns, type casting |
-| **Dart** | extends/implements, factory constructors, sealed class, @override |
-| **GDScript** | _init() pattern, from_json/to_json, Variant for unions |
-
-### Schema Markers
-
-Special comments in GraphQL SDL:
-
-```graphql
-# => Union
-type RequestPurchaseResult {
-  purchase: Purchase    # Generates union variant
-  purchases: [Purchase!]
-}
-
-# Future
-fetchProducts(...): FetchProductsResult  # Wraps in Promise/async
-```
-
-## 🔄 Common Workflows
-
-### Adding a New Feature
-
-```bash
-# 1. Create a branch
-git checkout -b feat/new-feature
-
-# 2. Modify gql schema (if needed)
-cd packages/gql
-# Edit schema files
-bun run generate
-
-# 3. Implement platform-specific code
-cd ../google  # or ../apple
-# Write code...
-
-# 4. Update documentation
-cd ../docs
-# Write docs...
-
-# 5. Commit
-git add .
-git commit -m "feat: add new feature"
-
-# 6. Push & create PR
-git push origin feat/new-feature
-```
-
-### Fixing a Bug
-
-```bash
-# 1. Create a branch
-git checkout -b fix/bug-description
-
-# 2. Navigate to relevant package
-cd packages/[google|apple|docs|gql]
-
-# 3. Fix and test
-# Modify code...
-bun run test  # or platform-specific test command
-
-# 4. Commit
-git add .
-git commit -m "fix: resolve bug description"
-
-# 5. Push & create PR
-git push origin fix/bug-description
-```
-
-## 📋 Commit Conventions
-
-```bash
-# Format
-<type>: <description>
-
-# Types
-feat:      # New feature
-fix:       # Bug fix
-docs:      # Documentation changes
-refactor:  # Code refactoring
-test:      # Add/modify tests
-chore:     # Build/config changes
-```
-
-**Examples:**
-
-```bash
-feat: add subscription upgrade flow
-fix: resolve purchase verification on android
-docs: update api documentation for fetchProducts
-refactor: simplify product caching logic
-```
-
-## 🧪 Testing
-
-### GQL (Type Generation)
-
-```bash
-cd packages/gql
-bun run generate
-# Should complete without errors
-```
-
-### Android (Google)
-
-```bash
-cd packages/google
-./gradlew :openiap:test
-./gradlew :openiap:compileDebugKotlin
-```
-
-### iOS (Apple)
-
-```bash
-cd packages/apple
-swift test
-swift build
-```
-
-### Docs
-
-```bash
-cd packages/docs
-bun run typecheck
-bun run lint
-bun run build
-```
-
-## 🔧 Common Tasks
-
-### Type Synchronization Issues
-
-```bash
-# Regenerate types (auto-updates all platforms)
-cd packages/gql
-bun run generate
-```
-
-### Dependency Issues
-
-```bash
-# Reinstall all dependencies from root
-cd /path/to/openiap
-rm -rf node_modules
-rm bun.lockb
-bun install
-```
-
-### Clear Build Cache
-
-```bash
-# Android (Google)
-cd packages/google
-./gradlew clean
-
-# iOS (Apple)
-cd packages/apple
-swift package clean
-
-# Docs
-cd packages/docs
-rm -rf dist node_modules
-bun install
-```
-
-## 🔧 Configuration
-
-### Bun Workspace
-
-The monorepo uses Bun workspaces for dependency management. All packages are defined in the root `package.json`:
-
-```json
-{
-  "workspaces": ["packages/*"]
-}
-```
-
-### Package Manager
-
-All packages use Bun as the package manager:
-
-```json
-{
-  "packageManager": "bun@1.1.0"
-}
-```
-
-## 🏷️ Version Management
-
-Versions are centrally managed in `openiap-versions.json` at the monorepo root:
-
-```json
-{
-  "gql": "1.2.2",      // GraphQL schema version
-  "docs": "1.2.2",     // Documentation version
-  "google": "1.2.12",  // Android library version
-  "apple": "1.2.23"    // iOS/macOS library version
-}
-```
-
-### Version Synchronization
-
-All package versions are managed in the root `openiap-versions.json` file. Before building or deploying, sync version files to all packages:
-
-```bash
-# Sync version files to all packages
-./scripts/sync-versions.sh
-```
-
-This script copies the root version file to all packages, ensuring they have real files (not symlinks) for proper package distribution.
-
-**Important**: The synced files in packages are gitignored and automatically generated during build/deploy processes.
-
-### Version Strategy
-
-- **Spec versions** (`gql` + `docs`): Should be kept in sync, represents the API specification
-- **Implementation versions** (`google`, `apple`): Independent, represents platform implementations
-
-### Manual Version Updates
-
-To update versions, edit the root `openiap-versions.json` file directly:
-
-```bash
-# 1. Edit version in openiap-versions.json
-vim openiap-versions.json
-
-# 2. Sync to all packages
-./scripts/sync-versions.sh
-
-# 3. Commit changes
-git add openiap-versions.json
-git commit -m "chore: bump version to x.x.x"
-```
-
-### When to Bump Versions
-
-**Spec version (gql + docs):**
-
-- **Major**: Breaking changes in GraphQL schema
-- **Minor**: New features, backward-compatible API additions
-- **Patch**: Bug fixes, documentation updates
-
-**Implementation versions (google, apple):**
-
-- **Major**: Breaking changes in platform API
-- **Minor**: New features, backward-compatible changes
-- **Patch**: Bug fixes, performance improvements
-
-## 🚢 Releases
-
-### Release Strategy
-
-- **Monorepo Release**: Unified deployment for all packages
-- **Docs**: Deployed to Vercel
-- **Type Artifacts**: Published to GitHub Releases (TypeScript, Dart, Kotlin, Swift)
-- **Platform Libraries**: Android (Maven Central), iOS (Swift Package Manager)
-
-### Deployment Workflow
-
-```bash
-# Deploy everything (docs + create release)
-npm run deploy <version>
-
-# Example
-npm run deploy 1.2.3
-```
-
-This command will:
-
-1. **Sync version files** to all packages
-2. **Build and deploy docs** to Vercel (locally)
-3. **Trigger GitHub Actions** to:
-   - Regenerate types for all platforms
-   - Create release artifacts (TypeScript, Dart, Kotlin, Swift)
-   - Create Git tag `v<version>`
-   - Create GitHub Release with artifacts
-
-### Platform-Specific Releases
-
-**For Android releases:**
-
-```bash
-# 1. Update version in openiap-versions.json
-# 2. Sync versions
-./scripts/sync-versions.sh
-
-# 3. Create tag (triggers Android release workflow)
-git tag google-v1.2.12
-git push && git push --tags
-
-# GitHub Actions will:
-#    - Build and test
-#    - Create GitHub release
-#    - Publish to Maven Central
-# Available at: https://github.com/hyodotdev/openiap/tree/main/packages/google
-```
-
-**For iOS releases:**
-
-```bash
-# 1. Update version in openiap-versions.json
-# 2. Sync versions
-./scripts/sync-versions.sh
-
-# 3. Create tag (triggers iOS release workflow)
-git tag apple-v1.2.23
-git push && git push --tags
-
-# GitHub Actions will:
-#    - Build and test
-#    - Create GitHub release
-#    - Package becomes available via Swift Package Manager
-# Available at: https://github.com/hyodotdev/openiap/tree/main/packages/apple
-```
-
-### CI/CD Workflows
-
-- **Release** (`release.yml`): Triggered by `npm run deploy <version>`
-  - Syncs version files
-  - Regenerates types for all platforms
-  - Creates release artifacts (TypeScript, Dart, Kotlin, Swift)
-  - Creates Git tag and GitHub Release
-
-- **Apple Release** (`apple-release.yml`): Triggered by `apple-v*` tags
-  - Builds and tests
-  - Creates GitHub release
-  - Package available via Swift Package Manager
-
-- **Google Release** (`google-release.yml`): Triggered by `google-v*` tags
-  - Builds and tests
-  - Creates GitHub release
-  - Publishes to Maven Central
-
-- **CI** (`ci.yml`): Runs on all PRs and pushes to main
-  - Tests GQL type generation
-  - Tests Android build
-  - Tests iOS build
-  - Tests docs build
-
-## 📖 Additional Documentation
-
-- [Google (Android) Conventions](./packages/google/CONVENTION.md)
-- [Apple (iOS) Guidelines](./packages/apple/CLAUDE.md)
-- [Docs Guidelines](./packages/docs/CLAUDE.md)
-- [GQL Schema Rules](./packages/gql/README.md)
-
-## 💡 Tips
-
-### Quick Navigation
-
-```bash
-# Navigate quickly from root to each package
-alias gql='cd packages/gql'
-alias docs='cd packages/docs'
-alias google='cd packages/google'
-alias apple='cd packages/apple'
-```
-
-### Generate All Types at Once
-
-```bash
-# Generate all platform types (from root)
 cd packages/gql && bun run generate
-# → Auto-updates Android & iOS!
+cd ../.. && ./scripts/sync-versions.sh
 ```
 
-### Parallel Development
+## 7. Commit Conventions
 
-```bash
-# Work in multiple terminal tabs:
-# Tab 1: docs dev server
-cd packages/docs && bun run dev
-
-# Tab 2: android build watch
-cd packages/google && ./gradlew --continuous :openiap:compileDebugKotlin
-
-# Tab 3: iOS tests
-cd packages/apple && swift test --parallel
+```text
+<type>: <description>
 ```
 
-## ❓ Troubleshooting
+- With tag: lowercase after the colon (e.g., `feat: add subscription upgrade flow`)
+- Without tag: uppercase first letter (e.g., `Add subscription upgrade flow`)
 
-### "gql package not found" Error
+**Types:**
 
-```bash
-# Ensure you're running from monorepo structure
-pwd  # Should be /path/to/openiap/packages/[google|apple]
-```
+| Tag | Description |
+|-----|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation changes |
+| `refactor` | Code refactoring |
+| `test` | Add/modify tests |
+| `chore` | Build/config changes |
 
-### Types Not Updating
+## 8. Links
 
-```bash
-# 1. Regenerate gql types first
-cd packages/gql
-bun run generate:kotlin  # or generate:swift
-
-# 2. Verify generated file
-ls src/generated/Types.kt  # or Types.swift
-
-# 3. Re-run platform script
-cd ../google  # or ../apple
-bun run generate:types
-```
-
-## 📞 Need Help?
-
-- [GitHub Issues](https://github.com/hyodotdev/openiap/issues)
-- [GitHub Discussions](https://github.com/hyodotdev/openiap/discussions)
-- [openiap.dev](https://openiap.dev)
+- Docs: <https://openiap.dev>
+- GitHub: <https://github.com/hyodotdev/openiap>
+- Discussions: <https://github.com/hyodotdev/openiap/discussions>

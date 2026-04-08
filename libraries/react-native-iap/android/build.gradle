@@ -1,0 +1,225 @@
+import groovy.json.JsonSlurper
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "com.android.tools.build:gradle:8.12.1"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20"
+  }
+}
+
+def reactNativeArchitectures() {
+  def value = rootProject.getProperties().get("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
+
+def isNewArchitectureEnabled() {
+  return rootProject.hasProperty("newArchEnabled") && rootProject.getProperty("newArchEnabled") == "true"
+}
+
+def resolveOpenIapVersionsFile() {
+  def candidates = [
+    new File(projectDir.parentFile, 'openiap-versions.json'),
+    new File(rootDir.parentFile ?: rootDir, 'openiap-versions.json'),
+    new File(rootProject.projectDir.parentFile ?: rootProject.projectDir, 'openiap-versions.json')
+  ]
+  return candidates.find { it.exists() }
+}
+
+def openiapVersionsFile = resolveOpenIapVersionsFile()
+if (openiapVersionsFile == null) {
+  throw new GradleException("react-native-iap: Unable to locate openiap-versions.json")
+}
+
+def openiapVersions = new JsonSlurper().parse(openiapVersionsFile)
+def googleVersion = (openiapVersions instanceof Map) ? openiapVersions.google : null
+if (!(googleVersion instanceof String) || !googleVersion.trim()) {
+  throw new GradleException("react-native-iap: 'google' version missing or invalid in openiap-versions.json")
+}
+def googleVersionString = googleVersion.trim()
+
+apply plugin: "com.android.library"
+apply plugin: 'org.jetbrains.kotlin.android'
+
+// Get kotlinVersion from root project or use default
+def kotlinVersion = rootProject.ext.has('kotlinVersion') ? rootProject.ext.get('kotlinVersion') : '2.0.21'
+
+// Only apply Nitro autolinking if the file exists
+def nitroAutolinkingFile = file('../nitrogen/generated/android/NitroIap+autolinking.gradle')
+if (nitroAutolinkingFile.exists()) {
+  apply from: nitroAutolinkingFile
+}
+
+apply from: "./fix-prefab.gradle"
+
+// DO NOT apply Facebook React plugin for library modules
+// This should only be applied to application modules
+// if (isNewArchitectureEnabled()) {
+//   apply plugin: "com.facebook.react"
+// }
+
+def getExtOrDefault(name) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["NitroIap_" + name]
+}
+
+def getExtOrIntegerDefault(name) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["NitroIap_" + name]).toInteger()
+}
+
+// Read horizonEnabled from gradle.properties, default to false (play)
+def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
+
+android {
+  namespace "com.margelo.nitro.iap"
+
+  ndkVersion getExtOrDefault("ndkVersion")
+  compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
+
+  defaultConfig {
+    minSdkVersion getExtOrIntegerDefault("minSdkVersion")
+    targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+    buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
+    // Ship consumer keep rules so Nitro HybridObjects aren't stripped in app release builds
+    consumerProguardFiles 'consumer-rules.pro'
+
+    // Use horizonEnabled to determine platform flavor
+    def flavor = horizonEnabled ? 'horizon' : 'play'
+    missingDimensionStrategy "platform", flavor
+
+    externalNativeBuild {
+      cmake {
+        cppFlags "-frtti -fexceptions -Wall -Wextra -fstack-protector-all"
+        arguments "-DANDROID_STL=c++_shared", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+        abiFilters (*reactNativeArchitectures())
+
+        buildTypes {
+          debug {
+            cppFlags "-O1 -g"
+          }
+          release {
+            cppFlags "-O2"
+          }
+        }
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "CMakeLists.txt"
+    }
+  }
+
+  packagingOptions {
+    excludes = [
+            "META-INF",
+            "META-INF/**",
+            "**/libc++_shared.so",
+            "**/libfbjni.so",
+            "**/libjsi.so",
+            "**/libfolly_json.so",
+            "**/libfolly_runtime.so",
+            "**/libglog.so",
+            "**/libhermes.so",
+            "**/libhermes-executor-debug.so",
+            "**/libhermes_executor.so",
+            "**/libreactnative.so",
+            "**/libreactnativejni.so",
+            "**/libturbomodulejsijni.so",
+            "**/libreact_nativemodule_core.so",
+            "**/libjscexecutor.so"
+    ]
+  }
+
+  buildFeatures {
+    buildConfig true
+    prefab true
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+  
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+  
+  // Configure Kotlin compiler to match Java compatibility
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+
+  lintOptions {
+    disable "GradleCompatible"
+  }
+
+  // Removed sourceSets configuration for codegen as it's not needed for library modules
+}
+
+repositories {
+  mavenCentral()
+  google()
+}
+
+
+dependencies {
+  // For < 0.71, this will be from the local maven repo
+  // For > 0.71, this will be replaced by `com.facebook.react:react-android:$version` by react gradle plugin
+  //noinspection GradleDynamicVersion
+  implementation "com.facebook.react:react-native:+"
+
+  // Add a dependency on NitroModules (only if available)
+  if (findProject(':react-native-nitro-modules') != null) {
+    implementation project(":react-native-nitro-modules")
+  }
+
+  // Google Play Services
+  implementation 'com.google.android.gms:play-services-base:18.5.0'
+
+  // Kotlin coroutines
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+
+  // Determine which OpenIAP dependency to use
+  // In monorepo: use local packages/google source if available
+  def localGoogleProject = findProject(':openiap')
+  if (localGoogleProject != null) {
+    implementation project(':openiap')
+  } else if (horizonEnabled) {
+    implementation "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}"
+  } else {
+    implementation "io.github.hyochan.openiap:openiap-google:${googleVersionString}"
+  }
+
+  // Test dependencies
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.jetbrains.kotlin:kotlin-test'
+  testImplementation 'org.jetbrains.kotlin:kotlin-test-junit'
+}
+
+configurations.all {
+  exclude group: 'com.facebook.react', module: 'react-native-safe-area-context'
+}
+
+// Ensure our CMake tasks run after react-native-nitro-modules' CMake tasks
+// to prevent race condition where libNitroModules.so is not yet built.
+// See: https://github.com/hyochan/react-native-iap/issues/3163
+afterEvaluate {
+  def nitroProject = rootProject.findProject(':react-native-nitro-modules')
+  if (nitroProject) {
+    tasks.configureEach { task ->
+      if (task.name.startsWith('buildCMake')) {
+        def nitroTask = nitroProject.tasks.findByName(task.name)
+        if (nitroTask) {
+          task.dependsOn(nitroTask)
+        }
+      }
+    }
+  }
+}

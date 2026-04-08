@@ -1,7 +1,15 @@
-# react-native-iap API Reference
+# react-native-iap API Reference (Legacy)
 
-> Reference documentation for react-native-iap
-> Adapt all patterns to match OpenIAP internal conventions.
+> **WARNING**: This file contains outdated API names from older versions.
+> For the current API spec, refer to the official [OpenIAP documentation](https://openiap.dev/docs/apis).
+>
+> Key renames from legacy to current:
+>
+> - `getProducts` → `fetchProducts`
+> - `getSubscriptions` → `fetchProducts({ type: 'subs' })`
+> - `getPurchaseHistory` → `getAvailablePurchases`
+> - `requestSubscription` → `requestPurchase({ type: 'subs' })`
+> - `completePurchase` → `finishTransaction`
 
 ## Overview
 
@@ -33,7 +41,7 @@ function PurchaseScreen() {
     currentPurchaseError,
     initConnectionError,
     finishTransaction,
-    getProducts,
+    fetchProducts,
     getSubscriptions,
     getAvailablePurchases,
     getPurchaseHistory,
@@ -74,7 +82,7 @@ export default withIAPContext(App);
 import {
   initConnection,
   endConnection,
-  getProducts,
+  fetchProducts,
   getSubscriptions,
 } from 'react-native-iap';
 
@@ -82,7 +90,7 @@ import {
 const connected = await initConnection();
 
 // Fetch products
-const products = await getProducts({ skus: ['com.app.product1'] });
+const products = await fetchProducts({ skus: ['com.app.product1'] });
 const subs = await getSubscriptions({ skus: ['com.app.sub_monthly'] });
 
 // Cleanup
@@ -362,13 +370,13 @@ function Store() {
     connected,
     products,
     subscriptions,
-    getProducts,
+    fetchProducts,
     getSubscriptions,
   } = useIAP();
 
   useEffect(() => {
     if (connected) {
-      getProducts({ skus: productIds });
+      fetchProducts({ skus: productIds });
       getSubscriptions({ skus: subscriptionIds });
     }
   }, [connected]);

@@ -1,0 +1,321 @@
+// External dependencies
+import {Linking} from 'react-native';
+
+// Internal modules
+import ExpoIapModule from '../ExpoIapModule';
+
+// Types
+import type {
+  DeepLinkOptions,
+  MutationField,
+  VerifyPurchaseResultAndroid,
+} from '../types';
+
+type NativeAndroidModule = {
+  deepLinkToSubscriptionsAndroid?: (params: {
+    skuAndroid?: string;
+    packageNameAndroid?: string;
+  }) => Promise<void> | void;
+  getStorefront?: () => Promise<string> | string;
+};
+
+const nativeAndroidModule = ExpoIapModule as NativeAndroidModule;
+
+// Type guards
+export function isProductAndroid<T extends {platform?: string}>(
+  item: unknown,
+): item is T & {platform: 'android'} {
+  return (
+    item != null &&
+    typeof item === 'object' &&
+    'platform' in item &&
+    typeof (item as any).platform === 'string' &&
+    (item as any).platform.toLowerCase() === 'android'
+  );
+}
+
+/**
+ * Deep link to subscriptions screen on Android.
+ * @param {Object} params - The parameters object
+ * @param {string} params.skuAndroid - The product's SKU (on Android)
+ * @param {string} params.packageNameAndroid - The package name of your Android app (e.g., 'com.example.app')
+ * @returns {Promise<void>}
+ *
+ * @example
+ * ```typescript
+ * await deepLinkToSubscriptionsAndroid({
+ *   skuAndroid: 'subscription_id',
+ *   packageNameAndroid: 'com.example.app'
+ * });
+ * ```
+ */
+export const deepLinkToSubscriptionsAndroid = async (
+  options?: DeepLinkOptions | null,
+): Promise<void> => {
+  const sku = options?.skuAndroid ?? undefined;
+  const packageName = options?.packageNameAndroid ?? undefined;
+
+  // Prefer native deep link implementation via OpenIAP module
+  if (nativeAndroidModule?.deepLinkToSubscriptionsAndroid) {
+    return nativeAndroidModule.deepLinkToSubscriptionsAndroid({
+      skuAndroid: sku,
+      packageNameAndroid: packageName,
+    });
+  }
+
+  // Fallback to Linking if native method unavailable
+  if (!packageName) {
+    throw new Error(
+      'packageName is required for deepLinkToSubscriptionsAndroid',
+    );
+  }
+  const base = `https://play.google.com/store/account/subscriptions?package=${encodeURIComponent(
+    packageName,
+  )}`;
+  const url = sku ? `${base}&sku=${encodeURIComponent(sku)}` : base;
+  return Linking.openURL(url);
+};
+
+/**
+ * Validate receipt for Android. NOTE: This method is here for debugging purposes only. Including
+ * your access token in the binary you ship to users is potentially dangerous.
+ * Use server side validation instead for your production builds
+ *
+ * @deprecated Use verifyPurchase instead
+ * @param {Object} params - The parameters object
+ * @param {string} params.packageName - package name of your app.
+ * @param {string} params.productId - product id for your in app product.
+ * @param {string} params.productToken - token for your purchase (called 'token' in the API documentation).
+ * @param {string} params.accessToken - OAuth access token with androidpublisher scope. Required for authentication.
+ * @param {boolean} params.isSub - whether this is subscription or in-app. `true` for subscription.
+ * @returns {Promise<ReceiptAndroid>}
+ */
+export const validateReceiptAndroid = async ({
+  packageName,
+  productId,
+  productToken,
+  accessToken,
+  isSub,
+}: {
+  packageName: string;
+  productId: string;
+  productToken: string;
+  accessToken: string;
+  isSub?: boolean;
+}): Promise<VerifyPurchaseResultAndroid> => {
+  const type = isSub ? 'subscriptions' : 'products';
+
+  const url =
+    'https://androidpublisher.googleapis.com/androidpublisher/v3/applications' +
+    `/${packageName}/purchases/${type}/${productId}` +
+    `/tokens/${productToken}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw Object.assign(new Error(response.statusText), {
+      statusCode: response.status,
+    });
+  }
+
+  return response.json();
+};
+
+/**
+ * Acknowledge a product (on Android.) No-op on iOS.
+ * @param {Object} params - The parameters object
+ * @param {string} params.token - The product's token (on Android)
+ * @returns {Promise<VoidResult | void>}
+ */
+export const acknowledgePurchaseAndroid: MutationField<
+  'acknowledgePurchaseAndroid'
+> = async (purchaseToken) => {
+  const result = await ExpoIapModule.acknowledgePurchaseAndroid(purchaseToken);
+
+  if (typeof result === 'boolean') {
+    return result;
+  }
+
+  if (result && typeof result === 'object') {
+    const record = result as Record<string, unknown>;
+    if (typeof record.success === 'boolean') {
+      return record.success;
+    }
+    if (typeof record.responseCode === 'number') {
+      return record.responseCode === 0;
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Open the Google Play Store to redeem offer codes (Android only).
+ * Note: Google Play does not provide a direct API to redeem codes within the app.
+ * This function opens the Play Store where users can manually enter their codes.
+ *
+ * @returns {Promise<void>}
+ */
+export const openRedeemOfferCodeAndroid = async (): Promise<void> => {
+  return Linking.openURL(`https://play.google.com/redeem?code=`);
+};
+
+/**
+ * Check if alternative billing is available for this user/device (Android only).
+ * Step 1 of alternative billing flow.
+ *
+ * Returns true if available, false otherwise.
+ * Throws OpenIapError.NotPrepared if billing client not ready.
+ *
+ * @returns {Promise<boolean>}
+ *
+ * @example
+ * ```typescript
+ * const isAvailable = await checkAlternativeBillingAvailabilityAndroid();
+ * if (isAvailable) {
+ *   // Proceed with alternative billing flow
+ * }
+ * ```
+ */
+export const checkAlternativeBillingAvailabilityAndroid: MutationField<
+  'checkAlternativeBillingAvailabilityAndroid'
+> = async () => {
+  return ExpoIapModule.checkAlternativeBillingAvailabilityAndroid();
+};
+
+/**
+ * Show alternative billing information dialog to user (Android only).
+ * Step 2 of alternative billing flow.
+ * Must be called BEFORE processing payment in your payment system.
+ *
+ * Returns true if user accepted, false if user canceled.
+ * Throws OpenIapError.NotPrepared if billing client not ready.
+ *
+ * @returns {Promise<boolean>}
+ *
+ * @example
+ * ```typescript
+ * const userAccepted = await showAlternativeBillingDialogAndroid();
+ * if (userAccepted) {
+ *   // Process payment in your payment system
+ *   const success = await processCustomPayment();
+ *   if (success) {
+ *     // Create reporting token
+ *     const token = await createAlternativeBillingTokenAndroid();
+ *     // Send token to your backend for Google Play reporting
+ *   }
+ * }
+ * ```
+ */
+export const showAlternativeBillingDialogAndroid: MutationField<
+  'showAlternativeBillingDialogAndroid'
+> = async () => {
+  return ExpoIapModule.showAlternativeBillingDialogAndroid();
+};
+
+/**
+ * Create external transaction token for Google Play reporting (Android only).
+ * Step 3 of alternative billing flow.
+ * Must be called AFTER successful payment in your payment system.
+ * Token must be reported to Google Play backend within 24 hours.
+ *
+ * Returns token string, or null if creation failed.
+ * Throws OpenIapError.NotPrepared if billing client not ready.
+ *
+ * @param {string} sku - The product SKU that was purchased
+ * @returns {Promise<string | null>}
+ *
+ * @example
+ * ```typescript
+ * const token = await createAlternativeBillingTokenAndroid('premium_subscription');
+ * if (token) {
+ *   // Send token to your backend
+ *   await fetch('/api/report-transaction', {
+ *     method: 'POST',
+ *     body: JSON.stringify({ token, sku: 'premium_subscription' })
+ *   });
+ * }
+ * ```
+ */
+export const createAlternativeBillingTokenAndroid: MutationField<
+  'createAlternativeBillingTokenAndroid'
+> = async (sku?: string) => {
+  return ExpoIapModule.createAlternativeBillingTokenAndroid(sku);
+};
+
+// ============================================================================
+// Billing Programs API (Google Play Billing Library 8.2.0+)
+// ============================================================================
+
+/**
+ * Check if a specific billing program is available for this user/device (Android only).
+ * Available in Google Play Billing Library 8.2.0+.
+ *
+ * @param program - The billing program to check ('external-offer' or 'external-content-link')
+ * @returns Promise resolving to availability result
+ *
+ * @example
+ * ```typescript
+ * const result = await isBillingProgramAvailableAndroid('external-offer');
+ * if (result.isAvailable) {
+ *   // Proceed with billing program flow
+ * }
+ * ```
+ */
+export const isBillingProgramAvailableAndroid: MutationField<
+  'isBillingProgramAvailableAndroid'
+> = async (program) => {
+  return ExpoIapModule.isBillingProgramAvailableAndroid(program);
+};
+
+/**
+ * Launch an external link for the specified billing program (Android only).
+ * Available in Google Play Billing Library 8.2.0+.
+ *
+ * @param params - The external link parameters
+ * @returns Promise resolving to true if the link was launched successfully
+ *
+ * @example
+ * ```typescript
+ * await launchExternalLinkAndroid({
+ *   billingProgram: 'external-offer',
+ *   launchMode: 'launch-in-external-browser-or-app',
+ *   linkType: 'link-to-digital-content-offer',
+ *   linkUri: 'https://your-payment-site.com',
+ * });
+ * ```
+ */
+export const launchExternalLinkAndroid: MutationField<
+  'launchExternalLinkAndroid'
+> = async (params) => {
+  return ExpoIapModule.launchExternalLinkAndroid(params);
+};
+
+/**
+ * Create billing program reporting details for Google Play reporting (Android only).
+ * Available in Google Play Billing Library 8.2.0+.
+ *
+ * Must be called AFTER successful payment in your payment system.
+ * Token must be reported to Google Play backend within 24 hours.
+ *
+ * @param program - The billing program type
+ * @returns Promise resolving to reporting details including the external transaction token
+ *
+ * @example
+ * ```typescript
+ * const details = await createBillingProgramReportingDetailsAndroid('external-offer');
+ * // Report details.externalTransactionToken to Google Play within 24 hours
+ * await reportToGooglePlay(details.externalTransactionToken);
+ * ```
+ */
+export const createBillingProgramReportingDetailsAndroid: MutationField<
+  'createBillingProgramReportingDetailsAndroid'
+> = async (program) => {
+  return ExpoIapModule.createBillingProgramReportingDetailsAndroid(program);
+};

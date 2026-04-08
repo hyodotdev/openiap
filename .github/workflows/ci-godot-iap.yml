@@ -1,0 +1,44 @@
+name: CI - godot-iap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'libraries/godot-iap/**'
+      - 'packages/gql/src/generated/types.gd'
+  push:
+    branches: [main]
+    paths:
+      - 'libraries/godot-iap/**'
+      - 'packages/gql/src/generated/types.gd'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: libraries/godot-iap
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify plugin files exist
+        run: |
+          test -f addons/godot-iap/plugin.cfg
+          test -f addons/godot-iap/types.gd
+          test -f addons/godot-iap/godot_iap.gd
+          echo "All required plugin files exist"
+
+      - name: Verify Android plugin files exist
+        run: |
+          test -f android/build.gradle.kts
+          test -f android/src/main/kotlin/dev/openapps/godotiap/GodotIapPlugin.kt
+          echo "All required Android plugin files exist"

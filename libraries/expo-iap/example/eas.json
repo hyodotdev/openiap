@@ -1,0 +1,37 @@
+{
+  "cli": {
+    "version": ">= 3.8.1"
+  },
+  "build": {
+    "development": {
+      "channel": "development",
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "channel": "preview",
+      "cache": {
+        "disabled": true
+      },
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "cache": {
+        "disabled": true
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

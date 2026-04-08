@@ -319,6 +319,23 @@ for (sub in subscriptions) {
     }
 }`}</CodeBlock>
                       ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Detecting upgrades with pendingUpgradeProductId (KMP)
+val subscriptions = kmpIAP.getActiveSubscriptions()
+
+for (sub in subscriptions) {
+    val renewalInfo = sub.renewalInfoIOS
+    val pendingUpgrade = renewalInfo?.pendingUpgradeProductId
+
+    if (pendingUpgrade != null && pendingUpgrade != sub.productId) {
+        println("⚠️ UPGRADE IN PROGRESS")
+        println("  Current: \${sub.productId}")
+        println("  Upgrading to: $pendingUpgrade")
+
+        // Show UI: "Upgrade processing..."
+    }
+}`}</CodeBlock>
+                      ),
                       dart: (
                         <CodeBlock language="dart">{`// Detecting upgrades with pendingUpgradeProductId
 final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();
@@ -439,6 +456,23 @@ for sub in subscriptions {
                       kotlin: (
                         <CodeBlock language="kotlin">{`// Detecting downgrades (KMP)
 val subscriptions = kmpIapInstance.getActiveSubscriptions()
+
+for (sub in subscriptions) {
+    val renewalInfo = sub.renewalInfoIOS
+    val autoRenewPref = renewalInfo?.autoRenewPreference
+
+    if (autoRenewPref != null && autoRenewPref != sub.productId && renewalInfo?.willAutoRenew == true) {
+        println("⚠️ DOWNGRADE SCHEDULED")
+        println("  Current (until \${sub.expirationDateIOS}): \${sub.productId}")
+        println("  Next: $autoRenewPref")
+
+        // Show UI: "Your plan will change to [tier] on [date]"
+    }
+}`}</CodeBlock>
+                      ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Detecting downgrades (KMP)
+val subscriptions = kmpIAP.getActiveSubscriptions()
 
 for (sub in subscriptions) {
     val renewalInfo = sub.renewalInfoIOS
@@ -576,6 +610,22 @@ for (sub in subscriptions) {
     }
 }`}</CodeBlock>
                       ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIAP
+
+val subscriptions = kmpIAP.getActiveSubscriptions()
+
+for (sub in subscriptions) {
+    sub.renewalInfoIOS?.pendingUpgradeProductId?.let { pending ->
+        val current = sub.productId
+
+        println("Upgrading from $current to $pending")
+
+        // Show upgrade-in-progress UI
+        showUpgradeInProgressUI(current, pending)
+    }
+}`}</CodeBlock>
+                      ),
                       dart: (
                         <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
@@ -657,6 +707,13 @@ let effectiveTier = renewalInfo.pendingUpgradeProductId ?? subscription.productI
 let currentTier = subscription.productId`}</CodeBlock>
                       ),
                       kotlin: (
+                        <CodeBlock language="kotlin">{`// ✅ Correct approach
+val effectiveTier = renewalInfo?.pendingUpgradeProductId ?: subscription.productId
+
+// ❌ Wrong - may show outdated tier immediately after upgrade
+val currentTier = subscription.productId`}</CodeBlock>
+                      ),
+                      kmp: (
                         <CodeBlock language="kotlin">{`// ✅ Correct approach
 val effectiveTier = renewalInfo?.pendingUpgradeProductId ?: subscription.productId
 
@@ -845,6 +902,48 @@ fun SubscriptionStatus() {
 
     LaunchedEffect(Unit) {
         val subs = kmpIapInstance.getActiveSubscriptions()
+        subscription = subs.firstOrNull()
+    }
+
+    subscription?.let { sub ->
+        val renewalInfo = sub.renewalInfoIOS
+        val pending = renewalInfo?.pendingUpgradeProductId
+
+        when {
+            pending != null && pending != sub.productId -> {
+                // Upgrade in progress
+                Column {
+                    Text("⏳ Upgrading to $pending...")
+                    Text("Current: \${sub.productId}")
+                }
+            }
+            renewalInfo?.autoRenewPreference != sub.productId &&
+            renewalInfo?.willAutoRenew == true -> {
+                // Downgrade scheduled
+                Column {
+                    Text("Current: \${sub.productId}")
+                    Text("Will change to \${renewalInfo.autoRenewPreference} on \${formatDate(sub.expirationDateIOS)}")
+                }
+            }
+            else -> {
+                // Normal active subscription
+                Column {
+                    Text("Active: \${sub.productId}")
+                    Text("Renews: \${formatDate(renewalInfo?.renewalDate)}")
+                }
+            }
+        }
+    } ?: Text("Loading...")
+}`}</CodeBlock>
+                      ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Complete example: Subscription status (Compose Multiplatform)
+@Composable
+fun SubscriptionStatus() {
+    var subscription by remember { mutableStateOf<ActiveSubscription?>(null) }
+
+    LaunchedEffect(Unit) {
+        val subs = kmpIAP.getActiveSubscriptions()
         subscription = subs.firstOrNull()
     }
 
@@ -1356,6 +1455,27 @@ currentSub?.let { sub ->
     println("✅ Upgrade initiated")
 }`}</CodeBlock>
                       ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Android upgrade with proration
+import io.github.hyochan.kmpiap.kmpIAP
+
+// Get current subscription
+val purchases = kmpIAP.getAvailablePurchases()
+val currentSub = purchases.find { it.productId == "basic_monthly" }
+
+currentSub?.let { sub ->
+    // Upgrade to premium with time proration
+    kmpIAP.requestPurchase {
+        android {
+            skus = listOf("premium_monthly")
+            purchaseToken = sub.purchaseToken
+            replacementMode = 1 // WITH_TIME_PRORATION
+        }
+    }
+
+    println("✅ Upgrade initiated")
+}`}</CodeBlock>
+                      ),
                       dart: (
                         <CodeBlock language="dart">{`// Android upgrade with proration
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -1523,6 +1643,28 @@ premiumPurchase?.let { purchase ->
     // Note: Purchase callback will complete with empty list - this is expected!
 }`}</CodeBlock>
                       ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Android downgrade with deferred replacement
+import io.github.hyochan.kmpiap.kmpIAP
+
+// Get current subscription
+val purchases = kmpIAP.getAvailablePurchases()
+val premiumPurchase = purchases.find { it.productId == "premium_monthly" }
+
+premiumPurchase?.let { purchase ->
+    // Downgrade - takes effect at next billing cycle
+    kmpIAP.requestPurchase {
+        android {
+            skus = listOf("basic_monthly")
+            purchaseToken = purchase.purchaseToken
+            replacementMode = 6 // DEFERRED (Legacy API value) - Change at renewal
+        }
+    }
+
+    println("✅ Downgrade scheduled for next billing cycle")
+    // Note: Purchase callback will complete with empty list - this is expected!
+}`}</CodeBlock>
+                      ),
                       dart: (
                         <CodeBlock language="dart">{`// Android downgrade with deferred replacement
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -1647,6 +1789,37 @@ currentSub?.let { sub ->
     println("✅ Upgrade initiated with per-product replacement")
 }`}</CodeBlock>
                       ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Android subscription replacement with 8.1.0+ API
+import io.github.hyochan.kmpiap.KmpIAP
+
+// Get current subscription
+val purchases = kmpIAP.getAvailablePurchases()
+val currentSub = purchases.find { it.productId == "premium_monthly" }
+
+currentSub?.let { sub ->
+    // Upgrade using the new per-product replacement params
+    kmpIAP.requestSubscription(
+        RequestPurchaseProps(
+            type = ProductQueryType.Subs,
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionProps(
+                    android = RequestSubscriptionAndroidProps(
+                        skus = listOf("premium_yearly"),
+                        subscriptionProductReplacementParams = SubscriptionProductReplacementParamsAndroid(
+                            oldProductId = sub.productId,
+                            replacementMode = SubscriptionReplacementModeAndroid.WithTimeProration
+                            // or SubscriptionReplacementModeAndroid.KeepExisting (8.1.0+ only)
+                        )
+                    )
+                )
+            )
+        )
+    )
+
+    println("✅ Upgrade initiated with per-product replacement")
+}`}</CodeBlock>
+                      ),
                       dart: (
                         <CodeBlock language="dart">{`// Android subscription replacement with 8.1.0+ API
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -1744,6 +1917,20 @@ for (const purchase of purchases) {
 import io.github.hyochan.kmpiap.kmpIapInstance
 
 val purchases = kmpIapInstance.getAvailablePurchases()
+
+for (purchase in purchases) {
+    // On Android, the current purchase reflects the active subscription
+    println("Active subscription: \${purchase.productId}")
+
+    // If using DEFERRED mode, the change is scheduled but not yet reflected
+    // You'll need to track this in your backend or check purchase history
+}`}</CodeBlock>
+                      ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Android - check if subscription will change
+import io.github.hyochan.kmpiap.kmpIAP
+
+val purchases = kmpIAP.getAvailablePurchases()
 
 for (purchase in purchases) {
     // On Android, the current purchase reflects the active subscription
@@ -1935,6 +2122,54 @@ suspend fun changeSubscription(
 
     try {
         kmpIapInstance.requestPurchase {
+            android {
+                skus = listOf(newSku)
+                purchaseToken = currentSub.purchaseToken
+                this.replacementMode = replacementMode
+            }
+        }
+
+        // If DEFERRED, store pending change in your backend
+        if (!isUpgrade) {
+            sendPendingChangeToBackend(
+                userId = "user123",
+                currentSku = currentSub.productId,
+                newSku = newSku,
+                effectiveDate = currentSub.expirationDate
+            )
+        }
+    } catch (e: PurchaseException) {
+        println("Subscription change failed: \${e.message}")
+    }
+}`}</CodeBlock>
+                      ),
+                      kmp: (
+                        <CodeBlock language="kotlin">{`// Complete Android example: Subscription change
+import io.github.hyochan.kmpiap.kmpIAP
+import io.github.hyochan.kmpiap.PurchaseException
+
+suspend fun changeSubscription(
+    newSku: String,
+    isUpgrade: Boolean
+) {
+    // Get current subscription
+    val purchases = kmpIAP.getAvailablePurchases()
+    val currentSub = purchases.find { it.productId.contains("subscription") }
+
+    if (currentSub == null) {
+        println("No active subscription found")
+        return
+    }
+
+    // Choose appropriate replacement mode
+    val replacementMode = if (isUpgrade) {
+        1  // WITH_TIME_PRORATION - Upgrade: give credit
+    } else {
+        6  // DEFERRED (Legacy API value) - Downgrade: change at renewal
+    }
+
+    try {
+        kmpIAP.requestPurchase {
             android {
                 skus = listOf(newSku)
                 purchaseToken = currentSub.purchaseToken

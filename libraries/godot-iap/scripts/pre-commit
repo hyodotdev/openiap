@@ -1,0 +1,68 @@
+#!/bin/bash
+# Pre-commit hook:
+# 1. Auto-sync versions when openiap-versions.json is modified
+# 2. Auto-build iOS framework when ios-gdextension files are modified
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)" || PROJECT_ROOT="$(pwd)"
+
+# Check if openiap-versions.json is staged for commit
+VERSIONS_CHANGED=$(git diff --cached --name-only | grep -E '^openiap-versions\.json$')
+
+if [ -n "$VERSIONS_CHANGED" ]; then
+    echo -e "${YELLOW}openiap-versions.json modified${NC}"
+    echo -e "${GREEN}Running sync-versions.sh...${NC}"
+
+    if [ -f "$PROJECT_ROOT/scripts/sync-versions.sh" ]; then
+        "$PROJECT_ROOT/scripts/sync-versions.sh"
+
+        # Stage the updated files
+        git add "$PROJECT_ROOT/addons/godot-iap/godot_iap_plugin.gd" 2>/dev/null
+        git add "$PROJECT_ROOT/Example/addons/godot-iap/godot_iap_plugin.gd" 2>/dev/null
+        git add "$PROJECT_ROOT/addons/godot-iap/android/GodotIap.gdap" 2>/dev/null
+        echo -e "${GREEN}✓ Version sync complete${NC}"
+    fi
+    echo ""
+fi
+
+# Check if any ios-gdextension files are staged for commit
+IOS_FILES_CHANGED=$(git diff --cached --name-only | grep -E '^ios-gdextension/')
+
+if [ -n "$IOS_FILES_CHANGED" ]; then
+    echo -e "${YELLOW}iOS GDExtension files modified:${NC}"
+    echo "$IOS_FILES_CHANGED"
+    echo ""
+    echo -e "${GREEN}Building iOS framework...${NC}"
+
+    # Run make ios
+    if make ios; then
+        echo -e "${GREEN}✓ iOS framework built successfully${NC}"
+
+        # Check if framework exists
+        if [ -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
+            echo -e "${GREEN}✓ Framework verified at addons/godot-iap/bin/ios/${NC}"
+
+            # Auto-stage the built framework binaries
+            echo -e "${YELLOW}Staging built framework files...${NC}"
+            git add addons/godot-iap/bin/ios/GodotIap.framework/
+            git add addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/
+            echo -e "${GREEN}✓ Framework files staged for commit${NC}"
+        else
+            echo -e "${RED}✗ Framework not found after build${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}✗ iOS framework build failed${NC}"
+        echo -e "${YELLOW}Please fix the build errors before committing.${NC}"
+        exit 1
+    fi
+    echo ""
+fi
+
+exit 0
