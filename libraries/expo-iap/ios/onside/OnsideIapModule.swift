@@ -127,28 +127,33 @@ public final class ExpoIapOnsideModule: Module {
                 print("[ExpoIapOnsideModule] requestLogin completed, waiting for storefront...")
                 #endif
 
-                // Wait for storefront to be populated (with timeout)
-                var attempts = 0
-                let maxAttempts = 10
-                while storefront == nil && attempts < maxAttempts {
-                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                    storefront = await Onside.defaultPaymentQueue().storefront
-                    attempts += 1
-                    #if DEBUG
-                    print("[ExpoIapOnsideModule] Checking storefront... attempt \(attempts)")
-                    #endif
-                }
+                // Wait for storefront using withCheckedThrowingContinuation to avoid busy-wait polling
+                storefront = try await withCheckedThrowingContinuation { continuation in
+                    Task {
+                        let timeoutNanos: UInt64 = 5_000_000_000 // 5 seconds
+                        let intervalNanos: UInt64 = 500_000_000  // 0.5 seconds
+                        var elapsed: UInt64 = 0
 
-                if storefront == nil {
-                    #if DEBUG
-                    print("[ExpoIapOnsideModule] ⚠️ Storefront is still nil after \(attempts) attempts!")
-                    print("[ExpoIapOnsideModule] User may have cancelled login or login failed")
-                    #endif
-                    throw OnsideBridgeError.queueError("Login was not completed. Please try again.")
-                } else {
-                    #if DEBUG
-                    print("[ExpoIapOnsideModule] ✅ Storefront available: \(storefront?.countryCode ?? "unknown")")
-                    #endif
+                        while elapsed < timeoutNanos {
+                            let sf = await Onside.defaultPaymentQueue().storefront
+                            if let sf = sf {
+                                #if DEBUG
+                                print("[ExpoIapOnsideModule] ✅ Storefront available: \(sf.countryCode)")
+                                #endif
+                                continuation.resume(returning: sf)
+                                return
+                            }
+                            try? await Task.sleep(nanoseconds: intervalNanos)
+                            elapsed += intervalNanos
+                        }
+
+                        // Timed out
+                        #if DEBUG
+                        print("[ExpoIapOnsideModule] ⚠️ Storefront is still nil after timeout!")
+                        print("[ExpoIapOnsideModule] User may have cancelled login or login failed")
+                        #endif
+                        continuation.resume(throwing: OnsideBridgeError.queueError("Login was not completed. Please try again."))
+                    }
                 }
             }
 

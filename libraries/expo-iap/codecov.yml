@@ -67,4 +67,3 @@ ignore:
   - 'plugin/**'
   - '*.config.js'
   - '*.setup.js'
-  - 'example/**'

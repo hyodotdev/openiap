@@ -79,13 +79,14 @@ describe('withIosAlternativeBilling', () => {
     expect(result.name).toBe('test-app');
   });
 
-  it('should validate country codes are lowercase', () => {
+  it('should accept lowercase country codes', () => {
     const options: IOSAlternativeBillingConfig = {
       countries: ['kr', 'nl', 'de'], // All lowercase
     };
 
     const result = withIosAlternativeBilling(baseConfig, options);
     expect(result).toBeDefined();
+    expect(result.name).toBe('test-app');
   });
 
   it('should handle multiple URLs per country', () => {
@@ -105,7 +106,7 @@ describe('withIosAlternativeBilling', () => {
     expect(result).toBeDefined();
   });
 
-  it('should not exceed 5 links per country for music apps', () => {
+  it('should handle up to 5 links per country for music apps', () => {
     const options: IOSAlternativeBillingConfig = {
       countries: ['de'],
       multiLinks: {
@@ -123,5 +124,6 @@ describe('withIosAlternativeBilling', () => {
 
     const result = withIosAlternativeBilling(baseConfig, options);
     expect(result).toBeDefined();
+    expect(result.name).toBe('test-app');
   });
 });

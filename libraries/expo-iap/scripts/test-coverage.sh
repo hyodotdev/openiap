@@ -4,12 +4,12 @@ echo "Running tests with coverage..."
 
 # Run main tests
 echo "Running main library tests..."
-bun test --coverage
+bunx jest --coverage
 
 # Run example tests
 echo "Running example app tests..."
 cd example
-bun test --coverage --passWithNoTests
+bunx jest --coverage --passWithNoTests
 cd ..
 
 echo "Coverage reports generated in ./coverage and ./example/coverage"

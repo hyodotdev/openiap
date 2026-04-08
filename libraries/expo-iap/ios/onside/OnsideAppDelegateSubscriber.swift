@@ -79,11 +79,6 @@ public class OnsideAppDelegateSubscriber: ExpoAppDelegateSubscriber {
 
             if handled {
                 print("[OnsideAppDelegate] ✅ Successfully handled Onside callback")
-
-                // Ensure app returns to active state
-                DispatchQueue.main.async {
-                    print("[OnsideAppDelegate] 🔄 Ensuring app is active...")
-                }
             } else {
                 print("[OnsideAppDelegate] ⚠️ Onside.handle returned false")
             }
