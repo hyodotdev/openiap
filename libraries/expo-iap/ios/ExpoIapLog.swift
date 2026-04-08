@@ -3,7 +3,6 @@ import Foundation
 import os
 #endif
 
-@MainActor
 enum ExpoIapLog {
     enum Level: String {
         case debug
