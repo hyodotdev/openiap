@@ -25,6 +25,18 @@ This monorepo contains all OpenIAP packages:
 - **[google](packages/google)** - Android library [![Maven Central (Play)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google?label=Play%20Store)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![Maven Central (Horizon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-horizon?label=Meta%20Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 - **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=1.*&label=version&logo=swift&color=orange)](https://github.com/hyodotdev/openiap/releases?q=Apple&expanded=true) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 
+## Libraries
+
+Framework SDK implementations built on top of OpenIAP:
+
+| Library | Platform | Package | Downloads |
+|---------|----------|---------|-----------|
+| [expo-iap](libraries/expo-iap) | Expo | [![npm](https://img.shields.io/npm/v/expo-iap?logo=npm&color=CB3837)](https://www.npmjs.com/package/expo-iap) | [![npm downloads](https://img.shields.io/npm/dm/expo-iap?label=npm&color=CB3837)](https://www.npmjs.com/package/expo-iap) |
+| [react-native-iap](libraries/react-native-iap) | React Native | [![npm](https://img.shields.io/npm/v/react-native-iap?logo=npm&color=CB3837)](https://www.npmjs.com/package/react-native-iap) | [![npm downloads](https://img.shields.io/npm/dm/react-native-iap?label=npm&color=CB3837)](https://www.npmjs.com/package/react-native-iap) |
+| [flutter_inapp_purchase](libraries/flutter_inapp_purchase) | Flutter | [![pub.dev](https://img.shields.io/pub/v/flutter_inapp_purchase?logo=dart&color=0175C2)](https://pub.dev/packages/flutter_inapp_purchase) | [![pub.dev likes](https://img.shields.io/pub/likes/flutter_inapp_purchase?label=likes&color=0175C2)](https://pub.dev/packages/flutter_inapp_purchase) |
+| [kmp-iap](libraries/kmp-iap) | Kotlin Multiplatform | [![Maven Central](https://img.shields.io/maven-central/v/io.github.hyochan/kmp-iap?logo=kotlin&color=7F52FF)](https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap) | — |
+| [godot-iap](libraries/godot-iap) | Godot 4.x | — | — |
+
 ## Documentation
 
 Visit [openiap.dev](https://openiap.dev) for complete documentation and API reference.
