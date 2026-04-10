@@ -43,7 +43,7 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "cd .. && yarn install && yarn prepare && cd example && yarn install && bundle install && yarn ios --device"],
+            "runtimeArgs": ["-lc", "npx kill-port 8081 || true && ./scripts/with-resolve.sh bash -c 'cd .. && yarn install && yarn prepare && cd example && yarn install && bundle install && yarn ios --device'"],
             "cwd": "${workspaceFolder}/libraries/react-native-iap/example",
             "console": "integratedTerminal"
         },
@@ -52,7 +52,7 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "cd .. && yarn install && yarn prepare && cd example && yarn install && yarn android"],
+            "runtimeArgs": ["-lc", "npx kill-port 8081 || true && adb uninstall dev.hyo.martie || true && ./scripts/with-resolve.sh bash -c 'cd .. && yarn install && yarn prepare && cd example && yarn install && yarn android'"],
             "cwd": "${workspaceFolder}/libraries/react-native-iap/example",
             "console": "integratedTerminal"
         },
@@ -61,8 +61,8 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "bun install && bun run prepare && cd example && bun install && bunx expo prebuild && bunx expo run:ios --device"],
-            "cwd": "${workspaceFolder}/libraries/expo-iap",
+            "runtimeArgs": ["-lc", "npx kill-port 8081 || true && node scripts/resolve-deps.js; bun install && bunx expo prebuild && bunx expo run:ios --device"],
+            "cwd": "${workspaceFolder}/libraries/expo-iap/example",
             "console": "integratedTerminal"
         },
         {
@@ -70,8 +70,8 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "bun install && bun run prepare && cd example && bun install && bunx expo prebuild && bunx expo run:android"],
-            "cwd": "${workspaceFolder}/libraries/expo-iap",
+            "runtimeArgs": ["-lc", "npx kill-port 8081 || true && adb uninstall dev.hyo.martie || true && node scripts/resolve-deps.js; bun install && bunx expo prebuild && bunx expo run:android"],
+            "cwd": "${workspaceFolder}/libraries/expo-iap/example",
             "console": "integratedTerminal"
         },
         // Flutter iOS debug: "flutter run" may fail to connect to Dart VM service
@@ -83,7 +83,7 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "cd .. && flutter pub get && cd example && flutter pub get && flutter run"],
+            "runtimeArgs": ["-lc", "node scripts/resolve-deps.js; cd .. && flutter pub get && cd example && flutter pub get && cd ios && pod install && cd .. && flutter run"],
             "cwd": "${workspaceFolder}/libraries/flutter_inapp_purchase/example",
             "console": "integratedTerminal"
         },
@@ -92,7 +92,7 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "cd .. && flutter pub get && cd example && flutter pub get && flutter run"],
+            "runtimeArgs": ["-lc", "adb uninstall dev.hyo.martie || true && node scripts/resolve-deps.js; cd .. && flutter pub get && cd example && flutter pub get && flutter run"],
             "cwd": "${workspaceFolder}/libraries/flutter_inapp_purchase/example",
             "console": "integratedTerminal"
         },
@@ -119,7 +119,7 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "./gradlew :example:composeApp:installDebug"],
+            "runtimeArgs": ["-lc", "adb uninstall dev.hyo.martie || true && ./gradlew :example:composeApp:installDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
             "cwd": "${workspaceFolder}/libraries/kmp-iap",
             "console": "integratedTerminal"
         }

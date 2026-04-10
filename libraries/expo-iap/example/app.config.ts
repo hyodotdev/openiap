@@ -1,9 +1,20 @@
 import type {ConfigContext, ExpoConfig} from '@expo/config';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const LOCAL_OPENIAP_PATHS = {
   ios: '../../../packages/apple',
   android: '../../../packages/google',
 } as const;
+
+// Read library version mode from libraries-versions.jsonc
+const parseJsonc = (text: string) =>
+  JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
+const versionsPath = path.resolve(__dirname, '../../../libraries-versions.jsonc');
+const librariesVersions: Record<string, string> = fs.existsSync(versionsPath)
+  ? parseJsonc(fs.readFileSync(versionsPath, 'utf8'))
+  : {'expo-iap': 'local'};
+const useLocalDev = !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
 
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
@@ -21,7 +32,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
         // IAPKit API key for server-side receipt verification
         // Get your API key from https://iapkit.com
         iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
-        enableLocalDev: false,
+        enableLocalDev: useLocalDev,
         localPath: {
           ios: LOCAL_OPENIAP_PATHS.ios,
           android: LOCAL_OPENIAP_PATHS.android,

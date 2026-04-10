@@ -1,3 +1,4 @@
+import groovy.json.JsonSlurper
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -20,6 +21,22 @@ fun loadEnvProperties(): Properties {
 }
 
 val envProperties = loadEnvProperties()
+
+// Read library version mode from libraries-versions.jsonc
+val versionsFile = rootProject.file("../../libraries-versions.jsonc")
+val kmpIapMode: String = if (!versionsFile.exists()) {
+    "local"
+} else {
+    val librariesVersions = JsonSlurper().parseText(
+        versionsFile.readText().replace(Regex("^\\s*//.*$", RegexOption.MULTILINE), "")
+    ) as Map<*, *>
+    librariesVersions["kmp-iap"]?.toString() ?: "local"
+}
+val useLocalDev = kmpIapMode == "local"
+
+println("\n========================================")
+println("  kmp-iap : ${if (useLocalDev) "LOCAL (monorepo source)" else "PUBLISHED v$kmpIapMode"}")
+println("========================================\n")
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -82,11 +99,19 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlinx.coroutines.android)
             implementation(compose.preview)
-            implementation(project(":library"))
+            if (useLocalDev) {
+                implementation(project(":library"))
+            } else {
+                implementation("io.github.hyochan:kmp-iap:$kmpIapMode")
+            }
         }
 
         iosMain.dependencies {
-            implementation(project(":library"))
+            if (useLocalDev) {
+                implementation(project(":library"))
+            } else {
+                implementation("io.github.hyochan:kmp-iap:$kmpIapMode")
+            }
         }
 
         desktopMain.dependencies {

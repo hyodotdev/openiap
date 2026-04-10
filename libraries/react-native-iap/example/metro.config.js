@@ -1,7 +1,15 @@
 const path = require('path');
+const fs = require('fs');
 const {getDefaultConfig} = require('@react-native/metro-config');
 
-const root = path.resolve(__dirname, '..');
+// Read library version mode from libraries-versions.jsonc
+const parseJsonc = (text) => JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
+let useLocalDev = true;
+const versionsPath = path.resolve(__dirname, '../../../libraries-versions.jsonc');
+if (fs.existsSync(versionsPath)) {
+  const librariesVersions = parseJsonc(fs.readFileSync(versionsPath, 'utf8'));
+  useLocalDev = !librariesVersions['react-native-iap'] || librariesVersions['react-native-iap'] === 'local';
+}
 
 /**
  * Metro configuration
@@ -10,10 +18,15 @@ const root = path.resolve(__dirname, '..');
  * @type {import('metro-config').MetroConfig}
  */
 module.exports = (async () => {
-  const {withMetroConfig} = await import('react-native-monorepo-config');
+  if (useLocalDev) {
+    const root = path.resolve(__dirname, '..');
+    const {withMetroConfig} = await import('react-native-monorepo-config');
 
-  return withMetroConfig(getDefaultConfig(__dirname), {
-    root,
-    dirname: __dirname,
-  });
+    return withMetroConfig(getDefaultConfig(__dirname), {
+      root,
+      dirname: __dirname,
+    });
+  }
+
+  return getDefaultConfig(__dirname);
 })();
