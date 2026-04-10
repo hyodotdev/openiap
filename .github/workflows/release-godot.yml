@@ -29,7 +29,60 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  validate-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: libraries/godot-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Download godot-lib.aar
+        run: |
+          mkdir -p android/libs
+          curl -L -o android/libs/godot-lib.aar \
+            "https://github.com/godotengine/godot/releases/download/4.3-stable/godot-lib.4.3.stable.template_release.aar"
+
+      - name: Build Android AAR
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+  validate-ios:
+    runs-on: macos-15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: libraries/godot-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify iOS Frameworks
+        run: |
+          if [ ! -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
+            echo "Error: iOS frameworks not found"
+            exit 1
+          fi
+
+      - name: Verify macOS Frameworks
+        run: |
+          if [ ! -d "addons/godot-iap/bin/macos/GodotIap.framework" ]; then
+            echo "Error: macOS frameworks not found"
+            exit 1
+          fi
+
+  deploy:
+    needs: [validate-android, validate-ios]
     runs-on: macos-15
     defaults:
       run:
@@ -128,13 +181,6 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-
-      - name: Verify iOS Frameworks
-        run: |
-          if [ ! -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
-            echo "Error: iOS frameworks not found"
-            exit 1
-          fi
 
       - name: Prepare addon directory
         run: |

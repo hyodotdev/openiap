@@ -26,7 +26,36 @@ permissions:
   contents: write
 
 jobs:
+  validate-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+
+    - name: Grant execute permission for gradlew
+      working-directory: packages/google
+      run: chmod +x gradlew
+
+    - name: Build
+      working-directory: packages/google
+      run: ./gradlew :openiap:build --no-daemon --stacktrace
+
+    - name: Test
+      working-directory: packages/google
+      run: ./gradlew :openiap:test --no-daemon --stacktrace
+
   release:
+    needs: [validate-android]
     runs-on: macos-latest
 
     steps:
@@ -162,7 +191,7 @@ jobs:
                   fi
                   git add "$conflict_file"
                 else
-                  echo "❌ Unexpected conflict in $conflict_file"
+                  echo "��� Unexpected conflict in $conflict_file"
                   exit 1
                 fi
               done
@@ -203,14 +232,6 @@ jobs:
     - name: Grant execute permission for gradlew
       working-directory: packages/google
       run: chmod +x gradlew
-
-    - name: Build and Test
-      working-directory: packages/google
-      env:
-        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
-      run: |
-        ./gradlew :openiap:build --no-daemon --stacktrace
-        ./gradlew :openiap:test --no-daemon --stacktrace
 
     - name: Check if Horizon flavor already published
       id: check_horizon

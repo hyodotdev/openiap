@@ -37,7 +37,27 @@ permissions:
   contents: write
 
 jobs:
+  validate-ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Select Xcode
+      run: |
+        sudo xcode-select -s /Applications/Xcode.app
+
+    - name: Build
+      working-directory: packages/apple
+      run: swift build
+
+    - name: Test
+      working-directory: packages/apple
+      run: swift test
+
   release:
+    needs: [validate-ios]
     runs-on: macos-latest
 
     steps:
@@ -197,16 +217,6 @@ jobs:
             fi
           done
         fi
-
-    - name: Select Xcode
-      run: |
-        sudo xcode-select -s /Applications/Xcode.app
-
-    - name: Build and Test
-      working-directory: packages/apple
-      run: |
-        swift build
-        swift test
 
     - name: Create and push tag
       env:

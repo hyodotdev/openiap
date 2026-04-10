@@ -30,7 +30,34 @@ permissions:
   id-token: write
 
 jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: libraries/flutter_inapp_purchase
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.x"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Lint
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
   deploy:
+    needs: [validate]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
@@ -51,12 +78,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Lint
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test
 
       - name: Configure Git user
         run: |

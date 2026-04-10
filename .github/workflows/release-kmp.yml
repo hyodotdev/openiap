@@ -32,7 +32,67 @@ permissions:
   contents: write
 
 jobs:
+  validate-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: libraries/kmp-iap
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Android targets
+        run: ./gradlew :library:compileKotlinAndroid --no-daemon --stacktrace
+
+  validate-ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: libraries/kmp-iap
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build and test
+        run: |
+          ./gradlew :library:build
+          ./gradlew :library:allTests
+
+      - name: Build iOS frameworks
+        run: |
+          ./gradlew :library:podGenIos
+          ./gradlew :library:updatePodspecDependency
+          ./gradlew :library:podInstallSyntheticIos
+          ./gradlew :library:podBuildOpeniapIos
+          ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
+          ./gradlew :library:linkPodDebugFrameworkIosArm64
+
   publish:
+    needs: [validate-android, validate-ios]
     runs-on: macos-latest
     defaults:
       run:
@@ -142,11 +202,6 @@ jobs:
           git pull --rebase origin main || true
           git stash pop || true
           git push || echo "No changes to commit"
-
-      - name: Build and test
-        run: |
-          ./gradlew :library:build
-          ./gradlew :library:allTests
 
       - name: Clean build artifacts
         run: rm -rf library/build/cocoapods
