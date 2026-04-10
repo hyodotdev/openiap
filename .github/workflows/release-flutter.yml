@@ -30,7 +30,7 @@ permissions:
   id-token: write
 
 jobs:
-  validate:
+  validate-android:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -56,8 +56,65 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Install JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Build Android
+        working-directory: libraries/flutter_inapp_purchase/example
+        run: flutter build apk --debug
+
+  validate-ios:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      XCODE_VERSION: 16.4
+    defaults:
+      run:
+        working-directory: libraries/flutter_inapp_purchase
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.x"
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install example dependencies
+        working-directory: libraries/flutter_inapp_purchase/example
+        run: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        working-directory: libraries/flutter_inapp_purchase/example/ios
+        run: pod install --repo-update
+
+      - name: Build iOS
+        working-directory: libraries/flutter_inapp_purchase/example/ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
   deploy:
-    needs: [validate]
+    needs: [validate-android, validate-ios]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
