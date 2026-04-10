@@ -1,5 +1,10 @@
 # Changelog
 
+## 9.0.0-rc.1 (2026-04-10)
+
+- Initial release
+
+
 ## 8.2.10 (2026-03-25)
 
 - Initial release
