@@ -41,8 +41,15 @@ target 'Runner' do
 
   # Resolve openiap dependency based on libraries-versions.jsonc
   libraries_versions_path = File.expand_path('../../../../libraries-versions.jsonc', __dir__)
-  libraries_versions = JSON.parse(File.read(libraries_versions_path).gsub(%r{^\s*//.*$}, ''))
-  flutter_iap_mode = libraries_versions['flutter_inapp_purchase']
+  flutter_iap_mode = 'local'
+  if File.exist?(libraries_versions_path)
+    begin
+      libraries_versions = JSON.parse(File.read(libraries_versions_path).gsub(%r{^\s*//.*$}, ''))
+      flutter_iap_mode = libraries_versions['flutter_inapp_purchase'] || 'local'
+    rescue => e
+      puts "[Podfile] Warning: Failed to parse libraries-versions.jsonc: #{e.message}. Defaulting to local."
+    end
+  end
 
   if flutter_iap_mode == 'local'
     openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)

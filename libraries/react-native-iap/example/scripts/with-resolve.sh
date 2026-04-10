@@ -13,10 +13,12 @@ export RN_IAP_DEV_MODE=true
 MODE=$(node -e "
   const fs = require('fs');
   const path = require('path');
-  const f = fs.readFileSync(path.resolve('$ROOT_DIR/../../libraries-versions.jsonc'), 'utf8');
-  const v = JSON.parse(f.replace(/^\s*\/\/.*$/gm, ''));
-  console.log(v['react-native-iap'] || 'local');
-")
+  try {
+    const f = fs.readFileSync(path.resolve('$ROOT_DIR/../../libraries-versions.jsonc'), 'utf8');
+    const v = JSON.parse(f.replace(/^\s*\/\/.*$/gm, ''));
+    console.log(v['react-native-iap'] || 'local');
+  } catch { console.log('local'); }
+" 2>/dev/null || echo "local")
 
 # Run resolve-deps.js — exit code 2 means deps changed
 EXIT_CODE=0

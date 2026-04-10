@@ -5,13 +5,18 @@ const fs = require('fs');
 
 // Read library version mode from libraries-versions.jsonc
 const parseJsonc = (text) => JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
-const librariesVersions = parseJsonc(
-  fs.readFileSync(
-    path.resolve(__dirname, '../../../libraries-versions.jsonc'),
-    'utf8',
-  ),
-);
-const useLocalDev = librariesVersions['expo-iap'] === 'local';
+let useLocalDev = true;
+try {
+  const librariesVersions = parseJsonc(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../../libraries-versions.jsonc'),
+      'utf8',
+    ),
+  );
+  useLocalDev = !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
+} catch {
+  // File missing or malformed — default to local dev mode
+}
 
 const config = getDefaultConfig(__dirname);
 

@@ -207,13 +207,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9800',
   },
   buttonText: {
-    color: '#000000',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   buttonSubtext: {
-    color: '#333333',
+    color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 14,
   },
 });

@@ -38,7 +38,7 @@ function main() {
     // 1. Ensure example is in workspace
     const rootPkg = JSON.parse(fs.readFileSync(ROOT_PKG_PATH, 'utf8'));
     if (!rootPkg.workspaces?.includes('example')) {
-      rootPkg.workspaces = ['example'];
+      rootPkg.workspaces = [...(rootPkg.workspaces || []), 'example'];
       fs.writeFileSync(ROOT_PKG_PATH, JSON.stringify(rootPkg, null, 2) + '\n');
       changed = true;
     }
@@ -59,8 +59,8 @@ function main() {
   } else {
     // 1. Remove example from workspace
     const rootPkg = JSON.parse(fs.readFileSync(ROOT_PKG_PATH, 'utf8'));
-    if (rootPkg.workspaces?.length > 0) {
-      rootPkg.workspaces = [];
+    if (rootPkg.workspaces?.includes('example')) {
+      rootPkg.workspaces = rootPkg.workspaces.filter((w) => w !== 'example');
       fs.writeFileSync(ROOT_PKG_PATH, JSON.stringify(rootPkg, null, 2) + '\n');
       changed = true;
     }

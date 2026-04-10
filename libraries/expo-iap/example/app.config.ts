@@ -10,13 +10,18 @@ const LOCAL_OPENIAP_PATHS = {
 // Read library version mode from libraries-versions.jsonc
 const parseJsonc = (text: string) =>
   JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
-const librariesVersions = parseJsonc(
-  fs.readFileSync(
-    path.resolve(__dirname, '../../../libraries-versions.jsonc'),
-    'utf8',
-  ),
-);
-const useLocalDev = librariesVersions['expo-iap'] === 'local';
+let librariesVersions: Record<string, string> = {'expo-iap': 'local'};
+try {
+  librariesVersions = parseJsonc(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../../libraries-versions.jsonc'),
+      'utf8',
+    ),
+  );
+} catch {
+  // File missing or malformed — default to local dev mode
+}
+const useLocalDev = !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
 
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
