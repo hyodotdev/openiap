@@ -4,6 +4,7 @@ description: In App Purchase plugin for flutter. This project has been forked by
   react-native.
 version: 9.0.0-rc.1
 homepage: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
+repository: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
 environment:
   sdk: ">=3.0.0 <4.0.0"
   flutter: ">=3.10.0"

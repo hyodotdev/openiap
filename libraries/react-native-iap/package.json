@@ -78,7 +78,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hyodotdev/openiap.git"
+    "url": "git+https://github.com/hyodotdev/openiap.git",
+    "directory": "libraries/react-native-iap"
   },
   "author": "hyochan <hyo@hyo.dev> (https://github.com/hyochan)",
   "license": "MIT",

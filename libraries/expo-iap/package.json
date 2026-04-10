@@ -37,7 +37,11 @@
     "expo-iap",
     "ExpoIap"
   ],
-  "repository": "https://github.com/hyodotdev/openiap",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyodotdev/openiap.git",
+    "directory": "libraries/expo-iap"
+  },
   "bugs": {
     "url": "https://github.com/hyodotdev/openiap/issues"
   },

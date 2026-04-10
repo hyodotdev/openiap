@@ -133,7 +133,7 @@ kotlin {
     cocoapods {
         version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02"
         summary = "KMP IAP Library"
-        homepage = "https://github.com/hyochan/kmp-iap"
+        homepage = "https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
         ios.deploymentTarget = "15.0"
 
         pod("openiap") {
