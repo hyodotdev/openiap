@@ -6,16 +6,10 @@ const fs = require('fs');
 // Read library version mode from libraries-versions.jsonc
 const parseJsonc = (text) => JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
 let useLocalDev = true;
-try {
-  const librariesVersions = parseJsonc(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../../libraries-versions.jsonc'),
-      'utf8',
-    ),
-  );
+const versionsPath = path.resolve(__dirname, '../../../libraries-versions.jsonc');
+if (fs.existsSync(versionsPath)) {
+  const librariesVersions = parseJsonc(fs.readFileSync(versionsPath, 'utf8'));
   useLocalDev = !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
-} catch {
-  // File missing or malformed — default to local dev mode
 }
 
 const config = getDefaultConfig(__dirname);
@@ -31,8 +25,8 @@ config.resolver.blockList = [
 if (useLocalDev) {
   // Local development: resolve expo-iap from parent directory source
   config.resolver.blockList.push(
-    new RegExp(path.resolve('..', 'node_modules', 'react')),
-    new RegExp(path.resolve('..', 'node_modules', 'react-native')),
+    new RegExp(path.resolve(__dirname, '..', 'node_modules', 'react')),
+    new RegExp(path.resolve(__dirname, '..', 'node_modules', 'react-native')),
   );
 
   config.resolver.nodeModulesPaths = [
@@ -41,7 +35,7 @@ if (useLocalDev) {
   ];
 
   config.resolver.extraNodeModules = {
-    'expo-iap': '..',
+    'expo-iap': path.resolve(__dirname, '..'),
   };
 
   config.watchFolders = [path.resolve(__dirname, '..')];

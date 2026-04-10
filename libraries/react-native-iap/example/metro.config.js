@@ -5,16 +5,10 @@ const {getDefaultConfig} = require('@react-native/metro-config');
 // Read library version mode from libraries-versions.jsonc
 const parseJsonc = (text) => JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
 let useLocalDev = true;
-try {
-  const librariesVersions = parseJsonc(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../../libraries-versions.jsonc'),
-      'utf8',
-    ),
-  );
+const versionsPath = path.resolve(__dirname, '../../../libraries-versions.jsonc');
+if (fs.existsSync(versionsPath)) {
+  const librariesVersions = parseJsonc(fs.readFileSync(versionsPath, 'utf8'));
   useLocalDev = !librariesVersions['react-native-iap'] || librariesVersions['react-native-iap'] === 'local';
-} catch {
-  // File missing or malformed — default to local dev mode
 }
 
 /**

@@ -23,15 +23,14 @@ fun loadEnvProperties(): Properties {
 val envProperties = loadEnvProperties()
 
 // Read library version mode from libraries-versions.jsonc
-val kmpIapMode: String = try {
+val versionsFile = rootProject.file("../../libraries-versions.jsonc")
+val kmpIapMode: String = if (!versionsFile.exists()) {
+    "local"
+} else {
     val librariesVersions = JsonSlurper().parseText(
-        rootProject.file("../../libraries-versions.jsonc").readText()
-            .replace(Regex("^\\s*//.*$", RegexOption.MULTILINE), "")
+        versionsFile.readText().replace(Regex("^\\s*//.*$", RegexOption.MULTILINE), "")
     ) as Map<*, *>
     librariesVersions["kmp-iap"]?.toString() ?: "local"
-} catch (e: Exception) {
-    // File missing or malformed — default to local dev mode
-    "local"
 }
 val useLocalDev = kmpIapMode == "local"
 

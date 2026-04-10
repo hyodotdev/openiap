@@ -10,17 +10,10 @@ const LOCAL_OPENIAP_PATHS = {
 // Read library version mode from libraries-versions.jsonc
 const parseJsonc = (text: string) =>
   JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
-let librariesVersions: Record<string, string> = {'expo-iap': 'local'};
-try {
-  librariesVersions = parseJsonc(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../../libraries-versions.jsonc'),
-      'utf8',
-    ),
-  );
-} catch {
-  // File missing or malformed — default to local dev mode
-}
+const versionsPath = path.resolve(__dirname, '../../../libraries-versions.jsonc');
+const librariesVersions: Record<string, string> = fs.existsSync(versionsPath)
+  ? parseJsonc(fs.readFileSync(versionsPath, 'utf8'))
+  : {'expo-iap': 'local'};
 const useLocalDev = !librariesVersions['expo-iap'] || librariesVersions['expo-iap'] === 'local';
 
 export default ({config}: ConfigContext): ExpoConfig => {
