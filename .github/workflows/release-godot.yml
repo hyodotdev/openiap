@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      create_release:
+        description: "Also create a GitHub Release"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -197,6 +202,7 @@ jobs:
           git push --follow-tags
 
       - name: Create Release
+        if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: godot-iap-${{ steps.version.outputs.VERSION }}
