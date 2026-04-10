@@ -143,7 +143,7 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#ffffff',
   },
   contentContainer: {
     padding: 20,
@@ -156,17 +156,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000000',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 18,
-    color: '#666',
+    color: '#333333',
     marginBottom: 24,
   },
   description: {
     fontSize: 16,
-    color: '#555',
+    color: '#333333',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 16,
@@ -207,13 +207,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9800',
   },
   buttonText: {
-    color: '#ffffff',
+    color: '#000000',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   buttonSubtext: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: '#333333',
     fontSize: 14,
   },
 });

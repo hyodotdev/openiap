@@ -39,13 +39,16 @@ target 'example' do
     :app_path => app_path
   )
 
-  # In monorepo: use local openiap-apple source directly
-  # When publishing, the podspec dependency handles version resolution from CocoaPods/Git
-  openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
-  if File.directory?(openiap_local_path)
+  # Resolve openiap dependency based on libraries-versions.jsonc
+  libraries_versions_path = File.expand_path('../../../../libraries-versions.jsonc', __dir__)
+  libraries_versions = JSON.parse(File.read(libraries_versions_path).gsub(%r{^\s*//.*$}, ''))
+  rn_iap_mode = libraries_versions['react-native-iap']
+
+  if rn_iap_mode == 'local'
+    openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
     pod 'openiap', :path => openiap_local_path
   else
-    pod 'openiap', :git => 'https://github.com/hyodotdev/openiap.git', :tag => openiap_apple_version
+    pod 'openiap', openiap_apple_version
   end
 
   post_install do |installer|

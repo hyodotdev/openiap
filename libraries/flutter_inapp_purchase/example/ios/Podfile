@@ -39,12 +39,16 @@ target 'Runner' do
   use_frameworks!
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # In monorepo: use local openiap-apple source directly
-  openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
-  if File.directory?(openiap_local_path)
+  # Resolve openiap dependency based on libraries-versions.jsonc
+  libraries_versions_path = File.expand_path('../../../../libraries-versions.jsonc', __dir__)
+  libraries_versions = JSON.parse(File.read(libraries_versions_path).gsub(%r{^\s*//.*$}, ''))
+  flutter_iap_mode = libraries_versions['flutter_inapp_purchase']
+
+  if flutter_iap_mode == 'local'
+    openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
     pod 'openiap', :path => openiap_local_path
   else
-    pod 'openiap', :git => 'https://github.com/hyodotdev/openiap.git', :tag => openiap_versions['apple']
+    pod 'openiap', openiap_versions['apple']
   end
 end
 

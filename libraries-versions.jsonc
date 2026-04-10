@@ -1,0 +1,12 @@
+// Library example dependency mode.
+// "local" = use local monorepo source (default)
+// "<version>" = use published package at that version (e.g. "4.0.0-rc.1")
+//
+// After changing, run the corresponding launch config in VSCode — deps resolve automatically.
+{
+  "expo-iap": "local",
+  "react-native-iap": "local",
+  "flutter_inapp_purchase": "local",
+  "kmp-iap": "local"
+  // godot-iap: no package manager — manually swap example/addons symlink to test published releases
+}
