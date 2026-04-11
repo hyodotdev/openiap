@@ -94,20 +94,23 @@ function Announcements() {
           >
             <li>
               <a href="/docs/setup/react-native">react-native-iap</a> — React
-              Native (Nitro Modules)
+              Native (Nitro Modules) — <strong>v15.0.0+</strong>
             </li>
             <li>
               <a href="/docs/setup/expo">expo-iap</a> — Expo managed & bare
-              workflow
+              workflow — <strong>v4.0.0+</strong>
             </li>
             <li>
               <a href="/docs/setup/flutter">flutter_inapp_purchase</a> — Flutter
+              — <strong>v9.0.0+</strong>
             </li>
             <li>
-              <a href="/docs/setup/godot">godot-iap</a> — Godot 4.x
+              <a href="/docs/setup/godot">godot-iap</a> — Godot 4.x —{' '}
+              <strong>v2.0.0+</strong>
             </li>
             <li>
-              <a href="/docs/setup/kmp">kmp-iap</a> — Kotlin Multiplatform
+              <a href="/docs/setup/kmp">kmp-iap</a> — Kotlin Multiplatform —{' '}
+              <strong>v2.0.0+</strong>
             </li>
           </ul>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
@@ -116,6 +119,68 @@ function Announcements() {
             Godot Asset Library). The individual repositories will be archived
             and point to the monorepo going forward.
           </p>
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            Documentation for versions prior to the ones listed above can be
+            found in the archived individual repositories:
+          </p>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              <a
+                href="https://hyochan.github.io/react-native-iap"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                react-native-iap (archived)
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://hyochan.github.io/expo-iap"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                expo-iap (archived)
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://hyochan.github.io/flutter_inapp_purchase"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                flutter_inapp_purchase (archived)
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://hyochan.github.io/kmp-iap"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                kmp-iap (archived)
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://hyochan.github.io/godot-iap"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                godot-iap (archived)
+              </a>
+            </li>
+          </ul>
 
           <h3 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>
             Why Monorepo?
@@ -182,9 +247,11 @@ function Announcements() {
           </ul>
 
           <div style={calloutStyle}>
-            <strong>For existing users:</strong> Package names and installation
-            commands remain the same. No migration required — just update to the
-            next version when it's released from the monorepo.
+            <strong>For existing users:</strong> There are no breaking changes.
+            The major version bump reflects the transition to the monorepo as
+            the new home for development and releases — not API changes. Package
+            names and installation commands remain the same. Just update to the
+            new version and you're good to go.
           </div>
         </div>
       ),
