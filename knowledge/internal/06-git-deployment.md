@@ -5,44 +5,47 @@
 
 ## Git Commit Message Format
 
-### With Tag Prefix
+### Rules
 
-Everything after the tag MUST be lowercase:
+- **50 characters max** for the subject line (tag + scope + message combined)
+- Everything after the tag MUST be lowercase
+- No trailing period
+- Use imperative mood ("add" not "added")
 
+### With Tag and Scope
+
+When a commit targets a specific package or library, include the scope:
+
+```text
+feat(rn): add offer redemption
+fix(expo): resolve purchase crash
+fix(flutter): correct discount mapping
+feat(kmp): add subscription flow
+chore(godot): bump openiap dep
+fix(apple): handle StoreKit edge case
+fix(google): update billing client
 ```
-feat: add user authentication system
-fix: resolve purchase validation error
-docs: update API reference
-refactor: simplify product fetching logic
-test: add subscription validation tests
-chore: update dependencies
+
+### Without Scope
+
+For cross-cutting or monorepo-wide changes:
+
+```text
+feat: add RC promote to releases
+fix: update repo URLs in package.json
+chore: update CI workflow names
 ```
 
 ### Without Tag Prefix
 
 First letter MUST be uppercase:
 
-```
+```text
 Add user authentication system
 Fix purchase validation error
-Update API reference
 ```
 
-### Scope (Library/Package)
-
-When a commit is specific to a library or package, include the scope in parentheses:
-
-```
-feat(expo-iap): add subscription offer support
-fix(react-native-iap): resolve Android purchase flow
-fix(flutter): correct type mapping for discounts
-refactor(kmp-iap): simplify iOS bridge layer
-chore(godot-iap): update openiap dependency
-fix(apple): handle StoreKit 2 edge case
-fix(google): update billing client version
-```
-
-**Scope names:**
+### Scope Reference
 
 | Scope | Package/Library |
 |-------|----------------|
@@ -50,13 +53,11 @@ fix(google): update billing client version
 | `google` | `packages/google` |
 | `gql` | `packages/gql` |
 | `docs` | `packages/docs` |
-| `expo-iap` | `libraries/expo-iap` |
-| `react-native-iap` | `libraries/react-native-iap` |
+| `rn` | `libraries/react-native-iap` |
+| `expo` | `libraries/expo-iap` |
 | `flutter` | `libraries/flutter_inapp_purchase` |
-| `kmp-iap` | `libraries/kmp-iap` |
-| `godot-iap` | `libraries/godot-iap` |
-
-For cross-cutting changes, omit the scope: `feat: add RC promote logic to all release workflows`
+| `kmp` | `libraries/kmp-iap` |
+| `godot` | `libraries/godot-iap` |
 
 ### Common Tags
 
