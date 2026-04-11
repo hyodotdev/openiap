@@ -64,6 +64,12 @@ Other libraries built on OpenIAP: [react-native-iap](https://github.com/hyodotde
 
 **[Learn more about the OpenIAP standard →](https://openiap.dev/docs/foundation/about)**
 
+## Community
+
+Have a question or need help? Ask in [godot-iap Q&A Discussions](https://github.com/hyodotdev/openiap/discussions/categories/godot-iap).
+
+For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.

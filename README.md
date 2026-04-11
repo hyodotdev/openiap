@@ -41,6 +41,22 @@ Framework SDK implementations built on top of OpenIAP:
 
 Visit [openiap.dev](https://openiap.dev) for complete documentation and API reference.
 
+## Community
+
+Have a question or need help? Ask in the relevant [GitHub Discussions](https://github.com/hyodotdev/openiap/discussions) category:
+
+| Library | Discussion |
+|---------|------------|
+| openiap-apple | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-apple) |
+| openiap-google | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-google) |
+| expo-iap | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/expo-iap) |
+| react-native-iap | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/react-native-iap) |
+| flutter_inapp_purchase | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/flutter_inapp_purchase) |
+| kmp-iap | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/kmp-iap) |
+| godot-iap | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/godot-iap) |
+
+For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, workflows, and contribution guidelines.

@@ -238,6 +238,12 @@ We also manage sponsorships through OpenCollective, which operates separately fr
 
 [Become a sponsor](https://opencollective.com/react-native-iap#sponsor) | [Become a backer](https://opencollective.com/react-native-iap#backer)
 
+## Community
+
+Have a question or need help? Ask in [react-native-iap Q&A Discussions](https://github.com/hyodotdev/openiap/discussions/categories/react-native-iap).
+
+For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
+
 ## Contributing
 
 <a href="graphs/contributors"><img src="https://opencollective.com/react-native-iap/contributors.svg?width=890" /></a>
