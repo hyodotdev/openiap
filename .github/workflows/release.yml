@@ -29,7 +29,7 @@ jobs:
       - name: Calculate new version
         id: version
         run: |
-          CURRENT_VERSION=$(jq -r '.docs' openiap-versions.json)
+          CURRENT_VERSION=$(jq -r '.spec' openiap-versions.json)
           echo "Current version: $CURRENT_VERSION"
 
           if [ "${{ github.event.inputs.version }}" = "current" ]; then
@@ -62,7 +62,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          jq --arg version "$VERSION" '.docs = $version' openiap-versions.json > openiap-versions.tmp
+          jq --arg version "$VERSION" '.spec = $version' openiap-versions.json > openiap-versions.tmp
           mv openiap-versions.tmp openiap-versions.json
           echo "Updated openiap-versions.json:"
           cat openiap-versions.json

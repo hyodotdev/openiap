@@ -244,6 +244,11 @@ function Announcements() {
               <code>groupID</code> to <code>groupId</code> to follow the OpenIAP{' '}
               <code>Id</code> (not <code>ID</code>) naming convention.
             </li>
+            <li>
+              <strong>Spec & Docs v2.0.0</strong>: The OpenIAP specification
+              (openiap-gql) and documentation have also been bumped to v2.0.0 to
+              align with the monorepo transition as a fresh start.
+            </li>
           </ul>
 
           <div style={calloutStyle}>
