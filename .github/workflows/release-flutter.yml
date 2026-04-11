@@ -274,6 +274,26 @@ jobs:
         run: |
           git push origin "flutter-iap-${NEW_VERSION}" --force
 
+      - name: Generate release notes
+        if: ${{ inputs.create_release }}
+        id: release_notes
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/flutter-iap-*' | grep -v "$VERSION" | head -n 1)
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/flutter_inapp_purchase/)
+          fi
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Initial release"
+          fi
+          cat > /tmp/release-notes.md <<EOF
+          ## flutter_inapp_purchase $VERSION
+
+          ### What's Changed
+          $CHANGELOG
+          EOF
+
       - name: Create GitHub Release
         if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v2
@@ -282,4 +302,4 @@ jobs:
           name: flutter_inapp_purchase ${{ steps.bump.outputs.version }}
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
-          generate_release_notes: true
+          body_path: /tmp/release-notes.md

@@ -247,6 +247,26 @@ jobs:
           git stash pop || true
           git push --follow-tags
 
+      - name: Generate release notes
+        if: ${{ inputs.create_release }}
+        id: release_notes
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/godot-iap-*' | grep -v "$VERSION" | head -n 1)
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/godot-iap/)
+          fi
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Initial release"
+          fi
+          cat > /tmp/release-notes.md <<EOF
+          ## godot-iap $VERSION
+
+          ### What's Changed
+          $CHANGELOG
+          EOF
+
       - name: Create Release
         if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v2
@@ -254,6 +274,6 @@ jobs:
           tag_name: godot-iap-${{ steps.version.outputs.VERSION }}
           name: godot-iap ${{ steps.version.outputs.VERSION }}
           files: libraries/godot-iap/godot-iap-${{ steps.version.outputs.VERSION }}.zip
-          generate_release_notes: true
           draft: false
           prerelease: ${{ steps.version.outputs.is_prerelease }}
+          body_path: /tmp/release-notes.md

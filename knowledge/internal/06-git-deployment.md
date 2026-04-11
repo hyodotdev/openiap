@@ -28,6 +28,36 @@ Fix purchase validation error
 Update API reference
 ```
 
+### Scope (Library/Package)
+
+When a commit is specific to a library or package, include the scope in parentheses:
+
+```
+feat(expo-iap): add subscription offer support
+fix(react-native-iap): resolve Android purchase flow
+fix(flutter): correct type mapping for discounts
+refactor(kmp-iap): simplify iOS bridge layer
+chore(godot-iap): update openiap dependency
+fix(apple): handle StoreKit 2 edge case
+fix(google): update billing client version
+```
+
+**Scope names:**
+
+| Scope | Package/Library |
+|-------|----------------|
+| `apple` | `packages/apple` |
+| `google` | `packages/google` |
+| `gql` | `packages/gql` |
+| `docs` | `packages/docs` |
+| `expo-iap` | `libraries/expo-iap` |
+| `react-native-iap` | `libraries/react-native-iap` |
+| `flutter` | `libraries/flutter_inapp_purchase` |
+| `kmp-iap` | `libraries/kmp-iap` |
+| `godot-iap` | `libraries/godot-iap` |
+
+For cross-cutting changes, omit the scope: `feat: add RC promote logic to all release workflows`
+
 ### Common Tags
 
 | Tag | Usage |

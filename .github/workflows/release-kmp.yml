@@ -223,6 +223,24 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: ./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
 
+      - name: Generate release notes
+        if: inputs.create_release && success()
+        id: release_notes
+        run: |
+          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/kmp-iap-*' | grep -v "${{ env.VERSION }}" | head -n 1)
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/kmp-iap/)
+          fi
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Initial release"
+          fi
+          cat > /tmp/release-notes.md <<EOF
+          ## kmp-iap ${{ env.VERSION }}
+
+          ### What's Changed
+          $CHANGELOG
+          EOF
+
       - name: Create GitHub Release
         if: inputs.create_release && success()
         uses: softprops/action-gh-release@v2
@@ -231,7 +249,7 @@ jobs:
           name: kmp-iap ${{ steps.version.outputs.VERSION }}
           draft: false
           prerelease: ${{ steps.version.outputs.is_prerelease }}
-          generate_release_notes: true
+          body_path: /tmp/release-notes.md
 
       - name: Create release artifacts
         if: inputs.create_release && success()
