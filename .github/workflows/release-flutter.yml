@@ -266,6 +266,16 @@ jobs:
         run: |
           git push origin "flutter-iap-${NEW_VERSION}" --force
 
+      - name: Publish to pub.dev
+        run: |
+          # Request OIDC token and add as pub.dev credential
+          OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://pub.dev" \
+            -H "User-Agent: actions/oidc-client" \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            | jq -r '.value')
+          dart pub token add https://pub.dev --env-var _PUB_TOKEN
+          _PUB_TOKEN="$OIDC_TOKEN" dart pub publish --force
+
       - name: Create GitHub Release
         if: ${{ inputs.create_release }}
         uses: softprops/action-gh-release@v2
