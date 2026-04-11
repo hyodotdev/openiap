@@ -113,7 +113,7 @@ plugins {
 }
 
 group = "io.github.hyochan"
-version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02"
+version = project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha02"
 
 kotlin {
     androidTarget {
@@ -131,9 +131,7 @@ kotlin {
 
     // CocoaPods configuration
     cocoapods {
-        version = localProperties.getProperty("libraryVersion")
-            ?: project.findProperty("libraryVersion")?.toString()
-            ?: "1.0.0"
+        version = project.findProperty("libraryVersion")?.toString() ?: "1.0.0"
         summary = "KMP IAP Library"
         homepage = "https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
         ios.deploymentTarget = "15.0"
@@ -184,7 +182,7 @@ android {
 // Task to update README and docs version
 val updateReadmeVersion = tasks.register("updateReadmeVersion") {
     doLast {
-        val version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha04"
+        val version = project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha04"
 
         // Update openiap-versions.json with kmp-iap version
         val versionsFile = rootProject.file("openiap-versions.json")
@@ -276,7 +274,7 @@ mavenPublishing {
         signAllPublications()
     }
     
-    coordinates("io.github.hyochan", "kmp-iap", localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02")
+    coordinates("io.github.hyochan", "kmp-iap", project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha02")
     
     // Configure publications with empty Javadoc JAR (Maven Central compatible)
     configure(
@@ -315,7 +313,7 @@ mavenPublishing {
             connection.set("scm:git:git://github.com/hyochan/kmp-iap.git")
             developerConnection.set("scm:git:ssh://git@github.com/hyochan/kmp-iap.git")
             url.set("https://github.com/hyochan/kmp-iap")
-            tag.set("v${localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02"}")
+            tag.set("v${project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha02"}")
         }
         
         issueManagement {
