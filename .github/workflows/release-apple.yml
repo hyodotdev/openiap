@@ -1,4 +1,4 @@
-name: Apple Release
+name: "A. Release: Apple"
 
 on:
   workflow_dispatch:

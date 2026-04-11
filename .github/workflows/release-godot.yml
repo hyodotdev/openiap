@@ -1,4 +1,4 @@
-name: "Release: godot-iap"
+name: "A. Release: godot-iap"
 
 on:
   workflow_dispatch:

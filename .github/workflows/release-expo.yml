@@ -1,4 +1,4 @@
-name: "Release: expo-iap"
+name: "A. Release: expo-iap"
 
 on:
   workflow_dispatch:
