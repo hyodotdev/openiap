@@ -17,10 +17,10 @@ try {
   );
 }
 
-const DEFAULT_TAG = versions?.gql;
+const DEFAULT_TAG = versions?.spec;
 if (typeof DEFAULT_TAG !== 'string' || DEFAULT_TAG.length === 0) {
   throw new Error(
-    'react-native-iap: "gql" version missing in openiap-versions.json. Provide --tag manually or update the file.',
+    'react-native-iap: "spec" version missing in openiap-versions.json. Provide --tag manually or update the file.',
   );
 }
 

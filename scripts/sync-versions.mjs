@@ -16,8 +16,8 @@ console.log('📦 Syncing versions across packages...\n');
 
 // Update package.json files
 const packages = [
-  { name: 'gql', version: versions.gql },
-  { name: 'docs', version: versions.docs },
+  { name: 'gql', version: versions.spec },
+  { name: 'docs', version: versions.spec },
   { name: 'google', version: versions.google },
   { name: 'apple', version: versions.apple },
 ];
@@ -37,6 +37,6 @@ for (const pkg of packages) {
 
 console.log('\n🎉 Version sync complete!\n');
 console.log('Current versions:');
-console.log(`  GQL & Docs: ${versions.gql} (spec versions)`);
+console.log(`  GQL & Docs: ${versions.spec} (spec versions)`);
 console.log(`  Google:     ${versions.google} (Android implementation)`);
 console.log(`  Apple:      ${versions.apple} (iOS implementation)`);

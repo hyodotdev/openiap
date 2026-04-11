@@ -19,10 +19,10 @@ async function loadRequestedTag() {
 
   const raw = await fs.readFile(versionsPath, 'utf8');
   const versions = JSON.parse(raw);
-  if (!versions.gql) {
-    throw new Error('Missing gql version in openiap-versions.json');
+  if (!versions.spec) {
+    throw new Error('Missing spec version in openiap-versions.json');
   }
-  return versions.gql;
+  return versions.spec;
 }
 
 async function downloadTypes(tag) {

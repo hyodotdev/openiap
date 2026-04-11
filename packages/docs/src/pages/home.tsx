@@ -40,7 +40,7 @@ function Home() {
               }}
               title="View versions"
             >
-              v{OPENIAP_VERSIONS.gql}
+              v{OPENIAP_VERSIONS.spec}
             </Link>
           </div>
           <p className="hero-subtitle">

@@ -10,16 +10,14 @@ const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..');
 
 const args = process.argv.slice(2);
-const target = args[0]; // 'gql', 'docs', 'google', 'apple', or 'spec' (gql+docs together)
+const target = args[0]; // 'spec', 'google', or 'apple'
 const bumpType = args[1]; // 'major', 'minor', 'patch', or specific version like '1.2.3'
 
 if (!target || !bumpType) {
   console.error('Usage: bun scripts/bump-version.mjs <target> <type>');
   console.error('');
   console.error('Targets:');
-  console.error('  spec     - Bump gql and docs together (they share version)');
-  console.error('  gql      - Bump gql only');
-  console.error('  docs     - Bump docs only');
+  console.error('  spec     - Bump spec (gql/docs) version');
   console.error('  google   - Bump google (Android) only');
   console.error('  apple    - Bump apple (iOS) only');
   console.error('');
@@ -67,14 +65,13 @@ const versions = JSON.parse(readFileSync(versionsPath, 'utf-8'));
 
 console.log('📦 Bumping version...\n');
 console.log('Current versions:');
-console.log(`  gql:    ${versions.gql}`);
-console.log(`  docs:   ${versions.docs}`);
+console.log(`  spec:   ${versions.spec}`);
 console.log(`  google: ${versions.google}`);
 console.log(`  apple:  ${versions.apple}`);
 console.log('');
 
 // Determine what to bump
-const targets = target === 'spec' ? ['gql', 'docs'] : [target];
+const targets = [target];
 
 for (const t of targets) {
   if (!versions[t]) {
@@ -111,7 +108,7 @@ if (targets.includes('apple')) {
   );
   iosVersionContent = iosVersionContent.replace(
     /public static let gqlVersion: String = "[\d.]+"/,
-    `public static let gqlVersion: String = "${versions.gql}"`
+    `public static let gqlVersion: String = "${versions.spec}"`
   );
   writeFileSync(iosVersionFile, iosVersionContent);
   console.log('✅ Updated iOS OpenIapVersion.swift');

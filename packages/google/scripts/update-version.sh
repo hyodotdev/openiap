@@ -30,17 +30,17 @@ else
     sed -i "s/openiap-google:[0-9]\+\.[0-9]\+\.[0-9]\+/openiap-google:$VERSION/g" "$README_FILE"
 fi
 
-# Update openiap-versions.json (preserving gql version)
+# Update openiap-versions.json (preserving spec version)
 if command -v python3 &> /dev/null; then
-    GQL_VERSION=$(python3 -c "import json; print(json.load(open('$VERSIONS_FILE'))['gql'])" 2>/dev/null || echo "1.0.9")
+    SPEC_VERSION=$(python3 -c "import json; print(json.load(open('$VERSIONS_FILE'))['spec'])" 2>/dev/null || echo "2.0.0")
 else
-    GQL_VERSION=$(grep '"gql"' "$VERSIONS_FILE" | sed 's/.*"gql".*"\([^"]*\)".*/\1/')
+    SPEC_VERSION=$(grep '"spec"' "$VERSIONS_FILE" | sed 's/.*"spec".*"\([^"]*\)".*/\1/')
 fi
 
 cat > "$VERSIONS_FILE" << EOF
 {
-  "google": "$VERSION",
-  "gql": "$GQL_VERSION"
+  "spec": "$SPEC_VERSION",
+  "google": "$VERSION"
 }
 EOF
 

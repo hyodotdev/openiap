@@ -39,8 +39,8 @@ if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]; then
 fi
 
 # Read current version from openiap-versions.json
-CURRENT_VERSION=$(jq -r '.gql' openiap-versions.json)
-echo -e "${BLUE}📍 Current GQL version: $CURRENT_VERSION${NC}"
+CURRENT_VERSION=$(jq -r '.spec' openiap-versions.json)
+echo -e "${BLUE}📍 Current spec version: $CURRENT_VERSION${NC}"
 echo -e "${GREEN}✅ Target version: $VERSION${NC}"
 echo ""
 
@@ -94,7 +94,7 @@ echo ""
 echo -e "${BLUE}📦 Step 1: Updating version in openiap-versions.json...${NC}"
 
 # Update gql and docs versions in openiap-versions.json
-jq --arg version "$VERSION" '.gql = $version | .docs = $version' openiap-versions.json > openiap-versions.tmp
+jq --arg version "$VERSION" '.spec = $version' openiap-versions.json > openiap-versions.tmp
 mv openiap-versions.tmp openiap-versions.json
 
 echo -e "${GREEN}✅ Updated openiap-versions.json${NC}"
@@ -111,7 +111,7 @@ fi
 if [[ -n $(git status -s openiap-versions.json packages/*/openiap-versions.json 2>/dev/null) ]]; then
     echo -e "${BLUE}📝 Committing version changes...${NC}"
     git add openiap-versions.json packages/*/openiap-versions.json
-    git commit -m "chore: bump gql and docs to $VERSION"
+    git commit -m "chore: bump spec to $VERSION"
     git push origin main
     echo -e "${GREEN}✅ Version changes committed and pushed${NC}"
 fi
@@ -151,7 +151,7 @@ echo ""
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
 echo ""
 echo -e "${BLUE}📋 Summary:${NC}"
-echo -e "   ✅ Version files synced (gql: $VERSION, docs: $VERSION)"
+echo -e "   ✅ Version files synced (spec: $VERSION)"
 echo -e "   ✅ Documentation deployed to Vercel"
 echo ""
 echo -e "${BLUE}ℹ️  To create a GitHub release, run the Release workflow manually:${NC}"

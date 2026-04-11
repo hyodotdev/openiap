@@ -1,10 +1,10 @@
 import versionsFile from '../../openiap-versions.json?raw';
 
-type VersionKey = 'gql';
+type VersionKey = 'spec';
 
 type VersionRecord = Record<VersionKey, string>;
 
-const REQUIRED_KEYS: readonly VersionKey[] = ['gql'] as const;
+const REQUIRED_KEYS: readonly VersionKey[] = ['spec'] as const;
 
 function parseVersions(json: string): Record<string, unknown> {
   try {
@@ -34,7 +34,7 @@ const parsedVersions = parseVersions(versionsFile);
 export const OPENIAP_VERSIONS = Object.freeze(ensureVersions(parsedVersions));
 
 export const GQL_RELEASE = Object.freeze({
-  tag: OPENIAP_VERSIONS.gql,
-  pageUrl: `https://github.com/hyodotdev/openiap/releases/tag/${OPENIAP_VERSIONS.gql}`,
-  downloadPrefix: `https://github.com/hyodotdev/openiap/releases/download/${OPENIAP_VERSIONS.gql}/`,
+  tag: OPENIAP_VERSIONS.spec,
+  pageUrl: `https://github.com/hyodotdev/openiap/releases/tag/${OPENIAP_VERSIONS.spec}`,
+  downloadPrefix: `https://github.com/hyodotdev/openiap/releases/download/${OPENIAP_VERSIONS.spec}/`,
 });

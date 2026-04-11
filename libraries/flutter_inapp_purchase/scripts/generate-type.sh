@@ -26,9 +26,9 @@ except json.JSONDecodeError as exc:
     print(f"Error parsing {versions_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-value = data.get('gql')
+value = data.get('spec')
 if not value:
-    print("Error: 'gql' version missing in openiap-versions.json", file=sys.stderr)
+    print("Error: 'spec' version missing in openiap-versions.json", file=sys.stderr)
     sys.exit(1)
 
 print(value)

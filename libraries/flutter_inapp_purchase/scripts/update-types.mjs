@@ -29,10 +29,10 @@ async function readDefaultTag() {
   try {
     const raw = await fs.readFile(versionsPath, "utf8");
     const parsed = JSON.parse(raw);
-    if (!parsed.gql) {
-      throw new Error("Missing 'gql' entry in openiap-versions.json");
+    if (!parsed.spec) {
+      throw new Error("Missing 'spec' entry in openiap-versions.json");
     }
-    return parsed.gql;
+    return parsed.spec;
   } catch (error) {
     throw new Error(
       `Unable to read default tag from ${versionsPath}: ${error.message}`,
