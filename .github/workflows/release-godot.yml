@@ -25,6 +25,10 @@ on:
         default: true
         type: boolean
 
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

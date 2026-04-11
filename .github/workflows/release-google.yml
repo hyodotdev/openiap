@@ -19,6 +19,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
 
