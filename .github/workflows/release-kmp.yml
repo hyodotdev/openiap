@@ -1,4 +1,4 @@
-name: "Release: kmp-iap"
+name: "A. Release: kmp-iap"
 
 on:
   workflow_dispatch:
@@ -54,7 +54,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Android targets
-        run: ./gradlew :library:compileKotlinAndroid --no-daemon --stacktrace
+        run: ./gradlew :library:compileDebugKotlinAndroid --no-daemon --stacktrace
 
   validate-ios:
     runs-on: macos-latest

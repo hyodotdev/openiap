@@ -1,4 +1,4 @@
-name: "Release: react-native-iap"
+name: "A. Release: react-native-iap"
 
 on:
   workflow_dispatch:

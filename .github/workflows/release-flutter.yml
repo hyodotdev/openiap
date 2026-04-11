@@ -1,4 +1,4 @@
-name: "Release: flutter_inapp_purchase"
+name: "A. Release: flutter_inapp_purchase"
 
 on:
   workflow_dispatch:
@@ -62,6 +62,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      - name: Prepare example env
+        working-directory: libraries/flutter_inapp_purchase/example
+        run: cp env.example env
+
       - name: Build Android
         working-directory: libraries/flutter_inapp_purchase/example
         run: flutter build apk --debug
@@ -96,6 +100,10 @@ jobs:
       - name: Install example dependencies
         working-directory: libraries/flutter_inapp_purchase/example
         run: flutter pub get
+
+      - name: Prepare example env
+        working-directory: libraries/flutter_inapp_purchase/example
+        run: cp env.example env
 
       - name: Install CocoaPods dependencies
         working-directory: libraries/flutter_inapp_purchase/example/ios
@@ -267,14 +275,7 @@ jobs:
           git push origin "flutter-iap-${NEW_VERSION}" --force
 
       - name: Publish to pub.dev
-        run: |
-          # Request OIDC token and add as pub.dev credential
-          OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://pub.dev" \
-            -H "User-Agent: actions/oidc-client" \
-            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            | jq -r '.value')
-          dart pub token add https://pub.dev --env-var _PUB_TOKEN
-          _PUB_TOKEN="$OIDC_TOKEN" dart pub publish --force
+        run: dart pub publish --force
 
       - name: Create GitHub Release
         if: ${{ inputs.create_release }}

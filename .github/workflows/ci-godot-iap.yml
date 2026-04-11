@@ -40,5 +40,5 @@ jobs:
       - name: Verify Android plugin files exist
         run: |
           test -f android/build.gradle.kts
-          test -f android/src/main/kotlin/dev/openapps/godotiap/GodotIapPlugin.kt
+          test -f android/src/main/java/dev/hyo/godotiap/GodotIap.kt
           echo "All required Android plugin files exist"

@@ -1,4 +1,4 @@
-name: "Release: Docs"
+name: "A. Release: Docs"
 
 on:
   workflow_dispatch:

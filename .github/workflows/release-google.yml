@@ -1,4 +1,4 @@
-name: Google Release
+name: "A. Release: Google"
 
 on:
   workflow_dispatch:
