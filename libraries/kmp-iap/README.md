@@ -34,7 +34,7 @@ Quick links:
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-alpha04")
 }
 ```
 
