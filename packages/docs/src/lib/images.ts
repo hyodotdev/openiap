@@ -5,11 +5,13 @@
 // =============================================================================
 
 export const LIBRARY_IMAGES = {
-  'react-native-iap': '/logo.webp',
-  'expo-iap': '/logo.webp',
-  flutter_inapp_purchase: '/logo.webp',
-  'kmp-iap': '/logo.webp',
-  'godot-iap': '/logo.webp',
+  'openiap-apple': '/frameworks/apple.svg',
+  'openiap-google': '/frameworks/google.svg',
+  'react-native-iap': '/frameworks/react-native.webp',
+  'expo-iap': '/frameworks/expo.svg',
+  flutter_inapp_purchase: '/frameworks/flutter.webp',
+  'kmp-iap': '/frameworks/kmp.svg',
+  'godot-iap': '/frameworks/godot.webp',
 } as const;
 
 export type LibraryName = keyof typeof LIBRARY_IMAGES;

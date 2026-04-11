@@ -23,7 +23,7 @@ function Languages() {
         <div className="languages-grid">
           <div className="language-card">
             <img
-              src="/logo.webp"
+              src={LIBRARY_IMAGES['openiap-apple']}
               alt="OpenIAP Apple"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
@@ -44,7 +44,7 @@ function Languages() {
 
           <div className="language-card">
             <img
-              src="/logo.webp"
+              src={LIBRARY_IMAGES['openiap-google']}
               alt="OpenIAP Google"
               className="language-logo"
               style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
