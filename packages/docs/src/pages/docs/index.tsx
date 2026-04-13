@@ -40,7 +40,7 @@ import GodotSetup from './setup/godot';
 import KmpSetup from './setup/kmp';
 import Example from './example';
 import Announcements from './updates/announcements';
-import Notes from './updates/notes';
+import Releases from './updates/releases';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
 import Testing from './guides/testing';
@@ -311,11 +311,11 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/updates/notes"
+                to="/docs/updates/releases"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Notes
+                Releases
               </NavLink>
             </li>
             <li>
@@ -403,7 +403,11 @@ function Docs() {
             element={<FoundationFoundingSupporters />}
           />
           <Route path="updates/announcements" element={<Announcements />} />
-          <Route path="updates/notes" element={<Notes />} />
+          <Route
+            path="updates/notes"
+            element={<Navigate to="/docs/updates/releases" replace />}
+          />
+          <Route path="updates/releases" element={<Releases />} />
           <Route path="updates/versions" element={<Versions />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
