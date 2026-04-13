@@ -247,16 +247,19 @@ jobs:
         run: |
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/expo-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/expo-iap/)
+            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/expo-iap/ packages/google/ packages/apple/)
           fi
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Initial release"
+            CHANGELOG="- Dependency update (openiap-google / openiap-apple)"
           fi
           cat > /tmp/release-notes.md <<EOF
           ## expo-iap $VERSION
 
           ### What's Changed
           $CHANGELOG
+
+          ---
+          📢 [Full release notes](https://www.openiap.dev/docs/updates/releases)
           EOF
 
       - name: Create GitHub Release
