@@ -19,10 +19,95 @@ interface Note {
   element: React.ReactNode;
 }
 
-function Notes() {
+function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // Monorepo patch releases - Apr 13, 2026
+    {
+      id: 'monorepo-2026-04-13',
+      date: new Date('2026-04-13'),
+      element: (
+        <div key="monorepo-2026-04-13" style={noteCardStyle}>
+          <AnchorLink id="monorepo-2026-04-13" level="h4">
+            Monorepo Patch Releases - April 13, 2026
+          </AnchorLink>
+
+          <p
+            style={{
+              marginTop: '0.75rem',
+              marginBottom: '1.5rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            First patch releases from the OpenIAP monorepo. Includes a critical
+            Android crash fix and godot-iap initialization guard.
+          </p>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              openiap-google 1.3.30
+            </h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
+              <li>
+                <strong>Fix: Android crash in ProductManager.getOrQuery</strong> —
+                Guard coroutine continuation with <code>isActive</code> before
+                resume to prevent <code>IllegalStateException: Already resumed</code>{' '}
+                when the billing callback arrives after coroutine cancellation.
+                (<a href="https://github.com/hyodotdev/openiap/issues/88">#88</a>)
+              </li>
+              <li>
+                Cache is now updated before the <code>isActive</code> check so
+                cancelled queries still warm the ProductDetails cache, preventing
+                redundant network requests.
+              </li>
+              <li>
+                Same guard added to <code>queryPurchases</code> in Helpers.kt.
+              </li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              godot-iap 2.0.1
+            </h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
+              <li>
+                <strong>Fix: Double initialization guard</strong> — Added{' '}
+                <code>static var _is_initialized</code> in <code>_ready()</code> to
+                prevent duplicate native plugin initialization when the plugin is
+                both enabled in ProjectSettings and attached as an AutoLoad node.
+                (<a href="https://github.com/hyochan/godot-iap/issues/24">hyochan/godot-iap#24</a>)
+              </li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '0.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Framework Library Patches
+            </h5>
+            <p
+              style={{
+                margin: '0.25rem 0',
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              All framework libraries receive a patch release to pick up the
+              openiap-google 1.3.30 fix:
+            </p>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
+              <li>react-native-iap — patch</li>
+              <li>expo-iap — patch</li>
+              <li>flutter_inapp_purchase — patch</li>
+              <li>kmp-iap — patch</li>
+              <li>godot-iap 2.0.1 (includes init guard fix above)</li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // Apple 1.3.15 - Feb 12, 2026
     {
       id: 'apple-1-3-15',
@@ -2161,13 +2246,13 @@ result.error                  // optional error`}</CodeBlock>
   return (
     <div className="doc-page">
       <SEO
-        title="Notes"
-        description="Important changes and deprecations in IAP libraries and platforms - API changes, breaking changes, validateReceipt to verifyPurchase migration, and guides."
-        path="/docs/updates/notes"
+        title="Releases"
+        description="Release notes for OpenIAP packages and framework libraries - new features, bug fixes, and breaking changes."
+        path="/docs/updates/releases"
         keywords="IAP updates, validateReceipt, verifyPurchase, receipt validation, purchase verification, migration guide"
       />
-      <h1>Notes</h1>
-      <p>Important changes and deprecations in IAP libraries and platforms.</p>
+      <h1>Releases</h1>
+      <p>Release notes for OpenIAP packages and framework libraries.</p>
 
       <Pagination itemsPerPage={itemsPerPage} initialPage={initialPage}>
         {sortedNotes.map((note) => (
@@ -2178,4 +2263,4 @@ result.error                  // optional error`}</CodeBlock>
   );
 }
 
-export default Notes;
+export default Releases;
