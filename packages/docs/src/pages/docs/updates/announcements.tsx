@@ -83,7 +83,10 @@ function Announcements() {
               OpenIAP monorepo
             </a>
             . This consolidation brings unified versioning, shared CI/CD, and
-            consistent development experience across all platforms.
+            consistent development experience across all platforms. With this
+            transition, all libraries now follow the{' '}
+            <strong>OpenIAP Spec 2.0.0</strong>, ensuring a single unified
+            specification across every platform.
           </p>
           <ul
             style={{
