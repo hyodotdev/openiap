@@ -91,12 +91,18 @@ internal class ProductManager {
 
         return suspendCancellableCoroutine { cont ->
             client.queryProductDetailsAsync(params) { billingResult, result ->
+                // Always update cache even if coroutine was cancelled
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    val list = result.productDetailsList ?: emptyList()
+                    putAll(list)
+                }
+
+                if (!cont.isActive) return@queryProductDetailsAsync
+
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                     cont.resumeWithException(OpenIapError.QueryProduct)
                     return@queryProductDetailsAsync
                 }
-                val list = result.productDetailsList ?: emptyList()
-                putAll(list)
                 // Preserve requested order and include cached + newly-fetched
                 cont.resume(productIds.mapNotNull { cache[it] })
             }

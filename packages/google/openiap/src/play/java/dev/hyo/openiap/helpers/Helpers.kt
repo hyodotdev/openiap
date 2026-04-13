@@ -50,6 +50,8 @@ internal suspend fun queryPurchases(
 
     val params = paramsBuilder.build()
     billingClient.queryPurchasesAsync(params) { result, purchaseList ->
+        if (!continuation.isActive) return@queryPurchasesAsync
+
         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
             val mapped = purchaseList.map { billingPurchase ->
                 // IMPORTANT: Google Play Billing Library does not include basePlanId in the Purchase object
