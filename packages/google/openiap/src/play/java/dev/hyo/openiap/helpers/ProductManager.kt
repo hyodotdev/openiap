@@ -91,6 +91,8 @@ internal class ProductManager {
 
         return suspendCancellableCoroutine { cont ->
             client.queryProductDetailsAsync(params) { billingResult, result ->
+                if (!cont.isActive) return@queryProductDetailsAsync
+
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                     cont.resumeWithException(OpenIapError.QueryProduct)
                     return@queryProductDetailsAsync
