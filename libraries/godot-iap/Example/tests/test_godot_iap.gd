@@ -51,10 +51,10 @@ func _run_all_tests() -> void:
 # ============================================
 
 func test_ready_guard_prevents_double_init() -> void:
-	# _is_initialized should be true after first _ready() call
-	_assert_true(GodotIapPlugin._is_initialized, "_is_initialized should be true after _ready()")
+	# Static _is_initialized should be true after first _ready() call
+	_assert_true(GodotIapWrapper._is_initialized, "static _is_initialized should be true after _ready()")
 
-	# Calling _ready() again should be a no-op (guard prevents re-init)
+	# Calling _ready() again should be a no-op (static guard prevents re-init)
 	var platform_before = GodotIapPlugin._platform
 	GodotIapPlugin._ready()
 	var platform_after = GodotIapPlugin._platform
@@ -62,13 +62,12 @@ func test_ready_guard_prevents_double_init() -> void:
 
 
 func test_init_connection_idempotent() -> void:
-	# First call
+	# Calling init_connection multiple times should not error
 	var result1 = GodotIapPlugin.init_connection()
 	_assert_true(result1, "First init_connection should return true")
 
-	# Second call should short-circuit via _is_connected guard
 	var result2 = GodotIapPlugin.init_connection()
-	_assert_true(result2, "Second init_connection should return true (idempotent)")
+	_assert_true(result2, "Second init_connection should return true")
 
 
 # ============================================

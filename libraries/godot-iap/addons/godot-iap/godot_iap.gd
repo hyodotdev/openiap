@@ -27,7 +27,7 @@ signal developer_provided_billing_android(details: Dictionary)
 # Native plugin reference
 var _native_plugin: Object = null
 var _is_connected: bool = false
-var _is_initialized: bool = false
+static var _is_initialized: bool = false
 
 # Platform detection
 var _platform: String = ""
@@ -181,9 +181,6 @@ func _on_android_developer_provided_billing(details_json: String) -> void:
 ## @return bool - true if connection was successful
 func init_connection() -> bool:
 	print("[GodotIap] init_connection called")
-	if _is_connected:
-		print("[GodotIap] Already connected, skipping init_connection")
-		return true
 	if _native_plugin:
 		if _platform == "Android":
 			print("[GodotIap] Calling Android initConnection...")
