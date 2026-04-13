@@ -27,11 +27,15 @@ signal developer_provided_billing_android(details: Dictionary)
 # Native plugin reference
 var _native_plugin: Object = null
 var _is_connected: bool = false
+static var _is_initialized: bool = false
 
 # Platform detection
 var _platform: String = ""
 
 func _ready() -> void:
+	if _is_initialized:
+		return
+	_is_initialized = true
 	_platform = OS.get_name()
 	_init_native_plugin()
 

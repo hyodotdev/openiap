@@ -23,9 +23,14 @@ func _ready() -> void:
 
 
 func _run_all_tests() -> void:
-	# Connection tests
+	# Connection tests (run BEFORE guard tests to avoid state leakage)
 	test_init_connection_mock()
 	test_end_connection_mock()
+
+	# Initialization guard tests
+	test_ready_guard_prevents_double_init()
+	test_init_connection_idempotent()
+	test_no_duplicate_signal_connections()
 
 	# Product tests
 	await test_fetch_products_mock()
@@ -40,6 +45,48 @@ func _run_all_tests() -> void:
 	# Platform-specific mock tests
 	test_ios_methods_mock()
 	test_android_methods_mock()
+
+
+# ============================================
+# Initialization Guard Tests
+# ============================================
+
+func test_ready_guard_prevents_double_init() -> void:
+	# Static _is_initialized should be true after first _ready() call
+	_assert_true(GodotIapWrapper._is_initialized, "static _is_initialized should be true after _ready()")
+
+	# Count connected signals before second _ready() call
+	var connected_before = GodotIapPlugin.purchase_updated.get_connections().size()
+	GodotIapPlugin._ready()
+	var connected_after = GodotIapPlugin.purchase_updated.get_connections().size()
+
+	# Guard should prevent _init_native_plugin() from running again,
+	# so signal connection count must not increase
+	_assert_equal(connected_before, connected_after, "_ready() called twice should not add duplicate signal connections")
+	_assert_true(GodotIapWrapper._is_initialized, "static _is_initialized should still be true after second _ready()")
+
+
+func test_init_connection_idempotent() -> void:
+	# Reset connection state to test fresh
+	GodotIapPlugin._is_connected = false
+
+	# Calling init_connection multiple times should not error
+	var result1 = GodotIapPlugin.init_connection()
+	_assert_true(result1, "First init_connection should return true")
+
+	var result2 = GodotIapPlugin.init_connection()
+	_assert_true(result2, "Second init_connection should return true")
+
+
+func test_no_duplicate_signal_connections() -> void:
+	# After multiple _ready() calls, signals should not have duplicate connections
+	var purchase_updated_count = GodotIapPlugin.purchase_updated.get_connections().size()
+	var purchase_error_count = GodotIapPlugin.purchase_error.get_connections().size()
+
+	# In mock mode (no native plugin), there should be 0 native signal connections
+	# The key assertion: counts should be <= 1 (no duplicates)
+	_assert_true(purchase_updated_count <= 1, "purchase_updated should have at most 1 connection (got %d)" % purchase_updated_count)
+	_assert_true(purchase_error_count <= 1, "purchase_error should have at most 1 connection (got %d)" % purchase_error_count)
 
 
 # ============================================
