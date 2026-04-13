@@ -45,21 +45,23 @@ function Releases() {
           </p>
 
           <div style={{ marginBottom: '1.25rem' }}>
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              openiap-google 1.3.30
-            </h5>
-            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>openiap-google 1.3.30</h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
               <li>
-                <strong>Fix: Android crash in ProductManager.getOrQuery</strong> —
-                Guard coroutine continuation with <code>isActive</code> before
-                resume to prevent <code>IllegalStateException: Already resumed</code>{' '}
-                when the billing callback arrives after coroutine cancellation.
-                (<a href="https://github.com/hyodotdev/openiap/issues/88">#88</a>)
+                <strong>Fix: Android crash in ProductManager.getOrQuery</strong>{' '}
+                — Guard coroutine continuation with <code>isActive</code> before
+                resume to prevent{' '}
+                <code>IllegalStateException: Already resumed</code> when the
+                billing callback arrives after coroutine cancellation. (
+                <a href="https://github.com/hyodotdev/openiap/issues/88">#88</a>
+                )
               </li>
               <li>
                 Cache is now updated before the <code>isActive</code> check so
-                cancelled queries still warm the ProductDetails cache, preventing
-                redundant network requests.
+                cancelled queries still warm the ProductDetails cache,
+                preventing redundant network requests.
               </li>
               <li>
                 Same guard added to <code>queryPurchases</code> in Helpers.kt.
@@ -68,16 +70,20 @@ function Releases() {
           </div>
 
           <div style={{ marginBottom: '1.25rem' }}>
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              godot-iap 2.0.1
-            </h5>
-            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>godot-iap 2.0.1</h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
               <li>
                 <strong>Fix: Double initialization guard</strong> — Added{' '}
-                <code>static var _is_initialized</code> in <code>_ready()</code> to
-                prevent duplicate native plugin initialization when the plugin is
-                both enabled in ProjectSettings and attached as an AutoLoad node.
-                (<a href="https://github.com/hyochan/godot-iap/issues/24">hyochan/godot-iap#24</a>)
+                <code>static var _is_initialized</code> in <code>_ready()</code>{' '}
+                to prevent duplicate native plugin initialization when the
+                plugin is both enabled in ProjectSettings and attached as an
+                AutoLoad node. (
+                <a href="https://github.com/hyochan/godot-iap/issues/24">
+                  hyochan/godot-iap#24
+                </a>
+                )
               </li>
             </ul>
           </div>
@@ -96,7 +102,9 @@ function Releases() {
               All framework libraries receive a patch release to pick up the
               openiap-google 1.3.30 fix:
             </p>
-            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
               <li>react-native-iap — patch</li>
               <li>expo-iap — patch</li>
               <li>flutter_inapp_purchase — patch</li>
