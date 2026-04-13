@@ -135,7 +135,7 @@ function Announcements() {
           >
             <li>
               <a
-                href="https://hyochan.github.io/react-native-iap"
+                href="https://github.com/hyochan/react-native-iap"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="external-link"
@@ -145,7 +145,7 @@ function Announcements() {
             </li>
             <li>
               <a
-                href="https://hyochan.github.io/expo-iap"
+                href="https://github.com/hyochan/expo-iap"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="external-link"
@@ -155,7 +155,7 @@ function Announcements() {
             </li>
             <li>
               <a
-                href="https://hyochan.github.io/flutter_inapp_purchase"
+                href="https://github.com/hyochan/flutter_inapp_purchase"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="external-link"
@@ -165,7 +165,7 @@ function Announcements() {
             </li>
             <li>
               <a
-                href="https://hyochan.github.io/kmp-iap"
+                href="https://github.com/hyochan/kmp-iap"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="external-link"
@@ -175,7 +175,7 @@ function Announcements() {
             </li>
             <li>
               <a
-                href="https://hyochan.github.io/godot-iap"
+                href="https://github.com/hyochan/godot-iap"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="external-link"
