@@ -44,10 +44,22 @@ git checkout -b feat/<feature-name>
 **If NOT on `main`** → Proceed with commits directly.
 
 **Branch naming conventions:**
-- `feat/<feature-name>` - New features
-- `fix/<bug-description>` - Bug fixes
-- `docs/<doc-update>` - Documentation only
-- `chore/<task>` - Maintenance tasks
+- **Always include the target library/package name** in the branch name
+- `feat/<library>-<feature-name>` - New features (e.g., `feat/godot-win-back-offers`)
+- `fix/<library>-<bug-description>` - Bug fixes (e.g., `fix/expo-double-init`)
+- `docs/<library>-<doc-update>` - Documentation only (e.g., `docs/flutter-api-reference`)
+- `chore/<library>-<task>` - Maintenance tasks (e.g., `chore/kmp-bump-deps`)
+
+**Library shortnames:**
+- `rn` or `react-native` → react-native-iap
+- `expo` → expo-iap
+- `flutter` → flutter_inapp_purchase
+- `godot` → godot-iap
+- `kmp` → kmp-iap
+- `gql` → packages/gql
+- `apple` → packages/apple
+- `google` → packages/google
+- `docs` → packages/docs
 
 ### 2. Check Current Status
 
