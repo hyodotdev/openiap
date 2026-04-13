@@ -26,9 +26,10 @@ function ReactNativeSetup() {
           margin: '1rem 0',
         }}
       >
-        Use this if you're using React Native CLI or bare workflow. If you're
-        using Expo, we recommend <a href="/docs/setup/expo">expo-iap</a>{' '}
-        instead.
+        <strong>For bare React Native CLI projects only.</strong> Starting from
+        v15.0.0, react-native-iap no longer supports Expo. If you're using Expo,
+        use <a href="/docs/setup/expo">expo-iap</a> instead — it provides the
+        same API with Expo modules architecture.
       </div>
 
       <div
@@ -53,13 +54,100 @@ function ReactNativeSetup() {
             #
           </a>
         </h2>
-        <CodeBlock language="typescript">
-          {`# Using yarn (recommended - project uses Yarn 3)
+
+        <div
+          style={{
+            padding: '1rem',
+            background: 'rgba(220, 104, 67, 0.1)',
+            borderLeft: '4px solid var(--accent-color)',
+            borderRadius: '0.5rem',
+            margin: '1rem 0',
+          }}
+        >
+          <strong>Compatibility:</strong> <code>react-native-iap</code> v15+
+          uses Nitro Modules and requires <strong>React Native 0.79+</strong>.
+          It is designed for <strong>bare React Native CLI</strong> projects
+          only. If you're using Expo, use{' '}
+          <a href="/docs/setup/expo">expo-iap</a> instead.
+        </div>
+
+        <CodeBlock language="bash">
+          {`# Using yarn (recommended)
 yarn add react-native-iap
 
 # Using npm
 npm install react-native-iap`}
         </CodeBlock>
+
+        <h3 id="nitro-modules" className="anchor-heading">
+          Nitro Modules (v15+)
+          <a href="#nitro-modules" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          react-native-iap v15+ is built on{' '}
+          <a
+            href="https://github.com/nicklockwood/NitroModules"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Nitro Modules
+          </a>{' '}
+          for high-performance native bridging. Key points:
+        </p>
+        <ul>
+          <li>
+            Requires <strong>React Native 0.79+</strong> — Nitro relies on the
+            new native module architecture
+          </li>
+          <li>
+            Native modules are <strong>automatically linked</strong> during your
+            app's build process
+          </li>
+          <li>
+            If you encounter <strong>Swift 6 C++ interop errors</strong> in
+            Nitro (e.g., <code>AnyMap.swift</code> using{' '}
+            <code>cppPart.pointee.*</code>), pin Swift 5.10 for the{' '}
+            <code>NitroModules</code> pod as a temporary workaround:
+          </li>
+        </ul>
+        <CodeBlock language="typescript">
+          {`// ios/Podfile - add inside post_install block
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    if target.name == 'NitroModules'
+      target.build_configurations.each do |config|
+        config.build_settings['SWIFT_VERSION'] = '5.0'
+      end
+    end
+  end
+end`}
+        </CodeBlock>
+
+        <div
+          style={{
+            padding: '1rem',
+            background: 'rgba(164, 116, 101, 0.1)',
+            borderLeft: '4px solid var(--primary-color)',
+            borderRadius: '0.5rem',
+            margin: '1rem 0',
+          }}
+        >
+          <strong>Recommended path:</strong> Upgrade to RN 0.79+, update{' '}
+          <code>react-native-nitro-modules</code> and <code>nitro-codegen</code>{' '}
+          to latest, then <code>pod install</code> and do a clean build. If
+          issues persist, share a minimal repro (<code>package.json</code> +{' '}
+          <code>Podfile</code>) on{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Issues
+          </a>
+          .
+        </div>
 
         <h3 id="ios-setup" className="anchor-heading">
           iOS
@@ -69,17 +157,18 @@ npm install react-native-iap`}
         </h3>
         <ul>
           <li>
-            Requires <strong>iOS 15.0+</strong>
+            Requires <strong>iOS 15.0+</strong> (StoreKit 2)
           </li>
           <li>
             Install CocoaPods:
-            <CodeBlock language="typescript">
+            <CodeBlock language="bash">
               {`cd ios && bundle exec pod install`}
             </CodeBlock>
           </li>
           <li>
-            Enable In-App Purchase capability in Xcode under{' '}
-            <strong>Signing &amp; Capabilities</strong>
+            Enable In-App Purchase capability in Xcode: Target &gt;{' '}
+            <strong>Signing &amp; Capabilities</strong> &gt;{' '}
+            <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>
           </li>
         </ul>
 
@@ -319,6 +408,10 @@ switch (error.code) {
             multi-language examples
           </li>
           <li>
+            <a href="/docs/horizon-setup">Horizon OS Setup</a> — Meta Quest
+            in-app purchase configuration
+          </li>
+          <li>
             <a
               href="https://www.npmjs.com/package/react-native-iap"
               target="_blank"
@@ -374,6 +467,37 @@ switch (error.code) {
             Metro bundler issues: <code>yarn start --reset-cache</code>
           </li>
         </ul>
+
+        <h3>
+          Folly coroutine error (<code>'folly/coro/Coroutine.h' not found</code>
+          )
+        </h3>
+        <p>
+          If your iOS build fails with{' '}
+          <code>'folly/coro/Coroutine.h' file not found</code> from{' '}
+          <code>RCT-Folly/folly/Expected.h</code>, add these defines to your{' '}
+          <code>Podfile</code> post_install block:
+        </p>
+        <CodeBlock language="typescript">
+          {`post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG=1'
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_CFG_NO_COROUTINES=1'
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAS_COROUTINES=0'
+    end
+  end
+end`}
+        </CodeBlock>
+
+        <h3>Swift 6 C++ interop errors (Nitro)</h3>
+        <p>
+          If you see errors in <code>AnyMap.swift</code> related to{' '}
+          <code>cppPart.pointee</code>, see the{' '}
+          <a href="#nitro-modules">Nitro Modules</a> section above for the Swift
+          5.10 pin workaround.
+        </p>
       </section>
     </div>
   );

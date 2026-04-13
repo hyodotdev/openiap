@@ -25,11 +25,13 @@ import APIsDebugging from './apis/debugging';
 import Events from './events';
 import Errors from './errors';
 import Purchase from './features/purchase';
-import SubscriptionFeature from './features/subscription';
+import SubscriptionFeature from './features/subscription/index';
+import SubscriptionUpgradeDowngrade from './features/subscription/upgrade-downgrade';
 import Discount from './features/discount';
 import OfferCodeRedemption from './features/offer-code-redemption';
 import ExternalPurchase from './features/external-purchase';
-import SubscriptionUpgradeDowngrade from './features/subscription-upgrade-downgrade';
+import AlternativeMarketplace from './features/alternative-marketplace/index';
+import AlternativeMarketplaceOnside from './features/alternative-marketplace/onside';
 import IOSSetup from './ios-setup';
 import AndroidSetup from './android-setup';
 import HorizonSetup from './horizon-setup';
@@ -232,15 +234,17 @@ function Docs() {
                 Purchase
               </NavLink>
             </li>
-            <li>
-              <NavLink
-                to="/docs/features/subscription"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Subscription
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="Subscription"
+              titleTo="/docs/features/subscription"
+              items={[
+                {
+                  to: '/docs/features/subscription/upgrade-downgrade',
+                  label: 'Upgrade/Downgrade',
+                },
+              ]}
+              onItemClick={closeSidebar}
+            />
             <li>
               <NavLink
                 to="/docs/features/discount"
@@ -268,15 +272,17 @@ function Docs() {
                 External Purchase
               </NavLink>
             </li>
-            <li>
-              <NavLink
-                to="/docs/features/subscription-upgrade-downgrade"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Subscription Upgrade/Downgrade
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="Alternative Marketplace"
+              titleTo="/docs/features/alternative-marketplace"
+              items={[
+                {
+                  to: '/docs/features/alternative-marketplace/onside',
+                  label: 'Onside',
+                },
+              ]}
+              onItemClick={closeSidebar}
+            />
           </ul>
           <h3 style={{ marginTop: '2rem' }}>Foundation</h3>
           <ul>
@@ -361,6 +367,10 @@ function Docs() {
             path="features/subscription"
             element={<SubscriptionFeature />}
           />
+          <Route
+            path="features/subscription/upgrade-downgrade"
+            element={<SubscriptionUpgradeDowngrade />}
+          />
           <Route path="features/discount" element={<Discount />} />
           <Route
             path="features/offer-code-redemption"
@@ -371,8 +381,12 @@ function Docs() {
             element={<ExternalPurchase />}
           />
           <Route
-            path="features/subscription-upgrade-downgrade"
-            element={<SubscriptionUpgradeDowngrade />}
+            path="features/alternative-marketplace"
+            element={<AlternativeMarketplace />}
+          />
+          <Route
+            path="features/alternative-marketplace/onside"
+            element={<AlternativeMarketplaceOnside />}
           />
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />

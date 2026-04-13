@@ -10,7 +10,14 @@ interface CodeBlockProps {
     | 'kotlin'
     | 'dart'
     | 'xml'
-    | 'gdscript';
+    | 'gdscript'
+    | 'bash'
+    | 'json'
+    | 'yaml'
+    | 'groovy'
+    | 'toml'
+    | 'text'
+    | 'properties';
 }
 
 function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
@@ -49,6 +56,20 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
         return 'xml';
       case 'gdscript':
         return 'gd';
+      case 'bash':
+        return 'sh';
+      case 'json':
+        return 'json';
+      case 'yaml':
+        return 'yaml';
+      case 'groovy':
+        return 'groovy';
+      case 'toml':
+        return 'toml';
+      case 'properties':
+        return 'props';
+      case 'text':
+        return null;
       default:
         return null;
     }
@@ -319,6 +340,333 @@ function highlightCode(element: HTMLElement, language: string) {
     });
 
     element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'json') {
+    const lines = text.split('\n');
+    const highlightedLines = lines.map((line) => {
+      if (!line.trim()) return escapeHtml(line);
+
+      let result = '';
+      let inString = false;
+      let currentToken = '';
+      const tokens: Array<{ type: string; value: string }> = [];
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"' && !inString) {
+          if (currentToken) {
+            tokens.push({ type: 'code', value: currentToken });
+            currentToken = '';
+          }
+          inString = true;
+          currentToken = char;
+        } else if (char === '"' && inString && line[i - 1] !== '\\') {
+          currentToken += char;
+          tokens.push({ type: 'string', value: currentToken });
+          currentToken = '';
+          inString = false;
+        } else {
+          currentToken += char;
+        }
+      }
+      if (currentToken) {
+        tokens.push({
+          type: inString ? 'string' : 'code',
+          value: currentToken,
+        });
+      }
+
+      // Determine if a string token is a key (followed by ':')
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (token.type === 'string') {
+          // Check if next non-whitespace token contains ':'
+          const nextToken = tokens[i + 1];
+          const isKey = nextToken && nextToken.value.trim().startsWith(':');
+          if (isKey) {
+            result += `<span class="token attr-name">${escapeHtml(token.value)}</span>`;
+          } else {
+            result += `<span class="token string">${escapeHtml(token.value)}</span>`;
+          }
+        } else {
+          let processed = escapeHtml(token.value);
+
+          // Booleans and null
+          processed = processed.replace(
+            /\b(true|false|null)\b/g,
+            '<span class="token keyword">$1</span>'
+          );
+
+          // Numbers
+          processed = processed.replace(
+            /\b(\d+\.?\d*)\b/g,
+            '<span class="token number">$1</span>'
+          );
+
+          result += processed;
+        }
+      }
+
+      return result;
+    });
+
+    element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'bash') {
+    const lines = text.split('\n');
+    const highlightedLines = lines.map((line) => {
+      if (!line.trim()) return escapeHtml(line);
+
+      // Comments
+      if (line.trim().startsWith('#')) {
+        return `<span class="token comment">${escapeHtml(line)}</span>`;
+      }
+
+      // Tokenize strings first
+      let result = '';
+      let inString = false;
+      let stringChar = '';
+      const tokens: Array<{ type: string; value: string }> = [];
+      let current = '';
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if ((char === '"' || char === "'") && !inString) {
+          if (current) {
+            tokens.push({ type: 'code', value: current });
+            current = '';
+          }
+          inString = true;
+          stringChar = char;
+          current = char;
+        } else if (inString && char === stringChar && line[i - 1] !== '\\') {
+          current += char;
+          tokens.push({ type: 'string', value: current });
+          current = '';
+          inString = false;
+          stringChar = '';
+        } else {
+          current += char;
+        }
+      }
+      if (current) {
+        tokens.push({ type: inString ? 'string' : 'code', value: current });
+      }
+
+      let isFirstCode = true;
+      tokens.forEach((token) => {
+        if (token.type === 'string') {
+          result += `<span class="token string">${escapeHtml(token.value)}</span>`;
+        } else {
+          let processed = escapeHtml(token.value);
+
+          // Variables
+          processed = processed.replace(
+            /(\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*)/g,
+            '<span class="token variable">$1</span>'
+          );
+
+          // Commands at the start of the line
+          if (isFirstCode) {
+            processed = processed.replace(
+              /^(\s*)(npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild|EXPO_TV=\S+)\b/,
+              '$1<span class="token function">$2</span>'
+            );
+          }
+
+          // Flags
+          processed = processed.replace(
+            /\s(--?[a-zA-Z][\w-]*)/g,
+            ' <span class="token attr-name">$1</span>'
+          );
+
+          // Pipe and redirects
+          processed = processed.replace(
+            /(\||&amp;&amp;|&gt;|&lt;)/g,
+            '<span class="token keyword">$1</span>'
+          );
+
+          result += processed;
+          isFirstCode = false;
+        }
+      });
+
+      return result;
+    });
+
+    element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'yaml' || language === 'toml') {
+    const lines = text.split('\n');
+    const highlightedLines = lines.map((line) => {
+      if (!line.trim()) return escapeHtml(line);
+
+      // Comments
+      if (line.trim().startsWith('#')) {
+        return `<span class="token comment">${escapeHtml(line)}</span>`;
+      }
+
+      // Section headers [section]
+      if (/^\s*\[/.test(line)) {
+        return escapeHtml(line).replace(
+          /(\[[^\]]+\])/g,
+          '<span class="token keyword">$1</span>'
+        );
+      }
+
+      // Tokenize strings
+      let result = '';
+      const tokens: Array<{ type: string; value: string }> = [];
+      let current = '';
+      let inString = false;
+      let stringChar = '';
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if ((char === '"' || char === "'") && !inString) {
+          if (current) {
+            tokens.push({ type: 'code', value: current });
+            current = '';
+          }
+          inString = true;
+          stringChar = char;
+          current = char;
+        } else if (inString && char === stringChar) {
+          current += char;
+          tokens.push({ type: 'string', value: current });
+          current = '';
+          inString = false;
+          stringChar = '';
+        } else {
+          current += char;
+        }
+      }
+      if (current) {
+        tokens.push({ type: inString ? 'string' : 'code', value: current });
+      }
+
+      let isFirst = true;
+      tokens.forEach((token) => {
+        if (token.type === 'string') {
+          result += `<span class="token string">${escapeHtml(token.value)}</span>`;
+        } else {
+          let processed = escapeHtml(token.value);
+
+          // Keys (first code token before : or =)
+          if (isFirst) {
+            processed = processed.replace(
+              /^(\s*)([A-Za-z_][\w.-]*)\s*([:=])/,
+              '$1<span class="token attr-name">$2</span> $3'
+            );
+          }
+
+          // Booleans
+          processed = processed.replace(
+            /\b(true|false)\b/g,
+            '<span class="token keyword">$1</span>'
+          );
+
+          // Numbers
+          processed = processed.replace(
+            /\b(\d+\.?\d*)\b/g,
+            '<span class="token number">$1</span>'
+          );
+
+          result += processed;
+          isFirst = false;
+        }
+      });
+
+      return result;
+    });
+
+    element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'groovy') {
+    const lines = text.split('\n');
+    const highlightedLines = lines.map((line) => {
+      if (!line.trim()) return escapeHtml(line);
+
+      // Comments
+      if (line.trim().startsWith('//')) {
+        return `<span class="token comment">${escapeHtml(line)}</span>`;
+      }
+
+      let result = '';
+      let inString = false;
+      let stringChar = '';
+
+      const tokens: Array<{ type: string; value: string }> = [];
+      let current = '';
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if ((char === '"' || char === "'") && !inString) {
+          if (current) {
+            tokens.push({ type: 'code', value: current });
+            current = '';
+          }
+          inString = true;
+          stringChar = char;
+          current = char;
+        } else if (inString && char === stringChar && line[i - 1] !== '\\') {
+          current += char;
+          tokens.push({ type: 'string', value: current });
+          current = '';
+          inString = false;
+          stringChar = '';
+        } else {
+          current += char;
+        }
+      }
+      if (current) {
+        tokens.push({ type: inString ? 'string' : 'code', value: current });
+      }
+
+      tokens.forEach((token) => {
+        if (token.type === 'string') {
+          result += `<span class="token string">${escapeHtml(token.value)}</span>`;
+        } else {
+          let processed = escapeHtml(token.value);
+
+          processed = processed.replace(
+            /\b(android|compileSdkVersion|compileSdk|minSdkVersion|minSdk|targetSdkVersion|targetSdk|defaultConfig|dependencies|implementation|def|if|else|for|while|return|true|false|null|new|class|extends|implements|import|package|static|final|void|int|boolean|String|project)\b/g,
+            '<span class="token keyword">$1</span>'
+          );
+
+          processed = processed.replace(
+            /\b(\d+\.?\d*)\b/g,
+            '<span class="token number">$1</span>'
+          );
+
+          processed = processed.replace(
+            /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()/g,
+            '<span class="token function">$1</span>'
+          );
+
+          result += processed;
+        }
+      });
+
+      return result;
+    });
+
+    element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'properties') {
+    const lines = text.split('\n');
+    const highlightedLines = lines.map((line) => {
+      if (!line.trim()) return escapeHtml(line);
+
+      if (line.trim().startsWith('#')) {
+        return `<span class="token comment">${escapeHtml(line)}</span>`;
+      }
+
+      const result = escapeHtml(line);
+      return result.replace(
+        /^(\s*)([^=]+?)\s*(=)\s*(.*)/gm,
+        '$1<span class="token attr-name">$2</span> $3 <span class="token string">$4</span>'
+      );
+    });
+
+    element.innerHTML = highlightedLines.join('\n');
+  } else if (language === 'text') {
+    element.innerHTML = escapeHtml(text);
   } else if (language === 'graphql') {
     const lines = text.split('\n');
     let inBlockString = false;

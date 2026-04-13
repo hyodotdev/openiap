@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -346,6 +347,19 @@ func _exit_tree() -> void:
           After setting up listeners, you can request purchases. The purchase
           request triggers the native store UI (App Store / Google Play).
         </p>
+
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Terminology:</strong> APIs starting with{' '}
+            <code>request</code> are <strong>event-based</strong> operations,
+            not promise-based. Do not rely on their return values for actual
+            purchase results — instead, listen for events through{' '}
+            <code>purchaseUpdatedListener</code> or{' '}
+            <code>purchaseErrorListener</code>. See{' '}
+            <Link to="/docs/apis/purchase#request-apis">API Terminology</Link>{' '}
+            for details.
+          </p>
+        </div>
 
         <AnchorLink id="request-purchase-consumable" level="h3">
           Consumable / Non-Consumable Products

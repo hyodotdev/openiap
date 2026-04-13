@@ -25,7 +25,10 @@ export function MenuDropdown({
   const [height, setHeight] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
-  const isActive = location.pathname === titleTo;
+
+  const isTitleActive = location.pathname === titleTo;
+  const isChildActive = items.some((item) => location.pathname === item.to);
+  const isGroupActive = isTitleActive || isChildActive;
 
   useEffect(() => {
     if (contentRef.current) {
@@ -34,22 +37,17 @@ export function MenuDropdown({
   }, [isExpanded]);
 
   useEffect(() => {
-    // Auto-expand when navigating to the title page
-    if (isActive) {
+    // Auto-expand when navigating to the title page or any child
+    if (isGroupActive) {
       setIsExpanded(true);
     }
-  }, [isActive]);
+  }, [isGroupActive]);
 
   const handleTitleClick = () => {
-    if (isExpanded) {
-      // If already expanded, toggle (collapse)
-      setIsExpanded(false);
-    } else {
-      // If collapsed, expand and navigate
-      setIsExpanded(true);
-      navigate(titleTo);
-      onItemClick?.();
-    }
+    // Always navigate and expand — never collapse from title click
+    setIsExpanded(true);
+    navigate(titleTo);
+    onItemClick?.();
   };
 
   const toggleExpanded = () => {
@@ -58,14 +56,17 @@ export function MenuDropdown({
 
   return (
     <li className="menu-dropdown">
-      <div className={`menu-dropdown-header ${isActive ? 'active' : ''}`}>
+      <div
+        className={`menu-dropdown-header ${isTitleActive ? 'active' : isChildActive ? 'group-active' : ''}`}
+      >
         <button
           onClick={handleTitleClick}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className={`menu-dropdown-title ${isActive ? 'active' : ''}`}
+          className={`menu-dropdown-title ${isTitleActive ? 'active' : ''}`}
           style={{
-            color: isActive || isHovered ? 'var(--primary-color)' : 'inherit',
+            color:
+              isTitleActive || isHovered ? 'var(--primary-color)' : 'inherit',
           }}
         >
           {title}

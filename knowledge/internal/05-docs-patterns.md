@@ -62,6 +62,60 @@ import { openAuthModal } from '../lib/signals';
 
 ---
 
+## Feature Page Hierarchy (Sub-sections)
+
+When a feature has sub-pages (e.g., Subscription > Upgrade/Downgrade, Alternative Marketplace > Onside), use a **directory structure** instead of hash anchors or flat file naming.
+
+### Directory Structure
+
+```
+src/pages/docs/features/
+├── subscription/
+│   ├── index.tsx              # Main subscription page
+│   └── upgrade-downgrade.tsx  # Sub-page
+├── alternative-marketplace/
+│   ├── index.tsx              # Main overview page
+│   └── onside.tsx             # Sub-page
+├── purchase.tsx               # No sub-pages → flat file
+└── discount.tsx               # No sub-pages → flat file
+```
+
+### Route Registration (`docs/index.tsx`)
+
+```tsx
+// Imports
+import SubscriptionFeature from './features/subscription/index';
+import SubscriptionUpgradeDowngrade from './features/subscription/upgrade-downgrade';
+
+// Routes
+<Route path="features/subscription" element={<SubscriptionFeature />} />
+<Route path="features/subscription/upgrade-downgrade" element={<SubscriptionUpgradeDowngrade />} />
+```
+
+### Sidebar Navigation
+
+Use `MenuDropdown` for collapsible parent-child navigation:
+
+```tsx
+<MenuDropdown
+  title="Subscription"
+  titleTo="/docs/features/subscription"
+  items={[
+    { to: '/docs/features/subscription/upgrade-downgrade', label: 'Upgrade/Downgrade' },
+  ]}
+  onItemClick={closeSidebar}
+/>
+```
+
+### Rules
+
+- **Never use hash anchors (`#section`)** for sub-section navigation in the sidebar — always use separate routes/pages
+- Parent page (`index.tsx`) should contain the overview; sub-pages contain detailed content
+- Import paths from sub-directories use `../../../../components/` (one level deeper)
+- Update all internal `<Link to="...">` references when moving files
+
+---
+
 ## React Component Organization
 
 ### Component Structure

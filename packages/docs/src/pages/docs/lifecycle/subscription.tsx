@@ -1221,7 +1221,7 @@ function Subscription() {
                 </ul>
                 <p>
                   See{' '}
-                  <Link to="/docs/features/subscription-upgrade-downgrade">
+                  <Link to="/docs/features/subscription/upgrade-downgrade">
                     Subscription Upgrade/Downgrade
                   </Link>{' '}
                   for implementation details.
@@ -1334,7 +1334,7 @@ function Subscription() {
                 lifecycle
               </li>
               <li>
-                <Link to="/docs/features/subscription-upgrade-downgrade">
+                <Link to="/docs/features/subscription/upgrade-downgrade">
                   Subscription Upgrade/Downgrade
                 </Link>{' '}
                 - Tier change implementation

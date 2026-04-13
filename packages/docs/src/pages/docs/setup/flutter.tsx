@@ -38,18 +38,110 @@ function FlutterSetup() {
             #
           </a>
         </h2>
-        <CodeBlock language="dart">
+        <CodeBlock language="bash">
           {`flutter pub add flutter_inapp_purchase`}
         </CodeBlock>
+        <p>
+          Or add it manually to your <code>pubspec.yaml</code>:
+        </p>
+        <CodeBlock language="yaml">
+          {`dependencies:
+  flutter_inapp_purchase: ^9.0.0`}
+        </CodeBlock>
+
+        <h3 id="ios-config" className="anchor-heading">
+          iOS Configuration
+          <a href="#ios-config" className="anchor-link">
+            #
+          </a>
+        </h3>
         <ul>
           <li>
-            iOS: Requires <strong>iOS 15.0+</strong>
+            Requires <strong>iOS 15.0+</strong>
           </li>
           <li>
-            Android: Requires <strong>minSdkVersion 21+</strong>
+            Enable In-App Purchase capability in Xcode: Target &gt;{' '}
+            <strong>Signing &amp; Capabilities</strong> &gt;{' '}
+            <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>
           </li>
-          <li>Enable In-App Purchase capability in Xcode for iOS</li>
         </ul>
+        <p>
+          Add the following to your <code>ios/Runner/Info.plist</code> (iOS
+          14+):
+        </p>
+        <CodeBlock language="xml">
+          {`<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>itms-apps</string>
+</array>`}
+        </CodeBlock>
+
+        <h3 id="android-config" className="anchor-heading">
+          Android Configuration
+          <a href="#android-config" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          Update your <code>android/app/build.gradle</code>:
+        </p>
+        <CodeBlock language="groovy">
+          {`android {
+    compileSdkVersion 34
+
+    defaultConfig {
+        minSdkVersion 21  // Required minimum
+        targetSdkVersion 34
+
+        // Required for v7.1.14+: Select Google Play platform
+        missingDimensionStrategy 'platform', 'play'
+    }
+}`}
+        </CodeBlock>
+        <p>
+          For Kotlin DSL (<code>build.gradle.kts</code>):
+        </p>
+        <CodeBlock language="kotlin">
+          {`android {
+    compileSdk = 34
+
+    defaultConfig {
+        minSdk = 21  // Required minimum
+        targetSdk = 34
+
+        // Required for v7.1.14+: Select Google Play platform
+        missingDimensionStrategy("platform", "play")
+    }
+}`}
+        </CodeBlock>
+
+        <div
+          style={{
+            padding: '1rem',
+            background: 'rgba(164, 116, 101, 0.1)',
+            borderLeft: '4px solid var(--primary-color)',
+            borderRadius: '0.5rem',
+            margin: '1rem 0',
+          }}
+        >
+          <strong>Note:</strong> The <code>missingDimensionStrategy</code>{' '}
+          configuration is required since v7.1.14 due to product flavor support
+          for Meta Horizon OS. For Meta Quest support, see the{' '}
+          <a href="/docs/horizon-setup">Horizon OS Setup Guide</a>.
+        </div>
+
+        <h4>ProGuard Rules (if using ProGuard)</h4>
+        <p>
+          Add to your <code>android/app/proguard-rules.pro</code>:
+        </p>
+        <CodeBlock language="text">
+          {`# In-App Purchase
+-keep class com.amazon.** {*;}
+-keep class dev.hyo.** { *; }
+-keep class com.android.vending.billing.**
+-dontwarn com.amazon.**
+-keepattributes *Annotation*`}
+        </CodeBlock>
       </section>
 
       <section>
@@ -216,6 +308,10 @@ final allPurchases = await iap.getAvailablePurchases(
             multi-language examples
           </li>
           <li>
+            <a href="/docs/horizon-setup">Horizon OS Setup</a> — Meta Quest
+            in-app purchase configuration
+          </li>
+          <li>
             <a
               href="https://pub.dev/packages/flutter_inapp_purchase"
               target="_blank"
@@ -242,6 +338,17 @@ final allPurchases = await iap.getAvailablePurchases(
             #
           </a>
         </h2>
+
+        <h3>Build failed: Could not determine dependencies (v7.1.14+)</h3>
+        <p>
+          If Gradle fails with an error about ambiguous variants (
+          <code>horizonReleaseRuntimeElements</code> /{' '}
+          <code>playReleaseRuntimeElements</code>), add{' '}
+          <code>missingDimensionStrategy</code> to your{' '}
+          <code>build.gradle</code>. See the{' '}
+          <a href="#android-config">Android Configuration</a> section above.
+        </p>
+
         <h3>Products not found</h3>
         <ul>
           <li>
@@ -257,6 +364,25 @@ final allPurchases = await iap.getAvailablePurchases(
             (Google)
           </li>
           <li>Wait 15-30 minutes after creating products before testing</li>
+        </ul>
+
+        <h3>Billing unavailable (Android)</h3>
+        <ul>
+          <li>Test on a real device, not an emulator</li>
+          <li>Ensure Google Play Store is installed and updated</li>
+          <li>
+            App must be signed with the same certificate uploaded to Play
+            Console
+          </li>
+        </ul>
+
+        <h3>Pending purchases</h3>
+        <ul>
+          <li>Normal for payment methods requiring additional verification</li>
+          <li>Store pending purchases and check again later</li>
+          <li>
+            Implement proper handling for <code>PurchaseState.Pending</code>
+          </li>
         </ul>
       </section>
     </div>

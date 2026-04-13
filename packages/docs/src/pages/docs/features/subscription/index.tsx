@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import AnchorLink from '../../../components/AnchorLink';
-import CodeBlock from '../../../components/CodeBlock';
-import LanguageTabs from '../../../components/LanguageTabs';
-import PlatformTabs from '../../../components/PlatformTabs';
-import SEO from '../../../components/SEO';
-import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import AnchorLink from '../../../../components/AnchorLink';
+import CodeBlock from '../../../../components/CodeBlock';
+import LanguageTabs from '../../../../components/LanguageTabs';
+import PlatformTabs from '../../../../components/PlatformTabs';
+import SEO from '../../../../components/SEO';
+import { useScrollToHash } from '../../../../hooks/useScrollToHash';
 
 function Subscription() {
   useScrollToHash();
@@ -3297,7 +3297,7 @@ func manage_subscriptions() -> void:
         </AnchorLink>
         <ul>
           <li>
-            <Link to="/docs/features/subscription-upgrade-downgrade">
+            <Link to="/docs/features/subscription/upgrade-downgrade">
               Subscription Upgrade/Downgrade
             </Link>{' '}
             - Change subscription plans
