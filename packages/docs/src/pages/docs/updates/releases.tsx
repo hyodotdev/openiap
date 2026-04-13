@@ -105,11 +105,52 @@ function Releases() {
             <ul
               style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
             >
-              <li>react-native-iap v15.0.1</li>
-              <li>expo-iap v4.0.1</li>
-              <li>flutter_inapp_purchase v9.0.1</li>
-              <li>kmp-iap v2.0.1</li>
-              <li>godot-iap v2.0.1 (includes init guard fix above)</li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap v15.0.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap v4.0.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase v9.0.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap v2.0.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap v2.0.1
+                </a>{' '}
+                (includes init guard fix above)
+              </li>
             </ul>
           </div>
         </div>
