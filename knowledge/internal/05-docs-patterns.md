@@ -112,7 +112,7 @@ src/components/
 
 ### Location
 
-Release notes are located at `packages/docs/src/pages/docs/updates/notes.tsx`.
+Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
 
 ### Adding New Release Notes
 

@@ -403,6 +403,10 @@ function Docs() {
             element={<FoundationFoundingSupporters />}
           />
           <Route path="updates/announcements" element={<Announcements />} />
+          <Route
+            path="updates/notes"
+            element={<Navigate to="/docs/updates/releases" replace />}
+          />
           <Route path="updates/releases" element={<Releases />} />
           <Route path="updates/versions" element={<Versions />} />
           <Route path="*" element={<NotFound />} />
