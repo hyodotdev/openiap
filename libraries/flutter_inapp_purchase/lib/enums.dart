@@ -167,9 +167,9 @@ extension AndroidReplacementModeValue on AndroidReplacementMode {
         return 2;
       case AndroidReplacementMode.withoutProration:
         return 3;
-      case AndroidReplacementMode.deferred:
-        return 4;
       case AndroidReplacementMode.chargeFullPrice:
+        return 4;
+      case AndroidReplacementMode.deferred:
         return 5;
     }
   }
