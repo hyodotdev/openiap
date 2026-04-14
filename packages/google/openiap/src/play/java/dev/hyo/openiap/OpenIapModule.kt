@@ -860,10 +860,11 @@ class OpenIapModule(
             }
 
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
-                currentPurchaseCallback.set { result ->
+                val callback: (Result<List<Purchase>>) -> Unit = { result ->
                     if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
                 }
-                continuation.invokeOnCancellation { currentPurchaseCallback.set(null) }
+                currentPurchaseCallback.set(callback)
+                continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
 
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 

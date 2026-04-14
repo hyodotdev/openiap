@@ -130,6 +130,18 @@ EOF
 )"
 ```
 
+#### 4e. Add labels to the PR
+
+Mirror the same labels you applied to the issue onto the PR so the dashboard views stay consistent. Use the same label selection guide from Step 2.
+
+> **Note:** `gh pr edit --add-label` may fail with a `Projects (classic)` GraphQL error on this repo. Use the REST API directly instead (works reliably since PRs are issues on GitHub):
+
+```bash
+gh api -X POST repos/hyodotdev/openiap/issues/<PR_NUMBER>/labels \
+  -f "labels[]=<label1>" \
+  -f "labels[]=<label2>"
+```
+
 ### 5. Comment on the Issue
 
 Always comment on the issue with your findings:
