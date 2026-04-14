@@ -254,14 +254,14 @@ jobs:
           git add pubspec.yaml
           [ -f CHANGELOG.md ] && git add CHANGELOG.md
           git commit -m "chore(release): flutter_inapp_purchase ${NEW_VERSION}"
-          git tag "flutter-iap-${NEW_VERSION}"
+          git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
 
       - name: Tag only (current version)
         if: ${{ inputs.version == 'current' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          git tag -f "flutter-iap-${NEW_VERSION}"
+          git tag -af "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
 
       - name: Push commit and tags
         if: ${{ inputs.version != 'current' }}

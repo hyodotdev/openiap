@@ -245,7 +245,7 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): godot-iap ${{ steps.version.outputs.VERSION }}"
           fi
-          git tag -f godot-iap-${{ steps.version.outputs.VERSION }}
+          git tag -af godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
           git stash --include-untracked || true
           git pull --rebase origin main
           git stash pop || true
