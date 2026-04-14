@@ -383,7 +383,11 @@ class OpenIapModule(
                 val callback: (Result<List<Purchase>>) -> Unit = { result ->
                     if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
                 }
-                currentPurchaseCallback.set(callback)
+                if (!currentPurchaseCallback.compareAndSet(null, callback)) {
+                    OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
+                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError)
+                    return@suspendCancellableCoroutine
+                }
                 continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
 
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
@@ -868,8 +872,8 @@ class OpenIapModule(
                 }
 
                 OpenIapLog.d("Invoking currentPurchaseCallback with ${mapped.size} purchases (single-shot)", TAG)
-                    consumePurchaseCallback(Result.success(mapped))
-                    OpenIapLog.i("Purchase callback invoked", TAG)
+                consumePurchaseCallback(Result.success(mapped))
+                OpenIapLog.i("Purchase callback invoked", TAG)
                 } else {
                     // Purchases is null - likely DEFERRED mode
                     OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
@@ -881,7 +885,6 @@ class OpenIapModule(
                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(error) } }
                 consumePurchaseCallback(Result.success(emptyList()))
             }
-            currentPurchaseCallback.set(null)
             OpenIapLog.i("=== END onPurchasesUpdated ===", TAG)
         } catch (e: Exception) {
             OpenIapLog.e("Exception in onPurchasesUpdated", e, TAG)

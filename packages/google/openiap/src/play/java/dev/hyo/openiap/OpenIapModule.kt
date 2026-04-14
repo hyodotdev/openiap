@@ -863,7 +863,11 @@ class OpenIapModule(
                 val callback: (Result<List<Purchase>>) -> Unit = { result ->
                     if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
                 }
-                currentPurchaseCallback.set(callback)
+                if (!currentPurchaseCallback.compareAndSet(null, callback)) {
+                    OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
+                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError)
+                    return@suspendCancellableCoroutine
+                }
                 continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
 
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
@@ -1370,7 +1374,6 @@ class OpenIapModule(
                 }
             }
         }
-        currentPurchaseCallback.set(null)
     }
 
     private fun buildBillingClient() {
