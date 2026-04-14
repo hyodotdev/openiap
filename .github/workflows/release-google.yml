@@ -323,13 +323,13 @@ jobs:
 
         if [ -z "$PREV_TAG" ]; then
           echo "No previous google tag found"
-          CHANGELOG="Initial release"
+          CHANGELOG="- Initial release"
         else
           echo "Generating changelog from $PREV_TAG to HEAD"
-          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" -- packages/google/)
+          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- packages/google/)
 
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="No changes in packages/google/"
+            CHANGELOG="- No direct code changes in packages/google/."
           fi
         fi
 
@@ -340,14 +340,18 @@ jobs:
         cat > /tmp/release-notes.md <<EOF
         ## OpenIAP Google $VERSION
 
+        Native Android library for the OpenIAP specification (Play + Horizon flavors, Billing 8.x).
+
         ### What's Changed
+
         $CHANGELOG
 
         ### Installation
 
-        #### For Google Play Store (Play flavor)
+        #### Google Play Store (Play flavor)
 
         **Gradle (Kotlin DSL):**
+
         \`\`\`kotlin
         dependencies {
             implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
@@ -355,15 +359,17 @@ jobs:
         \`\`\`
 
         **Gradle (Groovy):**
+
         \`\`\`groovy
         dependencies {
             implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
         }
         \`\`\`
 
-        #### For Meta Quest/Horizon Store (Horizon flavor)
+        #### Meta Quest / Horizon Store (Horizon flavor)
 
         **Gradle (Kotlin DSL):**
+
         \`\`\`kotlin
         dependencies {
             implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION")
@@ -371,6 +377,7 @@ jobs:
         \`\`\`
 
         **Gradle (Groovy):**
+
         \`\`\`groovy
         dependencies {
             implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
@@ -378,10 +385,13 @@ jobs:
         \`\`\`
 
         ### Documentation
-        - [API Documentation](https://openiap.dev)
-        - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/google)
+
+        - [API reference](https://www.openiap.dev/docs/apis)
+        - [Release notes](https://www.openiap.dev/docs/updates/releases)
+        - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/packages/google)
 
         ### Maven Central
+
         - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
         - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
         EOF

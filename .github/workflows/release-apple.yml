@@ -307,13 +307,13 @@ jobs:
 
         if [ -z "$PREV_TAG" ]; then
           echo "No previous apple tag found"
-          CHANGELOG="Initial release"
+          CHANGELOG="- Initial release"
         else
           echo "Generating changelog from $PREV_TAG to HEAD"
-          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" -- packages/apple/)
+          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- packages/apple/)
 
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="No changes in packages/apple/"
+            CHANGELOG="- No direct code changes in packages/apple/."
           fi
         fi
 
@@ -324,26 +324,37 @@ jobs:
         cat > /tmp/release-notes.md <<EOF
         ## OpenIAP Apple $VERSION
 
+        Native iOS / macOS / tvOS / watchOS / visionOS library for the OpenIAP specification.
+
         ### What's Changed
+
         $CHANGELOG
 
         ### Installation
 
-        **CocoaPods:**
-        \`\`\`ruby
-        pod 'openiap', '~> $VERSION'
-        \`\`\`
-
         **Swift Package Manager:**
+
         \`\`\`swift
         dependencies: [
             .package(url: "https://github.com/hyodotdev/openiap.git", from: "$VERSION")
         ]
         \`\`\`
 
+        **CocoaPods:**
+
+        \`\`\`ruby
+        pod 'openiap', '~> $VERSION'
+        \`\`\`
+
         ### Documentation
-        - [API Documentation](https://openiap.dev)
-        - [GitHub](https://github.com/hyodotdev/openiap/tree/main/packages/apple)
+
+        - [API reference](https://www.openiap.dev/docs/apis)
+        - [Release notes](https://www.openiap.dev/docs/updates/releases)
+        - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/packages/apple)
+
+        ### Links
+
+        - [CocoaPods](https://cocoapods.org/pods/openiap)
         EOF
 
     - name: Create GitHub Release

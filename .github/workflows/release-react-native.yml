@@ -243,19 +243,38 @@ jobs:
         run: |
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/react-native-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/react-native-iap/ packages/google/ packages/apple/)
+            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/react-native-iap/ packages/google/ packages/apple/)
           fi
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Dependency update (openiap-google / openiap-apple)"
+            CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
           fi
           cat > /tmp/release-notes.md <<EOF
           ## react-native-iap $VERSION
 
+          React Native wrapper for the OpenIAP specification.
+
           ### What's Changed
+
           $CHANGELOG
 
-          ---
-          📢 [Full release notes](https://www.openiap.dev/docs/updates/releases)
+          ### Installation
+
+          \`\`\`bash
+          npm install react-native-iap@$VERSION
+          # or
+          yarn add react-native-iap@$VERSION
+          \`\`\`
+
+          ### Documentation
+
+          - [Setup guide — React Native](https://www.openiap.dev/docs/setup/react-native)
+          - [API reference](https://www.openiap.dev/docs/apis)
+          - [Release notes](https://www.openiap.dev/docs/updates/releases)
+
+          ### Links
+
+          - [npm](https://www.npmjs.com/package/react-native-iap/v/$VERSION)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap)
           EOF
 
       - name: Create GitHub Release

@@ -259,19 +259,36 @@ jobs:
         run: |
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/godot-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/godot-iap/ packages/google/ packages/apple/)
+            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/godot-iap/ packages/google/)
           fi
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Dependency update (openiap-google / openiap-apple)"
+            CHANGELOG="- No direct code changes — picks up the latest openiap-google native library updates. See the consolidated release notes for details."
           fi
           cat > /tmp/release-notes.md <<EOF
           ## godot-iap $VERSION
 
+          Godot 4.x addon for the OpenIAP specification (iOS GDExtension + Android AAR plugin).
+
           ### What's Changed
+
           $CHANGELOG
 
-          ---
-          📢 [Full release notes](https://www.openiap.dev/docs/updates/releases)
+          ### Installation
+
+          Download \`godot-iap-$VERSION.zip\` from the Assets section below and extract into your project's \`addons/\` directory, or install via the Godot Asset Library.
+
+          Minimum Godot version: **4.3**.
+
+          ### Documentation
+
+          - [Setup guide — Godot](https://www.openiap.dev/docs/setup/godot)
+          - [API reference](https://www.openiap.dev/docs/apis)
+          - [Release notes](https://www.openiap.dev/docs/updates/releases)
+
+          ### Links
+
+          - [Download ZIP](https://github.com/hyodotdev/openiap/releases/download/godot-iap-$VERSION/godot-iap-$VERSION.zip)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap)
           EOF
 
       - name: Create Release

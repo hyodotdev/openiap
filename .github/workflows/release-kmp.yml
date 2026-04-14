@@ -231,21 +231,51 @@ jobs:
         if: inputs.create_release && success()
         id: release_notes
         run: |
-          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/kmp-iap-*' | grep -v "${{ env.VERSION }}" | head -n 1)
+          VERSION="${{ env.VERSION }}"
+          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/kmp-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" -- libraries/kmp-iap/ packages/google/ packages/apple/)
+            CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- libraries/kmp-iap/ packages/google/ packages/apple/)
           fi
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Dependency update (openiap-google / openiap-apple)"
+            CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
           fi
           cat > /tmp/release-notes.md <<EOF
-          ## kmp-iap ${{ env.VERSION }}
+          ## kmp-iap $VERSION
+
+          Kotlin Multiplatform library for the OpenIAP specification (iOS + Android).
 
           ### What's Changed
+
           $CHANGELOG
 
-          ---
-          📢 [Full release notes](https://www.openiap.dev/docs/updates/releases)
+          ### Installation
+
+          **Gradle (Kotlin DSL):**
+
+          \`\`\`kotlin
+          dependencies {
+              implementation("io.github.hyochan.openiap:kmp-iap:$VERSION")
+          }
+          \`\`\`
+
+          **Gradle (Groovy):**
+
+          \`\`\`groovy
+          dependencies {
+              implementation 'io.github.hyochan.openiap:kmp-iap:$VERSION'
+          }
+          \`\`\`
+
+          ### Documentation
+
+          - [Setup guide — Kotlin Multiplatform](https://www.openiap.dev/docs/setup/kmp)
+          - [API reference](https://www.openiap.dev/docs/apis)
+          - [Release notes](https://www.openiap.dev/docs/updates/releases)
+
+          ### Links
+
+          - [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/kmp-iap/$VERSION)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap)
           EOF
 
       - name: Create GitHub Release
