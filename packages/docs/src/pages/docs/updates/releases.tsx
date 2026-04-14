@@ -23,6 +23,200 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // Monorepo patch releases - Apr 14, 2026
+    {
+      id: 'monorepo-2026-04-14',
+      date: new Date('2026-04-14'),
+      element: (
+        <div key="monorepo-2026-04-14" style={noteCardStyle}>
+          <AnchorLink id="monorepo-2026-04-14" level="h4">
+            Monorepo Patch Releases - April 14, 2026
+          </AnchorLink>
+
+          <p
+            style={{
+              marginTop: '0.75rem',
+              marginBottom: '1.5rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Two Android fixes: a subscription replacement mode integer mapping
+            and a double-resume race in the purchase callback path. The Kotlin
+            replacement-mode mapping now sources its integers from the native
+            Google Play Billing constants so this class of drift cannot recur.
+          </p>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/google-1.3.31"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                openiap-google 1.3.31
+              </a>
+            </h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                <strong>
+                  Fix: Subscription replacement mode DEFERRED int value
+                </strong>{' '}
+                — <code>DEFERRED</code> was mapped to <code>4</code>, which is
+                not a valid{' '}
+                <code>SubscriptionUpdateParams.ReplacementMode</code> constant.
+                Corrected to <code>6</code> to match the legacy Billing API
+                consumed by <code>setSubscriptionReplacementMode(int)</code>. (
+                <a href="https://github.com/hyodotdev/openiap/issues/92">#92</a>
+                )
+              </li>
+              <li>
+                <strong>
+                  Internal: Replacement-mode mapping uses native Billing
+                  constants
+                </strong>{' '}
+                — <code>SubscriptionReplacementModeAndroidExt.kt</code> moved
+                into the <code>play/</code> source set and now references{' '}
+                <code>
+                  BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode
+                </code>{' '}
+                directly instead of hand-typed <code>0..6</code> literals.
+                Matching tests assert against the native constants so the
+                mapping tracks the Billing Library if Google ever renumbers
+                them.
+              </li>
+              <li>
+                <strong>
+                  Fix: <code>IllegalStateException: Already resumed</code> in
+                  purchase flow
+                </strong>{' '}
+                — <code>currentPurchaseCallback</code> is now an{' '}
+                <code>AtomicReference</code> and is managed via{' '}
+                <code>compareAndSet(null, callback)</code> on store and{' '}
+                <code>compareAndSet(callback, null)</code> on cancellation. A
+                concurrent second <code>requestPurchase</code> fails fast with{' '}
+                <code>OpenIapError.DeveloperError</code> instead of overwriting
+                the in-flight continuation, and a cancelled request can no
+                longer clear a newer request's callback slot. Applied
+                symmetrically to Play and Horizon flavors. (
+                <a href="https://github.com/hyodotdev/openiap/issues/94">#94</a>
+                )
+              </li>
+            </ul>
+            <p
+              style={{
+                margin: '0.5rem 0 0',
+                fontSize: '0.85rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              Maven Central:{' '}
+              <a
+                href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/1.3.31"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                openiap-google
+              </a>{' '}
+              ·{' '}
+              <a
+                href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/1.3.31"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                openiap-google-horizon
+              </a>
+            </p>
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.2"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                flutter_inapp_purchase 9.0.2
+              </a>
+            </h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                <strong>
+                  Fix: <code>AndroidReplacementMode.deferred.value</code> now
+                  returns <code>6</code>
+                </strong>{' '}
+                (was <code>4</code>), matching the legacy{' '}
+                <code>SubscriptionUpdateParams.ReplacementMode</code> consumed
+                by the native side. <code>chargeFullPrice</code> remains{' '}
+                <code>5</code>. Full enum coverage added to{' '}
+                <code>enums_unit_test.dart</code>.
+              </li>
+              <li>Picks up openiap-google 1.3.31 (callback race fix).</li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '0.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Framework Library Patches
+            </h5>
+            <p
+              style={{
+                margin: '0.25rem 0',
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              The remaining framework libraries receive a patch release to pick
+              up the openiap-google 1.3.31 fixes:
+            </p>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.0.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap v15.0.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.0.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap v4.0.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.0.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap v2.0.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.0.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap v2.0.2
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // Monorepo patch releases - Apr 13, 2026
     {
       id: 'monorepo-2026-04-13',
