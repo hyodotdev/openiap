@@ -310,3 +310,14 @@ jobs:
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
+
+      # pub.dev OIDC requires a tag refType, so the publish workflow must run
+      # against the newly-created tag. The push:tags trigger has been
+      # unreliable (tag push via PAT sometimes does not fire it), so we
+      # explicitly dispatch publish-flutter.yml on the tag ref here.
+      - name: Dispatch pub.dev publish on tag ref
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+          TAG: flutter-iap-${{ steps.bump.outputs.version }}
+        run: |
+          gh workflow run publish-flutter.yml --ref "$TAG"
