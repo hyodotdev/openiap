@@ -310,3 +310,17 @@ jobs:
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
+
+      # Inlined from the former publish-flutter.yml so pub.dev publishing
+      # always runs as part of the release flow. Previously the separate
+      # workflow was triggered on tag push, but tags pushed by this workflow
+      # did not reliably trigger the push:tags event, leaving pub.dev behind
+      # the GitHub Release.
+      - name: Publish to pub.dev
+        run: |
+          OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://pub.dev" \
+            -H "User-Agent: actions/oidc-client" \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            | jq -r '.value')
+          dart pub token add https://pub.dev --env-var _PUB_TOKEN
+          _PUB_TOKEN="$OIDC_TOKEN" dart pub publish --force
