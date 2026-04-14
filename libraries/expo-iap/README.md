@@ -9,7 +9,7 @@ Expo IAP is a powerful in-app purchase solution for Expo and React Native applic
 
 If you're shipping an app with expo-iap, we’d love to hear about it—please share your product and feedback in [Who's using Expo IAP?](https://github.com/hyochan/expo-iap/discussions/143). Community stories help us keep improving the ecosystem.
 
-<a href="https://openiap.dev"><img src="https://github.com/hyodotdev/openiap/blob/main/logo.png" alt="Open IAP" height="40" /></a>
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="Open IAP" height="40" /></a>
 
 </div>
 
@@ -80,7 +80,7 @@ For detailed usage examples and error handling, see the [documentation](https://
 
 ## Powered by OpenIAP
 
-<a href="https://openiap.dev"><img src="https://github.com/hyodotdev/openiap/blob/main/logo.png" alt="OpenIAP" height="50" /></a>
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="OpenIAP" height="50" /></a>
 
 Expo IAP conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
 
