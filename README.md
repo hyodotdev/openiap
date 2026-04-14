@@ -27,7 +27,7 @@ This monorepo contains all OpenIAP packages:
 
 ## Libraries
 
-Framework SDK implementations built on top of OpenIAP:
+Framework SDK implementations built on top of OpenIAP. These libraries are managed in this monorepo — see [discussion #86](https://github.com/hyodotdev/openiap/discussions/86) for the rationale and migration context.
 
 | Library | Platform | Package | Downloads |
 |---------|----------|---------|-----------|
@@ -35,7 +35,7 @@ Framework SDK implementations built on top of OpenIAP:
 | [react-native-iap](libraries/react-native-iap) | React Native | [![npm](https://img.shields.io/npm/v/react-native-iap?logo=npm&color=CB3837)](https://www.npmjs.com/package/react-native-iap) | [![npm downloads](https://img.shields.io/npm/dm/react-native-iap?label=npm&color=CB3837)](https://www.npmjs.com/package/react-native-iap) |
 | [flutter_inapp_purchase](libraries/flutter_inapp_purchase) | Flutter | [![pub.dev](https://img.shields.io/pub/v/flutter_inapp_purchase?logo=dart&color=0175C2)](https://pub.dev/packages/flutter_inapp_purchase) | [![pub.dev likes](https://img.shields.io/pub/likes/flutter_inapp_purchase?label=likes&color=0175C2)](https://pub.dev/packages/flutter_inapp_purchase) |
 | [kmp-iap](libraries/kmp-iap) | Kotlin Multiplatform | [![Maven Central](https://img.shields.io/maven-central/v/io.github.hyochan/kmp-iap?logo=kotlin&color=7F52FF)](https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap) | — |
-| [godot-iap](libraries/godot-iap) | Godot 4.x | — | — |
+| [godot-iap](libraries/godot-iap) | Godot 4.x | [![Godot Asset Library](https://img.shields.io/badge/asset_library-godot--iap-478CBF?logo=godotengine)](https://godotengine.org/asset-library/asset/4627) | — |
 
 ## Documentation
 
