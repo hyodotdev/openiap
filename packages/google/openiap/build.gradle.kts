@@ -74,6 +74,9 @@ android {
         named("horizon") {
             java.srcDirs("src/horizon/java")
         }
+        named("testPlay") {
+            java.srcDirs("src/testPlay/java")
+        }
     }
 }
 

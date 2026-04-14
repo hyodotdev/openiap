@@ -156,6 +156,14 @@ enum AndroidReplacementMode {
   chargeFullPrice,
 }
 
+/// Integer values for the legacy
+/// `BillingFlowParams.SubscriptionUpdateParams.ReplacementMode` API, which is
+/// what `setSubscriptionReplacementMode(int)` consumes on the Android side.
+///
+/// Prefer the new string-keyed API via `SubscriptionProductReplacementParamsAndroid`
+/// + `SubscriptionReplacementModeAndroid` (see `lib/types.dart`). That path
+/// avoids hand-typed integers entirely — the Kotlin side resolves the enum
+/// against the live Billing Library constants.
 extension AndroidReplacementModeValue on AndroidReplacementMode {
   int get value {
     switch (this) {
@@ -167,10 +175,10 @@ extension AndroidReplacementModeValue on AndroidReplacementMode {
         return 2;
       case AndroidReplacementMode.withoutProration:
         return 3;
-      case AndroidReplacementMode.deferred:
-        return 4;
       case AndroidReplacementMode.chargeFullPrice:
         return 5;
+      case AndroidReplacementMode.deferred:
+        return 6;
     }
   }
 }
