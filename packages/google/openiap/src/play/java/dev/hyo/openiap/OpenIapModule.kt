@@ -71,6 +71,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicReference
 
 // AlternativeBillingMode moved to main source set (shared between Play and Horizon)
 
@@ -109,7 +110,16 @@ class OpenIapModule(
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
     private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
-    private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
+    private val currentPurchaseCallback = AtomicReference<((Result<List<Purchase>>) -> Unit)?>(null)
+
+    /**
+     * Atomically consume the pending purchase callback. Ensures the underlying
+     * continuation is resumed at most once even if Google Play Billing fires
+     * `onPurchasesUpdated` multiple times or races with an early-return path.
+     */
+    private fun consumePurchaseCallback(result: Result<List<Purchase>>) {
+        currentPurchaseCallback.getAndSet(null)?.invoke(result)
+    }
 
     // Billing programs enabled via enableBillingProgram (8.2.0+, EXTERNAL_PAYMENTS in 8.3.0+)
     private val enabledBillingPrograms = mutableSetOf<BillingProgramAndroid>()
@@ -850,9 +860,10 @@ class OpenIapModule(
             }
 
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
-                currentPurchaseCallback = { result ->
+                currentPurchaseCallback.set { result ->
                     if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
                 }
+                continuation.invokeOnCancellation { currentPurchaseCallback.set(null) }
 
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
@@ -878,7 +889,7 @@ class OpenIapModule(
                         )
                         val err = OpenIapError.SkuOfferMismatch
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        consumePurchaseCallback(Result.success(emptyList()))
                         return
                     }
 
@@ -915,7 +926,7 @@ class OpenIapModule(
                                 OpenIapLog.w("Invalid offer token: $resolved not in $availableTokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                consumePurchaseCallback(Result.success(emptyList()))
                                 return
                             }
 
@@ -942,7 +953,7 @@ class OpenIapModule(
                                 OpenIapLog.w("No one-time purchase offers available for ${productDetails.productId}, but offerToken was provided: ${androidArgs.offerToken}", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                consumePurchaseCallback(Result.success(emptyList()))
                                 return
                             }
 
@@ -950,7 +961,7 @@ class OpenIapModule(
                                 OpenIapLog.w("Invalid one-time offer token: ${androidArgs.offerToken} not in $availableTokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                consumePurchaseCallback(Result.success(emptyList()))
                                 return
                             }
 
@@ -1034,7 +1045,7 @@ class OpenIapModule(
                             else -> OpenIapError.PurchaseFailed
                         }
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        consumePurchaseCallback(Result.success(emptyList()))
                     }
                 }
 
@@ -1044,7 +1055,7 @@ class OpenIapModule(
                         val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
                         val err = OpenIapError.SkuNotFound(missingSku ?: "")
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        consumePurchaseCallback(Result.success(emptyList()))
                         return@suspendCancellableCoroutine
                     }
                     buildAndLaunch(ordered)
@@ -1070,14 +1081,14 @@ class OpenIapModule(
                                 val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
                                 val err = OpenIapError.SkuNotFound(missingSku ?: "")
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                consumePurchaseCallback(Result.success(emptyList()))
                                 return@queryProductDetailsAsync
                             }
                             buildAndLaunch(ordered)
                         } else {
                             val err = OpenIapError.QueryProduct
                             for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                            consumePurchaseCallback(Result.success(emptyList()))
                         }
                     }
                 }
@@ -1334,18 +1345,18 @@ class OpenIapModule(
                         runCatching { listener.onPurchaseUpdated(converted) }
                     }
                 }
-                currentPurchaseCallback?.invoke(Result.success(mapped))
+                consumePurchaseCallback(Result.success(mapped))
             } else {
                 // Purchases is null - likely DEFERRED mode
                 OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
-                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                consumePurchaseCallback(Result.success(emptyList()))
             }
         } else {
             when (billingResult.responseCode) {
                 BillingClient.BillingResponseCode.USER_CANCELED -> {
                     val err = OpenIapError.UserCancelled
                     for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                    currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                    consumePurchaseCallback(Result.success(emptyList()))
                 }
                 else -> {
                     val error = OpenIapError.fromBillingResponseCode(
@@ -1354,11 +1365,11 @@ class OpenIapModule(
                     )
                     OpenIapLog.w("Purchase failed: code=${billingResult.responseCode} msg=${error.message}", TAG)
                     for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(error) } }
-                    currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                    consumePurchaseCallback(Result.success(emptyList()))
                 }
             }
         }
-        currentPurchaseCallback = null
+        currentPurchaseCallback.set(null)
     }
 
     private fun buildBillingClient() {

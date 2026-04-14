@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -97,7 +98,16 @@ class OpenIapModule(
 
     private var billingClient: BillingClient? = null
     private var currentActivityRef: WeakReference<Activity>? = null
-    private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
+    private val currentPurchaseCallback = AtomicReference<((Result<List<Purchase>>) -> Unit)?>(null)
+
+    /**
+     * Atomically consume the pending purchase callback so the underlying
+     * continuation cannot be resumed twice if Horizon Billing fires
+     * `onPurchasesUpdated` multiple times or races with an early-return path.
+     */
+    private fun consumePurchaseCallback(result: Result<List<Purchase>>) {
+        currentPurchaseCallback.getAndSet(null)?.invoke(result)
+    }
     private val productManager = ProductManager()
     private val fallbackActivity: Activity? = if (context is Activity) context else null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -370,9 +380,10 @@ class OpenIapModule(
             }
 
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
-                currentPurchaseCallback = { result ->
+                currentPurchaseCallback.set { result ->
                     if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
                 }
+                continuation.invokeOnCancellation { currentPurchaseCallback.set(null) }
 
                 val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
@@ -421,7 +432,7 @@ class OpenIapModule(
                                 OpenIapLog.w("Invalid offer token: $resolved not in $availableTokens", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
-                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                consumePurchaseCallback(Result.success(emptyList()))
                                 return
                             }
 
@@ -437,7 +448,7 @@ class OpenIapModule(
                                 OpenIapLog.w("Invalid empty offerToken provided for ${productDetails.productId}", TAG)
                                 val err = OpenIapError.SkuOfferMismatch
                                 for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
-                                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                                consumePurchaseCallback(Result.success(emptyList()))
                                 return
                             }
 
@@ -502,7 +513,7 @@ class OpenIapModule(
                                 else -> OpenIapError.PurchaseFailed
                             }
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
-                            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                            consumePurchaseCallback(Result.success(emptyList()))
                         } else {
                             // CRITICAL FIX: Proactively query purchases in case onPurchasesUpdated doesn't fire
                             // Horizon SDK may not always trigger the callback, so we query after a delay
@@ -524,7 +535,7 @@ class OpenIapModule(
                                                 runCatching { listener.onPurchaseUpdated(purchase) }
                                             }
                                         }
-                                        currentPurchaseCallback?.invoke(Result.success(filtered))
+                                        consumePurchaseCallback(Result.success(filtered))
                                     }
                                 } catch (e: Exception) {
                                     OpenIapLog.e("Error in proactive purchase query", e, TAG)
@@ -540,7 +551,7 @@ class OpenIapModule(
                         val missingSku = androidArgs.skus.firstOrNull { !detailsBySku.containsKey(it) }
                         val err = OpenIapError.SkuNotFound(missingSku ?: "")
                         purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
-                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                        consumePurchaseCallback(Result.success(emptyList()))
                         return@suspendCancellableCoroutine
                     }
                     buildAndLaunch(ordered)
@@ -560,7 +571,7 @@ class OpenIapModule(
                         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                             val err = OpenIapError.QueryProduct
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
-                            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                            consumePurchaseCallback(Result.success(emptyList()))
                             return@queryProductDetailsAsync
                         }
 
@@ -578,7 +589,7 @@ class OpenIapModule(
                             }
                             val err = OpenIapError.SkuNotFound(missingSku ?: "")
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
-                            currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                            consumePurchaseCallback(Result.success(emptyList()))
                             return@queryProductDetailsAsync
                         }
 
@@ -856,26 +867,20 @@ class OpenIapModule(
                 }
 
                 OpenIapLog.d("Invoking currentPurchaseCallback with ${mapped.size} purchases (single-shot)", TAG)
-                    currentPurchaseCallback?.let { cb ->
-                        currentPurchaseCallback = null
-                        cb.invoke(Result.success(mapped))
-                    }
+                    consumePurchaseCallback(Result.success(mapped))
                     OpenIapLog.i("Purchase callback invoked", TAG)
                 } else {
                     // Purchases is null - likely DEFERRED mode
                     OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
-                    currentPurchaseCallback?.let { cb ->
-                        currentPurchaseCallback = null
-                        cb.invoke(Result.success(emptyList()))
-                    }
+                    consumePurchaseCallback(Result.success(emptyList()))
                 }
             } else {
                 OpenIapLog.w("Purchase failed or cancelled: code=${result.responseCode}", TAG)
                 val error = OpenIapError.fromBillingResponseCode(result.responseCode, result.debugMessage)
                 purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(error) } }
-                currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                consumePurchaseCallback(Result.success(emptyList()))
             }
-            currentPurchaseCallback = null
+            currentPurchaseCallback.set(null)
             OpenIapLog.i("=== END onPurchasesUpdated ===", TAG)
         } catch (e: Exception) {
             OpenIapLog.e("Exception in onPurchasesUpdated", e, TAG)
