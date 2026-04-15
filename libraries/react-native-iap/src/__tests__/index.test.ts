@@ -29,6 +29,8 @@ const mockIap: any = {
   removePurchaseErrorListener: jest.fn(),
   addPromotedProductListenerIOS: jest.fn(),
   removePromotedProductListenerIOS: jest.fn(),
+  addSubscriptionBillingIssueListener: jest.fn(),
+  removeSubscriptionBillingIssueListener: jest.fn(),
 
   // iOS-only
   getStorefrontIOS: jest.fn(async () => 'USA'),

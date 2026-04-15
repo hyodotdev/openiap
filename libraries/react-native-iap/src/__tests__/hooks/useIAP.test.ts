@@ -16,6 +16,8 @@ const mockIap: any = {
   removePurchaseErrorListener: jest.fn(),
   addPromotedProductListenerIOS: jest.fn(),
   removePromotedProductListenerIOS: jest.fn(),
+  addSubscriptionBillingIssueListener: jest.fn(),
+  removeSubscriptionBillingIssueListener: jest.fn(),
 };
 
 jest.mock('react-native-nitro-modules', () => ({
