@@ -1524,12 +1524,17 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Starts the StoreKit 2 Message listener for subscription-billing-issue events.
-    /// `StoreKit.Message` is an iOS-only API (unavailable on macOS, tvOS, watchOS, visionOS),
-    /// and the `.billingIssue` reason requires iOS 18+. On older iOS versions and non-iOS
-    /// platforms this is a silent no-op.
+    ///
+    /// `StoreKit.Message` ships on iOS, iPadOS and Mac Catalyst (16.0+). The `.billingIssue`
+    /// reason requires 18.0+. On macOS, tvOS, watchOS and visionOS the Message API is not
+    /// available, so this method is a silent no-op there.
+    ///
+    /// References:
+    /// - https://developer.apple.com/documentation/storekit/message
+    /// - https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue
     private func startMessageListener() {
-        #if os(iOS) && !targetEnvironment(macCatalyst)
-        if #available(iOS 18.0, *) {
+        #if os(iOS) || targetEnvironment(macCatalyst)
+        if #available(iOS 18.0, macCatalyst 18.0, *) {
             messageListenerTask?.cancel()
             messageListenerTask = Task { [weak self] in
                 guard let self else { return }
@@ -1544,37 +1549,64 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Resolves the affected subscription(s) from current entitlements and emits the event.
-    /// StoreKit's Message does not carry a transaction reference, so we cross-reference
-    /// `Transaction.currentEntitlements` for auto-renewable subscriptions whose
-    /// RenewalState indicates a billing-retry or grace-period condition.
+    ///
+    /// `StoreKit.Message` doesn't carry a transaction reference, so we cross-reference
+    /// `Transaction.currentEntitlements` (auto-renewable only) and emit for every subscription
+    /// whose `Product.SubscriptionInfo.status` array contains an entry in `.inBillingRetryPeriod`
+    /// or `.inGracePeriod`. The status array is unordered across subscription-group members, so
+    /// we must iterate every element rather than inspect `.first`. Product lookups are batched
+    /// into a single `Product.products(for:)` call per message.
+    ///
+    /// Reference: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status(for:)
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
     private func dispatchBillingIssueMessage() async {
-        var emitted = false
+        var entitlements: [(Transaction, String)] = []
         for await verification in Transaction.currentEntitlements {
             guard case .verified(let transaction) = verification,
                   transaction.productType == .autoRenewable else { continue }
+            entitlements.append((transaction, verification.jwsRepresentation))
+        }
+        guard !entitlements.isEmpty else {
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no auto-renewable entitlements present")
+            return
+        }
+
+        let productIds = Array(Set(entitlements.map { $0.0.productID }))
+        let products: [StoreKit.Product]
+        do {
+            products = try await StoreKit.Product.products(for: productIds)
+        } catch {
+            OpenIapLog.debug("🔔 [MessageListener] Product.products(for:) failed: \(error.localizedDescription)")
+            return
+        }
+        let productBySku: [String: StoreKit.Product] = Dictionary(uniqueKeysWithValues: products.map { ($0.id, $0) })
+
+        var emitted = false
+        for (transaction, jws) in entitlements {
+            guard let subscription = productBySku[transaction.productID]?.subscription else { continue }
+            let statusArray: [StoreKit.Product.SubscriptionInfo.Status]
             do {
-                guard let product = try await StoreKit.Product.products(for: [transaction.productID]).first,
-                      let subscription = product.subscription else { continue }
-                let statusArray = try await subscription.status
-                guard let latest = statusArray.first else { continue }
-                switch latest.state {
-                case .inBillingRetryPeriod, .inGracePeriod:
-                    let purchase = await StoreKitTypesBridge.purchase(
-                        from: transaction,
-                        jwsRepresentation: verification.jwsRepresentation
-                    )
-                    emitSubscriptionBillingIssue(purchase)
-                    emitted = true
-                default:
-                    continue
-                }
+                statusArray = try await subscription.status
             } catch {
                 continue
             }
+            var hasBillingIssue = false
+            for status in statusArray {
+                if status.state == .inBillingRetryPeriod || status.state == .inGracePeriod {
+                    hasBillingIssue = true
+                    break
+                }
+            }
+            guard hasBillingIssue else { continue }
+            let purchase = await StoreKitTypesBridge.purchase(
+                from: transaction,
+                jwsRepresentation: jws
+            )
+            emitSubscriptionBillingIssue(purchase)
+            emitted = true
         }
         if !emitted {
-            OpenIapLog.debug("🔔 [MessageListener] billingIssue message received but no matching subscription found in retry/grace state")
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no subscription currently reports retry/grace state")
         }
     }
 

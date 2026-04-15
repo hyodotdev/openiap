@@ -110,9 +110,14 @@ class OpenIapModule(
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
     private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
-    private val subscriptionBillingIssueListeners = mutableSetOf<dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener>()
-    // Track purchase tokens already reported as suspended to dedupe across queries in the same session.
-    private val emittedBillingIssueTokens = mutableSetOf<String>()
+    // Thread-safe: listeners can be added/removed on the main thread while
+    // notifySuspendedSubscriptions iterates from Dispatchers.IO.
+    private val subscriptionBillingIssueListeners =
+        java.util.concurrent.CopyOnWriteArraySet<dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener>()
+    // Dedup tokens across the session. ConcurrentHashMap.newKeySet() gives us an atomic
+    // add() that returns false when the token was already present.
+    private val emittedBillingIssueTokens =
+        java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val currentPurchaseCallback = AtomicReference<((Result<List<Purchase>>) -> Unit)?>(null)
 
     /**
@@ -242,9 +247,16 @@ class OpenIapModule(
     override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
         withContext(Dispatchers.IO) {
             val includeSuspended = options?.includeSuspendedAndroid == true
-            val purchases = restorePurchasesHelper(billingClient, includeSuspended)
+            // Always query suspended subs so the billing-issue notifier sees them even when the
+            // caller asked to hide suspended from the returned list. See:
+            // https://developer.android.com/google/play/billing/subscriptions#suspended
+            val purchases = restorePurchasesHelper(billingClient, includeSuspended = true)
             notifySuspendedSubscriptions(purchases)
-            purchases
+            if (includeSuspended) {
+                purchases
+            } else {
+                purchases.filterNot { (it as? PurchaseAndroid)?.isSuspendedAndroid == true }
+            }
         }
     }
 
@@ -1341,8 +1353,11 @@ class OpenIapModule(
             val android = purchase as? PurchaseAndroid ?: continue
             if (android.isSuspendedAndroid != true) continue
             val token = android.purchaseToken ?: continue
+            // ConcurrentHashMap.newKeySet().add returns false if the token is already present,
+            // giving us atomic test-and-register per session.
             if (!emittedBillingIssueTokens.add(token)) continue
-            subscriptionBillingIssueListeners.toList().forEach { listener ->
+            // CopyOnWriteArraySet is safe to iterate concurrently with add/remove.
+            for (listener in subscriptionBillingIssueListeners) {
                 try {
                     listener.onSubscriptionBillingIssue(android)
                 } catch (t: Throwable) {
@@ -1395,6 +1410,7 @@ class OpenIapModule(
                     purchase.toPurchase(productType, basePlanId)
                 }
                 OpenIapLog.d("Mapped purchases=${gson.toJson(mapped)}", TAG)
+                notifySuspendedSubscriptions(mapped)
                 for (converted in mapped) {
                     for (listener in purchaseUpdateListeners) {
                         runCatching { listener.onPurchaseUpdated(converted) }

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-04-15T15:48:40.902Z
+> Last updated: 2026-04-15T16:14:04.565Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -2368,7 +2368,7 @@ billingClient.launchBillingFlow(activity, params)
 Meta Horizon provides IAP functionality for Quest VR applications. There are two main integration paths:
 
 1. **Platform SDK IAP** - Native Horizon IAP APIs
-2. **Billing Compatibility SDK** - Google Play Billing Library compatible wrapper
+2. **Billing Compatibility SDK** - Google Play Billing Library-compatible wrapper
 
 ## Version Compatibility Matrix
 
@@ -2397,7 +2397,7 @@ When writing shared code for both Play and Horizon flavors:
 
 ### APIs Only in Billing 8.x (DO NOT use in shared code)
 
-- `enableAutoServiceReconnection()` - Auto reconnect feature (8.0+)
+- `enableAutoServiceReconnection()` - Auto-reconnect feature (8.0+)
 - Product-level status codes in `queryProductDetailsAsync()` response (8.0+)
 - One-time products with multiple offers (8.0+)
 - Sub-response codes in `BillingResult` (8.0+)
