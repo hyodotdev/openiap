@@ -1284,6 +1284,18 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
         })
+        openIap?.addSubscriptionBillingIssueListener(
+            dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
+                scope.launch {
+                    try {
+                        val payload = JSONObject(purchase.toJson())
+                        channel?.invokeMethod("subscription-billing-issue", payload.toString())
+                    } catch (e: Exception) {
+                        OpenIapLog.e("Failed to send subscription-billing-issue", e)
+                    }
+                }
+            }
+        )
     }
 
     companion object {

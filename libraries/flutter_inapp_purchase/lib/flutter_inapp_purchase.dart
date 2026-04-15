@@ -97,6 +97,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   final StreamController<gentype.DeveloperProvidedBillingDetailsAndroid>
       _developerProvidedBillingAndroidListener = StreamController<
           gentype.DeveloperProvidedBillingDetailsAndroid>.broadcast();
+  final StreamController<gentype.Purchase> _subscriptionBillingIssueListener =
+      StreamController<gentype.Purchase>.broadcast();
 
   /// Purchase updated event stream
   Stream<gentype.Purchase> get purchaseUpdatedListener =>
@@ -115,6 +117,15 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Stream<gentype.DeveloperProvidedBillingDetailsAndroid>
       get developerProvidedBillingAndroid =>
           _developerProvidedBillingAndroidListener.stream;
+
+  /// Subscription billing-issue event stream (cross-platform).
+  ///
+  /// Emits when an active subscription needs user attention for a payment
+  /// problem. Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS 18+) and
+  /// Google Play Billing `Purchase.isSuspended` (Play Billing 8.1+). NOT
+  /// emitted on the Meta Horizon flavor (Billing 7.0 compat lacks the signal).
+  Stream<gentype.Purchase> get subscriptionBillingIssueListener =>
+      _subscriptionBillingIssueListener.stream;
 
   bool _isInitialized = false;
 
@@ -204,6 +215,26 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           } catch (e, stackTrace) {
             debugPrint(
               '[flutter_inapp_purchase] ERROR in developer-provided-billing-android: $e',
+            );
+            debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
+          }
+          break;
+        case 'subscription-billing-issue':
+          try {
+            Map<String, dynamic> result =
+                jsonDecode(call.arguments as String) as Map<String, dynamic>;
+            final purchase = convertToPurchase(
+              result,
+              originalJson: result,
+              platformIsAndroid: _platform.isAndroid,
+              platformIsIOS: _platform.isIOS || _platform.isMacOS,
+              acknowledgedAndroidPurchaseTokens:
+                  _acknowledgedAndroidPurchaseTokens,
+            );
+            _subscriptionBillingIssueListener.add(purchase);
+          } catch (e, stackTrace) {
+            debugPrint(
+              '[flutter_inapp_purchase] ERROR in subscription-billing-issue: $e',
             );
             debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
           }
