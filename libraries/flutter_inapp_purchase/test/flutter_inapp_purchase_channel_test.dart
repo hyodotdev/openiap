@@ -659,6 +659,62 @@ void main() {
     });
 
     test(
+      'forwards subscriptionProductReplacementParams on Android subscription',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
+          switch (call.method) {
+            case 'initConnection':
+              return true;
+            case 'requestPurchase':
+              return null;
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'),
+        );
+
+        await iap.initConnection();
+
+        const props = types.RequestPurchaseProps.subs((
+          apple: null,
+          google: types.RequestSubscriptionAndroidProps(
+            skus: <String>['sub.premium'],
+            subscriptionProductReplacementParams:
+                types.SubscriptionProductReplacementParamsAndroid(
+              oldProductId: 'sub.premium',
+              replacementMode:
+                  types.SubscriptionReplacementModeAndroid.ChargeFullPrice,
+            ),
+          ),
+          useAlternativeBilling: null,
+        ));
+
+        await iap.requestPurchase(props);
+
+        final requestCall = calls.singleWhere(
+          (MethodCall c) => c.method == 'requestPurchase',
+        );
+        final payload = Map<String, dynamic>.from(
+          requestCall.arguments as Map<dynamic, dynamic>,
+        );
+
+        expect(payload.containsKey('subscriptionProductReplacementParams'),
+            isTrue);
+        final replacement = Map<String, dynamic>.from(
+          payload['subscriptionProductReplacementParams']
+              as Map<dynamic, dynamic>,
+        );
+        expect(replacement['oldProductId'], 'sub.premium');
+        expect(replacement['replacementMode'], 'charge-full-price');
+      },
+    );
+
+    test(
       'sends developerBillingOption for External Payments on Android',
       () async {
         final calls = <MethodCall>[];

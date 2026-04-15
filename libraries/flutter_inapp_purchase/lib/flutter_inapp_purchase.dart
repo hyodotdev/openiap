@@ -386,6 +386,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 subscriptionOffers;
             final gentype.DeveloperBillingOptionParamsAndroid?
                 developerBillingOption;
+            final gentype.SubscriptionProductReplacementParamsAndroid?
+                subscriptionProductReplacementParams;
 
             if (androidProps is gentype.RequestPurchaseAndroidProps) {
               skus = androidProps.skus;
@@ -397,6 +399,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               offerToken = androidProps.offerToken;
               subscriptionOffers = null;
               developerBillingOption = androidProps.developerBillingOption;
+              subscriptionProductReplacementParams = null;
             } else if (androidProps
                 is gentype.RequestSubscriptionAndroidProps) {
               skus = androidProps.skus;
@@ -408,6 +411,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               offerToken = null; // Subscriptions don't use offerToken
               subscriptionOffers = androidProps.subscriptionOffers;
               developerBillingOption = androidProps.developerBillingOption;
+              subscriptionProductReplacementParams =
+                  androidProps.subscriptionProductReplacementParams;
             } else {
               throw PurchaseError(
                 code: gentype.ErrorCode.DeveloperError,
@@ -466,6 +471,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             if (developerBillingOption != null) {
               payload['developerBillingOption'] =
                   developerBillingOption.toJson();
+            }
+
+            // Add subscriptionProductReplacementParams for item-level
+            // replacement (Billing Library 8.1.0+)
+            if (subscriptionProductReplacementParams != null) {
+              payload['subscriptionProductReplacementParams'] =
+                  subscriptionProductReplacementParams.toJson();
             }
 
             await _channel.invokeMethod('requestPurchase', payload);
