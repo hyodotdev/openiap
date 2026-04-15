@@ -300,20 +300,20 @@ enum SubscriptionReplacementModeAndroid {
 class ActiveSubscription:
 	var product_id: String = ""
 	var is_active: bool = false
-	var expiration_date_ios: float = 0.0
-	var auto_renewing_android: bool = false
-	var environment_ios: String = ""
+	var expiration_date_ios: Variant = null
+	var auto_renewing_android: Variant = null
+	var environment_ios: Variant = null
 	## @deprecated iOS only - use daysUntilExpirationIOS instead.
-	var will_expire_soon: bool = false
-	var days_until_expiration_ios: float = 0.0
+	var will_expire_soon: Variant = null
+	var days_until_expiration_ios: Variant = null
 	var transaction_id: String = ""
-	var purchase_token: String = ""
+	var purchase_token: Variant = null
 	var transaction_date: float = 0.0
-	var base_plan_id_android: String = ""
+	var base_plan_id_android: Variant = null
 	## Required for subscription upgrade/downgrade on Android
-	var purchase_token_android: String = ""
+	var purchase_token_android: Variant = null
 	## The current plan identifier. This is:
-	var current_plan_id: String = ""
+	var current_plan_id: Variant = null
 	## Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,
 	var renewal_info_ios: RenewalInfoIOS
 
@@ -356,26 +356,17 @@ class ActiveSubscription:
 		var dict = {}
 		dict["productId"] = product_id
 		dict["isActive"] = is_active
-		if expiration_date_ios != 0.0:
-			dict["expirationDateIOS"] = expiration_date_ios
-		if auto_renewing_android != false:
-			dict["autoRenewingAndroid"] = auto_renewing_android
-		if environment_ios != "":
-			dict["environmentIOS"] = environment_ios
-		if will_expire_soon != false:
-			dict["willExpireSoon"] = will_expire_soon
-		if days_until_expiration_ios != 0.0:
-			dict["daysUntilExpirationIOS"] = days_until_expiration_ios
+		dict["expirationDateIOS"] = expiration_date_ios
+		dict["autoRenewingAndroid"] = auto_renewing_android
+		dict["environmentIOS"] = environment_ios
+		dict["willExpireSoon"] = will_expire_soon
+		dict["daysUntilExpirationIOS"] = days_until_expiration_ios
 		dict["transactionId"] = transaction_id
-		if purchase_token != "":
-			dict["purchaseToken"] = purchase_token
+		dict["purchaseToken"] = purchase_token
 		dict["transactionDate"] = transaction_date
-		if base_plan_id_android != "":
-			dict["basePlanIdAndroid"] = base_plan_id_android
-		if purchase_token_android != "":
-			dict["purchaseTokenAndroid"] = purchase_token_android
-		if current_plan_id != "":
-			dict["currentPlanId"] = current_plan_id
+		dict["basePlanIdAndroid"] = base_plan_id_android
+		dict["purchaseTokenAndroid"] = purchase_token_android
+		dict["currentPlanId"] = current_plan_id
 		if renewal_info_ios != null and renewal_info_ios.has_method("to_dict"):
 			dict["renewalInfoIOS"] = renewal_info_ios.to_dict()
 		else:
@@ -393,9 +384,9 @@ class AppTransaction:
 	var signed_date: float = 0.0
 	var app_id: float = 0.0
 	var app_version_id: float = 0.0
-	var preorder_date: float = 0.0
-	var app_transaction_id: String = ""
-	var original_platform: String = ""
+	var preorder_date: Variant = null
+	var app_transaction_id: Variant = null
+	var original_platform: Variant = null
 
 	static func from_dict(data: Dictionary) -> AppTransaction:
 		var obj = AppTransaction.new()
@@ -439,12 +430,9 @@ class AppTransaction:
 		dict["signedDate"] = signed_date
 		dict["appId"] = app_id
 		dict["appVersionId"] = app_version_id
-		if preorder_date != 0.0:
-			dict["preorderDate"] = preorder_date
-		if app_transaction_id != "":
-			dict["appTransactionId"] = app_transaction_id
-		if original_platform != "":
-			dict["originalPlatform"] = original_platform
+		dict["preorderDate"] = preorder_date
+		dict["appTransactionId"] = app_transaction_id
+		dict["originalPlatform"] = original_platform
 		return dict
 
 ## Result of checking billing program availability (Android) Available in Google Play Billing Library 8.2.0+
@@ -508,7 +496,7 @@ class BillingResultAndroid:
 	## The response code from the billing operation
 	var response_code: int = 0
 	## Debug message from the billing library
-	var debug_message: String = ""
+	var debug_message: Variant = null
 	## Sub-response code for more granular error information (8.0+).
 	var sub_response_code: SubResponseCodeAndroid
 
@@ -529,8 +517,7 @@ class BillingResultAndroid:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["responseCode"] = response_code
-		if debug_message != "":
-			dict["debugMessage"] = debug_message
+		dict["debugMessage"] = debug_message
 		if SUB_RESPONSE_CODE_ANDROID_VALUES.has(sub_response_code):
 			dict["subResponseCode"] = SUB_RESPONSE_CODE_ANDROID_VALUES[sub_response_code]
 		else:
@@ -577,7 +564,7 @@ class DiscountAmountAndroid:
 ## Discount display information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class DiscountDisplayInfoAndroid:
 	## Percentage discount (e.g., 33 for 33% off)
-	var percentage_discount: int = 0
+	var percentage_discount: Variant = null
 	## Absolute discount amount details
 	var discount_amount: DiscountAmountAndroid
 
@@ -594,8 +581,7 @@ class DiscountDisplayInfoAndroid:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
-		if percentage_discount != 0:
-			dict["percentageDiscount"] = percentage_discount
+		dict["percentageDiscount"] = percentage_discount
 		if discount_amount != null and discount_amount.has_method("to_dict"):
 			dict["discountAmount"] = discount_amount.to_dict()
 		else:
@@ -611,7 +597,7 @@ class DiscountIOS:
 	var price_amount: float = 0.0
 	var payment_mode: PaymentModeIOS
 	var subscription_period: String = ""
-	var localized_price: String = ""
+	var localized_price: Variant = null
 
 	static func from_dict(data: Dictionary) -> DiscountIOS:
 		var obj = DiscountIOS.new()
@@ -649,14 +635,13 @@ class DiscountIOS:
 		else:
 			dict["paymentMode"] = payment_mode
 		dict["subscriptionPeriod"] = subscription_period
-		if localized_price != "":
-			dict["localizedPrice"] = localized_price
+		dict["localizedPrice"] = localized_price
 		return dict
 
 ## Standardized one-time product discount offer. Provides a unified interface for one-time purchase discounts across platforms.  Currently supported on Android (Google Play Billing 7.0+). iOS does not support one-time purchase discounts in the same way.  @see https://openiap.dev/docs/features/discount
 class DiscountOffer:
 	## Unique identifier for the offer.
-	var id: String = ""
+	var id: Variant = null
 	## Formatted display price string (e.g., "$4.99")
 	var display_price: String = ""
 	## Numeric price value
@@ -666,17 +651,17 @@ class DiscountOffer:
 	## Type of discount offer
 	var type: DiscountOfferType
 	## [Android] Offer token required for purchase.
-	var offer_token_android: String = ""
+	var offer_token_android: Variant = null
 	## [Android] List of tags associated with this offer.
 	var offer_tags_android: Array[String] = []
 	## [Android] Original full price in micro-units before discount.
-	var full_price_micros_android: String = ""
+	var full_price_micros_android: Variant = null
 	## [Android] Percentage discount (e.g., 33 for 33% off).
-	var percentage_discount_android: int = 0
+	var percentage_discount_android: Variant = null
 	## [Android] Fixed discount amount in micro-units.
-	var discount_amount_micros_android: String = ""
+	var discount_amount_micros_android: Variant = null
 	## [Android] Formatted discount amount string (e.g., "$5.00 OFF").
-	var formatted_discount_amount_android: String = ""
+	var formatted_discount_amount_android: Variant = null
 	## [Android] Valid time window for the offer.
 	var valid_time_window_android: ValidTimeWindowAndroid
 	## [Android] Limited quantity information.
@@ -686,7 +671,7 @@ class DiscountOffer:
 	## [Android] Rental details if this is a rental offer.
 	var rental_details_android: RentalDetailsAndroid
 	## [Android] Purchase option ID for this offer.
-	var purchase_option_id_android: String = ""
+	var purchase_option_id_android: Variant = null
 
 	static func from_dict(data: Dictionary) -> DiscountOffer:
 		var obj = DiscountOffer.new()
@@ -742,8 +727,7 @@ class DiscountOffer:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
-		if id != "":
-			dict["id"] = id
+		dict["id"] = id
 		dict["displayPrice"] = display_price
 		dict["price"] = price
 		dict["currency"] = currency
@@ -751,18 +735,12 @@ class DiscountOffer:
 			dict["type"] = DISCOUNT_OFFER_TYPE_VALUES[type]
 		else:
 			dict["type"] = type
-		if offer_token_android != "":
-			dict["offerTokenAndroid"] = offer_token_android
-		if offer_tags_android != []:
-			dict["offerTagsAndroid"] = offer_tags_android
-		if full_price_micros_android != "":
-			dict["fullPriceMicrosAndroid"] = full_price_micros_android
-		if percentage_discount_android != 0:
-			dict["percentageDiscountAndroid"] = percentage_discount_android
-		if discount_amount_micros_android != "":
-			dict["discountAmountMicrosAndroid"] = discount_amount_micros_android
-		if formatted_discount_amount_android != "":
-			dict["formattedDiscountAmountAndroid"] = formatted_discount_amount_android
+		dict["offerTokenAndroid"] = offer_token_android
+		dict["offerTagsAndroid"] = offer_tags_android
+		dict["fullPriceMicrosAndroid"] = full_price_micros_android
+		dict["percentageDiscountAndroid"] = percentage_discount_android
+		dict["discountAmountMicrosAndroid"] = discount_amount_micros_android
+		dict["formattedDiscountAmountAndroid"] = formatted_discount_amount_android
 		if valid_time_window_android != null and valid_time_window_android.has_method("to_dict"):
 			dict["validTimeWindowAndroid"] = valid_time_window_android.to_dict()
 		else:
@@ -779,8 +757,7 @@ class DiscountOffer:
 			dict["rentalDetailsAndroid"] = rental_details_android.to_dict()
 		else:
 			dict["rentalDetailsAndroid"] = rental_details_android
-		if purchase_option_id_android != "":
-			dict["purchaseOptionIdAndroid"] = purchase_option_id_android
+		dict["purchaseOptionIdAndroid"] = purchase_option_id_android
 		return dict
 
 ## iOS DiscountOffer (output type). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
@@ -878,7 +855,7 @@ class ExternalPurchaseCustomLinkNoticeResultIOS:
 	## Whether the user chose to continue to external purchase
 	var continued: bool = false
 	## Optional error message if the presentation failed
-	var error: String = ""
+	var error: Variant = null
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkNoticeResultIOS:
 		var obj = ExternalPurchaseCustomLinkNoticeResultIOS.new()
@@ -891,16 +868,15 @@ class ExternalPurchaseCustomLinkNoticeResultIOS:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["continued"] = continued
-		if error != "":
-			dict["error"] = error
+		dict["error"] = error
 		return dict
 
 ## Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
 class ExternalPurchaseCustomLinkTokenResultIOS:
 	## The external purchase token string.
-	var token: String = ""
+	var token: Variant = null
 	## Optional error message if token retrieval failed
-	var error: String = ""
+	var error: Variant = null
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkTokenResultIOS:
 		var obj = ExternalPurchaseCustomLinkTokenResultIOS.new()
@@ -912,10 +888,8 @@ class ExternalPurchaseCustomLinkTokenResultIOS:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
-		if token != "":
-			dict["token"] = token
-		if error != "":
-			dict["error"] = error
+		dict["token"] = token
+		dict["error"] = error
 		return dict
 
 ## Result of presenting an external purchase link
@@ -923,7 +897,7 @@ class ExternalPurchaseLinkResultIOS:
 	## Whether the user completed the external purchase flow
 	var success: bool = false
 	## Optional error message if the presentation failed
-	var error: String = ""
+	var error: Variant = null
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseLinkResultIOS:
 		var obj = ExternalPurchaseLinkResultIOS.new()
@@ -936,8 +910,7 @@ class ExternalPurchaseLinkResultIOS:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["success"] = success
-		if error != "":
-			dict["error"] = error
+		dict["error"] = error
 		return dict
 
 ## Result of presenting external purchase notice sheet (iOS 17.4+) Returns the token when user continues to external purchase.
@@ -945,9 +918,9 @@ class ExternalPurchaseNoticeResultIOS:
 	## Notice result indicating user action
 	var result: ExternalPurchaseNoticeAction
 	## Optional error message if the presentation failed
-	var error: String = ""
+	var error: Variant = null
 	## External purchase token returned when user continues (iOS 17.4+).
-	var external_purchase_token: String = ""
+	var external_purchase_token: Variant = null
 
 	static func from_dict(data: Dictionary) -> ExternalPurchaseNoticeResultIOS:
 		var obj = ExternalPurchaseNoticeResultIOS.new()
@@ -969,10 +942,8 @@ class ExternalPurchaseNoticeResultIOS:
 			dict["result"] = EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES[result]
 		else:
 			dict["result"] = result
-		if error != "":
-			dict["error"] = error
-		if external_purchase_token != "":
-			dict["externalPurchaseToken"] = external_purchase_token
+		dict["error"] = error
+		dict["externalPurchaseToken"] = external_purchase_token
 		return dict
 
 ## Installment plan details for subscription offers (Android) Contains information about the installment plan commitment. Available in Google Play Billing Library 7.0+
@@ -1127,11 +1098,11 @@ class ProductAndroid:
 	var title: String = ""
 	var description: String = ""
 	var type: ProductType
-	var display_name: String = ""
+	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
-	var price: float = 0.0
-	var debug_description: String = ""
+	var price: Variant = null
+	var debug_description: Variant = null
 	var platform: IapPlatform
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
@@ -1226,14 +1197,11 @@ class ProductAndroid:
 			dict["type"] = PRODUCT_TYPE_VALUES[type]
 		else:
 			dict["type"] = type
-		if display_name != "":
-			dict["displayName"] = display_name
+		dict["displayName"] = display_name
 		dict["displayPrice"] = display_price
 		dict["currency"] = currency
-		if price != 0.0:
-			dict["price"] = price
-		if debug_description != "":
-			dict["debugDescription"] = debug_description
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
 		if IAP_PLATFORM_VALUES.has(platform):
 			dict["platform"] = IAP_PLATFORM_VALUES[platform]
 		else:
@@ -1288,7 +1256,7 @@ class ProductAndroid:
 ## One-time purchase offer details (Android). Available in Google Play Billing Library 7.0+ @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#discount-offer
 class ProductAndroidOneTimePurchaseOfferDetail:
 	## Offer ID
-	var offer_id: String = ""
+	var offer_id: Variant = null
 	## Offer token for use in BillingFlowParams when purchasing
 	var offer_token: String = ""
 	## List of offer tags
@@ -1297,7 +1265,7 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 	var formatted_price: String = ""
 	var price_amount_micros: String = ""
 	## Full (non-discounted) price in micro-units
-	var full_price_micros: String = ""
+	var full_price_micros: Variant = null
 	## Discount display information
 	var discount_display_info: DiscountDisplayInfoAndroid
 	## Valid time window for the offer
@@ -1309,7 +1277,7 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 	## Rental details for rental offers
 	var rental_details_android: RentalDetailsAndroid
 	## Purchase option ID for this offer (Android)
-	var purchase_option_id: String = ""
+	var purchase_option_id: Variant = null
 
 	static func from_dict(data: Dictionary) -> ProductAndroidOneTimePurchaseOfferDetail:
 		var obj = ProductAndroidOneTimePurchaseOfferDetail.new()
@@ -1358,15 +1326,13 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
-		if offer_id != "":
-			dict["offerId"] = offer_id
+		dict["offerId"] = offer_id
 		dict["offerToken"] = offer_token
 		dict["offerTags"] = offer_tags
 		dict["priceCurrencyCode"] = price_currency_code
 		dict["formattedPrice"] = formatted_price
 		dict["priceAmountMicros"] = price_amount_micros
-		if full_price_micros != "":
-			dict["fullPriceMicros"] = full_price_micros
+		dict["fullPriceMicros"] = full_price_micros
 		if discount_display_info != null and discount_display_info.has_method("to_dict"):
 			dict["discountDisplayInfo"] = discount_display_info.to_dict()
 		else:
@@ -1387,8 +1353,7 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 			dict["rentalDetailsAndroid"] = rental_details_android.to_dict()
 		else:
 			dict["rentalDetailsAndroid"] = rental_details_android
-		if purchase_option_id != "":
-			dict["purchaseOptionId"] = purchase_option_id
+		dict["purchaseOptionId"] = purchase_option_id
 		return dict
 
 class ProductIOS:
@@ -1396,11 +1361,11 @@ class ProductIOS:
 	var title: String = ""
 	var description: String = ""
 	var type: ProductType
-	var display_name: String = ""
+	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
-	var price: float = 0.0
-	var debug_description: String = ""
+	var price: Variant = null
+	var debug_description: Variant = null
 	var platform: IapPlatform
 	var display_name_ios: String = ""
 	var is_family_shareable_ios: bool = false
@@ -1477,14 +1442,11 @@ class ProductIOS:
 			dict["type"] = PRODUCT_TYPE_VALUES[type]
 		else:
 			dict["type"] = type
-		if display_name != "":
-			dict["displayName"] = display_name
+		dict["displayName"] = display_name
 		dict["displayPrice"] = display_price
 		dict["currency"] = currency
-		if price != 0.0:
-			dict["price"] = price
-		if debug_description != "":
-			dict["debugDescription"] = debug_description
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
 		if IAP_PLATFORM_VALUES.has(platform):
 			dict["platform"] = IAP_PLATFORM_VALUES[platform]
 		else:
@@ -1517,11 +1479,11 @@ class ProductSubscriptionAndroid:
 	var title: String = ""
 	var description: String = ""
 	var type: ProductType
-	var display_name: String = ""
+	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
-	var price: float = 0.0
-	var debug_description: String = ""
+	var price: Variant = null
+	var debug_description: Variant = null
 	var platform: IapPlatform
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+)
@@ -1616,14 +1578,11 @@ class ProductSubscriptionAndroid:
 			dict["type"] = PRODUCT_TYPE_VALUES[type]
 		else:
 			dict["type"] = type
-		if display_name != "":
-			dict["displayName"] = display_name
+		dict["displayName"] = display_name
 		dict["displayPrice"] = display_price
 		dict["currency"] = currency
-		if price != 0.0:
-			dict["price"] = price
-		if debug_description != "":
-			dict["debugDescription"] = debug_description
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
 		if IAP_PLATFORM_VALUES.has(platform):
 			dict["platform"] = IAP_PLATFORM_VALUES[platform]
 		else:
@@ -1678,7 +1637,7 @@ class ProductSubscriptionAndroid:
 ## Subscription offer details (Android). @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. @see https://openiap.dev/docs/types#subscription-offer
 class ProductSubscriptionAndroidOfferDetails:
 	var base_plan_id: String = ""
-	var offer_id: String = ""
+	var offer_id: Variant = null
 	var offer_token: String = ""
 	var offer_tags: Array[String] = []
 	var pricing_phases: PricingPhasesAndroid
@@ -1710,8 +1669,7 @@ class ProductSubscriptionAndroidOfferDetails:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["basePlanId"] = base_plan_id
-		if offer_id != "":
-			dict["offerId"] = offer_id
+		dict["offerId"] = offer_id
 		dict["offerToken"] = offer_token
 		dict["offerTags"] = offer_tags
 		if pricing_phases != null and pricing_phases.has_method("to_dict"):
@@ -1729,11 +1687,11 @@ class ProductSubscriptionIOS:
 	var title: String = ""
 	var description: String = ""
 	var type: ProductType
-	var display_name: String = ""
+	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
-	var price: float = 0.0
-	var debug_description: String = ""
+	var price: Variant = null
+	var debug_description: Variant = null
 	var platform: IapPlatform
 	var display_name_ios: String = ""
 	var is_family_shareable_ios: bool = false
@@ -1745,12 +1703,12 @@ class ProductSubscriptionIOS:
 	var subscription_info_ios: SubscriptionInfoIOS
 	## @deprecated Use subscriptionOffers instead for cross-platform compatibility.
 	var discounts_ios: Array[DiscountIOS] = []
-	var introductory_price_ios: String = ""
-	var introductory_price_as_amount_ios: String = ""
+	var introductory_price_ios: Variant = null
+	var introductory_price_as_amount_ios: Variant = null
 	var introductory_price_payment_mode_ios: PaymentModeIOS
-	var introductory_price_number_of_periods_ios: String = ""
+	var introductory_price_number_of_periods_ios: Variant = null
 	var introductory_price_subscription_period_ios: SubscriptionPeriodIOS
-	var subscription_period_number_ios: String = ""
+	var subscription_period_number_ios: Variant = null
 	var subscription_period_unit_ios: SubscriptionPeriodIOS
 
 	static func from_dict(data: Dictionary) -> ProductSubscriptionIOS:
@@ -1853,14 +1811,11 @@ class ProductSubscriptionIOS:
 			dict["type"] = PRODUCT_TYPE_VALUES[type]
 		else:
 			dict["type"] = type
-		if display_name != "":
-			dict["displayName"] = display_name
+		dict["displayName"] = display_name
 		dict["displayPrice"] = display_price
 		dict["currency"] = currency
-		if price != 0.0:
-			dict["price"] = price
-		if debug_description != "":
-			dict["debugDescription"] = debug_description
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
 		if IAP_PLATFORM_VALUES.has(platform):
 			dict["platform"] = IAP_PLATFORM_VALUES[platform]
 		else:
@@ -1896,22 +1851,18 @@ class ProductSubscriptionIOS:
 			dict["discountsIOS"] = arr
 		else:
 			dict["discountsIOS"] = null
-		if introductory_price_ios != "":
-			dict["introductoryPriceIOS"] = introductory_price_ios
-		if introductory_price_as_amount_ios != "":
-			dict["introductoryPriceAsAmountIOS"] = introductory_price_as_amount_ios
+		dict["introductoryPriceIOS"] = introductory_price_ios
+		dict["introductoryPriceAsAmountIOS"] = introductory_price_as_amount_ios
 		if PAYMENT_MODE_IOS_VALUES.has(introductory_price_payment_mode_ios):
 			dict["introductoryPricePaymentModeIOS"] = PAYMENT_MODE_IOS_VALUES[introductory_price_payment_mode_ios]
 		else:
 			dict["introductoryPricePaymentModeIOS"] = introductory_price_payment_mode_ios
-		if introductory_price_number_of_periods_ios != "":
-			dict["introductoryPriceNumberOfPeriodsIOS"] = introductory_price_number_of_periods_ios
+		dict["introductoryPriceNumberOfPeriodsIOS"] = introductory_price_number_of_periods_ios
 		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(introductory_price_subscription_period_ios):
 			dict["introductoryPriceSubscriptionPeriodIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[introductory_price_subscription_period_ios]
 		else:
 			dict["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
-		if subscription_period_number_ios != "":
-			dict["subscriptionPeriodNumberIOS"] = subscription_period_number_ios
+		dict["subscriptionPeriodNumberIOS"] = subscription_period_number_ios
 		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(subscription_period_unit_ios):
 			dict["subscriptionPeriodUnitIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[subscription_period_unit_ios]
 		else:
@@ -1922,26 +1873,26 @@ class PurchaseAndroid:
 	var id: String = ""
 	var product_id: String = ""
 	var ids: Array[String] = []
-	var transaction_id: String = ""
+	var transaction_id: Variant = null
 	var transaction_date: float = 0.0
-	var purchase_token: String = ""
+	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: IapStore
 	var platform: IapPlatform
 	var quantity: int = 0
 	var purchase_state: PurchaseState
 	var is_auto_renewing: bool = false
-	var current_plan_id: String = ""
-	var data_android: String = ""
-	var signature_android: String = ""
-	var auto_renewing_android: bool = false
-	var is_acknowledged_android: bool = false
-	var package_name_android: String = ""
-	var developer_payload_android: String = ""
-	var obfuscated_account_id_android: String = ""
-	var obfuscated_profile_id_android: String = ""
+	var current_plan_id: Variant = null
+	var data_android: Variant = null
+	var signature_android: Variant = null
+	var auto_renewing_android: Variant = null
+	var is_acknowledged_android: Variant = null
+	var package_name_android: Variant = null
+	var developer_payload_android: Variant = null
+	var obfuscated_account_id_android: Variant = null
+	var obfuscated_profile_id_android: Variant = null
 	## Whether the subscription is suspended (Android)
-	var is_suspended_android: bool = false
+	var is_suspended_android: Variant = null
 	## Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
 	var pending_purchase_update_android: PendingPurchaseUpdateAndroid
 
@@ -2012,13 +1963,10 @@ class PurchaseAndroid:
 		var dict = {}
 		dict["id"] = id
 		dict["productId"] = product_id
-		if ids != []:
-			dict["ids"] = ids
-		if transaction_id != "":
-			dict["transactionId"] = transaction_id
+		dict["ids"] = ids
+		dict["transactionId"] = transaction_id
 		dict["transactionDate"] = transaction_date
-		if purchase_token != "":
-			dict["purchaseToken"] = purchase_token
+		dict["purchaseToken"] = purchase_token
 		if IAP_STORE_VALUES.has(store):
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
@@ -2033,26 +1981,16 @@ class PurchaseAndroid:
 		else:
 			dict["purchaseState"] = purchase_state
 		dict["isAutoRenewing"] = is_auto_renewing
-		if current_plan_id != "":
-			dict["currentPlanId"] = current_plan_id
-		if data_android != "":
-			dict["dataAndroid"] = data_android
-		if signature_android != "":
-			dict["signatureAndroid"] = signature_android
-		if auto_renewing_android != false:
-			dict["autoRenewingAndroid"] = auto_renewing_android
-		if is_acknowledged_android != false:
-			dict["isAcknowledgedAndroid"] = is_acknowledged_android
-		if package_name_android != "":
-			dict["packageNameAndroid"] = package_name_android
-		if developer_payload_android != "":
-			dict["developerPayloadAndroid"] = developer_payload_android
-		if obfuscated_account_id_android != "":
-			dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
-		if obfuscated_profile_id_android != "":
-			dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
-		if is_suspended_android != false:
-			dict["isSuspendedAndroid"] = is_suspended_android
+		dict["currentPlanId"] = current_plan_id
+		dict["dataAndroid"] = data_android
+		dict["signatureAndroid"] = signature_android
+		dict["autoRenewingAndroid"] = auto_renewing_android
+		dict["isAcknowledgedAndroid"] = is_acknowledged_android
+		dict["packageNameAndroid"] = package_name_android
+		dict["developerPayloadAndroid"] = developer_payload_android
+		dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
+		dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
+		dict["isSuspendedAndroid"] = is_suspended_android
 		if pending_purchase_update_android != null and pending_purchase_update_android.has_method("to_dict"):
 			dict["pendingPurchaseUpdateAndroid"] = pending_purchase_update_android.to_dict()
 		else:
@@ -2062,8 +2000,8 @@ class PurchaseAndroid:
 class PurchaseError:
 	var code: ErrorCode
 	var message: String = ""
-	var product_id: String = ""
-	var debug_message: String = ""
+	var product_id: Variant = null
+	var debug_message: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseError:
 		var obj = PurchaseError.new()
@@ -2088,10 +2026,8 @@ class PurchaseError:
 		else:
 			dict["code"] = code
 		dict["message"] = message
-		if product_id != "":
-			dict["productId"] = product_id
-		if debug_message != "":
-			dict["debugMessage"] = debug_message
+		dict["productId"] = product_id
+		dict["debugMessage"] = debug_message
 		return dict
 
 class PurchaseIOS:
@@ -2099,36 +2035,36 @@ class PurchaseIOS:
 	var product_id: String = ""
 	var ids: Array[String] = []
 	var transaction_date: float = 0.0
-	var purchase_token: String = ""
+	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: IapStore
 	var platform: IapPlatform
 	var quantity: int = 0
 	var purchase_state: PurchaseState
 	var is_auto_renewing: bool = false
-	var current_plan_id: String = ""
+	var current_plan_id: Variant = null
 	var transaction_id: String = ""
-	var quantity_ios: int = 0
-	var original_transaction_date_ios: float = 0.0
-	var original_transaction_identifier_ios: String = ""
-	var app_account_token: String = ""
-	var expiration_date_ios: float = 0.0
-	var web_order_line_item_id_ios: String = ""
-	var environment_ios: String = ""
-	var storefront_country_code_ios: String = ""
-	var app_bundle_id_ios: String = ""
-	var subscription_group_id_ios: String = ""
-	var is_upgraded_ios: bool = false
-	var ownership_type_ios: String = ""
-	var reason_ios: String = ""
-	var reason_string_representation_ios: String = ""
-	var transaction_reason_ios: String = ""
-	var revocation_date_ios: float = 0.0
-	var revocation_reason_ios: String = ""
+	var quantity_ios: Variant = null
+	var original_transaction_date_ios: Variant = null
+	var original_transaction_identifier_ios: Variant = null
+	var app_account_token: Variant = null
+	var expiration_date_ios: Variant = null
+	var web_order_line_item_id_ios: Variant = null
+	var environment_ios: Variant = null
+	var storefront_country_code_ios: Variant = null
+	var app_bundle_id_ios: Variant = null
+	var subscription_group_id_ios: Variant = null
+	var is_upgraded_ios: Variant = null
+	var ownership_type_ios: Variant = null
+	var reason_ios: Variant = null
+	var reason_string_representation_ios: Variant = null
+	var transaction_reason_ios: Variant = null
+	var revocation_date_ios: Variant = null
+	var revocation_reason_ios: Variant = null
 	var offer_ios: PurchaseOfferIOS
-	var currency_code_ios: String = ""
-	var currency_symbol_ios: String = ""
-	var country_code_ios: String = ""
+	var currency_code_ios: Variant = null
+	var currency_symbol_ios: Variant = null
+	var country_code_ios: Variant = null
 	var renewal_info_ios: RenewalInfoIOS
 
 	static func from_dict(data: Dictionary) -> PurchaseIOS:
@@ -2225,11 +2161,9 @@ class PurchaseIOS:
 		var dict = {}
 		dict["id"] = id
 		dict["productId"] = product_id
-		if ids != []:
-			dict["ids"] = ids
+		dict["ids"] = ids
 		dict["transactionDate"] = transaction_date
-		if purchase_token != "":
-			dict["purchaseToken"] = purchase_token
+		dict["purchaseToken"] = purchase_token
 		if IAP_STORE_VALUES.has(store):
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
@@ -2244,53 +2178,32 @@ class PurchaseIOS:
 		else:
 			dict["purchaseState"] = purchase_state
 		dict["isAutoRenewing"] = is_auto_renewing
-		if current_plan_id != "":
-			dict["currentPlanId"] = current_plan_id
+		dict["currentPlanId"] = current_plan_id
 		dict["transactionId"] = transaction_id
-		if quantity_ios != 0:
-			dict["quantityIOS"] = quantity_ios
-		if original_transaction_date_ios != 0.0:
-			dict["originalTransactionDateIOS"] = original_transaction_date_ios
-		if original_transaction_identifier_ios != "":
-			dict["originalTransactionIdentifierIOS"] = original_transaction_identifier_ios
-		if app_account_token != "":
-			dict["appAccountToken"] = app_account_token
-		if expiration_date_ios != 0.0:
-			dict["expirationDateIOS"] = expiration_date_ios
-		if web_order_line_item_id_ios != "":
-			dict["webOrderLineItemIdIOS"] = web_order_line_item_id_ios
-		if environment_ios != "":
-			dict["environmentIOS"] = environment_ios
-		if storefront_country_code_ios != "":
-			dict["storefrontCountryCodeIOS"] = storefront_country_code_ios
-		if app_bundle_id_ios != "":
-			dict["appBundleIdIOS"] = app_bundle_id_ios
-		if subscription_group_id_ios != "":
-			dict["subscriptionGroupIdIOS"] = subscription_group_id_ios
-		if is_upgraded_ios != false:
-			dict["isUpgradedIOS"] = is_upgraded_ios
-		if ownership_type_ios != "":
-			dict["ownershipTypeIOS"] = ownership_type_ios
-		if reason_ios != "":
-			dict["reasonIOS"] = reason_ios
-		if reason_string_representation_ios != "":
-			dict["reasonStringRepresentationIOS"] = reason_string_representation_ios
-		if transaction_reason_ios != "":
-			dict["transactionReasonIOS"] = transaction_reason_ios
-		if revocation_date_ios != 0.0:
-			dict["revocationDateIOS"] = revocation_date_ios
-		if revocation_reason_ios != "":
-			dict["revocationReasonIOS"] = revocation_reason_ios
+		dict["quantityIOS"] = quantity_ios
+		dict["originalTransactionDateIOS"] = original_transaction_date_ios
+		dict["originalTransactionIdentifierIOS"] = original_transaction_identifier_ios
+		dict["appAccountToken"] = app_account_token
+		dict["expirationDateIOS"] = expiration_date_ios
+		dict["webOrderLineItemIdIOS"] = web_order_line_item_id_ios
+		dict["environmentIOS"] = environment_ios
+		dict["storefrontCountryCodeIOS"] = storefront_country_code_ios
+		dict["appBundleIdIOS"] = app_bundle_id_ios
+		dict["subscriptionGroupIdIOS"] = subscription_group_id_ios
+		dict["isUpgradedIOS"] = is_upgraded_ios
+		dict["ownershipTypeIOS"] = ownership_type_ios
+		dict["reasonIOS"] = reason_ios
+		dict["reasonStringRepresentationIOS"] = reason_string_representation_ios
+		dict["transactionReasonIOS"] = transaction_reason_ios
+		dict["revocationDateIOS"] = revocation_date_ios
+		dict["revocationReasonIOS"] = revocation_reason_ios
 		if offer_ios != null and offer_ios.has_method("to_dict"):
 			dict["offerIOS"] = offer_ios.to_dict()
 		else:
 			dict["offerIOS"] = offer_ios
-		if currency_code_ios != "":
-			dict["currencyCodeIOS"] = currency_code_ios
-		if currency_symbol_ios != "":
-			dict["currencySymbolIOS"] = currency_symbol_ios
-		if country_code_ios != "":
-			dict["countryCodeIOS"] = country_code_ios
+		dict["currencyCodeIOS"] = currency_code_ios
+		dict["currencySymbolIOS"] = currency_symbol_ios
+		dict["countryCodeIOS"] = country_code_ios
 		if renewal_info_ios != null and renewal_info_ios.has_method("to_dict"):
 			dict["renewalInfoIOS"] = renewal_info_ios.to_dict()
 		else:
@@ -2321,7 +2234,7 @@ class PurchaseOfferIOS:
 
 class RefundResultIOS:
 	var status: String = ""
-	var message: String = ""
+	var message: Variant = null
 
 	static func from_dict(data: Dictionary) -> RefundResultIOS:
 		var obj = RefundResultIOS.new()
@@ -2334,31 +2247,30 @@ class RefundResultIOS:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["status"] = status
-		if message != "":
-			dict["message"] = message
+		dict["message"] = message
 		return dict
 
 ## Subscription renewal information from Product.SubscriptionInfo.RenewalInfo https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 class RenewalInfoIOS:
-	var json_representation: String = ""
+	var json_representation: Variant = null
 	var will_auto_renew: bool = false
-	var auto_renew_preference: String = ""
+	var auto_renew_preference: Variant = null
 	## When subscription expires due to cancellation/billing issue
-	var expiration_reason: String = ""
+	var expiration_reason: Variant = null
 	## Grace period expiration date (milliseconds since epoch)
-	var grace_period_expiration_date: float = 0.0
+	var grace_period_expiration_date: Variant = null
 	## True if subscription failed to renew due to billing issue and is retrying
-	var is_in_billing_retry: bool = false
+	var is_in_billing_retry: Variant = null
 	## Product ID that will be used on next renewal (when user upgrades/downgrades)
-	var pending_upgrade_product_id: String = ""
+	var pending_upgrade_product_id: Variant = null
 	## User's response to subscription price increase
-	var price_increase_status: String = ""
+	var price_increase_status: Variant = null
 	## Expected renewal date (milliseconds since epoch)
-	var renewal_date: float = 0.0
+	var renewal_date: Variant = null
 	## Offer ID applied to next renewal (promotional offer, subscription offer code, etc.)
-	var renewal_offer_id: String = ""
+	var renewal_offer_id: Variant = null
 	## Type of offer applied to next renewal
-	var renewal_offer_type: String = ""
+	var renewal_offer_type: Variant = null
 
 	static func from_dict(data: Dictionary) -> RenewalInfoIOS:
 		var obj = RenewalInfoIOS.new()
@@ -2388,27 +2300,17 @@ class RenewalInfoIOS:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
-		if json_representation != "":
-			dict["jsonRepresentation"] = json_representation
+		dict["jsonRepresentation"] = json_representation
 		dict["willAutoRenew"] = will_auto_renew
-		if auto_renew_preference != "":
-			dict["autoRenewPreference"] = auto_renew_preference
-		if expiration_reason != "":
-			dict["expirationReason"] = expiration_reason
-		if grace_period_expiration_date != 0.0:
-			dict["gracePeriodExpirationDate"] = grace_period_expiration_date
-		if is_in_billing_retry != false:
-			dict["isInBillingRetry"] = is_in_billing_retry
-		if pending_upgrade_product_id != "":
-			dict["pendingUpgradeProductId"] = pending_upgrade_product_id
-		if price_increase_status != "":
-			dict["priceIncreaseStatus"] = price_increase_status
-		if renewal_date != 0.0:
-			dict["renewalDate"] = renewal_date
-		if renewal_offer_id != "":
-			dict["renewalOfferId"] = renewal_offer_id
-		if renewal_offer_type != "":
-			dict["renewalOfferType"] = renewal_offer_type
+		dict["autoRenewPreference"] = auto_renew_preference
+		dict["expirationReason"] = expiration_reason
+		dict["gracePeriodExpirationDate"] = grace_period_expiration_date
+		dict["isInBillingRetry"] = is_in_billing_retry
+		dict["pendingUpgradeProductId"] = pending_upgrade_product_id
+		dict["priceIncreaseStatus"] = price_increase_status
+		dict["renewalDate"] = renewal_date
+		dict["renewalOfferId"] = renewal_offer_id
+		dict["renewalOfferType"] = renewal_offer_type
 		return dict
 
 ## Rental details for one-time purchase products that can be rented (Android) Available in Google Play Billing Library 7.0+
@@ -2416,7 +2318,7 @@ class RentalDetailsAndroid:
 	## Rental period in ISO 8601 format (e.g., P7D for 7 days)
 	var rental_period: String = ""
 	## Rental expiration period in ISO 8601 format
-	var rental_expiration_period: String = ""
+	var rental_expiration_period: Variant = null
 
 	static func from_dict(data: Dictionary) -> RentalDetailsAndroid:
 		var obj = RentalDetailsAndroid.new()
@@ -2429,8 +2331,7 @@ class RentalDetailsAndroid:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["rentalPeriod"] = rental_period
-		if rental_expiration_period != "":
-			dict["rentalExpirationPeriod"] = rental_expiration_period
+		dict["rentalExpirationPeriod"] = rental_expiration_period
 		return dict
 
 class RequestVerifyPurchaseWithIapkitResult:
@@ -2533,31 +2434,31 @@ class SubscriptionOffer:
 	## Numeric price value
 	var price: float = 0.0
 	## Currency code (ISO 4217, e.g., "USD")
-	var currency: String = ""
+	var currency: Variant = null
 	## Type of subscription offer (Introductory or Promotional)
 	var type: DiscountOfferType
 	## Subscription period for this offer
 	var period: SubscriptionPeriod
 	## Number of periods the offer applies
-	var period_count: int = 0
+	var period_count: Variant = null
 	## Payment mode during the offer period
 	var payment_mode: PaymentMode
 	## [iOS] Key identifier for signature validation.
-	var key_identifier_ios: String = ""
+	var key_identifier_ios: Variant = null
 	## [iOS] Cryptographic nonce (UUID) for signature validation.
-	var nonce_ios: String = ""
+	var nonce_ios: Variant = null
 	## [iOS] Server-generated signature for promotional offer validation.
-	var signature_ios: String = ""
+	var signature_ios: Variant = null
 	## [iOS] Timestamp when the signature was generated.
-	var timestamp_ios: float = 0.0
+	var timestamp_ios: Variant = null
 	## [iOS] Number of billing periods for this discount.
-	var number_of_periods_ios: int = 0
+	var number_of_periods_ios: Variant = null
 	## [iOS] Localized price string.
-	var localized_price_ios: String = ""
+	var localized_price_ios: Variant = null
 	## [Android] Base plan identifier.
-	var base_plan_id_android: String = ""
+	var base_plan_id_android: Variant = null
 	## [Android] Offer token required for purchase.
-	var offer_token_android: String = ""
+	var offer_token_android: Variant = null
 	## [Android] List of tags associated with this offer.
 	var offer_tags_android: Array[String] = []
 	## [Android] Pricing phases for this subscription offer.
@@ -2629,8 +2530,7 @@ class SubscriptionOffer:
 		dict["id"] = id
 		dict["displayPrice"] = display_price
 		dict["price"] = price
-		if currency != "":
-			dict["currency"] = currency
+		dict["currency"] = currency
 		if DISCOUNT_OFFER_TYPE_VALUES.has(type):
 			dict["type"] = DISCOUNT_OFFER_TYPE_VALUES[type]
 		else:
@@ -2639,30 +2539,20 @@ class SubscriptionOffer:
 			dict["period"] = period.to_dict()
 		else:
 			dict["period"] = period
-		if period_count != 0:
-			dict["periodCount"] = period_count
+		dict["periodCount"] = period_count
 		if PAYMENT_MODE_VALUES.has(payment_mode):
 			dict["paymentMode"] = PAYMENT_MODE_VALUES[payment_mode]
 		else:
 			dict["paymentMode"] = payment_mode
-		if key_identifier_ios != "":
-			dict["keyIdentifierIOS"] = key_identifier_ios
-		if nonce_ios != "":
-			dict["nonceIOS"] = nonce_ios
-		if signature_ios != "":
-			dict["signatureIOS"] = signature_ios
-		if timestamp_ios != 0.0:
-			dict["timestampIOS"] = timestamp_ios
-		if number_of_periods_ios != 0:
-			dict["numberOfPeriodsIOS"] = number_of_periods_ios
-		if localized_price_ios != "":
-			dict["localizedPriceIOS"] = localized_price_ios
-		if base_plan_id_android != "":
-			dict["basePlanIdAndroid"] = base_plan_id_android
-		if offer_token_android != "":
-			dict["offerTokenAndroid"] = offer_token_android
-		if offer_tags_android != []:
-			dict["offerTagsAndroid"] = offer_tags_android
+		dict["keyIdentifierIOS"] = key_identifier_ios
+		dict["nonceIOS"] = nonce_ios
+		dict["signatureIOS"] = signature_ios
+		dict["timestampIOS"] = timestamp_ios
+		dict["numberOfPeriodsIOS"] = number_of_periods_ios
+		dict["localizedPriceIOS"] = localized_price_ios
+		dict["basePlanIdAndroid"] = base_plan_id_android
+		dict["offerTokenAndroid"] = offer_token_android
+		dict["offerTagsAndroid"] = offer_tags_android
 		if pricing_phases_android != null and pricing_phases_android.has_method("to_dict"):
 			dict["pricingPhasesAndroid"] = pricing_phases_android.to_dict()
 		else:
@@ -2854,10 +2744,10 @@ class ValidTimeWindowAndroid:
 class VerifyPurchaseResultAndroid:
 	var auto_renewing: bool = false
 	var beta_product: bool = false
-	var cancel_date: float = 0.0
-	var cancel_reason: String = ""
-	var deferred_date: float = 0.0
-	var deferred_sku: String = ""
+	var cancel_date: Variant = null
+	var cancel_reason: Variant = null
+	var deferred_date: Variant = null
+	var deferred_sku: Variant = null
 	var free_trial_end_date: float = 0.0
 	var grace_period_end_date: float = 0.0
 	var parent_product_id: String = ""
@@ -2915,14 +2805,10 @@ class VerifyPurchaseResultAndroid:
 		var dict = {}
 		dict["autoRenewing"] = auto_renewing
 		dict["betaProduct"] = beta_product
-		if cancel_date != 0.0:
-			dict["cancelDate"] = cancel_date
-		if cancel_reason != "":
-			dict["cancelReason"] = cancel_reason
-		if deferred_date != 0.0:
-			dict["deferredDate"] = deferred_date
-		if deferred_sku != "":
-			dict["deferredSku"] = deferred_sku
+		dict["cancelDate"] = cancel_date
+		dict["cancelReason"] = cancel_reason
+		dict["deferredDate"] = deferred_date
+		dict["deferredSku"] = deferred_sku
 		dict["freeTrialEndDate"] = free_trial_end_date
 		dict["gracePeriodEndDate"] = grace_period_end_date
 		dict["parentProductId"] = parent_product_id
@@ -2942,7 +2828,7 @@ class VerifyPurchaseResultHorizon:
 	## Whether the entitlement verification succeeded.
 	var success: bool = false
 	## Unix timestamp (seconds) when the entitlement was granted.
-	var grant_time: float = 0.0
+	var grant_time: Variant = null
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultHorizon:
 		var obj = VerifyPurchaseResultHorizon.new()
@@ -2955,8 +2841,7 @@ class VerifyPurchaseResultHorizon:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["success"] = success
-		if grant_time != 0.0:
-			dict["grantTime"] = grant_time
+		dict["grantTime"] = grant_time
 		return dict
 
 class VerifyPurchaseResultIOS:
@@ -2991,7 +2876,7 @@ class VerifyPurchaseResultIOS:
 
 class VerifyPurchaseWithProviderError:
 	var message: String = ""
-	var code: String = ""
+	var code: Variant = null
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderError:
 		var obj = VerifyPurchaseWithProviderError.new()
@@ -3004,8 +2889,7 @@ class VerifyPurchaseWithProviderError:
 	func to_dict() -> Dictionary:
 		var dict = {}
 		dict["message"] = message
-		if code != "":
-			dict["code"] = code
+		dict["code"] = code
 		return dict
 
 class VerifyPurchaseWithProviderResult:
@@ -3102,9 +2986,9 @@ class AndroidSubscriptionOfferInput:
 
 class DeepLinkOptions:
 	## Android SKU to open (required on Android)
-	var sku_android: String = ""
+	var sku_android: Variant = null
 	## Android package name to target (required on Android)
-	var package_name_android: String = ""
+	var package_name_android: Variant = null
 
 	static func from_dict(data: Dictionary) -> DeepLinkOptions:
 		var obj = DeepLinkOptions.new()
@@ -3353,7 +3237,7 @@ class PurchaseInput:
 	var product_id: String = ""
 	var ids: Array[String] = []
 	var transaction_date: float = 0.0
-	var purchase_token: String = ""
+	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: IapStore
 	## @deprecated Use store instead
@@ -3433,11 +3317,11 @@ class PurchaseInput:
 
 class PurchaseOptions:
 	## Also emit results through the iOS event listeners
-	var also_publish_to_event_listener_ios: bool = false
+	var also_publish_to_event_listener_ios: Variant = null
 	## Limit to currently active items on iOS
-	var only_include_active_items_ios: bool = false
+	var only_include_active_items_ios: Variant = null
 	## Include suspended subscriptions in the result (Android 8.1+).
-	var include_suspended_android: bool = false
+	var include_suspended_android: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseOptions:
 		var obj = PurchaseOptions.new()
@@ -3463,13 +3347,13 @@ class RequestPurchaseAndroidProps:
 	## List of product SKUs
 	var skus: Array[String] = []
 	## Obfuscated account ID
-	var obfuscated_account_id: String = ""
+	var obfuscated_account_id: Variant = null
 	## Obfuscated profile ID
-	var obfuscated_profile_id: String = ""
+	var obfuscated_profile_id: Variant = null
 	## Personalized offer flag.
-	var is_offer_personalized: bool = false
+	var is_offer_personalized: Variant = null
 	## Offer token for one-time purchase discounts (7.0+).
-	var offer_token: String = ""
+	var offer_token: Variant = null
 	## Developer billing option parameters for external payments flow (8.3.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
@@ -3515,15 +3399,15 @@ class RequestPurchaseIosProps:
 	## Product SKU
 	var sku: String = ""
 	## Auto-finish transaction (dangerous)
-	var and_dangerously_finish_transaction_automatically: bool = false
+	var and_dangerously_finish_transaction_automatically: Variant = null
 	## App account token for user tracking
-	var app_account_token: String = ""
+	var app_account_token: Variant = null
 	## Purchase quantity
-	var quantity: int = 0
+	var quantity: Variant = null
 	## Promotional offer to apply (subscriptions only, ignored for one-time purchases).
 	var with_offer: DiscountOfferInputIOS
 	## Advanced commerce data token (iOS 15+).
-	var advanced_commerce_data: String = ""
+	var advanced_commerce_data: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseIosProps:
 		var obj = RequestPurchaseIosProps.new()
@@ -3571,7 +3455,7 @@ class RequestPurchaseProps:
 	## Explicit purchase type hint (defaults to in-app)
 	var type: ProductQueryType
 	## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
-	var use_alternative_billing: bool = false
+	var use_alternative_billing: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
@@ -3679,15 +3563,15 @@ class RequestSubscriptionAndroidProps:
 	## List of subscription SKUs
 	var skus: Array[String] = []
 	## Obfuscated account ID
-	var obfuscated_account_id: String = ""
+	var obfuscated_account_id: Variant = null
 	## Obfuscated profile ID
-	var obfuscated_profile_id: String = ""
+	var obfuscated_profile_id: Variant = null
 	## Personalized offer flag.
-	var is_offer_personalized: bool = false
+	var is_offer_personalized: Variant = null
 	## Purchase token for upgrades/downgrades
-	var purchase_token: String = ""
+	var purchase_token: Variant = null
 	## Replacement mode for subscription changes
-	var replacement_mode: int = 0
+	var replacement_mode: Variant = null
 	## Subscription offers
 	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
 	## Product-level replacement parameters (8.1.0+)
@@ -3765,9 +3649,9 @@ class RequestSubscriptionAndroidProps:
 
 class RequestSubscriptionIosProps:
 	var sku: String = ""
-	var and_dangerously_finish_transaction_automatically: bool = false
-	var app_account_token: String = ""
-	var quantity: int = 0
+	var and_dangerously_finish_transaction_automatically: Variant = null
+	var app_account_token: Variant = null
+	var quantity: Variant = null
 	## Promotional offer to apply for subscription purchases.
 	var with_offer: DiscountOfferInputIOS
 	## Win-back offer to apply (iOS 18+)
@@ -3775,9 +3659,9 @@ class RequestSubscriptionIosProps:
 	## JWS promotional offer (iOS 15+, WWDC 2025).
 	var promotional_offer_jws: PromotionalOfferJWSInputIOS
 	## Override introductory offer eligibility (iOS 15+, WWDC 2025).
-	var introductory_offer_eligibility: bool = false
+	var introductory_offer_eligibility: Variant = null
 	## Advanced commerce data token (iOS 15+).
-	var advanced_commerce_data: String = ""
+	var advanced_commerce_data: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionIosProps:
 		var obj = RequestSubscriptionIosProps.new()
@@ -3935,7 +3819,7 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 ## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token)
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
-	var api_key: String = ""
+	var api_key: Variant = null
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
@@ -4031,7 +3915,7 @@ class VerifyPurchaseGoogleOptions:
 	## Google OAuth2 access token for API authentication.
 	var access_token: String = ""
 	## Whether this is a subscription purchase (affects API endpoint used)
-	var is_sub: bool = false
+	var is_sub: Variant = null
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseGoogleOptions:
 		var obj = VerifyPurchaseGoogleOptions.new()

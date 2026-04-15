@@ -118,13 +118,28 @@ if (existsSync(kmpSource)) {
   mkdirSync(dirname(kmpTarget), { recursive: true });
   let text = readFileSync(kmpSource, 'utf8');
 
-  // Insert package declaration after the leading @file: annotations so the
-  // resulting file mirrors packages/google/.../Types.kt.
+  // Insert the package declaration AFTER every leading `@file:`
+  // annotation. Kotlin requires file annotations to precede the package
+  // directive, so we walk the file line-by-line, find the last `@file:`
+  // (the generator can legitimately emit comments/blank lines between
+  // annotations), and splice the package declaration immediately after
+  // it. Falling back to a plain prepend is wrong because it would place
+  // the package before any subsequent `@file:` lines.
   if (!/\bpackage io\.github\.hyochan\.kmpiap\.openiap\b/.test(text)) {
-    text = text.replace(
-      /(@file:[^\n]+\n)(?!\s*package\b)/,
-      '$1\npackage io.github.hyochan.kmpiap.openiap\n',
-    );
+    const pkg = 'package io.github.hyochan.kmpiap.openiap';
+    const lines = text.split('\n');
+    let lastFileAnnotation = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('@file:')) {
+        lastFileAnnotation = i;
+      }
+    }
+    if (lastFileAnnotation >= 0) {
+      lines.splice(lastFileAnnotation + 1, 0, '', pkg);
+    } else {
+      lines.unshift(pkg, '');
+    }
+    text = lines.join('\n');
   }
 
   // Kotlin enums that declare a companion object require a trailing

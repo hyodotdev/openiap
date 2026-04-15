@@ -562,7 +562,7 @@ class OpenIapModule(
                             } catch (e: Exception) {
                                 OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
                                 if (continuation.isActive) continuation.resumeWithException(
-                                    OpenIapError.PurchaseFailed(e.message)
+                                    OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName)
                                 )
                             }
                         } else {
@@ -605,7 +605,7 @@ class OpenIapModule(
                 throw OpenIapError.FeatureNotSupported()
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to create billing program reporting details: ${e.message}", e, TAG)
-                throw OpenIapError.PurchaseFailed(e.message)
+                throw OpenIapError.PurchaseFailed(e.message ?: e.javaClass.simpleName)
             }
         }
     }
