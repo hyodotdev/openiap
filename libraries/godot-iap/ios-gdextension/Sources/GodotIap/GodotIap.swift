@@ -55,12 +55,16 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Signal("productId")
     var promotedProduct: SignalWithArguments<String>
 
+    @Signal("resultDict")
+    var subscriptionBillingIssue: SignalWithArguments<VariantDictionary>
+
     // MARK: - Properties
     private let openIap = OpenIapModule.shared
     private var isConnected: Bool = false
     private var purchaseUpdateSubscription: Subscription?
     private var purchaseErrorSubscription: Subscription?
     private var promotedProductSubscription: Subscription?
+    private var subscriptionBillingIssueSubscription: Subscription?
 
     // MARK: - Initialization
     required init(_ context: InitContext) {
@@ -1080,6 +1084,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 self?.promotedProduct.emit(productId)
             }
         }
+
+        subscriptionBillingIssueSubscription = openIap.subscriptionBillingIssueListener { [weak self] purchase in
+            Task { @MainActor in
+                self?.emitSubscriptionBillingIssue(purchase: purchase)
+            }
+        }
     }
 
     private func removeListeners() {
@@ -1094,6 +1104,10 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         if let sub = promotedProductSubscription {
             openIap.removeListener(sub)
             promotedProductSubscription = nil
+        }
+        if let sub = subscriptionBillingIssueSubscription {
+            openIap.removeListener(sub)
+            subscriptionBillingIssueSubscription = nil
         }
     }
 
@@ -1141,6 +1155,30 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         }
 
         self.purchaseUpdated.emit(dict)
+    }
+
+    @MainActor
+    private func emitSubscriptionBillingIssue(purchase: Purchase) {
+        let dict = VariantDictionary()
+        dict["productId"] = Variant(purchase.productId)
+        dict["purchaseState"] = Variant(purchase.purchaseState.rawValue)
+        switch purchase {
+        case .purchaseIos(let p):
+            dict["id"] = Variant(p.id)
+            dict["transactionId"] = Variant(p.transactionId)
+            dict["transactionDate"] = Variant(p.transactionDate)
+            dict["store"] = Variant(p.store.rawValue)
+        case .purchaseAndroid(let p):
+            dict["id"] = Variant(p.id)
+            dict["transactionId"] = Variant(p.transactionId ?? "")
+            dict["transactionDate"] = Variant(p.transactionDate)
+            dict["store"] = Variant(p.store.rawValue)
+        }
+        if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseToDictionary(purchase)),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            dict["purchaseJson"] = Variant(jsonString)
+        }
+        self.subscriptionBillingIssue.emit(dict)
     }
 
     @MainActor

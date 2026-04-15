@@ -24,6 +24,14 @@ signal promoted_product_ios(product_id: String)
 signal user_choice_billing_android(details: Dictionary)
 signal developer_provided_billing_android(details: Dictionary)
 
+## Subscription billing-issue event (cross-platform).
+##
+## Emitted when an active subscription needs user attention for a payment
+## problem. Unifies StoreKit 2 [code]Message.Reason.billingIssue[/code] (iOS 18+)
+## and Google Play Billing [code]Purchase.isSuspended[/code] (Play Billing 8.1+).
+## Not emitted on the Meta Horizon flavor.
+signal subscription_billing_issue(purchase: Dictionary)
+
 # Native plugin reference
 var _native_plugin: Object = null
 var _is_connected: bool = false
@@ -86,6 +94,9 @@ func _connect_signals_ios() -> void:
 	if _native_plugin.has_signal("promoted_product"):
 		_native_plugin.connect("promoted_product", _on_native_promoted_product_ios)
 
+	if _native_plugin.has_signal("subscription_billing_issue"):
+		_native_plugin.connect("subscription_billing_issue", _on_native_subscription_billing_issue_ios)
+
 func _connect_signals_android() -> void:
 	if not _native_plugin:
 		return
@@ -120,6 +131,10 @@ func _connect_signals_android() -> void:
 		_native_plugin.connect("developer_provided_billing", _on_android_developer_provided_billing)
 		print("[GodotIap] Connected: developer_provided_billing")
 
+	if _native_plugin.has_signal("subscription_billing_issue"):
+		_native_plugin.connect("subscription_billing_issue", _on_android_subscription_billing_issue)
+		print("[GodotIap] Connected: subscription_billing_issue")
+
 	print("[GodotIap] Android signal connection complete")
 
 # ==========================================
@@ -144,6 +159,9 @@ func _on_disconnected(_status_code: int = 0) -> void:
 
 func _on_native_promoted_product_ios(product_id: String) -> void:
 	promoted_product_ios.emit(product_id)
+
+func _on_native_subscription_billing_issue_ios(purchase: Dictionary) -> void:
+	subscription_billing_issue.emit(purchase)
 
 # ==========================================
 # Signal Handlers - Android (JSON strings)
@@ -172,6 +190,11 @@ func _on_android_developer_provided_billing(details_json: String) -> void:
 	var details = JSON.parse_string(details_json)
 	if details is Dictionary:
 		developer_provided_billing_android.emit(details)
+
+func _on_android_subscription_billing_issue(purchase_json: String) -> void:
+	var purchase = JSON.parse_string(purchase_json)
+	if purchase is Dictionary:
+		subscription_billing_issue.emit(purchase)
 
 # ==========================================
 # Connection (OpenIAP Mutation)
