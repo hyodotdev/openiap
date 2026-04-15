@@ -180,14 +180,14 @@ function Releases() {
             </ul>
           </div>
 
-          <div style={{ marginBottom: '0.5rem' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
               <a
-                href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.4"
+                href="https://github.com/hyodotdev/openiap/releases/tag/apple-2.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                flutter_inapp_purchase 9.0.4
+                openiap-apple 2.0.0
               </a>
             </h5>
             <ul
@@ -195,13 +195,61 @@ function Releases() {
             >
               <li>
                 <strong>
-                  Fix: surface Google Play&apos;s <code>debugMessage</code>{' '}
+                  Breaking: <code>ErrorCode</code> gains{' '}
+                  <code>.serviceTimeout</code>
+                </strong>{' '}
+                — the shared gql schema adds <code>ServiceTimeout</code>, so the
+                Swift <code>ErrorCode</code> enum picks up a new case. Any Swift
+                consumer that does an exhaustive <code>switch</code> on{' '}
+                <code>ErrorCode</code> without a <code>default:</code> branch
+                will need to add a <code>.serviceTimeout</code> case (or a
+                fallback), hence the major bump per SemVer. The enum is not{' '}
+                <code>@frozen</code>, so switches with{' '}
+                <code>@unknown default</code> keep working without changes.
+              </li>
+              <li>
+                <strong>
+                  Feat: <code>PurchaseError.debugMessage</code>
+                </strong>{' '}
+                — the generated <code>PurchaseError</code> struct gains an
+                optional <code>debugMessage: String?</code> field that mirrors
+                the Android side. <code>makePurchaseError(...)</code> accepts a{' '}
+                <code>debugMessage:</code> parameter, and the StoreKit catch
+                sites (product query, promoted product, promotional offer
+                failure) now forward <code>error.localizedDescription</code>
+                into it so iOS callers get the same structured diagnostic shape.
+              </li>
+              <li>
+                The Swift codegen plugin emits <code>= nil</code> defaults on
+                nullable struct properties so existing memberwise-init call
+                sites keep compiling when new optional fields land.
+              </li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.1.0"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                flutter_inapp_purchase 9.1.0
+              </a>
+            </h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                <strong>
+                  Feat: surface Google Play&apos;s <code>debugMessage</code>{' '}
                   through <code>PurchaseError</code>
                 </strong>{' '}
                 — <code>convertToPurchaseError</code> was only forwarding{' '}
                 <code>code</code> and <code>message</code> from the native error
-                payload, so the raw <code>BillingResult.debugMessage</code> and{' '}
-                <code>responseCode</code> were being dropped. Combined with the
+                payload, so the raw <code>BillingResult.debugMessage</code>,{' '}
+                <code>responseCode</code>, and the resolved{' '}
+                <code>platform</code> were being dropped. Combined with the
                 openiap-google 2.0.0 change, Dart callers inspecting{' '}
                 <code>PurchaseError.debugMessage</code> now see Play&apos;s
                 exact rejection reason — useful for diagnosing{' '}
@@ -212,6 +260,127 @@ function Releases() {
               <li>
                 Picks up openiap-google 2.0.0 (debug message + data class error
                 types).
+              </li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.1.0"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                react-native-iap 15.1.0
+              </a>
+            </h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                Regenerated types pick up{' '}
+                <code>PurchaseError.debugMessage</code> and the new{' '}
+                <code>ErrorCode.ServiceTimeout</code> enum value. JS consumers
+                reading <code>error.debugMessage</code> now receive Play&apos;s
+                raw rejection reason on Android when one is surfaced.
+              </li>
+              <li>
+                Picks up openiap-google 2.0.0 via the Nitro bridge (no JS API
+                breakage).
+              </li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.1.0"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                expo-iap 4.1.0
+              </a>
+            </h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                Same type-regen story as react-native-iap —{' '}
+                <code>PurchaseError.debugMessage</code> and{' '}
+                <code>ErrorCode.ServiceTimeout</code> reach JS consumers, and
+                the Expo Modules bridge picks up openiap-google 2.0.0 without
+                breaking the Expo-facing API.
+              </li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.1.0"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                kmp-iap 2.1.0
+              </a>
+            </h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                Regenerated <code>commonMain</code> <code>Types.kt</code> picks
+                up <code>PurchaseError.debugMessage</code> and the new{' '}
+                <code>ErrorCode.ServiceTimeout</code> /{' '}
+                <code>ErrorCode.DuplicatePurchase</code> entries. Auto-synced
+                from the gql schema via the extended{' '}
+                <code>sync-to-platforms</code> script (package declaration and
+                enum-companion semicolons are injected automatically, no hand
+                edits).
+              </li>
+              <li>
+                <code>ErrorMapping.legacyCodeMap</code> gains{' '}
+                <code>E_SERVICE_TIMEOUT</code> / <code>SERVICE_TIMEOUT</code>{' '}
+                and <code>E_DUPLICATE_PURCHASE</code> /{' '}
+                <code>DUPLICATE_PURCHASE</code> aliases so legacy Android codes
+                no longer collapse to <code>ErrorCode.Unknown</code>.
+              </li>
+              <li>
+                Picks up openiap-google 2.0.0. The KMP-facing API is unchanged;
+                consumers continue to interact with <code>kmpIapInstance</code>{' '}
+                as before.
+              </li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '0.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.1.0"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                godot-iap 2.1.0
+              </a>
+            </h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              <li>
+                The GDScript codegen now declares nullable scalars as{' '}
+                <code>var field: Variant = null</code> instead of{' '}
+                typed-with-sentinel-default. This preserves the schema&apos;s
+                null-vs-default distinction so legitimate <code>false</code>,{' '}
+                <code>0</code>, and <code>&quot;&quot;</code> values round-trip
+                through <code>from_dict</code> / <code>to_dict</code> without
+                being conflated with &quot;unset&quot;. <code>to_dict()</code>{' '}
+                omits the key entirely when the value is still <code>null</code>
+                .
+              </li>
+              <li>
+                Regenerated types pick up{' '}
+                <code>PurchaseError.debug_message</code>,{' '}
+                <code>ErrorCode.ServiceTimeout</code>, and the nullable-scalar
+                representation change.
               </li>
             </ul>
           </div>
