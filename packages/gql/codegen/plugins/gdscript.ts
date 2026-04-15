@@ -429,12 +429,17 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\t\tdict["${graphqlName}"] = ${enumConstName}[${fieldName}]`);
       this.emit(`\t\telse:`);
       this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
+    } else if (type.nullable && this.isNullableScalar(type)) {
+      // Nullable scalars are declared as Variant/null (see field
+      // declarations above). Emit the key only when the value is
+      // actually set — including legitimate `0`, `false`, and `""` —
+      // so the absent-vs-null distinction survives the round-trip. A
+      // `null` value means "unset" and is omitted from the dict.
+      this.emit(`\t\tif ${fieldName} != null:`);
+      this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
     } else {
-      // Emit the value verbatim for scalars. Non-nullable scalars carry
-      // their type-appropriate default (e.g. "" for String); nullable
-      // scalars are declared as Variant/null (see field declarations
-      // above) so `null` flows through to_dict naturally without having
-      // to drop legitimate zero/false/empty values.
+      // Non-nullable scalars carry their type-appropriate default
+      // (e.g. "" for String) and are always emitted.
       this.emit(`\t\tdict["${graphqlName}"] = ${fieldName}`);
     }
   }

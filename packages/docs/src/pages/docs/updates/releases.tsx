@@ -59,11 +59,11 @@ function Releases() {
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
               <a
-                href="https://github.com/hyodotdev/openiap/releases/tag/google-1.3.32"
+                href="https://github.com/hyodotdev/openiap/releases/tag/google-2.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                openiap-google 1.3.32
+                openiap-google 2.0.0
               </a>
             </h5>
             <ul
@@ -71,15 +71,33 @@ function Releases() {
             >
               <li>
                 <strong>
-                  Feat: <code>DeveloperError</code> and{' '}
-                  <code>PurchaseFailed</code> now carry{' '}
-                  <code>debugMessage</code>
+                  Breaking: <code>OpenIapError</code> error types are now data
+                  classes
                 </strong>{' '}
-                — both errors are now data classes instead of singletons and
-                accept an optional <code>debugMessage: String?</code>.{' '}
-                <code>fromBillingResponseCode</code> forwards Google Play&apos;s
-                raw <code>BillingResult.debugMessage</code> into the error
-                instance, and <code>OpenIapError.toJSON()</code> emits a{' '}
+                — every error returned by <code>fromBillingResponseCode</code> (
+                <code>DeveloperError</code>, <code>PurchaseFailed</code>,{' '}
+                <code>UserCancelled</code>, <code>ServiceUnavailable</code>,{' '}
+                <code>BillingUnavailable</code>, <code>ItemUnavailable</code>,{' '}
+                <code>BillingError</code>, <code>ItemAlreadyOwned</code>,{' '}
+                <code>ItemNotOwned</code>, <code>ServiceDisconnected</code>,{' '}
+                <code>FeatureNotSupported</code>, <code>ServiceTimeout</code>,{' '}
+                <code>UnknownError</code>) now accepts an optional{' '}
+                <code>debugMessage: String?</code>. This is a source-breaking
+                change for direct Kotlin consumers: references like{' '}
+                <code>throw OpenIapError.DeveloperError</code> must become{' '}
+                <code>throw OpenIapError.DeveloperError()</code>. Companion{' '}
+                <code>.CODE</code> / <code>.MESSAGE</code> accesses and{' '}
+                <code>is OpenIapError.X</code> type checks are unchanged. Hence
+                the major version bump.
+              </li>
+              <li>
+                <strong>
+                  Feat: surface Google Play&apos;s{' '}
+                  <code>BillingResult.debugMessage</code>
+                </strong>{' '}
+                — <code>fromBillingResponseCode</code> forwards Play&apos;s raw
+                debug text into the error instance for every response code, and{' '}
+                <code>OpenIapError.toJSON()</code> emits a{' '}
                 <code>debugMessage</code> key so downstream framework libraries
                 can surface the reason Play rejected a purchase (offer token
                 mismatch, subscription group conflict, etc.). The{' '}
@@ -88,6 +106,15 @@ function Releases() {
                 <code>onPurchasesUpdated</code> async path) instead of a generic{' '}
                 <code>PurchaseFailed</code> for <code>DEVELOPER_ERROR</code>{' '}
                 response codes.
+              </li>
+              <li>
+                <strong>
+                  Schema: add <code>ServiceTimeout</code> to the shared{' '}
+                  <code>ErrorCode</code> enum
+                </strong>{' '}
+                so the code comes from{' '}
+                <code>ErrorCode.ServiceTimeout.rawValue</code> like every other
+                entry instead of a hand-typed string literal.
               </li>
             </ul>
             <p
@@ -98,7 +125,7 @@ function Releases() {
               }}
             >
               <a
-                href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/1.3.32"
+                href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/2.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -106,7 +133,7 @@ function Releases() {
               </a>{' '}
               ·{' '}
               <a
-                href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/1.3.32"
+                href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/2.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -175,7 +202,7 @@ function Releases() {
                 <code>code</code> and <code>message</code> from the native error
                 payload, so the raw <code>BillingResult.debugMessage</code> and{' '}
                 <code>responseCode</code> were being dropped. Combined with the
-                openiap-google 1.3.32 change, Dart callers inspecting{' '}
+                openiap-google 2.0.0 change, Dart callers inspecting{' '}
                 <code>PurchaseError.debugMessage</code> now see Play&apos;s
                 exact rejection reason — useful for diagnosing{' '}
                 <code>DEVELOPER_ERROR</code> surfaces such as{' '}
@@ -183,7 +210,7 @@ function Releases() {
                 attach adb.
               </li>
               <li>
-                Picks up openiap-google 1.3.32 (debug message + data class error
+                Picks up openiap-google 2.0.0 (debug message + data class error
                 types).
               </li>
             </ul>
