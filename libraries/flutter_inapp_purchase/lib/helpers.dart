@@ -408,6 +408,8 @@ iap_err.PurchaseError convertToPurchaseError(
   return iap_err.PurchaseError(
     message: result.message ?? 'Unknown error',
     code: code,
+    responseCode: result.responseCode,
+    debugMessage: result.debugMessage,
   );
 }
 

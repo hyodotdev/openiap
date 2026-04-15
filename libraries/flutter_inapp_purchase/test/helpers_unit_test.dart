@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_inapp_purchase/enums.dart';
+import 'package:flutter_inapp_purchase/errors.dart' as iap_err;
 import 'package:flutter_inapp_purchase/helpers.dart';
 import 'package:flutter_inapp_purchase/types.dart' as types;
 import 'package:flutter_test/flutter_test.dart';
@@ -580,6 +581,34 @@ void main() {
           (deferredPurchase as types.PurchaseIOS).purchaseState,
           types.PurchaseState.Unknown,
         );
+      },
+    );
+
+    test(
+      'convertToPurchaseError forwards debugMessage and responseCode '
+      'from PurchaseResult',
+      () {
+        final result = PurchaseResult.fromJSON(<String, dynamic>{
+          'responseCode': 5,
+          'debugMessage':
+              'Deferred replacement requires the base offer, got a promo offer',
+          'code': 'developer-error',
+          'message': 'Invalid arguments provided to the API',
+        });
+
+        final error = convertToPurchaseError(
+          result,
+          platform: types.IapPlatform.Android,
+        );
+
+        expect(error, isA<iap_err.PurchaseError>());
+        expect(error.code, types.ErrorCode.DeveloperError);
+        expect(error.message, 'Invalid arguments provided to the API');
+        expect(
+          error.debugMessage,
+          'Deferred replacement requires the base offer, got a promo offer',
+        );
+        expect(error.responseCode, 5);
       },
     );
   });

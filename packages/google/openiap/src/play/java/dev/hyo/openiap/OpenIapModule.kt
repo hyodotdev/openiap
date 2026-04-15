@@ -555,15 +555,15 @@ class OpenIapModule(
                                         externalTransactionToken = token
                                     ))
                                 } else if (continuation.isActive) {
-                                    continuation.resumeWithException(OpenIapError.PurchaseFailed)
+                                    continuation.resumeWithException(OpenIapError.PurchaseFailed())
                                 }
                             } catch (e: Exception) {
                                 OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
-                                if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed)
+                                if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed())
                             }
                         } else {
                             OpenIapLog.e("Reporting details creation failed: ${result?.debugMessage}", tag = TAG)
-                            if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed)
+                            if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed())
                         }
                     }
                     null
@@ -599,7 +599,7 @@ class OpenIapModule(
                 throw OpenIapError.FeatureNotSupported
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to create billing program reporting details: ${e.message}", e, TAG)
-                throw OpenIapError.PurchaseFailed
+                throw OpenIapError.PurchaseFailed()
             }
         }
     }
@@ -825,7 +825,7 @@ class OpenIapModule(
                         // Return empty list - app should handle purchase via alternative billing
                         return@withContext emptyList()
                     } else {
-                        val err = OpenIapError.PurchaseFailed
+                        val err = OpenIapError.PurchaseFailed()
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         return@withContext emptyList()
                     }
@@ -865,7 +865,7 @@ class OpenIapModule(
                 }
                 if (!currentPurchaseCallback.compareAndSet(null, callback)) {
                     OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
-                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError)
+                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError())
                     return@suspendCancellableCoroutine
                 }
                 continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
@@ -1044,10 +1044,10 @@ class OpenIapModule(
                         val err = when (result.responseCode) {
                             BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
                                 OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
-                                OpenIapError.PurchaseFailed
+                                OpenIapError.DeveloperError(result.debugMessage)
                             }
                             BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
-                            else -> OpenIapError.PurchaseFailed
+                            else -> OpenIapError.PurchaseFailed(result.debugMessage)
                         }
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         consumePurchaseCallback(Result.success(emptyList()))
@@ -1113,7 +1113,7 @@ class OpenIapModule(
             if (!client.isReady) throw OpenIapError.NotPrepared
             val token = purchase.purchaseToken.orEmpty()
             if (token.isBlank()) {
-                throw OpenIapError.PurchaseFailed
+                throw OpenIapError.PurchaseFailed()
             }
 
             val result = if (isConsumable == true) {
@@ -1133,7 +1133,7 @@ class OpenIapModule(
             }
 
             if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                throw OpenIapError.PurchaseFailed
+                throw OpenIapError.PurchaseFailed()
             }
         }
     }
@@ -1203,7 +1203,7 @@ class OpenIapModule(
         if (props.provider != PurchaseVerificationProvider.Iapkit) {
             throw OpenIapError.FeatureNotSupported
         }
-        val options = props.iapkit ?: throw OpenIapError.DeveloperError
+        val options = props.iapkit ?: throw OpenIapError.DeveloperError()
         VerifyPurchaseWithProviderResult(
             iapkit = verifyPurchaseWithIapkit(options, TAG),
             provider = props.provider

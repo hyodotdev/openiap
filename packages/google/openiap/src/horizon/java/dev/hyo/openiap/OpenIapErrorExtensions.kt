@@ -12,7 +12,7 @@ fun OpenIapError.Companion.fromBillingResponseCode(responseCode: Int, debugMessa
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> OpenIapError.ServiceUnavailable
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> OpenIapError.BillingUnavailable
         BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> OpenIapError.ItemUnavailable
-        BillingClient.BillingResponseCode.DEVELOPER_ERROR -> OpenIapError.DeveloperError
+        BillingClient.BillingResponseCode.DEVELOPER_ERROR -> OpenIapError.DeveloperError(debugMessage)
         BillingClient.BillingResponseCode.ERROR -> OpenIapError.BillingError
         BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> OpenIapError.ItemAlreadyOwned
         BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> OpenIapError.ItemNotOwned

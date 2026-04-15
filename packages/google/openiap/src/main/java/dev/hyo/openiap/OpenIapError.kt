@@ -7,10 +7,19 @@ sealed class OpenIapError : Exception() {
     abstract val code: String
     abstract override val message: String
 
+    /**
+     * Optional raw debug message surfaced from the underlying billing layer
+     * (e.g. Google Play's `BillingResult.debugMessage`). Subclasses that
+     * carry per-call diagnostics should override this so callers can see
+     * the exact argument the store rejected.
+     */
+    open val debugMessage: String? = null
+
     fun toJSON(): Map<String, Any?> = mapOf(
         "code" to toCode(this),
         "message" to (this.message ?: ""),
         "platform" to "android",
+        "debugMessage" to debugMessage,
     )
 
     class ProductNotFound(val productId: String) : OpenIapError() {
@@ -24,12 +33,14 @@ sealed class OpenIapError : Exception() {
         }
     }
 
-    object PurchaseFailed : OpenIapError() {
-        val CODE = ErrorCode.PurchaseError.rawValue
-        override val code = CODE
-        override val message = MESSAGE
+    class PurchaseFailed(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = CODE
+        override val message: String = MESSAGE
 
-        const val MESSAGE = "Purchase failed"
+        companion object {
+            val CODE = ErrorCode.PurchaseError.rawValue
+            const val MESSAGE = "Purchase failed"
+        }
     }
 
     object PurchaseCancelled : OpenIapError() {
@@ -232,12 +243,14 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Requested product is not available for purchase"
     }
 
-    object DeveloperError : OpenIapError() {
-        val CODE = ErrorCode.DeveloperError.rawValue
+    class DeveloperError(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Invalid arguments provided to the API"
+        companion object {
+            val CODE = ErrorCode.DeveloperError.rawValue
+            const val MESSAGE = "Invalid arguments provided to the API"
+        }
     }
 
     object FeatureNotSupported : OpenIapError() {

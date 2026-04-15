@@ -16,9 +16,17 @@ class OpenIapErrorTest {
 
     @Test
     fun `PurchaseFailed has correct code and message`() {
-        val error = OpenIapError.PurchaseFailed
+        val error = OpenIapError.PurchaseFailed()
         assertEquals(ErrorCode.PurchaseError.rawValue, error.code)
         assertEquals("Purchase failed", error.message)
+        assertEquals(null, error.debugMessage)
+    }
+
+    @Test
+    fun `PurchaseFailed carries debug message when provided`() {
+        val error = OpenIapError.PurchaseFailed("Billing client disconnected")
+        assertEquals("Billing client disconnected", error.debugMessage)
+        assertEquals("Billing client disconnected", error.toJSON()["debugMessage"])
     }
 
     @Test
@@ -179,9 +187,17 @@ class OpenIapErrorTest {
 
     @Test
     fun `DeveloperError has correct code and message`() {
-        val error = OpenIapError.DeveloperError
+        val error = OpenIapError.DeveloperError()
         assertEquals(ErrorCode.DeveloperError.rawValue, error.code)
         assertEquals("Invalid arguments provided to the API", error.message)
+        assertEquals(null, error.debugMessage)
+    }
+
+    @Test
+    fun `DeveloperError carries debug message when provided`() {
+        val error = OpenIapError.DeveloperError("Offer token doesn't match product")
+        assertEquals("Offer token doesn't match product", error.debugMessage)
+        assertEquals("Offer token doesn't match product", error.toJSON()["debugMessage"])
     }
 
     @Test
@@ -210,7 +226,7 @@ class OpenIapErrorTest {
     fun `toJSON returns correct map for all error types`() {
         val errors = listOf(
             OpenIapError.ProductNotFound("test"),
-            OpenIapError.PurchaseFailed,
+            OpenIapError.PurchaseFailed(),
             OpenIapError.PurchaseCancelled,
             OpenIapError.PurchaseDeferred,
             OpenIapError.PaymentNotAllowed,
@@ -233,7 +249,7 @@ class OpenIapErrorTest {
             OpenIapError.ServiceUnavailable,
             OpenIapError.BillingUnavailable,
             OpenIapError.ItemUnavailable,
-            OpenIapError.DeveloperError,
+            OpenIapError.DeveloperError(),
             OpenIapError.FeatureNotSupported,
             OpenIapError.ServiceDisconnected,
             OpenIapError.ServiceTimeout
@@ -317,7 +333,7 @@ class OpenIapErrorTest {
     fun `toCode returns correct code for all error types`() {
         val errors = listOf(
             OpenIapError.ProductNotFound("test") to ErrorCode.SkuNotFound.rawValue,
-            OpenIapError.PurchaseFailed to ErrorCode.PurchaseError.rawValue,
+            OpenIapError.PurchaseFailed() to ErrorCode.PurchaseError.rawValue,
             OpenIapError.PurchaseCancelled to ErrorCode.UserCancelled.rawValue,
             OpenIapError.PurchaseDeferred to ErrorCode.DeferredPayment.rawValue,
             OpenIapError.PaymentNotAllowed to ErrorCode.UserError.rawValue,
@@ -340,7 +356,7 @@ class OpenIapErrorTest {
             OpenIapError.ServiceUnavailable to ErrorCode.ServiceError.rawValue,
             OpenIapError.BillingUnavailable to ErrorCode.BillingUnavailable.rawValue,
             OpenIapError.ItemUnavailable to ErrorCode.ItemUnavailable.rawValue,
-            OpenIapError.DeveloperError to ErrorCode.DeveloperError.rawValue,
+            OpenIapError.DeveloperError() to ErrorCode.DeveloperError.rawValue,
             OpenIapError.FeatureNotSupported to ErrorCode.FeatureNotSupported.rawValue,
             OpenIapError.ServiceDisconnected to ErrorCode.ServiceDisconnected.rawValue,
             OpenIapError.ServiceTimeout to "service-timeout"
