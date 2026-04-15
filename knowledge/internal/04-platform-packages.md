@@ -206,6 +206,77 @@ Meta Horizon has different APIs from Google Play:
 
 ---
 
+## Cross-Library Verification for Shared-Package Changes (MANDATORY)
+
+> **When:** any change to `packages/google` or `packages/apple` that modifies
+> a **public** API surface (class/struct shape, enum cases, function
+> signatures, exception/error types). Adding a new field, removing a
+> singleton, renaming a method, or adding an enum entry all qualify.
+
+The compiled `packages/google` artifact is consumed as a **native
+dependency** by every framework library. A change that compiles inside
+`packages/google` alone can still break downstream libraries whose
+Kotlin (or Swift) code references the affected symbol.
+
+Before committing any change that touches the following surfaces:
+
+- `packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapError.kt`
+- `packages/gql/src/error.graphql` (ErrorCode enum additions — ripples
+  through every generated `Types.*`)
+- `packages/apple/Sources/Models/OpenIapError.swift`
+- `packages/apple/Sources/OpenIapModule.swift` (public function
+  signatures)
+
+you **must** run the downstream compile for every framework library:
+
+```bash
+# Android (Google) downstream compile — required for every PR that
+# touches packages/google public API
+cd libraries/flutter_inapp_purchase && flutter analyze && flutter test
+cd libraries/react-native-iap/example/android && ./gradlew :react-native-iap:compileDebugKotlin
+cd libraries/expo-iap/example/android && ./gradlew :expo-iap:compileDebugKotlin
+cd libraries/kmp-iap && ./gradlew :library:build -x test
+
+# iOS (Apple) downstream compile — framework libraries consume
+# openiap-apple through CocoaPods / SPM, so swift build on the source
+# package is the minimum; add library-side Xcode builds when the
+# change is non-additive.
+cd packages/apple && swift build && swift test --filter OpenIapTests
+```
+
+### Mechanical grep guard
+
+Right after changing `OpenIapError.kt`, run this grep to catch stale
+singleton references that will fail in downstream compiles:
+
+```bash
+grep -rnE "OpenIap(API)?Error\.(DeveloperError|PurchaseFailed|UserCancelled|ServiceUnavailable|BillingUnavailable|ItemUnavailable|BillingError|ItemAlreadyOwned|ItemNotOwned|ServiceDisconnected|FeatureNotSupported|ServiceTimeout|UnknownError)\b" libraries/ packages/google/ \
+  | grep -vE "\.(CODE|MESSAGE|Companion|rawValue)" \
+  | grep -vE "is Open" \
+  | grep -vE "\("
+```
+
+Any hit is a call site that uses a now-data-class name without `()` and
+will fail to compile — add the parentheses (or the concrete
+`debugMessage` argument) before pushing.
+
+### Cross-library SemVer coordination
+
+Breaking a shared-package API (e.g. `object → data class` on
+`OpenIapError`) forces a **major** bump on that package (2.0.0) and
+cascades into downstream libraries:
+
+| Change in shared package                  | Google/Apple bump                              | Downstream bump                                              |
+| ----------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| Add optional field to a type              | minor                                          | minor                                                        |
+| Add a new enum case                       | major (Swift/Kotlin exhaustive switches break) | minor                                                        |
+| `object` → `data class` / renamed method  | major                                          | minor (downstream pins to new major; own API unchanged)      |
+
+Release order MUST be: shared packages first (so downstream libraries
+can depend on the new version), then framework libraries in any order.
+
+---
+
 ## GQL Package (packages/gql)
 
 ### Required Pre-Work
