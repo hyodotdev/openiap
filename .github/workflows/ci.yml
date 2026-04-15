@@ -88,6 +88,29 @@ jobs:
           test -f src/generated/Types.swift || exit 1
           test -f src/generated/types.dart || exit 1
 
+      - name: Verify generated types are committed (no drift)
+        run: |
+          # `bun run generate` is expected to be idempotent: running it
+          # against the checked-in schema must produce the same bytes
+          # as the files checked into the repo. If this step fails,
+          # somebody changed a codegen plugin or the schema without
+          # re-running `bun run generate` + committing the output.
+          #
+          # Use `git status --porcelain` (plus `git diff`) so newly-
+          # generated but untracked files also fail the check — a
+          # plain `git diff` would silently pass if the generator
+          # starts emitting a new target file.
+          status="$(git status --porcelain)"
+          if [ -n "$status" ] || ! git diff --exit-code; then
+            echo ""
+            echo "::error::Generated types differ from checked-in copies."
+            echo "Run 'cd packages/gql && bun run generate' locally and commit the result."
+            echo ""
+            echo "Untracked or modified paths:"
+            printf '%s\n' "$status"
+            exit 1
+          fi
+
   test-android:
     name: Test Android
     runs-on: ubuntu-latest

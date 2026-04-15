@@ -350,6 +350,7 @@ export enum ErrorCode {
   RemoteError = 'remote-error',
   ServiceDisconnected = 'service-disconnected',
   ServiceError = 'service-error',
+  ServiceTimeout = 'service-timeout',
   SkuNotFound = 'sku-not-found',
   SkuOfferMismatch = 'sku-offer-mismatch',
   SyncError = 'sync-error',
@@ -1105,6 +1106,7 @@ export interface PurchaseCommon {
 
 export interface PurchaseError {
   code: ErrorCode;
+  debugMessage?: (string | null);
   message: string;
   productId?: (string | null);
 }

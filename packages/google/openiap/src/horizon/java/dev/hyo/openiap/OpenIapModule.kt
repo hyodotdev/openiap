@@ -385,7 +385,7 @@ class OpenIapModule(
                 }
                 if (!currentPurchaseCallback.compareAndSet(null, callback)) {
                     OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
-                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError)
+                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError())
                     return@suspendCancellableCoroutine
                 }
                 continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
@@ -512,10 +512,10 @@ class OpenIapModule(
                             val err = when (result.responseCode) {
                                 BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
                                     OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
-                                    OpenIapError.PurchaseFailed
+                                    OpenIapError.DeveloperError(result.debugMessage)
                                 }
-                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
-                                else -> OpenIapError.PurchaseFailed
+                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
+                                else -> OpenIapError.PurchaseFailed(result.debugMessage)
                             }
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
                             consumePurchaseCallback(Result.success(emptyList()))
@@ -702,7 +702,9 @@ class OpenIapModule(
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
         // Use Horizon API if horizon options provided, otherwise fallback to Google Play
         if (props.horizon != null) {
-            val horizonAppId = appId ?: throw OpenIapError.DeveloperError
+            val horizonAppId = appId ?: throw OpenIapError.DeveloperError(
+                "Horizon verifyPurchase requires appId to be set during initConnection"
+            )
             val horizonResult = verifyPurchaseWithHorizon(props, horizonAppId, TAG)
             if (!horizonResult.success) {
                 throw OpenIapError.InvalidPurchaseVerification
@@ -715,9 +717,11 @@ class OpenIapModule(
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->
         if (props.provider != PurchaseVerificationProvider.Iapkit) {
-            throw OpenIapError.FeatureNotSupported
+            throw OpenIapError.FeatureNotSupported()
         }
-        val options = props.iapkit ?: throw OpenIapError.DeveloperError
+        val options = props.iapkit ?: throw OpenIapError.DeveloperError(
+            "Missing IAPKit verification parameters"
+        )
         VerifyPurchaseWithProviderResult(
             iapkit = verifyPurchaseWithIapkit(options, TAG),
             provider = props.provider

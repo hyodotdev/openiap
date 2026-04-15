@@ -330,7 +330,16 @@ export class GDScriptPlugin extends CodegenPlugin {
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irObject.name);
         const defaultValue = this.getDefaultValue(field.type);
-        if (defaultValue !== null) {
+        if (field.type.nullable && this.isNullableScalar(field.type)) {
+          // Nullable scalars are emitted as untyped Variant so they can
+          // actually hold `null`. Typed GDScript properties cannot hold
+          // null, so declaring e.g. `var foo: String = ""` collapses the
+          // null-vs-empty distinction. Using `Variant` preserves the
+          // schema's optionality — `null` round-trips through
+          // from_dict/to_dict without being rewritten to `""` / `0` /
+          // `false`, and legitimate zero/false/empty values are retained.
+          this.emit(`\tvar ${fieldName}: Variant = null`);
+        } else if (defaultValue !== null) {
           this.emit(`\tvar ${fieldName}: ${gdType} = ${defaultValue}`);
         } else {
           this.emit(`\tvar ${fieldName}: ${gdType}`);
@@ -420,9 +429,36 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\t\tdict["${graphqlName}"] = ${enumConstName}[${fieldName}]`);
       this.emit(`\t\telse:`);
       this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
+    } else if (type.nullable && this.isNullableScalar(type)) {
+      // Nullable scalars are declared as Variant/null (see field
+      // declarations above). Emit the key only when the value is
+      // actually set — including legitimate `0`, `false`, and `""` —
+      // so the absent-vs-null distinction survives the round-trip. A
+      // `null` value means "unset" and is omitted from the dict.
+      this.emit(`\t\tif ${fieldName} != null:`);
+      this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
     } else {
+      // Non-nullable scalars carry their type-appropriate default
+      // (e.g. "" for String) and are always emitted.
       this.emit(`\t\tdict["${graphqlName}"] = ${fieldName}`);
     }
+  }
+
+  /**
+   * Scalars eligible for the Variant/null nullable representation —
+   * object/input/enum fields are already nullable via their own
+   * mechanisms (default null reference, no sentinel collision).
+   */
+  private isNullableScalar(type: IRType): boolean {
+    if (type.kind === 'list') return false;
+    if (this.objectNames.has(type.name!) || this.inputNames.has(type.name!)) {
+      return false;
+    }
+    if (type.kind === 'union' || type.kind === 'enum' || this.enumNames.has(type.name!)) {
+      return false;
+    }
+    const gdType = this.mapScalar(type.name!);
+    return gdType === 'String' || gdType === 'int' || gdType === 'float' || gdType === 'bool';
   }
 
   private isObjectOrInput(type: IRType): boolean {
@@ -452,7 +488,9 @@ export class GDScriptPlugin extends CodegenPlugin {
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irInput.name);
         const defaultValue = this.getDefaultValue(field.type);
-        if (defaultValue !== null) {
+        if (field.type.nullable && this.isNullableScalar(field.type)) {
+          this.emit(`\tvar ${fieldName}: Variant = null`);
+        } else if (defaultValue !== null) {
           this.emit(`\tvar ${fieldName}: ${gdType} = ${defaultValue}`);
         } else {
           this.emit(`\tvar ${fieldName}: ${gdType}`);

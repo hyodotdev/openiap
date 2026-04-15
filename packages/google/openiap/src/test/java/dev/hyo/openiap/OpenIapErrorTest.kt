@@ -16,9 +16,17 @@ class OpenIapErrorTest {
 
     @Test
     fun `PurchaseFailed has correct code and message`() {
-        val error = OpenIapError.PurchaseFailed
+        val error = OpenIapError.PurchaseFailed()
         assertEquals(ErrorCode.PurchaseError.rawValue, error.code)
         assertEquals("Purchase failed", error.message)
+        assertEquals(null, error.debugMessage)
+    }
+
+    @Test
+    fun `PurchaseFailed carries debug message when provided`() {
+        val error = OpenIapError.PurchaseFailed("Billing client disconnected")
+        assertEquals("Billing client disconnected", error.debugMessage)
+        assertEquals("Billing client disconnected", error.toJSON()["debugMessage"])
     }
 
     @Test
@@ -44,7 +52,7 @@ class OpenIapErrorTest {
 
     @Test
     fun `BillingError has correct code and message`() {
-        val error = OpenIapError.BillingError
+        val error = OpenIapError.BillingError()
         assertEquals(ErrorCode.ServiceError.rawValue, error.code)
         assertEquals("Billing error", error.message)
     }
@@ -80,7 +88,7 @@ class OpenIapErrorTest {
 
     @Test
     fun `UnknownError has correct code and message`() {
-        val error = OpenIapError.UnknownError
+        val error = OpenIapError.UnknownError()
         assertEquals(ErrorCode.Unknown.rawValue, error.code)
         assertEquals("Unknown error", error.message)
     }
@@ -137,70 +145,78 @@ class OpenIapErrorTest {
 
     @Test
     fun `UserCancelled has correct code and message`() {
-        val error = OpenIapError.UserCancelled
+        val error = OpenIapError.UserCancelled()
         assertEquals(ErrorCode.UserCancelled.rawValue, error.code)
         assertEquals("User cancelled the operation", error.message)
     }
 
     @Test
     fun `ItemAlreadyOwned has correct code and message`() {
-        val error = OpenIapError.ItemAlreadyOwned
+        val error = OpenIapError.ItemAlreadyOwned()
         assertEquals(ErrorCode.AlreadyOwned.rawValue, error.code)
         assertEquals("Item is already owned", error.message)
     }
 
     @Test
     fun `ItemNotOwned has correct code and message`() {
-        val error = OpenIapError.ItemNotOwned
+        val error = OpenIapError.ItemNotOwned()
         assertEquals(ErrorCode.ItemNotOwned.rawValue, error.code)
         assertEquals("Item is not owned", error.message)
     }
 
     @Test
     fun `ServiceUnavailable has correct code and message`() {
-        val error = OpenIapError.ServiceUnavailable
+        val error = OpenIapError.ServiceUnavailable()
         assertEquals(ErrorCode.ServiceError.rawValue, error.code)
         assertEquals("Billing service is unavailable", error.message)
     }
 
     @Test
     fun `BillingUnavailable has correct code and message`() {
-        val error = OpenIapError.BillingUnavailable
+        val error = OpenIapError.BillingUnavailable()
         assertEquals(ErrorCode.BillingUnavailable.rawValue, error.code)
         assertEquals("Billing API version is not supported", error.message)
     }
 
     @Test
     fun `ItemUnavailable has correct code and message`() {
-        val error = OpenIapError.ItemUnavailable
+        val error = OpenIapError.ItemUnavailable()
         assertEquals(ErrorCode.ItemUnavailable.rawValue, error.code)
         assertEquals("Requested product is not available for purchase", error.message)
     }
 
     @Test
     fun `DeveloperError has correct code and message`() {
-        val error = OpenIapError.DeveloperError
+        val error = OpenIapError.DeveloperError()
         assertEquals(ErrorCode.DeveloperError.rawValue, error.code)
         assertEquals("Invalid arguments provided to the API", error.message)
+        assertEquals(null, error.debugMessage)
+    }
+
+    @Test
+    fun `DeveloperError carries debug message when provided`() {
+        val error = OpenIapError.DeveloperError("Offer token doesn't match product")
+        assertEquals("Offer token doesn't match product", error.debugMessage)
+        assertEquals("Offer token doesn't match product", error.toJSON()["debugMessage"])
     }
 
     @Test
     fun `FeatureNotSupported has correct code and message`() {
-        val error = OpenIapError.FeatureNotSupported
+        val error = OpenIapError.FeatureNotSupported()
         assertEquals(ErrorCode.FeatureNotSupported.rawValue, error.code)
         assertEquals("Requested feature is not supported by Play Store", error.message)
     }
 
     @Test
     fun `ServiceDisconnected has correct code and message`() {
-        val error = OpenIapError.ServiceDisconnected
+        val error = OpenIapError.ServiceDisconnected()
         assertEquals("service-disconnected", error.code)
         assertEquals("Play Store service is not connected", error.message)
     }
 
     @Test
     fun `ServiceTimeout has correct code and message`() {
-        val error = OpenIapError.ServiceTimeout
+        val error = OpenIapError.ServiceTimeout()
         assertEquals("service-timeout", error.code)
         assertEquals("The request has reached the maximum timeout before billing service responds", error.message)
     }
@@ -210,16 +226,16 @@ class OpenIapErrorTest {
     fun `toJSON returns correct map for all error types`() {
         val errors = listOf(
             OpenIapError.ProductNotFound("test"),
-            OpenIapError.PurchaseFailed,
+            OpenIapError.PurchaseFailed(),
             OpenIapError.PurchaseCancelled,
             OpenIapError.PurchaseDeferred,
             OpenIapError.PaymentNotAllowed,
-            OpenIapError.BillingError,
+            OpenIapError.BillingError(),
             OpenIapError.InvalidReceipt,
             OpenIapError.NetworkError,
             OpenIapError.VerificationFailed,
             OpenIapError.RestoreFailed,
-            OpenIapError.UnknownError,
+            OpenIapError.UnknownError(),
             OpenIapError.NotPrepared,
             OpenIapError.InitConnection,
             OpenIapError.QueryProduct,
@@ -227,16 +243,16 @@ class OpenIapErrorTest {
             OpenIapError.SkuNotFound("test"),
             OpenIapError.SkuOfferMismatch,
             OpenIapError.MissingCurrentActivity,
-            OpenIapError.UserCancelled,
-            OpenIapError.ItemAlreadyOwned,
-            OpenIapError.ItemNotOwned,
-            OpenIapError.ServiceUnavailable,
-            OpenIapError.BillingUnavailable,
-            OpenIapError.ItemUnavailable,
-            OpenIapError.DeveloperError,
-            OpenIapError.FeatureNotSupported,
-            OpenIapError.ServiceDisconnected,
-            OpenIapError.ServiceTimeout
+            OpenIapError.UserCancelled(),
+            OpenIapError.ItemAlreadyOwned(),
+            OpenIapError.ItemNotOwned(),
+            OpenIapError.ServiceUnavailable(),
+            OpenIapError.BillingUnavailable(),
+            OpenIapError.ItemUnavailable(),
+            OpenIapError.DeveloperError(),
+            OpenIapError.FeatureNotSupported(),
+            OpenIapError.ServiceDisconnected(),
+            OpenIapError.ServiceTimeout()
         )
 
         errors.forEach { error ->
@@ -267,6 +283,30 @@ class OpenIapErrorTest {
     fun `fromBillingResponseCode returns UnknownError for unknown response codes`() {
         val unknownError = OpenIapError.fromBillingResponseCode(999)
         assertTrue(unknownError is OpenIapError.UnknownError)
+    }
+
+    @Test
+    fun `fromBillingResponseCode forwards debugMessage for every response code`() {
+        val debug = "offerToken does not match any product details"
+        val codesToAssert = listOf(
+            BillingClient.BillingResponseCode.USER_CANCELED,
+            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+            BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
+            BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+            BillingClient.BillingResponseCode.ERROR,
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+            BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
+            BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+            BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
+            BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+            999 // else branch → UnknownError
+        )
+        codesToAssert.forEach { code ->
+            val err = OpenIapError.fromBillingResponseCode(code, debug)
+            assertEquals("debugMessage missing for response code $code", debug, err.debugMessage)
+            assertEquals(debug, err.toJSON()["debugMessage"])
+        }
     }
 
     @Test
@@ -317,16 +357,16 @@ class OpenIapErrorTest {
     fun `toCode returns correct code for all error types`() {
         val errors = listOf(
             OpenIapError.ProductNotFound("test") to ErrorCode.SkuNotFound.rawValue,
-            OpenIapError.PurchaseFailed to ErrorCode.PurchaseError.rawValue,
+            OpenIapError.PurchaseFailed() to ErrorCode.PurchaseError.rawValue,
             OpenIapError.PurchaseCancelled to ErrorCode.UserCancelled.rawValue,
             OpenIapError.PurchaseDeferred to ErrorCode.DeferredPayment.rawValue,
             OpenIapError.PaymentNotAllowed to ErrorCode.UserError.rawValue,
-            OpenIapError.BillingError to ErrorCode.ServiceError.rawValue,
+            OpenIapError.BillingError() to ErrorCode.ServiceError.rawValue,
             @Suppress("DEPRECATION") OpenIapError.InvalidReceipt to ErrorCode.PurchaseVerificationFailed.rawValue,
             OpenIapError.NetworkError to ErrorCode.NetworkError.rawValue,
             OpenIapError.VerificationFailed to ErrorCode.TransactionValidationFailed.rawValue,
             OpenIapError.RestoreFailed to ErrorCode.SyncError.rawValue,
-            OpenIapError.UnknownError to ErrorCode.Unknown.rawValue,
+            OpenIapError.UnknownError() to ErrorCode.Unknown.rawValue,
             OpenIapError.NotPrepared to ErrorCode.NotPrepared.rawValue,
             OpenIapError.InitConnection to ErrorCode.InitConnection.rawValue,
             OpenIapError.QueryProduct to ErrorCode.QueryProduct.rawValue,
@@ -334,16 +374,16 @@ class OpenIapErrorTest {
             OpenIapError.SkuNotFound("test") to ErrorCode.SkuNotFound.rawValue,
             OpenIapError.SkuOfferMismatch to ErrorCode.SkuOfferMismatch.rawValue,
             OpenIapError.MissingCurrentActivity to ErrorCode.ActivityUnavailable.rawValue,
-            OpenIapError.UserCancelled to ErrorCode.UserCancelled.rawValue,
-            OpenIapError.ItemAlreadyOwned to ErrorCode.AlreadyOwned.rawValue,
-            OpenIapError.ItemNotOwned to ErrorCode.ItemNotOwned.rawValue,
-            OpenIapError.ServiceUnavailable to ErrorCode.ServiceError.rawValue,
-            OpenIapError.BillingUnavailable to ErrorCode.BillingUnavailable.rawValue,
-            OpenIapError.ItemUnavailable to ErrorCode.ItemUnavailable.rawValue,
-            OpenIapError.DeveloperError to ErrorCode.DeveloperError.rawValue,
-            OpenIapError.FeatureNotSupported to ErrorCode.FeatureNotSupported.rawValue,
-            OpenIapError.ServiceDisconnected to ErrorCode.ServiceDisconnected.rawValue,
-            OpenIapError.ServiceTimeout to "service-timeout"
+            OpenIapError.UserCancelled() to ErrorCode.UserCancelled.rawValue,
+            OpenIapError.ItemAlreadyOwned() to ErrorCode.AlreadyOwned.rawValue,
+            OpenIapError.ItemNotOwned() to ErrorCode.ItemNotOwned.rawValue,
+            OpenIapError.ServiceUnavailable() to ErrorCode.ServiceError.rawValue,
+            OpenIapError.BillingUnavailable() to ErrorCode.BillingUnavailable.rawValue,
+            OpenIapError.ItemUnavailable() to ErrorCode.ItemUnavailable.rawValue,
+            OpenIapError.DeveloperError() to ErrorCode.DeveloperError.rawValue,
+            OpenIapError.FeatureNotSupported() to ErrorCode.FeatureNotSupported.rawValue,
+            OpenIapError.ServiceDisconnected() to ErrorCode.ServiceDisconnected.rawValue,
+            OpenIapError.ServiceTimeout() to "service-timeout"
         )
 
         errors.forEach { (error, expectedCode) ->

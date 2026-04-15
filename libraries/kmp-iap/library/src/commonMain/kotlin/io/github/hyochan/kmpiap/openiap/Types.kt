@@ -8,7 +8,6 @@
 
 package io.github.hyochan.kmpiap.openiap
 
-
 // MARK: - Enums
 
 /**
@@ -34,6 +33,7 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
      * @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
      */
     AlternativeOnly("alternative-only");
+
     companion object {
         fun fromJson(value: String): AlternativeBillingModeAndroid = when (value) {
             "none" -> AlternativeBillingModeAndroid.None
@@ -83,6 +83,7 @@ public enum class BillingProgramAndroid(val rawValue: String) {
      * Available in Google Play Billing Library 8.3.0+
      */
     ExternalPayments("external-payments");
+
     companion object {
         fun fromJson(value: String): BillingProgramAndroid = when (value) {
             "unspecified" -> BillingProgramAndroid.Unspecified
@@ -122,6 +123,7 @@ public enum class DeveloperBillingLaunchModeAndroid(val rawValue: String) {
      * Use this when you want to handle launching the external payment URL yourself.
      */
     CallerWillLaunchLink("caller-will-launch-link");
+
     companion object {
         fun fromJson(value: String): DeveloperBillingLaunchModeAndroid = when (value) {
             "unspecified" -> DeveloperBillingLaunchModeAndroid.Unspecified
@@ -154,6 +156,7 @@ public enum class DiscountOfferType(val rawValue: String) {
      * One-time product discount (Android only, Google Play Billing 7.0+)
      */
     OneTime("one-time");
+
     companion object {
         fun fromJson(value: String): DiscountOfferType = when (value) {
             "introductory" -> DiscountOfferType.Introductory
@@ -203,13 +206,16 @@ public enum class ErrorCode(val rawValue: String) {
     ConnectionClosed("connection-closed"),
     InitConnection("init-connection"),
     ServiceDisconnected("service-disconnected"),
+    ServiceTimeout("service-timeout"),
     QueryProduct("query-product"),
     SkuNotFound("sku-not-found"),
     SkuOfferMismatch("sku-offer-mismatch"),
     ItemNotOwned("item-not-owned"),
     BillingUnavailable("billing-unavailable"),
     FeatureNotSupported("feature-not-supported"),
-    EmptySkuList("empty-sku-list");
+    EmptySkuList("empty-sku-list"),
+    DuplicatePurchase("duplicate-purchase");
+
     companion object {
         fun fromJson(value: String): ErrorCode = when (value) {
             "unknown" -> ErrorCode.Unknown
@@ -302,6 +308,9 @@ public enum class ErrorCode(val rawValue: String) {
             "service-disconnected" -> ErrorCode.ServiceDisconnected
             "SERVICE_DISCONNECTED" -> ErrorCode.ServiceDisconnected
             "ServiceDisconnected" -> ErrorCode.ServiceDisconnected
+            "service-timeout" -> ErrorCode.ServiceTimeout
+            "SERVICE_TIMEOUT" -> ErrorCode.ServiceTimeout
+            "ServiceTimeout" -> ErrorCode.ServiceTimeout
             "query-product" -> ErrorCode.QueryProduct
             "QUERY_PRODUCT" -> ErrorCode.QueryProduct
             "QueryProduct" -> ErrorCode.QueryProduct
@@ -323,6 +332,9 @@ public enum class ErrorCode(val rawValue: String) {
             "empty-sku-list" -> ErrorCode.EmptySkuList
             "EMPTY_SKU_LIST" -> ErrorCode.EmptySkuList
             "EmptySkuList" -> ErrorCode.EmptySkuList
+            "duplicate-purchase" -> ErrorCode.DuplicatePurchase
+            "DUPLICATE_PURCHASE" -> ErrorCode.DuplicatePurchase
+            "DuplicatePurchase" -> ErrorCode.DuplicatePurchase
             else -> throw IllegalArgumentException("Unknown ErrorCode value: $value")
         }
     }
@@ -348,6 +360,7 @@ public enum class ExternalLinkLaunchModeAndroid(val rawValue: String) {
      * Play will not launch the URL. The app handles launching the URL after Play returns control.
      */
     CallerWillLaunchLink("caller-will-launch-link");
+
     companion object {
         fun fromJson(value: String): ExternalLinkLaunchModeAndroid = when (value) {
             "unspecified" -> ExternalLinkLaunchModeAndroid.Unspecified
@@ -381,6 +394,7 @@ public enum class ExternalLinkTypeAndroid(val rawValue: String) {
      * The link will direct users to download an app
      */
     LinkToAppDownload("link-to-app-download");
+
     companion object {
         fun fromJson(value: String): ExternalLinkTypeAndroid = when (value) {
             "unspecified" -> ExternalLinkTypeAndroid.Unspecified
@@ -407,6 +421,7 @@ public enum class ExternalPurchaseCustomLinkNoticeTypeIOS(val rawValue: String) 
      * or destination of the app's choice.
      */
     Browser("browser");
+
     companion object {
         fun fromJson(value: String): ExternalPurchaseCustomLinkNoticeTypeIOS = when (value) {
             "browser" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
@@ -435,6 +450,7 @@ public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
      * Use this for existing customers making additional purchases.
      */
     Services("services");
+
     companion object {
         fun fromJson(value: String): ExternalPurchaseCustomLinkTokenTypeIOS = when (value) {
             "acquisition" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
@@ -462,6 +478,7 @@ public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
      * User dismissed the notice sheet
      */
     Dismissed("dismissed");
+
     companion object {
         fun fromJson(value: String): ExternalPurchaseNoticeAction = when (value) {
             "continue" -> ExternalPurchaseNoticeAction.Continue
@@ -487,6 +504,7 @@ public enum class IapEvent(val rawValue: String) {
      * Available on Android with Google Play Billing Library 8.3.0+
      */
     DeveloperProvidedBillingAndroid("developer-provided-billing-android");
+
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
             "purchase-updated" -> IapEvent.PurchaseUpdated
@@ -551,6 +569,7 @@ public enum class IapkitPurchaseState(val rawValue: String) {
      * Purchase receipt is not authentic (fraudulent or tampered).
      */
     Inauthentic("inauthentic");
+
     companion object {
         fun fromJson(value: String): IapkitPurchaseState = when (value) {
             "entitled" -> IapkitPurchaseState.Entitled
@@ -581,6 +600,7 @@ public enum class IapkitPurchaseState(val rawValue: String) {
 public enum class IapPlatform(val rawValue: String) {
     Ios("ios"),
     Android("android");
+
     companion object {
         fun fromJson(value: String): IapPlatform = when (value) {
             "ios" -> IapPlatform.Ios
@@ -600,6 +620,7 @@ public enum class IapStore(val rawValue: String) {
     Apple("apple"),
     Google("google"),
     Horizon("horizon");
+
     companion object {
         fun fromJson(value: String): IapStore = when (value) {
             "unknown" -> IapStore.Unknown
@@ -642,6 +663,7 @@ public enum class PaymentMode(val rawValue: String) {
      * Unknown or unspecified payment mode
      */
     Unknown("unknown");
+
     companion object {
         fun fromJson(value: String): PaymentMode = when (value) {
             "free-trial" -> PaymentMode.FreeTrial
@@ -668,6 +690,7 @@ public enum class PaymentModeIOS(val rawValue: String) {
     FreeTrial("free-trial"),
     PayAsYouGo("pay-as-you-go"),
     PayUpFront("pay-up-front");
+
     companion object {
         fun fromJson(value: String): PaymentModeIOS = when (value) {
             "empty" -> PaymentModeIOS.Empty
@@ -693,6 +716,7 @@ public enum class ProductQueryType(val rawValue: String) {
     InApp("in-app"),
     Subs("subs"),
     All("all");
+
     companion object {
         fun fromJson(value: String): ProductQueryType = when (value) {
             "in-app" -> ProductQueryType.InApp
@@ -734,6 +758,7 @@ public enum class ProductStatusAndroid(val rawValue: String) {
      * Unknown error occurred while fetching the product
      */
     Unknown("unknown");
+
     companion object {
         fun fromJson(value: String): ProductStatusAndroid = when (value) {
             "ok" -> ProductStatusAndroid.Ok
@@ -754,6 +779,7 @@ public enum class ProductStatusAndroid(val rawValue: String) {
 public enum class ProductType(val rawValue: String) {
     InApp("in-app"),
     Subs("subs");
+
     companion object {
         fun fromJson(value: String): ProductType = when (value) {
             "in-app" -> ProductType.InApp
@@ -774,6 +800,7 @@ public enum class ProductTypeIOS(val rawValue: String) {
     NonConsumable("non-consumable"),
     AutoRenewableSubscription("auto-renewable-subscription"),
     NonRenewingSubscription("non-renewing-subscription");
+
     companion object {
         fun fromJson(value: String): ProductTypeIOS = when (value) {
             "consumable" -> ProductTypeIOS.Consumable
@@ -799,6 +826,7 @@ public enum class PurchaseState(val rawValue: String) {
     Pending("pending"),
     Purchased("purchased"),
     Unknown("unknown");
+
     companion object {
         fun fromJson(value: String): PurchaseState = when (value) {
             "pending" -> PurchaseState.Pending
@@ -819,6 +847,7 @@ public enum class PurchaseState(val rawValue: String) {
 
 public enum class PurchaseVerificationProvider(val rawValue: String) {
     Iapkit("iapkit");
+
     companion object {
         fun fromJson(value: String): PurchaseVerificationProvider = when (value) {
             "iapkit" -> PurchaseVerificationProvider.Iapkit
@@ -848,6 +877,7 @@ public enum class SubResponseCodeAndroid(val rawValue: String) {
      * User doesn't meet subscription offer eligibility requirements
      */
     UserIneligible("user-ineligible");
+
     companion object {
         fun fromJson(value: String): SubResponseCodeAndroid = when (value) {
             "no-applicable-sub-response-code" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
@@ -871,6 +901,7 @@ public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
      * Used to re-engage churned subscribers with a discount or free trial.
      */
     WinBack("win-back");
+
     companion object {
         fun fromJson(value: String): SubscriptionOfferTypeIOS = when (value) {
             "introductory" -> SubscriptionOfferTypeIOS.Introductory
@@ -895,6 +926,7 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
     Month("month"),
     Year("year"),
     Empty("empty");
+
     companion object {
         fun fromJson(value: String): SubscriptionPeriodIOS = when (value) {
             "day" -> SubscriptionPeriodIOS.Day
@@ -928,6 +960,7 @@ public enum class SubscriptionPeriodUnit(val rawValue: String) {
     Month("month"),
     Year("year"),
     Unknown("unknown");
+
     companion object {
         fun fromJson(value: String): SubscriptionPeriodUnit = when (value) {
             "day" -> SubscriptionPeriodUnit.Day
@@ -986,6 +1019,7 @@ public enum class SubscriptionReplacementModeAndroid(val rawValue: String) {
      * Keep the existing payment schedule unchanged for the item (8.1.0+)
      */
     KeepExisting("keep-existing");
+
     companion object {
         fun fromJson(value: String): SubscriptionReplacementModeAndroid = when (value) {
             "unknown-replacement-mode" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
@@ -2586,6 +2620,7 @@ public data class PurchaseAndroid(
 
 public data class PurchaseError(
     val code: ErrorCode,
+    val debugMessage: String? = null,
     val message: String,
     val productId: String? = null
 ) {
@@ -2594,6 +2629,7 @@ public data class PurchaseError(
         fun fromJson(json: Map<String, Any?>): PurchaseError {
             return PurchaseError(
                 code = (json["code"] as? String)?.let { ErrorCode.fromJson(it) } ?: ErrorCode.Unknown,
+                debugMessage = json["debugMessage"] as? String,
                 message = json["message"] as? String ?: "",
                 productId = json["productId"] as? String,
             )
@@ -2603,6 +2639,7 @@ public data class PurchaseError(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "PurchaseError",
         "code" to code.toJson(),
+        "debugMessage" to debugMessage,
         "message" to message,
         "productId" to productId,
     )

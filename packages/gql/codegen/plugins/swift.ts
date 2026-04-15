@@ -205,6 +205,12 @@ export class SwiftPlugin extends CodegenPlugin {
         defaultValue = ` = .${defaults.platform}`;
       } else if (defaults && field.name === 'type') {
         defaultValue = ` = .${defaults.type === 'in-app' ? 'inApp' : 'subs'}`;
+      } else if (field.type.nullable) {
+        // Default nullable properties to nil so the synthesized memberwise
+        // initializer can omit them — existing call sites that construct
+        // objects without every optional keep compiling when new nullable
+        // fields are added.
+        defaultValue = ' = nil';
       }
 
       this.emit(`    public var ${propertyName}: ${propertyType}${defaultValue}`);

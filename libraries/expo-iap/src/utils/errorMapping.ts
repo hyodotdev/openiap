@@ -80,6 +80,7 @@ const COMMON_ERROR_CODE_MAP: Record<ErrorCode, string> = {
   [ErrorCode.BillingUnavailable]: ErrorCode.BillingUnavailable,
   [ErrorCode.FeatureNotSupported]: ErrorCode.FeatureNotSupported,
   [ErrorCode.DuplicatePurchase]: ErrorCode.DuplicatePurchase,
+  [ErrorCode.ServiceTimeout]: ErrorCode.ServiceTimeout,
   [ErrorCode.EmptySkuList]: ErrorCode.EmptySkuList,
   [ErrorCode.PurchaseVerificationFailed]: ErrorCode.PurchaseVerificationFailed,
   [ErrorCode.PurchaseVerificationFinishFailed]:

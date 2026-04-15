@@ -23,6 +23,22 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(error.code, .skuNotFound)
         XCTAssertEqual(error.message, "Not found")
         XCTAssertEqual(error.productId, "sku")
+        XCTAssertNil(error.debugMessage)
+    }
+
+    func testPurchaseErrorCarriesDebugMessage() throws {
+        let error = PurchaseError(
+            code: .purchaseError,
+            debugMessage: "StoreKitError.notEntitled — product not in entitlements",
+            message: "Purchase error",
+            productId: "sku"
+        )
+        XCTAssertEqual(error.debugMessage, "StoreKitError.notEntitled — product not in entitlements")
+
+        let data = try JSONEncoder().encode(error)
+        let decoded = try JSONDecoder().decode(PurchaseError.self, from: data)
+        XCTAssertEqual(decoded.debugMessage, error.debugMessage)
+        XCTAssertEqual(decoded.code, .purchaseError)
     }
 
     func testProductRequestEncoding() throws {

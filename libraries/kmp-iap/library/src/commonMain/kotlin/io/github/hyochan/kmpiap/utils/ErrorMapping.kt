@@ -71,6 +71,7 @@ object ErrorCodeUtils {
         alias("E_CONNECTION_CLOSED", "CONNECTION_CLOSED", target = ErrorCode.ConnectionClosed)
         alias("E_INIT_CONNECTION", "INIT_CONNECTION", target = ErrorCode.InitConnection)
         alias("E_SERVICE_DISCONNECTED", "SERVICE_DISCONNECTED", target = ErrorCode.ServiceDisconnected)
+        alias("E_SERVICE_TIMEOUT", "SERVICE_TIMEOUT", target = ErrorCode.ServiceTimeout)
         alias("E_QUERY_PRODUCT", "QUERY_PRODUCT", target = ErrorCode.QueryProduct)
         alias("E_SKU_NOT_FOUND", "SKU_NOT_FOUND", target = ErrorCode.SkuNotFound)
         alias("E_SKU_OFFER_MISMATCH", "SKU_OFFER_MISMATCH", target = ErrorCode.SkuOfferMismatch)
@@ -81,6 +82,7 @@ object ErrorCodeUtils {
         alias("E_PURCHASE_VERIFICATION_FAILED", "PURCHASE_VERIFICATION_FAILED", target = ErrorCode.PurchaseVerificationFailed)
         alias("E_PURCHASE_VERIFICATION_FINISHED", "PURCHASE_VERIFICATION_FINISHED", target = ErrorCode.PurchaseVerificationFinished)
         alias("E_PURCHASE_VERIFICATION_FINISH_FAILED", "PURCHASE_VERIFICATION_FINISH_FAILED", target = ErrorCode.PurchaseVerificationFinishFailed)
+        alias("E_DUPLICATE_PURCHASE", "DUPLICATE_PURCHASE", target = ErrorCode.DuplicatePurchase)
     }
 
     fun fromPlatformCode(platformCode: Any, platform: IapPlatform): ErrorCode {
@@ -153,5 +155,7 @@ object ErrorCodeUtils {
         ErrorCode.PurchaseVerificationFailed -> "Purchase verification failed"
         ErrorCode.PurchaseVerificationFinished -> "Purchase verification completed"
         ErrorCode.PurchaseVerificationFinishFailed -> "Failed to complete purchase verification"
+        ErrorCode.DuplicatePurchase -> "Duplicate purchase update detected"
+        ErrorCode.ServiceTimeout -> "Billing service request timed out"
     }
 }

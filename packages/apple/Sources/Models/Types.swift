@@ -104,6 +104,7 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case connectionClosed = "connection-closed"
     case initConnection = "init-connection"
     case serviceDisconnected = "service-disconnected"
+    case serviceTimeout = "service-timeout"
     case queryProduct = "query-product"
     case skuNotFound = "sku-not-found"
     case skuOfferMismatch = "sku-offer-mismatch"
@@ -178,6 +179,8 @@ public enum ErrorCode: String, Codable, CaseIterable {
             self = .initConnection
         case "service-disconnected", "ServiceDisconnected":
             self = .serviceDisconnected
+        case "service-timeout", "ServiceTimeout":
+            self = .serviceTimeout
         case "query-product", "QueryProduct":
             self = .queryProduct
         case "sku-not-found", "SkuNotFound":
@@ -454,35 +457,35 @@ public protocol PurchaseCommon: Codable {
 // MARK: - Objects
 
 public struct ActiveSubscription: Codable {
-    public var autoRenewingAndroid: Bool?
-    public var basePlanIdAndroid: String?
+    public var autoRenewingAndroid: Bool? = nil
+    public var basePlanIdAndroid: String? = nil
     /// The current plan identifier. This is:
     /// - On Android: the basePlanId (e.g., "premium", "premium-year")
     /// - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly")
     /// This provides a unified way to identify which specific plan/tier the user is subscribed to.
-    public var currentPlanId: String?
-    public var daysUntilExpirationIOS: Double?
-    public var environmentIOS: String?
-    public var expirationDateIOS: Double?
+    public var currentPlanId: String? = nil
+    public var daysUntilExpirationIOS: Double? = nil
+    public var environmentIOS: String? = nil
+    public var expirationDateIOS: Double? = nil
     public var isActive: Bool
     public var productId: String
-    public var purchaseToken: String?
+    public var purchaseToken: String? = nil
     /// Required for subscription upgrade/downgrade on Android
-    public var purchaseTokenAndroid: String?
+    public var purchaseTokenAndroid: String? = nil
     /// Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,
     /// pending upgrades/downgrades, and auto-renewal preferences.
-    public var renewalInfoIOS: RenewalInfoIOS?
+    public var renewalInfoIOS: RenewalInfoIOS? = nil
     public var transactionDate: Double
     public var transactionId: String
     /// @deprecated iOS only - use daysUntilExpirationIOS instead.
     /// Whether the subscription will expire soon (within 7 days).
     /// Consider using daysUntilExpirationIOS for more precise control.
-    public var willExpireSoon: Bool?
+    public var willExpireSoon: Bool? = nil
 }
 
 public struct AppTransaction: Codable {
     public var appId: Double
-    public var appTransactionId: String?
+    public var appTransactionId: String? = nil
     public var appVersion: String
     public var appVersionId: Double
     public var bundleId: String
@@ -490,9 +493,9 @@ public struct AppTransaction: Codable {
     public var deviceVerificationNonce: String
     public var environment: String
     public var originalAppVersion: String
-    public var originalPlatform: String?
+    public var originalPlatform: String? = nil
     public var originalPurchaseDate: Double
-    public var preorderDate: Double?
+    public var preorderDate: Double? = nil
     public var signedDate: Double
 }
 
@@ -520,12 +523,12 @@ public struct BillingProgramReportingDetailsAndroid: Codable {
 /// Available in Google Play Billing Library 8.0.0+
 public struct BillingResultAndroid: Codable {
     /// Debug message from the billing library
-    public var debugMessage: String?
+    public var debugMessage: String? = nil
     /// The response code from the billing operation
     public var responseCode: Int
     /// Sub-response code for more granular error information (8.0+).
     /// Provides additional context when responseCode indicates an error.
-    public var subResponseCode: SubResponseCodeAndroid?
+    public var subResponseCode: SubResponseCodeAndroid? = nil
 }
 
 /// Details provided when user selects developer billing option (Android)
@@ -552,10 +555,10 @@ public struct DiscountAmountAndroid: Codable {
 public struct DiscountDisplayInfoAndroid: Codable {
     /// Absolute discount amount details
     /// Only returned for fixed amount discounts
-    public var discountAmount: DiscountAmountAndroid?
+    public var discountAmount: DiscountAmountAndroid? = nil
     /// Percentage discount (e.g., 33 for 33% off)
     /// Only returned for percentage-based discounts
-    public var percentageDiscount: Int?
+    public var percentageDiscount: Int? = nil
 }
 
 /// Discount information returned from the store.
@@ -563,7 +566,7 @@ public struct DiscountDisplayInfoAndroid: Codable {
 /// @see https://openiap.dev/docs/types#subscription-offer
 public struct DiscountIOS: Codable {
     public var identifier: String
-    public var localizedPrice: String?
+    public var localizedPrice: String? = nil
     public var numberOfPeriods: Int
     public var paymentMode: PaymentModeIOS
     public var price: String
@@ -584,46 +587,46 @@ public struct DiscountOffer: Codable {
     public var currency: String
     /// [Android] Fixed discount amount in micro-units.
     /// Only present for fixed amount discounts.
-    public var discountAmountMicrosAndroid: String?
+    public var discountAmountMicrosAndroid: String? = nil
     /// Formatted display price string (e.g., "$4.99")
     public var displayPrice: String
     /// [Android] Formatted discount amount string (e.g., "$5.00 OFF").
-    public var formattedDiscountAmountAndroid: String?
+    public var formattedDiscountAmountAndroid: String? = nil
     /// [Android] Original full price in micro-units before discount.
     /// Divide by 1,000,000 to get the actual price.
     /// Use for displaying strikethrough original price.
-    public var fullPriceMicrosAndroid: String?
+    public var fullPriceMicrosAndroid: String? = nil
     /// Unique identifier for the offer.
     /// - iOS: Not applicable (one-time discounts not supported)
     /// - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
-    public var id: String?
+    public var id: String? = nil
     /// [Android] Limited quantity information.
     /// Contains maximumQuantity and remainingQuantity.
-    public var limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid?
+    public var limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid? = nil
     /// [Android] List of tags associated with this offer.
-    public var offerTagsAndroid: [String]?
+    public var offerTagsAndroid: [String]? = nil
     /// [Android] Offer token required for purchase.
     /// Must be passed to requestPurchase() when purchasing with this offer.
-    public var offerTokenAndroid: String?
+    public var offerTokenAndroid: String? = nil
     /// [Android] Percentage discount (e.g., 33 for 33% off).
     /// Only present for percentage-based discounts.
-    public var percentageDiscountAndroid: Int?
+    public var percentageDiscountAndroid: Int? = nil
     /// [Android] Pre-order details if this is a pre-order offer.
     /// Available in Google Play Billing Library 8.1.0+
-    public var preorderDetailsAndroid: PreorderDetailsAndroid?
+    public var preorderDetailsAndroid: PreorderDetailsAndroid? = nil
     /// Numeric price value
     public var price: Double
     /// [Android] Purchase option ID for this offer.
     /// Used to identify which purchase option the user selected.
     /// Available in Google Play Billing Library 7.0+
-    public var purchaseOptionIdAndroid: String?
+    public var purchaseOptionIdAndroid: String? = nil
     /// [Android] Rental details if this is a rental offer.
-    public var rentalDetailsAndroid: RentalDetailsAndroid?
+    public var rentalDetailsAndroid: RentalDetailsAndroid? = nil
     /// Type of discount offer
     public var type: DiscountOfferType
     /// [Android] Valid time window for the offer.
     /// Contains startTimeMillis and endTimeMillis.
-    public var validTimeWindowAndroid: ValidTimeWindowAndroid?
+    public var validTimeWindowAndroid: ValidTimeWindowAndroid? = nil
 }
 
 /// iOS DiscountOffer (output type).
@@ -669,22 +672,22 @@ public struct ExternalPurchaseCustomLinkNoticeResultIOS: Codable {
     /// Whether the user chose to continue to external purchase
     public var continued: Bool
     /// Optional error message if the presentation failed
-    public var error: String?
+    public var error: String? = nil
 }
 
 /// Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
 public struct ExternalPurchaseCustomLinkTokenResultIOS: Codable {
     /// Optional error message if token retrieval failed
-    public var error: String?
+    public var error: String? = nil
     /// The external purchase token string.
     /// Report this token to Apple's External Purchase Server API.
-    public var token: String?
+    public var token: String? = nil
 }
 
 /// Result of presenting an external purchase link
 public struct ExternalPurchaseLinkResultIOS: Codable {
     /// Optional error message if the presentation failed
-    public var error: String?
+    public var error: String? = nil
     /// Whether the user completed the external purchase flow
     public var success: Bool
 }
@@ -693,11 +696,11 @@ public struct ExternalPurchaseLinkResultIOS: Codable {
 /// Returns the token when user continues to external purchase.
 public struct ExternalPurchaseNoticeResultIOS: Codable {
     /// Optional error message if the presentation failed
-    public var error: String?
+    public var error: String? = nil
     /// External purchase token returned when user continues (iOS 17.4+).
     /// This token should be reported to Apple's External Purchase Server API.
     /// Only present when result is Continue.
-    public var externalPurchaseToken: String?
+    public var externalPurchaseToken: String? = nil
     /// Notice result indicating user action
     public var result: ExternalPurchaseNoticeAction
 }
@@ -772,34 +775,34 @@ public struct PricingPhasesAndroid: Codable {
 
 public struct ProductAndroid: Codable, ProductCommon {
     public var currency: String
-    public var debugDescription: String?
+    public var debugDescription: String? = nil
     public var description: String
     /// Standardized discount offers for one-time products.
     /// Cross-platform type with Android-specific fields using suffix.
     /// @see https://openiap.dev/docs/types#discount-offer
-    public var discountOffers: [DiscountOffer]?
-    public var displayName: String?
+    public var discountOffers: [DiscountOffer]? = nil
+    public var displayName: String? = nil
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
     /// One-time purchase offer details including discounts (Android)
     /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
     /// @deprecated Use discountOffers instead for cross-platform compatibility.
-    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]?
+    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
-    public var price: Double?
+    public var price: Double? = nil
     /// Product-level status code indicating fetch result (Android 8.0+)
     /// OK = product fetched successfully
     /// NOT_FOUND = SKU doesn't exist
     /// NO_OFFERS_AVAILABLE = user not eligible for any offers
     /// Available in Google Play Billing Library 8.0.0+
-    public var productStatusAndroid: ProductStatusAndroid?
+    public var productStatusAndroid: ProductStatusAndroid? = nil
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-    public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]?
+    public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with Android-specific fields using suffix.
     /// @see https://openiap.dev/docs/types#subscription-offer
-    public var subscriptionOffers: [SubscriptionOffer]?
+    public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
 }
@@ -811,53 +814,53 @@ public struct ProductAndroid: Codable, ProductCommon {
 public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
     /// Discount display information
     /// Only available for discounted offers
-    public var discountDisplayInfo: DiscountDisplayInfoAndroid?
+    public var discountDisplayInfo: DiscountDisplayInfoAndroid? = nil
     public var formattedPrice: String
     /// Full (non-discounted) price in micro-units
     /// Only available for discounted offers
-    public var fullPriceMicros: String?
+    public var fullPriceMicros: String? = nil
     /// Limited quantity information
-    public var limitedQuantityInfo: LimitedQuantityInfoAndroid?
+    public var limitedQuantityInfo: LimitedQuantityInfoAndroid? = nil
     /// Offer ID
-    public var offerId: String?
+    public var offerId: String? = nil
     /// List of offer tags
     public var offerTags: [String]
     /// Offer token for use in BillingFlowParams when purchasing
     public var offerToken: String
     /// Pre-order details for products available for pre-order
     /// Available in Google Play Billing Library 8.1.0+
-    public var preorderDetailsAndroid: PreorderDetailsAndroid?
+    public var preorderDetailsAndroid: PreorderDetailsAndroid? = nil
     public var priceAmountMicros: String
     public var priceCurrencyCode: String
     /// Purchase option ID for this offer (Android)
     /// Used to identify which purchase option the user selected.
     /// Available in Google Play Billing Library 7.0+
-    public var purchaseOptionId: String?
+    public var purchaseOptionId: String? = nil
     /// Rental details for rental offers
-    public var rentalDetailsAndroid: RentalDetailsAndroid?
+    public var rentalDetailsAndroid: RentalDetailsAndroid? = nil
     /// Valid time window for the offer
-    public var validTimeWindow: ValidTimeWindowAndroid?
+    public var validTimeWindow: ValidTimeWindowAndroid? = nil
 }
 
 public struct ProductIOS: Codable, ProductCommon {
     public var currency: String
-    public var debugDescription: String?
+    public var debugDescription: String? = nil
     public var description: String
-    public var displayName: String?
+    public var displayName: String? = nil
     public var displayNameIOS: String
     public var displayPrice: String
     public var id: String
     public var isFamilyShareableIOS: Bool
     public var jsonRepresentationIOS: String
     public var platform: IapPlatform = .ios
-    public var price: Double?
+    public var price: Double? = nil
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-    public var subscriptionInfoIOS: SubscriptionInfoIOS?
+    public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
     /// Note: iOS does not support one-time product discounts.
     /// @see https://openiap.dev/docs/types#subscription-offer
-    public var subscriptionOffers: [SubscriptionOffer]?
+    public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
     public var typeIOS: ProductTypeIOS
@@ -865,28 +868,28 @@ public struct ProductIOS: Codable, ProductCommon {
 
 public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var currency: String
-    public var debugDescription: String?
+    public var debugDescription: String? = nil
     public var description: String
     /// Standardized discount offers for one-time products.
     /// Cross-platform type with Android-specific fields using suffix.
     /// @see https://openiap.dev/docs/types#discount-offer
-    public var discountOffers: [DiscountOffer]?
-    public var displayName: String?
+    public var discountOffers: [DiscountOffer]? = nil
+    public var displayName: String? = nil
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
     /// One-time purchase offer details including discounts (Android)
     /// Returns all eligible offers. Available in Google Play Billing Library 7.0+
     /// @deprecated Use discountOffers instead for cross-platform compatibility.
-    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]?
+    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
-    public var price: Double?
+    public var price: Double? = nil
     /// Product-level status code indicating fetch result (Android 8.0+)
     /// OK = product fetched successfully
     /// NOT_FOUND = SKU doesn't exist
     /// NO_OFFERS_AVAILABLE = user not eligible for any offers
     /// Available in Google Play Billing Library 8.0.0+
-    public var productStatusAndroid: ProductStatusAndroid?
+    public var productStatusAndroid: ProductStatusAndroid? = nil
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
     /// Standardized subscription offers.
@@ -905,8 +908,8 @@ public struct ProductSubscriptionAndroidOfferDetails: Codable {
     /// Installment plan details for this subscription offer.
     /// Only set for installment subscription plans; null for non-installment plans.
     /// Available in Google Play Billing Library 7.0+
-    public var installmentPlanDetails: InstallmentPlanDetailsAndroid?
-    public var offerId: String?
+    public var installmentPlanDetails: InstallmentPlanDetailsAndroid? = nil
+    public var offerId: String? = nil
     public var offerTags: [String]
     public var offerToken: String
     public var pricingPhases: PricingPhasesAndroid
@@ -914,113 +917,114 @@ public struct ProductSubscriptionAndroidOfferDetails: Codable {
 
 public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var currency: String
-    public var debugDescription: String?
+    public var debugDescription: String? = nil
     public var description: String
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-    public var discountsIOS: [DiscountIOS]?
-    public var displayName: String?
+    public var discountsIOS: [DiscountIOS]? = nil
+    public var displayName: String? = nil
     public var displayNameIOS: String
     public var displayPrice: String
     public var id: String
-    public var introductoryPriceAsAmountIOS: String?
-    public var introductoryPriceIOS: String?
-    public var introductoryPriceNumberOfPeriodsIOS: String?
+    public var introductoryPriceAsAmountIOS: String? = nil
+    public var introductoryPriceIOS: String? = nil
+    public var introductoryPriceNumberOfPeriodsIOS: String? = nil
     public var introductoryPricePaymentModeIOS: PaymentModeIOS
-    public var introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS?
+    public var introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = nil
     public var isFamilyShareableIOS: Bool
     public var jsonRepresentationIOS: String
     public var platform: IapPlatform = .ios
-    public var price: Double?
+    public var price: Double? = nil
     /// @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-    public var subscriptionInfoIOS: SubscriptionInfoIOS?
+    public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
     /// @see https://openiap.dev/docs/types#subscription-offer
-    public var subscriptionOffers: [SubscriptionOffer]?
-    public var subscriptionPeriodNumberIOS: String?
-    public var subscriptionPeriodUnitIOS: SubscriptionPeriodIOS?
+    public var subscriptionOffers: [SubscriptionOffer]? = nil
+    public var subscriptionPeriodNumberIOS: String? = nil
+    public var subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = nil
     public var title: String
     public var type: ProductType = .subs
     public var typeIOS: ProductTypeIOS
 }
 
 public struct PurchaseAndroid: Codable, PurchaseCommon {
-    public var autoRenewingAndroid: Bool?
-    public var currentPlanId: String?
-    public var dataAndroid: String?
-    public var developerPayloadAndroid: String?
+    public var autoRenewingAndroid: Bool? = nil
+    public var currentPlanId: String? = nil
+    public var dataAndroid: String? = nil
+    public var developerPayloadAndroid: String? = nil
     public var id: String
-    public var ids: [String]?
-    public var isAcknowledgedAndroid: Bool?
+    public var ids: [String]? = nil
+    public var isAcknowledgedAndroid: Bool? = nil
     public var isAutoRenewing: Bool
     /// Whether the subscription is suspended (Android)
     /// A suspended subscription means the user's payment method failed and they need to fix it.
     /// Users should be directed to the subscription center to resolve the issue.
     /// Do NOT grant entitlements for suspended subscriptions.
     /// Available in Google Play Billing Library 8.1.0+
-    public var isSuspendedAndroid: Bool?
-    public var obfuscatedAccountIdAndroid: String?
-    public var obfuscatedProfileIdAndroid: String?
-    public var packageNameAndroid: String?
+    public var isSuspendedAndroid: Bool? = nil
+    public var obfuscatedAccountIdAndroid: String? = nil
+    public var obfuscatedProfileIdAndroid: String? = nil
+    public var packageNameAndroid: String? = nil
     /// Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
     /// Contains the new products and purchase token for the pending transaction.
     /// Returns null if no pending update exists.
     /// Available in Google Play Billing Library 5.0+
-    public var pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid?
+    public var pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = nil
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
-    public var purchaseToken: String?
+    public var purchaseToken: String? = nil
     public var quantity: Int
-    public var signatureAndroid: String?
+    public var signatureAndroid: String? = nil
     /// Store where purchase was made
     public var store: IapStore
     public var transactionDate: Double
-    public var transactionId: String?
+    public var transactionId: String? = nil
 }
 
 public struct PurchaseError: Codable {
     public var code: ErrorCode
+    public var debugMessage: String? = nil
     public var message: String
-    public var productId: String?
+    public var productId: String? = nil
 }
 
 public struct PurchaseIOS: Codable, PurchaseCommon {
-    public var appAccountToken: String?
-    public var appBundleIdIOS: String?
-    public var countryCodeIOS: String?
-    public var currencyCodeIOS: String?
-    public var currencySymbolIOS: String?
-    public var currentPlanId: String?
-    public var environmentIOS: String?
-    public var expirationDateIOS: Double?
+    public var appAccountToken: String? = nil
+    public var appBundleIdIOS: String? = nil
+    public var countryCodeIOS: String? = nil
+    public var currencyCodeIOS: String? = nil
+    public var currencySymbolIOS: String? = nil
+    public var currentPlanId: String? = nil
+    public var environmentIOS: String? = nil
+    public var expirationDateIOS: Double? = nil
     public var id: String
-    public var ids: [String]?
+    public var ids: [String]? = nil
     public var isAutoRenewing: Bool
-    public var isUpgradedIOS: Bool?
-    public var offerIOS: PurchaseOfferIOS?
-    public var originalTransactionDateIOS: Double?
-    public var originalTransactionIdentifierIOS: String?
-    public var ownershipTypeIOS: String?
+    public var isUpgradedIOS: Bool? = nil
+    public var offerIOS: PurchaseOfferIOS? = nil
+    public var originalTransactionDateIOS: Double? = nil
+    public var originalTransactionIdentifierIOS: String? = nil
+    public var ownershipTypeIOS: String? = nil
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
-    public var purchaseToken: String?
+    public var purchaseToken: String? = nil
     public var quantity: Int
-    public var quantityIOS: Int?
-    public var reasonIOS: String?
-    public var reasonStringRepresentationIOS: String?
-    public var renewalInfoIOS: RenewalInfoIOS?
-    public var revocationDateIOS: Double?
-    public var revocationReasonIOS: String?
+    public var quantityIOS: Int? = nil
+    public var reasonIOS: String? = nil
+    public var reasonStringRepresentationIOS: String? = nil
+    public var renewalInfoIOS: RenewalInfoIOS? = nil
+    public var revocationDateIOS: Double? = nil
+    public var revocationReasonIOS: String? = nil
     /// Store where purchase was made
     public var store: IapStore
-    public var storefrontCountryCodeIOS: String?
-    public var subscriptionGroupIdIOS: String?
+    public var storefrontCountryCodeIOS: String? = nil
+    public var subscriptionGroupIdIOS: String? = nil
     public var transactionDate: Double
     public var transactionId: String
-    public var transactionReasonIOS: String?
-    public var webOrderLineItemIdIOS: String?
+    public var transactionReasonIOS: String? = nil
+    public var webOrderLineItemIdIOS: String? = nil
 }
 
 public struct PurchaseOfferIOS: Codable {
@@ -1030,38 +1034,38 @@ public struct PurchaseOfferIOS: Codable {
 }
 
 public struct RefundResultIOS: Codable {
-    public var message: String?
+    public var message: String? = nil
     public var status: String
 }
 
 /// Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
 /// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 public struct RenewalInfoIOS: Codable {
-    public var autoRenewPreference: String?
+    public var autoRenewPreference: String? = nil
     /// When subscription expires due to cancellation/billing issue
     /// Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
-    public var expirationReason: String?
+    public var expirationReason: String? = nil
     /// Grace period expiration date (milliseconds since epoch)
     /// When set, subscription is in grace period (billing issue but still has access)
-    public var gracePeriodExpirationDate: Double?
+    public var gracePeriodExpirationDate: Double? = nil
     /// True if subscription failed to renew due to billing issue and is retrying
     /// Note: Not directly available in RenewalInfo, available in Status
-    public var isInBillingRetry: Bool?
-    public var jsonRepresentation: String?
+    public var isInBillingRetry: Bool? = nil
+    public var jsonRepresentation: String? = nil
     /// Product ID that will be used on next renewal (when user upgrades/downgrades)
     /// If set and different from current productId, subscription will change on expiration
-    public var pendingUpgradeProductId: String?
+    public var pendingUpgradeProductId: String? = nil
     /// User's response to subscription price increase
     /// Possible values: "AGREED", "PENDING", null (no price increase)
-    public var priceIncreaseStatus: String?
+    public var priceIncreaseStatus: String? = nil
     /// Expected renewal date (milliseconds since epoch)
     /// For active subscriptions, when the next renewal/charge will occur
-    public var renewalDate: Double?
+    public var renewalDate: Double? = nil
     /// Offer ID applied to next renewal (promotional offer, subscription offer code, etc.)
-    public var renewalOfferId: String?
+    public var renewalOfferId: String? = nil
     /// Type of offer applied to next renewal
     /// Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
-    public var renewalOfferType: String?
+    public var renewalOfferType: String? = nil
     public var willAutoRenew: Bool
 }
 
@@ -1070,7 +1074,7 @@ public struct RenewalInfoIOS: Codable {
 public struct RentalDetailsAndroid: Codable {
     /// Rental expiration period in ISO 8601 format
     /// Time after rental period ends when user can still extend
-    public var rentalExpirationPeriod: String?
+    public var rentalExpirationPeriod: String? = nil
     /// Rental period in ISO 8601 format (e.g., P7D for 7 days)
     public var rentalPeriod: String
 }
@@ -1089,8 +1093,8 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
 }
 
 public struct SubscriptionInfoIOS: Codable {
-    public var introductoryOffer: SubscriptionOfferIOS?
-    public var promotionalOffers: [SubscriptionOfferIOS]?
+    public var introductoryOffer: SubscriptionOfferIOS? = nil
+    public var promotionalOffers: [SubscriptionOfferIOS]? = nil
     public var subscriptionGroupId: String
     public var subscriptionPeriod: SubscriptionPeriodValueIOS
 }
@@ -1107,9 +1111,9 @@ public struct SubscriptionInfoIOS: Codable {
 public struct SubscriptionOffer: Codable {
     /// [Android] Base plan identifier.
     /// Identifies which base plan this offer belongs to.
-    public var basePlanIdAndroid: String?
+    public var basePlanIdAndroid: String? = nil
     /// Currency code (ISO 4217, e.g., "USD")
-    public var currency: String?
+    public var currency: String? = nil
     /// Formatted display price string (e.g., "$9.99/month")
     public var displayPrice: String
     /// Unique identifier for the offer.
@@ -1119,39 +1123,39 @@ public struct SubscriptionOffer: Codable {
     /// [Android] Installment plan details for this subscription offer.
     /// Only set for installment subscription plans; null for non-installment plans.
     /// Available in Google Play Billing Library 7.0+
-    public var installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid?
+    public var installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = nil
     /// [iOS] Key identifier for signature validation.
     /// Used with server-side signature generation for promotional offers.
-    public var keyIdentifierIOS: String?
+    public var keyIdentifierIOS: String? = nil
     /// [iOS] Localized price string.
-    public var localizedPriceIOS: String?
+    public var localizedPriceIOS: String? = nil
     /// [iOS] Cryptographic nonce (UUID) for signature validation.
     /// Must be generated server-side for each purchase attempt.
-    public var nonceIOS: String?
+    public var nonceIOS: String? = nil
     /// [iOS] Number of billing periods for this discount.
-    public var numberOfPeriodsIOS: Int?
+    public var numberOfPeriodsIOS: Int? = nil
     /// [Android] List of tags associated with this offer.
-    public var offerTagsAndroid: [String]?
+    public var offerTagsAndroid: [String]? = nil
     /// [Android] Offer token required for purchase.
     /// Must be passed to requestPurchase() when purchasing with this offer.
-    public var offerTokenAndroid: String?
+    public var offerTokenAndroid: String? = nil
     /// Payment mode during the offer period
-    public var paymentMode: PaymentMode?
+    public var paymentMode: PaymentMode? = nil
     /// Subscription period for this offer
-    public var period: SubscriptionPeriod?
+    public var period: SubscriptionPeriod? = nil
     /// Number of periods the offer applies
-    public var periodCount: Int?
+    public var periodCount: Int? = nil
     /// Numeric price value
     public var price: Double
     /// [Android] Pricing phases for this subscription offer.
     /// Contains detailed pricing information for each phase (trial, intro, regular).
-    public var pricingPhasesAndroid: PricingPhasesAndroid?
+    public var pricingPhasesAndroid: PricingPhasesAndroid? = nil
     /// [iOS] Server-generated signature for promotional offer validation.
     /// Required when applying promotional offers on iOS.
-    public var signatureIOS: String?
+    public var signatureIOS: String? = nil
     /// [iOS] Timestamp when the signature was generated.
     /// Used for signature validation.
-    public var timestampIOS: Double?
+    public var timestampIOS: Double? = nil
     /// Type of subscription offer (Introductory or Promotional)
     public var type: DiscountOfferType
 }
@@ -1183,7 +1187,7 @@ public struct SubscriptionPeriodValueIOS: Codable {
 }
 
 public struct SubscriptionStatusIOS: Codable {
-    public var renewalInfo: RenewalInfoIOS?
+    public var renewalInfo: RenewalInfoIOS? = nil
     public var state: String
 }
 
@@ -1208,10 +1212,10 @@ public struct ValidTimeWindowAndroid: Codable {
 public struct VerifyPurchaseResultAndroid: Codable {
     public var autoRenewing: Bool
     public var betaProduct: Bool
-    public var cancelDate: Double?
-    public var cancelReason: String?
-    public var deferredDate: Double?
-    public var deferredSku: String?
+    public var cancelDate: Double? = nil
+    public var cancelReason: String? = nil
+    public var deferredDate: Double? = nil
+    public var deferredSku: String? = nil
     public var freeTrialEndDate: Double
     public var gracePeriodEndDate: Double
     public var parentProductId: String
@@ -1230,7 +1234,7 @@ public struct VerifyPurchaseResultAndroid: Codable {
 /// Returns verification status and grant time for the entitlement.
 public struct VerifyPurchaseResultHorizon: Codable {
     /// Unix timestamp (seconds) when the entitlement was granted.
-    public var grantTime: Double?
+    public var grantTime: Double? = nil
     /// Whether the entitlement verification succeeded.
     public var success: Bool
 }
@@ -1241,21 +1245,21 @@ public struct VerifyPurchaseResultIOS: Codable {
     /// JWS representation
     public var jwsRepresentation: String
     /// Latest transaction if available
-    public var latestTransaction: Purchase?
+    public var latestTransaction: Purchase? = nil
     /// Receipt data string
     public var receiptData: String
 }
 
 public struct VerifyPurchaseWithProviderError: Codable {
-    public var code: String?
+    public var code: String? = nil
     public var message: String
 }
 
 public struct VerifyPurchaseWithProviderResult: Codable {
     /// Error details if verification failed
-    public var errors: [VerifyPurchaseWithProviderError]?
+    public var errors: [VerifyPurchaseWithProviderError]? = nil
     /// IAPKit verification result
-    public var iapkit: RequestVerifyPurchaseWithIapkitResult?
+    public var iapkit: RequestVerifyPurchaseWithIapkitResult? = nil
     public var provider: PurchaseVerificationProvider
 }
 
