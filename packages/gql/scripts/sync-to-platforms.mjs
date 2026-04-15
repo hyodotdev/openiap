@@ -84,6 +84,10 @@ if (existsSync(swiftSource)) {
 }
 
 // Sync Dart to flutter_inapp_purchase
+// Note: the flutter_inapp_purchase CLAUDE.md explicitly excludes
+// `lib/types.dart` from the Dart format check, so we intentionally copy
+// the raw generator output verbatim. `bun run generate` is reproducible
+// because no formatter mutates the file afterwards.
 if (existsSync(dartSource)) {
   mkdirSync(dirname(dartTarget), { recursive: true });
   copyFileSync(dartSource, dartTarget);
