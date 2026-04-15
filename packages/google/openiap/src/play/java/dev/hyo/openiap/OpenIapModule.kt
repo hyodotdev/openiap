@@ -773,7 +773,9 @@ class OpenIapModule(
                     @Suppress("DEPRECATION")
                     val dialogSuccess = showAlternativeBillingInformationDialog(activity)
                     if (!dialogSuccess) {
-                        val err = OpenIapError.UserCancelled()
+                        val err = OpenIapError.UserCancelled(
+                            "User dismissed the alternative billing information dialog"
+                        )
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         return@withContext emptyList()
                     }
@@ -831,7 +833,9 @@ class OpenIapModule(
                         // Return empty list - app should handle purchase via alternative billing
                         return@withContext emptyList()
                     } else {
-                        val err = OpenIapError.PurchaseFailed()
+                        val err = OpenIapError.PurchaseFailed(
+                            "Alternative billing token creation returned null"
+                        )
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         return@withContext emptyList()
                     }
@@ -871,7 +875,9 @@ class OpenIapModule(
                 }
                 if (!currentPurchaseCallback.compareAndSet(null, callback)) {
                     OpenIapLog.w("requestPurchase rejected: another purchase is already in progress", TAG)
-                    if (continuation.isActive) continuation.resumeWithException(OpenIapError.DeveloperError())
+                    if (continuation.isActive) continuation.resumeWithException(
+                        OpenIapError.DeveloperError("Another purchase is already in progress")
+                    )
                     return@suspendCancellableCoroutine
                 }
                 continuation.invokeOnCancellation { currentPurchaseCallback.compareAndSet(callback, null) }
@@ -1052,7 +1058,7 @@ class OpenIapModule(
                                 OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
                                 OpenIapError.DeveloperError(result.debugMessage)
                             }
-                            BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled()
+                            BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
                             else -> OpenIapError.PurchaseFailed(result.debugMessage)
                         }
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
@@ -1209,7 +1215,9 @@ class OpenIapModule(
         if (props.provider != PurchaseVerificationProvider.Iapkit) {
             throw OpenIapError.FeatureNotSupported()
         }
-        val options = props.iapkit ?: throw OpenIapError.DeveloperError()
+        val options = props.iapkit ?: throw OpenIapError.DeveloperError(
+            "Missing IAPKit verification parameters"
+        )
         VerifyPurchaseWithProviderResult(
             iapkit = verifyPurchaseWithIapkit(options, TAG),
             provider = props.provider
@@ -1365,7 +1373,7 @@ class OpenIapModule(
         } else {
             when (billingResult.responseCode) {
                 BillingClient.BillingResponseCode.USER_CANCELED -> {
-                    val err = OpenIapError.UserCancelled()
+                    val err = OpenIapError.UserCancelled(billingResult.debugMessage)
                     for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                     consumePurchaseCallback(Result.success(emptyList()))
                 }

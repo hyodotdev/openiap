@@ -514,7 +514,7 @@ class OpenIapModule(
                                     OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
                                     OpenIapError.DeveloperError(result.debugMessage)
                                 }
-                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled()
+                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
                                 else -> OpenIapError.PurchaseFailed(result.debugMessage)
                             }
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
@@ -702,7 +702,9 @@ class OpenIapModule(
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
         // Use Horizon API if horizon options provided, otherwise fallback to Google Play
         if (props.horizon != null) {
-            val horizonAppId = appId ?: throw OpenIapError.DeveloperError()
+            val horizonAppId = appId ?: throw OpenIapError.DeveloperError(
+                "Horizon verifyPurchase requires appId to be set during initConnection"
+            )
             val horizonResult = verifyPurchaseWithHorizon(props, horizonAppId, TAG)
             if (!horizonResult.success) {
                 throw OpenIapError.InvalidPurchaseVerification
@@ -717,7 +719,9 @@ class OpenIapModule(
         if (props.provider != PurchaseVerificationProvider.Iapkit) {
             throw OpenIapError.FeatureNotSupported()
         }
-        val options = props.iapkit ?: throw OpenIapError.DeveloperError()
+        val options = props.iapkit ?: throw OpenIapError.DeveloperError(
+            "Missing IAPKit verification parameters"
+        )
         VerifyPurchaseWithProviderResult(
             iapkit = verifyPurchaseWithIapkit(options, TAG),
             provider = props.provider
