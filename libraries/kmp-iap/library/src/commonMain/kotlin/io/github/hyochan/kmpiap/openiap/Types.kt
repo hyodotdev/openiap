@@ -7,6 +7,7 @@
 @file:Suppress("UNCHECKED_CAST")
 
 package io.github.hyochan.kmpiap.openiap
+
 // MARK: - Enums
 
 /**
@@ -205,6 +206,7 @@ public enum class ErrorCode(val rawValue: String) {
     ConnectionClosed("connection-closed"),
     InitConnection("init-connection"),
     ServiceDisconnected("service-disconnected"),
+    ServiceTimeout("service-timeout"),
     QueryProduct("query-product"),
     SkuNotFound("sku-not-found"),
     SkuOfferMismatch("sku-offer-mismatch"),
@@ -306,6 +308,9 @@ public enum class ErrorCode(val rawValue: String) {
             "service-disconnected" -> ErrorCode.ServiceDisconnected
             "SERVICE_DISCONNECTED" -> ErrorCode.ServiceDisconnected
             "ServiceDisconnected" -> ErrorCode.ServiceDisconnected
+            "service-timeout" -> ErrorCode.ServiceTimeout
+            "SERVICE_TIMEOUT" -> ErrorCode.ServiceTimeout
+            "ServiceTimeout" -> ErrorCode.ServiceTimeout
             "query-product" -> ErrorCode.QueryProduct
             "QUERY_PRODUCT" -> ErrorCode.QueryProduct
             "QueryProduct" -> ErrorCode.QueryProduct

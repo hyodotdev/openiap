@@ -420,6 +420,19 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\t\tdict["${graphqlName}"] = ${enumConstName}[${fieldName}]`);
       this.emit(`\t\telse:`);
       this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
+    } else if (type.nullable) {
+      // Nullable scalars get a non-null default (e.g. "" for String, 0 for
+      // int) at declaration time so GDScript type checks pass. When that
+      // default is still in place, treat the field as "not set" and omit it
+      // from the serialized dict so consumers receive null/absent instead
+      // of the sentinel default.
+      const sentinel = this.getDefaultValue(type);
+      if (sentinel !== null) {
+        this.emit(`\t\tif ${fieldName} != ${sentinel}:`);
+        this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
+      } else {
+        this.emit(`\t\tdict["${graphqlName}"] = ${fieldName}`);
+      }
     } else {
       this.emit(`\t\tdict["${graphqlName}"] = ${fieldName}`);
     }

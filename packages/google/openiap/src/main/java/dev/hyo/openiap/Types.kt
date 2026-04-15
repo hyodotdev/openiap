@@ -202,6 +202,7 @@ public enum class ErrorCode(val rawValue: String) {
     ConnectionClosed("connection-closed"),
     InitConnection("init-connection"),
     ServiceDisconnected("service-disconnected"),
+    ServiceTimeout("service-timeout"),
     QueryProduct("query-product"),
     SkuNotFound("sku-not-found"),
     SkuOfferMismatch("sku-offer-mismatch"),
@@ -273,6 +274,8 @@ public enum class ErrorCode(val rawValue: String) {
             "InitConnection" -> ErrorCode.InitConnection
             "service-disconnected" -> ErrorCode.ServiceDisconnected
             "ServiceDisconnected" -> ErrorCode.ServiceDisconnected
+            "service-timeout" -> ErrorCode.ServiceTimeout
+            "ServiceTimeout" -> ErrorCode.ServiceTimeout
             "query-product" -> ErrorCode.QueryProduct
             "QueryProduct" -> ErrorCode.QueryProduct
             "sku-not-found" -> ErrorCode.SkuNotFound

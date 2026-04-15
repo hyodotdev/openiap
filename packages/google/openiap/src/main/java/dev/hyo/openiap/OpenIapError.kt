@@ -296,7 +296,7 @@ sealed class OpenIapError : Exception() {
         override val message: String = MESSAGE
 
         companion object {
-            const val CODE = "service-timeout"
+            val CODE = ErrorCode.ServiceTimeout.rawValue
             const val MESSAGE = "The request has reached the maximum timeout before billing service responds"
         }
     }

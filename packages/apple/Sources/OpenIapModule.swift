@@ -1550,6 +1550,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         case .connectionClosed: return "Connection closed"
         case .initConnection: return "Failed to initialize billing connection"
         case .serviceDisconnected: return "Billing service disconnected"
+        case .serviceTimeout: return "Billing service request timed out"
         case .queryProduct: return "Failed to query product"
         case .skuNotFound: return "SKU not found"
         case .skuOfferMismatch: return "SKU offer mismatch"

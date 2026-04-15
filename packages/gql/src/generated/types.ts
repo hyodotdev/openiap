@@ -350,6 +350,7 @@ export enum ErrorCode {
   RemoteError = 'remote-error',
   ServiceDisconnected = 'service-disconnected',
   ServiceError = 'service-error',
+  ServiceTimeout = 'service-timeout',
   SkuNotFound = 'sku-not-found',
   SkuOfferMismatch = 'sku-offer-mismatch',
   SyncError = 'sync-error',

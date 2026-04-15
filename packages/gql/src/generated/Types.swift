@@ -104,6 +104,7 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case connectionClosed = "connection-closed"
     case initConnection = "init-connection"
     case serviceDisconnected = "service-disconnected"
+    case serviceTimeout = "service-timeout"
     case queryProduct = "query-product"
     case skuNotFound = "sku-not-found"
     case skuOfferMismatch = "sku-offer-mismatch"
@@ -178,6 +179,8 @@ public enum ErrorCode: String, Codable, CaseIterable {
             self = .initConnection
         case "service-disconnected", "ServiceDisconnected":
             self = .serviceDisconnected
+        case "service-timeout", "ServiceTimeout":
+            self = .serviceTimeout
         case "query-product", "QueryProduct":
             self = .queryProduct
         case "sku-not-found", "SkuNotFound":

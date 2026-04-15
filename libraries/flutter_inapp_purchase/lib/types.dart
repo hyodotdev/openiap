@@ -193,6 +193,7 @@ enum ErrorCode {
   ConnectionClosed('connection-closed'),
   InitConnection('init-connection'),
   ServiceDisconnected('service-disconnected'),
+  ServiceTimeout('service-timeout'),
   QueryProduct('query-product'),
   SkuNotFound('sku-not-found'),
   SkuOfferMismatch('sku-offer-mismatch'),
@@ -268,6 +269,8 @@ enum ErrorCode {
         return ErrorCode.InitConnection;
       case 'service-disconnected':
         return ErrorCode.ServiceDisconnected;
+      case 'service-timeout':
+        return ErrorCode.ServiceTimeout;
       case 'query-product':
         return ErrorCode.QueryProduct;
       case 'sku-not-found':

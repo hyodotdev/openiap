@@ -154,5 +154,6 @@ object ErrorCodeUtils {
         ErrorCode.PurchaseVerificationFinished -> "Purchase verification completed"
         ErrorCode.PurchaseVerificationFinishFailed -> "Failed to complete purchase verification"
         ErrorCode.DuplicatePurchase -> "Duplicate purchase update detected"
+        ErrorCode.ServiceTimeout -> "Billing service request timed out"
     }
 }
