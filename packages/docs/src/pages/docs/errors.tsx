@@ -29,45 +29,51 @@ function Errors() {
           {{
             typescript: (
               <CodeBlock language="typescript">{`interface PurchaseError {
-  code: string;          // Error code constant
-  message: string;       // Human-readable message
-  productId?: string;    // Related product SKU (if applicable)
+  code: string;           // Error code constant
+  message: string;        // Human-readable message
+  productId?: string;     // Related product SKU (if applicable)
+  debugMessage?: string;  // Raw diagnostic from the billing layer (e.g. Play's BillingResult.debugMessage)
 }`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`struct PurchaseError: Error {
-    let code: String      // Error code constant
-    let message: String   // Human-readable message
+    let code: String       // Error code constant
+    let message: String    // Human-readable message
     let productId: String? // Related product SKU (if applicable)
+    let debugMessage: String? // Raw diagnostic (e.g. StoreKit error.localizedDescription)
 }`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`data class PurchaseError(
-    val code: String,           // Error code constant
-    val message: String,        // Human-readable message
-    val productId: String? = null // Related product SKU (if applicable)
+    val code: String,               // Error code constant
+    val message: String,            // Human-readable message
+    val productId: String? = null,  // Related product SKU (if applicable)
+    val debugMessage: String? = null // Raw BillingResult.debugMessage from Google Play
 )`}</CodeBlock>
             ),
             kmp: (
               <CodeBlock language="kotlin">{`data class PurchaseError(
-    val code: String,           // Error code constant
-    val message: String,        // Human-readable message
-    val productId: String? = null // Related product SKU (if applicable)
+    val code: String,               // Error code constant
+    val message: String,            // Human-readable message
+    val productId: String? = null,  // Related product SKU (if applicable)
+    val debugMessage: String? = null // Raw diagnostic from the underlying billing layer
 )`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`class PurchaseError {
-  final String code;      // Error code constant
-  final String message;   // Human-readable message
-  final String? productId; // Related product SKU (if applicable)
+  final String code;        // Error code constant
+  final String message;     // Human-readable message
+  final String? productId;  // Related product SKU (if applicable)
+  final String? debugMessage; // Raw BillingResult.debugMessage on Android
 }`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name PurchaseError
 
-var code: String          # Error code constant
-var message: String       # Human-readable message
-var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
+var code: String                 # Error code constant
+var message: String              # Human-readable message
+var product_id: Variant = null   # Related product SKU (if applicable)
+var debug_message: Variant = null # Raw diagnostic from the billing layer`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -169,6 +175,16 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
               <td>Item not owned by user</td>
               <td>Purchase the item first</td>
             </tr>
+            <tr>
+              <td>
+                <code>DuplicatePurchase</code>
+              </td>
+              <td>
+                Duplicate <code>purchase-updated</code> event for the same token
+                (Android)
+              </td>
+              <td>Deduplicate by purchase token and ignore duplicates</td>
+            </tr>
           </tbody>
         </table>
 
@@ -216,6 +232,15 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
               </td>
               <td>Store service disconnected</td>
               <td>Reconnect to the store service</td>
+            </tr>
+            <tr>
+              <td>
+                <code>ServiceTimeout</code>
+              </td>
+              <td>
+                Request reached the billing service timeout (Google Play 8.x+)
+              </td>
+              <td>Retry the call after a short delay</td>
             </tr>
             <tr>
               <td>
@@ -602,6 +627,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
   ConnectionClosed = 'E_CONNECTION_CLOSED',
   InitConnection = 'E_INIT_CONNECTION',
   ServiceDisconnected = 'E_SERVICE_DISCONNECTED',
+  ServiceTimeout = 'E_SERVICE_TIMEOUT',
   QueryProduct = 'E_QUERY_PRODUCT',
   SkuNotFound = 'E_SKU_NOT_FOUND',
   SkuOfferMismatch = 'E_SKU_OFFER_MISMATCH',
@@ -609,6 +635,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
   BillingUnavailable = 'E_BILLING_UNAVAILABLE',
   FeatureNotSupported = 'E_FEATURE_NOT_SUPPORTED',
   EmptySkuList = 'E_EMPTY_SKU_LIST',
+  DuplicatePurchase = 'E_DUPLICATE_PURCHASE',
 }`}</CodeBlock>
             ),
             swift: (
@@ -646,6 +673,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     case connectionClosed
     case initConnection
     case serviceDisconnected
+    case serviceTimeout
     case queryProduct
     case skuNotFound
     case skuOfferMismatch
@@ -653,6 +681,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     case billingUnavailable
     case featureNotSupported
     case emptySkuList
+    case duplicatePurchase
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -690,6 +719,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     ConnectionClosed,
     InitConnection,
     ServiceDisconnected,
+    ServiceTimeout,
     QueryProduct,
     SkuNotFound,
     SkuOfferMismatch,
@@ -697,6 +727,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     BillingUnavailable,
     FeatureNotSupported,
     EmptySkuList,
+    DuplicatePurchase,
 }`}</CodeBlock>
             ),
             kmp: (
@@ -734,6 +765,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     ConnectionClosed,
     InitConnection,
     ServiceDisconnected,
+    ServiceTimeout,
     QueryProduct,
     SkuNotFound,
     SkuOfferMismatch,
@@ -741,6 +773,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     BillingUnavailable,
     FeatureNotSupported,
     EmptySkuList,
+    DuplicatePurchase,
 }`}</CodeBlock>
             ),
             dart: (
@@ -778,6 +811,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
   connectionClosed,
   initConnection,
   serviceDisconnected,
+  serviceTimeout,
   queryProduct,
   skuNotFound,
   skuOfferMismatch,
@@ -785,6 +819,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
   billingUnavailable,
   featureNotSupported,
   emptySkuList,
+  duplicatePurchase,
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -816,6 +851,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     CONNECTION_CLOSED,
     INIT_CONNECTION,
     SERVICE_DISCONNECTED,
+    SERVICE_TIMEOUT,
     QUERY_PRODUCT,
     SKU_NOT_FOUND,
     SKU_OFFER_MISMATCH,
@@ -823,6 +859,7 @@ var product_id: String    # Related product SKU (if applicable)`}</CodeBlock>
     BILLING_UNAVAILABLE,
     FEATURE_NOT_SUPPORTED,
     EMPTY_SKU_LIST,
+    DUPLICATE_PURCHASE,
 }`}</CodeBlock>
             ),
           }}
