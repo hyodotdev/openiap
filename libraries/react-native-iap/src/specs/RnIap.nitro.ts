@@ -1095,6 +1095,29 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
     listener: (details: DeveloperProvidedBillingDetailsAndroid) => void,
   ): void;
 
+  /**
+   * Add a listener for subscription billing-issue events (cross-platform).
+   *
+   * Fires when a user's active subscription enters a state that needs attention
+   * (payment method failed, card expired, etc.). Unifies:
+   * - StoreKit 2 `Message.Reason.billingIssue` (iOS 18+ / Mac Catalyst 18+)
+   * - Google Play Billing `Purchase.isSuspended` (Play Billing 8.1+)
+   *
+   * NOT fired on Meta Horizon (Billing 7.0 compat SDK lacks the suspended signal).
+   *
+   * @param listener - Called with the affected Purchase
+   */
+  addSubscriptionBillingIssueListener(
+    listener: (purchase: NitroPurchase) => void,
+  ): void;
+
+  /**
+   * Remove a subscription billing-issue listener.
+   */
+  removeSubscriptionBillingIssueListener(
+    listener: (purchase: NitroPurchase) => void,
+  ): void;
+
   // ╔════════════════════════════════════════════════════════════════════════╗
   // ║                 BILLING PROGRAMS API (Android 8.2.0+)                  ║
   // ╚════════════════════════════════════════════════════════════════════════╝

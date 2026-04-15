@@ -17,6 +17,8 @@ class HybridRnIap: HybridRnIapSpec {
     private var purchaseUpdatedListeners: [(NitroPurchase) -> Void] = []
     private var purchaseErrorListeners: [(NitroPurchaseResult) -> Void] = []
     private var promotedProductListeners: [(NitroProduct) -> Void] = []
+    private var subscriptionBillingIssueListeners: [(NitroPurchase) -> Void] = []
+    private var subscriptionBillingIssueSub: Subscription?
     private var lastPurchaseErrorKey: String? = nil
     private var lastPurchaseErrorTimestamp: TimeInterval = 0
     private var deliveredPurchaseEventKeys: Set<String> = []
@@ -922,7 +924,16 @@ class HybridRnIap: HybridRnIapSpec {
     func removePurchaseErrorListener(listener: @escaping (NitroPurchaseResult) -> Void) throws {
         listenerLock.withLock { purchaseErrorListeners.removeAll() }
     }
-    
+
+    func addSubscriptionBillingIssueListener(listener: @escaping (NitroPurchase) -> Void) throws {
+        listenerLock.withLock { subscriptionBillingIssueListeners.append(listener) }
+        attachSubscriptionBillingIssueSubIfNeeded()
+    }
+
+    func removeSubscriptionBillingIssueListener(listener: @escaping (NitroPurchase) -> Void) throws {
+        listenerLock.withLock { subscriptionBillingIssueListeners.removeAll() }
+    }
+
     // MARK: - Private Helper Methods
 
     private func attachListenersIfNeeded() {
@@ -1002,6 +1013,27 @@ class HybridRnIap: HybridRnIapSpec {
             }
             RnIapLog.result("promotedProductListenerIOS.register", "attached")
         }
+    }
+
+    private func attachSubscriptionBillingIssueSubIfNeeded() {
+        guard subscriptionBillingIssueSub == nil else { return }
+        RnIapLog.payload("subscriptionBillingIssueListener.register", nil)
+        subscriptionBillingIssueSub = OpenIapModule.shared.subscriptionBillingIssueListener { [weak self] openIapPurchase in
+            guard let self else {
+                RnIapLog.warn("subscriptionBillingIssueListener: HybridRnIap deallocated, event dropped")
+                return
+            }
+            Task { @MainActor in
+                let payload = RnIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(openIapPurchase))
+                RnIapLog.result("subscriptionBillingIssueListener", payload)
+                let nitro = RnIapHelper.convertPurchaseDictionary(payload)
+                let snapshot: [(NitroPurchase) -> Void] = self.listenerLock.withLock {
+                    Array(self.subscriptionBillingIssueListeners)
+                }
+                for l in snapshot { l(nitro) }
+            }
+        }
+        RnIapLog.result("subscriptionBillingIssueListener.register", "attached")
     }
 
     private func ensureConnection() throws {

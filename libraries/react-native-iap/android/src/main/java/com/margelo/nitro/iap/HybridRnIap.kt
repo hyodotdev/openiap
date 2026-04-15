@@ -84,6 +84,7 @@ class HybridRnIap : HybridRnIapSpec() {
     private val promotedProductListenersIOS = mutableListOf<(NitroProduct) -> Unit>()
     private val userChoiceBillingListenersAndroid = mutableListOf<(UserChoiceBillingDetails) -> Unit>()
     private val developerProvidedBillingListenersAndroid = mutableListOf<(DeveloperProvidedBillingDetailsAndroid) -> Unit>()
+    private val subscriptionBillingIssueListeners = mutableListOf<(NitroPurchase) -> Unit>()
     private var listenersAttached = false
     private var isInitialized = false
     private var initDeferred: CompletableDeferred<Boolean>? = null
@@ -1683,6 +1684,42 @@ class HybridRnIap : HybridRnIapSpec() {
     private fun sendDeveloperProvidedBilling(details: DeveloperProvidedBillingDetailsAndroid) {
         val snapshot = synchronized(developerProvidedBillingListenersAndroid) { ArrayList(developerProvidedBillingListenersAndroid) }
         snapshot.forEach { it(details) }
+    }
+
+    // -------------------------------------------------------------------------
+    // Subscription billing-issue listener (cross-platform event)
+    // Source: Play Billing 8.1+ Purchase.isSuspended detection inside openiap-google.
+    // -------------------------------------------------------------------------
+
+    private var subscriptionBillingIssueAttached = false
+
+    override fun addSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
+        synchronized(subscriptionBillingIssueListeners) {
+            subscriptionBillingIssueListeners.add(listener)
+        }
+        attachSubscriptionBillingIssueIfNeeded()
+    }
+
+    override fun removeSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
+        synchronized(subscriptionBillingIssueListeners) {
+            subscriptionBillingIssueListeners.remove(listener)
+        }
+    }
+
+    private fun attachSubscriptionBillingIssueIfNeeded() {
+        if (subscriptionBillingIssueAttached) return
+        subscriptionBillingIssueAttached = true
+        openIap.addSubscriptionBillingIssueListener(
+            dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
+                runCatching {
+                    val nitro = convertToNitroPurchase(purchase)
+                    val snapshot = synchronized(subscriptionBillingIssueListeners) {
+                        ArrayList(subscriptionBillingIssueListeners)
+                    }
+                    snapshot.forEach { it(nitro) }
+                }.onFailure { RnIapLog.failure("subscriptionBillingIssueListener", it) }
+            }
+        )
     }
 
     // -------------------------------------------------------------------------
