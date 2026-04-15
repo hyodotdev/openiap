@@ -8,6 +8,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import platform.Foundation.*
 import cocoapods.openiap.*
 import platform.darwin.NSObject
@@ -60,6 +61,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private var purchaseSubscription: NSObject? = null
     private var errorSubscription: NSObject? = null
     private var promotedProductSubscription: NSObject? = null
+    private var subscriptionBillingIssueSubscription: NSObject? = null
 
     init {
         // Register listeners
@@ -101,6 +103,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 _promotedProductFlow.emit(sku)
             }
         }
+
+        // Subscription billing-issue listener (iOS 18+ Message.billingIssue via OpenIapModule)
+        subscriptionBillingIssueSubscription = openIapModule.addSubscriptionBillingIssueListener { dictionary ->
+            println("[KMP-IAP iOS] subscriptionBillingIssue received: $dictionary")
+            val purchase = convertAnyToPurchase(dictionary)
+            if (purchase != null) {
+                coroutineScope.launch {
+                    _subscriptionBillingIssueFlow.emit(purchase)
+                }
+            }
+        }
     }
 
     override fun getVersion(): String = "KMP-IAP v1.0.0-rc.2 (iOS)"
@@ -133,6 +146,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         purchaseSubscription?.let { openIapModule.removeListener(it) }
         errorSubscription?.let { openIapModule.removeListener(it) }
         promotedProductSubscription?.let { openIapModule.removeListener(it) }
+        subscriptionBillingIssueSubscription?.let { openIapModule.removeListener(it) }
 
         openIapModule.endConnectionWithCompletion { success, error ->
             if (error != null) {
@@ -735,11 +749,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         throw UnsupportedOperationException("Use promotedProductListener Flow instead")
     }
 
-    // Cross-platform billing-issue handler — iOS impl backed by StoreKit.Message listener.
+    // Cross-platform billing-issue handler — iOS impl backed by StoreKit.Message listener
+    // via openIapModule.addSubscriptionBillingIssueListener. Consumers should collect
+    // `subscriptionBillingIssueListener` (Flow) rather than invoking this directly.
     // Reference (OpenIAP): https://openiap.dev/docs/events#subscription-billing-issue
-    override suspend fun subscriptionBillingIssue(): Purchase {
-        throw UnsupportedOperationException("Use subscriptionBillingIssueListener Flow instead")
-    }
+    override suspend fun subscriptionBillingIssue(): Purchase = subscriptionBillingIssueListener.first()
 
     // -------------------------------------------------------------------------
     // Conversion Helpers
