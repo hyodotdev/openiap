@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-04-15T16:14:04.578Z
+> Generated: 2026-04-15T21:48:18.659Z
 
 ## Installation
 
