@@ -192,10 +192,11 @@ Mark consumable item as used (required for re-purchase).
 interface VerifyPurchaseHorizonOptions {
   userId: string;      // Horizon user ID
   sku: string;         // Product SKU
-  appId: string;       // Horizon App ID
-  appSecret: string;   // Horizon App Secret
+  accessToken: string; // Format: "OC|APP_ID|APP_SECRET"
 }
 ```
+
+> **OpenIAP Note**: The GraphQL schema takes a single `accessToken` formatted as `OC|APP_ID|APP_SECRET` rather than separate `appId` / `appSecret` fields. Build the token server-side and pass it as one string.
 
 ### VerifyPurchaseResultHorizon
 

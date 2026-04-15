@@ -146,6 +146,8 @@ enum IapEvent {
 	USER_CHOICE_BILLING_ANDROID = 3,
 	## Fired when user selects developer-provided billing option in external payments flow. Available on Android with Google Play Billing Library 8.3.0+
 	DEVELOPER_PROVIDED_BILLING_ANDROID = 4,
+	## Fired when an active subscription enters a billing-issue state that requires user attention. Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing Compatibility SDK implements only the Play Billing 7.0 API surface.
+	SUBSCRIPTION_BILLING_ISSUE = 5,
 }
 
 ## Unified purchase states from IAPKit verification response.
@@ -4286,7 +4288,8 @@ const IAP_EVENT_VALUES = {
 	IapEvent.PURCHASE_ERROR: "purchase-error",
 	IapEvent.PROMOTED_PRODUCT_IOS: "promoted-product-ios",
 	IapEvent.USER_CHOICE_BILLING_ANDROID: "user-choice-billing-android",
-	IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID: "developer-provided-billing-android"
+	IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID: "developer-provided-billing-android",
+	IapEvent.SUBSCRIPTION_BILLING_ISSUE: "subscription-billing-issue"
 }
 
 const IAPKIT_PURCHASE_STATE_VALUES = {
@@ -4503,7 +4506,8 @@ const IAP_EVENT_FROM_STRING = {
 	"purchase-error": IapEvent.PURCHASE_ERROR,
 	"promoted-product-ios": IapEvent.PROMOTED_PRODUCT_IOS,
 	"user-choice-billing-android": IapEvent.USER_CHOICE_BILLING_ANDROID,
-	"developer-provided-billing-android": IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID
+	"developer-provided-billing-android": IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID,
+	"subscription-billing-issue": IapEvent.SUBSCRIPTION_BILLING_ISSUE
 }
 
 const IAPKIT_PURCHASE_STATE_FROM_STRING = {

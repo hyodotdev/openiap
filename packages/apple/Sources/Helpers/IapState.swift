@@ -14,6 +14,7 @@ actor IapState {
     private var purchaseUpdatedListeners: [(id: UUID, listener: PurchaseUpdatedListener)] = []
     private var purchaseErrorListeners: [(id: UUID, listener: PurchaseErrorListener)] = []
     private var promotedProductListeners: [(id: UUID, listener: PromotedProductListener)] = []
+    private var subscriptionBillingIssueListeners: [(id: UUID, listener: SubscriptionBillingIssueListener)] = []
 
     // MARK: - Init flag
     func setInitialized(_ value: Bool) { isInitialized = value }
@@ -43,6 +44,9 @@ actor IapState {
     func addPromotedProductListener(_ pair: (UUID, PromotedProductListener)) {
         promotedProductListeners.append((id: pair.0, listener: pair.1))
     }
+    func addSubscriptionBillingIssueListener(_ pair: (UUID, SubscriptionBillingIssueListener)) {
+        subscriptionBillingIssueListeners.append((id: pair.0, listener: pair.1))
+    }
 
     func removeListener(id: UUID, type: IapEvent) {
         switch type {
@@ -52,6 +56,8 @@ actor IapState {
             purchaseErrorListeners.removeAll { $0.id == id }
         case .promotedProductIos:
             promotedProductListeners.removeAll { $0.id == id }
+        case .subscriptionBillingIssue:
+            subscriptionBillingIssueListeners.removeAll { $0.id == id }
         case .userChoiceBillingAndroid:
             // No-op: User Choice Billing is an Android-only feature
             os_log(.info, "userChoiceBillingAndroid is not supported on iOS (no-op)")
@@ -67,6 +73,7 @@ actor IapState {
         purchaseUpdatedListeners.removeAll()
         purchaseErrorListeners.removeAll()
         promotedProductListeners.removeAll()
+        subscriptionBillingIssueListeners.removeAll()
     }
 
     func snapshotPurchaseUpdated() -> [PurchaseUpdatedListener] {
@@ -77,5 +84,8 @@ actor IapState {
     }
     func snapshotPromoted() -> [PromotedProductListener] {
         promotedProductListeners.map { $0.listener }
+    }
+    func snapshotSubscriptionBillingIssue() -> [SubscriptionBillingIssueListener] {
+        subscriptionBillingIssueListeners.map { $0.listener }
     }
 }

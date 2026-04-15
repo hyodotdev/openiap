@@ -110,6 +110,9 @@ class OpenIapModule(
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
     private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
+    private val subscriptionBillingIssueListeners = mutableSetOf<dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener>()
+    // Track purchase tokens already reported as suspended to dedupe across queries in the same session.
+    private val emittedBillingIssueTokens = mutableSetOf<String>()
     private val currentPurchaseCallback = AtomicReference<((Result<List<Purchase>>) -> Unit)?>(null)
 
     /**
@@ -239,7 +242,9 @@ class OpenIapModule(
     override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
         withContext(Dispatchers.IO) {
             val includeSuspended = options?.includeSuspendedAndroid == true
-            restorePurchasesHelper(billingClient, includeSuspended)
+            val purchases = restorePurchasesHelper(billingClient, includeSuspended)
+            notifySuspendedSubscriptions(purchases)
+            purchases
         }
     }
 
@@ -1314,6 +1319,37 @@ class OpenIapModule(
 
     override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
         developerProvidedBillingListeners.remove(listener)
+    }
+
+    override fun addSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
+        subscriptionBillingIssueListeners.add(listener)
+    }
+
+    override fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
+        subscriptionBillingIssueListeners.remove(listener)
+    }
+
+    /**
+     * Inspects the given purchases and fires `subscriptionBillingIssue` once per purchaseToken
+     * whose `isSuspendedAndroid == true`. Dedupes across queries within the current session
+     * via [emittedBillingIssueTokens]; re-emits only if a token clears and re-enters suspension
+     * in a later session / new module instance.
+     */
+    private fun notifySuspendedSubscriptions(purchases: List<Purchase>) {
+        if (subscriptionBillingIssueListeners.isEmpty()) return
+        for (purchase in purchases) {
+            val android = purchase as? PurchaseAndroid ?: continue
+            if (android.isSuspendedAndroid != true) continue
+            val token = android.purchaseToken ?: continue
+            if (!emittedBillingIssueTokens.add(token)) continue
+            subscriptionBillingIssueListeners.toList().forEach { listener ->
+                try {
+                    listener.onSubscriptionBillingIssue(android)
+                } catch (t: Throwable) {
+                    OpenIapLog.e("subscriptionBillingIssue listener threw", t, TAG)
+                }
+            }
+        }
     }
 
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<BillingPurchase>?) {

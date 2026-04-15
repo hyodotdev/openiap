@@ -23,6 +23,92 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // Cross-platform billing-issue event - Apr 16, 2026
+    {
+      id: 'subscription-billing-issue-event-2026-04-16',
+      date: new Date('2026-04-16'),
+      element: (
+        <div
+          key="subscription-billing-issue-event-2026-04-16"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="subscription-billing-issue-event-2026-04-16"
+            level="h4"
+          >
+            Cross-platform <code>subscriptionBillingIssue</code> event - April
+            16, 2026
+          </AnchorLink>
+
+          <p
+            style={{
+              marginTop: '0.75rem',
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            OpenIAP now surfaces a single, cross-platform event when an active
+            subscription needs user attention for a payment problem — unifying{' '}
+            StoreKit 2&apos;s <code>Message.Reason.billingIssue</code> (iOS 18+)
+            and Play Billing&apos;s <code>isSuspended</code> signal (Billing
+            Library 8.1+).
+          </p>
+
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>Schema:</strong> new{' '}
+              <code>IapEvent.SubscriptionBillingIssue</code> enum value and{' '}
+              <code>subscriptionBillingIssue: Purchase!</code> subscription in{' '}
+              <code>event.graphql</code>. Payload is the affected{' '}
+              <code>Purchase</code>.
+            </li>
+            <li>
+              <strong>iOS:</strong> registered via{' '}
+              <code>subscriptionBillingIssueListener</code> on{' '}
+              <code>OpenIapModule</code>. Starts a{' '}
+              <code>StoreKit.Message.messages</code> loop (iOS 18+), and on{' '}
+              <code>.billingIssue</code> scans{' '}
+              <code>Transaction.currentEntitlements</code> for subscriptions
+              whose renewal state is <code>.inBillingRetryPeriod</code> or{' '}
+              <code>.inGracePeriod</code>, emitting one event per match. Silent
+              no-op on iOS 17 and earlier, and on macOS / tvOS / watchOS /
+              visionOS.
+            </li>
+            <li>
+              <strong>Android (Play flavor):</strong> registered via{' '}
+              <code>addSubscriptionBillingIssueListener</code>. Fires during{' '}
+              <code>getAvailablePurchases</code> for each purchase with{' '}
+              <code>isSuspendedAndroid == true</code>; deduped by purchase token
+              across the session.
+            </li>
+            <li>
+              <strong>Android (Horizon flavor):</strong> explicit no-op — the
+              Horizon Billing Compatibility SDK targets Play Billing 7.0 and
+              does not expose a suspended-subscription signal. Calling{' '}
+              <code>addSubscriptionBillingIssueListener</code> logs a warning
+              and returns; the listener is never invoked.
+            </li>
+            <li>
+              <strong>Recommended UX:</strong> on fire, direct the user to{' '}
+              <code>deepLinkToSubscriptions</code> so they can update payment
+              method in the platform subscription center.
+            </li>
+          </ul>
+
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Native bridge wiring for downstream libraries (react-native-iap,
+            expo-iap, flutter_inapp_purchase, godot-iap, kmp-iap) will land in
+            the next per-library release.
+          </p>
+        </div>
+      ),
+    },
     // Subscription replacement + debug message diagnostics - Apr 15, 2026
     {
       id: 'subscription-replacement-and-debug-message-2026-04-15',

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-01-20T21:43:18.692Z
+> Last updated: 2026-04-15T15:48:40.902Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -265,6 +265,12 @@ openiap/
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library (Kotlin)
 │   └── apple/         # iOS/macOS library (Swift)
+├── libraries/         # Framework SDK implementations
+│   ├── react-native-iap/  # React Native (npm, Yarn 3, Nitro Modules)
+│   ├── expo-iap/          # Expo (npm, Bun, Expo Modules)
+│   ├── flutter_inapp_purchase/  # Flutter (pub.dev, Dart)
+│   ├── godot-iap/         # Godot 4.x (GitHub Release, GDScript)
+│   └── kmp-iap/           # Kotlin Multiplatform (Maven Central)
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
@@ -273,6 +279,8 @@ openiap/
 │   └── agent/         # RAG Agent scripts
 └── .github/workflows/ # CI/CD workflows
 ```
+
+Libraries reference local `packages/apple` and `packages/google` source directly (not published CocoaPods/Maven artifacts), enabling immediate development without waiting for native releases.
 
 ## Package Responsibilities
 
@@ -919,6 +927,77 @@ Meta Horizon has different APIs from Google Play:
 
 ---
 
+## Cross-Library Verification for Shared-Package Changes (MANDATORY)
+
+> **When:** any change to `packages/google` or `packages/apple` that modifies
+> a **public** API surface (class/struct shape, enum cases, function
+> signatures, exception/error types). Adding a new field, removing a
+> singleton, renaming a method, or adding an enum entry all qualify.
+
+The compiled `packages/google` artifact is consumed as a **native
+dependency** by every framework library. A change that compiles inside
+`packages/google` alone can still break downstream libraries whose
+Kotlin (or Swift) code references the affected symbol.
+
+Before committing any change that touches the following surfaces:
+
+- `packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapError.kt`
+- `packages/gql/src/error.graphql` (ErrorCode enum additions — ripples
+  through every generated `Types.*`)
+- `packages/apple/Sources/Models/OpenIapError.swift`
+- `packages/apple/Sources/OpenIapModule.swift` (public function
+  signatures)
+
+you **must** run the downstream compile for every framework library:
+
+```bash
+# Android (Google) downstream compile — required for every PR that
+# touches packages/google public API
+cd libraries/flutter_inapp_purchase && flutter analyze && flutter test
+cd libraries/react-native-iap/example/android && ./gradlew :react-native-iap:compileDebugKotlin
+cd libraries/expo-iap/example/android && ./gradlew :expo-iap:compileDebugKotlin
+cd libraries/kmp-iap && ./gradlew :library:build -x test
+
+# iOS (Apple) downstream compile — framework libraries consume
+# openiap-apple through CocoaPods / SPM, so swift build on the source
+# package is the minimum; add library-side Xcode builds when the
+# change is non-additive.
+cd packages/apple && swift build && swift test --filter OpenIapTests
+```
+
+### Mechanical grep guard
+
+Right after changing `OpenIapError.kt`, run this grep to catch stale
+singleton references that will fail in downstream compiles:
+
+```bash
+grep -rnE "OpenIap(API)?Error\.(DeveloperError|PurchaseFailed|UserCancelled|ServiceUnavailable|BillingUnavailable|ItemUnavailable|BillingError|ItemAlreadyOwned|ItemNotOwned|ServiceDisconnected|FeatureNotSupported|ServiceTimeout|UnknownError)\b" libraries/ packages/google/ \
+  | grep -vE "\.(CODE|MESSAGE|Companion|rawValue)" \
+  | grep -vE "is Open" \
+  | grep -vE "\("
+```
+
+Any hit is a call site that uses a now-data-class name without `()` and
+will fail to compile — add the parentheses (or the concrete
+`debugMessage` argument) before pushing.
+
+### Cross-library SemVer coordination
+
+Breaking a shared-package API (e.g. `object → data class` on
+`OpenIapError`) forces a **major** bump on that package (2.0.0) and
+cascades into downstream libraries:
+
+| Change in shared package                  | Google/Apple bump                              | Downstream bump                                              |
+| ----------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| Add optional field to a type              | minor                                          | minor                                                        |
+| Add a new enum case                       | major (Swift/Kotlin exhaustive switches break) | minor                                                        |
+| `object` → `data class` / renamed method  | major                                          | minor (downstream pins to new major; own API unchanged)      |
+
+Release order MUST be: shared packages first (so downstream libraries
+can depend on the new version), then framework libraries in any order.
+
+---
+
 ## GQL Package (packages/gql)
 
 ### Required Pre-Work
@@ -926,29 +1005,129 @@ Meta Horizon has different APIs from Google Play:
 Before writing or editing anything, **ALWAYS** review:
 - [`packages/gql/CONVENTION.md`](../../packages/gql/CONVENTION.md)
 
+### Code Generation Architecture
+
+The GQL package uses an **IR-based (Intermediate Representation) code generation system**:
+
+```text
+GraphQL Schema (src/*.graphql)
+         ↓
+    [1] Parser (codegen/core/parser.ts)
+         ↓
+    [2] Transformer → IR (codegen/core/transformer.ts)
+         ↓
+    [3] Language Plugins (codegen/plugins/*.ts)
+         ↓
+    Generated Files (src/generated/*)
+```
+
+#### Directory Structure
+
+```text
+packages/gql/codegen/
+├── index.ts              # Main entry point
+├── core/
+│   ├── types.ts          # IR type definitions
+│   ├── parser.ts         # GraphQL schema parser
+│   ├── transformer.ts    # AST → IR transformer
+│   └── utils.ts          # Common utilities (case conversion, keywords)
+├── plugins/
+│   ├── base-plugin.ts    # Abstract base class
+│   ├── swift.ts          # Swift plugin (Codable, ErrorCode handling)
+│   ├── kotlin.ts         # Kotlin plugin (sealed interface, fromJson/toJson)
+│   ├── dart.ts           # Dart plugin (sealed class, factory constructors)
+│   └── gdscript.ts       # GDScript plugin (Godot engine)
+└── templates/            # Handlebars templates (optional)
+```
+
+#### IR (Intermediate Representation)
+
+The IR is a language-agnostic representation of the GraphQL schema:
+
+| IR Type | Description |
+|---------|-------------|
+| `IREnum` | Enum with values, raw values, legacy aliases |
+| `IRInterface` | Protocol/Interface with fields |
+| `IRObject` | Struct/Class with fields, implements, unions |
+| `IRInput` | Input type with fields, required field tracking |
+| `IRUnion` | Union with members, nested union handling |
+| `IROperation` | Query/Mutation/Subscription with fields |
+
+#### Language Plugins
+
+Each plugin handles language-specific requirements:
+
+| Plugin | Features |
+|--------|----------|
+| **Swift** | Codable protocol, ErrorCode custom initializer, platform defaults |
+| **Kotlin** | sealed interface, fromJson/toJson with nullable patterns |
+| **Dart** | extends/implements, factory constructors, sealed class |
+| **GDScript** | _init(), from_json/to_json, Variant type |
+
 ### Scripts
 
 | Script | Description |
 |--------|-------------|
-| `generate:ts` | Generate TypeScript types |
-| `generate:swift` | Generate Swift types |
-| `generate:kotlin` | Generate Kotlin types |
-| `generate:dart` | Generate Dart types |
-| `generate` | Generate all types |
+| `generate:ts` | Generate TypeScript types (graphql-codegen) |
+| `generate:swift` | Generate Swift types (IR-based plugin) |
+| `generate:kotlin` | Generate Kotlin types (IR-based plugin) |
+| `generate:dart` | Generate Dart types (IR-based plugin) |
+| `generate:gdscript` | Generate GDScript types (IR-based plugin) |
+| `generate` | Generate all types + sync to platforms |
 | `sync` | Sync generated types to platform packages |
 
 ### Generating Types
 
 ```bash
 cd packages/gql
+
+# Generate all platform types
 bun run generate
+
+# Generate specific platform
+bun run generate:swift
+bun run generate:kotlin
+bun run generate:dart
+bun run generate:gdscript
 ```
 
-This generates:
-- TypeScript types: `src/generated/types.ts`
-- Swift types: `dist/swift/Types.swift`
-- Kotlin types: `dist/kotlin/Types.kt`
-- Dart types: `dist/dart/types.dart`
+### Generated Files
+
+| File | Platform | Description |
+|------|----------|-------------|
+| `src/generated/types.ts` | TypeScript | Type definitions |
+| `src/generated/Types.swift` | iOS/macOS | Codable structs & enums |
+| `src/generated/Types.kt` | Android | Data classes & sealed interfaces |
+| `src/generated/types.dart` | Flutter | Classes & sealed classes |
+| `src/generated/types.gd` | Godot | GDScript classes |
+
+### Adding a New Language
+
+1. Create `codegen/plugins/<language>.ts` extending `CodegenPlugin`
+2. Implement abstract methods:
+   - `mapScalar()` - Map GraphQL scalars to language types
+   - `mapType()` - Map IR types to language type strings
+   - `generateEnum()`, `generateObject()`, etc.
+3. Register in `codegen/index.ts`
+4. Add script to `package.json`
+
+### Schema Markers
+
+Special comments in GraphQL SDL trigger codegen behavior:
+
+| Marker | Effect |
+|--------|--------|
+| `# => Union` | Generates result union wrapper (e.g., `FetchProductsResult`) |
+| `# Future` | Wraps return type in Promise/async |
+
+Example:
+```graphql
+# => Union
+type RequestPurchaseResult {
+  purchase: Purchase
+  purchases: [Purchase!]
+}
+```
 
 ---
 
@@ -1047,6 +1226,60 @@ import { openAuthModal } from '../lib/signals';
 
 ---
 
+## Feature Page Hierarchy (Sub-sections)
+
+When a feature has sub-pages (e.g., Subscription > Upgrade/Downgrade, Alternative Marketplace > Onside), use a **directory structure** instead of hash anchors or flat file naming.
+
+### Directory Structure
+
+```
+src/pages/docs/features/
+├── subscription/
+│   ├── index.tsx              # Main subscription page
+│   └── upgrade-downgrade.tsx  # Sub-page
+├── alternative-marketplace/
+│   ├── index.tsx              # Main overview page
+│   └── onside.tsx             # Sub-page
+├── purchase.tsx               # No sub-pages → flat file
+└── discount.tsx               # No sub-pages → flat file
+```
+
+### Route Registration (`docs/index.tsx`)
+
+```tsx
+// Imports
+import SubscriptionFeature from './features/subscription/index';
+import SubscriptionUpgradeDowngrade from './features/subscription/upgrade-downgrade';
+
+// Routes
+<Route path="features/subscription" element={<SubscriptionFeature />} />
+<Route path="features/subscription/upgrade-downgrade" element={<SubscriptionUpgradeDowngrade />} />
+```
+
+### Sidebar Navigation
+
+Use `MenuDropdown` for collapsible parent-child navigation:
+
+```tsx
+<MenuDropdown
+  title="Subscription"
+  titleTo="/docs/features/subscription"
+  items={[
+    { to: '/docs/features/subscription/upgrade-downgrade', label: 'Upgrade/Downgrade' },
+  ]}
+  onItemClick={closeSidebar}
+/>
+```
+
+### Rules
+
+- **Never use hash anchors (`#section`)** for sub-section navigation in the sidebar — always use separate routes/pages
+- Parent page (`index.tsx`) should contain the overview; sub-pages contain detailed content
+- Import paths from sub-directories use `../../../../components/` (one level deeper)
+- Update all internal `<Link to="...">` references when moving files
+
+---
+
 ## React Component Organization
 
 ### Component Structure
@@ -1091,6 +1324,47 @@ src/components/
 - Don't keep commented-out code
 - Remove unused variables and parameters
 
+---
+
+## Release Notes Pattern
+
+### Location
+
+Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
+
+### Adding New Release Notes
+
+1. Add new entry at the **top** of the `allNotes` array
+2. Follow the existing pattern with `id`, `date`, and `element`
+3. Use semantic IDs like `gql-1-3-16-apple-1-3-14`
+
+```tsx
+const allNotes: Note[] = [
+  // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
+  {
+    id: 'gql-1-3-16-apple-1-3-14',
+    date: new Date('2026-01-26'),
+    element: (
+      <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
+        <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
+          📅 openiap-gql v1.3.16 / openiap-apple v1.3.14 - Feature Description
+        </AnchorLink>
+        {/* Content here */}
+      </div>
+    ),
+  },
+  // ... older notes
+];
+```
+
+### Required Elements
+
+- **AnchorLink**: For deep linking to specific release
+- **Version info**: Package names and versions in title
+- **Date**: In format `new Date('YYYY-MM-DD')`
+- **References**: Links to Apple/Google documentation when applicable
+- **Issue links**: Reference GitHub issues when fixing bugs
+
 
 ---
 
@@ -1103,28 +1377,59 @@ src/components/
 
 ## Git Commit Message Format
 
-### With Tag Prefix
+### Rules
 
-Everything after the tag MUST be lowercase:
+- **50 characters max** for the subject line (tag + scope + message combined)
+- Everything after the tag MUST be lowercase
+- No trailing period
+- Use imperative mood ("add" not "added")
 
+### With Tag and Scope
+
+When a commit targets a specific package or library, include the scope:
+
+```text
+feat(rn): add offer redemption
+fix(expo): resolve purchase crash
+fix(flutter): correct discount mapping
+feat(kmp): add subscription flow
+chore(godot): bump openiap dep
+fix(apple): handle StoreKit edge case
+fix(google): update billing client
 ```
-feat: add user authentication system
-fix: resolve purchase validation error
-docs: update API reference
-refactor: simplify product fetching logic
-test: add subscription validation tests
-chore: update dependencies
+
+### Without Scope
+
+For cross-cutting or monorepo-wide changes:
+
+```text
+feat: add RC promote to releases
+fix: update repo URLs in package.json
+chore: update CI workflow names
 ```
 
 ### Without Tag Prefix
 
 First letter MUST be uppercase:
 
-```
+```text
 Add user authentication system
 Fix purchase validation error
-Update API reference
 ```
+
+### Scope Reference
+
+| Scope | Package/Library |
+|-------|----------------|
+| `apple` | `packages/apple` |
+| `google` | `packages/google` |
+| `gql` | `packages/gql` |
+| `docs` | `packages/docs` |
+| `rn` | `libraries/react-native-iap` |
+| `expo` | `libraries/expo-iap` |
+| `flutter` | `libraries/flutter_inapp_purchase` |
+| `kmp` | `libraries/kmp-iap` |
+| `godot` | `libraries/godot-iap` |
 
 ### Common Tags
 
@@ -1986,6 +2291,58 @@ val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
 | `DEFERRED` | Deferred, no charge |
 | `KEEP_EXISTING` | Keep existing payment schedule (8.1+) |
 
+## External Payments Program (8.3+)
+
+Billing Library 8.3 (December 2025) added support for the External Payments program (Japan-only, as of launch). Developers enrolled in the program can offer alternative payment methods alongside Google Play billing.
+
+### Enable Developer Billing Option
+
+```kotlin
+// During BillingClient setup
+val billingClient = BillingClient.newBuilder(context)
+    .setListener(purchasesUpdatedListener)
+    .enablePendingPurchases()
+    .enableAutoServiceReconnection()
+    .enableDeveloperBillingOption(
+        DeveloperBillingOptionParams.newBuilder()
+            .setDeveloperProvidedBillingListener(developerBillingListener)
+            .build()
+    )
+    .build()
+```
+
+### DeveloperProvidedBillingListener
+
+```kotlin
+val developerBillingListener = DeveloperProvidedBillingListener {
+    userInitiatedBillingDetails ->
+    // User chose the developer-provided billing flow.
+    // Launch your external payment UI here.
+}
+```
+
+### Launch Purchase with External Payments Option
+
+```kotlin
+val params = BillingFlowParams.newBuilder()
+    .setProductDetailsParamsList(listOf(productDetailsParams))
+    .setBillingOption(BillingOption.EXTERNAL_PAYMENTS)  // 8.3+
+    .build()
+
+billingClient.launchBillingFlow(activity, params)
+```
+
+### Key Types (8.3+)
+
+| Type | Purpose |
+|------|---------|
+| `DeveloperBillingOptionParams` | Configures developer-billing support on `BillingClient` |
+| `DeveloperProvidedBillingListener` | Callback when user picks developer-provided billing |
+| `DeveloperProvidedBillingDetails` | Billing details to report back for reconciliation |
+| `BillingOption.EXTERNAL_PAYMENTS` | Purchase-flow flag requesting external payments |
+
+> **OpenIAP Note**: Exposed through the Android-specific `AlternativeBilling*` surface in OpenIAP. Enrolment with Google Play's External Payments program is required; availability is currently restricted to Japan. The Horizon flavor does NOT implement this.
+
 ## Best Practices
 
 1. **Always acknowledge purchases** within 3 days or they will be refunded
@@ -2195,10 +2552,11 @@ Mark consumable item as used (required for re-purchase).
 interface VerifyPurchaseHorizonOptions {
   userId: string;      // Horizon user ID
   sku: string;         // Product SKU
-  appId: string;       // Horizon App ID
-  appSecret: string;   // Horizon App Secret
+  accessToken: string; // Format: "OC|APP_ID|APP_SECRET"
 }
 ```
+
+> **OpenIAP Note**: The GraphQL schema takes a single `accessToken` formatted as `OC|APP_ID|APP_SECRET` rather than separate `appId` / `appSecret` fields. Build the token server-side and pass it as one string.
 
 ### VerifyPurchaseResultHorizon
 
@@ -2263,10 +2621,18 @@ The plugin:
 
 <!-- Source: external/react-native-iap-api.md -->
 
-# react-native-iap API Reference
+# react-native-iap API Reference (Legacy)
 
-> Reference documentation for react-native-iap
-> Adapt all patterns to match OpenIAP internal conventions.
+> **WARNING**: This file contains outdated API names from older versions.
+> For the current API spec, refer to the official [OpenIAP documentation](https://openiap.dev/docs/apis).
+>
+> Key renames from legacy to current:
+>
+> - `getProducts` → `fetchProducts`
+> - `getSubscriptions` → `fetchProducts({ type: 'subs' })`
+> - `getPurchaseHistory` → `getAvailablePurchases`
+> - `requestSubscription` → `requestPurchase({ type: 'subs' })`
+> - `completePurchase` → `finishTransaction`
 
 ## Overview
 
@@ -2298,7 +2664,7 @@ function PurchaseScreen() {
     currentPurchaseError,
     initConnectionError,
     finishTransaction,
-    getProducts,
+    fetchProducts,
     getSubscriptions,
     getAvailablePurchases,
     getPurchaseHistory,
@@ -2339,7 +2705,7 @@ export default withIAPContext(App);
 import {
   initConnection,
   endConnection,
-  getProducts,
+  fetchProducts,
   getSubscriptions,
 } from 'react-native-iap';
 
@@ -2347,7 +2713,7 @@ import {
 const connected = await initConnection();
 
 // Fetch products
-const products = await getProducts({ skus: ['com.app.product1'] });
+const products = await fetchProducts({ skus: ['com.app.product1'] });
 const subs = await getSubscriptions({ skus: ['com.app.sub_monthly'] });
 
 // Cleanup
@@ -2627,13 +2993,13 @@ function Store() {
     connected,
     products,
     subscriptions,
-    getProducts,
+    fetchProducts,
     getSubscriptions,
   } = useIAP();
 
   useEffect(() => {
     if (connected) {
-      getProducts({ skus: productIds });
+      fetchProducts({ skus: productIds });
       getSubscriptions({ skus: subscriptionIds });
     }
   }, [connected]);
@@ -2694,24 +3060,84 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | Feature | iOS Version | Description |
 |---------|-------------|-------------|
 | Win-back offers | iOS 18.0 | Re-engage churned subscribers |
-| Consumable transaction history | iOS 18.0 | History includes finished consumables |
-| Billing issue messages | iOS 18.0 | Automatic billing issue notifications via StoreKit Message |
+| `eligibleWinBackOfferIDs` | iOS 18.0 | Query win-back offer eligibility before purchase |
+| Consumable transaction history | iOS 18.0 | Opt-in via `SK2ConsumableTransactionHistory` Info.plist key |
+| StoreKit `Message` API | iOS 18.0 | Listener for billing issues, win-back, price increase, generic |
 | UI context for purchases | iOS 18.2 | Required for proper payment sheet display |
-| External purchase notice | iOS 18.2 | `presentExternalPurchaseNoticeSheetIOS` |
+| External purchase notice | iOS 17.4 | `ExternalPurchase.presentNoticeSheet()` |
 | `appTransactionID` | iOS 18.4 | Globally unique app transaction identifier (back-deployed to iOS 15) |
 | `originalPlatform` | iOS 18.4 | Original purchase platform (back-deployed to iOS 15) |
-| `Offer.Period` | iOS 18.4 | Offer period information |
-| `advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data |
-| Expanded offer codes | iOS 18.4 | For consumables/non-consumables |
+| `Transaction.offerPeriod` | iOS 18.4 | Offer period information on Transaction |
+| `Transaction.advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data on Transaction |
+| `Transaction.appTransactionID` | iOS 18.4 | Per-Apple-Account identifier on Transaction |
+| Expanded offer codes | iOS 18.4 | Offer codes for consumables/non-consumables |
 | JWS promotional offers | WWDC 2025 | New `promotionalOffer` purchase option with JWS format |
 | `introductoryOfferEligibility` | WWDC 2025 | Set eligibility via purchase option |
+| `SubscriptionStatus` by Transaction ID | WWDC 2025 | `status(for: transactionID:)` |
 
 ### WWDC 2025 Updates
 
-- **SubscriptionStatus by Transaction ID**: Query subscription status using any transaction ID
-- **JWS-based promotional offers**: New `promotionalOffer` purchase option with compact JWS string
-- **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option
-- Both new purchase options are back-deployed to iOS 15
+- **SubscriptionStatus by Transaction ID**: `SubscriptionInfo.Status.status(for: transactionID:)` accepts any transaction ID, not just SKU.
+- **JWS-based promotional offers**: New `promotionalOffer` purchase option with compact JWS string.
+- **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option.
+- Both new purchase options are back-deployed to iOS 15.
+
+## appAccountToken
+
+A UUID that associates a purchase with a user account in your system. This property allows you to correlate App Store transactions with users in your backend.
+
+### Important: UUID Format Requirement
+
+**The `appAccountToken` must be a valid UUID format.** If you provide a non-UUID string (e.g., `"user-123"` or `"my-account-id"`), Apple's StoreKit will silently return `null` for this field in the transaction response.
+
+#### Valid UUID Examples
+
+```swift
+// Valid UUIDs - these will be returned correctly
+"550e8400-e29b-41d4-a716-446655440000"
+"6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+UUID().uuidString  // Generate new UUID
+```
+
+#### Invalid Examples (Will Return null)
+
+```swift
+// Invalid - NOT UUID format, Apple returns null silently
+"user-123"
+"my-account-token"
+"abc123"
+```
+
+### Usage in Purchase Options
+
+```swift
+let appAccountToken = UUID()
+let result = try await product.purchase(options: [
+    .appAccountToken(appAccountToken)
+])
+```
+
+### Retrieving from Transaction
+
+```swift
+let transaction: Transaction
+if let token = transaction.appAccountToken {
+    // Token will only be present if a valid UUID was provided during purchase
+    print("App Account Token: \(token)")
+}
+```
+
+### Best Practices
+
+1. **Generate UUIDs per user**: Create and store a UUID for each user in your system
+2. **Use consistent tokens**: Use the same UUID for all purchases from the same user
+3. **Server-side mapping**: Map the UUID to your internal user ID on your server
+4. **Don't use user IDs directly**: Convert your user IDs to UUIDs rather than using them directly
+
+### References
+
+- [Apple Developer Documentation: appAccountToken](https://developer.apple.com/documentation/storekit/transaction/appaccounttoken)
+- [GitHub Issue: expo-iap #128](https://github.com/hyochan/expo-iap/issues/128)
 
 ## Product
 
@@ -2848,11 +3274,16 @@ let result = try await product.purchase(options: [
 
 ### Checking Eligibility
 
+Discover eligible win-back offers before purchase via `Product.SubscriptionInfo.eligibleWinBackOfferIDs` (iOS 18+):
+
 ```swift
-// Win-back offers are available in subscription.promotionalOffers
-// with type == .winBack
-let winBackOffers = product.subscription?.promotionalOffers.filter {
-    $0.type == .winBack
+let status = try await product.subscription?.status.first
+guard let renewalInfo = try status?.renewalInfo.payloadValue else { return }
+
+// iOS 18+: offer IDs the current Apple Account is eligible for
+let eligibleIDs = renewalInfo.eligibleWinBackOfferIDs
+let eligibleOffers = (product.subscription?.promotionalOffers ?? []).filter {
+    $0.type == .winBack && eligibleIDs.contains($0.id ?? "")
 }
 ```
 
@@ -2902,6 +3333,25 @@ let originalPlatform = appTransaction.originalPlatform   // Original purchase pl
 - Works with Family Sharing (each family member gets unique ID)
 - Back-deployed to iOS 15
 
+## Transaction Updates (iOS 18.4+)
+
+iOS 18.4 added three new read-only properties to `Transaction` (not just `AppTransaction`):
+
+```swift
+let transaction: Transaction
+
+// iOS 18.4+ — all back-deployed to iOS 15
+let txAppTransactionID = transaction.appTransactionID        // Apple Account identifier
+let offerPeriod = transaction.offerPeriod                    // Offer.Period?
+let advancedCommerce = transaction.advancedCommerceInfo      // AdvancedCommerceInfo?
+```
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `appTransactionID` | String | Mirrors AppTransaction's identifier |
+| `offerPeriod` | Offer.Period? | Phase of the promotional/intro offer |
+| `advancedCommerceInfo` | AdvancedCommerceInfo? | Present for Advanced Commerce SKUs only |
+
 ## Advanced Commerce API (iOS 18.4+)
 
 For apps with large product catalogs:
@@ -2912,6 +3362,58 @@ if let advancedInfo = product.advancedCommerceInfo {
     // Handle large catalog monetization
 }
 ```
+
+## StoreKit Message API (iOS 18+)
+
+Listen for App Store–generated messages (billing issues, win-back offers, price increases, generic).
+
+```swift
+// Somewhere near app launch
+Task {
+    for await message in Message.messages {
+        switch message.reason {
+        case .billingIssue:
+            // Show UI when user is ready; display from message.display(in:)
+            break
+        case .winBackOffer:
+            break
+        case .priceIncrease:
+            break
+        case .generic:
+            break
+        @unknown default:
+            break
+        }
+    }
+}
+```
+
+| Reason | Trigger |
+|--------|---------|
+| `.billingIssue` | User has an unresolved billing problem on a subscription |
+| `.priceIncrease` | Price change that requires user consent |
+| `.winBackOffer` | User is eligible for a win-back offer |
+| `.generic` | All other system-initiated messages |
+
+> **OpenIAP Note**: To be surfaced by the cross-platform event layer — see `event.graphql` additions for message events.
+
+## SubscriptionStatus by Transaction ID (WWDC 2025)
+
+```swift
+// WWDC 2025: look up status using any transactionID, not just a SKU
+let status = try await Product.SubscriptionInfo.Status.status(for: transactionID)
+```
+
+## Consumable Transaction History (iOS 18+)
+
+By default, `Transaction.all` omits finished consumables. Opt in by adding this key to **Info.plist**:
+
+```xml
+<key>SK2ConsumableTransactionHistory</key>
+<true/>
+```
+
+With the key set, finished consumable transactions are included in `Transaction.all` and `Transaction.currentEntitlements`.
 
 ## External Purchase Support (iOS 18.2+)
 

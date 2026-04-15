@@ -15,6 +15,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public static let shared = OpenIapModule()
 
     private var updateListenerTask: Task<Void, Error>?
+    private var messageListenerTask: Task<Void, Never>?
     private var productManager: ProductManager?
     private let state = IapState()
     private var initTask: Task<Bool, Error>?
@@ -28,7 +29,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         super.init()
     }
 
-    deinit { updateListenerTask?.cancel() }
+    deinit {
+        updateListenerTask?.cancel()
+        messageListenerTask?.cancel()
+    }
 
     // MARK: - Connection Management
 
@@ -62,6 +66,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
             await self.state.setInitialized(true)
             self.startTransactionListener()
+            self.startMessageListener()
             await self.processUnfinishedTransactions()
             return true
         }
@@ -1322,6 +1327,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return subscription
     }
 
+    public func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
+        let subscription = Subscription(eventType: .subscriptionBillingIssue)
+        Task { await state.addSubscriptionBillingIssueListener((subscription.id, listener)) }
+        return subscription
+    }
+
     public func removeListener(_ subscription: Subscription) {
         Task { await state.removeListener(id: subscription.id, type: subscription.eventType) }
         Task { await MainActor.run { subscription.onRemove?() } }
@@ -1500,6 +1511,70 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             await MainActor.run {
                 listeners.forEach { $0(sku) }
             }
+        }
+    }
+
+    private func emitSubscriptionBillingIssue(_ purchase: Purchase) {
+        Task { [state] in
+            let listeners = await state.snapshotSubscriptionBillingIssue()
+            await MainActor.run {
+                listeners.forEach { $0(purchase) }
+            }
+        }
+    }
+
+    /// Starts the StoreKit 2 Message listener for subscription-billing-issue events.
+    /// `StoreKit.Message` is an iOS-only API (unavailable on macOS, tvOS, watchOS, visionOS),
+    /// and the `.billingIssue` reason requires iOS 18+. On older iOS versions and non-iOS
+    /// platforms this is a silent no-op.
+    private func startMessageListener() {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        if #available(iOS 18.0, *) {
+            messageListenerTask?.cancel()
+            messageListenerTask = Task { [weak self] in
+                guard let self else { return }
+                for await message in StoreKit.Message.messages {
+                    guard await self.state.isInitialized else { continue }
+                    guard case .billingIssue = message.reason else { continue }
+                    await self.dispatchBillingIssueMessage()
+                }
+            }
+        }
+        #endif
+    }
+
+    /// Resolves the affected subscription(s) from current entitlements and emits the event.
+    /// StoreKit's Message does not carry a transaction reference, so we cross-reference
+    /// `Transaction.currentEntitlements` for auto-renewable subscriptions whose
+    /// RenewalState indicates a billing-retry or grace-period condition.
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    private func dispatchBillingIssueMessage() async {
+        var emitted = false
+        for await verification in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = verification,
+                  transaction.productType == .autoRenewable else { continue }
+            do {
+                guard let product = try await StoreKit.Product.products(for: [transaction.productID]).first,
+                      let subscription = product.subscription else { continue }
+                let statusArray = try await subscription.status
+                guard let latest = statusArray.first else { continue }
+                switch latest.state {
+                case .inBillingRetryPeriod, .inGracePeriod:
+                    let purchase = await StoreKitTypesBridge.purchase(
+                        from: transaction,
+                        jwsRepresentation: verification.jwsRepresentation
+                    )
+                    emitSubscriptionBillingIssue(purchase)
+                    emitted = true
+                default:
+                    continue
+                }
+            } catch {
+                continue
+            }
+        }
+        if !emitted {
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue message received but no matching subscription found in retry/grace state")
         }
     }
 

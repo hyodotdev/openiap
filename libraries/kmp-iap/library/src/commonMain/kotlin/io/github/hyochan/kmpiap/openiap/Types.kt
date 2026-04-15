@@ -503,7 +503,14 @@ public enum class IapEvent(val rawValue: String) {
      * Fired when user selects developer-provided billing option in external payments flow.
      * Available on Android with Google Play Billing Library 8.3.0+
      */
-    DeveloperProvidedBillingAndroid("developer-provided-billing-android");
+    DeveloperProvidedBillingAndroid("developer-provided-billing-android"),
+    /**
+     * Fired when an active subscription enters a billing-issue state that requires user attention.
+     * Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and
+     * Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing
+     * Compatibility SDK implements only the Play Billing 7.0 API surface.
+     */
+    SubscriptionBillingIssue("subscription-billing-issue");
 
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
@@ -522,6 +529,9 @@ public enum class IapEvent(val rawValue: String) {
             "developer-provided-billing-android" -> IapEvent.DeveloperProvidedBillingAndroid
             "DEVELOPER_PROVIDED_BILLING_ANDROID" -> IapEvent.DeveloperProvidedBillingAndroid
             "DeveloperProvidedBillingAndroid" -> IapEvent.DeveloperProvidedBillingAndroid
+            "subscription-billing-issue" -> IapEvent.SubscriptionBillingIssue
+            "SUBSCRIPTION_BILLING_ISSUE" -> IapEvent.SubscriptionBillingIssue
+            "SubscriptionBillingIssue" -> IapEvent.SubscriptionBillingIssue
             else -> throw IllegalArgumentException("Unknown IapEvent value: $value")
         }
     }
@@ -4923,6 +4933,20 @@ public interface SubscriptionResolver {
      */
     suspend fun purchaseUpdated(): Purchase
     /**
+     * Fires when an active subscription enters a billing-issue state that needs user action
+     * (payment method failed, card expired, etc.). Cross-platform unification:
+     * 
+     * - iOS 18+: delivered via StoreKit 2 `Message.Reason.billingIssue`.
+     * - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
+     *   on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.
+     * - Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements
+     *   the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
+     * 
+     * Listeners should not assume the event will fire on every store. Direct users to the
+     * platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.
+     */
+    suspend fun subscriptionBillingIssue(): Purchase
+    /**
      * Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
      * Only triggered when the user selects alternative billing instead of Google Play billing
      */
@@ -5041,6 +5065,7 @@ public typealias SubscriptionDeveloperProvidedBillingAndroidHandler = suspend ()
 public typealias SubscriptionPromotedProductIOSHandler = suspend () -> String
 public typealias SubscriptionPurchaseErrorHandler = suspend () -> PurchaseError
 public typealias SubscriptionPurchaseUpdatedHandler = suspend () -> Purchase
+public typealias SubscriptionSubscriptionBillingIssueHandler = suspend () -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = suspend () -> UserChoiceBillingDetails
 
 public data class SubscriptionHandlers(
@@ -5048,5 +5073,6 @@ public data class SubscriptionHandlers(
     val promotedProductIOS: SubscriptionPromotedProductIOSHandler? = null,
     val purchaseError: SubscriptionPurchaseErrorHandler? = null,
     val purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = null,
+    val subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler? = null,
     val userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = null
 )

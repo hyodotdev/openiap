@@ -26,4 +26,18 @@ extend type Subscription {
   Available in Google Play Billing Library 8.3.0+
   """
   developerProvidedBillingAndroid: DeveloperProvidedBillingDetailsAndroid!
+  """
+  Fires when an active subscription enters a billing-issue state that needs user action
+  (payment method failed, card expired, etc.). Cross-platform unification:
+
+  - iOS 18+: delivered via StoreKit 2 `Message.Reason.billingIssue`.
+  - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
+    on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.
+  - Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements
+    the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
+
+  Listeners should not assume the event will fire on every store. Direct users to the
+  platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.
+  """
+  subscriptionBillingIssue: Purchase!
 }
