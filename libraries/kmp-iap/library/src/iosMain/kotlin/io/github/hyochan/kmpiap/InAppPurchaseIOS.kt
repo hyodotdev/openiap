@@ -45,8 +45,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     // StoreKit 2 Message.billingIssue bridge (iOS 18+).
     // Reference: https://developer.apple.com/documentation/storekit/message/reason/4123328-billingissue
-    // Emission is driven from the Swift side via OpenIapModule.subscriptionBillingIssueListener;
-    // full cinterop bridge wiring lands in a follow-up release alongside the other downstream libs.
+    // Backed by openIapModule.addSubscriptionBillingIssueListener, set up in setupListeners()
+    // and removed in endConnection().
     private val _subscriptionBillingIssueFlow = MutableSharedFlow<Purchase>(
         replay = 0,
         extraBufferCapacity = 16,
@@ -69,6 +69,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     private fun setupListeners() {
+        // Idempotent: early-return if listeners already attached (e.g. init{} ran on
+        // construction and initConnection() tries to re-register).
+        if (purchaseSubscription != null) return
+
         // Purchase updated listener
         purchaseSubscription = openIapModule.addPurchaseUpdatedListener { dictionary ->
             println("[KMP-IAP iOS] Purchase updated received: $dictionary")
@@ -136,17 +140,28 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 continuation.resumeWithException(Exception(error.localizedDescription))
             } else {
                 isConnected = success
+                // Re-register listeners after endConnection()/initConnection() cycles.
+                // init{} runs only on first construction; without this, flows stop
+                // emitting after a disconnect + reconnect.
+                if (success) {
+                    setupListeners()
+                }
                 continuation.resume(success)
             }
         }
     }
 
     override suspend fun endConnection(): Boolean = suspendCoroutine { continuation ->
-        // Remove all listeners
+        // Remove all listeners and null the subscription tokens so initConnection()
+        // can freshly re-register without orphaning the previous subscriptions.
         purchaseSubscription?.let { openIapModule.removeListener(it) }
+        purchaseSubscription = null
         errorSubscription?.let { openIapModule.removeListener(it) }
+        errorSubscription = null
         promotedProductSubscription?.let { openIapModule.removeListener(it) }
+        promotedProductSubscription = null
         subscriptionBillingIssueSubscription?.let { openIapModule.removeListener(it) }
+        subscriptionBillingIssueSubscription = null
 
         openIapModule.endConnectionWithCompletion { success, error ->
             if (error != null) {

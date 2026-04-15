@@ -599,6 +599,12 @@ const subscriptionBillingIssueJsListeners = new Set<(purchase: Purchase) => void
 let subscriptionBillingIssueNativeAttached = false;
 const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListener =
   (nitroPurchase) => {
+    if (!validateNitroPurchase(nitroPurchase)) {
+      RnIapConsole.warn(
+        '[subscriptionBillingIssueListener] dropped malformed native payload',
+      );
+      return;
+    }
     const purchase = convertNitroPurchaseToPurchase(nitroPurchase);
     for (const listener of subscriptionBillingIssueJsListeners) {
       try {
@@ -612,28 +618,32 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
     }
   };
 
+function tryAttachSubscriptionBillingIssueNative(): void {
+  if (subscriptionBillingIssueNativeAttached) return;
+  try {
+    IAP.instance.addSubscriptionBillingIssueListener(
+      subscriptionBillingIssueNativeHandler,
+    );
+    subscriptionBillingIssueNativeAttached = true;
+  } catch (e) {
+    const msg = toErrorMessage(e);
+    if (msg.includes('Nitro runtime not installed')) {
+      RnIapConsole.warn(
+        '[subscriptionBillingIssueListener] Nitro not ready yet; will retry on next registration after initConnection()',
+      );
+    } else {
+      throw e;
+    }
+  }
+}
+
 export const subscriptionBillingIssueListener = (
   listener: (purchase: Purchase) => void,
 ): EventSubscription => {
   subscriptionBillingIssueJsListeners.add(listener);
-
-  if (!subscriptionBillingIssueNativeAttached) {
-    try {
-      IAP.instance.addSubscriptionBillingIssueListener(
-        subscriptionBillingIssueNativeHandler,
-      );
-      subscriptionBillingIssueNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[subscriptionBillingIssueListener] Nitro not ready yet; listener inert until initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
-  }
+  // Retry attachment every call so a listener registered before initConnection()
+  // doesn't stay permanently inert once Nitro is ready.
+  tryAttachSubscriptionBillingIssueNative();
 
   return {
     remove: () => {

@@ -238,6 +238,10 @@ struct SubscriptionFlowScreen: View {
         // Cross-platform subscriptionBillingIssue event
         // Delivered via StoreKit.Message.billingIssue on iOS 18+ / Mac Catalyst 18+.
         // Silent no-op on iOS 17 and earlier, and on macOS/tvOS/watchOS/visionOS.
+        if let existing = billingIssueListenerToken {
+            OpenIapModule.shared.removeListener(existing)
+            billingIssueListenerToken = nil
+        }
         billingIssueListenerToken = OpenIapModule.shared.subscriptionBillingIssueListener { purchase in
             guard let iosPurchase = purchase.asIOS() else { return }
             Task { @MainActor in

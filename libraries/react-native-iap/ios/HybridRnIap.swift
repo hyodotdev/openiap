@@ -930,8 +930,15 @@ class HybridRnIap: HybridRnIapSpec {
         attachSubscriptionBillingIssueSubIfNeeded()
     }
 
+    /// Removes the most recently-registered listener. Nitro callbacks don't expose
+    /// referential equality across bridge boundaries, so we pop the last entry to
+    /// mirror the Android behavior where the framework provides proper identity.
     func removeSubscriptionBillingIssueListener(listener: @escaping (NitroPurchase) -> Void) throws {
-        listenerLock.withLock { subscriptionBillingIssueListeners.removeAll() }
+        listenerLock.withLock {
+            if !subscriptionBillingIssueListeners.isEmpty {
+                subscriptionBillingIssueListeners.removeLast()
+            }
+        }
     }
 
     // MARK: - Private Helper Methods

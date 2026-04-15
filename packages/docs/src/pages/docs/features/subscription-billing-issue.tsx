@@ -11,7 +11,7 @@ function SubscriptionBillingIssue() {
     <div className="doc-page">
       <SEO
         title="Subscription Billing Issue Event"
-        description="Cross-platform event that fires when an active subscription needs user attention for a billing problem. Unifies StoreKit 2 Message.billingIssue (iOS 18+) and Play Billing isSuspended (Android 8.1+)."
+        description="Cross-platform event that fires when an active subscription needs user attention for a billing problem. Unifies StoreKit 2 Message.billingIssue (iOS 18+) and Play Billing isSuspended (Play Billing Library 8.1+)."
         path="/docs/features/subscription-billing-issue"
         keywords="subscription, billing issue, isSuspended, StoreKit Message, billingIssue, payment failure, retry"
       />

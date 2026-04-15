@@ -704,8 +704,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     // Tracks purchase tokens already emitted as billing-issue events so we don't re-fire
-    // on every getAvailablePurchases call.
-    private val emittedBillingIssueTokens = mutableSetOf<String>()
+    // on every getAvailablePurchases call. ConcurrentHashMap.newKeySet() keeps add()
+    // atomic under the Dispatchers.IO context used by getAvailablePurchasesHandler.
+    private val emittedBillingIssueTokens: MutableSet<String> =
+        java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     private fun notifySuspendedSubscriptions(purchases: List<Purchase>) {
         for (purchase in purchases) {

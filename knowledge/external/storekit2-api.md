@@ -362,7 +362,9 @@ By default, `Transaction.all` omits finished consumables. Opt in by adding this 
 
 With the key set, finished consumable transactions are included in `Transaction.all` and `Transaction.currentEntitlements`.
 
-## External Purchase Support (iOS 18.2+)
+## External Purchase Support (iOS 17.4+)
+
+`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchase.open(url:)` ship on iOS 17.4+. The follow-on custom-link APIs (`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`, `token(for:)`) are iOS 18.1+.
 
 ### Present External Purchase Notice
 

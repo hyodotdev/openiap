@@ -476,15 +476,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
         });
     }
 
-    if (
-      optionsRef.current?.onSubscriptionBillingIssue &&
-      !subscriptionsRef.current.subscriptionBillingIssue
-    ) {
+    // Always attach so callers that supply `onSubscriptionBillingIssue` later
+    // (after the hook has already set up listeners) still receive events.
+    if (!subscriptionsRef.current.subscriptionBillingIssue) {
       subscriptionsRef.current.subscriptionBillingIssue =
         subscriptionBillingIssueListener((purchase: Purchase) => {
-          if (optionsRef.current?.onSubscriptionBillingIssue) {
-            optionsRef.current.onSubscriptionBillingIssue(purchase);
-          }
+          optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
         });
     }
   }, [getActiveSubscriptionsInternal, getAvailablePurchasesInternal]);

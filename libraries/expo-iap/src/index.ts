@@ -319,7 +319,17 @@ export const developerProvidedBillingListenerAndroid = (
  */
 export const subscriptionBillingIssueListener = (
   listener: (purchase: Purchase) => void,
-) => emitter.addListener(OpenIapEvent.SubscriptionBillingIssue, listener);
+) => {
+  // Mirror purchaseUpdatedListener's platform normalization so consumers get
+  // a consistent payload regardless of native casing.
+  const wrappedListener = (event: Purchase) => {
+    listener(normalizePurchasePlatform(event));
+  };
+  return emitter.addListener(
+    OpenIapEvent.SubscriptionBillingIssue,
+    wrappedListener,
+  );
+};
 
 export const initConnection: MutationField<'initConnection'> = async (config) =>
   ExpoIapModule.initConnection(config ?? null);

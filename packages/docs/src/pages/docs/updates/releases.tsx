@@ -102,9 +102,10 @@ function Releases() {
           </ul>
 
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Native bridge wiring for downstream libraries (react-native-iap,
-            expo-iap, flutter_inapp_purchase, godot-iap, kmp-iap) will land in
-            the next per-library release.
+            Native bridge wiring ships with this change across all downstream
+            libraries (react-native-iap, expo-iap, flutter_inapp_purchase,
+            godot-iap, kmp-iap). Each library picks it up as a minor version
+            bump through its usual release workflow.
           </p>
         </div>
       ),

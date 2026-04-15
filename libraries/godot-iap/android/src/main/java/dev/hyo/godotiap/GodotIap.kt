@@ -111,6 +111,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 store.removePurchaseUpdateListener(purchaseUpdateListener)
                 store.removePurchaseErrorListener(purchaseErrorListener)
+                openIap.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
                 val result = store.endConnection()
                 isInitialized = false

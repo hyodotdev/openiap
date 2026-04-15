@@ -1365,6 +1365,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private func cleanupExistingState() async {
         updateListenerTask?.cancel()
         updateListenerTask = nil
+        messageListenerTask?.cancel()
+        messageListenerTask = nil
         await state.reset()
         // iOS-only: Remove SKPaymentQueue observer for promoted in-app purchases
         // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
@@ -1525,9 +1527,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Starts the StoreKit 2 Message listener for subscription-billing-issue events.
     ///
-    /// `StoreKit.Message` ships on iOS, iPadOS and Mac Catalyst (16.0+). The `.billingIssue`
-    /// reason requires 18.0+. On macOS, tvOS, watchOS and visionOS the Message API is not
-    /// available, so this method is a silent no-op there.
+    /// The `.billingIssue` reason (what we care about) ships on iOS 18.0+ and Mac Catalyst
+    /// 18.0+, so this method only starts the `Message.messages` loop when that availability
+    /// holds. On macOS, tvOS, watchOS and visionOS the Message API is not available at all,
+    /// making this a silent no-op on those platforms.
     ///
     /// References:
     /// - https://developer.apple.com/documentation/storekit/message

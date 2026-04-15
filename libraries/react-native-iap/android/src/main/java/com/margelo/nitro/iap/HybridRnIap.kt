@@ -315,6 +315,8 @@ class HybridRnIap : HybridRnIapSpec() {
             promotedProductListenersIOS.clear()
             synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
             synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
+            synchronized(subscriptionBillingIssueListeners) { subscriptionBillingIssueListeners.clear() }
+            subscriptionBillingIssueAttached = false
             initDeferred = null
             RnIapLog.result("endConnection", true)
             true
