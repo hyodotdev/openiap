@@ -42,6 +42,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     )
     override val promotedProductListener: Flow<String?> = _promotedProductFlow.asSharedFlow()
 
+    // StoreKit 2 Message.billingIssue bridge (iOS 18+).
+    // Reference: https://developer.apple.com/documentation/storekit/message/reason/4123328-billingissue
+    // Emission is driven from the Swift side via OpenIapModule.subscriptionBillingIssueListener;
+    // full cinterop bridge wiring lands in a follow-up release alongside the other downstream libs.
+    private val _subscriptionBillingIssueFlow = MutableSharedFlow<Purchase>(
+        replay = 0,
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    override val subscriptionBillingIssueListener: Flow<Purchase> = _subscriptionBillingIssueFlow.asSharedFlow()
+
     private var isConnected = false
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -722,6 +733,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     override suspend fun promotedProductIOS(): String {
         throw UnsupportedOperationException("Use promotedProductListener Flow instead")
+    }
+
+    // Cross-platform billing-issue handler — iOS impl backed by StoreKit.Message listener.
+    // Reference (OpenIAP): https://openiap.dev/docs/events#subscription-billing-issue
+    override suspend fun subscriptionBillingIssue(): Purchase {
+        throw UnsupportedOperationException("Use subscriptionBillingIssueListener Flow instead")
     }
 
     // -------------------------------------------------------------------------

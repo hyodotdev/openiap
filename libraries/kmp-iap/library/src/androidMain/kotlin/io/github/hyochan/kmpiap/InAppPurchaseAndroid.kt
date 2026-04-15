@@ -141,6 +141,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private val _developerProvidedBillingListener = MutableSharedFlow<DeveloperProvidedBillingDetailsAndroid>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val developerProvidedBillingListener: Flow<DeveloperProvidedBillingDetailsAndroid> = _developerProvidedBillingListener.asSharedFlow()
 
+    private val _subscriptionBillingIssueListener = MutableSharedFlow<Purchase>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val subscriptionBillingIssueListener: Flow<Purchase> = _subscriptionBillingIssueListener.asSharedFlow()
+
     private fun failWith(error: PurchaseError): Nothing =
         emitFailureAndThrow(_purchaseErrorListener, error)
 
@@ -564,6 +567,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     override suspend fun purchaseUpdated(): Purchase = purchaseUpdatedListener.first()
 
+    override suspend fun subscriptionBillingIssue(): Purchase = subscriptionBillingIssueListener.first()
+
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
         finishTransactionHandler(purchase, isConsumable)
     }
@@ -693,7 +698,22 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             val all = mutableListOf<Purchase>()
             all += query(BillingClient.ProductType.INAPP, includeSuspendedSubs = false)
             all += query(BillingClient.ProductType.SUBS, includeSuspendedSubs = includeSuspended)
+            notifySuspendedSubscriptions(all)
             all
+        }
+    }
+
+    // Tracks purchase tokens already emitted as billing-issue events so we don't re-fire
+    // on every getAvailablePurchases call.
+    private val emittedBillingIssueTokens = mutableSetOf<String>()
+
+    private fun notifySuspendedSubscriptions(purchases: List<Purchase>) {
+        for (purchase in purchases) {
+            val android = purchase as? PurchaseAndroid ?: continue
+            if (android.isSuspendedAndroid != true) continue
+            val token = android.purchaseToken ?: continue
+            if (!emittedBillingIssueTokens.add(token)) continue
+            _subscriptionBillingIssueListener.tryEmit(android)
         }
     }
 
@@ -765,7 +785,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     val subscriptionHandlers: SubscriptionHandlers by lazy {
         SubscriptionHandlers(
             purchaseUpdated = { purchaseUpdatedListener.first() },
-            purchaseError = { purchaseErrorListener.first() }
+            purchaseError = { purchaseErrorListener.first() },
+            subscriptionBillingIssue = { subscriptionBillingIssueListener.first() }
         )
     }
 
