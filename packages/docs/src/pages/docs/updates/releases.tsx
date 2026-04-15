@@ -145,44 +145,6 @@ function Releases() {
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
               <a
-                href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.3"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                flutter_inapp_purchase 9.0.3
-              </a>
-            </h5>
-            <ul
-              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
-            >
-              <li>
-                <strong>
-                  Fix: forward <code>subscriptionProductReplacementParams</code>{' '}
-                  on Android
-                </strong>{' '}
-                — the field was declared on{' '}
-                <code>RequestSubscriptionAndroidProps</code> and parsed
-                correctly by the native plugin, but{' '}
-                <code>flutter_inapp_purchase.dart</code> was dropping it when
-                building the method-channel payload, so the native side received{' '}
-                <code>null</code> and Google Play applied its default
-                replacement mode (<code>WITHOUT_PRORATION</code>) regardless of
-                what callers passed from Dart. The Billing Library 8.1.0+
-                per-product replacement path now works end-to-end. (
-                <a href="https://github.com/hyodotdev/openiap/pull/97">#97</a>)
-              </li>
-              <li>
-                Channel test added to assert that <code>oldProductId</code> and{' '}
-                <code>replacementMode</code> reach the native{' '}
-                <code>requestPurchase</code> call, so the wiring can&apos;t
-                silently regress again.
-              </li>
-            </ul>
-          </div>
-
-          <div style={{ marginBottom: '1.25rem' }}>
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              <a
                 href="https://github.com/hyodotdev/openiap/releases/tag/apple-2.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -229,12 +191,21 @@ function Releases() {
 
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              flutter_inapp_purchase{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.0.3"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                9.0.3
+              </a>{' '}
+              &amp;{' '}
               <a
                 href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.1.0"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                flutter_inapp_purchase 9.1.0
+                9.1.0
               </a>
             </h5>
             <ul
@@ -242,8 +213,28 @@ function Releases() {
             >
               <li>
                 <strong>
-                  Feat: surface Google Play&apos;s <code>debugMessage</code>{' '}
-                  through <code>PurchaseError</code>
+                  9.0.3 · Fix: forward{' '}
+                  <code>subscriptionProductReplacementParams</code> on Android
+                </strong>{' '}
+                — the field was declared on{' '}
+                <code>RequestSubscriptionAndroidProps</code> and parsed
+                correctly by the native plugin, but{' '}
+                <code>flutter_inapp_purchase.dart</code> was dropping it when
+                building the method-channel payload, so the native side received{' '}
+                <code>null</code> and Google Play applied its default
+                replacement mode (<code>WITHOUT_PRORATION</code>) regardless of
+                what callers passed from Dart. The Billing Library 8.1.0+
+                per-product replacement path now works end-to-end. (
+                <a href="https://github.com/hyodotdev/openiap/pull/97">#97</a>)
+                A new channel test asserts that <code>oldProductId</code> and{' '}
+                <code>replacementMode</code> reach the native{' '}
+                <code>requestPurchase</code> call, so the wiring can&apos;t
+                silently regress again.
+              </li>
+              <li>
+                <strong>
+                  9.1.0 · Feat: surface Google Play&apos;s{' '}
+                  <code>debugMessage</code> through <code>PurchaseError</code>
                 </strong>{' '}
                 — <code>convertToPurchaseError</code> was only forwarding{' '}
                 <code>code</code> and <code>message</code> from the native error
@@ -258,8 +249,9 @@ function Releases() {
                 attach adb.
               </li>
               <li>
-                Picks up openiap-google 2.0.0 (debug message + data class error
-                types).
+                <strong>9.1.0</strong> picks up openiap-google 2.0.0 (debug
+                message + data class error types) and openiap-apple 2.0.0 on
+                iOS.
               </li>
             </ul>
           </div>
