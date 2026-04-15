@@ -609,6 +609,7 @@ void main() {
           'Deferred replacement requires the base offer, got a promo offer',
         );
         expect(error.responseCode, 5);
+        expect(error.platform, types.IapPlatform.Android);
       },
     );
   });

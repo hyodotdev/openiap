@@ -410,6 +410,7 @@ iap_err.PurchaseError convertToPurchaseError(
     code: code,
     responseCode: result.responseCode,
     debugMessage: result.debugMessage,
+    platform: platform,
   );
 }
 

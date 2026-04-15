@@ -2000,6 +2000,7 @@ class PurchaseError:
 	var code: ErrorCode
 	var message: String = ""
 	var product_id: String = ""
+	var debug_message: String = ""
 
 	static func from_dict(data: Dictionary) -> PurchaseError:
 		var obj = PurchaseError.new()
@@ -2013,6 +2014,8 @@ class PurchaseError:
 			obj.message = data["message"]
 		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
+		if data.has("debugMessage") and data["debugMessage"] != null:
+			obj.debug_message = data["debugMessage"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2023,6 +2026,7 @@ class PurchaseError:
 			dict["code"] = code
 		dict["message"] = message
 		dict["productId"] = product_id
+		dict["debugMessage"] = debug_message
 		return dict
 
 class PurchaseIOS:

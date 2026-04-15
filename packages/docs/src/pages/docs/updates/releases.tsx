@@ -36,8 +36,8 @@ function Releases() {
             id="subscription-replacement-and-debug-message-2026-04-15"
             level="h4"
           >
-            Subscription Replacement Wiring & Billing Debug Messages - April
-            15, 2026
+            Subscription Replacement Wiring & Billing Debug Messages - April 15,
+            2026
           </AnchorLink>
 
           <p
@@ -48,12 +48,12 @@ function Releases() {
             }}
           >
             Two connected Android fixes. First, the newer per-product
-            subscription replacement path now actually reaches the native
-            layer on flutter_inapp_purchase. Second, Google Play&apos;s raw{' '}
+            subscription replacement path now actually reaches the native layer
+            on flutter_inapp_purchase. Second, Google Play&apos;s raw{' '}
             <code>BillingResult.debugMessage</code> is now forwarded through{' '}
-            <code>PurchaseError</code>, so callers can read the specific
-            reason Play rejected a replacement flow instead of just seeing a
-            generic &quot;Invalid arguments&quot;.
+            <code>PurchaseError</code>, so callers can read the specific reason
+            Play rejected a replacement flow instead of just seeing a generic
+            &quot;Invalid arguments&quot;.
           </p>
 
           <div style={{ marginBottom: '1.25rem' }}>
@@ -77,17 +77,17 @@ function Releases() {
                 </strong>{' '}
                 — both errors are now data classes instead of singletons and
                 accept an optional <code>debugMessage: String?</code>.{' '}
-                <code>fromBillingResponseCode</code> forwards Google
-                Play&apos;s raw <code>BillingResult.debugMessage</code> into
-                the error instance, and <code>OpenIapError.toJSON()</code>{' '}
-                emits a <code>debugMessage</code> key so downstream framework
-                libraries can surface the reason Play rejected a purchase
-                (offer token mismatch, subscription group conflict, etc.).
-                The <code>launchBillingFlow</code> sync-failure path now also
+                <code>fromBillingResponseCode</code> forwards Google Play&apos;s
+                raw <code>BillingResult.debugMessage</code> into the error
+                instance, and <code>OpenIapError.toJSON()</code> emits a{' '}
+                <code>debugMessage</code> key so downstream framework libraries
+                can surface the reason Play rejected a purchase (offer token
+                mismatch, subscription group conflict, etc.). The{' '}
+                <code>launchBillingFlow</code> sync-failure path now also
                 produces <code>DeveloperError</code> (matching the{' '}
-                <code>onPurchasesUpdated</code> async path) instead of a
-                generic <code>PurchaseFailed</code> for{' '}
-                <code>DEVELOPER_ERROR</code> response codes.
+                <code>onPurchasesUpdated</code> async path) instead of a generic{' '}
+                <code>PurchaseFailed</code> for <code>DEVELOPER_ERROR</code>{' '}
+                response codes.
               </li>
             </ul>
             <p
@@ -130,25 +130,25 @@ function Releases() {
             >
               <li>
                 <strong>
-                  Fix: forward{' '}
-                  <code>subscriptionProductReplacementParams</code> on Android
+                  Fix: forward <code>subscriptionProductReplacementParams</code>{' '}
+                  on Android
                 </strong>{' '}
                 — the field was declared on{' '}
                 <code>RequestSubscriptionAndroidProps</code> and parsed
                 correctly by the native plugin, but{' '}
                 <code>flutter_inapp_purchase.dart</code> was dropping it when
-                building the method-channel payload, so the native side
-                received <code>null</code> and Google Play applied its default
-                replacement mode (<code>WITHOUT_PRORATION</code>) regardless
-                of what callers passed from Dart. The Billing Library 8.1.0+
+                building the method-channel payload, so the native side received{' '}
+                <code>null</code> and Google Play applied its default
+                replacement mode (<code>WITHOUT_PRORATION</code>) regardless of
+                what callers passed from Dart. The Billing Library 8.1.0+
                 per-product replacement path now works end-to-end. (
                 <a href="https://github.com/hyodotdev/openiap/pull/97">#97</a>)
               </li>
               <li>
-                Channel test added to assert that{' '}
-                <code>oldProductId</code> and <code>replacementMode</code>{' '}
-                reach the native <code>requestPurchase</code> call, so the
-                wiring can&apos;t silently regress again.
+                Channel test added to assert that <code>oldProductId</code> and{' '}
+                <code>replacementMode</code> reach the native{' '}
+                <code>requestPurchase</code> call, so the wiring can&apos;t
+                silently regress again.
               </li>
             </ul>
           </div>
@@ -168,16 +168,14 @@ function Releases() {
             >
               <li>
                 <strong>
-                  Fix: surface Google Play&apos;s{' '}
-                  <code>debugMessage</code> through{' '}
-                  <code>PurchaseError</code>
+                  Fix: surface Google Play&apos;s <code>debugMessage</code>{' '}
+                  through <code>PurchaseError</code>
                 </strong>{' '}
                 — <code>convertToPurchaseError</code> was only forwarding{' '}
-                <code>code</code> and <code>message</code> from the native
-                error payload, so the raw{' '}
-                <code>BillingResult.debugMessage</code> and{' '}
-                <code>responseCode</code> were being dropped. Combined with
-                the openiap-google 1.3.32 change, Dart callers inspecting{' '}
+                <code>code</code> and <code>message</code> from the native error
+                payload, so the raw <code>BillingResult.debugMessage</code> and{' '}
+                <code>responseCode</code> were being dropped. Combined with the
+                openiap-google 1.3.32 change, Dart callers inspecting{' '}
                 <code>PurchaseError.debugMessage</code> now see Play&apos;s
                 exact rejection reason — useful for diagnosing{' '}
                 <code>DEVELOPER_ERROR</code> surfaces such as{' '}
@@ -185,8 +183,8 @@ function Releases() {
                 attach adb.
               </li>
               <li>
-                Picks up openiap-google 1.3.32 (debug message + data class
-                error types).
+                Picks up openiap-google 1.3.32 (debug message + data class error
+                types).
               </li>
             </ul>
           </div>

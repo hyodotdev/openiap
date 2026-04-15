@@ -514,7 +514,7 @@ class OpenIapModule(
                                     OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
                                     OpenIapError.DeveloperError(result.debugMessage)
                                 }
-                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
+                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled()
                                 else -> OpenIapError.PurchaseFailed(result.debugMessage)
                             }
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
@@ -715,7 +715,7 @@ class OpenIapModule(
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->
         if (props.provider != PurchaseVerificationProvider.Iapkit) {
-            throw OpenIapError.FeatureNotSupported
+            throw OpenIapError.FeatureNotSupported()
         }
         val options = props.iapkit ?: throw OpenIapError.DeveloperError()
         VerifyPurchaseWithProviderResult(

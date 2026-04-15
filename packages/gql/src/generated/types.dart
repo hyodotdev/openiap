@@ -2570,17 +2570,20 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
 class PurchaseError {
   const PurchaseError({
     required this.code,
+    this.debugMessage,
     required this.message,
     this.productId,
   });
 
   final ErrorCode code;
+  final String? debugMessage;
   final String message;
   final String? productId;
 
   factory PurchaseError.fromJson(Map<String, dynamic> json) {
     return PurchaseError(
       code: ErrorCode.fromJson(json['code'] as String),
+      debugMessage: json['debugMessage'] as String?,
       message: json['message'] as String,
       productId: json['productId'] as String?,
     );
@@ -2590,6 +2593,7 @@ class PurchaseError {
     return {
       '__typename': 'PurchaseError',
       'code': code.toJson(),
+      'debugMessage': debugMessage,
       'message': message,
       'productId': productId,
     };

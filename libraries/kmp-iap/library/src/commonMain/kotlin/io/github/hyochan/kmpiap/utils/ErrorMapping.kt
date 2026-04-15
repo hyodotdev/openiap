@@ -153,5 +153,6 @@ object ErrorCodeUtils {
         ErrorCode.PurchaseVerificationFailed -> "Purchase verification failed"
         ErrorCode.PurchaseVerificationFinished -> "Purchase verification completed"
         ErrorCode.PurchaseVerificationFinishFailed -> "Failed to complete purchase verification"
+        ErrorCode.DuplicatePurchase -> "Duplicate purchase update detected"
     }
 }

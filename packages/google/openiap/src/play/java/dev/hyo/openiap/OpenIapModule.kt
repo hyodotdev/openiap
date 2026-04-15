@@ -555,15 +555,21 @@ class OpenIapModule(
                                         externalTransactionToken = token
                                     ))
                                 } else if (continuation.isActive) {
-                                    continuation.resumeWithException(OpenIapError.PurchaseFailed())
+                                    continuation.resumeWithException(
+                                        OpenIapError.PurchaseFailed("Missing external transaction token")
+                                    )
                                 }
                             } catch (e: Exception) {
                                 OpenIapLog.e("Failed to extract token: ${e.message}", e, TAG)
-                                if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed())
+                                if (continuation.isActive) continuation.resumeWithException(
+                                    OpenIapError.PurchaseFailed(e.message)
+                                )
                             }
                         } else {
                             OpenIapLog.e("Reporting details creation failed: ${result?.debugMessage}", tag = TAG)
-                            if (continuation.isActive) continuation.resumeWithException(OpenIapError.PurchaseFailed())
+                            if (continuation.isActive) continuation.resumeWithException(
+                                OpenIapError.PurchaseFailed(result?.debugMessage)
+                            )
                         }
                     }
                     null
@@ -593,13 +599,13 @@ class OpenIapModule(
                 method.invoke(client, reportingParams, listener)
             } catch (e: NoSuchMethodException) {
                 OpenIapLog.e("createBillingProgramReportingDetailsAsync not found. Requires Billing Library 8.3.0+", e, TAG)
-                throw OpenIapError.FeatureNotSupported
+                throw OpenIapError.FeatureNotSupported()
             } catch (e: ClassNotFoundException) {
                 OpenIapLog.e("BillingProgramReportingDetailsParams not found. Requires Billing Library 8.3.0+", e, TAG)
-                throw OpenIapError.FeatureNotSupported
+                throw OpenIapError.FeatureNotSupported()
             } catch (e: Exception) {
                 OpenIapLog.e("Failed to create billing program reporting details: ${e.message}", e, TAG)
-                throw OpenIapError.PurchaseFailed()
+                throw OpenIapError.PurchaseFailed(e.message)
             }
         }
     }
@@ -767,7 +773,7 @@ class OpenIapModule(
                     @Suppress("DEPRECATION")
                     val dialogSuccess = showAlternativeBillingInformationDialog(activity)
                     if (!dialogSuccess) {
-                        val err = OpenIapError.UserCancelled
+                        val err = OpenIapError.UserCancelled()
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                         return@withContext emptyList()
                     }
@@ -831,7 +837,7 @@ class OpenIapModule(
                     }
                 } catch (e: Exception) {
                     OpenIapLog.e("Alternative billing only flow failed: ${e.message}", e, TAG)
-                    val err = OpenIapError.FeatureNotSupported
+                    val err = OpenIapError.FeatureNotSupported()
                     for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                     return@withContext emptyList()
                 }
@@ -1046,7 +1052,7 @@ class OpenIapModule(
                                 OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
                                 OpenIapError.DeveloperError(result.debugMessage)
                             }
-                            BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled
+                            BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled()
                             else -> OpenIapError.PurchaseFailed(result.debugMessage)
                         }
                         for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
@@ -1113,7 +1119,7 @@ class OpenIapModule(
             if (!client.isReady) throw OpenIapError.NotPrepared
             val token = purchase.purchaseToken.orEmpty()
             if (token.isBlank()) {
-                throw OpenIapError.PurchaseFailed()
+                throw OpenIapError.PurchaseFailed("Missing purchase token on purchase")
             }
 
             val result = if (isConsumable == true) {
@@ -1133,7 +1139,7 @@ class OpenIapModule(
             }
 
             if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                throw OpenIapError.PurchaseFailed()
+                throw OpenIapError.PurchaseFailed(result.debugMessage)
             }
         }
     }
@@ -1201,7 +1207,7 @@ class OpenIapModule(
 
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { props ->
         if (props.provider != PurchaseVerificationProvider.Iapkit) {
-            throw OpenIapError.FeatureNotSupported
+            throw OpenIapError.FeatureNotSupported()
         }
         val options = props.iapkit ?: throw OpenIapError.DeveloperError()
         VerifyPurchaseWithProviderResult(
@@ -1359,7 +1365,7 @@ class OpenIapModule(
         } else {
             when (billingResult.responseCode) {
                 BillingClient.BillingResponseCode.USER_CANCELED -> {
-                    val err = OpenIapError.UserCancelled
+                    val err = OpenIapError.UserCancelled()
                     for (listener in purchaseErrorListeners) { runCatching { listener.onPurchaseError(err) } }
                     consumePurchaseCallback(Result.success(emptyList()))
                 }

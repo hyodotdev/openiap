@@ -1105,6 +1105,7 @@ export interface PurchaseCommon {
 
 export interface PurchaseError {
   code: ErrorCode;
+  debugMessage?: (string | null);
   message: string;
   productId?: (string | null);
 }

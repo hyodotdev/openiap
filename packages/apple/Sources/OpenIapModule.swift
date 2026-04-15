@@ -107,7 +107,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 await productManager.addProduct(product)
             }
         } catch {
-            let purchaseError = makePurchaseError(code: .queryProduct, message: error.localizedDescription)
+            let purchaseError = makePurchaseError(
+                code: .queryProduct,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
             emitPurchaseError(purchaseError)
             throw purchaseError
         }
@@ -202,7 +206,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             await state.setPromotedProductId(nil)
             throw purchaseError
         } catch {
-            let wrapped = makePurchaseError(code: .queryProduct, productId: sku, message: error.localizedDescription)
+            let wrapped = makePurchaseError(
+                code: .queryProduct,
+                productId: sku,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
             emitPurchaseError(wrapped)
             await state.setPromotedProductId(nil)
             throw wrapped
@@ -390,7 +399,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 let purchaseError = makePurchaseError(
                     code: .purchaseError,
                     productId: sku,
-                    message: enhancedMessage
+                    message: enhancedMessage,
+                    debugMessage: error.localizedDescription
                 )
                 emitPurchaseError(purchaseError)
                 throw purchaseError
@@ -1493,9 +1503,15 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
-    private func makePurchaseError(code: ErrorCode, productId: String? = nil, message: String? = nil) -> PurchaseError {
+    private func makePurchaseError(
+        code: ErrorCode,
+        productId: String? = nil,
+        message: String? = nil,
+        debugMessage: String? = nil
+    ) -> PurchaseError {
         PurchaseError(
             code: code,
+            debugMessage: debugMessage,
             message: message ?? defaultMessage(for: code),
             productId: productId
         )

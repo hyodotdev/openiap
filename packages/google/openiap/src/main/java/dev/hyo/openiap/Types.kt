@@ -2527,6 +2527,7 @@ public data class PurchaseAndroid(
 
 public data class PurchaseError(
     val code: ErrorCode,
+    val debugMessage: String? = null,
     val message: String,
     val productId: String? = null
 ) {
@@ -2535,6 +2536,7 @@ public data class PurchaseError(
         fun fromJson(json: Map<String, Any?>): PurchaseError {
             return PurchaseError(
                 code = (json["code"] as? String)?.let { ErrorCode.fromJson(it) } ?: ErrorCode.Unknown,
+                debugMessage = json["debugMessage"] as? String,
                 message = json["message"] as? String ?: "",
                 productId = json["productId"] as? String,
             )
@@ -2544,6 +2546,7 @@ public data class PurchaseError(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "PurchaseError",
         "code" to code.toJson(),
+        "debugMessage" to debugMessage,
         "message" to message,
         "productId" to productId,
     )

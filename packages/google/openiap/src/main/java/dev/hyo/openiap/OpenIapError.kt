@@ -33,7 +33,7 @@ sealed class OpenIapError : Exception() {
         }
     }
 
-    class PurchaseFailed(override val debugMessage: String? = null) : OpenIapError() {
+    data class PurchaseFailed(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
@@ -67,12 +67,14 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Payment not allowed"
     }
 
-    object BillingError : OpenIapError() {
-        val CODE = ErrorCode.ServiceError.rawValue
-        override val code = CODE
-        override val message = MESSAGE
+    data class BillingError(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = CODE
+        override val message: String = MESSAGE
 
-        const val MESSAGE = "Billing error"
+        companion object {
+            val CODE = ErrorCode.ServiceError.rawValue
+            const val MESSAGE = "Billing error"
+        }
     }
 
     /**
@@ -133,12 +135,14 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Restore failed"
     }
 
-    object UnknownError : OpenIapError() {
-        val CODE = ErrorCode.Unknown.rawValue
-        override val code = CODE
-        override val message = MESSAGE
+    data class UnknownError(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = CODE
+        override val message: String = MESSAGE
 
-        const val MESSAGE = "Unknown error"
+        companion object {
+            val CODE = ErrorCode.Unknown.rawValue
+            const val MESSAGE = "Unknown error"
+        }
     }
 
     object NotPrepared : OpenIapError() {
@@ -197,53 +201,67 @@ sealed class OpenIapError : Exception() {
         const val MESSAGE = "Current activity is not available"
     }
 
-    object UserCancelled : OpenIapError() {
-        val CODE = ErrorCode.UserCancelled.rawValue
-        const val MESSAGE = "User cancelled the operation"
-        override val code: String = CODE
-        override val message: String = MESSAGE
-    }
-
-    object ItemAlreadyOwned : OpenIapError() {
-        val CODE = ErrorCode.AlreadyOwned.rawValue
+    data class UserCancelled(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Item is already owned"
+        companion object {
+            val CODE = ErrorCode.UserCancelled.rawValue
+            const val MESSAGE = "User cancelled the operation"
+        }
     }
 
-    object ItemNotOwned : OpenIapError() {
-        val CODE = ErrorCode.ItemNotOwned.rawValue
-        const val MESSAGE = "Item is not owned"
-        override val code: String = CODE
-        override val message: String = MESSAGE
-    }
-
-    object ServiceUnavailable : OpenIapError() {
-        val CODE = ErrorCode.ServiceError.rawValue
+    data class ItemAlreadyOwned(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Billing service is unavailable"
+        companion object {
+            val CODE = ErrorCode.AlreadyOwned.rawValue
+            const val MESSAGE = "Item is already owned"
+        }
     }
 
-    object BillingUnavailable : OpenIapError() {
-        val CODE = ErrorCode.BillingUnavailable.rawValue
+    data class ItemNotOwned(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Billing API version is not supported"
+        companion object {
+            val CODE = ErrorCode.ItemNotOwned.rawValue
+            const val MESSAGE = "Item is not owned"
+        }
     }
 
-    object ItemUnavailable : OpenIapError() {
-        val CODE = ErrorCode.ItemUnavailable.rawValue
+    data class ServiceUnavailable(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Requested product is not available for purchase"
+        companion object {
+            val CODE = ErrorCode.ServiceError.rawValue
+            const val MESSAGE = "Billing service is unavailable"
+        }
     }
 
-    class DeveloperError(override val debugMessage: String? = null) : OpenIapError() {
+    data class BillingUnavailable(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = CODE
+        override val message: String = MESSAGE
+
+        companion object {
+            val CODE = ErrorCode.BillingUnavailable.rawValue
+            const val MESSAGE = "Billing API version is not supported"
+        }
+    }
+
+    data class ItemUnavailable(override val debugMessage: String? = null) : OpenIapError() {
+        override val code: String = CODE
+        override val message: String = MESSAGE
+
+        companion object {
+            val CODE = ErrorCode.ItemUnavailable.rawValue
+            const val MESSAGE = "Requested product is not available for purchase"
+        }
+    }
+
+    data class DeveloperError(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
@@ -253,28 +271,34 @@ sealed class OpenIapError : Exception() {
         }
     }
 
-    object FeatureNotSupported : OpenIapError() {
-        val CODE = ErrorCode.FeatureNotSupported.rawValue
+    data class FeatureNotSupported(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Requested feature is not supported by Play Store"
+        companion object {
+            val CODE = ErrorCode.FeatureNotSupported.rawValue
+            const val MESSAGE = "Requested feature is not supported by Play Store"
+        }
     }
 
-    object ServiceDisconnected : OpenIapError() {
-        val CODE = ErrorCode.ServiceDisconnected.rawValue
+    data class ServiceDisconnected(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "Play Store service is not connected"
+        companion object {
+            val CODE = ErrorCode.ServiceDisconnected.rawValue
+            const val MESSAGE = "Play Store service is not connected"
+        }
     }
 
-    object ServiceTimeout : OpenIapError() {
-        const val CODE = "service-timeout"
+    data class ServiceTimeout(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = CODE
         override val message: String = MESSAGE
 
-        const val MESSAGE = "The request has reached the maximum timeout before billing service responds"
+        companion object {
+            const val CODE = "service-timeout"
+            const val MESSAGE = "The request has reached the maximum timeout before billing service responds"
+        }
     }
 
     class AlternativeBillingUnavailable(val details: String) : OpenIapError() {

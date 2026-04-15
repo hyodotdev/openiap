@@ -376,7 +376,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
         try {
             module.mutationHandlers.requestPurchase?.invoke(props)
-                ?: throw OpenIapError.FeatureNotSupported
+                ?: throw OpenIapError.FeatureNotSupported()
         } finally {
             if (skuForStatus != null) removePurchasing(skuForStatus)
         }
