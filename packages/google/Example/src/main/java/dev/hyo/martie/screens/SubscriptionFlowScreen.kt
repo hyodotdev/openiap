@@ -144,6 +144,10 @@ fun SubscriptionFlowScreen(
     var verificationDropdownExpanded by remember { mutableStateOf(false) }
     // Track which purchase IDs have been processed (to allow re-purchase after failure)
     var processedPurchaseKey by remember { mutableStateOf<String?>(null) }
+    // Cross-platform subscriptionBillingIssue banner state.
+    // Populated from Play Billing 8.1+ isSuspended signal via
+    // openiap-google. See https://openiap.dev/docs/features/subscription-billing-issue
+    var billingIssuePurchase by remember { mutableStateOf<dev.hyo.openiap.PurchaseAndroid?>(null) }
 
     // IAPKit API Key from BuildConfig
     val iapkitApiKey: String? = remember {
@@ -248,6 +252,20 @@ fun SubscriptionFlowScreen(
                 runCatching { iapStore.endConnection() }
                 runCatching { iapStore.clear() }
             }
+        }
+    }
+
+    // Cross-platform subscriptionBillingIssue listener: fires when Play Billing 8.1+
+    // reports isSuspended == true on any active subscription. No-op on Horizon flavor.
+    DisposableEffect(iapStore) {
+        val listener = dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
+            (purchase as? dev.hyo.openiap.PurchaseAndroid)?.let { android ->
+                billingIssuePurchase = android
+            }
+        }
+        iapStore.addSubscriptionBillingIssueListener(listener)
+        onDispose {
+            iapStore.removeSubscriptionBillingIssueListener(listener)
         }
     }
 
@@ -411,6 +429,76 @@ fun SubscriptionFlowScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = AppColors.textSecondary
                         )
+                    }
+                }
+            }
+
+            // Subscription billing-issue banner (Play Billing 8.1+ isSuspended)
+            billingIssuePurchase?.let { issue ->
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = androidx.compose.ui.graphics.Color(0xFFFFF3E0)
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            androidx.compose.ui.graphics.Color(0xFFFF9800)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.Warning,
+                                    contentDescription = null,
+                                    tint = androidx.compose.ui.graphics.Color(0xFFF57C00)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Subscription needs attention",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Text(
+                                "Payment on ${issue.productId} failed or is in retry. Update the payment method in the Play subscription center to keep access.",
+                                color = AppColors.textSecondary
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(onClick = {
+                                    cleanupScope.launch {
+                                        runCatching {
+                                            iapStore.deepLinkToSubscriptions(
+                                                dev.hyo.openiap.DeepLinkOptions(
+                                                    skuAndroid = issue.productId,
+                                                    packageNameAndroid = appContext.packageName
+                                                )
+                                            )
+                                        }.onFailure { e ->
+                                            println("deepLinkToSubscriptions failed: ${e.message}")
+                                        }
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CreditCard,
+                                        contentDescription = null
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Fix payment method")
+                                }
+                                TextButton(onClick = { billingIssuePurchase = null }) {
+                                    Text("Dismiss")
+                                }
+                            }
+                        }
                     }
                 }
             }

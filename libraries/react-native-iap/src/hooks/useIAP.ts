@@ -25,6 +25,7 @@ import {
   showAlternativeBillingDialogAndroid,
   createAlternativeBillingTokenAndroid,
   userChoiceBillingListenerAndroid,
+  subscriptionBillingIssueListener,
   isStandardIOS,
 } from '../';
 
@@ -113,6 +114,16 @@ export interface UseIapOptions {
   onPromotedProductIOS?: (product: Product) => void;
   onUserChoiceBillingAndroid?: (details: UserChoiceBillingDetails) => void;
   /**
+   * Fires when an active subscription enters a billing-issue state
+   * (StoreKit 2 Message.billingIssue on iOS 18+, Purchase.isSuspended on
+   * Play Billing 8.1+). Not invoked on Meta Horizon.
+   *
+   * Recommended: call deepLinkToSubscriptions on the returned purchase so
+   * the user can update their payment method in the platform subscription
+   * center.
+   */
+  onSubscriptionBillingIssue?: (purchase: Purchase) => void;
+  /**
    * @deprecated Use enableBillingProgramAndroid instead.
    * - 'user-choice' → 'user-choice-billing'
    * - 'alternative-only' → 'external-offer'
@@ -178,6 +189,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
     purchaseError?: EventSubscription;
     promotedProductIOS?: EventSubscription;
     userChoiceBillingAndroid?: EventSubscription;
+    subscriptionBillingIssue?: EventSubscription;
   }>({});
 
   // Track if component is mounted to prevent listener leaks on early unmount
@@ -463,6 +475,18 @@ export function useIAP(options?: UseIapOptions): UseIap {
           }
         });
     }
+
+    if (
+      optionsRef.current?.onSubscriptionBillingIssue &&
+      !subscriptionsRef.current.subscriptionBillingIssue
+    ) {
+      subscriptionsRef.current.subscriptionBillingIssue =
+        subscriptionBillingIssueListener((purchase: Purchase) => {
+          if (optionsRef.current?.onSubscriptionBillingIssue) {
+            optionsRef.current.onSubscriptionBillingIssue(purchase);
+          }
+        });
+    }
   }, [getActiveSubscriptionsInternal, getAvailablePurchasesInternal]);
 
   // Shared helper: clean up all listeners
@@ -471,10 +495,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
     subscriptionsRef.current.purchaseError?.remove();
     subscriptionsRef.current.promotedProductIOS?.remove();
     subscriptionsRef.current.userChoiceBillingAndroid?.remove();
+    subscriptionsRef.current.subscriptionBillingIssue?.remove();
     subscriptionsRef.current.purchaseUpdate = undefined;
     subscriptionsRef.current.purchaseError = undefined;
     subscriptionsRef.current.promotedProductIOS = undefined;
     subscriptionsRef.current.userChoiceBillingAndroid = undefined;
+    subscriptionsRef.current.subscriptionBillingIssue = undefined;
   }, []);
 
   const initIapWithSubscriptions = useCallback(async (): Promise<void> => {
