@@ -488,6 +488,52 @@ public struct ActiveSubscription: Codable {
     public var willExpireSoon: Bool? = nil
 }
 
+/// Advanced Commerce metadata from a transaction (iOS 18.4+).
+/// Contains item details, tax information, and refund data for purchases
+/// made through the Advanced Commerce API using generic SKUs.
+/// Only present for transactions that use the Advanced Commerce API.
+public struct AdvancedCommerceInfoIOS: Codable {
+    /// Optional description
+    public var description: String? = nil
+    /// Optional display name
+    public var displayName: String? = nil
+    /// Estimated tax amount (decimal string)
+    public var estimatedTax: String? = nil
+    /// The items purchased as part of this transaction
+    public var items: [AdvancedCommerceItemIOS]
+    /// Request reference identifier for tracking
+    public var requestReferenceId: String? = nil
+    /// Tax code for the transaction
+    public var taxCode: String? = nil
+    /// Price excluding tax (decimal string)
+    public var taxExclusivePrice: String? = nil
+    /// Tax rate applied (decimal string)
+    public var taxRate: String? = nil
+}
+
+/// Details of an Advanced Commerce item (iOS 18.4+).
+public struct AdvancedCommerceItemDetailsIOS: Codable {
+    /// JSON representation of the item details
+    public var jsonRepresentation: String? = nil
+}
+
+/// An item purchased through the Advanced Commerce API (iOS 18.4+).
+/// Represents a developer-defined product within a generic SKU transaction.
+public struct AdvancedCommerceItemIOS: Codable {
+    /// The item's detail information
+    public var details: AdvancedCommerceItemDetailsIOS? = nil
+    /// Refunds issued for this item, if any
+    public var refunds: [AdvancedCommerceRefundIOS]? = nil
+    /// Date access to this item was revoked (milliseconds since epoch)
+    public var revocationDate: Double? = nil
+}
+
+/// Refund information for an Advanced Commerce item (iOS 18.4+).
+public struct AdvancedCommerceRefundIOS: Codable {
+    /// JSON representation of the refund details
+    public var jsonRepresentation: String? = nil
+}
+
 public struct AppTransaction: Codable {
     public var appId: Double
     public var appTransactionId: String? = nil
@@ -995,6 +1041,10 @@ public struct PurchaseError: Codable {
 }
 
 public struct PurchaseIOS: Codable, PurchaseCommon {
+    /// Advanced Commerce API metadata (iOS 18.4+).
+    /// Present only for transactions that use the Advanced Commerce API.
+    /// Contains item details, tax information, and refund data for generic SKU purchases.
+    public var advancedCommerceInfoIOS: AdvancedCommerceInfoIOS? = nil
     public var appAccountToken: String? = nil
     public var appBundleIdIOS: String? = nil
     public var countryCodeIOS: String? = nil
@@ -2388,6 +2438,11 @@ public protocol QueryResolver {
     func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult
     /// Get active subscriptions (filters by subscriptionIds when provided)
     func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription]
+    /// Get all transactions including finished consumables (iOS 18+).
+    /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app.
+    /// Returns all transactions from Transaction.all, including finished consumable
+    /// transactions that would otherwise be excluded from getAvailablePurchases.
+    func getAllTransactionsIOS() async throws -> [PurchaseIOS]
     /// Fetch the current app transaction (iOS 16+)
     func getAppTransactionIOS() async throws -> AppTransaction?
     /// Get all available purchases for the current user
@@ -2579,6 +2634,7 @@ public typealias QueryCanPresentExternalPurchaseNoticeIOSHandler = () async thro
 public typealias QueryCurrentEntitlementIOSHandler = (_ sku: String) async throws -> PurchaseIOS?
 public typealias QueryFetchProductsHandler = (_ params: ProductRequest) async throws -> FetchProductsResult
 public typealias QueryGetActiveSubscriptionsHandler = (_ subscriptionIds: [String]?) async throws -> [ActiveSubscription]
+public typealias QueryGetAllTransactionsIOSHandler = () async throws -> [PurchaseIOS]
 public typealias QueryGetAppTransactionIOSHandler = () async throws -> AppTransaction?
 public typealias QueryGetAvailablePurchasesHandler = (_ options: PurchaseOptions?) async throws -> [Purchase]
 public typealias QueryGetExternalPurchaseCustomLinkTokenIOSHandler = (_ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) async throws -> ExternalPurchaseCustomLinkTokenResultIOS
@@ -2601,6 +2657,7 @@ public struct QueryHandlers {
     public var currentEntitlementIOS: QueryCurrentEntitlementIOSHandler?
     public var fetchProducts: QueryFetchProductsHandler?
     public var getActiveSubscriptions: QueryGetActiveSubscriptionsHandler?
+    public var getAllTransactionsIOS: QueryGetAllTransactionsIOSHandler?
     public var getAppTransactionIOS: QueryGetAppTransactionIOSHandler?
     public var getAvailablePurchases: QueryGetAvailablePurchasesHandler?
     public var getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler?
@@ -2623,6 +2680,7 @@ public struct QueryHandlers {
         currentEntitlementIOS: QueryCurrentEntitlementIOSHandler? = nil,
         fetchProducts: QueryFetchProductsHandler? = nil,
         getActiveSubscriptions: QueryGetActiveSubscriptionsHandler? = nil,
+        getAllTransactionsIOS: QueryGetAllTransactionsIOSHandler? = nil,
         getAppTransactionIOS: QueryGetAppTransactionIOSHandler? = nil,
         getAvailablePurchases: QueryGetAvailablePurchasesHandler? = nil,
         getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = nil,
@@ -2644,6 +2702,7 @@ public struct QueryHandlers {
         self.currentEntitlementIOS = currentEntitlementIOS
         self.fetchProducts = fetchProducts
         self.getActiveSubscriptions = getActiveSubscriptions
+        self.getAllTransactionsIOS = getAllTransactionsIOS
         self.getAppTransactionIOS = getAppTransactionIOS
         self.getAvailablePurchases = getAvailablePurchases
         self.getExternalPurchaseCustomLinkTokenIOS = getExternalPurchaseCustomLinkTokenIOS

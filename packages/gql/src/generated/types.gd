@@ -384,6 +384,161 @@ class ActiveSubscription:
 			dict["renewalInfoIOS"] = renewal_info_ios
 		return dict
 
+## Advanced Commerce metadata from a transaction (iOS 18.4+). Contains item details, tax information, and refund data for purchases made through the Advanced Commerce API using generic SKUs. Only present for transactions that use the Advanced Commerce API.
+class AdvancedCommerceInfoIOS:
+	## The items purchased as part of this transaction
+	var items: Array[AdvancedCommerceItemIOS] = []
+	## Request reference identifier for tracking
+	var request_reference_id: Variant = null
+	## Tax code for the transaction
+	var tax_code: Variant = null
+	## Price excluding tax (decimal string)
+	var tax_exclusive_price: Variant = null
+	## Estimated tax amount (decimal string)
+	var estimated_tax: Variant = null
+	## Tax rate applied (decimal string)
+	var tax_rate: Variant = null
+	## Optional display name
+	var display_name: Variant = null
+	## Optional description
+	var description: Variant = null
+
+	static func from_dict(data: Dictionary) -> AdvancedCommerceInfoIOS:
+		var obj = AdvancedCommerceInfoIOS.new()
+		if data.has("items") and data["items"] != null:
+			var arr = []
+			for item in data["items"]:
+				if item is Dictionary:
+					arr.append(AdvancedCommerceItemIOS.from_dict(item))
+				else:
+					arr.append(item)
+			obj.items = arr
+		if data.has("requestReferenceId") and data["requestReferenceId"] != null:
+			obj.request_reference_id = data["requestReferenceId"]
+		if data.has("taxCode") and data["taxCode"] != null:
+			obj.tax_code = data["taxCode"]
+		if data.has("taxExclusivePrice") and data["taxExclusivePrice"] != null:
+			obj.tax_exclusive_price = data["taxExclusivePrice"]
+		if data.has("estimatedTax") and data["estimatedTax"] != null:
+			obj.estimated_tax = data["estimatedTax"]
+		if data.has("taxRate") and data["taxRate"] != null:
+			obj.tax_rate = data["taxRate"]
+		if data.has("displayName") and data["displayName"] != null:
+			obj.display_name = data["displayName"]
+		if data.has("description") and data["description"] != null:
+			obj.description = data["description"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if items != null:
+			var arr = []
+			for item in items:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["items"] = arr
+		else:
+			dict["items"] = null
+		if request_reference_id != null:
+			dict["requestReferenceId"] = request_reference_id
+		if tax_code != null:
+			dict["taxCode"] = tax_code
+		if tax_exclusive_price != null:
+			dict["taxExclusivePrice"] = tax_exclusive_price
+		if estimated_tax != null:
+			dict["estimatedTax"] = estimated_tax
+		if tax_rate != null:
+			dict["taxRate"] = tax_rate
+		if display_name != null:
+			dict["displayName"] = display_name
+		if description != null:
+			dict["description"] = description
+		return dict
+
+## Details of an Advanced Commerce item (iOS 18.4+).
+class AdvancedCommerceItemDetailsIOS:
+	## JSON representation of the item details
+	var json_representation: Variant = null
+
+	static func from_dict(data: Dictionary) -> AdvancedCommerceItemDetailsIOS:
+		var obj = AdvancedCommerceItemDetailsIOS.new()
+		if data.has("jsonRepresentation") and data["jsonRepresentation"] != null:
+			obj.json_representation = data["jsonRepresentation"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if json_representation != null:
+			dict["jsonRepresentation"] = json_representation
+		return dict
+
+## An item purchased through the Advanced Commerce API (iOS 18.4+). Represents a developer-defined product within a generic SKU transaction.
+class AdvancedCommerceItemIOS:
+	## The item's detail information
+	var details: AdvancedCommerceItemDetailsIOS
+	## Refunds issued for this item, if any
+	var refunds: Array[AdvancedCommerceRefundIOS] = []
+	## Date access to this item was revoked (milliseconds since epoch)
+	var revocation_date: Variant = null
+
+	static func from_dict(data: Dictionary) -> AdvancedCommerceItemIOS:
+		var obj = AdvancedCommerceItemIOS.new()
+		if data.has("details") and data["details"] != null:
+			if data["details"] is Dictionary:
+				obj.details = AdvancedCommerceItemDetailsIOS.from_dict(data["details"])
+			else:
+				obj.details = data["details"]
+		if data.has("refunds") and data["refunds"] != null:
+			var arr = []
+			for item in data["refunds"]:
+				if item is Dictionary:
+					arr.append(AdvancedCommerceRefundIOS.from_dict(item))
+				else:
+					arr.append(item)
+			obj.refunds = arr
+		if data.has("revocationDate") and data["revocationDate"] != null:
+			obj.revocation_date = data["revocationDate"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if details != null and details.has_method("to_dict"):
+			dict["details"] = details.to_dict()
+		else:
+			dict["details"] = details
+		if refunds != null:
+			var arr = []
+			for item in refunds:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["refunds"] = arr
+		else:
+			dict["refunds"] = null
+		if revocation_date != null:
+			dict["revocationDate"] = revocation_date
+		return dict
+
+## Refund information for an Advanced Commerce item (iOS 18.4+).
+class AdvancedCommerceRefundIOS:
+	## JSON representation of the refund details
+	var json_representation: Variant = null
+
+	static func from_dict(data: Dictionary) -> AdvancedCommerceRefundIOS:
+		var obj = AdvancedCommerceRefundIOS.new()
+		if data.has("jsonRepresentation") and data["jsonRepresentation"] != null:
+			obj.json_representation = data["jsonRepresentation"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if json_representation != null:
+			dict["jsonRepresentation"] = json_representation
+		return dict
+
 class AppTransaction:
 	var bundle_id: String = ""
 	var app_version: String = ""
@@ -2130,6 +2285,8 @@ class PurchaseIOS:
 	var currency_symbol_ios: Variant = null
 	var country_code_ios: Variant = null
 	var renewal_info_ios: RenewalInfoIOS
+	## Advanced Commerce API metadata (iOS 18.4+).
+	var advanced_commerce_info_ios: AdvancedCommerceInfoIOS
 
 	static func from_dict(data: Dictionary) -> PurchaseIOS:
 		var obj = PurchaseIOS.new()
@@ -2219,6 +2376,11 @@ class PurchaseIOS:
 				obj.renewal_info_ios = RenewalInfoIOS.from_dict(data["renewalInfoIOS"])
 			else:
 				obj.renewal_info_ios = data["renewalInfoIOS"]
+		if data.has("advancedCommerceInfoIOS") and data["advancedCommerceInfoIOS"] != null:
+			if data["advancedCommerceInfoIOS"] is Dictionary:
+				obj.advanced_commerce_info_ios = AdvancedCommerceInfoIOS.from_dict(data["advancedCommerceInfoIOS"])
+			else:
+				obj.advanced_commerce_info_ios = data["advancedCommerceInfoIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2294,6 +2456,10 @@ class PurchaseIOS:
 			dict["renewalInfoIOS"] = renewal_info_ios.to_dict()
 		else:
 			dict["renewalInfoIOS"] = renewal_info_ios
+		if advanced_commerce_info_ios != null and advanced_commerce_info_ios.has_method("to_dict"):
+			dict["advancedCommerceInfoIOS"] = advanced_commerce_info_ios.to_dict()
+		else:
+			dict["advancedCommerceInfoIOS"] = advanced_commerce_info_ios
 		return dict
 
 class PurchaseOfferIOS:
@@ -4934,6 +5100,15 @@ class Query:
 		const return_type = "AppTransaction"
 		const is_array = false
 
+	## Get all transactions including finished consumables (iOS 18+).
+	class getAllTransactionsIOSField:
+		const name = "getAllTransactionsIOS"
+		const snake_name = "get_all_transactions_ios"
+		class Args:
+			pass
+		const return_type = "PurchaseIOS"
+		const is_array = true
+
 	## Validate a receipt for a specific product
 	class validateReceiptIOSField:
 		const name = "validateReceiptIOS"
@@ -5505,6 +5680,10 @@ static func get_receipt_data_ios_args() -> Dictionary:
 
 ## Fetch the current app transaction (iOS 16+)
 static func get_app_transaction_ios_args() -> Dictionary:
+	return {}
+
+## Get all transactions including finished consumables (iOS 18+).
+static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 
 ## Validate a receipt for a specific product

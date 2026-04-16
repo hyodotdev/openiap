@@ -1171,6 +1171,160 @@ public data class ActiveSubscription(
     )
 }
 
+/**
+ * Advanced Commerce metadata from a transaction (iOS 18.4+).
+ * Contains item details, tax information, and refund data for purchases
+ * made through the Advanced Commerce API using generic SKUs.
+ * Only present for transactions that use the Advanced Commerce API.
+ */
+public data class AdvancedCommerceInfoIOS(
+    /**
+     * Optional description
+     */
+    val description: String? = null,
+    /**
+     * Optional display name
+     */
+    val displayName: String? = null,
+    /**
+     * Estimated tax amount (decimal string)
+     */
+    val estimatedTax: String? = null,
+    /**
+     * The items purchased as part of this transaction
+     */
+    val items: List<AdvancedCommerceItemIOS>,
+    /**
+     * Request reference identifier for tracking
+     */
+    val requestReferenceId: String? = null,
+    /**
+     * Tax code for the transaction
+     */
+    val taxCode: String? = null,
+    /**
+     * Price excluding tax (decimal string)
+     */
+    val taxExclusivePrice: String? = null,
+    /**
+     * Tax rate applied (decimal string)
+     */
+    val taxRate: String? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): AdvancedCommerceInfoIOS {
+            return AdvancedCommerceInfoIOS(
+                description = json["description"] as? String,
+                displayName = json["displayName"] as? String,
+                estimatedTax = json["estimatedTax"] as? String,
+                items = (json["items"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AdvancedCommerceItemIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for AdvancedCommerceItemIOS") } ?: emptyList(),
+                requestReferenceId = json["requestReferenceId"] as? String,
+                taxCode = json["taxCode"] as? String,
+                taxExclusivePrice = json["taxExclusivePrice"] as? String,
+                taxRate = json["taxRate"] as? String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "AdvancedCommerceInfoIOS",
+        "description" to description,
+        "displayName" to displayName,
+        "estimatedTax" to estimatedTax,
+        "items" to items.map { it.toJson() },
+        "requestReferenceId" to requestReferenceId,
+        "taxCode" to taxCode,
+        "taxExclusivePrice" to taxExclusivePrice,
+        "taxRate" to taxRate,
+    )
+}
+
+/**
+ * Details of an Advanced Commerce item (iOS 18.4+).
+ */
+public data class AdvancedCommerceItemDetailsIOS(
+    /**
+     * JSON representation of the item details
+     */
+    val jsonRepresentation: String? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): AdvancedCommerceItemDetailsIOS {
+            return AdvancedCommerceItemDetailsIOS(
+                jsonRepresentation = json["jsonRepresentation"] as? String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "AdvancedCommerceItemDetailsIOS",
+        "jsonRepresentation" to jsonRepresentation,
+    )
+}
+
+/**
+ * An item purchased through the Advanced Commerce API (iOS 18.4+).
+ * Represents a developer-defined product within a generic SKU transaction.
+ */
+public data class AdvancedCommerceItemIOS(
+    /**
+     * The item's detail information
+     */
+    val details: AdvancedCommerceItemDetailsIOS? = null,
+    /**
+     * Refunds issued for this item, if any
+     */
+    val refunds: List<AdvancedCommerceRefundIOS>? = null,
+    /**
+     * Date access to this item was revoked (milliseconds since epoch)
+     */
+    val revocationDate: Double? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): AdvancedCommerceItemIOS {
+            return AdvancedCommerceItemIOS(
+                details = (json["details"] as? Map<String, Any?>)?.let { AdvancedCommerceItemDetailsIOS.fromJson(it) },
+                refunds = (json["refunds"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AdvancedCommerceRefundIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for AdvancedCommerceRefundIOS") },
+                revocationDate = (json["revocationDate"] as? Number)?.toDouble(),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "AdvancedCommerceItemIOS",
+        "details" to details?.toJson(),
+        "refunds" to refunds?.map { it.toJson() },
+        "revocationDate" to revocationDate,
+    )
+}
+
+/**
+ * Refund information for an Advanced Commerce item (iOS 18.4+).
+ */
+public data class AdvancedCommerceRefundIOS(
+    /**
+     * JSON representation of the refund details
+     */
+    val jsonRepresentation: String? = null
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): AdvancedCommerceRefundIOS {
+            return AdvancedCommerceRefundIOS(
+                jsonRepresentation = json["jsonRepresentation"] as? String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "AdvancedCommerceRefundIOS",
+        "jsonRepresentation" to jsonRepresentation,
+    )
+}
+
 public data class AppTransaction(
     val appId: Double,
     val appTransactionId: String? = null,
@@ -2656,6 +2810,12 @@ public data class PurchaseError(
 }
 
 public data class PurchaseIOS(
+    /**
+     * Advanced Commerce API metadata (iOS 18.4+).
+     * Present only for transactions that use the Advanced Commerce API.
+     * Contains item details, tax information, and refund data for generic SKU purchases.
+     */
+    val advancedCommerceInfoIOS: AdvancedCommerceInfoIOS? = null,
     val appAccountToken: String? = null,
     val appBundleIdIOS: String? = null,
     val countryCodeIOS: String? = null,
@@ -2698,6 +2858,7 @@ public data class PurchaseIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseIOS {
             return PurchaseIOS(
+                advancedCommerceInfoIOS = (json["advancedCommerceInfoIOS"] as? Map<String, Any?>)?.let { AdvancedCommerceInfoIOS.fromJson(it) },
                 appAccountToken = json["appAccountToken"] as? String,
                 appBundleIdIOS = json["appBundleIdIOS"] as? String,
                 countryCodeIOS = json["countryCodeIOS"] as? String,
@@ -2738,6 +2899,7 @@ public data class PurchaseIOS(
 
     override fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "PurchaseIOS",
+        "advancedCommerceInfoIOS" to advancedCommerceInfoIOS?.toJson(),
         "appAccountToken" to appAccountToken,
         "appBundleIdIOS" to appBundleIdIOS,
         "countryCodeIOS" to countryCodeIOS,
@@ -4839,6 +5001,13 @@ public interface QueryResolver {
      */
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>
     /**
+     * Get all transactions including finished consumables (iOS 18+).
+     * Requires the SK2ConsumableTransactionHistory Info.plist key in the host app.
+     * Returns all transactions from Transaction.all, including finished consumable
+     * transactions that would otherwise be excluded from getAvailablePurchases.
+     */
+    suspend fun getAllTransactionsIOS(): List<PurchaseIOS>
+    /**
      * Fetch the current app transaction (iOS 16+)
      */
     suspend fun getAppTransactionIOS(): AppTransaction?
@@ -5019,6 +5188,7 @@ public typealias QueryCanPresentExternalPurchaseNoticeIOSHandler = suspend () ->
 public typealias QueryCurrentEntitlementIOSHandler = suspend (sku: String) -> PurchaseIOS?
 public typealias QueryFetchProductsHandler = suspend (params: ProductRequest) -> FetchProductsResult
 public typealias QueryGetActiveSubscriptionsHandler = suspend (subscriptionIds: List<String>?) -> List<ActiveSubscription>
+public typealias QueryGetAllTransactionsIOSHandler = suspend () -> List<PurchaseIOS>
 public typealias QueryGetAppTransactionIOSHandler = suspend () -> AppTransaction?
 public typealias QueryGetAvailablePurchasesHandler = suspend (options: PurchaseOptions?) -> List<Purchase>
 public typealias QueryGetExternalPurchaseCustomLinkTokenIOSHandler = suspend (tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) -> ExternalPurchaseCustomLinkTokenResultIOS
@@ -5041,6 +5211,7 @@ public data class QueryHandlers(
     val currentEntitlementIOS: QueryCurrentEntitlementIOSHandler? = null,
     val fetchProducts: QueryFetchProductsHandler? = null,
     val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler? = null,
+    val getAllTransactionsIOS: QueryGetAllTransactionsIOSHandler? = null,
     val getAppTransactionIOS: QueryGetAppTransactionIOSHandler? = null,
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler? = null,
     val getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = null,

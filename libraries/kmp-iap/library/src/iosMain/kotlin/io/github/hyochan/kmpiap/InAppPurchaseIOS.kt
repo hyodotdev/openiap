@@ -411,6 +411,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
+    // TODO: Wire to ObjC bridge after openiap-apple publishes getAllTransactionsIOSWithCompletion
+    override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> = emptyList()
+
     override suspend fun getReceiptDataIOS(): String? = suspendCoroutine { continuation ->
         openIapModule.getReceiptDataIOSWithCompletion { result, error ->
             if (error != null) {

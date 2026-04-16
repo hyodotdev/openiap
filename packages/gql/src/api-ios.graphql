@@ -82,6 +82,14 @@ extend type Query {
   # Future
   getAppTransactionIOS: AppTransaction
 """
+  Get all transactions including finished consumables (iOS 18+).
+  Requires the SK2ConsumableTransactionHistory Info.plist key in the host app.
+  Returns all transactions from Transaction.all, including finished consumable
+  transactions that would otherwise be excluded from getAvailablePurchases.
+  """
+  # Future
+  getAllTransactionsIOS: [PurchaseIOS!]!
+"""
 Validate a receipt for a specific product
 """
 # Future

@@ -210,6 +210,12 @@ type PurchaseIOS implements PurchaseCommon {
   currencySymbolIOS: String
   countryCodeIOS: String
   renewalInfoIOS: RenewalInfoIOS
+  """
+  Advanced Commerce API metadata (iOS 18.4+).
+  Present only for transactions that use the Advanced Commerce API.
+  Contains item details, tax information, and refund data for generic SKU purchases.
+  """
+  advancedCommerceInfoIOS: AdvancedCommerceInfoIOS
 }
 
 type PurchaseOfferIOS {
@@ -609,4 +615,90 @@ type ExternalPurchaseCustomLinkTokenResultIOS {
   Optional error message if token retrieval failed
   """
   error: String
+}
+
+# ============================================================================
+# Advanced Commerce API Types (iOS 18.4+)
+# For apps using the Advanced Commerce API with generic SKU purchases
+# Reference: https://developer.apple.com/documentation/storekit/transaction/advancedcommerceinfo
+# ============================================================================
+
+"""
+Advanced Commerce metadata from a transaction (iOS 18.4+).
+Contains item details, tax information, and refund data for purchases
+made through the Advanced Commerce API using generic SKUs.
+Only present for transactions that use the Advanced Commerce API.
+"""
+type AdvancedCommerceInfoIOS {
+  """
+  The items purchased as part of this transaction
+  """
+  items: [AdvancedCommerceItemIOS!]!
+  """
+  Request reference identifier for tracking
+  """
+  requestReferenceId: String
+  """
+  Tax code for the transaction
+  """
+  taxCode: String
+  """
+  Price excluding tax (decimal string)
+  """
+  taxExclusivePrice: String
+  """
+  Estimated tax amount (decimal string)
+  """
+  estimatedTax: String
+  """
+  Tax rate applied (decimal string)
+  """
+  taxRate: String
+  """
+  Optional display name
+  """
+  displayName: String
+  """
+  Optional description
+  """
+  description: String
+}
+
+"""
+An item purchased through the Advanced Commerce API (iOS 18.4+).
+Represents a developer-defined product within a generic SKU transaction.
+"""
+type AdvancedCommerceItemIOS {
+  """
+  The item's detail information
+  """
+  details: AdvancedCommerceItemDetailsIOS
+  """
+  Refunds issued for this item, if any
+  """
+  refunds: [AdvancedCommerceRefundIOS!]
+  """
+  Date access to this item was revoked (milliseconds since epoch)
+  """
+  revocationDate: Float
+}
+
+"""
+Details of an Advanced Commerce item (iOS 18.4+).
+"""
+type AdvancedCommerceItemDetailsIOS {
+  """
+  JSON representation of the item details
+  """
+  jsonRepresentation: String
+}
+
+"""
+Refund information for an Advanced Commerce item (iOS 18.4+).
+"""
+type AdvancedCommerceRefundIOS {
+  """
+  JSON representation of the refund details
+  """
+  jsonRepresentation: String
 }

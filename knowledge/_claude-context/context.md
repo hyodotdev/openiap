@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-04-16T13:24:54.898Z
+> Last updated: 2026-04-16T13:44:54.257Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
