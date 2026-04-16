@@ -717,6 +717,39 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
     
+    func getAllTransactionsIOS() throws -> Promise<[NitroPurchase]> {
+        return Promise.async {
+            do {
+                RnIapLog.payload("getAllTransactionsIOS", nil)
+                let all = try await OpenIapModule.shared.getAllTransactionsIOS()
+                var unionPurchases: [OpenIAP.Purchase] = []
+                var payloadUpdates: [String: [String: Any]] = [:]
+                for purchase in all {
+                    let union = OpenIAP.Purchase.purchaseIos(purchase)
+                    unionPurchases.append(union)
+                    let raw = OpenIapSerialization.purchase(union)
+                    if let identifier = raw["id"] as? String {
+                        payloadUpdates[identifier] = raw
+                    }
+                }
+                await MainActor.run {
+                    for (key, value) in payloadUpdates {
+                        self.purchasePayloadById[key] = value
+                    }
+                }
+                let payloads = RnIapHelper.sanitizeArray(OpenIapSerialization.purchases(unionPurchases))
+                RnIapLog.result("getAllTransactionsIOS", payloads)
+                return payloads.map { RnIapHelper.convertPurchaseDictionary($0) }
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("getAllTransactionsIOS", error: purchaseError)
+                throw OpenIapException(purchaseError.toJsonString())
+            } catch {
+                RnIapLog.failure("getAllTransactionsIOS", error: error)
+                throw OpenIapException(toErrorJson(OpenIAPError.ServiceError(debugMessage: error.localizedDescription)))
+            }
+        }
+    }
+
     func syncIOS() throws -> Promise<Bool> {
         return Promise.async {
             do {

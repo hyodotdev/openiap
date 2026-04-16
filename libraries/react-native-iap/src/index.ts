@@ -1080,6 +1080,32 @@ export const getPendingTransactionsIOS: QueryField<
   }
 };
 
+export const getAllTransactionsIOS: QueryField<
+  'getAllTransactionsIOS'
+> = async () => {
+  if (Platform.OS !== 'ios') {
+    return [];
+  }
+
+  try {
+    const nitroPurchases = await IAP.instance.getAllTransactionsIOS();
+    return nitroPurchases
+      .map(convertNitroPurchaseToPurchase)
+      .filter(
+        (purchase): purchase is PurchaseIOS => purchase.platform === 'ios',
+      );
+  } catch (error) {
+    RnIapConsole.error('[getAllTransactionsIOS] Failed:', error);
+    const parsedError = parseErrorStringToJsonObj(error);
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+    });
+  }
+};
+
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => {

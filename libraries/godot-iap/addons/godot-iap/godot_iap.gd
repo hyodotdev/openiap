@@ -641,6 +641,23 @@ func get_pending_transactions_ios() -> Array:
 						purchases.append(Types.PurchaseIOS.from_dict(tx))
 	return purchases
 
+## Get all transactions including finished consumables (iOS only).
+## Requires SK2ConsumableTransactionHistory Info.plist key for finished consumables (iOS 18+).
+## @return Array of Types.PurchaseIOS
+func get_all_transactions_ios() -> Array:
+	var purchases: Array = []
+	if _native_plugin and _platform == "iOS":
+		var result_json = _native_plugin.call("getAllTransactionsIOS")
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary and result.get("success", false):
+			var transactions_json = result.get("transactionsJson", "[]")
+			var transactions = JSON.parse_string(transactions_json)
+			if transactions is Array:
+				for tx in transactions:
+					if tx is Dictionary:
+						purchases.append(Types.PurchaseIOS.from_dict(tx))
+	return purchases
+
 ## Present code redemption sheet (iOS only).
 ## @return Types.VoidResult
 func present_code_redemption_sheet_ios() -> Variant:

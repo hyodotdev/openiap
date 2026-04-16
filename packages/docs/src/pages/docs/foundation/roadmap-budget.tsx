@@ -14,6 +14,21 @@ function RoadmapBudget() {
         keywords="OpenIAP roadmap, funding plan, open source budget, IAP development roadmap"
       />
       <h1>Roadmap & Budget</h1>
+      <div
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderLeft: '3px solid var(--primary-color)',
+          borderRadius: '4px',
+          padding: '0.75rem 1rem',
+          marginBottom: '1.5rem',
+          fontSize: '0.9rem',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        <strong>Draft</strong> — The Foundation section is currently being
+        prepared. Content may change as the governance structure is finalized.
+      </div>
       <p>
         This document outlines how OpenIAP plans to grow and how sponsorship
         funding is allocated. Full transparency on where every dollar goes.
@@ -263,7 +278,7 @@ function RoadmapBudget() {
             </tr>
             <tr>
               <td>Domain registration</td>
-              <td>~$2</td>
+              <td>~$3</td>
               <td>openiap.dev annual amortized</td>
             </tr>
             <tr>
@@ -282,11 +297,21 @@ function RoadmapBudget() {
               <td>$25 one-time amortized</td>
             </tr>
             <tr>
+              <td>Claude Code (AI assistant)</td>
+              <td>$200</td>
+              <td>Anthropic Max plan for development</td>
+            </tr>
+            <tr>
+              <td>Codex (AI assistant)</td>
+              <td>$100</td>
+              <td>OpenAI for code review and testing</td>
+            </tr>
+            <tr>
               <td>
                 <strong>Total baseline</strong>
               </td>
               <td>
-                <strong>~$80/month</strong>
+                <strong>$330–380/month</strong>
               </td>
               <td>Excluding maintainer time</td>
             </tr>

@@ -142,6 +142,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "getPendingTransactionsIOS":
             getPendingTransactionsIOS(result: result)
 
+        case "getAllTransactionsIOS":
+            getAllTransactionsIOS(result: result)
+
         case "requestPurchaseOnPromotedProductIOS":
             requestPurchaseOnPromotedProductIOS(result: result)
 
@@ -663,6 +666,23 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
     
+    private func getAllTransactionsIOS(result: @escaping FlutterResult) {
+        Task { @MainActor in
+            do {
+                let all = try await OpenIapModule.shared.getAllTransactionsIOS()
+                let purchases = all.map { Purchase.purchaseIos($0) }
+                let serialized = FlutterIapHelper.sanitizeArray(OpenIapSerialization.purchases(purchases))
+                FlutterIapLog.result("getAllTransactionsIOS", value: serialized)
+                result(serialized)
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: nil))
+                }
+            }
+        }
+    }
+
     private func clearTransactionIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("clearTransactionIOS called")
         Task { @MainActor in

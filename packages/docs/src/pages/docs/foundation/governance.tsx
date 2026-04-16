@@ -14,6 +14,21 @@ function Governance() {
         keywords="OpenIAP governance, open source governance, TSC, technical steering committee, maintainer policy"
       />
       <h1>Project Governance</h1>
+      <div
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderLeft: '3px solid var(--primary-color)',
+          borderRadius: '4px',
+          padding: '0.75rem 1rem',
+          marginBottom: '1.5rem',
+          fontSize: '0.9rem',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        <strong>Draft</strong> — The Foundation section is currently being
+        prepared. Content may change as the governance structure is finalized.
+      </div>
       <p>
         OpenIAP is an open-source project providing a neutral interoperability
         standard for in-app purchase APIs and verification across platforms.
