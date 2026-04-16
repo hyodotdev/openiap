@@ -171,6 +171,15 @@ Each package uses a different tag format for GitHub Releases:
 This file is automatically managed by CI/CD workflows during releases:
 - Apple releases update `apple` version
 - Google releases update `google` version
-- GQL releases update `gql` and `docs` versions
+- GQL releases update `spec` version
+- Deploy script (`npm run deploy`) updates `spec` version
 
-Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows to update versions.
+Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows or deploy script to update versions.
+
+**Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
+
+**Rule:** Feature PRs must NEVER touch version fields in `openiap-versions.json`. Version bumps happen only via:
+
+1. Release workflows (Apple Release, Google Release)
+2. Deploy script (`npm run deploy <version>`)
+3. CI auto-bump after merge
