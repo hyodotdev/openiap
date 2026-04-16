@@ -5100,7 +5100,7 @@ class Query:
 		const return_type = "AppTransaction"
 		const is_array = false
 
-	## Get all transactions including finished consumables (iOS 18+).
+	## Get the full StoreKit 2 transaction history as PurchaseIOS values.
 	class getAllTransactionsIOSField:
 		const name = "getAllTransactionsIOS"
 		const snake_name = "get_all_transactions_ios"
@@ -5682,7 +5682,7 @@ static func get_receipt_data_ios_args() -> Dictionary:
 static func get_app_transaction_ios_args() -> Dictionary:
 	return {}
 
-## Get all transactions including finished consumables (iOS 18+).
+## Get the full StoreKit 2 transaction history as PurchaseIOS values.
 static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 

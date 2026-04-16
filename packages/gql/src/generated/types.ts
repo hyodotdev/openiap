@@ -1245,10 +1245,10 @@ export interface Query {
   /** Get active subscriptions (filters by subscriptionIds when provided) */
   getActiveSubscriptions: Promise<ActiveSubscription[]>;
   /**
-   * Get all transactions including finished consumables (iOS 18+).
-   * Requires the SK2ConsumableTransactionHistory Info.plist key in the host app.
-   * Returns all transactions from Transaction.all, including finished consumable
-   * transactions that would otherwise be excluded from getAvailablePurchases.
+   * Get the full StoreKit 2 transaction history as PurchaseIOS values.
+   * Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+   * for finished consumables to be included (iOS 18+).
+   * Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
    */
   getAllTransactionsIOS: Promise<PurchaseIOS[]>;
   /** Fetch the current app transaction (iOS 16+) */
