@@ -457,7 +457,7 @@ export interface ExternalPurchaseNoticeResultIOS {
 
 export type FetchProductsResult = ProductOrSubscription[] | Product[] | ProductSubscription[] | null;
 
-export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product-ios' | 'user-choice-billing-android' | 'developer-provided-billing-android';
+export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product-ios' | 'user-choice-billing-android' | 'developer-provided-billing-android' | 'subscription-billing-issue';
 
 export type IapPlatform = 'ios' | 'android';
 
@@ -1561,6 +1561,20 @@ export interface Subscription {
   /** Fires when a purchase completes successfully or a pending purchase resolves */
   purchaseUpdated: Purchase;
   /**
+   * Fires when an active subscription enters a billing-issue state that needs user action
+   * (payment method failed, card expired, etc.). Cross-platform unification:
+   *
+   * - iOS 18+: delivered via StoreKit 2 `Message.Reason.billingIssue`.
+   * - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
+   *   on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.
+   * - Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements
+   *   the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
+   *
+   * Listeners should not assume the event will fire on every store. Direct users to the
+   * platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.
+   */
+  subscriptionBillingIssue: Purchase;
+  /**
    * Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
    * Only triggered when the user selects alternative billing instead of Google Play billing
    */
@@ -1965,6 +1979,7 @@ export type SubscriptionArgsMap = {
   promotedProductIOS: never;
   purchaseError: never;
   purchaseUpdated: never;
+  subscriptionBillingIssue: never;
   userChoiceBillingAndroid: never;
 };
 

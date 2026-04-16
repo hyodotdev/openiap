@@ -29,6 +29,8 @@ const mockIap: any = {
   removePurchaseErrorListener: jest.fn(),
   addPromotedProductListenerIOS: jest.fn(),
   removePromotedProductListenerIOS: jest.fn(),
+  addSubscriptionBillingIssueListener: jest.fn(),
+  removeSubscriptionBillingIssueListener: jest.fn(),
 
   // iOS-only
   getStorefrontIOS: jest.fn(async () => 'USA'),
@@ -2243,6 +2245,48 @@ describe('Public API (src/index.ts)', () => {
           mockIap.showExternalPurchaseCustomLinkNoticeIOS,
         ).toHaveBeenCalledWith('unspecified');
       });
+    });
+  });
+
+  describe('subscriptionBillingIssueListener', () => {
+    it('attaches native listener and returns removable subscription', () => {
+      const handler = jest.fn();
+      const sub = IAP.subscriptionBillingIssueListener(handler);
+
+      expect(mockIap.addSubscriptionBillingIssueListener).toHaveBeenCalled();
+      expect(typeof sub.remove).toBe('function');
+    });
+
+    it('remove() cleans up the JS-side listener', () => {
+      const handler = jest.fn();
+      const sub = IAP.subscriptionBillingIssueListener(handler);
+      sub.remove();
+
+      // Re-registering should still work after removal
+      const handler2 = jest.fn();
+      const sub2 = IAP.subscriptionBillingIssueListener(handler2);
+      expect(sub2).toBeDefined();
+    });
+
+    it('cleans up JS listener when native attach throws', () => {
+      mockIap.addSubscriptionBillingIssueListener.mockImplementation(() => {
+        throw new Error('native failure');
+      });
+
+      // Force re-require to reset native-attached state
+      jest.resetModules();
+      jest.doMock('react-native-nitro-modules', () => ({
+        NitroModules: {
+          createHybridObject: jest.fn(() => mockIap),
+        },
+      }));
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const freshIAP = require('../index');
+
+      const handler = jest.fn();
+      expect(() => freshIAP.subscriptionBillingIssueListener(handler)).toThrow(
+        'native failure',
+      );
     });
   });
 });

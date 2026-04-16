@@ -511,6 +511,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     fun removeUserChoiceBillingListener(listener: dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener) = module.removeUserChoiceBillingListener(listener)
     fun addDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener) = module.addDeveloperProvidedBillingListener(listener)
     fun removeDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener) = module.removeDeveloperProvidedBillingListener(listener)
+    fun addSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) = module.addSubscriptionBillingIssueListener(listener)
+    fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) = module.removeSubscriptionBillingIssueListener(listener)
 
     // -------------------------------------------------------------------------
     // Status helpers

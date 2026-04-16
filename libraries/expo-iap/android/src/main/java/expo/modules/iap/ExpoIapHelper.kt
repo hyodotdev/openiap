@@ -227,6 +227,7 @@ object ExpoIapHelper {
         eventPurchaseError: String,
         eventUserChoiceBilling: String,
         eventDeveloperProvidedBilling: String,
+        eventSubscriptionBillingIssue: String,
     ) {
         openIap.addPurchaseUpdateListener { p ->
             runCatching {
@@ -320,6 +321,21 @@ object ExpoIapHelper {
                 "developer-billing-error",
                 "Failed to process developer provided billing",
                 "DEVELOPER_PROVIDED_BILLING",
+            )
+        }
+        // Subscription billing-issue listener (Play Billing 8.1+ isSuspended; no-op on Horizon)
+        openIap.addSubscriptionBillingIssueListener { purchase ->
+            safeEmitEvent(
+                module,
+                scope,
+                connectionReady,
+                pendingEvents,
+                eventSubscriptionBillingIssue,
+                purchase.toJson(),
+                eventPurchaseError,
+                "subscription-billing-issue-error",
+                "Failed to process subscription billing issue",
+                "SUBSCRIPTION_BILLING_ISSUE",
             )
         }
     }

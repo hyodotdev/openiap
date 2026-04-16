@@ -279,12 +279,14 @@ export const resetListenerState = (): void => {
   promotedProductNativeAttached = false;
   userChoiceBillingNativeAttached = false;
   developerProvidedBillingNativeAttached = false;
+  subscriptionBillingIssueNativeAttached = false;
   // Clear all JS listeners since native side clears them in endConnection
   purchaseUpdateJsListeners.clear();
   purchaseErrorJsListeners.clear();
   promotedProductJsListeners.clear();
   userChoiceBillingJsListeners.clear();
   developerProvidedBillingJsListeners.clear();
+  subscriptionBillingIssueJsListeners.clear();
 };
 
 export const purchaseUpdatedListener = (
@@ -561,6 +563,96 @@ export const developerProvidedBillingListenerAndroid = (
   return {
     remove: () => {
       developerProvidedBillingJsListeners.delete(listener);
+    },
+  };
+};
+
+/**
+ * Listen for subscription billing-issue events (cross-platform).
+ *
+ * Fires when an active subscription enters a billing-issue state:
+ * - iOS 18+ / Mac Catalyst 18+: via StoreKit 2 `Message.Reason.billingIssue`.
+ * - Android (Play Billing 8.1+): when `isSuspendedAndroid === true` is observed.
+ * - Horizon / iOS 17 / older platforms: never fires.
+ *
+ * Recommended UX: on fire, call `deepLinkToSubscriptions()` so the user can
+ * update their payment method in the platform subscription center.
+ *
+ * @param listener - Function to call with the affected Purchase
+ * @returns EventSubscription with remove() method to unsubscribe
+ *
+ * @example
+ * ```typescript
+ * const subscription = subscriptionBillingIssueListener((purchase) => {
+ *   console.warn('Subscription needs attention:', purchase.productId);
+ *   deepLinkToSubscriptions({skuAndroid: purchase.productId, packageNameAndroid: 'com.example.app'});
+ * });
+ *
+ * subscription.remove();
+ * ```
+ */
+type NitroSubscriptionBillingIssueListener = Parameters<
+  RnIap['addSubscriptionBillingIssueListener']
+>[0];
+
+const subscriptionBillingIssueJsListeners = new Set<(purchase: Purchase) => void>();
+let subscriptionBillingIssueNativeAttached = false;
+const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListener =
+  (nitroPurchase) => {
+    if (!validateNitroPurchase(nitroPurchase)) {
+      RnIapConsole.warn(
+        '[subscriptionBillingIssueListener] dropped malformed native payload',
+      );
+      return;
+    }
+    const purchase = convertNitroPurchaseToPurchase(nitroPurchase);
+    for (const listener of subscriptionBillingIssueJsListeners) {
+      try {
+        listener(purchase);
+      } catch (e) {
+        RnIapConsole.error(
+          '[subscriptionBillingIssueListener] callback threw:',
+          e,
+        );
+      }
+    }
+  };
+
+function tryAttachSubscriptionBillingIssueNative(): void {
+  if (subscriptionBillingIssueNativeAttached) return;
+  try {
+    IAP.instance.addSubscriptionBillingIssueListener(
+      subscriptionBillingIssueNativeHandler,
+    );
+    subscriptionBillingIssueNativeAttached = true;
+  } catch (e) {
+    const msg = toErrorMessage(e);
+    if (msg.includes('Nitro runtime not installed')) {
+      RnIapConsole.warn(
+        '[subscriptionBillingIssueListener] Nitro not ready yet; will retry on next registration after initConnection()',
+      );
+    } else {
+      throw e;
+    }
+  }
+}
+
+export const subscriptionBillingIssueListener = (
+  listener: (purchase: Purchase) => void,
+): EventSubscription => {
+  subscriptionBillingIssueJsListeners.add(listener);
+  // Retry attachment every call so a listener registered before initConnection()
+  // doesn't stay permanently inert once Nitro is ready.
+  try {
+    tryAttachSubscriptionBillingIssueNative();
+  } catch (error) {
+    subscriptionBillingIssueJsListeners.delete(listener);
+    throw error;
+  }
+
+  return {
+    remove: () => {
+      subscriptionBillingIssueJsListeners.delete(listener);
     },
   };
 };

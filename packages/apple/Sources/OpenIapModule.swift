@@ -15,6 +15,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public static let shared = OpenIapModule()
 
     private var updateListenerTask: Task<Void, Error>?
+    private var messageListenerTask: Task<Void, Never>?
     private var productManager: ProductManager?
     private let state = IapState()
     private var initTask: Task<Bool, Error>?
@@ -28,7 +29,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         super.init()
     }
 
-    deinit { updateListenerTask?.cancel() }
+    deinit {
+        updateListenerTask?.cancel()
+        messageListenerTask?.cancel()
+    }
 
     // MARK: - Connection Management
 
@@ -1322,6 +1326,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return subscription
     }
 
+    public func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
+        let subscription = Subscription(eventType: .subscriptionBillingIssue)
+        Task { await state.addSubscriptionBillingIssueListener((subscription.id, listener)) }
+        startMessageListener()
+        return subscription
+    }
+
     public func removeListener(_ subscription: Subscription) {
         Task { await state.removeListener(id: subscription.id, type: subscription.eventType) }
         Task { await MainActor.run { subscription.onRemove?() } }
@@ -1354,6 +1365,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private func cleanupExistingState() async {
         updateListenerTask?.cancel()
         updateListenerTask = nil
+        messageListenerTask?.cancel()
+        messageListenerTask = nil
         await state.reset()
         // iOS-only: Remove SKPaymentQueue observer for promoted in-app purchases
         // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
@@ -1500,6 +1513,116 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             await MainActor.run {
                 listeners.forEach { $0(sku) }
             }
+        }
+    }
+
+    private func emitSubscriptionBillingIssue(_ purchase: Purchase) {
+        Task { [state] in
+            let listeners = await state.snapshotSubscriptionBillingIssue()
+            await MainActor.run {
+                listeners.forEach { $0(purchase) }
+            }
+        }
+    }
+
+    /// Starts the StoreKit 2 Message listener for subscription-billing-issue events.
+    ///
+    /// The `.billingIssue` reason (what we care about) ships on iOS 18.0+ and Mac Catalyst
+    /// 18.0+, so this method only starts the `Message.messages` loop when that availability
+    /// holds. On macOS, tvOS, watchOS and visionOS the Message API is not available at all,
+    /// making this a silent no-op on those platforms.
+    ///
+    /// References:
+    /// - https://developer.apple.com/documentation/storekit/message
+    /// - https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue
+    private func startMessageListener() {
+        #if os(iOS) || targetEnvironment(macCatalyst)
+        if #available(iOS 18.0, macCatalyst 18.0, *) {
+            messageListenerTask?.cancel()
+            OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener (iOS 18+)")
+            messageListenerTask = Task { [weak self] in
+                guard let self else { return }
+                for await message in StoreKit.Message.messages {
+                    OpenIapLog.debug("🔔 [MessageListener] Received message: reason=\(message.reason)")
+                    guard await self.state.isInitialized else {
+                        OpenIapLog.debug("🔔 [MessageListener] Skipping — not initialized")
+                        continue
+                    }
+                    guard case .billingIssue = message.reason else {
+                        OpenIapLog.debug("🔔 [MessageListener] Skipping non-billingIssue message")
+                        continue
+                    }
+                    OpenIapLog.debug("🔔 [MessageListener] billingIssue received — dispatching")
+                    await self.dispatchBillingIssueMessage()
+                }
+            }
+        } else {
+            OpenIapLog.debug("🔔 [MessageListener] Skipped — iOS < 18.0")
+        }
+        #else
+        OpenIapLog.debug("🔔 [MessageListener] Skipped — not iOS/macCatalyst")
+        #endif
+    }
+
+    /// Resolves the affected subscription(s) from current entitlements and emits the event.
+    ///
+    /// `StoreKit.Message` doesn't carry a transaction reference, so we cross-reference
+    /// `Transaction.currentEntitlements` (auto-renewable only) and emit for every subscription
+    /// whose `Product.SubscriptionInfo.status` array contains an entry in `.inBillingRetryPeriod`
+    /// or `.inGracePeriod`. The status array is unordered across subscription-group members, so
+    /// we must iterate every element rather than inspect `.first`. Product lookups are batched
+    /// into a single `Product.products(for:)` call per message.
+    ///
+    /// Reference: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status(for:)
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    private func dispatchBillingIssueMessage() async {
+        var entitlements: [(Transaction, String)] = []
+        for await verification in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = verification,
+                  transaction.productType == .autoRenewable else { continue }
+            entitlements.append((transaction, verification.jwsRepresentation))
+        }
+        guard !entitlements.isEmpty else {
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no auto-renewable entitlements present")
+            return
+        }
+
+        let productIds = Array(Set(entitlements.map { $0.0.productID }))
+        let products: [StoreKit.Product]
+        do {
+            products = try await StoreKit.Product.products(for: productIds)
+        } catch {
+            OpenIapLog.debug("🔔 [MessageListener] Product.products(for:) failed: \(error.localizedDescription)")
+            return
+        }
+        let productBySku: [String: StoreKit.Product] = Dictionary(uniqueKeysWithValues: products.map { ($0.id, $0) })
+
+        var emitted = false
+        for (transaction, jws) in entitlements {
+            guard let subscription = productBySku[transaction.productID]?.subscription else { continue }
+            let statusArray: [StoreKit.Product.SubscriptionInfo.Status]
+            do {
+                statusArray = try await subscription.status
+            } catch {
+                continue
+            }
+            var hasBillingIssue = false
+            for status in statusArray {
+                if status.state == .inBillingRetryPeriod || status.state == .inGracePeriod {
+                    hasBillingIssue = true
+                    break
+                }
+            }
+            guard hasBillingIssue else { continue }
+            let purchase = await StoreKitTypesBridge.purchase(
+                from: transaction,
+                jwsRepresentation: jws
+            )
+            emitSubscriptionBillingIssue(purchase)
+            emitted = true
+        }
+        if !emitted {
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no subscription currently reports retry/grace state")
         }
     }
 

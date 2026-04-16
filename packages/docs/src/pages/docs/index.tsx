@@ -30,6 +30,7 @@ import SubscriptionUpgradeDowngrade from './features/subscription/upgrade-downgr
 import Discount from './features/discount';
 import OfferCodeRedemption from './features/offer-code-redemption';
 import ExternalPurchase from './features/external-purchase';
+import SubscriptionBillingIssue from './features/subscription-billing-issue';
 import AlternativeMarketplace from './features/alternative-marketplace/index';
 import AlternativeMarketplaceOnside from './features/alternative-marketplace/onside';
 import IOSSetup from './ios-setup';
@@ -272,6 +273,15 @@ function Docs() {
                 External Purchase
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/docs/features/subscription-billing-issue"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Subscription Billing Issue
+              </NavLink>
+            </li>
             <MenuDropdown
               title="Alternative Marketplace"
               titleTo="/docs/features/alternative-marketplace"
@@ -379,6 +389,10 @@ function Docs() {
           <Route
             path="features/external-purchase"
             element={<ExternalPurchase />}
+          />
+          <Route
+            path="features/subscription-billing-issue"
+            element={<SubscriptionBillingIssue />}
           />
           <Route
             path="features/alternative-marketplace"

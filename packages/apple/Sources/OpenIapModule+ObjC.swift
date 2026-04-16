@@ -773,6 +773,14 @@ import StoreKit
         return subscription as NSObject
     }
 
+    @objc func addSubscriptionBillingIssueListener(_ callback: @escaping (NSDictionary) -> Void) -> NSObject {
+        let subscription = subscriptionBillingIssueListener { purchase in
+            let dictionary = OpenIapSerialization.purchase(purchase)
+            callback(dictionary as NSDictionary)
+        }
+        return subscription as NSObject
+    }
+
     @objc func removeListener(_ subscription: NSObject) {
         if let sub = subscription as? Subscription {
             removeListener(sub)

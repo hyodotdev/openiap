@@ -462,6 +462,20 @@ function Home() {
                   <code>finishTransaction()</code>
                   <span>Complete purchase</span>
                 </Link>
+                <Link
+                  to="/docs/apis#get-available-purchases"
+                  className="spec-item"
+                >
+                  <code>getAvailablePurchases()</code>
+                  <span>Restore entitlements</span>
+                </Link>
+                <Link
+                  to="/docs/apis#get-active-subscriptions"
+                  className="spec-item"
+                >
+                  <code>getActiveSubscriptions()</code>
+                  <span>Query active subscriptions</span>
+                </Link>
               </div>
             </div>
 
@@ -485,6 +499,34 @@ function Home() {
                 >
                   <code>purchaseErrorListener</code>
                   <span>Error handling</span>
+                </Link>
+                <Link
+                  to="/docs/events#promoted-product-event-ios"
+                  className="spec-item"
+                >
+                  <code>promotedProductListenerIOS</code>
+                  <span>App Store promoted products</span>
+                </Link>
+                <Link
+                  to="/docs/events#user-choice-billing-event-android"
+                  className="spec-item"
+                >
+                  <code>userChoiceBillingListenerAndroid</code>
+                  <span>User Choice Billing selection</span>
+                </Link>
+                <Link
+                  to="/docs/events#developer-provided-billing-event-android"
+                  className="spec-item"
+                >
+                  <code>developerProvidedBillingListener</code>
+                  <span>External billing choice</span>
+                </Link>
+                <Link
+                  to="/docs/events#subscription-billing-issue-event"
+                  className="spec-item"
+                >
+                  <code>subscriptionBillingIssueListener</code>
+                  <span>Suspended / retry subscriptions</span>
                 </Link>
               </div>
             </div>
@@ -511,6 +553,20 @@ function Home() {
                 <Link to="/docs/types#subscriptionperiod" className="spec-item">
                   <code>SubscriptionPeriod</code>
                   <span>Billing cycles</span>
+                </Link>
+                <Link
+                  to="/docs/types#product-subscription"
+                  className="spec-item"
+                >
+                  <code>ProductSubscription</code>
+                  <span>Subscription product shape</span>
+                </Link>
+                <Link
+                  to="/docs/types#active-subscription"
+                  className="spec-item"
+                >
+                  <code>ActiveSubscription</code>
+                  <span>Entitlement status payload</span>
                 </Link>
               </div>
             </div>

@@ -21,7 +21,8 @@ public final class ExpoIapModule: Module {
         Events(
             OpenIapEvent.purchaseUpdated.rawValue,
             OpenIapEvent.purchaseError.rawValue,
-            OpenIapEvent.promotedProductIos.rawValue
+            OpenIapEvent.promotedProductIos.rawValue,
+            OpenIapEvent.subscriptionBillingIssue.rawValue
         )
 
         OnCreate {

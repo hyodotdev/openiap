@@ -16,6 +16,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     private var purchaseUpdatedToken: OpenIAP.Subscription?
     private var purchaseErrorToken: OpenIAP.Subscription?
     private var promotedProductToken: OpenIAP.Subscription?
+    private var subscriptionBillingIssueToken: OpenIAP.Subscription?
     // No local StoreKit caches; OpenIAP handles state internally
     private var processedTransactionIds: Set<String> = []
     
@@ -357,15 +358,28 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 self.channel?.invokeMethod("iap-promoted-product", arguments: productId)
             }
         }
+
+        subscriptionBillingIssueToken = OpenIapModule.shared.subscriptionBillingIssueListener { [weak self] purchase in
+            Task { @MainActor in
+                guard let self else { return }
+                FlutterIapLog.debug("subscriptionBillingIssueListener fired for \(purchase.productId)")
+                let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(purchase))
+                if let jsonString = FlutterIapHelper.jsonString(from: payload) {
+                    self.channel?.invokeMethod("subscription-billing-issue", arguments: jsonString)
+                }
+            }
+        }
     }
-    
+
     private func removeOpenIapListeners() {
         if let token = purchaseUpdatedToken { OpenIapModule.shared.removeListener(token) }
         if let token = purchaseErrorToken { OpenIapModule.shared.removeListener(token) }
         if let token = promotedProductToken { OpenIapModule.shared.removeListener(token) }
+        if let token = subscriptionBillingIssueToken { OpenIapModule.shared.removeListener(token) }
         purchaseUpdatedToken = nil
         purchaseErrorToken = nil
         promotedProductToken = nil
+        subscriptionBillingIssueToken = nil
     }
     
     // All transaction event handling is routed via OpenIapModule listeners

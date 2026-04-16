@@ -45,10 +45,12 @@ import dev.hyo.openiap.QueryHasActiveSubscriptionsHandler
 import dev.hyo.openiap.RequestPurchaseResultPurchases
 import dev.hyo.openiap.SubscriptionPurchaseErrorHandler
 import dev.hyo.openiap.SubscriptionPurchaseUpdatedHandler
+import dev.hyo.openiap.SubscriptionSubscriptionBillingIssueHandler
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.helpers.AndroidPurchaseArgs
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
+import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryPurchases
 import dev.hyo.openiap.helpers.restorePurchases as restorePurchasesHelper
@@ -110,6 +112,14 @@ class OpenIapModule(
     private val purchaseErrorListeners = mutableSetOf<OpenIapPurchaseErrorListener>()
     private val userChoiceBillingListeners = mutableSetOf<OpenIapUserChoiceBillingListener>()
     private val developerProvidedBillingListeners = mutableSetOf<OpenIapDeveloperProvidedBillingListener>()
+    // Thread-safe: listeners can be added/removed on the main thread while
+    // notifySuspendedSubscriptions iterates from Dispatchers.IO.
+    private val subscriptionBillingIssueListeners =
+        java.util.concurrent.CopyOnWriteArraySet<dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener>()
+    // Dedup tokens across the session. ConcurrentHashMap.newKeySet() gives us an atomic
+    // add() that returns false when the token was already present.
+    private val emittedBillingIssueTokens =
+        java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val currentPurchaseCallback = AtomicReference<((Result<List<Purchase>>) -> Unit)?>(null)
 
     /**
@@ -171,6 +181,11 @@ class OpenIapModule(
                 billingClient?.endConnection()
                 productManager.clear()
                 billingClient = null
+                // Reset subscription-billing-issue dedupe state so a fresh
+                // initConnection() can re-emit for previously-seen tokens.
+                // Only clear the dedupe set — listeners persist across reconnects,
+                // consistent with purchaseUpdateListeners/purchaseErrorListeners.
+                emittedBillingIssueTokens.clear()
             }.fold(onSuccess = { true }, onFailure = { false })
         }
     }
@@ -239,7 +254,16 @@ class OpenIapModule(
     override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
         withContext(Dispatchers.IO) {
             val includeSuspended = options?.includeSuspendedAndroid == true
-            restorePurchasesHelper(billingClient, includeSuspended)
+            // Always query suspended subs so the billing-issue notifier sees them even when the
+            // caller asked to hide suspended from the returned list. See:
+            // https://developer.android.com/google/play/billing/subscriptions#suspended
+            val purchases = restorePurchasesHelper(billingClient, includeSuspended = true)
+            notifySuspendedSubscriptions(purchases)
+            if (includeSuspended) {
+                purchases
+            } else {
+                purchases.filterNot { (it as? PurchaseAndroid)?.isSuspendedAndroid == true }
+            }
         }
     }
 
@@ -1232,6 +1256,10 @@ class OpenIapModule(
         onPurchaseUpdated(this::addPurchaseUpdateListener, this::removePurchaseUpdateListener)
     }
 
+    private val subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler = {
+        onSubscriptionBillingIssue(this::addSubscriptionBillingIssueListener, this::removeSubscriptionBillingIssueListener)
+    }
+
     override val queryHandlers: QueryHandlers = QueryHandlers(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
@@ -1257,7 +1285,8 @@ class OpenIapModule(
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(
         purchaseError = purchaseError,
-        purchaseUpdated = purchaseUpdated
+        purchaseUpdated = purchaseUpdated,
+        subscriptionBillingIssue = subscriptionBillingIssue
     )
 
     // BillingClient is built lazily in initBillingClient() so that
@@ -1316,6 +1345,40 @@ class OpenIapModule(
         developerProvidedBillingListeners.remove(listener)
     }
 
+    override fun addSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
+        subscriptionBillingIssueListeners.add(listener)
+    }
+
+    override fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
+        subscriptionBillingIssueListeners.remove(listener)
+    }
+
+    /**
+     * Inspects the given purchases and fires `subscriptionBillingIssue` once per purchaseToken
+     * whose `isSuspendedAndroid == true`. Dedupes across queries within the current session
+     * via [emittedBillingIssueTokens]; re-emits only if a token clears and re-enters suspension
+     * in a later session / new module instance.
+     */
+    private fun notifySuspendedSubscriptions(purchases: List<Purchase>) {
+        if (subscriptionBillingIssueListeners.isEmpty()) return
+        for (purchase in purchases) {
+            val android = purchase as? PurchaseAndroid ?: continue
+            if (android.isSuspendedAndroid != true) continue
+            val token = android.purchaseToken ?: continue
+            // ConcurrentHashMap.newKeySet().add returns false if the token is already present,
+            // giving us atomic test-and-register per session.
+            if (!emittedBillingIssueTokens.add(token)) continue
+            // CopyOnWriteArraySet is safe to iterate concurrently with add/remove.
+            for (listener in subscriptionBillingIssueListeners) {
+                try {
+                    listener.onSubscriptionBillingIssue(android)
+                } catch (t: Throwable) {
+                    OpenIapLog.e("subscriptionBillingIssue listener threw", t, TAG)
+                }
+            }
+        }
+    }
+
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<BillingPurchase>?) {
         OpenIapLog.d("onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} count=${purchases?.size ?: 0}", TAG)
         if (purchases != null) {
@@ -1359,6 +1422,7 @@ class OpenIapModule(
                     purchase.toPurchase(productType, basePlanId)
                 }
                 OpenIapLog.d("Mapped purchases=${gson.toJson(mapped)}", TAG)
+                notifySuspendedSubscriptions(mapped)
                 for (converted in mapped) {
                     for (listener in purchaseUpdateListeners) {
                         runCatching { listener.onPurchaseUpdated(converted) }

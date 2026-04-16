@@ -129,7 +129,8 @@ enum ExpoIapHelper {
         module: ExpoIapModule,
         purchaseUpdated: @escaping (Purchase) -> Void,
         purchaseError: @escaping (PurchaseError) -> Void,
-        promotedProduct: @escaping (String) async -> Void
+        promotedProduct: @escaping (String) async -> Void,
+        subscriptionBillingIssue: @escaping (Purchase) -> Void
     ) {
         // Clean up any existing listeners first
         cleanupListeners()
@@ -152,7 +153,13 @@ enum ExpoIapHelper {
             }
         }
 
-        listeners = [purchaseUpdatedSub, purchaseErrorSub, promotedProductSub]
+        let billingIssueSub = OpenIapModule.shared.subscriptionBillingIssueListener { purchase in
+            Task { @MainActor in
+                subscriptionBillingIssue(purchase)
+            }
+        }
+
+        listeners = [purchaseUpdatedSub, purchaseErrorSub, promotedProductSub, billingIssueSub]
     }
 
     static func cleanupListeners() {
@@ -190,6 +197,11 @@ enum ExpoIapHelper {
                     OpenIapEvent.promotedProductIos.rawValue,
                     ["productId": productId]
                 )
+            },
+            subscriptionBillingIssue: { [weak module] purchase in
+                guard let module else { return }
+                let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
+                module.sendEvent(OpenIapEvent.subscriptionBillingIssue.rawValue, payload)
             }
         )
     }

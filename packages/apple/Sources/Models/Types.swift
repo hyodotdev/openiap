@@ -264,6 +264,11 @@ public enum IapEvent: String, Codable, CaseIterable {
     /// Fired when user selects developer-provided billing option in external payments flow.
     /// Available on Android with Google Play Billing Library 8.3.0+
     case developerProvidedBillingAndroid = "developer-provided-billing-android"
+    /// Fired when an active subscription enters a billing-issue state that requires user attention.
+    /// Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and
+    /// Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing
+    /// Compatibility SDK implements only the Play Billing 7.0 API surface.
+    case subscriptionBillingIssue = "subscription-billing-issue"
 }
 
 /// Unified purchase states from IAPKit verification response.
@@ -2435,6 +2440,18 @@ public protocol SubscriptionResolver {
     func purchaseError() async throws -> PurchaseError
     /// Fires when a purchase completes successfully or a pending purchase resolves
     func purchaseUpdated() async throws -> Purchase
+    /// Fires when an active subscription enters a billing-issue state that needs user action
+    /// (payment method failed, card expired, etc.). Cross-platform unification:
+    /// 
+    /// - iOS 18+: delivered via StoreKit 2 `Message.Reason.billingIssue`.
+    /// - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
+    ///   on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.
+    /// - Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements
+    ///   the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
+    /// 
+    /// Listeners should not assume the event will fire on every store. Direct users to the
+    /// platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.
+    func subscriptionBillingIssue() async throws -> Purchase
     /// Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
     /// Only triggered when the user selects alternative billing instead of Google Play billing
     func userChoiceBillingAndroid() async throws -> UserChoiceBillingDetails
@@ -2652,6 +2669,7 @@ public typealias SubscriptionDeveloperProvidedBillingAndroidHandler = () async t
 public typealias SubscriptionPromotedProductIOSHandler = () async throws -> String
 public typealias SubscriptionPurchaseErrorHandler = () async throws -> PurchaseError
 public typealias SubscriptionPurchaseUpdatedHandler = () async throws -> Purchase
+public typealias SubscriptionSubscriptionBillingIssueHandler = () async throws -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = () async throws -> UserChoiceBillingDetails
 
 public struct SubscriptionHandlers {
@@ -2659,6 +2677,7 @@ public struct SubscriptionHandlers {
     public var promotedProductIOS: SubscriptionPromotedProductIOSHandler?
     public var purchaseError: SubscriptionPurchaseErrorHandler?
     public var purchaseUpdated: SubscriptionPurchaseUpdatedHandler?
+    public var subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler?
     public var userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler?
 
     public init(
@@ -2666,12 +2685,14 @@ public struct SubscriptionHandlers {
         promotedProductIOS: SubscriptionPromotedProductIOSHandler? = nil,
         purchaseError: SubscriptionPurchaseErrorHandler? = nil,
         purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = nil,
+        subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler? = nil,
         userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = nil
     ) {
         self.developerProvidedBillingAndroid = developerProvidedBillingAndroid
         self.promotedProductIOS = promotedProductIOS
         self.purchaseError = purchaseError
         self.purchaseUpdated = purchaseUpdated
+        self.subscriptionBillingIssue = subscriptionBillingIssue
         self.userChoiceBillingAndroid = userChoiceBillingAndroid
     }
 }

@@ -117,6 +117,23 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
      */
     val promotedProductListener: Flow<String?>
 
+    /**
+     * Listener for subscription billing-issue events (cross-platform).
+     *
+     * Emits once per affected purchase when:
+     * - iOS 18+: StoreKit delivers `Message.Reason.billingIssue` for a subscription
+     *   whose RenewalState is `.inBillingRetryPeriod` or `.inGracePeriod`.
+     * - Android (Play Billing 8.1+): `getAvailablePurchases` encounters a purchase
+     *   with `isSuspendedAndroid == true` (deduped by purchase token).
+     *
+     * NOT emitted on the Horizon flavor — the Horizon Billing Compatibility SDK
+     * targets Play Billing 7.0 and does not expose a suspended-subscription signal.
+     *
+     * Recommended UX: on emission, direct the user to `deepLinkToSubscriptions`
+     * so they can update their payment method in the platform subscription center.
+     */
+    val subscriptionBillingIssueListener: Flow<Purchase>
+
 
     // ===== Connection Management =====
     

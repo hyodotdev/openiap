@@ -29,6 +29,9 @@ public typealias PurchaseErrorListener = @Sendable (PurchaseError) -> Void
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 public typealias PromotedProductListener = @Sendable (String) -> Void
 
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+public typealias SubscriptionBillingIssueListener = @Sendable (Purchase) -> Void
+
 // MARK: - Protocol
 // SeeAlso: https://developer.apple.com/documentation/storekit/in-app_purchase
 
@@ -91,6 +94,10 @@ public protocol OpenIapModuleProtocol {
     func purchaseUpdatedListener(_ listener: @escaping PurchaseUpdatedListener) -> Subscription
     func purchaseErrorListener(_ listener: @escaping PurchaseErrorListener) -> Subscription
     func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription
+    /// Listener for subscription billing-issue events (iOS 18+).
+    /// Fires when StoreKit delivers a `Message.Reason.billingIssue` for a currently
+    /// active auto-renewable subscription. On iOS 17 and earlier this is a no-op.
+    func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription
     func removeListener(_ subscription: Subscription)
     func removeAllListeners()
 }

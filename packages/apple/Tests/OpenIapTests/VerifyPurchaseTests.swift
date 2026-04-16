@@ -150,6 +150,10 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
         Subscription(eventType: .promotedProductIos)
     }
 
+    func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
+        Subscription(eventType: .subscriptionBillingIssue)
+    }
+
     func removeListener(_ subscription: Subscription) {
         subscription.onRemove?()
     }

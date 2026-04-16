@@ -8,6 +8,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import platform.Foundation.*
 import cocoapods.openiap.*
 import platform.darwin.NSObject
@@ -42,6 +43,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     )
     override val promotedProductListener: Flow<String?> = _promotedProductFlow.asSharedFlow()
 
+    // StoreKit 2 Message.billingIssue bridge (iOS 18+).
+    // Reference: https://developer.apple.com/documentation/storekit/message/reason/4123328-billingissue
+    // Backed by openIapModule.addSubscriptionBillingIssueListener, set up in setupListeners()
+    // and removed in endConnection().
+    private val _subscriptionBillingIssueFlow = MutableSharedFlow<Purchase>(
+        replay = 0,
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    override val subscriptionBillingIssueListener: Flow<Purchase> = _subscriptionBillingIssueFlow.asSharedFlow()
+
     private var isConnected = false
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -49,6 +61,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private var purchaseSubscription: NSObject? = null
     private var errorSubscription: NSObject? = null
     private var promotedProductSubscription: NSObject? = null
+    private var subscriptionBillingIssueSubscription: NSObject? = null
 
     init {
         // Register listeners
@@ -56,6 +69,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     private fun setupListeners() {
+        // Idempotent: early-return if listeners already attached (e.g. init{} ran on
+        // construction and initConnection() tries to re-register).
+        if (purchaseSubscription != null) return
+
         // Purchase updated listener
         purchaseSubscription = openIapModule.addPurchaseUpdatedListener { dictionary ->
             println("[KMP-IAP iOS] Purchase updated received: $dictionary")
@@ -90,6 +107,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 _promotedProductFlow.emit(sku)
             }
         }
+
+        // Subscription billing-issue listener (iOS 18+ Message.billingIssue via OpenIapModule)
+        subscriptionBillingIssueSubscription = openIapModule.addSubscriptionBillingIssueListener { dictionary ->
+            println("[KMP-IAP iOS] subscriptionBillingIssue received: $dictionary")
+            val purchase = convertAnyToPurchase(dictionary)
+            if (purchase != null) {
+                coroutineScope.launch {
+                    _subscriptionBillingIssueFlow.emit(purchase)
+                }
+            }
+        }
     }
 
     override fun getVersion(): String = "KMP-IAP v1.0.0-rc.2 (iOS)"
@@ -112,16 +140,28 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 continuation.resumeWithException(Exception(error.localizedDescription))
             } else {
                 isConnected = success
+                // Re-register listeners after endConnection()/initConnection() cycles.
+                // init{} runs only on first construction; without this, flows stop
+                // emitting after a disconnect + reconnect.
+                if (success) {
+                    setupListeners()
+                }
                 continuation.resume(success)
             }
         }
     }
 
     override suspend fun endConnection(): Boolean = suspendCoroutine { continuation ->
-        // Remove all listeners
+        // Remove all listeners and null the subscription tokens so initConnection()
+        // can freshly re-register without orphaning the previous subscriptions.
         purchaseSubscription?.let { openIapModule.removeListener(it) }
+        purchaseSubscription = null
         errorSubscription?.let { openIapModule.removeListener(it) }
+        errorSubscription = null
         promotedProductSubscription?.let { openIapModule.removeListener(it) }
+        promotedProductSubscription = null
+        subscriptionBillingIssueSubscription?.let { openIapModule.removeListener(it) }
+        subscriptionBillingIssueSubscription = null
 
         openIapModule.endConnectionWithCompletion { success, error ->
             if (error != null) {
@@ -723,6 +763,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun promotedProductIOS(): String {
         throw UnsupportedOperationException("Use promotedProductListener Flow instead")
     }
+
+    // Cross-platform billing-issue handler — iOS impl backed by StoreKit.Message listener
+    // via openIapModule.addSubscriptionBillingIssueListener. Consumers should collect
+    // `subscriptionBillingIssueListener` (Flow) rather than invoking this directly.
+    // Reference (OpenIAP): https://openiap.dev/docs/events#subscription-billing-issue
+    override suspend fun subscriptionBillingIssue(): Purchase = subscriptionBillingIssueListener.first()
 
     // -------------------------------------------------------------------------
     // Conversion Helpers

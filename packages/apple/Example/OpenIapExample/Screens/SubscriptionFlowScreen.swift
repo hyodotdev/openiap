@@ -16,6 +16,10 @@ struct SubscriptionFlowScreen: View {
     @State private var isVerifying = false
     @State private var verificationResultMessage: String?
     @State private var processedPurchaseKey: String?
+    // Cross-platform subscriptionBillingIssue event (iOS 18+ StoreKit.Message.billingIssue).
+    // See: https://openiap.dev/docs/features/subscription-billing-issue
+    @State private var billingIssuePurchase: OpenIapPurchase?
+    @State private var billingIssueListenerToken: OpenIAP.Subscription?
 
     // IAPKit API Key from environment (set in scheme or Info.plist)
     private var iapkitApiKey: String? {
@@ -65,6 +69,10 @@ struct SubscriptionFlowScreen: View {
                 .padding(.horizontal)
 
                 VerificationMethodCard()
+
+                if let issuePurchase = billingIssuePurchase {
+                    billingIssueBanner(for: issuePurchase)
+                }
 
                 if isInitialLoading {
                     LoadingCard(text: "Loading subscriptions...")
@@ -226,7 +234,21 @@ struct SubscriptionFlowScreen: View {
                 self.handlePurchaseError(error)
             }
         }
-        
+
+        // Cross-platform subscriptionBillingIssue event
+        // Delivered via StoreKit.Message.billingIssue on iOS 18+ / Mac Catalyst 18+.
+        // Silent no-op on iOS 17 and earlier, and on macOS/tvOS/watchOS/visionOS.
+        if let existing = billingIssueListenerToken {
+            OpenIapModule.shared.removeListener(existing)
+            billingIssueListenerToken = nil
+        }
+        billingIssueListenerToken = OpenIapModule.shared.subscriptionBillingIssueListener { purchase in
+            guard let iosPurchase = purchase.asIOS() else { return }
+            Task { @MainActor in
+                self.billingIssuePurchase = iosPurchase
+            }
+        }
+
         Task {
             do {
                 try await iapStore.initConnection()
@@ -246,6 +268,11 @@ struct SubscriptionFlowScreen: View {
     
     private func teardownConnection() {
         print("🔷 [SubscriptionFlow] Tearing down connection...")
+        if let token = billingIssueListenerToken {
+            OpenIapModule.shared.removeListener(token)
+            billingIssueListenerToken = nil
+        }
+        billingIssuePurchase = nil
         Task {
             try await iapStore.endConnection()
             print("✅ [SubscriptionFlow] Connection ended")
@@ -795,6 +822,62 @@ struct SubscriptionFlowScreen: View {
 @available(iOS 15.0, *)
 @MainActor
 private extension SubscriptionFlowScreen {
+    /// UI banner for the cross-platform subscriptionBillingIssue event.
+    /// Fires on iOS 18+ when StoreKit delivers Message.Reason.billingIssue.
+    @ViewBuilder
+    func billingIssueBanner(for purchase: OpenIapPurchase) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.title3)
+                Text("Subscription needs attention")
+                    .font(.headline)
+                Spacer()
+            }
+            Text("Payment on \(purchase.productId) failed or is in retry. Update your payment method in the subscription center to keep access.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                Button {
+                    Task {
+                        do {
+                            try await OpenIapModule.shared.deepLinkToSubscriptions(nil)
+                        } catch {
+                            print("⚠️ deepLinkToSubscriptions failed: \(error)")
+                        }
+                    }
+                } label: {
+                    Label("Fix payment method", systemImage: "creditcard")
+                        .font(.subheadline.bold())
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.2))
+                        .foregroundColor(.orange)
+                        .cornerRadius(8)
+                }
+                Button {
+                    billingIssuePurchase = nil
+                } label: {
+                    Text("Dismiss")
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.orange.opacity(0.4), lineWidth: 1)
+        )
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+
     var subscriptionProductIds: [String] {
         var orderedIds: [String] = []
         func appendIfNeeded(_ id: String) {

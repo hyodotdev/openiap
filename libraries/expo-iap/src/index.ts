@@ -59,6 +59,12 @@ export enum OpenIapEvent {
    * Only available in Japan. Contains externalTransactionToken for reporting.
    */
   DeveloperProvidedBillingAndroid = 'developer-provided-billing-android',
+  /**
+   * Fired when an active subscription enters a billing-issue state (cross-platform).
+   * Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS 18+) and Play Billing 8.1+
+   * `Purchase.isSuspended`. NOT fired on the Meta Horizon flavor.
+   */
+  SubscriptionBillingIssue = 'subscription-billing-issue',
 }
 
 type ExpoIapEventPayloads = {
@@ -67,6 +73,7 @@ type ExpoIapEventPayloads = {
   [OpenIapEvent.PromotedProductIOS]: Product;
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
+  [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
 };
 
 type ExpoIapEventListener<E extends OpenIapEvent> = (
@@ -284,6 +291,43 @@ export const developerProvidedBillingListenerAndroid = (
   return emitter.addListener(
     OpenIapEvent.DeveloperProvidedBillingAndroid,
     listener,
+  );
+};
+
+/**
+ * Listen for subscription billing-issue events (cross-platform).
+ *
+ * Fires when a user's active subscription enters a state that needs attention
+ * for a payment problem. Unifies:
+ * - iOS 18+ / Mac Catalyst 18+: StoreKit 2 `Message.Reason.billingIssue`.
+ * - Android (Play Billing 8.1+): when `Purchase.isSuspendedAndroid === true`.
+ * - Meta Horizon / iOS 17 / older platforms: never fires.
+ *
+ * Recommended UX: call `deepLinkToSubscriptions()` when this fires so the user
+ * can update their payment method in the platform subscription center.
+ *
+ * @example
+ * ```typescript
+ * const subscription = subscriptionBillingIssueListener((purchase) => {
+ *   console.warn('Needs attention:', purchase.productId);
+ *   deepLinkToSubscriptions({
+ *     skuAndroid: purchase.productId,
+ *     packageNameAndroid: 'com.example.app',
+ *   });
+ * });
+ * ```
+ */
+export const subscriptionBillingIssueListener = (
+  listener: (purchase: Purchase) => void,
+) => {
+  // Mirror purchaseUpdatedListener's platform normalization so consumers get
+  // a consistent payload regardless of native casing.
+  const wrappedListener = (event: Purchase) => {
+    listener(normalizePurchasePlatform(event));
+  };
+  return emitter.addListener(
+    OpenIapEvent.SubscriptionBillingIssue,
+    wrappedListener,
   );
 };
 

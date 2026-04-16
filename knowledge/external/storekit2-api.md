@@ -7,24 +7,27 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | Feature | iOS Version | Description |
 |---------|-------------|-------------|
 | Win-back offers | iOS 18.0 | Re-engage churned subscribers |
-| Consumable transaction history | iOS 18.0 | History includes finished consumables |
-| Billing issue messages | iOS 18.0 | Automatic billing issue notifications via StoreKit Message |
+| `eligibleWinBackOfferIDs` | iOS 18.0 | Query win-back offer eligibility before purchase |
+| Consumable transaction history | iOS 18.0 | Opt-in via `SK2ConsumableTransactionHistory` Info.plist key |
+| StoreKit `Message` API | iOS 18.0 | Listener for billing issues, win-back, price increase, generic |
 | UI context for purchases | iOS 18.2 | Required for proper payment sheet display |
-| External purchase notice | iOS 18.2 | `presentExternalPurchaseNoticeSheetIOS` |
+| External purchase notice | iOS 17.4 | `ExternalPurchase.presentNoticeSheet()` |
 | `appTransactionID` | iOS 18.4 | Globally unique app transaction identifier (back-deployed to iOS 15) |
 | `originalPlatform` | iOS 18.4 | Original purchase platform (back-deployed to iOS 15) |
-| `Offer.Period` | iOS 18.4 | Offer period information |
-| `advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data |
-| Expanded offer codes | iOS 18.4 | For consumables/non-consumables |
+| `Transaction.offerPeriod` | iOS 18.4 | Offer period information on Transaction |
+| `Transaction.advancedCommerceInfo` | iOS 18.4 | Advanced Commerce API data on Transaction |
+| `Transaction.appTransactionID` | iOS 18.4 | Per-Apple-Account identifier on Transaction |
+| Expanded offer codes | iOS 18.4 | Offer codes for consumables/non-consumables |
 | JWS promotional offers | WWDC 2025 | New `promotionalOffer` purchase option with JWS format |
 | `introductoryOfferEligibility` | WWDC 2025 | Set eligibility via purchase option |
+| `SubscriptionStatus` by Transaction ID | WWDC 2025 | `status(for: transactionID:)` |
 
 ### WWDC 2025 Updates
 
-- **SubscriptionStatus by Transaction ID**: Query subscription status using any transaction ID
-- **JWS-based promotional offers**: New `promotionalOffer` purchase option with compact JWS string
-- **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option
-- Both new purchase options are back-deployed to iOS 15
+- **SubscriptionStatus by Transaction ID**: `SubscriptionInfo.Status.status(for: transactionID:)` accepts any transaction ID, not just SKU.
+- **JWS-based promotional offers**: New `promotionalOffer` purchase option with compact JWS string.
+- **Introductory offer eligibility**: Override eligibility check with `introductoryOfferEligibility` purchase option.
+- Both new purchase options are back-deployed to iOS 15.
 
 ## appAccountToken
 
@@ -218,11 +221,16 @@ let result = try await product.purchase(options: [
 
 ### Checking Eligibility
 
+Discover eligible win-back offers before purchase via `Product.SubscriptionInfo.eligibleWinBackOfferIDs` (iOS 18+):
+
 ```swift
-// Win-back offers are available in subscription.promotionalOffers
-// with type == .winBack
-let winBackOffers = product.subscription?.promotionalOffers.filter {
-    $0.type == .winBack
+let status = try await product.subscription?.status.first
+guard let renewalInfo = try status?.renewalInfo.payloadValue else { return }
+
+// iOS 18+: offer IDs the current Apple Account is eligible for
+let eligibleIDs = renewalInfo.eligibleWinBackOfferIDs
+let eligibleOffers = (product.subscription?.promotionalOffers ?? []).filter {
+    $0.type == .winBack && eligibleIDs.contains($0.id ?? "")
 }
 ```
 
@@ -272,6 +280,25 @@ let originalPlatform = appTransaction.originalPlatform   // Original purchase pl
 - Works with Family Sharing (each family member gets unique ID)
 - Back-deployed to iOS 15
 
+## Transaction Updates (iOS 18.4+)
+
+iOS 18.4 added three new read-only properties to `Transaction` (not just `AppTransaction`):
+
+```swift
+let transaction: Transaction
+
+// iOS 18.4+ — all back-deployed to iOS 15
+let txAppTransactionID = transaction.appTransactionID        // Apple Account identifier
+let offerPeriod = transaction.offerPeriod                    // Offer.Period?
+let advancedCommerce = transaction.advancedCommerceInfo      // AdvancedCommerceInfo?
+```
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `appTransactionID` | String | Mirrors AppTransaction's identifier |
+| `offerPeriod` | Offer.Period? | Phase of the promotional/intro offer |
+| `advancedCommerceInfo` | AdvancedCommerceInfo? | Present for Advanced Commerce SKUs only |
+
 ## Advanced Commerce API (iOS 18.4+)
 
 For apps with large product catalogs:
@@ -283,7 +310,61 @@ if let advancedInfo = product.advancedCommerceInfo {
 }
 ```
 
-## External Purchase Support (iOS 18.2+)
+## StoreKit Message API (iOS 18+)
+
+Listen for App Store–generated messages (billing issues, win-back offers, price increases, generic).
+
+```swift
+// Somewhere near app launch
+Task {
+    for await message in Message.messages {
+        switch message.reason {
+        case .billingIssue:
+            // Show UI when user is ready; display from message.display(in:)
+            break
+        case .winBackOffer:
+            break
+        case .priceIncrease:
+            break
+        case .generic:
+            break
+        @unknown default:
+            break
+        }
+    }
+}
+```
+
+| Reason | Trigger |
+|--------|---------|
+| `.billingIssue` | User has an unresolved billing problem on a subscription |
+| `.priceIncrease` | Price change that requires user consent |
+| `.winBackOffer` | User is eligible for a win-back offer |
+| `.generic` | All other system-initiated messages |
+
+> **OpenIAP Note**: To be surfaced by the cross-platform event layer — see `event.graphql` additions for message events.
+
+## SubscriptionStatus by Transaction ID (WWDC 2025)
+
+```swift
+// WWDC 2025: look up status using any transactionID, not just a SKU
+let status = try await Product.SubscriptionInfo.Status.status(for: transactionID)
+```
+
+## Consumable Transaction History (iOS 18+)
+
+By default, `Transaction.all` omits finished consumables. Opt in by adding this key to **Info.plist**:
+
+```xml
+<key>SK2ConsumableTransactionHistory</key>
+<true/>
+```
+
+With the key set, finished consumable transactions are included in `Transaction.all` and `Transaction.currentEntitlements`.
+
+## External Purchase Support (iOS 17.4+)
+
+`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchase.open(url:)` ship on iOS 17.4+. The follow-on custom-link APIs (`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`, `token(for:)`) are iOS 18.1+.
 
 ### Present External Purchase Notice
 

@@ -141,6 +141,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private val _developerProvidedBillingListener = MutableSharedFlow<DeveloperProvidedBillingDetailsAndroid>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val developerProvidedBillingListener: Flow<DeveloperProvidedBillingDetailsAndroid> = _developerProvidedBillingListener.asSharedFlow()
 
+    private val _subscriptionBillingIssueListener = MutableSharedFlow<Purchase>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val subscriptionBillingIssueListener: Flow<Purchase> = _subscriptionBillingIssueListener.asSharedFlow()
+
     private fun failWith(error: PurchaseError): Nothing =
         emitFailureAndThrow(_purchaseErrorListener, error)
 
@@ -258,6 +261,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 activityCallbacksDisposer = null
                 _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
                 clearProductCache(cachedProductDetails)
+                emittedBillingIssueTokens.clear()
                 true
             }.getOrElse { false }
         }
@@ -564,6 +568,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     override suspend fun purchaseUpdated(): Purchase = purchaseUpdatedListener.first()
 
+    override suspend fun subscriptionBillingIssue(): Purchase = subscriptionBillingIssueListener.first()
+
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
         finishTransactionHandler(purchase, isConsumable)
     }
@@ -692,8 +698,32 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
             val all = mutableListOf<Purchase>()
             all += query(BillingClient.ProductType.INAPP, includeSuspendedSubs = false)
-            all += query(BillingClient.ProductType.SUBS, includeSuspendedSubs = includeSuspended)
+            // Always query with suspended=true so the billing-issue notifier can see
+            // them, then filter the returned list based on the caller's preference.
+            val subs = query(BillingClient.ProductType.SUBS, includeSuspendedSubs = true)
+            notifySuspendedSubscriptions(subs)
+            if (includeSuspended) {
+                all += subs
+            } else {
+                all += subs.filterNot { (it as? PurchaseAndroid)?.isSuspendedAndroid == true }
+            }
             all
+        }
+    }
+
+    // Tracks purchase tokens already emitted as billing-issue events so we don't re-fire
+    // on every getAvailablePurchases call. ConcurrentHashMap.newKeySet() keeps add()
+    // atomic under the Dispatchers.IO context used by getAvailablePurchasesHandler.
+    private val emittedBillingIssueTokens: MutableSet<String> =
+        java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    private fun notifySuspendedSubscriptions(purchases: List<Purchase>) {
+        for (purchase in purchases) {
+            val android = purchase as? PurchaseAndroid ?: continue
+            if (android.isSuspendedAndroid != true) continue
+            val token = android.purchaseToken ?: continue
+            if (!emittedBillingIssueTokens.add(token)) continue
+            _subscriptionBillingIssueListener.tryEmit(android)
         }
     }
 
@@ -765,7 +795,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     val subscriptionHandlers: SubscriptionHandlers by lazy {
         SubscriptionHandlers(
             purchaseUpdated = { purchaseUpdatedListener.first() },
-            purchaseError = { purchaseErrorListener.first() }
+            purchaseError = { purchaseErrorListener.first() },
+            subscriptionBillingIssue = { subscriptionBillingIssueListener.first() }
         )
     }
 

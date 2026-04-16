@@ -736,6 +736,13 @@ class OpenIapModule(
         onPurchaseUpdated(this::addPurchaseUpdateListener, this::removePurchaseUpdateListener)
     }
 
+    private val subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler = {
+        // Horizon Billing Compatibility SDK lacks a suspended-subscription signal
+        // (see OpenIapSubscriptionBillingIssueListener docs), so report it as unsupported
+        // rather than suspending forever.
+        throw OpenIapError.FeatureNotSupported()
+    }
+
     override val queryHandlers: QueryHandlers = QueryHandlers(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
@@ -761,7 +768,8 @@ class OpenIapModule(
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(
         purchaseError = purchaseError,
-        purchaseUpdated = purchaseUpdated
+        purchaseUpdated = purchaseUpdated,
+        subscriptionBillingIssue = subscriptionBillingIssue
     )
 
     suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
@@ -1084,6 +1092,18 @@ class OpenIapModule(
     override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
         // No-op: External Payments is a Google Play 8.3.0+ feature, not supported on Meta Horizon
         Log.w(TAG, "removeDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)")
+    }
+
+    override fun addSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
+        // No-op: Suspended-subscription detection (Purchase.isSuspended) requires Google Play
+        // Billing Library 8.1+. The Meta Horizon Billing Compatibility SDK targets Play Billing 7.0
+        // and does not expose this signal.
+        Log.w(TAG, "addSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op); requires Play Billing 8.1+")
+    }
+
+    override fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
+        // No-op: see addSubscriptionBillingIssueListener
+        Log.w(TAG, "removeSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op)")
     }
 
     // Billing Programs (8.2.0+, EXTERNAL_PAYMENTS 8.3.0+) - Not supported on Horizon

@@ -5,6 +5,7 @@ import dev.hyo.openiap.listener.DeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 
 /**
@@ -67,6 +68,18 @@ interface OpenIapProtocol {
      */
     fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
     fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
+
+    // Subscription Billing Issues (Google Play Billing Library 8.1.0+)
+    /**
+     * Add listener for subscription billing-issue events.
+     * Fires once per session when a subscription is observed with isSuspended == true.
+     *
+     * - Play flavor: populated via Purchase.isSuspended (Billing 8.1+).
+     * - Horizon flavor: NEVER fires. The Horizon Billing Compatibility SDK targets
+     *   Play Billing 7.0 which does not expose a suspended-subscription signal.
+     */
+    fun addSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener)
+    fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener)
 
     // Billing Programs (Google Play Billing Library 8.2.0+)
     /**

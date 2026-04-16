@@ -8,7 +8,7 @@
 Meta Horizon provides IAP functionality for Quest VR applications. There are two main integration paths:
 
 1. **Platform SDK IAP** - Native Horizon IAP APIs
-2. **Billing Compatibility SDK** - Google Play Billing Library compatible wrapper
+2. **Billing Compatibility SDK** - Google Play Billing Library-compatible wrapper
 
 ## Version Compatibility Matrix
 
@@ -37,7 +37,7 @@ When writing shared code for both Play and Horizon flavors:
 
 ### APIs Only in Billing 8.x (DO NOT use in shared code)
 
-- `enableAutoServiceReconnection()` - Auto reconnect feature (8.0+)
+- `enableAutoServiceReconnection()` - Auto-reconnect feature (8.0+)
 - Product-level status codes in `queryProductDetailsAsync()` response (8.0+)
 - One-time products with multiple offers (8.0+)
 - Sub-response codes in `BillingResult` (8.0+)
@@ -192,10 +192,11 @@ Mark consumable item as used (required for re-purchase).
 interface VerifyPurchaseHorizonOptions {
   userId: string;      // Horizon user ID
   sku: string;         // Product SKU
-  appId: string;       // Horizon App ID
-  appSecret: string;   // Horizon App Secret
+  accessToken: string; // Format: "OC|APP_ID|APP_SECRET"
 }
 ```
+
+> **OpenIAP Note**: The GraphQL schema takes a single `accessToken` formatted as `OC|APP_ID|APP_SECRET` rather than separate `appId` / `appSecret` fields. Build the token server-side and pass it as one string.
 
 ### VerifyPurchaseResultHorizon
 

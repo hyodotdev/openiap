@@ -84,6 +84,7 @@ class HybridRnIap : HybridRnIapSpec() {
     private val promotedProductListenersIOS = mutableListOf<(NitroProduct) -> Unit>()
     private val userChoiceBillingListenersAndroid = mutableListOf<(UserChoiceBillingDetails) -> Unit>()
     private val developerProvidedBillingListenersAndroid = mutableListOf<(DeveloperProvidedBillingDetailsAndroid) -> Unit>()
+    private val subscriptionBillingIssueListeners = mutableListOf<(NitroPurchase) -> Unit>()
     private var listenersAttached = false
     private var isInitialized = false
     private var initDeferred: CompletableDeferred<Boolean>? = null
@@ -314,6 +315,8 @@ class HybridRnIap : HybridRnIapSpec() {
             promotedProductListenersIOS.clear()
             synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
             synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
+            synchronized(subscriptionBillingIssueListeners) { subscriptionBillingIssueListeners.clear() }
+            detachSubscriptionBillingIssueIfNeeded()
             initDeferred = null
             RnIapLog.result("endConnection", true)
             true
@@ -1683,6 +1686,57 @@ class HybridRnIap : HybridRnIapSpec() {
     private fun sendDeveloperProvidedBilling(details: DeveloperProvidedBillingDetailsAndroid) {
         val snapshot = synchronized(developerProvidedBillingListenersAndroid) { ArrayList(developerProvidedBillingListenersAndroid) }
         snapshot.forEach { it(details) }
+    }
+
+    // -------------------------------------------------------------------------
+    // Subscription billing-issue listener (cross-platform event)
+    // Source: Play Billing 8.1+ Purchase.isSuspended detection inside openiap-google.
+    // -------------------------------------------------------------------------
+
+    @Volatile
+    private var subscriptionBillingIssueAttached = false
+    private val subscriptionBillingIssueAttachLock = Any()
+    private var subscriptionBillingIssueNativeListener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener? = null
+
+    override fun addSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
+        synchronized(subscriptionBillingIssueListeners) {
+            subscriptionBillingIssueListeners.add(listener)
+        }
+        attachSubscriptionBillingIssueIfNeeded()
+    }
+
+    override fun removeSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
+        synchronized(subscriptionBillingIssueListeners) {
+            subscriptionBillingIssueListeners.remove(listener)
+        }
+    }
+
+    private fun attachSubscriptionBillingIssueIfNeeded() {
+        synchronized(subscriptionBillingIssueAttachLock) {
+            if (subscriptionBillingIssueAttached) return
+            val nativeListener = dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
+                runCatching {
+                    val nitro = convertToNitroPurchase(purchase)
+                    val snapshot = synchronized(subscriptionBillingIssueListeners) {
+                        ArrayList(subscriptionBillingIssueListeners)
+                    }
+                    snapshot.forEach { it(nitro) }
+                }.onFailure { RnIapLog.failure("subscriptionBillingIssueListener", it) }
+            }
+            openIap.addSubscriptionBillingIssueListener(nativeListener)
+            subscriptionBillingIssueNativeListener = nativeListener
+            subscriptionBillingIssueAttached = true
+        }
+    }
+
+    private fun detachSubscriptionBillingIssueIfNeeded() {
+        synchronized(subscriptionBillingIssueAttachLock) {
+            subscriptionBillingIssueNativeListener?.let {
+                openIap.removeSubscriptionBillingIssueListener(it)
+            }
+            subscriptionBillingIssueNativeListener = null
+            subscriptionBillingIssueAttached = false
+        }
     }
 
     // -------------------------------------------------------------------------

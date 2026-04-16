@@ -425,7 +425,12 @@ enum IapEvent {
   UserChoiceBillingAndroid('user-choice-billing-android'),
   /// Fired when user selects developer-provided billing option in external payments flow.
   /// Available on Android with Google Play Billing Library 8.3.0+
-  DeveloperProvidedBillingAndroid('developer-provided-billing-android');
+  DeveloperProvidedBillingAndroid('developer-provided-billing-android'),
+  /// Fired when an active subscription enters a billing-issue state that requires user attention.
+  /// Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 18+) and
+  /// Play Billing 8.1+ isSuspended. NOT emitted on the Horizon flavor, whose Billing
+  /// Compatibility SDK implements only the Play Billing 7.0 API surface.
+  SubscriptionBillingIssue('subscription-billing-issue');
 
   const IapEvent(this.value);
   final String value;
@@ -443,6 +448,8 @@ enum IapEvent {
         return IapEvent.UserChoiceBillingAndroid;
       case 'developer-provided-billing-android':
         return IapEvent.DeveloperProvidedBillingAndroid;
+      case 'subscription-billing-issue':
+        return IapEvent.SubscriptionBillingIssue;
     }
     throw ArgumentError('Unknown IapEvent value: $value');
   }
@@ -4883,6 +4890,18 @@ abstract class SubscriptionResolver {
   Future<PurchaseError> purchaseError();
   /// Fires when a purchase completes successfully or a pending purchase resolves
   Future<Purchase> purchaseUpdated();
+  /// Fires when an active subscription enters a billing-issue state that needs user action
+  /// (payment method failed, card expired, etc.). Cross-platform unification:
+  /// 
+  /// - iOS 18+: delivered via StoreKit 2 `Message.Reason.billingIssue`.
+  /// - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
+  ///   on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.
+  /// - Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements
+  ///   the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
+  /// 
+  /// Listeners should not assume the event will fire on every store. Direct users to the
+  /// platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.
+  Future<Purchase> subscriptionBillingIssue();
   /// Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
   /// Only triggered when the user selects alternative billing instead of Google Play billing
   Future<UserChoiceBillingDetails> userChoiceBillingAndroid();
@@ -5088,6 +5107,7 @@ typedef SubscriptionDeveloperProvidedBillingAndroidHandler = Future<DeveloperPro
 typedef SubscriptionPromotedProductIOSHandler = Future<String> Function();
 typedef SubscriptionPurchaseErrorHandler = Future<PurchaseError> Function();
 typedef SubscriptionPurchaseUpdatedHandler = Future<Purchase> Function();
+typedef SubscriptionSubscriptionBillingIssueHandler = Future<Purchase> Function();
 typedef SubscriptionUserChoiceBillingAndroidHandler = Future<UserChoiceBillingDetails> Function();
 
 class SubscriptionHandlers {
@@ -5096,6 +5116,7 @@ class SubscriptionHandlers {
     this.promotedProductIOS,
     this.purchaseError,
     this.purchaseUpdated,
+    this.subscriptionBillingIssue,
     this.userChoiceBillingAndroid,
   });
 
@@ -5103,5 +5124,6 @@ class SubscriptionHandlers {
   final SubscriptionPromotedProductIOSHandler? promotedProductIOS;
   final SubscriptionPurchaseErrorHandler? purchaseError;
   final SubscriptionPurchaseUpdatedHandler? purchaseUpdated;
+  final SubscriptionSubscriptionBillingIssueHandler? subscriptionBillingIssue;
   final SubscriptionUserChoiceBillingAndroidHandler? userChoiceBillingAndroid;
 }

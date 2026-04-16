@@ -5,6 +5,7 @@ import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import kotlinx.coroutines.runBlocking
 import org.godotengine.godot.Godot
 import org.godotengine.godot.plugin.GodotPlugin
@@ -41,6 +42,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         emitSignal("purchase_error", JSONObject(errorPayload).toString())
     }
 
+    private val subscriptionBillingIssueListener = OpenIapSubscriptionBillingIssueListener { purchase ->
+        GodotIapLog.debug("subscription billing issue: ${purchase.productId}")
+        val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
+        emitSignal("subscription_billing_issue", JSONObject(sanitized).toString())
+    }
+
     override fun getPluginName(): String = "GodotIap"
 
     override fun getPluginSignals(): Set<SignalInfo> {
@@ -51,7 +58,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             SignalInfo("connected"),
             SignalInfo("disconnected"),
             SignalInfo("user_choice_billing", String::class.java),
-            SignalInfo("developer_provided_billing", String::class.java)
+            SignalInfo("developer_provided_billing", String::class.java),
+            SignalInfo("subscription_billing_issue", String::class.java)
         )
     }
 
@@ -75,6 +83,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 store = OpenIapStore(openIap)
                 store.addPurchaseUpdateListener(purchaseUpdateListener)
                 store.addPurchaseErrorListener(purchaseErrorListener)
+                openIap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
                 val result = store.initConnection()
                 isInitialized = result
@@ -102,6 +111,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 store.removePurchaseUpdateListener(purchaseUpdateListener)
                 store.removePurchaseErrorListener(purchaseErrorListener)
+                openIap.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
                 val result = store.endConnection()
                 isInitialized = false

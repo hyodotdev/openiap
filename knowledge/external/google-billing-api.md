@@ -375,6 +375,58 @@ val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
 | `DEFERRED` | Deferred, no charge |
 | `KEEP_EXISTING` | Keep existing payment schedule (8.1+) |
 
+## External Payments Program (8.3+)
+
+Billing Library 8.3 (December 2025) added support for the External Payments program (Japan-only, as of launch). Developers enrolled in the program can offer alternative payment methods alongside Google Play billing.
+
+### Enable Developer Billing Option
+
+```kotlin
+// During BillingClient setup
+val billingClient = BillingClient.newBuilder(context)
+    .setListener(purchasesUpdatedListener)
+    .enablePendingPurchases()
+    .enableAutoServiceReconnection()
+    .enableDeveloperBillingOption(
+        DeveloperBillingOptionParams.newBuilder()
+            .setDeveloperProvidedBillingListener(developerBillingListener)
+            .build()
+    )
+    .build()
+```
+
+### DeveloperProvidedBillingListener
+
+```kotlin
+val developerBillingListener = DeveloperProvidedBillingListener {
+    userInitiatedBillingDetails ->
+    // User chose the developer-provided billing flow.
+    // Launch your external payment UI here.
+}
+```
+
+### Launch Purchase with External Payments Option
+
+```kotlin
+val params = BillingFlowParams.newBuilder()
+    .setProductDetailsParamsList(listOf(productDetailsParams))
+    .setBillingOption(BillingOption.EXTERNAL_PAYMENTS)  // 8.3+
+    .build()
+
+billingClient.launchBillingFlow(activity, params)
+```
+
+### Key Types (8.3+)
+
+| Type | Purpose |
+|------|---------|
+| `DeveloperBillingOptionParams` | Configures developer-billing support on `BillingClient` |
+| `DeveloperProvidedBillingListener` | Callback when user picks developer-provided billing |
+| `DeveloperProvidedBillingDetails` | Billing details to report back for reconciliation |
+| `BillingOption.EXTERNAL_PAYMENTS` | Purchase-flow flag requesting external payments |
+
+> **OpenIAP Note**: Exposed through the Android-specific `AlternativeBilling*` surface in OpenIAP. Enrolment with Google Play's External Payments program is required; availability is currently restricted to Japan. The Horizon flavor does NOT implement this.
+
 ## Best Practices
 
 1. **Always acknowledge purchases** within 3 days or they will be refunded
