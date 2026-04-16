@@ -20,7 +20,7 @@ on:
         type: boolean
 
 concurrency:
-  group: release-publish
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 env:
