@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-04-15T22:12:59.176Z
+> Last updated: 2026-04-16T13:24:54.898Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1423,7 +1423,7 @@ Fix purchase validation error
 |-------|----------------|
 | `apple` | `packages/apple` |
 | `google` | `packages/google` |
-| `gql` | `packages/gql` |
+| `spec` | `packages/gql` |
 | `docs` | `packages/docs` |
 | `rn` | `libraries/react-native-iap` |
 | `expo` | `libraries/expo-iap` |
@@ -1505,6 +1505,26 @@ This will:
 
 ---
 
+## Release Tag Conventions
+
+Each package uses a different tag format for GitHub Releases:
+
+| Package | Tag Format | Example |
+|---------|-----------|---------|
+| Apple | `{version}` (no prefix) | `2.1.0` |
+| Google | `google-{version}` | `google-2.1.0` |
+| React Native | `react-native-iap-{version}` | `react-native-iap-15.2.0` |
+| Expo | `expo-iap-{version}` | `expo-iap-4.1.0` |
+| Flutter | `flutter-iap-{version}` | `flutter-iap-9.2.0` |
+| KMP | `kmp-iap-{version}` | `kmp-iap-2.2.0` |
+| Godot | `godot-iap-{version}` | `godot-iap-2.2.0` |
+| Docs | `docs-{version}` | `docs-1.2.0` |
+
+> **Apple is the exception** — it tags with the bare semver version because
+> CocoaPods and Swift Package Manager resolve directly from the Git tag.
+
+---
+
 ## Important Notes
 
 - **Deprecated repositories**: `openiap-apple` and `openiap-google` are no longer used
@@ -1576,26 +1596,32 @@ cd ../flutter_inapp_purchase && flutter analyze
 2. Open the Example app:
    - `packages/apple/Example/OpenIapExample.xcodeproj` — run the `OpenIapExample` scheme.
 3. In-app: navigate to the **Subscription Flow** screen and subscribe to `dev.hyo.martie.premium`.
-4. Force a billing issue:
-   - In **App Store Connect → Users and Access → Sandbox Testers**, open the tester and toggle **Billing Issue** to ON. Apple's docs: <https://developer.apple.com/help/app-store-connect/test-in-app-purchases/test-win-back-offers/#trigger-a-billing-issue>.
-   - Alternatively, use Sandbox Account → "Manage" → "Remove Payment Method" to simulate an expired card.
-5. Relaunch the Example app (or send it to background then foreground). Within a few seconds StoreKit delivers `Message.Reason.billingIssue`.
-6. Expected UI: the orange "Subscription needs attention" banner appears at the top of the Subscription Flow screen. Tapping **Fix payment method** opens `SKPaymentQueue` / `showManageSubscriptions`.
+4. Force a billing issue on the **device** (requires iOS 16+ / iPadOS 16+):
+   - Go to **Settings → Developer → Sandbox Account → Manage → Account Settings**.
+   - Disable the **Allow Purchases & Renewals** setting.
+   - This causes all in-app purchases to fail and auto-renewable subscriptions to stop renewing.
+   - The setting applies to all devices the sandbox account signs in to.
+   - Reference: <https://developer.apple.com/documentation/storekit/testing-failing-subscription-renewals-and-in-app-purchases#Configure-the-sandbox-environment-to-simulate-billing-issues>.
+5. Wait for the next renewal cycle (Renewal Rate = 5 minutes → wait ~5 min). The renewal fails, and StoreKit delivers `Message.Reason.billingIssue` when the app is in the foreground.
+6. To simulate the user fixing the issue, re-enable **Allow Purchases & Renewals**.
+7. Expected UI: the orange "Subscription needs attention" banner appears at the top of the Subscription Flow screen. Tapping **Fix payment method** opens `SKPaymentQueue` / `showManageSubscriptions`.
 
 **What success looks like**
 
 - Console logs:
+
   ```text
   🔔 [MessageListener] billingIssue received
   Emitting subscriptionBillingIssue: dev.hyo.martie.premium
   ```
+
 - Banner visible on `SubscriptionFlowScreen`.
 - `Transaction.currentEntitlements` shows the affected subscription in `.inBillingRetryPeriod` or `.inGracePeriod`.
 
 **If nothing fires**
 
 - iOS < 18 — silent no-op by design (confirm with `#available` trace in logs).
-- tvOS / watchOS / macOS / visionOS build — silent no-op by design (StoreKit.Message API is iOS-only).
+- tvOS / watchOS / native macOS (non-Catalyst) / visionOS build — silent no-op by design (StoreKit.Message API is iOS / Mac Catalyst only).
 - App not foregrounded when the message is posted — StoreKit delivers on next `Message.messages` await; bring the app to foreground.
 
 ---
@@ -1623,10 +1649,12 @@ cd ../flutter_inapp_purchase && flutter analyze
 **What success looks like**
 
 - `logcat` shows:
+
   ```text
   D OpenIapModule: onPurchasesUpdated isSuspended=true ...
   D Example: subscriptionBillingIssue fired for sku=...
   ```
+
 - Banner visible on `SubscriptionFlowScreen`.
 - Tapping **Fix payment method** launches `deepLinkToSubscriptions` which routes to Play's subscription center.
 
