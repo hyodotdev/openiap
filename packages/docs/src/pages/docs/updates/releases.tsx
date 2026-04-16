@@ -11,6 +11,8 @@ const noteCardStyle = {
   borderRadius: '0.5rem',
   padding: '1rem',
   marginBottom: '1.5rem',
+  overflow: 'hidden',
+  maxWidth: '100%',
 };
 
 interface Note {
@@ -23,150 +25,188 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // Android minSdk 23 lint fix - Apr 16, 2026
+    // April 16, 2026 — combined release note
     {
-      id: 'android-minsdk-lint-fix-2026-04-16',
+      id: 'releases-2026-04-16',
       date: new Date('2026-04-16'),
       element: (
-        <div key="android-minsdk-lint-fix-2026-04-16" style={noteCardStyle}>
-          <AnchorLink id="android-minsdk-lint-fix-2026-04-16" level="h4">
-            Android: minSdk 23 Lint Fix - April 16, 2026
+        <div key="releases-2026-04-16" style={noteCardStyle}>
+          <AnchorLink id="releases-2026-04-16" level="h4">
+            April 16, 2026
           </AnchorLink>
 
-          <p
+          {/* subscriptionBillingIssue event */}
+          <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Cross-platform <code>subscriptionBillingIssue</code> event
+            </h5>
+            <p
+              style={{
+                marginBottom: '1rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              Until now, catching a failed payment before the platform
+              silently downgrades or cancels a subscription required running
+              your own server and polling Apple/Google Server-to-Server
+              Notifications. With the new{' '}
+              <code>subscriptionBillingIssue</code> event, apps can detect
+              billing problems purely on the client — no backend infrastructure
+              needed. Listen for the event, deep-link the user to the
+              platform&apos;s subscription management screen via{' '}
+              <code>deepLinkToSubscriptions</code>, and turn involuntary churn
+              into a recoverable moment.
+            </p>
+
+            <ul
+              style={{
+                marginBottom: '1rem',
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <strong>Schema:</strong> new{' '}
+                <code>IapEvent.SubscriptionBillingIssue</code> enum value and{' '}
+                <code>subscriptionBillingIssue: Purchase!</code> subscription
+                in <code>event.graphql</code>. Payload is the affected{' '}
+                <code>Purchase</code>.
+              </li>
+              <li>
+                <strong>iOS:</strong> registered via{' '}
+                <code>subscriptionBillingIssueListener</code> on{' '}
+                <code>OpenIapModule</code>. Starts a{' '}
+                <code>StoreKit.Message.messages</code> loop (iOS 18+), and on{' '}
+                <code>.billingIssue</code> scans{' '}
+                <code>Transaction.currentEntitlements</code> for subscriptions
+                whose renewal state is <code>.inBillingRetryPeriod</code> or{' '}
+                <code>.inGracePeriod</code>, emitting one event per match.
+                Silent no-op on iOS 17 and earlier, and on macOS / tvOS /
+                watchOS / visionOS.
+              </li>
+              <li>
+                <strong>Android (Play flavor):</strong> registered via{' '}
+                <code>addSubscriptionBillingIssueListener</code>. Fires during{' '}
+                <code>getAvailablePurchases</code> for each purchase with{' '}
+                <code>isSuspendedAndroid == true</code>; deduped by purchase
+                token across the session.
+              </li>
+              <li>
+                <strong>Android (Horizon flavor):</strong> explicit no-op — the
+                Horizon Billing Compatibility SDK targets Play Billing 7.0 and
+                does not expose a suspended-subscription signal. Calling{' '}
+                <code>addSubscriptionBillingIssueListener</code> logs a warning
+                and returns; the listener is never invoked.
+              </li>
+              <li>
+                <strong>Recommended UX:</strong> on fire, direct the user to{' '}
+                <code>deepLinkToSubscriptions</code> so they can update payment
+                method in the platform subscription center.
+              </li>
+            </ul>
+          </div>
+
+          {/* Version bumps */}
+          <div
             style={{
-              marginTop: '0.75rem',
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
+              paddingTop: '1rem',
+              marginBottom: '1.5rem',
+              borderTop: '1px solid var(--border-color)',
             }}
           >
-            Fixed an Android lint error in <code>openiap-google</code> where{' '}
-            <code>ConcurrentHashMap.newKeySet()</code> (API 24+) was used while{' '}
-            <code>minSdk</code> is 23. Replaced with{' '}
-            <code>Collections.newSetFromMap(ConcurrentHashMap())</code> which is
-            available from API 1. This was introduced in the{' '}
-            <code>subscriptionBillingIssue</code> event feature.
-          </p>
-        </div>
-      ),
-    },
-    // CI: per-workflow concurrency groups - Apr 16, 2026
-    {
-      id: 'ci-parallel-releases-2026-04-16',
-      date: new Date('2026-04-16'),
-      element: (
-        <div key="ci-parallel-releases-2026-04-16" style={noteCardStyle}>
-          <AnchorLink id="ci-parallel-releases-2026-04-16" level="h4">
-            CI: Parallel Release Workflows - April 16, 2026
-          </AnchorLink>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.1.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.2.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.1.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.1.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.2.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.2.0
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.0
+                </a>
+              </li>
+            </ul>
+          </div>
 
-          <p
+          {/* Android minSdk lint fix */}
+          <div
             style={{
-              marginTop: '0.75rem',
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
             }}
           >
-            Release workflows for all 7 packages/libraries can now run{' '}
-            <strong>in parallel</strong>. Previously, all release workflows shared
-            a single <code>release-publish</code> concurrency group, which meant
-            GitHub Actions only allowed 1 running + 1 pending — triggering 5
-            releases simultaneously would cancel 3 of them.
-          </p>
-
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Each workflow now uses its own concurrency group (
-            <code>{'${{ github.workflow }}'}</code>), so deploying all libraries
-            at once proceeds without cancellation. Same-workflow reruns still
-            queue correctly.
-          </p>
-        </div>
-      ),
-    },
-    // Cross-platform billing-issue event - Apr 16, 2026
-    {
-      id: 'subscription-billing-issue-event-2026-04-16',
-      date: new Date('2026-04-16'),
-      element: (
-        <div
-          key="subscription-billing-issue-event-2026-04-16"
-          style={noteCardStyle}
-        >
-          <AnchorLink
-            id="subscription-billing-issue-event-2026-04-16"
-            level="h4"
-          >
-            Cross-platform <code>subscriptionBillingIssue</code> event - April
-            16, 2026
-          </AnchorLink>
-
-          <p
-            style={{
-              marginTop: '0.75rem',
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            OpenIAP now surfaces a single, cross-platform event when an active
-            subscription needs user attention for a payment problem — unifying{' '}
-            StoreKit 2&apos;s <code>Message.Reason.billingIssue</code> (iOS 18+)
-            and Play Billing&apos;s <code>isSuspended</code> signal (Billing
-            Library 8.1+).
-          </p>
-
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <strong>Schema:</strong> new{' '}
-              <code>IapEvent.SubscriptionBillingIssue</code> enum value and{' '}
-              <code>subscriptionBillingIssue: Purchase!</code> subscription in{' '}
-              <code>event.graphql</code>. Payload is the affected{' '}
-              <code>Purchase</code>.
-            </li>
-            <li>
-              <strong>iOS:</strong> registered via{' '}
-              <code>subscriptionBillingIssueListener</code> on{' '}
-              <code>OpenIapModule</code>. Starts a{' '}
-              <code>StoreKit.Message.messages</code> loop (iOS 18+), and on{' '}
-              <code>.billingIssue</code> scans{' '}
-              <code>Transaction.currentEntitlements</code> for subscriptions
-              whose renewal state is <code>.inBillingRetryPeriod</code> or{' '}
-              <code>.inGracePeriod</code>, emitting one event per match. Silent
-              no-op on iOS 17 and earlier, and on macOS / tvOS / watchOS /
-              visionOS.
-            </li>
-            <li>
-              <strong>Android (Play flavor):</strong> registered via{' '}
-              <code>addSubscriptionBillingIssueListener</code>. Fires during{' '}
-              <code>getAvailablePurchases</code> for each purchase with{' '}
-              <code>isSuspendedAndroid == true</code>; deduped by purchase token
-              across the session.
-            </li>
-            <li>
-              <strong>Android (Horizon flavor):</strong> explicit no-op — the
-              Horizon Billing Compatibility SDK targets Play Billing 7.0 and
-              does not expose a suspended-subscription signal. Calling{' '}
-              <code>addSubscriptionBillingIssueListener</code> logs a warning
-              and returns; the listener is never invoked.
-            </li>
-            <li>
-              <strong>Recommended UX:</strong> on fire, direct the user to{' '}
-              <code>deepLinkToSubscriptions</code> so they can update payment
-              method in the platform subscription center.
-            </li>
-          </ul>
-
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Native bridge wiring ships with this change across all downstream
-            libraries (react-native-iap, expo-iap, flutter_inapp_purchase,
-            godot-iap, kmp-iap). Each library picks it up as a minor version
-            bump through its usual release workflow.
-          </p>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Android: minSdk 23 Lint Fix
+            </h5>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              Fixed an Android lint error in <code>openiap-google</code> where{' '}
+              <code>ConcurrentHashMap.newKeySet()</code> (API 24+) was used
+              while <code>minSdk</code> is 23. Replaced with{' '}
+              <code>Collections.newSetFromMap(ConcurrentHashMap())</code> which
+              is available from API 1. This was introduced in the{' '}
+              <code>subscriptionBillingIssue</code> event feature.
+            </p>
+          </div>
         </div>
       ),
     },
@@ -307,7 +347,7 @@ function Releases() {
                   Breaking: <code>ErrorCode</code> gains{' '}
                   <code>.serviceTimeout</code>
                 </strong>{' '}
-                — the shared gql schema adds <code>ServiceTimeout</code>, so the
+                — the shared spec schema adds <code>ServiceTimeout</code>, so the
                 Swift <code>ErrorCode</code> enum picks up a new case. Any Swift
                 consumer that does an exhaustive <code>switch</code> on{' '}
                 <code>ErrorCode</code> without a <code>default:</code> branch
@@ -471,7 +511,7 @@ function Releases() {
                 up <code>PurchaseError.debugMessage</code> and the new{' '}
                 <code>ErrorCode.ServiceTimeout</code> /{' '}
                 <code>ErrorCode.DuplicatePurchase</code> entries. Auto-synced
-                from the gql schema via the extended{' '}
+                from the spec schema via the extended{' '}
                 <code>sync-to-platforms</code> script (package declaration and
                 enum-companion semicolons are injected automatically, no hand
                 edits).
@@ -984,14 +1024,14 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
         </div>
       ),
     },
-    // GQL 1.3.17 / Google 1.3.28 - Feb 11, 2026
+    // Spec 1.3.17 / Google 1.3.28 - Feb 11, 2026
     {
-      id: 'gql-1-3-17-google-1-3-28',
+      id: 'spec-1-3-17-google-1-3-28',
       date: new Date('2026-02-11'),
       element: (
-        <div key="gql-1-3-17-google-1-3-28" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-17-google-1-3-28" level="h4">
-            📅 openiap-gql v1.3.17 / openiap-google v1.3.28 - Android
+        <div key="spec-1-3-17-google-1-3-28" style={noteCardStyle}>
+          <AnchorLink id="spec-1-3-17-google-1-3-28" level="h4">
+            📅 openiap-spec v1.3.17 / openiap-google v1.3.28 - Android
             BillingClient Enhancement
           </AnchorLink>
 
@@ -1186,14 +1226,14 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
         </div>
       ),
     },
-    // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
+    // Spec 1.3.16 / Apple 1.3.14 - Jan 26, 2026
     {
-      id: 'gql-1-3-16-apple-1-3-14',
+      id: 'spec-1-3-16-apple-1-3-14',
       date: new Date('2026-01-26'),
       element: (
-        <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
-            📅 openiap-gql v1.3.16 / openiap-apple v1.3.14 -
+        <div key="spec-1-3-16-apple-1-3-14" style={noteCardStyle}>
+          <AnchorLink id="spec-1-3-16-apple-1-3-14" level="h4">
+            📅 openiap-spec v1.3.16 / openiap-apple v1.3.14 -
             ExternalPurchaseCustomLink Support (iOS 18.1+)
           </AnchorLink>
 
@@ -1359,14 +1399,14 @@ result.error                  // optional error`}</CodeBlock>
         </div>
       ),
     },
-    // GQL 1.3.15 / Google 1.3.27 / Apple 1.3.13 - Jan 21, 2026
+    // Spec 1.3.15 / Google 1.3.27 / Apple 1.3.13 - Jan 21, 2026
     {
-      id: 'gql-1-3-15-google-1-3-27-apple-1-3-13',
+      id: 'spec-1-3-15-google-1-3-27-apple-1-3-13',
       date: new Date('2026-01-21'),
       element: (
-        <div key="gql-1-3-15-google-1-3-27-apple-1-3-13" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-15-google-1-3-27-apple-1-3-13" level="h4">
-            📅 openiap-gql v1.3.15 / openiap-google v1.3.27 / openiap-apple
+        <div key="spec-1-3-15-google-1-3-27-apple-1-3-13" style={noteCardStyle}>
+          <AnchorLink id="spec-1-3-15-google-1-3-27-apple-1-3-13" level="h4">
+            📅 openiap-spec v1.3.15 / openiap-google v1.3.27 / openiap-apple
             v1.3.13 - Bug Fix
           </AnchorLink>
 
@@ -1455,14 +1495,14 @@ result.error                  // optional error`}</CodeBlock>
         </div>
       ),
     },
-    // GQL 1.3.14 / Google 1.3.25 / Apple 1.3.13 - Jan 19, 2026
+    // Spec 1.3.14 / Google 1.3.25 / Apple 1.3.13 - Jan 19, 2026
     {
-      id: 'gql-1-3-14-google-1-3-25-apple-1-3-13',
+      id: 'spec-1-3-14-google-1-3-25-apple-1-3-13',
       date: new Date('2026-01-19'),
       element: (
-        <div key="gql-1-3-14-google-1-3-25-apple-1-3-13" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-14-google-1-3-25-apple-1-3-13" level="h4">
-            📅 openiap-gql v1.3.14 / openiap-google v1.3.25 / openiap-apple
+        <div key="spec-1-3-14-google-1-3-25-apple-1-3-13" style={noteCardStyle}>
+          <AnchorLink id="spec-1-3-14-google-1-3-25-apple-1-3-13" level="h4">
+            📅 openiap-spec v1.3.14 / openiap-google v1.3.25 / openiap-apple
             v1.3.13 - Breaking Changes & Bug Fixes
           </AnchorLink>
 
@@ -1623,14 +1663,14 @@ result.error                  // optional error`}</CodeBlock>
         </div>
       ),
     },
-    // GQL 1.3.13 / Google 1.3.24 / Apple 1.3.11 - Jan 18, 2026
+    // Spec 1.3.13 / Google 1.3.24 / Apple 1.3.11 - Jan 18, 2026
     {
-      id: 'gql-1-3-13-google-1-3-24-apple-1-3-11',
+      id: 'spec-1-3-13-google-1-3-24-apple-1-3-11',
       date: new Date('2026-01-18'),
       element: (
-        <div key="gql-1-3-13-google-1-3-24-apple-1-3-11" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-13-google-1-3-24-apple-1-3-11" level="h4">
-            📅 openiap-gql v1.3.13 / openiap-google v1.3.24 / openiap-apple
+        <div key="spec-1-3-13-google-1-3-24-apple-1-3-11" style={noteCardStyle}>
+          <AnchorLink id="spec-1-3-13-google-1-3-24-apple-1-3-11" level="h4">
+            📅 openiap-spec v1.3.13 / openiap-google v1.3.24 / openiap-apple
             v1.3.11 - Platform API Gap Analysis
           </AnchorLink>
 
@@ -1827,14 +1867,14 @@ result.error                  // optional error`}</CodeBlock>
         </div>
       ),
     },
-    // GQL 1.3.12 / Google 1.3.22 / Apple 1.3.10 - Jan 17, 2026
+    // Spec 1.3.12 / Google 1.3.22 / Apple 1.3.10 - Jan 17, 2026
     {
-      id: 'gql-1-3-12-google-1-3-22-apple-1-3-10',
+      id: 'spec-1-3-12-google-1-3-22-apple-1-3-10',
       date: new Date('2026-01-17'),
       element: (
-        <div key="gql-1-3-12-google-1-3-22-apple-1-3-10" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-12-google-1-3-22-apple-1-3-10" level="h4">
-            📅 openiap-gql v1.3.12 / openiap-google v1.3.22 / openiap-apple
+        <div key="spec-1-3-12-google-1-3-22-apple-1-3-10" style={noteCardStyle}>
+          <AnchorLink id="spec-1-3-12-google-1-3-22-apple-1-3-10" level="h4">
+            📅 openiap-spec v1.3.12 / openiap-google v1.3.22 / openiap-apple
             v1.3.10 - Standardized Offer Types
           </AnchorLink>
 
@@ -2007,14 +2047,14 @@ result.error                  // optional error`}</CodeBlock>
         </div>
       ),
     },
-    // GQL 1.3.11 / Google 1.3.20 / Apple 1.3.9 - Dec 28, 2025
+    // Spec 1.3.11 / Google 1.3.20 / Apple 1.3.9 - Dec 28, 2025
     {
-      id: 'gql-1-3-11-google-1-3-20-apple-1-3-9',
+      id: 'spec-1-3-11-google-1-3-20-apple-1-3-9',
       date: new Date('2025-12-28'),
       element: (
-        <div key="gql-1-3-11-google-1-3-21-apple-1-3-9" style={noteCardStyle}>
-          <AnchorLink id="gql-1-3-11-google-1-3-21-apple-1-3-9" level="h4">
-            📅 openiap-gql v1.3.11 / openiap-google v1.3.21 / openiap-apple
+        <div key="spec-1-3-11-google-1-3-21-apple-1-3-9" style={noteCardStyle}>
+          <AnchorLink id="spec-1-3-11-google-1-3-21-apple-1-3-9" level="h4">
+            📅 openiap-spec v1.3.11 / openiap-google v1.3.21 / openiap-apple
             v1.3.9 - PurchaseState Cleanup
           </AnchorLink>
 
@@ -2173,7 +2213,7 @@ result.error                  // optional error`}</CodeBlock>
       element: (
         <div key="release-dec-28-2025" style={noteCardStyle}>
           <AnchorLink id="release-dec-28-2025" level="h4">
-            📅 openiap-gql v1.3.10 / openiap-google v1.3.19 / openiap-apple
+            📅 openiap-spec v1.3.10 / openiap-google v1.3.19 / openiap-apple
             v1.3.8 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-3-0"
@@ -2197,7 +2237,7 @@ result.error                  // optional error`}</CodeBlock>
 
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.25rem 0' }}>
-              1. GQL v1.3.10 - InitConnectionConfig Enhancement
+              1. Spec v1.3.10 - InitConnectionConfig Enhancement
             </h5>
             <p
               style={{
@@ -2446,7 +2486,7 @@ result.error                  // optional error`}</CodeBlock>
       element: (
         <div key="v1.3.8-kotlin-null-safe" style={noteCardStyle}>
           <AnchorLink id="v1.3.8-kotlin-null-safe" level="h4">
-            📅 openiap-gql v1.3.8 - Kotlin Null-Safe Casting
+            📅 openiap-spec v1.3.8 - Kotlin Null-Safe Casting
           </AnchorLink>
 
           <p
@@ -2491,7 +2531,7 @@ result.error                  // optional error`}</CodeBlock>
       element: (
         <div key="v1.3.7-advanced-commerce" style={noteCardStyle}>
           <AnchorLink id="v1.3.7-advanced-commerce" level="h4">
-            📅 openiap-gql v1.3.7 / openiap-apple v1.3.7 / openiap-google
+            📅 openiap-spec v1.3.7 / openiap-apple v1.3.7 / openiap-google
             v1.3.15 - Advanced Commerce Data
           </AnchorLink>
 
@@ -2577,7 +2617,7 @@ result.error                  // optional error`}</CodeBlock>
       element: (
         <div key="v1.3.5-tag" style={noteCardStyle}>
           <AnchorLink id="v1.3.5-tag" level="h4">
-            📅 openiap-gql v1.3.5 / openiap-apple v1.3.5 - GitHub Release Tag
+            📅 openiap-spec v1.3.5 / openiap-apple v1.3.5 - GitHub Release Tag
             Management Update
           </AnchorLink>
 
@@ -2604,8 +2644,8 @@ result.error                  // optional error`}</CodeBlock>
               <code>1.3.5</code>) - Required for SPM
             </li>
             <li>
-              <strong>GQL</strong>: Uses <code>gql-</code> prefix (e.g.,{' '}
-              <code>gql-1.3.5</code>)
+              <strong>Spec</strong>: Uses <code>spec-</code> prefix (e.g.,{' '}
+              <code>spec-1.3.5</code>)
             </li>
             <li>
               <strong>Google</strong>: Uses <code>google-</code> prefix (e.g.,{' '}
@@ -2623,7 +2663,7 @@ result.error                  // optional error`}</CodeBlock>
       element: (
         <div key="v1.3.4-verify" style={noteCardStyle}>
           <AnchorLink id="v1.3.4-verify" level="h4">
-            📅 openiap-gql v1.3.4 / openiap-google v1.3.14 / openiap-apple
+            📅 openiap-spec v1.3.4 / openiap-google v1.3.14 / openiap-apple
             v1.3.2 - Platform-Specific Verification
           </AnchorLink>
 
@@ -2680,7 +2720,7 @@ result.error                  // optional error`}</CodeBlock>
       element: (
         <div key="v1.3.12-billing" style={noteCardStyle}>
           <AnchorLink id="v1.3.12-billing" level="h4">
-            📅 openiap-google v1.3.12 / openiap-gql v1.3.2 -{' '}
+            📅 openiap-google v1.3.12 / openiap-spec v1.3.2 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-2-0"
               target="_blank"
@@ -2746,7 +2786,7 @@ result.error                  // optional error`}</CodeBlock>
       element: (
         <div key="v1.3.11-billing" style={noteCardStyle}>
           <AnchorLink id="v1.3.11-billing" level="h4">
-            📅 openiap-google v1.3.11 / openiap-gql v1.3.1 -{' '}
+            📅 openiap-google v1.3.11 / openiap-spec v1.3.1 -{' '}
             <a
               href="https://developer.android.com/google/play/billing/release-notes#8-1-0"
               target="_blank"
@@ -2883,14 +2923,14 @@ result.error                  // optional error`}</CodeBlock>
       ),
     },
 
-    // openiap-gql 1.0.12 - External Purchase Support - Aug 25, 2025
+    // openiap-spec 1.0.12 - External Purchase Support - Aug 25, 2025
     {
-      id: 'gql-1.0.12-external',
+      id: 'spec-1.0.12-external',
       date: new Date('2025-08-25'),
       element: (
-        <div key="gql-1.0.12-external" style={noteCardStyle}>
-          <AnchorLink id="gql-1.0.12-external" level="h4">
-            📅 openiap-gql 1.0.12 - External Purchase Support
+        <div key="spec-1.0.12-external" style={noteCardStyle}>
+          <AnchorLink id="spec-1.0.12-external" level="h4">
+            📅 openiap-spec 1.0.12 - External Purchase Support
           </AnchorLink>
 
           <p

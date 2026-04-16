@@ -11,6 +11,7 @@ html {
   background-color: #fefefe;
   background-color: var(--bg-primary);
   font-size: 16px;
+  overflow-x: hidden;
 }
 
 body {

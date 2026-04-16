@@ -5,6 +5,7 @@ struct ContentView: View {
         NavigationView {
             HomeScreen()
         }
+        .navigationViewStyle(.stack)
     }
 }
 

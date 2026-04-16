@@ -51,7 +51,7 @@ Fix purchase validation error
 |-------|----------------|
 | `apple` | `packages/apple` |
 | `google` | `packages/google` |
-| `gql` | `packages/gql` |
+| `spec` | `packages/gql` |
 | `docs` | `packages/docs` |
 | `rn` | `libraries/react-native-iap` |
 | `expo` | `libraries/expo-iap` |
@@ -130,6 +130,26 @@ This will:
    - Create release artifacts (TypeScript, Dart, Kotlin, Swift)
    - Create Git tag `v1.2.0`
    - Create GitHub Release with artifacts
+
+---
+
+## Release Tag Conventions
+
+Each package uses a different tag format for GitHub Releases:
+
+| Package | Tag Format | Example |
+|---------|-----------|---------|
+| Apple | `{version}` (no prefix) | `2.1.0` |
+| Google | `google-{version}` | `google-2.1.0` |
+| React Native | `react-native-iap-{version}` | `react-native-iap-15.2.0` |
+| Expo | `expo-iap-{version}` | `expo-iap-4.1.0` |
+| Flutter | `flutter-iap-{version}` | `flutter-iap-9.2.0` |
+| KMP | `kmp-iap-{version}` | `kmp-iap-2.2.0` |
+| Godot | `godot-iap-{version}` | `godot-iap-2.2.0` |
+| Docs | `docs-{version}` | `docs-1.2.0` |
+
+> **Apple is the exception** — it tags with the bare semver version because
+> CocoaPods and Swift Package Manager resolve directly from the Git tag.
 
 ---
 

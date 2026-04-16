@@ -254,6 +254,26 @@
   min-width: 0;
   padding: var(--spacing-xl) var(--spacing-2xl) var(--spacing-2xl);
   max-width: 900px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Prevent any content from overflowing */
+.doc-page {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.doc-page code:not([class*='language-']) {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.doc-page div[style] {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Document typography - compact like Expo */
