@@ -8,7 +8,7 @@ const GOOGLE_MAVEN_BADGE =
 const GOOGLE_MAVEN_ARTIFACT =
   'https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google';
 const APPLE_SWIFT_BADGE =
-  'https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=apple-v*&label=Swift%20Package&logo=swift&color=orange';
+  'https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=2.*&label=Swift%20Package&logo=swift&color=orange';
 const APPLE_SWIFT_URL =
   'https://github.com/hyodotdev/openiap/tree/main/packages/apple';
 const APPLE_COCOAPODS_BADGE =
@@ -153,24 +153,15 @@ function Versions() {
             href={latestGqlRelease.pageUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-secondary"
+            className="btn btn-secondary no-icon"
           >
-            Latest tag: {latestGqlRelease.tag}
+            Latest tag: {latestGqlRelease.tag} ↗
           </a>
           <a
             href={GQL_RELEASES_URL}
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              display: 'inline-block',
-              padding: '0.4rem 1rem',
-              borderRadius: '9999px',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-primary)',
-              textDecoration: 'none',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-            }}
+            className="btn btn-secondary no-icon"
           >
             View all releases
           </a>

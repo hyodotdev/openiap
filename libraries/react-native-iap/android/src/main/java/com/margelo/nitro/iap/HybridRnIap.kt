@@ -1546,6 +1546,12 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
     
+    override fun getAllTransactionsIOS(): Promise<Array<NitroPurchase>> {
+        return Promise.async {
+            throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))
+        }
+    }
+
     override fun syncIOS(): Promise<Boolean> {
         return Promise.async {
             throw OpenIapException(toErrorJson(OpenIAPError.FeatureNotSupported()))

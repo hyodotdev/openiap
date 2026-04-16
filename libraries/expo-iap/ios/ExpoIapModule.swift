@@ -148,6 +148,14 @@ public final class ExpoIapModule: Module {
             return sanitized
         }
 
+        AsyncFunction("getAllTransactionsIOS") { () async throws -> [[String: Any]] in
+            ExpoIapLog.payload("getAllTransactionsIOS", payload: nil)
+            let all = try await OpenIapModule.shared.getAllTransactionsIOS()
+            let sanitized = all.map { ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
+            ExpoIapLog.result("getAllTransactionsIOS", value: sanitized)
+            return sanitized
+        }
+
         AsyncFunction("clearTransactionIOS") { () async throws -> Bool in
             ExpoIapLog.payload("clearTransactionIOS", payload: nil)
             let success = try await OpenIapModule.shared.clearTransactionIOS()

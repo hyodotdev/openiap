@@ -858,6 +858,14 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   getPendingTransactionsIOS(): Promise<NitroPurchase[]>;
 
   /**
+   * Get the full StoreKit 2 transaction history as PurchaseIOS values.
+   * Requires SK2ConsumableTransactionHistory Info.plist key for finished consumables (iOS 18+).
+   * @returns Promise<NitroPurchase[]> - Array of all transactions
+   * @platform iOS
+   */
+  getAllTransactionsIOS(): Promise<NitroPurchase[]>;
+
+  /**
    * Sync with the App Store (iOS only)
    * @returns Promise<boolean> - Success flag
    * @platform iOS

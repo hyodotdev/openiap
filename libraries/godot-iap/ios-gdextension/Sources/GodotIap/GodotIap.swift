@@ -484,6 +484,33 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     @Callable
+    public func getAllTransactionsIOS() -> String {
+        GodotIapLog.payload("Getting all transactions", payload: nil)
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let transactions = try await self.openIap.getAllTransactionsIOS()
+                let transactionDicts = transactions.map { self.purchaseIOSToDictionary($0) }
+
+                if let jsonData = try? JSONSerialization.data(withJSONObject: transactionDicts),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    await MainActor.run { [self] in
+                        let dict = VariantDictionary()
+                        dict["success"] = Variant(true)
+                        dict["transactionsJson"] = Variant(jsonString)
+                        self.productsFetched.emit(dict)
+                    }
+                }
+            } catch {
+                GodotIapLog.debug("[GodotIap] getAllTransactionsIOS error: \(error.localizedDescription)")
+            }
+        }
+
+        return "{\"status\": \"pending\"}"
+    }
+
+    @Callable
     public func presentCodeRedemptionSheetIOS() -> String {
         GodotIapLog.payload("Presenting code redemption sheet", payload: nil)
 

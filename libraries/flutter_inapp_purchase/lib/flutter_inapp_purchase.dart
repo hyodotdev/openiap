@@ -964,6 +964,26 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         return const <gentype.PurchaseIOS>[];
       };
 
+  gentype.QueryGetAllTransactionsIOSHandler get getAllTransactionsIOS =>
+      () async {
+        if (_platform.isIOS || _platform.isMacOS) {
+          final dynamic result = await _channel.invokeMethod(
+            'getAllTransactionsIOS',
+          );
+          final purchases = extractPurchases(
+            result,
+            platformIsAndroid: _platform.isAndroid,
+            platformIsIOS: _platform.isIOS || _platform.isMacOS,
+            acknowledgedAndroidPurchaseTokens:
+                _acknowledgedAndroidPurchaseTokens,
+          );
+          return purchases.whereType<gentype.PurchaseIOS>().toList(
+                growable: false,
+              );
+        }
+        return const <gentype.PurchaseIOS>[];
+      };
+
   gentype.MutationAcknowledgePurchaseAndroidHandler
       get acknowledgePurchaseAndroid => (purchaseToken) async {
             if (!_platform.isAndroid) {
@@ -2254,6 +2274,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         getAvailablePurchases: getAvailablePurchases,
         getExternalPurchaseCustomLinkTokenIOS:
             getExternalPurchaseCustomLinkTokenIOS,
+        getAllTransactionsIOS: getAllTransactionsIOS,
         getPendingTransactionsIOS: getPendingTransactionsIOS,
         getPromotedProductIOS: getPromotedProductIOS,
         getStorefront: getStorefront,

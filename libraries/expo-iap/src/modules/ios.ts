@@ -357,6 +357,13 @@ export const getPendingTransactionsIOS: QueryField<
   return (transactions ?? []) as PurchaseIOS[];
 };
 
+export const getAllTransactionsIOS: QueryField<
+  'getAllTransactionsIOS'
+> = async () => {
+  const transactions = await ExpoIapModule.getAllTransactionsIOS();
+  return (transactions ?? []) as PurchaseIOS[];
+};
+
 /**
  * Clear a specific transaction (iOS only).
  *

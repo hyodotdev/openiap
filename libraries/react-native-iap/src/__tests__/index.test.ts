@@ -38,6 +38,7 @@ const mockIap: any = {
   requestPromotedProductIOS: jest.fn(async () => null),
   buyPromotedProductIOS: jest.fn(async () => undefined),
   presentCodeRedemptionSheetIOS: jest.fn(async () => true),
+  getAllTransactionsIOS: jest.fn(async () => []),
 
   // Unified storefront
   getStorefront: jest.fn(async () => 'USA'),

@@ -17,6 +17,21 @@ function OnePager() {
         OpenIAP: Neutral Interoperability Layer for In-App Purchase APIs and
         Verification
       </h1>
+      <div
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderLeft: '3px solid var(--primary-color)',
+          borderRadius: '4px',
+          padding: '0.75rem 1rem',
+          marginBottom: '1.5rem',
+          fontSize: '0.9rem',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        <strong>Draft</strong> — The Foundation section is currently being
+        prepared. Content may change as the governance structure is finalized.
+      </div>
 
       <section>
         <AnchorLink id="problem" level="h2">
@@ -27,7 +42,85 @@ function OnePager() {
           Every framework — React Native, Expo, Flutter, KMP, Godot, native iOS,
           native Android — reinvents the same wheel: different type definitions,
           different error models, different verification flows, different
-          edge-case handling. This leads to:
+          edge-case handling.
+        </p>
+        <p>
+          The landscape is expanding rapidly. New platforms like{' '}
+          <a
+            href="https://developer.meta.com/horizon/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Meta Horizon OS
+          </a>
+          ,{' '}
+          <a
+            href="https://developer.amazon.com/apps-and-games/vega"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Vega OS
+          </a>
+          ,{' '}
+          <a
+            href="https://consumer.huawei.com/en/harmonyos/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            HarmonyOS
+          </a>
+          , and{' '}
+          <a
+            href="https://developer.amazon.com/apps-and-games"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Amazon Fire OS
+          </a>{' '}
+          continue to emerge and grow, while stores beyond Google Play and the
+          App Store — such as{' '}
+          <a
+            href="https://galaxystore.samsung.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Galaxy Store
+          </a>
+          ,{' '}
+          <a
+            href="https://consumer.huawei.com/en/mobileservices/appgallery/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Huawei AppGallery
+          </a>
+          , and alternative marketplaces like{' '}
+          <a
+            href="https://onside.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Onside
+          </a>{' '}
+          — each bring their own billing APIs. Even the established stores like{' '}
+          <a
+            href="https://play.google.com/console"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google Play
+          </a>{' '}
+          and{' '}
+          <a
+            href="https://developer.apple.com/app-store/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple App Store
+          </a>{' '}
+          evolve their billing APIs with every major release. As this
+          fragmentation accelerates with every new platform and marketplace, a
+          unified standard becomes not just useful but essential. This leads to:
         </p>
         <ul>
           <li>
@@ -43,8 +136,8 @@ function OnePager() {
             prevention are left as afterthoughts
           </li>
           <li>
-            <strong>High maintenance burden</strong> as Apple and Google
-            frequently change their billing APIs
+            <strong>High maintenance burden</strong> as Apple, Google, and an
+            expanding set of stores frequently change their billing APIs
           </li>
         </ul>
       </section>
