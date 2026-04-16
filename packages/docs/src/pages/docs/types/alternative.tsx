@@ -60,7 +60,7 @@ function TypesAlternative() {
           <li>
             For Android alternative billing, use the{' '}
             <Link to="/docs/apis/android#alternative-billing-android">
-              Android APIs
+              Android Specific
             </Link>
           </li>
         </ul>

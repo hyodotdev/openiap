@@ -25,6 +25,139 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // April 17, 2026 — Advanced Commerce & Transaction History
+    {
+      id: 'releases-2026-04-17',
+      date: new Date('2026-04-17'),
+      element: (
+        <div key="releases-2026-04-17" style={noteCardStyle}>
+          <AnchorLink id="releases-2026-04-17" level="h4">
+            April 17, 2026
+          </AnchorLink>
+
+          <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Advanced Commerce API &amp; Transaction History
+            </h5>
+
+            <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+              <strong>iOS — Advanced Commerce Info (iOS 18.4+):</strong>
+            </p>
+            <ul
+              style={{
+                marginBottom: '1rem',
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                New <code>AdvancedCommerceInfoIOS</code> type with nested{' '}
+                <code>AdvancedCommerceItemIOS</code>,{' '}
+                <code>AdvancedCommerceItemDetailsIOS</code>, and{' '}
+                <code>AdvancedCommerceRefundIOS</code> types.
+              </li>
+              <li>
+                New <code>advancedCommerceInfoIOS</code> field on{' '}
+                <code>PurchaseIOS</code> — present only for transactions using
+                the Advanced Commerce API with generic SKU purchases.
+              </li>
+              <li>
+                Contains item details, tax info, and refund data from{' '}
+                <code>Transaction.AdvancedCommerceInfo</code>.
+              </li>
+            </ul>
+
+            <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+              <strong>
+                iOS — Full Transaction History (
+                <code>getAllTransactionsIOS</code>):
+              </strong>
+            </p>
+            <ul
+              style={{
+                marginBottom: '1rem',
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                New <code>getAllTransactionsIOS()</code> query returns the full
+                StoreKit 2 transaction history as <code>PurchaseIOS</code>{' '}
+                values.
+              </li>
+              <li>
+                Requires the <code>SK2ConsumableTransactionHistory</code>{' '}
+                Info.plist key for finished consumables to be included (iOS
+                18+).
+              </li>
+              <li>
+                Unlike <code>getAvailablePurchases</code>, always returns the
+                iOS-specific <code>PurchaseIOS</code> shape.
+              </li>
+            </ul>
+
+            <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+              <strong>References:</strong>
+            </p>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a href="/docs/types/purchase#advanced-commerce-info-ios">
+                  AdvancedCommerceInfoIOS Type
+                </a>
+              </li>
+              <li>
+                <a href="/docs/apis/ios#get-all-transactions-ios">
+                  getAllTransactionsIOS API
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/gql-2.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-spec 2.0.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.1
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // April 16, 2026 — combined release note
     {
       id: 'releases-2026-04-16',

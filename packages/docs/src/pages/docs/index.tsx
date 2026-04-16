@@ -142,8 +142,8 @@ function Docs() {
                 { to: '/docs/apis/purchase', label: 'Purchase' },
                 { to: '/docs/apis/subscription', label: 'Subscription' },
                 { to: '/docs/apis/validation', label: 'Validation' },
-                { to: '/docs/apis/ios', label: 'iOS APIs' },
-                { to: '/docs/apis/android', label: 'Android APIs' },
+                { to: '/docs/apis/ios', label: 'iOS Specific' },
+                { to: '/docs/apis/android', label: 'Android Specific' },
                 { to: '/docs/apis/debugging', label: 'Debugging' },
               ]}
               onItemClick={closeSidebar}

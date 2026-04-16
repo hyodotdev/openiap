@@ -12,12 +12,12 @@ function AndroidAPIs() {
   return (
     <div className="doc-page">
       <SEO
-        title="Android APIs"
+        title="Android Specific"
         description="OpenIAP Android-specific APIs - Google Play Billing APIs for acknowledgment, consumption, and alternative billing."
         path="/docs/apis/android"
         keywords="Android API, Google Play Billing, acknowledgePurchaseAndroid, alternative billing"
       />
-      <h1>Android APIs</h1>
+      <h1>Android Specific</h1>
       <p>
         Android-specific APIs using Google Play Billing Library. These APIs are
         only available on Android and end with the <code>Android</code> suffix.

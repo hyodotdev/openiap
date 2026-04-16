@@ -31,7 +31,7 @@ const legacyAnchorRedirects: Record<string, string> = {
   'verify-purchase-with-provider':
     '/docs/apis/validation#verify-purchase-with-provider',
   'purchase-identifier-usage': '/docs/apis/validation#purchase-identifiers',
-  // iOS APIs
+  // iOS Specific
   'clear-transaction-ios': '/docs/apis/ios#clear-transaction-ios',
   'get-storefront-ios': '/docs/apis/ios#get-storefront-ios',
   'get-promoted-product-ios': '/docs/apis/ios#get-promoted-product-ios',
@@ -60,7 +60,7 @@ const legacyAnchorRedirects: Record<string, string> = {
   'present-external-purchase-link-ios':
     '/docs/apis/ios#present-external-purchase-link-ios',
   'validate-receipt-ios': '/docs/apis/ios#validate-receipt-ios',
-  // Android APIs
+  // Android Specific
   'acknowledge-purchase-android':
     '/docs/apis/android#acknowledge-purchase-android',
   'consume-purchase-android': '/docs/apis/android#consume-purchase-android',
@@ -145,11 +145,11 @@ function APIsIndex() {
           </li>
           <li>
             <Link to="/docs/apis/ios">
-              <strong>iOS APIs</strong>
+              <strong>iOS Specific</strong>
             </Link>{' '}
             |{' '}
             <Link to="/docs/apis/android">
-              <strong>Android APIs</strong>
+              <strong>Android Specific</strong>
             </Link>
           </li>
           <li>
@@ -219,13 +219,13 @@ function APIsIndex() {
         </p>
         <div className="api-cards-grid">
           <APICard
-            title="iOS APIs"
+            title="iOS Specific"
             description="StoreKit 2 APIs for promoted products, refunds, external purchases, and more."
             href="/docs/apis/ios"
             count={18}
           />
           <APICard
-            title="Android APIs"
+            title="Android Specific"
             description="Google Play Billing APIs for acknowledgment, consumption, and alternative billing."
             href="/docs/apis/android"
             count={5}

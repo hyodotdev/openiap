@@ -11,12 +11,12 @@ function IOSAPIs() {
   return (
     <div className="doc-page">
       <SEO
-        title="iOS APIs"
+        title="iOS Specific"
         description="OpenIAP iOS-specific APIs - StoreKit 2 APIs for promoted products, refunds, external purchases, and more."
         path="/docs/apis/ios"
         keywords="iOS API, StoreKit 2, clearTransactionIOS, syncIOS, external purchase"
       />
-      <h1>iOS APIs</h1>
+      <h1>iOS Specific</h1>
       <p>
         iOS-specific APIs using StoreKit 2. These APIs are only available on
         iOS/macOS and end with the <code>IOS</code> suffix.

@@ -137,11 +137,11 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/validation#verify-purchase-with-provider',
   },
 
-  // iOS APIs
+  // iOS Specific
   {
     id: 'clear-transaction-ios',
     title: 'clearTransactionIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Clear pending transactions',
     parameters: '',
     returns: 'Boolean!',
@@ -150,7 +150,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'sync-ios',
     title: 'syncIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Force StoreKit transaction sync (iOS 15+)',
     parameters: '',
     returns: 'Boolean!',
@@ -159,7 +159,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'get-promoted-product-ios',
     title: 'getPromotedProductIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Get the currently promoted product (iOS 11+)',
     parameters: '',
     returns: 'ProductIOS',
@@ -168,7 +168,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'request-purchase-on-promoted-product-ios',
     title: 'requestPurchaseOnPromotedProductIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Purchase a promoted product (iOS 11+)',
     parameters: '',
     returns: 'Boolean!',
@@ -177,7 +177,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'get-pending-transactions-ios',
     title: 'getPendingTransactionsIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Retrieve pending StoreKit transactions',
     parameters: '',
     returns: '[PurchaseIOS!]!',
@@ -186,7 +186,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'is-eligible-for-intro-offer-ios',
     title: 'isEligibleForIntroOfferIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Check introductory offer eligibility',
     parameters: 'groupID: String!',
     returns: 'Boolean!',
@@ -195,7 +195,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'subscription-status-ios',
     title: 'subscriptionStatusIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Get StoreKit 2 subscription status (iOS 15+)',
     parameters: 'sku: String!',
     returns: '[SubscriptionStatusIOS!]!',
@@ -204,7 +204,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'current-entitlement-ios',
     title: 'currentEntitlementIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Get current StoreKit 2 entitlement (iOS 15+)',
     parameters: 'sku: String!',
     returns: 'PurchaseIOS',
@@ -213,7 +213,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'latest-transaction-ios',
     title: 'latestTransactionIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Get latest StoreKit 2 transaction (iOS 15+)',
     parameters: 'sku: String!',
     returns: 'PurchaseIOS',
@@ -222,7 +222,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'show-manage-subscriptions-ios',
     title: 'showManageSubscriptionsIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Open subscription management UI and return changes (iOS 15+)',
     parameters: '',
     returns: '[PurchaseIOS!]!',
@@ -231,7 +231,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'begin-refund-request-ios',
     title: 'beginRefundRequestIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Initiate refund request (iOS 15+)',
     parameters: 'sku: String!',
     returns: 'String',
@@ -240,7 +240,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'is-transaction-verified-ios',
     title: 'isTransactionVerifiedIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Verify StoreKit 2 transaction signature',
     parameters: 'sku: String!',
     returns: 'Boolean!',
@@ -249,7 +249,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'get-transaction-jws-ios',
     title: 'getTransactionJwsIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Get the transaction JWS (StoreKit 2)',
     parameters: 'sku: String!',
     returns: 'String',
@@ -258,7 +258,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'get-receipt-data-ios',
     title: 'getReceiptDataIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Get base64-encoded receipt data for validation',
     parameters: '',
     returns: 'String',
@@ -267,7 +267,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'present-code-redemption-sheet-ios',
     title: 'presentCodeRedemptionSheetIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Present the App Store code redemption sheet',
     parameters: '',
     returns: 'Boolean!',
@@ -276,7 +276,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'get-app-transaction-ios',
     title: 'getAppTransactionIOS',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'Fetch the current app transaction (iOS 16+)',
     parameters: '',
     returns: 'AppTransaction',
@@ -285,18 +285,18 @@ export const apiData: ApiItem[] = [
   {
     id: 'external-purchase-ios',
     title: 'iOS External Purchase',
-    category: 'iOS APIs',
+    category: 'iOS Specific',
     description: 'External purchase flow for iOS 17.4+',
     parameters: '',
     returns: '',
     path: '/docs/apis/ios#external-purchase',
   },
 
-  // Android APIs
+  // Android Specific
   {
     id: 'acknowledge-purchase-android',
     title: 'acknowledgePurchaseAndroid',
-    category: 'Android APIs',
+    category: 'Android Specific',
     description: 'Acknowledge a non-consumable purchase or subscription',
     parameters: 'purchaseToken: String!',
     returns: 'Boolean!',
@@ -305,7 +305,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'consume-purchase-android',
     title: 'consumePurchaseAndroid',
-    category: 'Android APIs',
+    category: 'Android Specific',
     description: 'Consume a purchase (for consumable products only)',
     parameters: 'purchaseToken: String!',
     returns: 'Boolean!',
@@ -314,7 +314,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'check-alternative-billing-availability-android',
     title: 'checkAlternativeBillingAvailabilityAndroid',
-    category: 'Android APIs',
+    category: 'Android Specific',
     description:
       'Check if alternative billing is available (Step 1 of alternative billing)',
     parameters: '',
@@ -324,7 +324,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'show-alternative-billing-dialog-android',
     title: 'showAlternativeBillingDialogAndroid',
-    category: 'Android APIs',
+    category: 'Android Specific',
     description:
       'Show alternative billing dialog to user (Step 2 of alternative billing)',
     parameters: '',
@@ -334,7 +334,7 @@ export const apiData: ApiItem[] = [
   {
     id: 'create-alternative-billing-token-android',
     title: 'createAlternativeBillingTokenAndroid',
-    category: 'Android APIs',
+    category: 'Android Specific',
     description:
       'Create external transaction token for Google Play (Step 3 of alternative billing)',
     parameters: '',
