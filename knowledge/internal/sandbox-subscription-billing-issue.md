@@ -42,11 +42,15 @@ cd ../flutter_inapp_purchase && flutter analyze
 2. Open the Example app:
    - `packages/apple/Example/OpenIapExample.xcodeproj` — run the `OpenIapExample` scheme.
 3. In-app: navigate to the **Subscription Flow** screen and subscribe to `dev.hyo.martie.premium`.
-4. Force a billing issue:
-   - In **App Store Connect → Users and Access → Sandbox Testers**, open the tester and toggle **Billing Issue** to ON. Apple's docs: <https://developer.apple.com/help/app-store-connect/test-in-app-purchases/test-win-back-offers/#trigger-a-billing-issue>.
-   - Alternatively, use Sandbox Account → "Manage" → "Remove Payment Method" to simulate an expired card.
-5. Relaunch the Example app (or send it to background then foreground). Within a few seconds StoreKit delivers `Message.Reason.billingIssue`.
-6. Expected UI: the orange "Subscription needs attention" banner appears at the top of the Subscription Flow screen. Tapping **Fix payment method** opens `SKPaymentQueue` / `showManageSubscriptions`.
+4. Force a billing issue on the **device** (requires iOS 16+ / iPadOS 16+):
+   - Go to **Settings → Developer → Sandbox Account → Manage → Account Settings**.
+   - Disable the **Allow Purchases & Renewals** setting.
+   - This causes all in-app purchases to fail and auto-renewable subscriptions to stop renewing.
+   - The setting applies to all devices the sandbox account signs in to.
+   - Reference: <https://developer.apple.com/documentation/storekit/testing-failing-subscription-renewals-and-in-app-purchases#Configure-the-sandbox-environment-to-simulate-billing-issues>.
+5. Wait for the next renewal cycle (Renewal Rate = 5 minutes → wait ~5 min). The renewal fails, and StoreKit delivers `Message.Reason.billingIssue` when the app is in the foreground.
+6. To simulate the user fixing the issue, re-enable **Allow Purchases & Renewals**.
+7. Expected UI: the orange "Subscription needs attention" banner appears at the top of the Subscription Flow screen. Tapping **Fix payment method** opens `SKPaymentQueue` / `showManageSubscriptions`.
 
 **What success looks like**
 
@@ -56,6 +60,7 @@ cd ../flutter_inapp_purchase && flutter analyze
   🔔 [MessageListener] billingIssue received
   Emitting subscriptionBillingIssue: dev.hyo.martie.premium
   ```
+
 - Banner visible on `SubscriptionFlowScreen`.
 - `Transaction.currentEntitlements` shows the affected subscription in `.inBillingRetryPeriod` or `.inGracePeriod`.
 
@@ -95,6 +100,7 @@ cd ../flutter_inapp_purchase && flutter analyze
   D OpenIapModule: onPurchasesUpdated isSuspended=true ...
   D Example: subscriptionBillingIssue fired for sku=...
   ```
+
 - Banner visible on `SubscriptionFlowScreen`.
 - Tapping **Fix payment method** launches `deepLinkToSubscriptions` which routes to Play's subscription center.
 
