@@ -377,6 +377,18 @@ function TypesPurchase() {
                         below)
                       </td>
                     </tr>
+                    <tr>
+                      <td>
+                        <code>advancedCommerceInfoIOS</code>
+                      </td>
+                      <td>
+                        Advanced Commerce API metadata (iOS 18.4+, see{' '}
+                        <a href="#advanced-commerce-info-ios">
+                          AdvancedCommerceInfoIOS
+                        </a>{' '}
+                        below)
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
 
@@ -474,6 +486,85 @@ function TypesPurchase() {
                           Offer type: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE",
                           "WIN_BACK"
                         </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ marginTop: '1rem' }}>
+                  <AnchorLink id="advanced-commerce-info-ios" level="h4">
+                    AdvancedCommerceInfoIOS{' '}
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'normal' }}>
+                      (iOS 18.4+, from{' '}
+                      <a
+                        href="https://developer.apple.com/documentation/storekit/transaction/advancedcommerceinfo"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Transaction.AdvancedCommerceInfo
+                      </a>
+                      )
+                    </span>
+                  </AnchorLink>
+                  <p>
+                    Present only for transactions using the Advanced Commerce
+                    API with generic SKU purchases.
+                  </p>
+                  <table className="doc-table" style={{ marginTop: '0.5rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Summary</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <code>items</code>
+                        </td>
+                        <td>Items purchased in this transaction</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>requestReferenceId</code>
+                        </td>
+                        <td>Request reference identifier for tracking</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>taxCode</code>
+                        </td>
+                        <td>Tax code for the transaction</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>taxExclusivePrice</code>
+                        </td>
+                        <td>Price excluding tax (decimal string)</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>estimatedTax</code>
+                        </td>
+                        <td>Estimated tax amount (decimal string)</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>taxRate</code>
+                        </td>
+                        <td>Tax rate applied (decimal string)</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>displayName</code>
+                        </td>
+                        <td>Optional display name</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <code>description</code>
+                        </td>
+                        <td>Optional description</td>
                       </tr>
                     </tbody>
                   </table>

@@ -503,10 +503,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return purchasedItems
     }
 
-    /// Get all transactions including finished consumables (iOS 18+).
-    /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app.
-    /// Returns all transactions from Transaction.all, including finished consumable
-    /// transactions that would otherwise be excluded from getAvailablePurchases.
+    /// Get the full StoreKit 2 transaction history as `PurchaseIOS` values.
+    /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+    /// for finished consumables to be included in `Transaction.all` (iOS 18+).
+    /// Unlike `getAvailablePurchases(_:)`, this method always reads from
+    /// `Transaction.all` and returns the iOS-specific `PurchaseIOS` shape rather than
+    /// the cross-platform `Purchase` type.
     public func getAllTransactionsIOS() async throws -> [PurchaseIOS] {
         try await ensureConnection()
         var transactions: [PurchaseIOS] = []
