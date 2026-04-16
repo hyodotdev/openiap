@@ -643,7 +643,12 @@ export const subscriptionBillingIssueListener = (
   subscriptionBillingIssueJsListeners.add(listener);
   // Retry attachment every call so a listener registered before initConnection()
   // doesn't stay permanently inert once Nitro is ready.
-  tryAttachSubscriptionBillingIssueNative();
+  try {
+    tryAttachSubscriptionBillingIssueNative();
+  } catch (error) {
+    subscriptionBillingIssueJsListeners.delete(listener);
+    throw error;
+  }
 
   return {
     remove: () => {

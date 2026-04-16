@@ -51,6 +51,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 **What success looks like**
 
 - Console logs:
+
   ```text
   🔔 [MessageListener] billingIssue received
   Emitting subscriptionBillingIssue: dev.hyo.martie.premium
@@ -89,6 +90,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 **What success looks like**
 
 - `logcat` shows:
+
   ```text
   D OpenIapModule: onPurchasesUpdated isSuspended=true ...
   D Example: subscriptionBillingIssue fired for sku=...

@@ -1693,7 +1693,9 @@ class HybridRnIap : HybridRnIapSpec() {
     // Source: Play Billing 8.1+ Purchase.isSuspended detection inside openiap-google.
     // -------------------------------------------------------------------------
 
+    @Volatile
     private var subscriptionBillingIssueAttached = false
+    private val subscriptionBillingIssueAttachLock = Any()
 
     override fun addSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
         synchronized(subscriptionBillingIssueListeners) {
@@ -1709,19 +1711,21 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun attachSubscriptionBillingIssueIfNeeded() {
-        if (subscriptionBillingIssueAttached) return
-        subscriptionBillingIssueAttached = true
-        openIap.addSubscriptionBillingIssueListener(
-            dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
-                runCatching {
-                    val nitro = convertToNitroPurchase(purchase)
-                    val snapshot = synchronized(subscriptionBillingIssueListeners) {
-                        ArrayList(subscriptionBillingIssueListeners)
-                    }
-                    snapshot.forEach { it(nitro) }
-                }.onFailure { RnIapLog.failure("subscriptionBillingIssueListener", it) }
-            }
-        )
+        synchronized(subscriptionBillingIssueAttachLock) {
+            if (subscriptionBillingIssueAttached) return
+            openIap.addSubscriptionBillingIssueListener(
+                dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
+                    runCatching {
+                        val nitro = convertToNitroPurchase(purchase)
+                        val snapshot = synchronized(subscriptionBillingIssueListeners) {
+                            ArrayList(subscriptionBillingIssueListeners)
+                        }
+                        snapshot.forEach { it(nitro) }
+                    }.onFailure { RnIapLog.failure("subscriptionBillingIssueListener", it) }
+                }
+            )
+            subscriptionBillingIssueAttached = true
+        }
     }
 
     // -------------------------------------------------------------------------

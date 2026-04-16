@@ -183,8 +183,9 @@ class OpenIapModule(
                 billingClient = null
                 // Reset subscription-billing-issue dedupe state so a fresh
                 // initConnection() can re-emit for previously-seen tokens.
+                // Only clear the dedupe set — listeners persist across reconnects,
+                // consistent with purchaseUpdateListeners/purchaseErrorListeners.
                 emittedBillingIssueTokens.clear()
-                subscriptionBillingIssueListeners.clear()
             }.fold(onSuccess = { true }, onFailure = { false })
         }
     }
