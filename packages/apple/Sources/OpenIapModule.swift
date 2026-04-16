@@ -1539,15 +1539,28 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         #if os(iOS) || targetEnvironment(macCatalyst)
         if #available(iOS 18.0, macCatalyst 18.0, *) {
             messageListenerTask?.cancel()
+            OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener (iOS 18+)")
             messageListenerTask = Task { [weak self] in
                 guard let self else { return }
                 for await message in StoreKit.Message.messages {
-                    guard await self.state.isInitialized else { continue }
-                    guard case .billingIssue = message.reason else { continue }
+                    OpenIapLog.debug("🔔 [MessageListener] Received message: reason=\(message.reason)")
+                    guard await self.state.isInitialized else {
+                        OpenIapLog.debug("🔔 [MessageListener] Skipping — not initialized")
+                        continue
+                    }
+                    guard case .billingIssue = message.reason else {
+                        OpenIapLog.debug("🔔 [MessageListener] Skipping non-billingIssue message")
+                        continue
+                    }
+                    OpenIapLog.debug("🔔 [MessageListener] billingIssue received — dispatching")
                     await self.dispatchBillingIssueMessage()
                 }
             }
+        } else {
+            OpenIapLog.debug("🔔 [MessageListener] Skipped — iOS < 18.0")
         }
+        #else
+        OpenIapLog.debug("🔔 [MessageListener] Skipped — not iOS/macCatalyst")
         #endif
     }
 
