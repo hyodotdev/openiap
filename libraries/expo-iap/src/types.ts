@@ -37,6 +37,56 @@ export interface ActiveSubscription {
 }
 
 /**
+ * Advanced Commerce metadata from a transaction (iOS 18.4+).
+ * Contains item details, tax information, and refund data for purchases
+ * made through the Advanced Commerce API using generic SKUs.
+ * Only present for transactions that use the Advanced Commerce API.
+ */
+export interface AdvancedCommerceInfoIOS {
+  /** Optional description */
+  description?: (string | null);
+  /** Optional display name */
+  displayName?: (string | null);
+  /** Estimated tax amount (decimal string) */
+  estimatedTax?: (string | null);
+  /** The items purchased as part of this transaction */
+  items: AdvancedCommerceItemIOS[];
+  /** Request reference identifier for tracking */
+  requestReferenceId?: (string | null);
+  /** Tax code for the transaction */
+  taxCode?: (string | null);
+  /** Price excluding tax (decimal string) */
+  taxExclusivePrice?: (string | null);
+  /** Tax rate applied (decimal string) */
+  taxRate?: (string | null);
+}
+
+/** Details of an Advanced Commerce item (iOS 18.4+). */
+export interface AdvancedCommerceItemDetailsIOS {
+  /** JSON representation of the item details */
+  jsonRepresentation?: (string | null);
+}
+
+/**
+ * An item purchased through the Advanced Commerce API (iOS 18.4+).
+ * Represents a developer-defined product within a generic SKU transaction.
+ */
+export interface AdvancedCommerceItemIOS {
+  /** The item's detail information */
+  details?: (AdvancedCommerceItemDetailsIOS | null);
+  /** Refunds issued for this item, if any */
+  refunds?: (AdvancedCommerceRefundIOS[] | null);
+  /** Date access to this item was revoked (milliseconds since epoch) */
+  revocationDate?: (number | null);
+}
+
+/** Refund information for an Advanced Commerce item (iOS 18.4+). */
+export interface AdvancedCommerceRefundIOS {
+  /** JSON representation of the refund details */
+  jsonRepresentation?: (string | null);
+}
+
+/**
  * Alternative billing mode for Android
  * Controls which billing system is used
  * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
@@ -1112,6 +1162,12 @@ export interface PurchaseError {
 }
 
 export interface PurchaseIOS extends PurchaseCommon {
+  /**
+   * Advanced Commerce API metadata (iOS 18.4+).
+   * Present only for transactions that use the Advanced Commerce API.
+   * Contains item details, tax information, and refund data for generic SKU purchases.
+   */
+  advancedCommerceInfoIOS?: (AdvancedCommerceInfoIOS | null);
   appAccountToken?: (string | null);
   appBundleIdIOS?: (string | null);
   countryCodeIOS?: (string | null);
@@ -1188,6 +1244,13 @@ export interface Query {
   fetchProducts: Promise<(ProductOrSubscription[] | Product[] | ProductSubscription[] | null)>;
   /** Get active subscriptions (filters by subscriptionIds when provided) */
   getActiveSubscriptions: Promise<ActiveSubscription[]>;
+  /**
+   * Get the full StoreKit 2 transaction history as PurchaseIOS values.
+   * Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+   * for finished consumables to be included (iOS 18+).
+   * Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
+   */
+  getAllTransactionsIOS: Promise<PurchaseIOS[]>;
   /** Fetch the current app transaction (iOS 16+) */
   getAppTransactionIOS?: Promise<(AppTransaction | null)>;
   /** Get all available purchases for the current user */
@@ -1901,6 +1964,7 @@ export type QueryArgsMap = {
   currentEntitlementIOS: QueryCurrentEntitlementIosArgs;
   fetchProducts: QueryFetchProductsArgs;
   getActiveSubscriptions: QueryGetActiveSubscriptionsArgs;
+  getAllTransactionsIOS: never;
   getAppTransactionIOS: never;
   getAvailablePurchases: QueryGetAvailablePurchasesArgs;
   getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIosArgs;

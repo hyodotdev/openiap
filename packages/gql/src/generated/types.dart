@@ -1048,6 +1048,147 @@ class ActiveSubscription {
   }
 }
 
+/// Advanced Commerce metadata from a transaction (iOS 18.4+).
+/// Contains item details, tax information, and refund data for purchases
+/// made through the Advanced Commerce API using generic SKUs.
+/// Only present for transactions that use the Advanced Commerce API.
+class AdvancedCommerceInfoIOS {
+  const AdvancedCommerceInfoIOS({
+    this.description,
+    this.displayName,
+    this.estimatedTax,
+    required this.items,
+    this.requestReferenceId,
+    this.taxCode,
+    this.taxExclusivePrice,
+    this.taxRate,
+  });
+
+  /// Optional description
+  final String? description;
+  /// Optional display name
+  final String? displayName;
+  /// Estimated tax amount (decimal string)
+  final String? estimatedTax;
+  /// The items purchased as part of this transaction
+  final List<AdvancedCommerceItemIOS> items;
+  /// Request reference identifier for tracking
+  final String? requestReferenceId;
+  /// Tax code for the transaction
+  final String? taxCode;
+  /// Price excluding tax (decimal string)
+  final String? taxExclusivePrice;
+  /// Tax rate applied (decimal string)
+  final String? taxRate;
+
+  factory AdvancedCommerceInfoIOS.fromJson(Map<String, dynamic> json) {
+    return AdvancedCommerceInfoIOS(
+      description: json['description'] as String?,
+      displayName: json['displayName'] as String?,
+      estimatedTax: json['estimatedTax'] as String?,
+      items: (json['items'] as List<dynamic>).map((e) => AdvancedCommerceItemIOS.fromJson(e as Map<String, dynamic>)).toList(),
+      requestReferenceId: json['requestReferenceId'] as String?,
+      taxCode: json['taxCode'] as String?,
+      taxExclusivePrice: json['taxExclusivePrice'] as String?,
+      taxRate: json['taxRate'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'AdvancedCommerceInfoIOS',
+      'description': description,
+      'displayName': displayName,
+      'estimatedTax': estimatedTax,
+      'items': items.map((e) => e.toJson()).toList(),
+      'requestReferenceId': requestReferenceId,
+      'taxCode': taxCode,
+      'taxExclusivePrice': taxExclusivePrice,
+      'taxRate': taxRate,
+    };
+  }
+}
+
+/// Details of an Advanced Commerce item (iOS 18.4+).
+class AdvancedCommerceItemDetailsIOS {
+  const AdvancedCommerceItemDetailsIOS({
+    this.jsonRepresentation,
+  });
+
+  /// JSON representation of the item details
+  final String? jsonRepresentation;
+
+  factory AdvancedCommerceItemDetailsIOS.fromJson(Map<String, dynamic> json) {
+    return AdvancedCommerceItemDetailsIOS(
+      jsonRepresentation: json['jsonRepresentation'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'AdvancedCommerceItemDetailsIOS',
+      'jsonRepresentation': jsonRepresentation,
+    };
+  }
+}
+
+/// An item purchased through the Advanced Commerce API (iOS 18.4+).
+/// Represents a developer-defined product within a generic SKU transaction.
+class AdvancedCommerceItemIOS {
+  const AdvancedCommerceItemIOS({
+    this.details,
+    this.refunds,
+    this.revocationDate,
+  });
+
+  /// The item's detail information
+  final AdvancedCommerceItemDetailsIOS? details;
+  /// Refunds issued for this item, if any
+  final List<AdvancedCommerceRefundIOS>? refunds;
+  /// Date access to this item was revoked (milliseconds since epoch)
+  final double? revocationDate;
+
+  factory AdvancedCommerceItemIOS.fromJson(Map<String, dynamic> json) {
+    return AdvancedCommerceItemIOS(
+      details: json['details'] != null ? AdvancedCommerceItemDetailsIOS.fromJson(json['details'] as Map<String, dynamic>) : null,
+      refunds: (json['refunds'] as List<dynamic>?) == null ? null : (json['refunds'] as List<dynamic>?)!.map((e) => AdvancedCommerceRefundIOS.fromJson(e as Map<String, dynamic>)).toList(),
+      revocationDate: (json['revocationDate'] as num?)?.toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'AdvancedCommerceItemIOS',
+      'details': details?.toJson(),
+      'refunds': refunds == null ? null : refunds!.map((e) => e.toJson()).toList(),
+      'revocationDate': revocationDate,
+    };
+  }
+}
+
+/// Refund information for an Advanced Commerce item (iOS 18.4+).
+class AdvancedCommerceRefundIOS {
+  const AdvancedCommerceRefundIOS({
+    this.jsonRepresentation,
+  });
+
+  /// JSON representation of the refund details
+  final String? jsonRepresentation;
+
+  factory AdvancedCommerceRefundIOS.fromJson(Map<String, dynamic> json) {
+    return AdvancedCommerceRefundIOS(
+      jsonRepresentation: json['jsonRepresentation'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'AdvancedCommerceRefundIOS',
+      'jsonRepresentation': jsonRepresentation,
+    };
+  }
+}
+
 class AppTransaction {
   const AppTransaction({
     required this.appId,
@@ -2612,6 +2753,7 @@ class PurchaseError {
 
 class PurchaseIOS extends Purchase implements PurchaseCommon {
   const PurchaseIOS({
+    this.advancedCommerceInfoIOS,
     this.appAccountToken,
     this.appBundleIdIOS,
     this.countryCodeIOS,
@@ -2649,6 +2791,10 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.isAlternativeBilling,
   });
 
+  /// Advanced Commerce API metadata (iOS 18.4+).
+  /// Present only for transactions that use the Advanced Commerce API.
+  /// Contains item details, tax information, and refund data for generic SKU purchases.
+  final AdvancedCommerceInfoIOS? advancedCommerceInfoIOS;
   final String? appAccountToken;
   final String? appBundleIdIOS;
   final String? countryCodeIOS;
@@ -2688,6 +2834,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
 
   factory PurchaseIOS.fromJson(Map<String, dynamic> json) {
     return PurchaseIOS(
+      advancedCommerceInfoIOS: json['advancedCommerceInfoIOS'] != null ? AdvancedCommerceInfoIOS.fromJson(json['advancedCommerceInfoIOS'] as Map<String, dynamic>) : null,
       appAccountToken: json['appAccountToken'] as String?,
       appBundleIdIOS: json['appBundleIdIOS'] as String?,
       countryCodeIOS: json['countryCodeIOS'] as String?,
@@ -2730,6 +2877,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   Map<String, dynamic> toJson() {
     return {
       '__typename': 'PurchaseIOS',
+      'advancedCommerceInfoIOS': advancedCommerceInfoIOS?.toJson(),
       'appAccountToken': appAccountToken,
       'appBundleIdIOS': appBundleIdIOS,
       'countryCodeIOS': countryCodeIOS,
@@ -4830,6 +4978,11 @@ abstract class QueryResolver {
   });
   /// Get active subscriptions (filters by subscriptionIds when provided)
   Future<List<ActiveSubscription>> getActiveSubscriptions([List<String>? subscriptionIds]);
+  /// Get the full StoreKit 2 transaction history as PurchaseIOS values.
+  /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+  /// for finished consumables to be included (iOS 18+).
+  /// Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
+  Future<List<PurchaseIOS>> getAllTransactionsIOS();
   /// Fetch the current app transaction (iOS 16+)
   Future<AppTransaction?> getAppTransactionIOS();
   /// Get all available purchases for the current user
@@ -5030,6 +5183,7 @@ typedef QueryFetchProductsHandler = Future<FetchProductsResult> Function({
   ProductQueryType? type,
 });
 typedef QueryGetActiveSubscriptionsHandler = Future<List<ActiveSubscription>> Function([List<String>? subscriptionIds]);
+typedef QueryGetAllTransactionsIOSHandler = Future<List<PurchaseIOS>> Function();
 typedef QueryGetAppTransactionIOSHandler = Future<AppTransaction?> Function();
 typedef QueryGetAvailablePurchasesHandler = Future<List<Purchase>> Function({
   bool? alsoPublishToEventListenerIOS,
@@ -5061,6 +5215,7 @@ class QueryHandlers {
     this.currentEntitlementIOS,
     this.fetchProducts,
     this.getActiveSubscriptions,
+    this.getAllTransactionsIOS,
     this.getAppTransactionIOS,
     this.getAvailablePurchases,
     this.getExternalPurchaseCustomLinkTokenIOS,
@@ -5083,6 +5238,7 @@ class QueryHandlers {
   final QueryCurrentEntitlementIOSHandler? currentEntitlementIOS;
   final QueryFetchProductsHandler? fetchProducts;
   final QueryGetActiveSubscriptionsHandler? getActiveSubscriptions;
+  final QueryGetAllTransactionsIOSHandler? getAllTransactionsIOS;
   final QueryGetAppTransactionIOSHandler? getAppTransactionIOS;
   final QueryGetAvailablePurchasesHandler? getAvailablePurchases;
   final QueryGetExternalPurchaseCustomLinkTokenIOSHandler? getExternalPurchaseCustomLinkTokenIOS;

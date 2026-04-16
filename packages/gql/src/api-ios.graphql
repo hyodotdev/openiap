@@ -81,11 +81,19 @@ extend type Query {
   """
   # Future
   getAppTransactionIOS: AppTransaction
-"""
-Validate a receipt for a specific product
-"""
-# Future
-validateReceiptIOS(options: VerifyPurchaseProps!): VerifyPurchaseResultIOS! @deprecated(reason: "Use verifyPurchase")
+  """
+  Get the full StoreKit 2 transaction history as PurchaseIOS values.
+  Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+  for finished consumables to be included (iOS 18+).
+  Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
+  """
+  # Future
+  getAllTransactionsIOS: [PurchaseIOS!]!
+  """
+  Validate a receipt for a specific product
+  """
+  # Future
+  validateReceiptIOS(options: VerifyPurchaseProps!): VerifyPurchaseResultIOS! @deprecated(reason: "Use verifyPurchase")
 }
 
 extend type Mutation {

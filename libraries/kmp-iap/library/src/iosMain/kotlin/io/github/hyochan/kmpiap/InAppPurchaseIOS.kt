@@ -411,6 +411,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
+    // TODO: Wire to ObjC bridge once getAllTransactionsIOSWithCompletion is available in consumed CocoaPods artifacts.
+    override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> {
+        throw UnsupportedOperationException(
+            "getAllTransactionsIOS is not available in this kmp-iap iOS build yet"
+        )
+    }
+
     override suspend fun getReceiptDataIOS(): String? = suspendCoroutine { continuation ->
         openIapModule.getReceiptDataIOSWithCompletion { result, error ->
             if (error != null) {

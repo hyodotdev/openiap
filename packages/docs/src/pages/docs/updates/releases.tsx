@@ -46,14 +46,13 @@ function Releases() {
                 color: 'var(--text-secondary)',
               }}
             >
-              Until now, catching a failed payment before the platform
-              silently downgrades or cancels a subscription required running
-              your own server and polling Apple/Google Server-to-Server
-              Notifications. With the new{' '}
-              <code>subscriptionBillingIssue</code> event, apps can detect
-              billing problems purely on the client — no backend infrastructure
-              needed. Listen for the event, deep-link the user to the
-              platform&apos;s subscription management screen via{' '}
+              Until now, catching a failed payment before the platform silently
+              downgrades or cancels a subscription required running your own
+              server and polling Apple/Google Server-to-Server Notifications.
+              With the new <code>subscriptionBillingIssue</code> event, apps can
+              detect billing problems purely on the client — no backend
+              infrastructure needed. Listen for the event, deep-link the user to
+              the platform&apos;s subscription management screen via{' '}
               <code>deepLinkToSubscriptions</code>, and turn involuntary churn
               into a recoverable moment.
             </p>
@@ -68,8 +67,8 @@ function Releases() {
               <li>
                 <strong>Schema:</strong> new{' '}
                 <code>IapEvent.SubscriptionBillingIssue</code> enum value and{' '}
-                <code>subscriptionBillingIssue: Purchase!</code> subscription
-                in <code>event.graphql</code>. Payload is the affected{' '}
+                <code>subscriptionBillingIssue: Purchase!</code> subscription in{' '}
+                <code>event.graphql</code>. Payload is the affected{' '}
                 <code>Purchase</code>.
               </li>
               <li>
@@ -347,9 +346,9 @@ function Releases() {
                   Breaking: <code>ErrorCode</code> gains{' '}
                   <code>.serviceTimeout</code>
                 </strong>{' '}
-                — the shared spec schema adds <code>ServiceTimeout</code>, so the
-                Swift <code>ErrorCode</code> enum picks up a new case. Any Swift
-                consumer that does an exhaustive <code>switch</code> on{' '}
+                — the shared spec schema adds <code>ServiceTimeout</code>, so
+                the Swift <code>ErrorCode</code> enum picks up a new case. Any
+                Swift consumer that does an exhaustive <code>switch</code> on{' '}
                 <code>ErrorCode</code> without a <code>default:</code> branch
                 will need to add a <code>.serviceTimeout</code> case (or a
                 fallback), hence the major bump per SemVer. The enum is not{' '}

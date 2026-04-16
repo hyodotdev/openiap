@@ -292,6 +292,18 @@ import StoreKit
         }
     }
 
+    @objc func getAllTransactionsIOSWithCompletion(_ completion: @escaping ([Any]?, Error?) -> Void) {
+        Task {
+            do {
+                let transactions = try await getAllTransactionsIOS()
+                let dictionaries = transactions.map { OpenIapSerialization.encode($0) }
+                completion(dictionaries, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     @objc func syncIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
         Task {
             do {

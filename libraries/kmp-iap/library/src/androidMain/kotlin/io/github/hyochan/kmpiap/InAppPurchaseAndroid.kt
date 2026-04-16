@@ -515,6 +515,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> = emptyList()
 
+    override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> = emptyList()
+
     override suspend fun getReceiptDataIOS(): String? = null
 
     override suspend fun getTransactionJwsIOS(sku: String): String? = null

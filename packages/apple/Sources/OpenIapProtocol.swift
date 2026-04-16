@@ -51,6 +51,7 @@ public protocol OpenIapModuleProtocol {
     func requestPurchaseOnPromotedProductIOS() async throws -> Bool
     func restorePurchases() async throws -> Void
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase]
+    func getAllTransactionsIOS() async throws -> [PurchaseIOS]
 
     // Transaction Management
     func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void

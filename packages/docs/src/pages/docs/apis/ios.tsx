@@ -28,7 +28,8 @@ function IOSAPIs() {
             <a href="#transaction-management">
               <strong>Transaction Management</strong>
             </a>
-            : clearTransactionIOS, getPendingTransactionsIOS
+            : clearTransactionIOS, getPendingTransactionsIOS,
+            getAllTransactionsIOS
           </li>
           <li>
             <a href="#subscription-management">
@@ -67,6 +68,16 @@ function IOSAPIs() {
         </AnchorLink>
         <p>Retrieve all pending transactions in the StoreKit queue.</p>
         <CodeBlock language="swift">{`func getPendingTransactionsIOS() async throws -> [Purchase]`}</CodeBlock>
+
+        <AnchorLink id="get-all-transactions-ios" level="h3">
+          getAllTransactionsIOS
+        </AnchorLink>
+        <p>
+          Get the full StoreKit 2 transaction history as PurchaseIOS values.
+          Requires the SK2ConsumableTransactionHistory Info.plist key for
+          finished consumables to be included (iOS 18+).
+        </p>
+        <CodeBlock language="swift">{`func getAllTransactionsIOS() async throws -> [PurchaseIOS]`}</CodeBlock>
 
         <AnchorLink id="sync-ios" level="h3">
           syncIOS

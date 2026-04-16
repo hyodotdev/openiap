@@ -503,6 +503,34 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return purchasedItems
     }
 
+    /// Get the full StoreKit 2 transaction history as `PurchaseIOS` values.
+    /// Requires the SK2ConsumableTransactionHistory Info.plist key in the host app
+    /// for finished consumables to be included in `Transaction.all` (iOS 18+).
+    /// Unlike `getAvailablePurchases(_:)`, this method always reads from
+    /// `Transaction.all` and returns the iOS-specific `PurchaseIOS` shape rather than
+    /// the cross-platform `Purchase` type.
+    public func getAllTransactionsIOS() async throws -> [PurchaseIOS] {
+        try await ensureConnection()
+        var transactions: [PurchaseIOS] = []
+
+        for await verification in Transaction.all {
+            do {
+                let transaction = try checkVerified(verification)
+                let purchase = await StoreKitTypesBridge.purchaseIOS(
+                    from: transaction,
+                    jwsRepresentation: verification.jwsRepresentation
+                )
+                transactions.append(purchase)
+            } catch {
+                OpenIapLog.error("getAllTransactionsIOS: failed to verify transaction: \(error)")
+                continue
+            }
+        }
+
+        OpenIapLog.debug("🔍 getAllTransactionsIOS: \(transactions.count) transactions")
+        return transactions
+    }
+
     // MARK: - Transaction Management
 
     public func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void {

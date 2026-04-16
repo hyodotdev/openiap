@@ -129,8 +129,10 @@ enum StoreKitTypesBridge {
 
         let ownershipDescription = ownershipTypeDescription(from: transaction.ownershipType)
         let reasonDetails = transactionReasonDetails(from: transaction)
+        let advancedCommerceInfo: AdvancedCommerceInfoIOS? = extractAdvancedCommerceInfo(from: transaction)
 
         return PurchaseIOS(
+            advancedCommerceInfoIOS: advancedCommerceInfo,
             appAccountToken: transaction.appAccountToken?.uuidString,
             appBundleIdIOS: transaction.appBundleID,
             countryCodeIOS: {
@@ -885,6 +887,42 @@ private extension StoreKitTypesBridge {
         }
 
         return TransactionReason(lowercased: "purchase", string: "purchase", uppercased: "PURCHASE")
+    }
+
+    // MARK: - Advanced Commerce Info (iOS 18.4+)
+
+    static func extractAdvancedCommerceInfo(from transaction: StoreKit.Transaction) -> AdvancedCommerceInfoIOS? {
+        #if swift(>=6.1)
+        if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
+            guard let info = transaction.advancedCommerceInfo else { return nil }
+            let items: [AdvancedCommerceItemIOS] = info.items.map { item in
+                let details = AdvancedCommerceItemDetailsIOS(
+                    jsonRepresentation: String(data: item.details.jsonRepresentation, encoding: .utf8)
+                )
+                let refunds: [AdvancedCommerceRefundIOS]? = item.refunds?.map { refund in
+                    AdvancedCommerceRefundIOS(
+                        jsonRepresentation: String(data: refund.jsonRepresentation, encoding: .utf8)
+                    )
+                }
+                return AdvancedCommerceItemIOS(
+                    details: details,
+                    refunds: refunds,
+                    revocationDate: item.revocationDate?.milliseconds
+                )
+            }
+            return AdvancedCommerceInfoIOS(
+                description: info.description,
+                displayName: info.displayName,
+                estimatedTax: info.estimatedTax.map { "\($0)" },
+                items: items,
+                requestReferenceId: info.requestReferenceID,
+                taxCode: info.taxCode,
+                taxExclusivePrice: info.taxExclusivePrice.map { "\($0)" },
+                taxRate: info.taxRate.map { "\($0)" }
+            )
+        }
+        #endif
+        return nil
     }
 }
 

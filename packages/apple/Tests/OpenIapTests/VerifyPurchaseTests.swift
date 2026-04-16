@@ -87,6 +87,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     func requestPurchaseOnPromotedProductIOS() async throws -> Bool { false }
     func restorePurchases() async throws -> Void { () }
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] { [] }
+    func getAllTransactionsIOS() async throws -> [PurchaseIOS] { [] }
 
     // MARK: - Transaction Management
     func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void { () }
