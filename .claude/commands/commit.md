@@ -281,18 +281,6 @@ docs: add release notes and type documentation
 Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
-**Skills update:**
-```
-chore(skills): enhance sync and audit workflows
-
-- Add documentation checklist to all sync-*.md files
-- Add example code requirements to audit-code.md
-- Add local dev testing section to sync-expo-iap.md
-- Create commit skill for structured commits
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
-```
-
 ---
 
 ## Example PR Body

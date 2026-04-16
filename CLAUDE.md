@@ -127,7 +127,6 @@ claude --context knowledge/_claude-context/context.md
 | `/review-pr` | Review PR comments, fix issues, resolve threads | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code` | Audit code against knowledge rules and latest APIs | `/audit-code` |
 | `/compile-knowledge` | Compile knowledge base for Claude context | `/compile-knowledge` |
-| `/sync-*` | Sync changes to platform SDKs | `/sync-expo-iap`, `/sync-flutter-iap`, etc. |
 
 ### /review-pr Workflow
 
