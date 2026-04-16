@@ -130,11 +130,17 @@ function SubscriptionBillingIssue() {
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`// react-native-iap OR expo-iap
+              <CodeBlock language="typescript">{`// react-native-iap
 import {
   subscriptionBillingIssueListener,
   deepLinkToSubscriptions,
 } from 'react-native-iap';
+
+// OR expo-iap
+// import {
+//   subscriptionBillingIssueListener,
+//   deepLinkToSubscriptions,
+// } from 'expo-iap';
 
 const subscription = subscriptionBillingIssueListener((purchase) => {
   console.warn('Subscription needs attention:', purchase.productId);

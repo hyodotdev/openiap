@@ -2,6 +2,7 @@ package dev.hyo.openiap
 
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,7 +37,7 @@ class SubscriptionHandlersBillingIssueHorizonTest {
             handler
         )
 
-        val thrown = runCatching { runBlocking { handler!!.invoke() } }.exceptionOrNull()
+        val thrown = runCatching { runBlocking { withTimeout(5_000) { handler!!.invoke() } } }.exceptionOrNull()
         assertTrue(
             "Horizon subscriptionBillingIssue handler must throw FeatureNotSupported, got: $thrown",
             thrown is OpenIapError.FeatureNotSupported

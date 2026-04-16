@@ -316,7 +316,7 @@ class HybridRnIap : HybridRnIapSpec() {
             synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
             synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
             synchronized(subscriptionBillingIssueListeners) { subscriptionBillingIssueListeners.clear() }
-            subscriptionBillingIssueAttached = false
+            detachSubscriptionBillingIssueIfNeeded()
             initDeferred = null
             RnIapLog.result("endConnection", true)
             true
@@ -1696,6 +1696,7 @@ class HybridRnIap : HybridRnIapSpec() {
     @Volatile
     private var subscriptionBillingIssueAttached = false
     private val subscriptionBillingIssueAttachLock = Any()
+    private var subscriptionBillingIssueNativeListener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener? = null
 
     override fun addSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
         synchronized(subscriptionBillingIssueListeners) {
@@ -1713,18 +1714,28 @@ class HybridRnIap : HybridRnIapSpec() {
     private fun attachSubscriptionBillingIssueIfNeeded() {
         synchronized(subscriptionBillingIssueAttachLock) {
             if (subscriptionBillingIssueAttached) return
-            openIap.addSubscriptionBillingIssueListener(
-                dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
-                    runCatching {
-                        val nitro = convertToNitroPurchase(purchase)
-                        val snapshot = synchronized(subscriptionBillingIssueListeners) {
-                            ArrayList(subscriptionBillingIssueListeners)
-                        }
-                        snapshot.forEach { it(nitro) }
-                    }.onFailure { RnIapLog.failure("subscriptionBillingIssueListener", it) }
-                }
-            )
+            val nativeListener = dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
+                runCatching {
+                    val nitro = convertToNitroPurchase(purchase)
+                    val snapshot = synchronized(subscriptionBillingIssueListeners) {
+                        ArrayList(subscriptionBillingIssueListeners)
+                    }
+                    snapshot.forEach { it(nitro) }
+                }.onFailure { RnIapLog.failure("subscriptionBillingIssueListener", it) }
+            }
+            openIap.addSubscriptionBillingIssueListener(nativeListener)
+            subscriptionBillingIssueNativeListener = nativeListener
             subscriptionBillingIssueAttached = true
+        }
+    }
+
+    private fun detachSubscriptionBillingIssueIfNeeded() {
+        synchronized(subscriptionBillingIssueAttachLock) {
+            subscriptionBillingIssueNativeListener?.let {
+                openIap.removeSubscriptionBillingIssueListener(it)
+            }
+            subscriptionBillingIssueNativeListener = null
+            subscriptionBillingIssueAttached = false
         }
     }
 

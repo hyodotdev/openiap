@@ -698,8 +698,15 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
             val all = mutableListOf<Purchase>()
             all += query(BillingClient.ProductType.INAPP, includeSuspendedSubs = false)
-            all += query(BillingClient.ProductType.SUBS, includeSuspendedSubs = includeSuspended)
-            notifySuspendedSubscriptions(all)
+            // Always query with suspended=true so the billing-issue notifier can see
+            // them, then filter the returned list based on the caller's preference.
+            val subs = query(BillingClient.ProductType.SUBS, includeSuspendedSubs = true)
+            notifySuspendedSubscriptions(subs)
+            if (includeSuspended) {
+                all += subs
+            } else {
+                all += subs.filterNot { (it as? PurchaseAndroid)?.isSuspendedAndroid == true }
+            }
             all
         }
     }
