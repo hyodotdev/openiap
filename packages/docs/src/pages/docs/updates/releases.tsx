@@ -145,11 +145,11 @@ function Releases() {
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.1"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.2"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  openiap-apple 2.1.1
+                  openiap-apple 2.1.2
                 </a>
               </li>
             </ul>
