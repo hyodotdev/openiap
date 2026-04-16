@@ -116,10 +116,10 @@ class OpenIapModule(
     // notifySuspendedSubscriptions iterates from Dispatchers.IO.
     private val subscriptionBillingIssueListeners =
         java.util.concurrent.CopyOnWriteArraySet<dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener>()
-    // Dedup tokens across the session. ConcurrentHashMap.newKeySet() gives us an atomic
-    // add() that returns false when the token was already present.
-    private val emittedBillingIssueTokens =
-        java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    // Dedup tokens across the session. Thread-safe set backed by ConcurrentHashMap.
+    // Uses Collections.newSetFromMap instead of ConcurrentHashMap.newKeySet (API 24+).
+    private val emittedBillingIssueTokens: MutableSet<String> =
+        java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
     private val currentPurchaseCallback = AtomicReference<((Result<List<Purchase>>) -> Unit)?>(null)
 
     /**

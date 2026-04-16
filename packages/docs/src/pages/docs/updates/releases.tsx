@@ -23,6 +23,66 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // Android minSdk 23 lint fix - Apr 16, 2026
+    {
+      id: 'android-minsdk-lint-fix-2026-04-16',
+      date: new Date('2026-04-16'),
+      element: (
+        <div key="android-minsdk-lint-fix-2026-04-16" style={noteCardStyle}>
+          <AnchorLink id="android-minsdk-lint-fix-2026-04-16" level="h4">
+            Android: minSdk 23 Lint Fix - April 16, 2026
+          </AnchorLink>
+
+          <p
+            style={{
+              marginTop: '0.75rem',
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Fixed an Android lint error in <code>openiap-google</code> where{' '}
+            <code>ConcurrentHashMap.newKeySet()</code> (API 24+) was used while{' '}
+            <code>minSdk</code> is 23. Replaced with{' '}
+            <code>Collections.newSetFromMap(ConcurrentHashMap())</code> which is
+            available from API 1. This was introduced in the{' '}
+            <code>subscriptionBillingIssue</code> event feature.
+          </p>
+        </div>
+      ),
+    },
+    // CI: per-workflow concurrency groups - Apr 16, 2026
+    {
+      id: 'ci-parallel-releases-2026-04-16',
+      date: new Date('2026-04-16'),
+      element: (
+        <div key="ci-parallel-releases-2026-04-16" style={noteCardStyle}>
+          <AnchorLink id="ci-parallel-releases-2026-04-16" level="h4">
+            CI: Parallel Release Workflows - April 16, 2026
+          </AnchorLink>
+
+          <p
+            style={{
+              marginTop: '0.75rem',
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Release workflows for all 7 packages/libraries can now run{' '}
+            <strong>in parallel</strong>. Previously, all release workflows shared
+            a single <code>release-publish</code> concurrency group, which meant
+            GitHub Actions only allowed 1 running + 1 pending — triggering 5
+            releases simultaneously would cancel 3 of them.
+          </p>
+
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Each workflow now uses its own concurrency group (
+            <code>{'${{ github.workflow }}'}</code>), so deploying all libraries
+            at once proceeds without cancellation. Same-workflow reruns still
+            queue correctly.
+          </p>
+        </div>
+      ),
+    },
     // Cross-platform billing-issue event - Apr 16, 2026
     {
       id: 'subscription-billing-issue-event-2026-04-16',

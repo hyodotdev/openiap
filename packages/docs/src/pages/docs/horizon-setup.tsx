@@ -533,6 +533,17 @@ android {
               Handle errors gracefully
             </a>
           </li>
+          <li>
+            <a
+              href="https://www.callstack.com/blog/using-expo-libraries-on-horizon-os-a-guide-to-compatibility"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              Using Expo Libraries on Horizon OS (Callstack)
+            </a>{' '}
+            — A practical guide to Expo library compatibility on Meta Quest
+          </li>
         </ul>
       </section>
     </div>

@@ -202,8 +202,22 @@ function AndroidSetup() {
           </a>
         </h2>
 
+        <h3 id="minimum-sdk" className="anchor-heading">
+          1. Minimum SDK Requirements
+          <a href="#minimum-sdk" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The OpenIAP Android core library (<code>openiap-google</code>) requires{' '}
+          <strong>minSdk 23</strong> (Android 6.0) with Google Play Billing 8.x.
+          Each framework library may require a higher minimum — check the{' '}
+          <a href="#integration">framework-specific setup page</a> for the exact
+          value.
+        </p>
+
         <h3 id="add-billing-permission" className="anchor-heading">
-          1. Add Billing Permission
+          2. Add Billing Permission
           <a href="#add-billing-permission" className="anchor-link">
             #
           </a>
@@ -213,7 +227,7 @@ function AndroidSetup() {
 <uses-permission android:name="android.permission.INTERNET" />`}</pre>
 
         <h3 id="update-build-gradle" className="anchor-heading">
-          2. Update build.gradle
+          3. Update build.gradle
           <a href="#update-build-gradle" className="anchor-link">
             #
           </a>
@@ -247,7 +261,7 @@ dependencies {
         </p>
 
         <h3 id="configure-proguard" className="anchor-heading">
-          3. Configure ProGuard (if using)
+          4. Configure ProGuard (if using)
           <a href="#configure-proguard" className="anchor-link">
             #
           </a>

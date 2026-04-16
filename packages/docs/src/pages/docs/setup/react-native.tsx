@@ -180,7 +180,8 @@ end`}
         </h3>
         <ul>
           <li>
-            Requires <strong>compileSdkVersion 34+</strong>
+            Requires <strong>minSdkVersion 24+</strong> and{' '}
+            <strong>compileSdkVersion 34+</strong>
           </li>
           <li>No additional native configuration needed</li>
           <li>
