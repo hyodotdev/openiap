@@ -528,31 +528,33 @@ function TypesPurchase() {
                         <td>
                           <code>requestReferenceId</code>
                         </td>
-                        <td>Request reference identifier for tracking</td>
+                        <td>
+                          Request reference identifier for tracking (optional)
+                        </td>
                       </tr>
                       <tr>
                         <td>
                           <code>taxCode</code>
                         </td>
-                        <td>Tax code for the transaction</td>
+                        <td>Tax code for the transaction (optional)</td>
                       </tr>
                       <tr>
                         <td>
                           <code>taxExclusivePrice</code>
                         </td>
-                        <td>Price excluding tax (decimal string)</td>
+                        <td>Price excluding tax, decimal string (optional)</td>
                       </tr>
                       <tr>
                         <td>
                           <code>estimatedTax</code>
                         </td>
-                        <td>Estimated tax amount (decimal string)</td>
+                        <td>Estimated tax amount, decimal string (optional)</td>
                       </tr>
                       <tr>
                         <td>
                           <code>taxRate</code>
                         </td>
-                        <td>Tax rate applied (decimal string)</td>
+                        <td>Tax rate applied, decimal string (optional)</td>
                       </tr>
                       <tr>
                         <td>
