@@ -66,7 +66,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
             await self.state.setInitialized(true)
             self.startTransactionListener()
-            self.startMessageListener()
             await self.processUnfinishedTransactions()
             return true
         }
@@ -1330,6 +1329,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
         let subscription = Subscription(eventType: .subscriptionBillingIssue)
         Task { await state.addSubscriptionBillingIssueListener((subscription.id, listener)) }
+        startMessageListener()
         return subscription
     }
 

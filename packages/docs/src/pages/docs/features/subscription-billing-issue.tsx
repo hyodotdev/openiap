@@ -205,9 +205,10 @@ kmpIapInstance.subscriptionBillingIssueListener
         <p>
           On Android, the native SDK tracks emitted purchase tokens per session
           so the event fires <em>once per affected purchase</em> even if the app
-          polls <code>getAvailablePurchases</code> repeatedly. A new app
-          process, or a cleared billing issue that re-enters suspension, will
-          re-emit.
+          polls <code>getAvailablePurchases</code> repeatedly. The dedupe set is
+          only cleared on <code>endConnection()</code> or app restart — a purchase
+          that exits suspension and re-enters within the same session will
+          <strong>not</strong> re-emit until the next reconnect or process restart.
         </p>
         <p>
           On iOS the StoreKit Message may be re-delivered by the system until

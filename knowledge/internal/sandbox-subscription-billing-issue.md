@@ -67,7 +67,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 **If nothing fires**
 
 - iOS < 18 — silent no-op by design (confirm with `#available` trace in logs).
-- tvOS / watchOS / macOS / visionOS build — silent no-op by design (StoreKit.Message API is iOS-only).
+- tvOS / watchOS / native macOS (non-Catalyst) / visionOS build — silent no-op by design (StoreKit.Message API is iOS / Mac Catalyst only).
 - App not foregrounded when the message is posted — StoreKit delivers on next `Message.messages` await; bring the app to foreground.
 
 ---
