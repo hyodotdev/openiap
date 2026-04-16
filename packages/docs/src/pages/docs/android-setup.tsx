@@ -209,11 +209,11 @@ function AndroidSetup() {
           </a>
         </h3>
         <p>
-          The OpenIAP Android core library (<code>openiap-google</code>) requires{' '}
-          <strong>minSdk 23</strong> (Android 6.0) with Google Play Billing 8.x.
-          Each framework library may require a higher minimum — check the{' '}
-          <a href="#integration">framework-specific setup page</a> for the exact
-          value.
+          The OpenIAP Android core library (<code>openiap-google</code>)
+          requires <strong>minSdk 23</strong> (Android 6.0) with Google Play
+          Billing 8.x. Each framework library may require a higher minimum —
+          check the <a href="#integration">framework-specific setup page</a> for
+          the exact value.
         </p>
 
         <h3 id="add-billing-permission" className="anchor-heading">
