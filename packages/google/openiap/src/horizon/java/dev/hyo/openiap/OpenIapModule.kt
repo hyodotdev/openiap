@@ -736,6 +736,13 @@ class OpenIapModule(
         onPurchaseUpdated(this::addPurchaseUpdateListener, this::removePurchaseUpdateListener)
     }
 
+    private val subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler = {
+        // Horizon Billing Compatibility SDK lacks a suspended-subscription signal
+        // (see OpenIapSubscriptionBillingIssueListener docs), so report it as unsupported
+        // rather than suspending forever.
+        throw OpenIapError.FeatureNotSupported()
+    }
+
     override val queryHandlers: QueryHandlers = QueryHandlers(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
@@ -761,7 +768,8 @@ class OpenIapModule(
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(
         purchaseError = purchaseError,
-        purchaseUpdated = purchaseUpdated
+        purchaseUpdated = purchaseUpdated,
+        subscriptionBillingIssue = subscriptionBillingIssue
     )
 
     suspend fun getStorefront(): String = withContext(Dispatchers.IO) {

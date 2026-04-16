@@ -11,6 +11,7 @@ import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -44,6 +45,24 @@ internal suspend fun onPurchaseError(
         override fun onPurchaseError(error: OpenIapError) {
             removeListener(this)
             if (continuation.isActive) continuation.resume(error.toPurchaseError())
+        }
+    }
+    addListener(listener)
+    continuation.invokeOnCancellation { removeListener(listener) }
+}
+
+/**
+ * Suspend function to wait for a subscription billing-issue event via listener.
+ * Shared between Play and Horizon flavors (Horizon never fires).
+ */
+internal suspend fun onSubscriptionBillingIssue(
+    addListener: (OpenIapSubscriptionBillingIssueListener) -> Unit,
+    removeListener: (OpenIapSubscriptionBillingIssueListener) -> Unit
+): Purchase = suspendCancellableCoroutine { continuation ->
+    val listener = object : OpenIapSubscriptionBillingIssueListener {
+        override fun onSubscriptionBillingIssue(purchase: Purchase) {
+            removeListener(this)
+            if (continuation.isActive) continuation.resume(purchase)
         }
     }
     addListener(listener)

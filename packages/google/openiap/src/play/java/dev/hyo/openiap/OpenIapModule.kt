@@ -45,10 +45,12 @@ import dev.hyo.openiap.QueryHasActiveSubscriptionsHandler
 import dev.hyo.openiap.RequestPurchaseResultPurchases
 import dev.hyo.openiap.SubscriptionPurchaseErrorHandler
 import dev.hyo.openiap.SubscriptionPurchaseUpdatedHandler
+import dev.hyo.openiap.SubscriptionSubscriptionBillingIssueHandler
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.helpers.AndroidPurchaseArgs
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
+import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryPurchases
 import dev.hyo.openiap.helpers.restorePurchases as restorePurchasesHelper
@@ -1253,6 +1255,10 @@ class OpenIapModule(
         onPurchaseUpdated(this::addPurchaseUpdateListener, this::removePurchaseUpdateListener)
     }
 
+    private val subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler = {
+        onSubscriptionBillingIssue(this::addSubscriptionBillingIssueListener, this::removeSubscriptionBillingIssueListener)
+    }
+
     override val queryHandlers: QueryHandlers = QueryHandlers(
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
@@ -1278,7 +1284,8 @@ class OpenIapModule(
 
     override val subscriptionHandlers: SubscriptionHandlers = SubscriptionHandlers(
         purchaseError = purchaseError,
-        purchaseUpdated = purchaseUpdated
+        purchaseUpdated = purchaseUpdated,
+        subscriptionBillingIssue = subscriptionBillingIssue
     )
 
     // BillingClient is built lazily in initBillingClient() so that

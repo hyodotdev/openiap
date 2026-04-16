@@ -261,6 +261,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 activityCallbacksDisposer = null
                 _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
                 clearProductCache(cachedProductDetails)
+                emittedBillingIssueTokens.clear()
                 true
             }.getOrElse { false }
         }

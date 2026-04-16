@@ -2310,6 +2310,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         purchaseError: () async =>
             await purchaseErrorListener.first as gentype.PurchaseError,
         purchaseUpdated: () async => await purchaseUpdatedListener.first,
+        subscriptionBillingIssue: () async =>
+            await subscriptionBillingIssueListener.first,
         userChoiceBillingAndroid: () async =>
             await _userChoiceBillingAndroidListener.stream.first,
         developerProvidedBillingAndroid: () async =>

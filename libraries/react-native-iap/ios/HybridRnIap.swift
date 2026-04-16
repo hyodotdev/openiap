@@ -1160,9 +1160,14 @@ class HybridRnIap: HybridRnIapSpec {
             RnIapLog.payload("removeListener", "promotedProduct")
             OpenIapModule.shared.removeListener(sub)
         }
+        if let sub = subscriptionBillingIssueSub {
+            RnIapLog.payload("removeListener", "subscriptionBillingIssue")
+            OpenIapModule.shared.removeListener(sub)
+        }
         purchaseUpdatedSub = nil
         purchaseErrorSub = nil
         promotedProductSub = nil
+        subscriptionBillingIssueSub = nil
         Task {
             RnIapLog.payload("endConnection", nil)
             let result = try? await OpenIapModule.shared.endConnection()
@@ -1174,6 +1179,7 @@ class HybridRnIap: HybridRnIapSpec {
             purchaseUpdatedListeners.removeAll()
             purchaseErrorListeners.removeAll()
             promotedProductListeners.removeAll()
+            subscriptionBillingIssueListeners.removeAll()
             lastPurchaseErrorKey = nil
             lastPurchaseErrorTimestamp = 0
             deliveredPurchaseEventKeys.removeAll()

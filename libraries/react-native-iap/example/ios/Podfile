@@ -58,6 +58,14 @@ target 'example' do
     pod 'openiap', openiap_apple_version
   end
 
+  # Host-app XCTest bundle. `inherit! :search_paths` lets the tests `@testable
+  # import NitroIap` (and reach OpenIAP + Nitro modules) without duplicating
+  # pod installations. The TEST_HOST runs inside the example app, so all
+  # linked frameworks are already loaded at test time.
+  target 'exampleTests' do
+    inherit! :search_paths
+  end
+
   post_install do |installer|
     # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(
@@ -76,6 +84,18 @@ target 'example' do
         # Allow non-modular includes within any pods that still ship framework-like headers
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
+
+    end
+
+    # Xcode 26.x trips on consteval in fmt 11's headers. fmt detects compiler
+    # support unconditionally (no #ifndef guard), so a -D flag has no effect.
+    # Patch the header directly to force FMT_USE_CONSTEVAL=0.
+    fmt_base = File.join(__dir__, 'Pods/fmt/include/fmt/base.h')
+    if File.exist?(fmt_base)
+      File.chmod(0644, fmt_base) rescue nil  # pod checkout is read-only
+      src = File.read(fmt_base)
+      patched = src.gsub('#  define FMT_USE_CONSTEVAL 1', '#  define FMT_USE_CONSTEVAL 0  // Xcode 26 workaround')
+      File.write(fmt_base, patched) if patched != src
     end
 
   end
