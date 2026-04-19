@@ -9,7 +9,7 @@ package dev.hyo.martie.config
 expect object AppConfig {
     /**
      * IAPKit API key for purchase verification.
-     * Get your API key from https://iapkit.com
+     * Get your API key from https://kit.openiap.dev
      */
     val iapkitApiKey: String
 }
