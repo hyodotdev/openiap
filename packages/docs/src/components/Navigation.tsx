@@ -4,7 +4,7 @@ import { DarkModeToggle } from './DarkModeToggle';
 import { Menu, X } from 'lucide-react';
 import { FaGithub, FaSearch } from 'react-icons/fa';
 import { openSearchModal } from '../lib/signals';
-import { LOGO_PATH } from '../lib/config';
+import { IAPKIT_URL, LOGO_PATH, trackIapKitClick } from '../lib/config';
 
 function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -95,6 +95,17 @@ function Navigation() {
           </button>
 
           <DarkModeToggle />
+
+          {/* IAPKit Link */}
+          <a
+            href={IAPKIT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="iapkit-link"
+            onClick={trackIapKitClick}
+          >
+            IAPKit
+          </a>
 
           {/* GitHub Link */}
           <a
