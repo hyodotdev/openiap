@@ -269,7 +269,7 @@ function Sponsorship() {
                 marginBottom: '1rem',
               }}
             >
-              $999/month
+              $1,000/month
             </p>
             <ul style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
               <li>Everything in Gold</li>
