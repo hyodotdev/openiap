@@ -180,6 +180,20 @@ function Navigation() {
                 Sponsors
               </NavLink>
             </li>
+
+            <li>
+              <a
+                href={IAPKIT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  trackIapKitClick();
+                  closeMobileMenu();
+                }}
+              >
+                IAPKit
+              </a>
+            </li>
           </ul>
         </div>
       </div>

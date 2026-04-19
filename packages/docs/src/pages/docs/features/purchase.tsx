@@ -691,7 +691,8 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
           Verify Purchase with IAPKit
         </AnchorLink>
         <p>
-          Don&apos;t want to run a verification backend?{' '}
+          Don&apos;t want to implement App Store / Google Play verification
+          yourself?{' '}
           <a
             href="https://kit.openiap.dev"
             target="_blank"
@@ -705,7 +706,10 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
           <code>verifyPurchaseWithProvider</code> with the{' '}
           <code>&apos;iapkit&apos;</code> provider and pass the
           platform-specific token (iOS JWS or Android purchase token) — no
-          server code required.
+          store-verification code required. If your app has server-side accounts
+          or entitlements, keep the final grant decision on your backend and
+          call IAPKit from that trusted path; client-only use is convenient, but
+          not tamper-proof.
         </p>
 
         <div className="alert-card alert-card--info">
@@ -763,8 +767,8 @@ func verifyWithIapkit(_ purchase: PurchaseIOS) async -> Bool {
             VerifyPurchaseWithProviderProps(
                 provider: .iapkit,
                 iapkit: RequestVerifyPurchaseWithIapkitProps(
-                    apiKey: Bundle.main.object(forInfoDictionaryKey: "IAPKIT_API_KEY") as? String,
-                    apple: RequestVerifyPurchaseWithIapkitApple(jws: purchase.purchaseToken ?? "")
+                    apiKey: Bundle.main.object(forInfoDictionaryKey: "IAPKitAPIKey") as? String,
+                    apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.purchaseToken ?? "")
                 )
             )
         )
@@ -794,7 +798,7 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                 iapkit = RequestVerifyPurchaseWithIapkitProps(
                     // apiKey is optional when configured via AndroidManifest meta-data
                     apiKey = BuildConfig.IAPKIT_API_KEY,
-                    google = RequestVerifyPurchaseWithIapkitGoogle(
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = purchase.purchaseToken.orEmpty()
                     )
                 )
@@ -825,7 +829,7 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                 provider = PurchaseVerificationProvider.Iapkit,
                 iapkit = RequestVerifyPurchaseWithIapkitProps(
                     apiKey = AppConfig.iapkitApiKey,
-                    google = RequestVerifyPurchaseWithIapkitGoogle(
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = purchase.purchaseToken.orEmpty()
                     )
                 )
@@ -859,12 +863,12 @@ Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
         iapkit: RequestVerifyPurchaseWithIapkitProps(
           apiKey: IapConstants.iapkitApiKey,
           apple: Platform.isIOS
-              ? RequestVerifyPurchaseWithIapkitApple(
+              ? RequestVerifyPurchaseWithIapkitAppleProps(
                   jws: purchase.purchaseToken ?? '',
                 )
               : null,
           google: Platform.isAndroid
-              ? RequestVerifyPurchaseWithIapkitGoogle(
+              ? RequestVerifyPurchaseWithIapkitGoogleProps(
                   purchaseToken: purchase.purchaseToken ?? '',
                 )
               : null,
@@ -893,10 +897,10 @@ Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
     props.iapkit.api_key = AppConfig.iapkit_api_key
 
     if OS.get_name() == "iOS":
-        props.iapkit.apple = RequestVerifyPurchaseWithIapkitApple.new()
+        props.iapkit.apple = RequestVerifyPurchaseWithIapkitAppleProps.new()
         props.iapkit.apple.jws = purchase.purchase_token
     else:
-        props.iapkit.google = RequestVerifyPurchaseWithIapkitGoogle.new()
+        props.iapkit.google = RequestVerifyPurchaseWithIapkitGoogleProps.new()
         props.iapkit.google.purchase_token = purchase.purchase_token
 
     var result = await iap.verify_purchase_with_provider(props)
