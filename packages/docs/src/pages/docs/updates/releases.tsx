@@ -25,6 +25,67 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // April 19, 2026 — IAPKit verification host migration
+    {
+      id: 'releases-2026-04-19',
+      date: new Date('2026-04-19'),
+      element: (
+        <div key="releases-2026-04-19" style={noteCardStyle}>
+          <AnchorLink id="releases-2026-04-19" level="h4">
+            April 19, 2026
+          </AnchorLink>
+
+          <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              IAPKit verification host migrated to <code>kit.openiap.dev</code>
+            </h5>
+            <p
+              style={{
+                marginBottom: '1rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              The IAPKit purchase verification service moved from{' '}
+              <code>api.iapkit.com</code> to <code>kit.openiap.dev</code>. Only
+              the host changed — the request/response shape, authentication (
+              <code>Authorization: Bearer &lt;apiKey&gt;</code>), and the{' '}
+              <code>/v1/purchase/verify</code> path are identical. No client
+              code changes are required once you pick up the latest package
+              versions.
+            </p>
+            <ul
+              style={{
+                marginBottom: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <strong>Old:</strong>{' '}
+                <code>https://api.iapkit.com/v1/purchase/verify</code>
+              </li>
+              <li>
+                <strong>New:</strong>{' '}
+                <code>https://kit.openiap.dev/v1/purchase/verify</code>
+              </li>
+              <li>
+                API keys are now issued from{' '}
+                <a
+                  href="https://kit.openiap.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="external-link"
+                >
+                  kit.openiap.dev
+                </a>
+                .
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // April 17, 2026 — Advanced Commerce & Transaction History
     {
       id: 'releases-2026-04-17',

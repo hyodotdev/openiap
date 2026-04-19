@@ -687,6 +687,248 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
       </section>
 
       <section>
+        <AnchorLink id="verify-purchase-iapkit" level="h2">
+          Verify Purchase with IAPKit
+        </AnchorLink>
+        <p>
+          Don&apos;t want to implement App Store / Google Play verification
+          yourself?{' '}
+          <a
+            href="https://kit.openiap.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            IAPKit
+          </a>{' '}
+          is a hosted purchase verification service that validates App Store and
+          Google Play purchases for you. Use{' '}
+          <code>verifyPurchaseWithProvider</code> with the{' '}
+          <code>&apos;iapkit&apos;</code> provider and pass the
+          platform-specific token (iOS JWS or Android purchase token) — no
+          store-verification code required. If your app has server-side accounts
+          or entitlements, keep the final grant decision on your backend and
+          call IAPKit from that trusted path; client-only use is convenient, but
+          not tamper-proof.
+        </p>
+
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>ℹ️ Get an API key:</strong> Sign up at{' '}
+            <a
+              href="https://kit.openiap.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              kit.openiap.dev
+            </a>{' '}
+            to obtain an <code>IAPKIT_API_KEY</code>. You can pass it directly,
+            or configure it once in your app (Expo extra, Info.plist,
+            AndroidManifest, etc.) so the SDK picks it up automatically.
+          </p>
+        </div>
+
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import { Platform } from 'react-native';
+import { verifyPurchaseWithProvider, type Purchase } from 'expo-iap';
+
+const verifyWithIapkit = async (purchase: Purchase) => {
+  const result = await verifyPurchaseWithProvider({
+    provider: 'iapkit',
+    iapkit: {
+      // apiKey is optional when configured via app config / Info.plist / AndroidManifest
+      apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+      ...(Platform.OS === 'ios'
+        ? { apple: { jws: purchase.purchaseToken ?? '' } }
+        : { google: { purchaseToken: purchase.purchaseToken ?? '' } }),
+    },
+  });
+
+  if (result.iapkit?.isValid) {
+    console.log('IAPKit verified:', result.iapkit.state);
+    return true;
+  }
+
+  console.error('IAPKit verification failed');
+  return false;
+};`}</CodeBlock>
+            ),
+            swift: (
+              <CodeBlock language="swift">{`import OpenIap
+
+func verifyWithIapkit(_ purchase: PurchaseIOS) async -> Bool {
+    let iapStore = OpenIapStore.shared
+
+    do {
+        let result = try await iapStore.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                provider: .iapkit,
+                iapkit: RequestVerifyPurchaseWithIapkitProps(
+                    apiKey: Bundle.main.object(forInfoDictionaryKey: "IAPKitAPIKey") as? String,
+                    apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.purchaseToken ?? "")
+                )
+            )
+        )
+
+        if result.iapkit?.isValid == true {
+            print("IAPKit verified: \\(result.iapkit?.state.rawValue ?? "")")
+            return true
+        }
+
+        print("IAPKit verification failed")
+        return false
+    } catch {
+        print("IAPKit verification error: \\(error.localizedDescription)")
+        return false
+    }
+}`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+import dev.hyo.openiap.models.*
+
+suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
+    return try {
+        val result = iapStore.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                provider = PurchaseVerificationProvider.Iapkit,
+                iapkit = RequestVerifyPurchaseWithIapkitProps(
+                    // apiKey is optional when configured via AndroidManifest meta-data
+                    apiKey = BuildConfig.IAPKIT_API_KEY,
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                        purchaseToken = purchase.purchaseToken.orEmpty()
+                    )
+                )
+            )
+        )
+
+        if (result.iapkit?.isValid == true) {
+            println("IAPKit verified: \${result.iapkit?.state}")
+            true
+        } else {
+            println("IAPKit verification failed")
+            false
+        }
+    } catch (e: Exception) {
+        println("IAPKit verification error: \${e.message}")
+        false
+    }
+}`}</CodeBlock>
+            ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.*
+
+suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
+    return try {
+        val result = kmpIAP.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                provider = PurchaseVerificationProvider.Iapkit,
+                iapkit = RequestVerifyPurchaseWithIapkitProps(
+                    apiKey = AppConfig.iapkitApiKey,
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                        purchaseToken = purchase.purchaseToken.orEmpty()
+                    )
+                )
+            )
+        )
+
+        if (result.iapkit?.isValid == true) {
+            println("IAPKit verified: \${result.iapkit?.state}")
+            true
+        } else {
+            println("IAPKit verification failed")
+            false
+        }
+    } catch (e: Exception) {
+        println("IAPKit verification error: \${e.message}")
+        false
+    }
+}`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`import 'dart:io';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
+  final iap = FlutterInappPurchase.instance;
+
+  try {
+    final result = await iap.verifyPurchaseWithProvider(
+      VerifyPurchaseWithProviderProps(
+        provider: PurchaseVerificationProvider.iapkit,
+        iapkit: RequestVerifyPurchaseWithIapkitProps(
+          apiKey: IapConstants.iapkitApiKey,
+          apple: Platform.isIOS
+              ? RequestVerifyPurchaseWithIapkitAppleProps(
+                  jws: purchase.purchaseToken ?? '',
+                )
+              : null,
+          google: Platform.isAndroid
+              ? RequestVerifyPurchaseWithIapkitGoogleProps(
+                  purchaseToken: purchase.purchaseToken ?? '',
+                )
+              : null,
+        ),
+      ),
+    );
+
+    if (result.iapkit?.isValid == true) {
+      print('IAPKit verified: \${result.iapkit?.state}');
+      return true;
+    }
+
+    print('IAPKit verification failed');
+    return false;
+  } catch (e) {
+    print('IAPKit verification error: $e');
+    return false;
+  }
+}`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`func verify_with_iapkit(purchase: Purchase) -> bool:
+    var props = VerifyPurchaseWithProviderProps.new()
+    props.provider = PurchaseVerificationProvider.IAPKIT
+    props.iapkit = RequestVerifyPurchaseWithIapkitProps.new()
+    props.iapkit.api_key = AppConfig.iapkit_api_key
+
+    if OS.get_name() == "iOS":
+        props.iapkit.apple = RequestVerifyPurchaseWithIapkitAppleProps.new()
+        props.iapkit.apple.jws = purchase.purchase_token
+    else:
+        props.iapkit.google = RequestVerifyPurchaseWithIapkitGoogleProps.new()
+        props.iapkit.google.purchase_token = purchase.purchase_token
+
+    var result = await iap.verify_purchase_with_provider(props)
+
+    if result.iapkit and result.iapkit.is_valid:
+        print("IAPKit verified: %s" % result.iapkit.state)
+        return true
+
+    print("IAPKit verification failed")
+    return false`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>ℹ️ Endpoint:</strong> Requests are sent to{' '}
+            <code>https://kit.openiap.dev/v1/purchase/verify</code> with{' '}
+            <code>Authorization: Bearer &lt;apiKey&gt;</code>. See the{' '}
+            <Link to="/docs/types/verification#purchase-verification-provider">
+              PurchaseVerificationProvider
+            </Link>{' '}
+            type reference for the full response shape.
+          </p>
+        </div>
+      </section>
+
+      <section>
         <AnchorLink id="finish-transaction" level="h2">
           Finish Transaction
         </AnchorLink>

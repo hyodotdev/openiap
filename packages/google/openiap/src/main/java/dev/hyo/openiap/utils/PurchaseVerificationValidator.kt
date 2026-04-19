@@ -18,7 +18,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-private const val DEFAULT_IAPKIT_ENDPOINT = "https://api.iapkit.com/v1/purchase/verify"
+private const val DEFAULT_IAPKIT_ENDPOINT = "https://kit.openiap.dev/v1/purchase/verify"
 private val gson = Gson()
 
 private fun openConnection(url: String): HttpURLConnection {

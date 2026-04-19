@@ -221,7 +221,7 @@ xcodebuild -project Martie.xcodeproj \\
                     className="external-link"
                     onClick={trackIapKitClick}
                   >
-                    iapkit.com
+                    kit.openiap.dev
                   </a>{' '}
                   and configure it in <code>Info.plist</code>:
                   <pre
@@ -574,7 +574,7 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                     className="external-link"
                     onClick={trackIapKitClick}
                   >
-                    iapkit.com
+                    kit.openiap.dev
                   </a>{' '}
                   and configure it in <code>local.properties</code>:
                   <pre

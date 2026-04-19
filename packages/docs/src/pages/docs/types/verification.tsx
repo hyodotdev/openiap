@@ -646,7 +646,7 @@ function TypesVerification() {
               </td>
               <td>
                 <a
-                  href="https://iapkit.com"
+                  href="https://kit.openiap.dev"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

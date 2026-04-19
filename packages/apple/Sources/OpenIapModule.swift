@@ -706,7 +706,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     // but it is never invoked from this module.
     private func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
         // URL is a constant and cannot fail, so force unwrap is safe
-        let url = URL(string: "https://api.iapkit.com/v1/purchase/verify")!
+        let url = URL(string: "https://kit.openiap.dev/v1/purchase/verify")!
 
         // On Apple, only Apple verification is supported
         guard props.apple != nil else {
