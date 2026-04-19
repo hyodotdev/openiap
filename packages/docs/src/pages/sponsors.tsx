@@ -77,6 +77,7 @@ function Sponsors() {
                     width: '32px',
                     height: '32px',
                     objectFit: 'contain',
+                    filter: 'var(--apple-logo-filter, none)',
                   }}
                 />
                 <span>openiap-apple</span>

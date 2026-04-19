@@ -11,6 +11,8 @@
   --code-bg: #1e1e26;
   --accent-color: #ff8066;
   --logo-text-filter: invert(1);
+  --apple-logo-filter: none;
+  --iapkit-text-color: #000000;
 
   /* Dark mode sidebar (slightly darker than content) */
   --sidebar-bg: #0d0d0d;

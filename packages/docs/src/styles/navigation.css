@@ -97,7 +97,7 @@
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #000000;
+  color: var(--iapkit-text-color, #ffffff);
   background: linear-gradient(
     135deg,
     var(--primary-color),

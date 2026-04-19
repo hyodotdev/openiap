@@ -26,7 +26,12 @@ function Languages() {
               src={LIBRARY_IMAGES['openiap-apple']}
               alt="OpenIAP Apple"
               className="language-logo"
-              style={{ width: '60px', height: '60px', marginBottom: '1rem' }}
+              style={{
+                width: '60px',
+                height: '60px',
+                marginBottom: '1rem',
+                filter: 'var(--apple-logo-filter, none)',
+              }}
             />
             <h3>openiap-apple</h3>
             <p>Official OpenIAP module for Apple platforms (StoreKit 2)</p>

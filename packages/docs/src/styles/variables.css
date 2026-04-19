@@ -13,6 +13,8 @@
   --max-width: 1400px;
   --accent-color: #dc6843;
   --logo-text-filter: none;
+  --apple-logo-filter: invert(1);
+  --iapkit-text-color: #ffffff;
 
   /* Sidebar colors (Expo style - dark sidebar) */
   --sidebar-bg: #1c1e21;
