@@ -1853,10 +1853,34 @@ public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
     }
 }
 
+/// Meta Horizon verification parameters for IAPKit.
+/// 
+/// The App Secret used to call Meta's Graph API lives on the IAPKit server
+/// (per project), so the client only needs to identify the entitlement by
+/// (userId, sku). Authentication with IAPKit is the Bearer API key shared
+/// with apple / google.
+public struct RequestVerifyPurchaseWithIapkitHorizonProps: Codable {
+    /// The SKU for the add-on item, defined in the Meta Developer Dashboard.
+    public var sku: String
+    /// The user ID of the user whose purchase you want to verify.
+    public var userId: String
+
+    public init(
+        sku: String,
+        userId: String
+    ) {
+        self.sku = sku
+        self.userId = userId
+    }
+}
+
 /// Platform-specific verification parameters for IAPKit.
 /// 
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
+/// - horizon: Verifies via Meta's S2S verify_entitlement endpoint. The
+///   IAPKit server holds the Horizon App Secret, so the client only sends
+///   (userId, sku) — no Meta access token required here.
 public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     /// API key used for the Authorization header (Bearer {apiKey}).
     public var apiKey: String?
@@ -1864,15 +1888,19 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var apple: RequestVerifyPurchaseWithIapkitAppleProps?
     /// Google Play Store verification parameters.
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
+    /// Meta Horizon (Quest) verification parameters.
+    public var horizon: RequestVerifyPurchaseWithIapkitHorizonProps?
 
     public init(
         apiKey: String? = nil,
         apple: RequestVerifyPurchaseWithIapkitAppleProps? = nil,
-        google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil
+        google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil,
+        horizon: RequestVerifyPurchaseWithIapkitHorizonProps? = nil
     ) {
         self.apiKey = apiKey
         self.apple = apple
         self.google = google
+        self.horizon = horizon
     }
 }
 

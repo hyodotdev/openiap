@@ -171,7 +171,9 @@ suspend fun verifyPurchaseWithIapkit(
     val endpoint = DEFAULT_IAPKIT_ENDPOINT
 
     // On Android, only Google verification is supported via IAPKit
-    // Note: Horizon verification requires direct S2S API calls to Meta (not yet supported)
+    // Note: Horizon verification lives in the horizon flavor source
+    // tree (`src/horizon/.../PurchaseVerificationValidatorHorizon.kt`)
+    // so Play-flavor builds never carry Meta/Quest-specific code.
     if (props.google == null) {
         throw IllegalArgumentException("IAPKit verification on Android requires google payload")
     }

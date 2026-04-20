@@ -4406,15 +4406,51 @@ class RequestVerifyPurchaseWithIapkitGoogleProps {
   }
 }
 
+/// Meta Horizon verification parameters for IAPKit.
+/// 
+/// The App Secret used to call Meta's Graph API lives on the IAPKit server
+/// (per project), so the client only needs to identify the entitlement by
+/// (userId, sku). Authentication with IAPKit is the Bearer API key shared
+/// with apple / google.
+class RequestVerifyPurchaseWithIapkitHorizonProps {
+  const RequestVerifyPurchaseWithIapkitHorizonProps({
+    required this.sku,
+    required this.userId,
+  });
+
+  /// The SKU for the add-on item, defined in the Meta Developer Dashboard.
+  final String sku;
+  /// The user ID of the user whose purchase you want to verify.
+  final String userId;
+
+  factory RequestVerifyPurchaseWithIapkitHorizonProps.fromJson(Map<String, dynamic> json) {
+    return RequestVerifyPurchaseWithIapkitHorizonProps(
+      sku: json['sku'] as String,
+      userId: json['userId'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sku': sku,
+      'userId': userId,
+    };
+  }
+}
+
 /// Platform-specific verification parameters for IAPKit.
 /// 
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
+/// - horizon: Verifies via Meta's S2S verify_entitlement endpoint. The
+///   IAPKit server holds the Horizon App Secret, so the client only sends
+///   (userId, sku) — no Meta access token required here.
 class RequestVerifyPurchaseWithIapkitProps {
   const RequestVerifyPurchaseWithIapkitProps({
     this.apiKey,
     this.apple,
     this.google,
+    this.horizon,
   });
 
   /// API key used for the Authorization header (Bearer {apiKey}).
@@ -4423,12 +4459,15 @@ class RequestVerifyPurchaseWithIapkitProps {
   final RequestVerifyPurchaseWithIapkitAppleProps? apple;
   /// Google Play Store verification parameters.
   final RequestVerifyPurchaseWithIapkitGoogleProps? google;
+  /// Meta Horizon (Quest) verification parameters.
+  final RequestVerifyPurchaseWithIapkitHorizonProps? horizon;
 
   factory RequestVerifyPurchaseWithIapkitProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitProps(
       apiKey: json['apiKey'] as String?,
       apple: json['apple'] != null ? RequestVerifyPurchaseWithIapkitAppleProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
       google: json['google'] != null ? RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(json['google'] as Map<String, dynamic>) : null,
+      horizon: json['horizon'] != null ? RequestVerifyPurchaseWithIapkitHorizonProps.fromJson(json['horizon'] as Map<String, dynamic>) : null,
     );
   }
 
@@ -4437,6 +4476,7 @@ class RequestVerifyPurchaseWithIapkitProps {
       'apiKey': apiKey,
       'apple': apple?.toJson(),
       'google': google?.toJson(),
+      'horizon': horizon?.toJson(),
     };
   }
 }

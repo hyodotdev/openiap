@@ -41,6 +41,7 @@ import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.PurchaseVerificationProvider
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkitHorizon
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -722,8 +723,19 @@ class OpenIapModule(
         val options = props.iapkit ?: throw OpenIapError.DeveloperError(
             "Missing IAPKit verification parameters"
         )
+        // Horizon-flavor-only routing: if the caller supplied a
+        // `horizon` payload, use the flavor-local helper that knows
+        // how to assemble the Meta-specific IAPKit request. Otherwise
+        // fall through to the shared Google path in main — a Quest
+        // app that happens to hold a Play purchase token still gets
+        // verified that way.
+        val iapkitResult = if (options.horizon != null) {
+            verifyPurchaseWithIapkitHorizon(options, TAG)
+        } else {
+            verifyPurchaseWithIapkit(options, TAG)
+        }
         VerifyPurchaseWithProviderResult(
-            iapkit = verifyPurchaseWithIapkit(options, TAG),
+            iapkit = iapkitResult,
             provider = props.provider
         )
     }

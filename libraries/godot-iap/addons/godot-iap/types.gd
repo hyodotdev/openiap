@@ -4096,7 +4096,30 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 			dict["purchaseToken"] = purchase_token
 		return dict
 
-## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token)
+## Meta Horizon verification parameters for IAPKit.  The App Secret used to call Meta's Graph API lives on the IAPKit server (per project), so the client only needs to identify the entitlement by (userId, sku). Authentication with IAPKit is the Bearer API key shared with apple / google.
+class RequestVerifyPurchaseWithIapkitHorizonProps:
+	## The user ID of the user whose purchase you want to verify.
+	var user_id: String = ""
+	## The SKU for the add-on item, defined in the Meta Developer Dashboard.
+	var sku: String = ""
+
+	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitHorizonProps:
+		var obj = RequestVerifyPurchaseWithIapkitHorizonProps.new()
+		if data.has("userId") and data["userId"] != null:
+			obj.user_id = data["userId"]
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if user_id != null:
+			dict["userId"] = user_id
+		if sku != null:
+			dict["sku"] = sku
+		return dict
+
+## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token) - horizon: Verifies via Meta's S2S verify_entitlement endpoint. The   IAPKit server holds the Horizon App Secret, so the client only sends   (userId, sku) — no Meta access token required here.
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
@@ -4104,6 +4127,8 @@ class RequestVerifyPurchaseWithIapkitProps:
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
 	var google: RequestVerifyPurchaseWithIapkitGoogleProps
+	## Meta Horizon (Quest) verification parameters.
+	var horizon: RequestVerifyPurchaseWithIapkitHorizonProps
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitProps:
 		var obj = RequestVerifyPurchaseWithIapkitProps.new()
@@ -4119,6 +4144,11 @@ class RequestVerifyPurchaseWithIapkitProps:
 				obj.google = RequestVerifyPurchaseWithIapkitGoogleProps.from_dict(data["google"])
 			else:
 				obj.google = data["google"]
+		if data.has("horizon") and data["horizon"] != null:
+			if data["horizon"] is Dictionary:
+				obj.horizon = RequestVerifyPurchaseWithIapkitHorizonProps.from_dict(data["horizon"])
+			else:
+				obj.horizon = data["horizon"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4135,6 +4165,11 @@ class RequestVerifyPurchaseWithIapkitProps:
 				dict["google"] = google.to_dict()
 			else:
 				dict["google"] = google
+		if horizon != null:
+			if horizon.has_method("to_dict"):
+				dict["horizon"] = horizon.to_dict()
+			else:
+				dict["horizon"] = horizon
 		return dict
 
 ## Product-level subscription replacement parameters (Android) Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams Available in Google Play Billing Library 8.1.0+
