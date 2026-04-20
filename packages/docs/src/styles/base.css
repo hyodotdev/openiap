@@ -12,6 +12,9 @@ html {
   background-color: var(--bg-primary);
   font-size: 16px;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  position: relative;
 }
 
 body {
@@ -36,6 +39,17 @@ body {
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  position: relative;
+}
+
+#root {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  position: relative;
 }
 
 a {

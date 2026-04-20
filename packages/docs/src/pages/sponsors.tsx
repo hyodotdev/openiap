@@ -18,142 +18,212 @@ function Sponsors() {
         </p>
 
         <section className="resources-section">
-          <h2 style={{ textAlign: 'center' }}>Why Sponsor OpenIAP</h2>
+          <p
+            style={{
+              maxWidth: '720px',
+              margin: '0 auto 2rem',
+              lineHeight: '1.7',
+              color: 'var(--text-secondary, #666)',
+              textAlign: 'center',
+            }}
+          >
+            OpenIAP is unified in-app purchase infrastructure used in production
+            across iOS, Android, and cross-platform frameworks. Sponsorship
+            funds the native modules and the downstream libraries built on top
+            of them.
+          </p>
           <div
             style={{
-              maxWidth: '800px',
+              display: 'flex',
+              gap: '1.5rem',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+            }}
+          >
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--primary-color)',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <img
+                src={LIBRARY_IMAGES['openiap-apple']}
+                alt="openiap-apple"
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  objectFit: 'contain',
+                  filter: 'var(--apple-logo-filter, none)',
+                }}
+              />
+              <span>openiap-apple</span>
+            </a>
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--primary-color)',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <img
+                src={LIBRARY_IMAGES['openiap-google']}
+                alt="openiap-google"
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  objectFit: 'contain',
+                }}
+              />
+              <span>openiap-google</span>
+            </a>
+            {LIBRARIES.map((lib) => (
+              <a
+                key={lib.name}
+                href={lib.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <img
+                  src={lib.image}
+                  alt={lib.displayName}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    objectFit: 'contain',
+                  }}
+                />
+                <span>{lib.displayName}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <section className="resources-section">
+          <h2 style={{ textAlign: 'center' }}>
+            Why AI Can't Replace This Work
+          </h2>
+          <div
+            style={{
+              maxWidth: '760px',
               margin: '0 auto',
-              textAlign: 'center',
-              lineHeight: '1.8',
+              textAlign: 'left',
+              lineHeight: '1.75',
+              color: 'var(--text-secondary, #666)',
             }}
           >
             <p
               style={{
-                marginBottom: '1.5rem',
-                color: 'var(--text-secondary, #666)',
-              }}
-            >
-              OpenIAP is unified in-app purchase infrastructure used in
-              production by teams across iOS, Android, and cross-platform
-              frameworks. Sponsorship funds the maintenance, stability, and
-              platform expansion — including ongoing iOS and Android work and
-              new integrations such as Amazon Appstore — that keeps the
-              ecosystem running reliably for everyone.
-            </p>
-            <p
-              style={{
-                marginBottom: '1rem',
-                color: 'var(--text-secondary, #666)',
-              }}
-            >
-              Sponsoring OpenIAP covers our native modules:
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                gap: '2rem',
-                justifyContent: 'center',
-                flexWrap: 'wrap',
                 marginBottom: '1.25rem',
-                alignItems: 'center',
+                textAlign: 'center',
+                fontWeight: '600',
+                color: 'var(--text-primary)',
               }}
             >
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <img
-                  src={LIBRARY_IMAGES['openiap-apple']}
-                  alt="openiap-apple"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    objectFit: 'contain',
-                    filter: 'var(--apple-logo-filter, none)',
-                  }}
-                />
-                <span>openiap-apple</span>
-              </a>
-              <a
-                href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <img
-                  src={LIBRARY_IMAGES['openiap-google']}
-                  alt="openiap-google"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    objectFit: 'contain',
-                  }}
-                />
-                <span>openiap-google</span>
-              </a>
-            </div>
+              In-app purchase systems cannot be reliably simulated — they
+              require real platform integration and ongoing maintenance.
+            </p>
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'grid',
+                gap: '1rem',
+              }}
+            >
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Real devices, real store servers.
+                </strong>{' '}
+                StoreKit 2 and Google Play Billing only behave correctly against
+                Apple and Google infrastructure — not in sandboxes AI can reason
+                about.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Store policies change constantly.
+                </strong>{' '}
+                Billing Client upgrades, receipt-validation changes, and
+                subscription-state semantics ship every few months and break
+                silently.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Edge cases surface only in production.
+                </strong>{' '}
+                Refunds, grace periods, family sharing, promotional offers, and
+                regional pricing need human debugging against live accounts.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Cross-framework consistency is a judgment call.
+                </strong>{' '}
+                Keeping React Native, Expo, Flutter, KMP, and Godot aligned
+                requires human review of API shape, error mapping, and breaking
+                changes.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Real money, real accountability.
+                </strong>{' '}
+                Every bug costs users money, triggers chargebacks, and damages
+                app ratings. Liability and fraud prevention can't be delegated
+                to a model.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Security-sensitive by design.
+                </strong>{' '}
+                Receipt validation, purchase tokens, and JWS signature checks
+                protect revenue — hallucinated crypto or auth code is a
+                liability, not a feature.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Regulatory change lands without warning.
+                </strong>{' '}
+                EU DMA alternative billing, Korea's third-party payment law, and
+                App Store Review guideline shifts require legal judgment and
+                coordinated rollouts across libraries.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  Upstream bugs need humans on the other end.
+                </strong>{' '}
+                Apple Feedback Assistant, TSI tickets, and Play Console reports
+                take weeks of back-and-forth with real engineers at Apple and
+                Google.
+              </li>
+            </ul>
             <p
               style={{
-                marginBottom: '1.5rem',
-                color: 'var(--text-secondary, #666)',
+                marginTop: '1.5rem',
+                textAlign: 'center',
+                fontSize: '0.95rem',
+                fontStyle: 'italic',
               }}
             >
-              and the downstream libraries built on top of them:
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                gap: '2rem',
-                justifyContent: 'center',
-                flexWrap: 'wrap',
-                marginBottom: '1.5rem',
-                alignItems: 'center',
-              }}
-            >
-              {LIBRARIES.map((lib) => (
-                <a
-                  key={lib.name}
-                  href={lib.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: 'var(--primary-color)',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
-                >
-                  <img
-                    src={lib.image}
-                    alt={lib.displayName}
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      objectFit: 'contain',
-                    }}
-                  />
-                  <span>{lib.displayName}</span>
-                </a>
-              ))}
-            </div>
-            <p style={{ color: 'var(--text-secondary, #666)' }}>
-              Every sponsorship tier contributes directly to release stability,
-              long-term support, and broader platform coverage.
+              AI accelerates the work. It does not replace the maintainers who
+              ship, debug, and stand behind it.
             </p>
           </div>
         </section>
@@ -167,21 +237,21 @@ function Sponsors() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '1.5rem',
+              gap: '1.25rem',
             }}
           >
             <p
               style={{
                 textAlign: 'center',
                 color: 'var(--text-secondary, #666)',
-                maxWidth: '700px',
+                maxWidth: '640px',
                 margin: '0 auto',
                 lineHeight: '1.6',
               }}
             >
-              GitHub Sponsors is the primary channel for funding OpenIAP. All
-              tiers, billing, and invoicing are handled through GitHub for both
-              individuals and companies.
+              GitHub Sponsors is the primary funding channel. Tiers scale from
+              individual contributors to companies shipping OpenIAP in
+              production — details are on the GitHub page.
             </p>
             <div
               style={{
@@ -282,228 +352,11 @@ function Sponsors() {
                 textAlign: 'center',
                 color: 'var(--text-secondary, #666)',
                 fontSize: '0.9rem',
+                maxWidth: '640px',
               }}
             >
-              Already sponsoring? Send your company info, logo, and preferred
-              placement to{' '}
-              <a
-                href="mailto:hyo@hyo.dev"
-                style={{ color: 'var(--primary-color)' }}
-              >
-                hyo@hyo.dev
-              </a>{' '}
-              and we'll reflect it across the project within 24 hours.
-            </p>
-          </div>
-        </section>
-
-        <section className="resources-section">
-          <h2 style={{ textAlign: 'center' }}>Sponsorship Tiers</h2>
-          <p
-            style={{
-              textAlign: 'center',
-              color: 'var(--text-secondary, #666)',
-              maxWidth: '700px',
-              margin: '0 auto 2rem',
-              lineHeight: '1.6',
-            }}
-          >
-            Tiers are scaled to how teams rely on OpenIAP — from individual
-            contributors to companies shipping it in production. Detailed
-            benefits are listed on GitHub Sponsors.
-          </p>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '1.5rem',
-            }}
-          >
-            <div
-              style={{
-                background: 'var(--bg-secondary)',
-                padding: '1.5rem',
-                borderRadius: '0.75rem',
-                border: '1px solid var(--border-color)',
-                textAlign: 'left',
-              }}
-            >
-              <h4
-                style={{
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.5rem',
-                  fontSize: '1.1rem',
-                }}
-              >
-                Individual
-              </h4>
-              <p
-                style={{
-                  color: 'var(--primary-color)',
-                  fontWeight: '600',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                Small monthly
-              </p>
-              <p
-                style={{
-                  color: 'var(--text-secondary, #666)',
-                  fontSize: '0.9rem',
-                }}
-              >
-                For developers using OpenIAP in personal or side projects.
-              </p>
-            </div>
-            <div
-              style={{
-                background: 'var(--bg-secondary)',
-                padding: '1.5rem',
-                borderRadius: '0.75rem',
-                border: '1px solid var(--border-color)',
-                textAlign: 'left',
-              }}
-            >
-              <h4
-                style={{
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.5rem',
-                  fontSize: '1.1rem',
-                }}
-              >
-                Project / Team
-              </h4>
-              <p
-                style={{
-                  color: 'var(--primary-color)',
-                  fontWeight: '600',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                Mid monthly
-              </p>
-              <p
-                style={{
-                  color: 'var(--text-secondary, #666)',
-                  fontSize: '0.9rem',
-                }}
-              >
-                For teams shipping OpenIAP in one or more production apps.
-              </p>
-            </div>
-            <div
-              style={{
-                background: 'var(--bg-secondary)',
-                padding: '1.5rem',
-                borderRadius: '0.75rem',
-                border: '2px solid var(--primary-color)',
-                textAlign: 'left',
-              }}
-            >
-              <h4
-                style={{
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.5rem',
-                  fontSize: '1.1rem',
-                }}
-              >
-                Company / Vendor
-              </h4>
-              <p
-                style={{
-                  color: 'var(--primary-color)',
-                  fontWeight: '600',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                $1,000 / month
-              </p>
-              <p
-                style={{
-                  color: 'var(--text-secondary, #666)',
-                  fontSize: '0.9rem',
-                }}
-              >
-                Vendor-level sponsorship for companies relying on OpenIAP as
-                production infrastructure.
-              </p>
-            </div>
-            <div
-              style={{
-                background: 'var(--bg-secondary)',
-                padding: '1.5rem',
-                borderRadius: '0.75rem',
-                border: '1px solid var(--border-color)',
-                textAlign: 'left',
-              }}
-            >
-              <h4
-                style={{
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.5rem',
-                  fontSize: '1.1rem',
-                }}
-              >
-                Custom Integration
-              </h4>
-              <p
-                style={{
-                  color: 'var(--primary-color)',
-                  fontWeight: '600',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                Contact us
-              </p>
-              <p
-                style={{
-                  color: 'var(--text-secondary, #666)',
-                  fontSize: '0.9rem',
-                }}
-              >
-                Scoped engagements for platform integrations such as Amazon IAP
-                or other store backends.
-              </p>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <a
-              href="https://github.com/sponsors/hyodotdev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary"
-            >
-              View Tiers on GitHub
-            </a>
-          </div>
-        </section>
-
-        <section className="resources-section">
-          <h2 style={{ textAlign: 'center' }}>For Companies</h2>
-          <div
-            style={{
-              maxWidth: '800px',
-              margin: '0 auto',
-              textAlign: 'center',
-              lineHeight: '1.8',
-            }}
-          >
-            <p
-              style={{
-                color: 'var(--text-secondary, #666)',
-                marginBottom: '1rem',
-              }}
-            >
-              If your product relies on OpenIAP in production, vendor-level
-              sponsorship is the right fit. It funds long-term support, security
-              and release stability, and prioritized platform integration work
-              on the components your team actually depends on.
-            </p>
-            <p style={{ color: 'var(--text-secondary, #666)' }}>
-              For procurement, invoicing, or custom scope discussions, reach out
-              at{' '}
+              For company logo placement, procurement, invoicing, or custom
+              integration scope, reach out at{' '}
               <a
                 href="mailto:hyo@hyo.dev"
                 style={{ color: 'var(--primary-color)' }}
@@ -523,7 +376,7 @@ function Sponsors() {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '2rem',
-              padding: '2rem 0',
+              padding: '1.5rem 0',
               overflow: 'hidden',
             }}
           >
@@ -649,32 +502,6 @@ function Sponsors() {
                 </a>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="resources-section">
-          <h2 style={{ textAlign: 'center' }}>Contact</h2>
-          <div style={{ textAlign: 'center' }}>
-            <p
-              style={{
-                color: 'var(--text-secondary, #666)',
-                marginBottom: '1.5rem',
-              }}
-            >
-              For sponsorship inquiries, custom integrations, or any other
-              questions, reach out directly.
-            </p>
-            <a
-              href="mailto:hyo@hyo.dev"
-              className="btn btn-primary"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              hyo@hyo.dev
-            </a>
           </div>
         </section>
       </div>

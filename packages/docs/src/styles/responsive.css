@@ -18,6 +18,10 @@
     display: none !important;
   }
 
+  .nav-actions > .iapkit-link {
+    display: none;
+  }
+
   .mobile-menu-button {
     display: block;
   }
@@ -121,5 +125,34 @@
 
   .footer-bottom {
     text-align: center;
+  }
+
+  /* Hard guarantee: nothing ever causes horizontal scroll on mobile
+     (Samsung Internet sometimes ignores html overflow-x alone) */
+  html,
+  body,
+  #root {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+  }
+
+  img,
+  video,
+  iframe,
+  canvas,
+  svg:not(.lucide) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  pre,
+  code,
+  table {
+    max-width: 100%;
+  }
+
+  pre {
+    overflow-x: auto;
   }
 }
