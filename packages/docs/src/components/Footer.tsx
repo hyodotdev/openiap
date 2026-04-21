@@ -63,11 +63,11 @@ function Footer() {
                 </li>
                 <li>
                   <a
-                    href="http://hyo.dev/joinSlack"
+                    href="https://discord.gg/5AQd8BbxWT"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Slack
+                    Discord
                   </a>
                 </li>
                 <li>
