@@ -25,6 +25,204 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // April 25, 2026 — SDK parity patch: wire every type-declared handler end-to-end
+    {
+      id: 'releases-2026-04-25',
+      date: new Date('2026-04-25'),
+      element: (
+        <div key="releases-2026-04-25" style={noteCardStyle}>
+          <AnchorLink id="releases-2026-04-25" level="h4">
+            April 25, 2026
+          </AnchorLink>
+
+          <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              SDK parity patch — every type-declared handler now has a runtime
+              path
+            </h5>
+            <p
+              style={{
+                marginBottom: '1rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              Closes{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/104"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                issue #104
+              </a>{' '}
+              (Flutter <code>beginRefundRequestIOS</code> declared but never
+              implemented) and every other instance of the same pattern found
+              via a systematic 3-pass audit across all five wrapper SDKs. After
+              this release, every handler declared in each library's generated
+              types file has a complete runtime path (public API + native bridge
+              + handlers-bundle wiring where applicable).
+            </p>
+
+            <ul
+              style={{
+                marginBottom: '1rem',
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <strong>packages/apple</strong> — added <code>@objc</code>{' '}
+                bridge for <code>requestPurchaseOnPromotedProductIOS</code> and{' '}
+                <code>deepLinkToSubscriptions</code> so kmp-iap cinterop can
+                reach them.
+              </li>
+              <li>
+                <strong>flutter_inapp_purchase</strong> — added 7 missing iOS
+                query handlers (<code>beginRefundRequestIOS</code>,{' '}
+                <code>currentEntitlementIOS</code>,{' '}
+                <code>latestTransactionIOS</code>,{' '}
+                <code>isTransactionVerifiedIOS</code>,{' '}
+                <code>getTransactionJwsIOS</code>,{' '}
+                <code>getReceiptDataIOS</code>,{' '}
+                <code>canPresentExternalPurchaseNoticeIOS</code>), fixed
+                channel-name drift on <code>syncIOS</code>/
+                <code>subscriptionStatusIOS</code>/
+                <code>getAppTransactionIOS</code>, and wired{' '}
+                <code>verifyPurchase</code> plus three Android billing-program
+                handlers into the <code>MutationHandlers</code> bundle.
+              </li>
+              <li>
+                <strong>kmp-iap</strong> — replaced 5{' '}
+                <code>UnsupportedOperationException</code> stubs in{' '}
+                <code>iosMain</code> with real ObjC bridge calls for{' '}
+                <code>beginRefundRequestIOS</code>, <code>syncIOS</code>,{' '}
+                <code>getAllTransactionsIOS</code>,{' '}
+                <code>requestPurchaseOnPromotedProductIOS</code>, and{' '}
+                <code>deepLinkToSubscriptions</code>.
+              </li>
+              <li>
+                <strong>expo-iap</strong> — exported{' '}
+                <code>consumePurchaseAndroid</code> (previously asymmetric vs{' '}
+                <code>acknowledgePurchaseAndroid</code>) and{' '}
+                <code>getStorefrontIOS</code> deprecated alias.
+              </li>
+              <li>
+                <strong>react-native-iap</strong> — exported{' '}
+                <code>validateReceiptIOS</code> deprecated alias.
+              </li>
+              <li>
+                <strong>godot-iap</strong> — added <code>validate_receipt</code>
+                , <code>validate_receipt_ios</code>, and three iOS 18.1+{' '}
+                <code>ExternalPurchaseCustomLink</code> methods across the
+                GDExtension Swift bridge and GDScript public API.
+              </li>
+            </ul>
+
+            <p
+              style={{
+                marginBottom: 0,
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              The knowledge base gained an{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/blob/main/knowledge/internal/04-platform-packages.md#sdk-parity-checklist-critical--prevents-declared-but-not-implemented"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                SDK Parity Checklist
+              </a>{' '}
+              so future schema additions cannot reintroduce phantom interfaces.
+              See{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/105"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #105
+              </a>{' '}
+              for the full diff.
+            </p>
+          </div>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.2.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.2.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.2.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.2.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.3
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // April 24, 2026 — IAPKit verification host migration shipped in native patches
     {
       id: 'releases-2026-04-24',
