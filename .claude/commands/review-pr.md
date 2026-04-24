@@ -42,7 +42,7 @@ For each comment:
 4. **Reply directly to the inline review comment** (NOT a general PR comment)
 5. **Resolve the conversation** via GraphQL API
 
-After the fix batch is pushed (once per round, not per comment), trigger a fresh round of automated review:
+After the fix batch is pushed (once per round, not per comment), trigger a fresh round from every automated reviewer wired into this repo:
 
 ```bash
 # Re-request Copilot review (note: capital C; the bot login is literally "Copilot")
@@ -51,9 +51,12 @@ gh api -X POST "repos/hyodotdev/openiap/pulls/$PR_NUMBER/requested_reviewers" \
 
 # Kick off a new Gemini review pass
 gh pr comment "$PR_NUMBER" --body "/gemini review"
+
+# Kick off a new CodeRabbit review pass
+gh pr comment "$PR_NUMBER" --body "@coderabbitai review"
 ```
 
-Both are idempotent-ish — Copilot re-request is a no-op if still pending and re-requests if a review was already submitted; `/gemini review` always starts a new pass. Run both so the next polling cycle has something to find.
+All three are idempotent-ish — Copilot re-request is a no-op if still pending and re-requests if a review was already submitted; `/gemini review` and `@coderabbitai review` always start new passes. Run all three so the next polling cycle has fresh feedback from every bot to pick up.
 
 ## Polling Loop (after fix batch)
 
