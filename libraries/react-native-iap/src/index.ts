@@ -1833,9 +1833,6 @@ export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
     throw new Error('validateReceiptIOS is only available on iOS');
   }
   const result = await validateReceipt(options);
-  if ((result as {platform?: string}).platform !== 'ios') {
-    throw new Error('validateReceiptIOS: unexpected non-iOS result');
-  }
   return result as VerifyPurchaseResultIOS;
 };
 

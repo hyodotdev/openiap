@@ -1126,34 +1126,44 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
 
+    /// Check eligibility asynchronously. Returns a pending-status JSON string
+    /// immediately and emits the actual result through ``productsFetched`` with
+    /// ``eligible`` set to true/false. Avoids the main-thread deadlock that a
+    /// blocking ``DispatchSemaphore`` would cause when ``OpenIapModule`` hops
+    /// back to the main actor.
     @Callable
-    public func isEligibleForExternalPurchaseCustomLinkIOS() -> Bool {
+    public func isEligibleForExternalPurchaseCustomLinkIOS() -> String {
         GodotIapLog.payload("isEligibleForExternalPurchaseCustomLinkIOS", payload: nil)
-        if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
-            let semaphore = DispatchSemaphore(value: 0)
-            var eligible = false
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
             Task { [weak self] in
-                guard let self = self else {
-                    semaphore.signal()
-                    return
-                }
+                guard let self = self else { return }
                 do {
-                    eligible = try await self.openIap.isEligibleForExternalPurchaseCustomLinkIOS()
+                    let eligible = try await self.openIap.isEligibleForExternalPurchaseCustomLinkIOS()
+                    await MainActor.run { [self] in
+                        let dict = VariantDictionary()
+                        dict["success"] = Variant(true)
+                        dict["eligible"] = Variant(eligible)
+                        self.productsFetched.emit(dict)
+                    }
                 } catch {
                     GodotIapLog.debug("[GodotIap] isEligibleForExternalPurchaseCustomLinkIOS error: \(error.localizedDescription)")
+                    await MainActor.run { [self] in
+                        let dict = VariantDictionary()
+                        dict["success"] = Variant(false)
+                        dict["error"] = Variant(error.localizedDescription)
+                        self.productsFetched.emit(dict)
+                    }
                 }
-                semaphore.signal()
             }
-            _ = semaphore.wait(timeout: .now() + 5.0)
-            return eligible
+            return "{\"status\": \"pending\"}"
         }
-        return false
+        return "{\"status\": \"unsupported\"}"
     }
 
     @Callable
     public func getExternalPurchaseCustomLinkTokenIOS(tokenType: String) -> String {
         GodotIapLog.payload("getExternalPurchaseCustomLinkTokenIOS", payload: tokenType)
-        if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
             Task { [weak self] in
                 guard let self = self else { return }
                 do {
@@ -1189,7 +1199,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func showExternalPurchaseCustomLinkNoticeIOS(noticeType: String) -> String {
         GodotIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", payload: noticeType)
-        if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
             Task { [weak self] in
                 guard let self = self else { return }
                 do {

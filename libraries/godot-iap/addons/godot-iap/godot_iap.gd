@@ -865,10 +865,15 @@ func get_transaction_jws_ios(sku: String) -> String:
 ## @return String ISO 3166-1 alpha-2 country code, or empty string on failure
 func get_storefront_ios() -> String:
 	if _native_plugin and _platform == "iOS":
-		return str(_native_plugin.call("getStorefrontIOS"))
+		var result_json = _native_plugin.call("getStorefrontIOS")
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary and result.get("success", false):
+			return result.get("storefront", "")
 	return ""
 
 ## Validate a receipt with the App Store for a specific SKU (iOS).
+## Kicks off the native async validation and awaits the next `products_fetched`
+## signal carrying the result payload. Returns null on error.
 ## @deprecated Use verify_purchase or verify_purchase_with_provider instead.
 ## @param props: Types.VerifyPurchaseProps with `apple: {sku: String}` set
 ## @return Variant Types.VerifyPurchaseResultIOS on success, null otherwise
@@ -877,15 +882,13 @@ func validate_receipt_ios(props) -> Variant:
 		return null
 	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
 	var props_json = JSON.stringify(props_dict)
-	var result_json = _native_plugin.call("validateReceiptIOS", props_json)
-	var result = JSON.parse_string(result_json)
-	if result is Dictionary and result.get("status", "") == "pending":
-		return null # async; consumer should listen to products_fetched signal
-	if result is Dictionary and result.get("success", false):
-		var payload_json = result.get("resultJson", "")
-		var payload = JSON.parse_string(payload_json)
-		if payload is Dictionary:
-			return Types.VerifyPurchaseResultIOS.from_dict(payload)
+	_native_plugin.call("validateReceiptIOS", props_json)
+	var payload = await products_fetched
+	if payload is Dictionary and payload.get("success", false):
+		var payload_json = payload.get("resultJson", "")
+		var decoded = JSON.parse_string(payload_json)
+		if decoded is Dictionary:
+			return Types.VerifyPurchaseResultIOS.from_dict(decoded)
 	return null
 
 ## Cross-platform wrapper for receipt validation.
@@ -894,46 +897,56 @@ func validate_receipt_ios(props) -> Variant:
 ## @return Variant Types.VerifyPurchaseResultIOS | Types.VerifyPurchaseResultAndroid | null
 func validate_receipt(props) -> Variant:
 	if _platform == "iOS":
-		return validate_receipt_ios(props)
+		return await validate_receipt_ios(props)
 	# Android: delegate to verify_purchase which already exists
 	return _verify_purchase_raw(props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {}))
 
 ## ExternalPurchaseCustomLink: check eligibility (iOS 18.1+).
+## Kicks off the native async check and awaits the next `products_fetched`
+## signal carrying an `eligible` boolean; returns false on any error.
 ## @return bool true if the current context can show external purchase custom link
 func is_eligible_for_external_purchase_custom_link_ios() -> bool:
-	if _native_plugin and _platform == "iOS":
-		return bool(_native_plugin.call("isEligibleForExternalPurchaseCustomLinkIOS"))
+	if not (_native_plugin and _platform == "iOS"):
+		return false
+	_native_plugin.call("isEligibleForExternalPurchaseCustomLinkIOS")
+	var payload = await products_fetched
+	if payload is Dictionary and payload.get("success", false):
+		return bool(payload.get("eligible", false))
 	return false
 
 ## ExternalPurchaseCustomLink: request a token for Apple reporting (iOS 18.1+).
-## Result is emitted asynchronously via the products_fetched signal.
+## Kicks off the native async request and awaits the next `products_fetched`
+## signal carrying the token payload. Returns null on error or on unsupported
+## platforms (i.e. iOS < 18.1).
 ## @param token_type: String "acquisition" | "services"
-## @return Variant Pending status string; actual result arrives via signal
+## @return Variant Types.ExternalPurchaseCustomLinkTokenResultIOS or null
 func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("getExternalPurchaseCustomLinkTokenIOS", token_type)
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary and result.get("success", false):
-			var payload_json = result.get("resultJson", "")
-			var payload = JSON.parse_string(payload_json)
-			if payload is Dictionary:
-				return Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(payload)
+	if not (_native_plugin and _platform == "iOS"):
 		return null
+	_native_plugin.call("getExternalPurchaseCustomLinkTokenIOS", token_type)
+	var payload = await products_fetched
+	if payload is Dictionary and payload.get("success", false):
+		var payload_json = payload.get("resultJson", "")
+		var decoded = JSON.parse_string(payload_json)
+		if decoded is Dictionary:
+			return Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(decoded)
 	return null
 
 ## ExternalPurchaseCustomLink: show the disclosure notice sheet (iOS 18.1+).
+## Kicks off the native async UI and awaits the next `products_fetched` signal
+## carrying the notice result payload. Returns null on error.
 ## @param notice_type: String "browser"
 ## @return Variant Types.ExternalPurchaseCustomLinkNoticeResultIOS or null
 func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant:
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("showExternalPurchaseCustomLinkNoticeIOS", notice_type)
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary and result.get("success", false):
-			var payload_json = result.get("resultJson", "")
-			var payload = JSON.parse_string(payload_json)
-			if payload is Dictionary:
-				return Types.ExternalPurchaseCustomLinkNoticeResultIOS.from_dict(payload)
+	if not (_native_plugin and _platform == "iOS"):
 		return null
+	_native_plugin.call("showExternalPurchaseCustomLinkNoticeIOS", notice_type)
+	var payload = await products_fetched
+	if payload is Dictionary and payload.get("success", false):
+		var payload_json = payload.get("resultJson", "")
+		var decoded = JSON.parse_string(payload_json)
+		if decoded is Dictionary:
+			return Types.ExternalPurchaseCustomLinkNoticeResultIOS.from_dict(decoded)
 	return null
 
 # ==========================================

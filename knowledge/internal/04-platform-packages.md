@@ -161,7 +161,11 @@ After regenerating types, run for each library:
 NAME=<name>
 
 echo "=== Type declared? ==="
-rg -n "$NAME" libraries/*/lib/types.dart libraries/*/src/types.ts libraries/*/library/src/commonMain/kotlin/**/Types.kt libraries/*/addons/godot-iap/types.gd
+rg -n "$NAME" \
+  libraries/*/lib/types.dart \
+  libraries/*/src/types.ts \
+  libraries/kmp-iap/library/src/commonMain/kotlin \
+  libraries/*/addons/godot-iap/types.gd
 
 echo "=== Public API exposed? ==="
 rg -n "^export (const|async function|function) $NAME\b|get $NAME\b|func $NAME\b|snake_case equivalent" libraries/

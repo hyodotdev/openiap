@@ -151,7 +151,11 @@ export const consumePurchaseAndroid: MutationField<
     }
   }
 
-  return true;
+  throw new Error(
+    `consumePurchaseAndroid returned an unexpected response payload: ${JSON.stringify(
+      result,
+    )}`,
+  );
 };
 
 /**

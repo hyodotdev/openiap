@@ -1020,7 +1020,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// iOS specific: Return the current active entitlement for a SKU, if any.
   gentype.QueryCurrentEntitlementIOSHandler get currentEntitlementIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1049,7 +1049,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// expired or revoked ones.
   gentype.QueryLatestTransactionIOSHandler get latestTransactionIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1078,7 +1078,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// verification.
   gentype.QueryIsTransactionVerifiedIOSHandler get isTransactionVerifiedIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return false;
         }
         try {
@@ -1099,7 +1099,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// transaction for a SKU, suitable for server-side verification.
   gentype.QueryGetTransactionJwsIOSHandler get getTransactionJwsIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1118,7 +1118,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// iOS specific: Return the base64-encoded App Store receipt data (legacy
   /// StoreKit 1 API). Use JWS-based verification for StoreKit 2.
   gentype.QueryGetReceiptDataIOSHandler get getReceiptDataIOS => () async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           return null;
         }
         try {
@@ -1135,7 +1135,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// purchase notice sheet.
   gentype.QueryCanPresentExternalPurchaseNoticeIOSHandler
       get canPresentExternalPurchaseNoticeIOS => () async {
-            if (!_platform.isIOS || _platform.isMacOS) {
+            if (!isIOS) {
               return false;
             }
             try {

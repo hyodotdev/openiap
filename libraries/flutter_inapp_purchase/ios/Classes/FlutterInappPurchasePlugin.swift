@@ -254,7 +254,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
             }
 
-        case "validateReceiptIOS":
+        case "validateReceiptIOS", "verifyPurchase":
             guard let args = call.arguments as? [String: Any] else {
                 let code: ErrorCode = .developerError
                 result(FlutterError(code: code.rawValue, message: "arguments required", details: nil))
@@ -652,10 +652,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 FlutterIapLog.result("beginRefundRequestIOS", value: status ?? "nil")
                 result(status)
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -898,10 +896,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 FlutterIapLog.result("syncIOS", value: success)
                 result(success)
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .syncError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .syncError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -917,10 +913,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 FlutterIapLog.result("subscriptionStatusIOS", value: payload)
                 result(payload)
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -938,10 +932,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     result(nil)
                 }
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -960,10 +952,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     result(nil)
                 }
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -980,10 +970,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     result(nil)
                 }
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -996,10 +984,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 FlutterIapLog.result("isTransactionVerifiedIOS", value: verified)
                 result(verified)
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -1012,10 +998,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 FlutterIapLog.result("getTransactionJwsIOS", value: jws ?? "nil")
                 result(jws)
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
@@ -1028,10 +1012,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 FlutterIapLog.result("getReceiptDataIOS", value: receipt ?? "nil")
                 result(receipt)
             } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-                }
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
         }
     }
