@@ -243,9 +243,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean {
-        throw UnsupportedOperationException("requestPurchaseOnPromotedProductIOS not implemented in OpenIAP")
-    }
+    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.requestPurchaseOnPromotedProductIOSWithCompletion { success, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else {
+                    continuation.resume(success)
+                }
+            }
+        }
 
     override suspend fun restorePurchases(): Unit = suspendCoroutine { continuation ->
         openIapModule.restorePurchasesWithCompletion { error ->
@@ -275,9 +282,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?): Unit {
-        throw UnsupportedOperationException("deepLinkToSubscriptions not implemented in OpenIAP")
-    }
+    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?): Unit =
+        suspendCoroutine { continuation ->
+            openIapModule.deepLinkToSubscriptionsWithCompletion { error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else {
+                    continuation.resume(Unit)
+                }
+            }
+        }
 
     override suspend fun presentCodeRedemptionSheetIOS(): Boolean =
         suspendCoroutine { continuation ->
@@ -290,9 +304,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    override suspend fun beginRefundRequestIOS(sku: String): String? {
-        throw UnsupportedOperationException("beginRefundRequestIOS not implemented in OpenIAP")
-    }
+    override suspend fun beginRefundRequestIOS(sku: String): String? =
+        suspendCoroutine { continuation ->
+            openIapModule.beginRefundRequestIOSWithSku(sku) { status, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else {
+                    continuation.resume(status)
+                }
+            }
+        }
 
     override suspend fun clearTransactionIOS(): Boolean = suspendCoroutine { continuation ->
         openIapModule.clearTransactionIOSWithCompletion { success, error ->
@@ -318,8 +339,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    override suspend fun syncIOS(): Boolean {
-        throw UnsupportedOperationException("syncIOS not implemented in OpenIAP")
+    override suspend fun syncIOS(): Boolean = suspendCoroutine { continuation ->
+        openIapModule.syncIOSWithCompletion { success, error ->
+            if (error != null) {
+                continuation.resumeWithException(Exception(error.localizedDescription))
+            } else {
+                continuation.resume(success)
+            }
+        }
     }
 
     override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult {
@@ -411,12 +438,19 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    // TODO: Wire to ObjC bridge once getAllTransactionsIOSWithCompletion is available in consumed CocoaPods artifacts.
-    override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> {
-        throw UnsupportedOperationException(
-            "getAllTransactionsIOS is not available in this kmp-iap iOS build yet"
-        )
-    }
+    override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> =
+        suspendCoroutine { continuation ->
+            openIapModule.getAllTransactionsIOSWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else if (result != null) {
+                    val purchases = convertAnyListToPurchaseIOSList(result)
+                    continuation.resume(purchases)
+                } else {
+                    continuation.resume(emptyList())
+                }
+            }
+        }
 
     override suspend fun getReceiptDataIOS(): String? = suspendCoroutine { continuation ->
         openIapModule.getReceiptDataIOSWithCompletion { result, error ->

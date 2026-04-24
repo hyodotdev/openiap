@@ -111,6 +111,42 @@ void main() {
               'type': 'IN_APP',
               'typeIOS': 'CONSUMABLE',
             };
+          case 'beginRefundRequestIOS':
+            return 'success';
+          case 'currentEntitlementIOS':
+            return <String, dynamic>{
+              '__typename': 'PurchaseIOS',
+              'id': 'txn-entitlement',
+              'productId': 'com.example.prod1',
+              'platform': 'IOS',
+              'store': 'apple',
+              'purchaseState': 'PURCHASED',
+              'quantity': 1,
+              'transactionDate': 1700000000000,
+              'transactionId': 'txn-entitlement',
+              'isAutoRenewing': false,
+            };
+          case 'latestTransactionIOS':
+            return <String, dynamic>{
+              '__typename': 'PurchaseIOS',
+              'id': 'txn-latest',
+              'productId': 'com.example.prod1',
+              'platform': 'IOS',
+              'store': 'apple',
+              'purchaseState': 'PURCHASED',
+              'quantity': 1,
+              'transactionDate': 1700000000000,
+              'transactionId': 'txn-latest',
+              'isAutoRenewing': false,
+            };
+          case 'isTransactionVerifiedIOS':
+            return true;
+          case 'getTransactionJwsIOS':
+            return 'jws-representation-token';
+          case 'getReceiptDataIOS':
+            return 'base64-receipt-data';
+          case 'canPresentExternalPurchaseNoticeIOS':
+            return true;
           case 'getPendingTransactionsIOS':
             // Return a list of purchases (as native would)
             return <Map<String, dynamic>>[
@@ -474,6 +510,96 @@ void main() {
         expect(result, isA<VerifyPurchaseResultIOS>());
       },
     );
+
+    test('beginRefundRequestIOS invokes channel and returns status', () async {
+      final status = await iap.beginRefundRequestIOS('com.example.prod1');
+      expect(status, 'success');
+      expect(calls.last.method, 'beginRefundRequestIOS');
+      expect(
+        calls.last.arguments,
+        <String, dynamic>{'sku': 'com.example.prod1'},
+      );
+    });
+
+    test('beginRefundRequestIOS throws PlatformException on non-iOS', () async {
+      final androidIap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await expectLater(
+        androidIap.beginRefundRequestIOS('com.example.prod1'),
+        throwsA(isA<PlatformException>()),
+      );
+    });
+
+    test('currentEntitlementIOS returns typed PurchaseIOS', () async {
+      final purchase = await iap.currentEntitlementIOS('com.example.prod1');
+      expect(purchase, isA<PurchaseIOS>());
+      expect(purchase!.productId, 'com.example.prod1');
+      expect(calls.last.method, 'currentEntitlementIOS');
+    });
+
+    test('currentEntitlementIOS returns null on non-iOS', () async {
+      final androidIap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      expect(await androidIap.currentEntitlementIOS('sku'), isNull);
+    });
+
+    test('latestTransactionIOS returns typed PurchaseIOS', () async {
+      final purchase = await iap.latestTransactionIOS('com.example.prod1');
+      expect(purchase, isA<PurchaseIOS>());
+      expect(purchase!.transactionId, 'txn-latest');
+      expect(calls.last.method, 'latestTransactionIOS');
+    });
+
+    test('latestTransactionIOS returns null when native returns null',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'latestTransactionIOS') {
+          return null;
+        }
+        return null;
+      });
+      expect(await iap.latestTransactionIOS('sku'), isNull);
+    });
+
+    test('isTransactionVerifiedIOS returns bool from native', () async {
+      expect(await iap.isTransactionVerifiedIOS('com.example.prod1'), isTrue);
+      expect(calls.last.method, 'isTransactionVerifiedIOS');
+    });
+
+    test('isTransactionVerifiedIOS returns false on non-iOS', () async {
+      final androidIap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      expect(await androidIap.isTransactionVerifiedIOS('sku'), isFalse);
+    });
+
+    test('getTransactionJwsIOS returns JWS string', () async {
+      final jws = await iap.getTransactionJwsIOS('com.example.prod1');
+      expect(jws, 'jws-representation-token');
+      expect(calls.last.method, 'getTransactionJwsIOS');
+    });
+
+    test('getReceiptDataIOS returns base64 receipt string', () async {
+      final receipt = await iap.getReceiptDataIOS();
+      expect(receipt, 'base64-receipt-data');
+      expect(calls.last.method, 'getReceiptDataIOS');
+    });
+
+    test('canPresentExternalPurchaseNoticeIOS returns bool', () async {
+      expect(await iap.canPresentExternalPurchaseNoticeIOS(), isTrue);
+      expect(calls.last.method, 'canPresentExternalPurchaseNoticeIOS');
+    });
+
+    test('canPresentExternalPurchaseNoticeIOS returns false on non-iOS',
+        () async {
+      final androidIap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      expect(await androidIap.canPresentExternalPurchaseNoticeIOS(), isFalse);
+    });
   });
 
   group('ExternalPurchaseCustomLink APIs (iOS 18.1+)', () {

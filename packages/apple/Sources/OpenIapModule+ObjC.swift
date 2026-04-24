@@ -315,6 +315,29 @@ import StoreKit
         }
     }
 
+    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
+    @objc func requestPurchaseOnPromotedProductIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
+        Task {
+            do {
+                let result = try await requestPurchaseOnPromotedProductIOS()
+                completion(result, nil)
+            } catch {
+                completion(false, error)
+            }
+        }
+    }
+
+    @objc func deepLinkToSubscriptionsWithCompletion(_ completion: @escaping (Error?) -> Void) {
+        Task {
+            do {
+                try await deepLinkToSubscriptions(nil)
+                completion(nil)
+            } catch {
+                completion(error)
+            }
+        }
+    }
+
     // MARK: - Transaction Management
 
     @objc func finishTransactionWithPurchaseId(

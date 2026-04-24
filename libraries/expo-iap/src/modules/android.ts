@@ -128,6 +128,37 @@ export const validateReceiptAndroid = async ({
 };
 
 /**
+ * Consume a purchase token so the user can purchase the same product again
+ * (Android consumable products). Prefer using `finishTransaction` with
+ * `isConsumable: true`, which dispatches to this under the hood.
+ */
+export const consumePurchaseAndroid: MutationField<
+  'consumePurchaseAndroid'
+> = async (purchaseToken) => {
+  const result = await ExpoIapModule.consumePurchaseAndroid(purchaseToken);
+
+  if (typeof result === 'boolean') {
+    return result;
+  }
+
+  if (result && typeof result === 'object') {
+    const record = result as Record<string, unknown>;
+    if (typeof record.success === 'boolean') {
+      return record.success;
+    }
+    if (typeof record.responseCode === 'number') {
+      return record.responseCode === 0;
+    }
+  }
+
+  throw new Error(
+    `consumePurchaseAndroid returned an unexpected response payload: ${JSON.stringify(
+      result,
+    )}`,
+  );
+};
+
+/**
  * Acknowledge a product (on Android.) No-op on iOS.
  * @param {Object} params - The parameters object
  * @param {string} params.token - The product's token (on Android)

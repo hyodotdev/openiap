@@ -158,6 +158,17 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let code: ErrorCode = .featureNotSupported
                 result(FlutterError(code: code.rawValue, message: "Code redemption requires iOS 16.0+, macOS 14.0+, or tvOS 16.0+", details: nil))
             }
+
+        case "beginRefundRequestIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                beginRefundRequestIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                beginRefundRequestIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
             
         case "getPromotedProductIOS":
             getPromotedProductIOS(result: result)
@@ -174,7 +185,76 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 result(FlutterError(code: code.rawValue, message: "productId required", details: nil))
             }
 
-        case "validateReceiptIOS":
+        case "currentEntitlementIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                currentEntitlementIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                currentEntitlementIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "latestTransactionIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                latestTransactionIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                latestTransactionIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "isTransactionVerifiedIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                isTransactionVerifiedIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                isTransactionVerifiedIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "getTransactionJwsIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                getTransactionJwsIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                getTransactionJwsIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "getReceiptDataIOS":
+            getReceiptDataIOS(result: result)
+
+        case "getAppTransactionIOS", "getAppTransaction":
+            if #available(iOS 16.0, macOS 14.0, tvOS 16.0, *) {
+                getAppTransactionIOS(result: result)
+            } else {
+                let code: ErrorCode = .featureNotSupported
+                result(FlutterError(code: code.rawValue, message: "getAppTransactionIOS requires iOS 16.0+", details: nil))
+            }
+
+        case "syncIOS":
+            syncIOS(result: result)
+
+        case "subscriptionStatusIOS", "getSubscriptionStatus":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                subscriptionStatusIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                subscriptionStatusIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "validateReceiptIOS", "verifyPurchase":
             guard let args = call.arguments as? [String: Any] else {
                 let code: ErrorCode = .developerError
                 result(FlutterError(code: code.rawValue, message: "arguments required", details: nil))
@@ -196,19 +276,19 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             validateReceiptIOS(productId: sku, result: result)
 
         case "canPresentExternalPurchaseNoticeIOS":
-            if #available(iOS 18.2, macOS 14.0, tvOS 18.2, *) {
+            if #available(iOS 17.4, macOS 14.4, tvOS 17.4, *) {
                 canPresentExternalPurchaseNoticeIOS(result: result)
             } else {
                 let code: ErrorCode = .featureNotSupported
-                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 18.2+, macOS 14.0+, or tvOS 18.2+", details: nil))
+                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 17.4+, macOS 14.4+, or tvOS 17.4+", details: nil))
             }
 
         case "presentExternalPurchaseNoticeSheetIOS":
-            if #available(iOS 18.2, macOS 14.0, tvOS 18.2, *) {
+            if #available(iOS 17.4, macOS 14.4, tvOS 17.4, *) {
                 presentExternalPurchaseNoticeSheetIOS(result: result)
             } else {
                 let code: ErrorCode = .featureNotSupported
-                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 18.2+, macOS 14.0+, or tvOS 18.2+", details: nil))
+                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 17.4+, macOS 14.4+, or tvOS 17.4+", details: nil))
             }
 
         case "presentExternalPurchaseLinkIOS":
@@ -564,6 +644,28 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
     
+    private func beginRefundRequestIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("beginRefundRequestIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let status = try await OpenIapModule.shared.beginRefundRequestIOS(sku: sku)
+                FlutterIapLog.result("beginRefundRequestIOS", value: status ?? "nil")
+                result(status)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("beginRefundRequestIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
+            } catch {
+                FlutterIapLog.failure("beginRefundRequestIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
     @available(iOS 15.0, macOS 14.0, tvOS 15.0, *)
     private func showManageSubscriptionsIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("showManageSubscriptionsIOS called")
@@ -794,9 +896,203 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    // MARK: - Alternative Billing (iOS 18.2+)
+    private func syncIOS(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("syncIOS called")
+        Task { @MainActor in
+            do {
+                let success = try await OpenIapModule.shared.syncIOS()
+                FlutterIapLog.result("syncIOS", value: success)
+                result(success)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("syncIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
+            } catch {
+                FlutterIapLog.failure("syncIOS", error: error)
+                let code: ErrorCode = .syncError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
 
-    @available(iOS 18.2, macOS 14.0, tvOS 18.2, *)
+    private func subscriptionStatusIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("subscriptionStatusIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let statuses = try await OpenIapModule.shared.subscriptionStatusIOS(sku: sku)
+                let payload = statuses.map {
+                    FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0))
+                }
+                FlutterIapLog.result("subscriptionStatusIOS", value: payload)
+                result(payload)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("subscriptionStatusIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
+            } catch {
+                FlutterIapLog.failure("subscriptionStatusIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, *)
+    private func getAppTransactionIOS(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("getAppTransactionIOS called")
+        Task { @MainActor in
+            do {
+                if let tx = try await OpenIapModule.shared.getAppTransactionIOS() {
+                    let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(tx))
+                    FlutterIapLog.result("getAppTransactionIOS", value: payload)
+                    result(payload)
+                } else {
+                    result(nil)
+                }
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("getAppTransactionIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
+            } catch {
+                FlutterIapLog.failure("getAppTransactionIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    // MARK: - StoreKit 2 entitlement queries (iOS 15.0+)
+
+    private func currentEntitlementIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("currentEntitlementIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                if let purchase = try await OpenIapModule.shared.currentEntitlementIOS(sku: sku) {
+                    let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+                    FlutterIapLog.result("currentEntitlementIOS", value: payload)
+                    result(payload)
+                } else {
+                    result(nil)
+                }
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("currentEntitlementIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
+            } catch {
+                FlutterIapLog.failure("currentEntitlementIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    private func latestTransactionIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("latestTransactionIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                if let purchase = try await OpenIapModule.shared.latestTransactionIOS(sku: sku) {
+                    let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+                    FlutterIapLog.result("latestTransactionIOS", value: payload)
+                    result(payload)
+                } else {
+                    result(nil)
+                }
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("latestTransactionIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
+            } catch {
+                FlutterIapLog.failure("latestTransactionIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    private func isTransactionVerifiedIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("isTransactionVerifiedIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let verified = try await OpenIapModule.shared.isTransactionVerifiedIOS(sku: sku)
+                FlutterIapLog.result("isTransactionVerifiedIOS", value: verified)
+                result(verified)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("isTransactionVerifiedIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
+            } catch {
+                FlutterIapLog.failure("isTransactionVerifiedIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    private func getTransactionJwsIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("getTransactionJwsIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
+                FlutterIapLog.result("getTransactionJwsIOS", value: jws ?? "nil")
+                result(jws)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("getTransactionJwsIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
+            } catch {
+                FlutterIapLog.failure("getTransactionJwsIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    private func getReceiptDataIOS(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("getReceiptDataIOS called")
+        Task { @MainActor in
+            do {
+                let receipt = try await OpenIapModule.shared.getReceiptDataIOS()
+                FlutterIapLog.result("getReceiptDataIOS", value: receipt ?? "nil")
+                result(receipt)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("getReceiptDataIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
+            } catch {
+                FlutterIapLog.failure("getReceiptDataIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
+    // MARK: - External Purchase Notice (iOS 17.4+)
+
+    @available(iOS 17.4, macOS 14.4, tvOS 17.4, *)
     private func canPresentExternalPurchaseNoticeIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("canPresentExternalPurchaseNoticeIOS called")
         Task { @MainActor in
@@ -813,7 +1109,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    @available(iOS 18.2, macOS 14.0, tvOS 18.2, *)
+    @available(iOS 17.4, macOS 14.4, tvOS 17.4, *)
     private func presentExternalPurchaseNoticeSheetIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("presentExternalPurchaseNoticeSheetIOS called")
         Task { @MainActor in

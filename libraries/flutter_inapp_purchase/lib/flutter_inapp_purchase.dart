@@ -703,12 +703,17 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
-          await _channel.invokeMethod('endConnection');
-          await _channel.invokeMethod('initConnection');
-          return true;
+          final result = await _channel.invokeMethod<bool>('syncIOS');
+          return result ?? false;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+              error, 'sync iOS purchases');
         } catch (error) {
-          debugPrint('Error syncing iOS purchases: $error');
-          rethrow;
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.SyncError,
+            message: 'Failed to sync iOS purchases: ${error.toString()}',
+          );
         }
       };
 
@@ -914,6 +919,40 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
+  /// iOS specific: Begin a refund request for a purchase
+  ///
+  /// Opens the StoreKit 2 refund sheet for the given SKU and returns the
+  /// resulting status string (`"success"` or `"userCancelled"`). Returns
+  /// `null` when StoreKit reports an unknown status. Requires iOS 15.0+.
+  gentype.MutationBeginRefundRequestIOSHandler get beginRefundRequestIOS =>
+      (String sku) async {
+        if (!_platform.isIOS || _platform.isMacOS) {
+          throw PlatformException(
+            code: 'platform',
+            message: 'beginRefundRequestIOS is only supported on iOS',
+          );
+        }
+
+        try {
+          final status = await channel.invokeMethod<String>(
+            'beginRefundRequestIOS',
+            <String, dynamic>{'sku': sku},
+          );
+          return status;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'begin refund request',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to begin refund request: ${error.toString()}',
+          );
+        }
+      };
+
   /// iOS specific: Show manage subscriptions
   gentype.MutationShowManageSubscriptionsIOSHandler
       get showManageSubscriptionsIOS => () async {
@@ -983,6 +1022,179 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
         return const <gentype.PurchaseIOS>[];
       };
+
+  /// iOS specific: Return the current active entitlement for a SKU, if any.
+  gentype.QueryCurrentEntitlementIOSHandler get currentEntitlementIOS =>
+      (String sku) async {
+        if (!_platform.isIOS || _platform.isMacOS) {
+          return null;
+        }
+        try {
+          final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+            'currentEntitlementIOS',
+            <String, dynamic>{'sku': sku},
+          );
+          if (result == null) return null;
+          final purchases = extractPurchases(
+            <dynamic>[result],
+            platformIsAndroid: _platform.isAndroid,
+            platformIsIOS: _platform.isIOS || _platform.isMacOS,
+            acknowledgedAndroidPurchaseTokens:
+                _acknowledgedAndroidPurchaseTokens,
+          );
+          return purchases.whereType<gentype.PurchaseIOS>().firstOrNull;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'fetch current entitlement',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch current entitlement: ${error.toString()}',
+          );
+        }
+      };
+
+  /// iOS specific: Return the most recent transaction for a SKU, including
+  /// expired or revoked ones.
+  gentype.QueryLatestTransactionIOSHandler get latestTransactionIOS =>
+      (String sku) async {
+        if (!_platform.isIOS || _platform.isMacOS) {
+          return null;
+        }
+        try {
+          final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+            'latestTransactionIOS',
+            <String, dynamic>{'sku': sku},
+          );
+          if (result == null) return null;
+          final purchases = extractPurchases(
+            <dynamic>[result],
+            platformIsAndroid: _platform.isAndroid,
+            platformIsIOS: _platform.isIOS || _platform.isMacOS,
+            acknowledgedAndroidPurchaseTokens:
+                _acknowledgedAndroidPurchaseTokens,
+          );
+          return purchases.whereType<gentype.PurchaseIOS>().firstOrNull;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'fetch latest transaction',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch latest transaction: ${error.toString()}',
+          );
+        }
+      };
+
+  /// iOS specific: Whether the latest transaction for a SKU passes StoreKit 2
+  /// verification.
+  gentype.QueryIsTransactionVerifiedIOSHandler get isTransactionVerifiedIOS =>
+      (String sku) async {
+        if (!_platform.isIOS || _platform.isMacOS) {
+          return false;
+        }
+        try {
+          final verified = await _channel.invokeMethod<bool>(
+            'isTransactionVerifiedIOS',
+            <String, dynamic>{'sku': sku},
+          );
+          return verified ?? false;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'verify transaction',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to verify transaction: ${error.toString()}',
+          );
+        }
+      };
+
+  /// iOS specific: Return the signed JWS representation of the latest
+  /// transaction for a SKU, suitable for server-side verification.
+  gentype.QueryGetTransactionJwsIOSHandler get getTransactionJwsIOS =>
+      (String sku) async {
+        if (!_platform.isIOS || _platform.isMacOS) {
+          return null;
+        }
+        try {
+          return await _channel.invokeMethod<String>(
+            'getTransactionJwsIOS',
+            <String, dynamic>{'sku': sku},
+          );
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'fetch transaction jws',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch transaction jws: ${error.toString()}',
+          );
+        }
+      };
+
+  /// iOS specific: Return the base64-encoded App Store receipt data (legacy
+  /// StoreKit 1 API). Use JWS-based verification for StoreKit 2.
+  gentype.QueryGetReceiptDataIOSHandler get getReceiptDataIOS => () async {
+        if (!_platform.isIOS || _platform.isMacOS) {
+          return null;
+        }
+        try {
+          return await _channel.invokeMethod<String>('getReceiptDataIOS');
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'fetch receipt data',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch receipt data: ${error.toString()}',
+          );
+        }
+      };
+
+  /// iOS 17.4+: Whether the current device/region can present the external
+  /// purchase notice sheet. The underlying StoreKit call
+  /// `ExternalPurchase.canPresent` is available from iOS 17.4 / macOS 14.4 /
+  /// tvOS 17.4 / visionOS 1.1 — older runtimes return false.
+  gentype.QueryCanPresentExternalPurchaseNoticeIOSHandler
+      get canPresentExternalPurchaseNoticeIOS => () async {
+            if (!_platform.isIOS || _platform.isMacOS) {
+              return false;
+            }
+            try {
+              final result = await _channel.invokeMethod<bool>(
+                'canPresentExternalPurchaseNoticeIOS',
+              );
+              return result ?? false;
+            } on PlatformException catch (error) {
+              throw _purchaseErrorFromPlatformException(
+                error,
+                'check external purchase notice eligibility',
+              );
+            } catch (error) {
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message:
+                    'Failed to check external purchase notice eligibility: ${error.toString()}',
+              );
+            }
+          };
 
   gentype.MutationAcknowledgePurchaseAndroidHandler
       get acknowledgePurchaseAndroid => (purchaseToken) async {
@@ -2268,6 +2480,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       };
 
   gentype.QueryHandlers get queryHandlers => gentype.QueryHandlers(
+        canPresentExternalPurchaseNoticeIOS:
+            canPresentExternalPurchaseNoticeIOS,
+        currentEntitlementIOS: currentEntitlementIOS,
         fetchProducts: _fetchProductsHandler,
         getActiveSubscriptions: getActiveSubscriptions,
         getAppTransactionIOS: getAppTransactionIOS,
@@ -2277,24 +2492,49 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         getAllTransactionsIOS: getAllTransactionsIOS,
         getPendingTransactionsIOS: getPendingTransactionsIOS,
         getPromotedProductIOS: getPromotedProductIOS,
+        getReceiptDataIOS: getReceiptDataIOS,
         getStorefront: getStorefront,
         getStorefrontIOS: getStorefrontIOS,
+        getTransactionJwsIOS: getTransactionJwsIOS,
         hasActiveSubscriptions: hasActiveSubscriptions,
         isEligibleForExternalPurchaseCustomLinkIOS:
             isEligibleForExternalPurchaseCustomLinkIOS,
         isEligibleForIntroOfferIOS: isEligibleForIntroOfferIOS,
+        isTransactionVerifiedIOS: isTransactionVerifiedIOS,
+        latestTransactionIOS: latestTransactionIOS,
         subscriptionStatusIOS: subscriptionStatusIOS,
         validateReceiptIOS: validateReceiptIOS,
       );
 
+  gentype.MutationLaunchExternalLinkAndroidHandler
+      get _launchExternalLinkAndroidHandler => ({
+            required gentype.BillingProgramAndroid billingProgram,
+            required gentype.ExternalLinkLaunchModeAndroid launchMode,
+            required gentype.ExternalLinkTypeAndroid linkType,
+            required String linkUri,
+          }) =>
+              launchExternalLinkAndroid(
+                gentype.LaunchExternalLinkParamsAndroid(
+                  billingProgram: billingProgram,
+                  launchMode: launchMode,
+                  linkType: linkType,
+                  linkUri: linkUri,
+                ),
+              );
+
   // ignore: deprecated_member_use_from_same_package
   gentype.MutationHandlers get mutationHandlers => gentype.MutationHandlers(
         acknowledgePurchaseAndroid: acknowledgePurchaseAndroid,
+        beginRefundRequestIOS: beginRefundRequestIOS,
         consumePurchaseAndroid: consumePurchaseAndroid,
+        createBillingProgramReportingDetailsAndroid:
+            createBillingProgramReportingDetailsAndroid,
         deepLinkToSubscriptions: deepLinkToSubscriptions,
         endConnection: endConnection,
         finishTransaction: finishTransaction,
         initConnection: initConnection,
+        isBillingProgramAvailableAndroid: isBillingProgramAvailableAndroid,
+        launchExternalLinkAndroid: _launchExternalLinkAndroidHandler,
         presentCodeRedemptionSheetIOS: presentCodeRedemptionSheetIOS,
         requestPurchase: requestPurchase,
         requestPurchaseOnPromotedProductIOS:
@@ -2304,6 +2544,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         showManageSubscriptionsIOS: showManageSubscriptionsIOS,
         syncIOS: syncIOS,
         validateReceipt: validateReceipt,
+        verifyPurchase: verifyPurchase,
         clearTransactionIOS: clearTransactionIOS,
         // Alternative Billing APIs
         checkAlternativeBillingAvailabilityAndroid:

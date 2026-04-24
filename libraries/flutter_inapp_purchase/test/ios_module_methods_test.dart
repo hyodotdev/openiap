@@ -21,6 +21,7 @@ void main() {
         switch (call.method) {
           case 'endConnection':
           case 'initConnection':
+          case 'syncIOS':
             return true;
           case 'isEligibleForIntroOfferIOS':
             return true;
@@ -90,7 +91,7 @@ void main() {
           .setMockMethodCallHandler(iapIOS.channel, null);
     });
 
-    test('syncIOS calls end/init on iOS and false on Android', () async {
+    test('syncIOS calls AppStore.sync on iOS and false on Android', () async {
       expect(await iapIOS.syncIOS(), true);
       final iapAndroid = FlutterInappPurchase.private(
         FakePlatform(operatingSystem: 'android'),
