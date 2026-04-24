@@ -42,6 +42,31 @@ For each comment:
 4. **Reply directly to the inline review comment** (NOT a general PR comment)
 5. **Resolve the conversation** via GraphQL API
 
+After the fix batch is pushed (once per round, not per comment), trigger a fresh round of automated review:
+
+```bash
+# Re-request Copilot review (note: capital C; the bot login is literally "Copilot")
+gh api -X POST "repos/hyodotdev/openiap/pulls/$PR_NUMBER/requested_reviewers" \
+  -f 'reviewers[]=Copilot'
+
+# Kick off a new Gemini review pass
+gh pr comment "$PR_NUMBER" --body "/gemini review"
+```
+
+Both are idempotent-ish — Copilot re-request is a no-op if still pending and re-requests if a review was already submitted; `/gemini review` always starts a new pass. Run both so the next polling cycle has something to find.
+
+## Polling Loop (after fix batch)
+
+The automated reviewers (Copilot + Gemini) need a few minutes to produce feedback. After pushing a round of fixes and posting `/gemini review`, schedule a wake-up in **~480 seconds (8 minutes)** and re-enter `/review-pr $PR_NUMBER` to:
+
+1. Re-fetch unresolved review threads (`gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments`).
+2. If new unresolved threads exist → fix them, push, post `/gemini review` again, and schedule another 8-minute wake-up.
+3. If no new unresolved threads exist → the PR is clean. End the loop and report completion to the user.
+
+Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call to stop the loop once all threads are resolved.
+
+Guard against infinite loops: if a reviewer keeps flagging the same finding after two fix attempts, stop scheduling wake-ups and hand back to the user with a summary of what remains disputed.
+
 ### Replying to Inline Review Comments
 
 **CRITICAL:** Always reply to inline review comments using the comment-specific reply API, NOT `gh pr comment`.
