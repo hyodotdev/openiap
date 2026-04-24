@@ -17,8 +17,7 @@ void main() {
     expect(
       handlers.subscriptionBillingIssue,
       isNotNull,
-      reason:
-          'subscriptionHandlers.subscriptionBillingIssue must be wired so '
+      reason: 'subscriptionHandlers.subscriptionBillingIssue must be wired so '
           'consumers using the generated handler bundle can await the event.',
     );
   });

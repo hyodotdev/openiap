@@ -185,6 +185,22 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
 export const getReceiptIOS = getReceiptDataIOS;
 
 /**
+ * Get the current App Store storefront country code on iOS.
+ *
+ * @deprecated Use cross-platform `getStorefront` from the main index instead.
+ *   The native module exposes a single `getStorefront` AsyncFunction that already
+ *   resolves to the iOS storefront on iOS. This helper is kept as an iOS-only
+ *   alias so consumers who previously imported `getStorefrontIOS` do not break.
+ *
+ * @returns {Promise<string>} ISO 3166-1 alpha-2 country code (e.g. "US")
+ *
+ * @platform iOS
+ */
+export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
+  return ExpoIapModule.getStorefront();
+};
+
+/**
  * Refresh the receipt data from Apple's servers and return the updated receipt.
  * This calls AppStore.sync() before reading the receipt, ensuring the latest
  * receipt data is available. Use this after a first purchase when

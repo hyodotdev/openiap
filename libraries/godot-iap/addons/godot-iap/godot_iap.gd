@@ -860,6 +860,82 @@ func get_transaction_jws_ios(sku: String) -> String:
 			return result.get("jws", "")
 	return ""
 
+## Get the current App Store storefront country code (iOS).
+## @deprecated Prefer cross-platform get_storefront() which also works on iOS.
+## @return String ISO 3166-1 alpha-2 country code, or empty string on failure
+func get_storefront_ios() -> String:
+	if _native_plugin and _platform == "iOS":
+		return str(_native_plugin.call("getStorefrontIOS"))
+	return ""
+
+## Validate a receipt with the App Store for a specific SKU (iOS).
+## @deprecated Use verify_purchase or verify_purchase_with_provider instead.
+## @param props: Types.VerifyPurchaseProps with `apple: {sku: String}` set
+## @return Variant Types.VerifyPurchaseResultIOS on success, null otherwise
+func validate_receipt_ios(props) -> Variant:
+	if not (_native_plugin and _platform == "iOS"):
+		return null
+	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
+	var props_json = JSON.stringify(props_dict)
+	var result_json = _native_plugin.call("validateReceiptIOS", props_json)
+	var result = JSON.parse_string(result_json)
+	if result is Dictionary and result.get("status", "") == "pending":
+		return null # async; consumer should listen to products_fetched signal
+	if result is Dictionary and result.get("success", false):
+		var payload_json = result.get("resultJson", "")
+		var payload = JSON.parse_string(payload_json)
+		if payload is Dictionary:
+			return Types.VerifyPurchaseResultIOS.from_dict(payload)
+	return null
+
+## Cross-platform wrapper for receipt validation.
+## @deprecated Use verify_purchase instead.
+## @param props: Types.VerifyPurchaseProps with platform-specific fields
+## @return Variant Types.VerifyPurchaseResultIOS | Types.VerifyPurchaseResultAndroid | null
+func validate_receipt(props) -> Variant:
+	if _platform == "iOS":
+		return validate_receipt_ios(props)
+	# Android: delegate to verify_purchase which already exists
+	return _verify_purchase_raw(props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {}))
+
+## ExternalPurchaseCustomLink: check eligibility (iOS 18.1+).
+## @return bool true if the current context can show external purchase custom link
+func is_eligible_for_external_purchase_custom_link_ios() -> bool:
+	if _native_plugin and _platform == "iOS":
+		return bool(_native_plugin.call("isEligibleForExternalPurchaseCustomLinkIOS"))
+	return false
+
+## ExternalPurchaseCustomLink: request a token for Apple reporting (iOS 18.1+).
+## Result is emitted asynchronously via the products_fetched signal.
+## @param token_type: String "acquisition" | "services"
+## @return Variant Pending status string; actual result arrives via signal
+func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
+	if _native_plugin and _platform == "iOS":
+		var result_json = _native_plugin.call("getExternalPurchaseCustomLinkTokenIOS", token_type)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary and result.get("success", false):
+			var payload_json = result.get("resultJson", "")
+			var payload = JSON.parse_string(payload_json)
+			if payload is Dictionary:
+				return Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(payload)
+		return null
+	return null
+
+## ExternalPurchaseCustomLink: show the disclosure notice sheet (iOS 18.1+).
+## @param notice_type: String "browser"
+## @return Variant Types.ExternalPurchaseCustomLinkNoticeResultIOS or null
+func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant:
+	if _native_plugin and _platform == "iOS":
+		var result_json = _native_plugin.call("showExternalPurchaseCustomLinkNoticeIOS", notice_type)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary and result.get("success", false):
+			var payload_json = result.get("resultJson", "")
+			var payload = JSON.parse_string(payload_json)
+			if payload is Dictionary:
+				return Types.ExternalPurchaseCustomLinkNoticeResultIOS.from_dict(payload)
+		return null
+	return null
+
 # ==========================================
 # Android-Specific (OpenIAP)
 # ==========================================

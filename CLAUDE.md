@@ -43,6 +43,7 @@ openiap/
 **CRITICAL**: Before writing or editing anything in a package or library:
 
 1. **Read the relevant knowledge files** from `knowledge/internal/`
+   - When the GraphQL schema adds or changes an API, follow the **SDK Parity Checklist** in [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md#sdk-parity-checklist-critical--prevents-declared-but-not-implemented) to avoid phantom interfaces (declared in types but never wired end-to-end — the class of bug behind GitHub issue #104).
 2. **Check the package-specific CONVENTION.md**:
    - [`packages/gql/CONVENTION.md`](packages/gql/CONVENTION.md)
    - [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)

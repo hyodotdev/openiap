@@ -1373,18 +1373,16 @@ void main() {
 
   group('sync and restore helpers', () {
     test('restorePurchases triggers sync and fetch on iOS', () async {
-      int initCalls = 0;
-      int endCalls = 0;
+      int syncCalls = 0;
       int availableCalls = 0;
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         switch (call.method) {
           case 'initConnection':
-            initCalls += 1;
             return true;
-          case 'endConnection':
-            endCalls += 1;
+          case 'syncIOS':
+            syncCalls += 1;
             return true;
           case 'getAvailableItems':
             availableCalls += 1;
@@ -1400,8 +1398,7 @@ void main() {
       expect(await iap.initConnection(), isTrue);
       await iap.restorePurchases();
 
-      expect(endCalls, greaterThanOrEqualTo(1));
-      expect(initCalls, greaterThanOrEqualTo(2));
+      expect(syncCalls, 1);
       expect(availableCalls, 1);
     });
 
@@ -1413,7 +1410,7 @@ void main() {
         if (call.method == 'initConnection') {
           return true;
         }
-        if (call.method == 'endConnection') {
+        if (call.method == 'syncIOS') {
           throw PlatformException(code: '500', message: 'boom');
         }
         if (call.method == 'getAvailableItems') {
@@ -1465,17 +1462,12 @@ void main() {
     });
 
     test('syncIOS returns true when native calls succeed', () async {
-      int endCalls = 0;
-      int initCalls = 0;
+      int syncCalls = 0;
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'endConnection') {
-          endCalls += 1;
-          return true;
-        }
-        if (call.method == 'initConnection') {
-          initCalls += 1;
+        if (call.method == 'syncIOS') {
+          syncCalls += 1;
           return true;
         }
         return null;
@@ -1486,18 +1478,14 @@ void main() {
       );
 
       expect(await iap.syncIOS(), isTrue);
-      expect(endCalls, 1);
-      expect(initCalls, 1);
+      expect(syncCalls, 1);
     });
 
-    test('syncIOS rethrows platform exceptions', () async {
+    test('syncIOS wraps platform exceptions as PurchaseError', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'endConnection') {
+        if (call.method == 'syncIOS') {
           throw PlatformException(code: '500', message: 'boom');
-        }
-        if (call.method == 'initConnection') {
-          return true;
         }
         return null;
       });
@@ -1506,7 +1494,7 @@ void main() {
         FakePlatform(operatingSystem: 'ios'),
       );
 
-      await expectLater(iap.syncIOS(), throwsA(isA<PlatformException>()));
+      await expectLater(iap.syncIOS(), throwsA(isA<PurchaseError>()));
     });
 
     test('syncIOS returns false on unsupported platforms', () async {

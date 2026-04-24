@@ -1088,6 +1088,140 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\"}"
     }
 
+    // MARK: - StoreKit 2 Deprecated / Alias APIs
+
+    @Callable
+    public func validateReceiptIOS(propsJson: String) -> String {
+        GodotIapLog.payload("validateReceiptIOS", payload: propsJson)
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                guard let data = propsJson.data(using: .utf8) else {
+                    throw NSError(domain: "GodotIap", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON"])
+                }
+                let props = try JSONDecoder().decode(VerifyPurchaseProps.self, from: data)
+                let result = try await self.openIap.validateReceiptIOS(props)
+                let resultDict = OpenIapSerialization.encode(result)
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["success"] = Variant(true)
+                    if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
+                       let jsonString = String(data: jsonData, encoding: .utf8) {
+                        dict["resultJson"] = Variant(jsonString)
+                    }
+                    self.productsFetched.emit(dict)
+                }
+            } catch {
+                GodotIapLog.debug("[GodotIap] validateReceiptIOS error: \(error.localizedDescription)")
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["success"] = Variant(false)
+                    dict["error"] = Variant(error.localizedDescription)
+                    self.productsFetched.emit(dict)
+                }
+            }
+        }
+        return "{\"status\": \"pending\"}"
+    }
+
+    // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
+
+    @Callable
+    public func isEligibleForExternalPurchaseCustomLinkIOS() -> Bool {
+        GodotIapLog.payload("isEligibleForExternalPurchaseCustomLinkIOS", payload: nil)
+        if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+            let semaphore = DispatchSemaphore(value: 0)
+            var eligible = false
+            Task { [weak self] in
+                guard let self = self else {
+                    semaphore.signal()
+                    return
+                }
+                do {
+                    eligible = try await self.openIap.isEligibleForExternalPurchaseCustomLinkIOS()
+                } catch {
+                    GodotIapLog.debug("[GodotIap] isEligibleForExternalPurchaseCustomLinkIOS error: \(error.localizedDescription)")
+                }
+                semaphore.signal()
+            }
+            _ = semaphore.wait(timeout: .now() + 5.0)
+            return eligible
+        }
+        return false
+    }
+
+    @Callable
+    public func getExternalPurchaseCustomLinkTokenIOS(tokenType: String) -> String {
+        GodotIapLog.payload("getExternalPurchaseCustomLinkTokenIOS", payload: tokenType)
+        if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+            Task { [weak self] in
+                guard let self = self else { return }
+                do {
+                    guard let type = ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenType) else {
+                        throw NSError(domain: "GodotIap", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid token type: \(tokenType)"])
+                    }
+                    let result = try await self.openIap.getExternalPurchaseCustomLinkTokenIOS(type)
+                    let resultDict = OpenIapSerialization.encode(result)
+                    await MainActor.run { [self] in
+                        let dict = VariantDictionary()
+                        dict["success"] = Variant(true)
+                        if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
+                           let jsonString = String(data: jsonData, encoding: .utf8) {
+                            dict["resultJson"] = Variant(jsonString)
+                        }
+                        self.productsFetched.emit(dict)
+                    }
+                } catch {
+                    GodotIapLog.debug("[GodotIap] getExternalPurchaseCustomLinkTokenIOS error: \(error.localizedDescription)")
+                    await MainActor.run { [self] in
+                        let dict = VariantDictionary()
+                        dict["success"] = Variant(false)
+                        dict["error"] = Variant(error.localizedDescription)
+                        self.productsFetched.emit(dict)
+                    }
+                }
+            }
+            return "{\"status\": \"pending\"}"
+        }
+        return "{\"status\": \"unsupported\"}"
+    }
+
+    @Callable
+    public func showExternalPurchaseCustomLinkNoticeIOS(noticeType: String) -> String {
+        GodotIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", payload: noticeType)
+        if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+            Task { [weak self] in
+                guard let self = self else { return }
+                do {
+                    guard let type = ExternalPurchaseCustomLinkNoticeTypeIOS(rawValue: noticeType) else {
+                        throw NSError(domain: "GodotIap", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid notice type: \(noticeType)"])
+                    }
+                    let result = try await self.openIap.showExternalPurchaseCustomLinkNoticeIOS(type)
+                    let resultDict = OpenIapSerialization.encode(result)
+                    await MainActor.run { [self] in
+                        let dict = VariantDictionary()
+                        dict["success"] = Variant(true)
+                        if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
+                           let jsonString = String(data: jsonData, encoding: .utf8) {
+                            dict["resultJson"] = Variant(jsonString)
+                        }
+                        self.productsFetched.emit(dict)
+                    }
+                } catch {
+                    GodotIapLog.debug("[GodotIap] showExternalPurchaseCustomLinkNoticeIOS error: \(error.localizedDescription)")
+                    await MainActor.run { [self] in
+                        let dict = VariantDictionary()
+                        dict["success"] = Variant(false)
+                        dict["error"] = Variant(error.localizedDescription)
+                        self.productsFetched.emit(dict)
+                    }
+                }
+            }
+            return "{\"status\": \"pending\"}"
+        }
+        return "{\"status\": \"unsupported\"}"
+    }
+
     // MARK: - Private Helpers
 
     private func setupListeners() {

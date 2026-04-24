@@ -158,6 +158,17 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let code: ErrorCode = .featureNotSupported
                 result(FlutterError(code: code.rawValue, message: "Code redemption requires iOS 16.0+, macOS 14.0+, or tvOS 16.0+", details: nil))
             }
+
+        case "beginRefundRequestIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                beginRefundRequestIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                beginRefundRequestIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
             
         case "getPromotedProductIOS":
             getPromotedProductIOS(result: result)
@@ -172,6 +183,75 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             } else {
                 let code: ErrorCode = .developerError
                 result(FlutterError(code: code.rawValue, message: "productId required", details: nil))
+            }
+
+        case "currentEntitlementIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                currentEntitlementIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                currentEntitlementIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "latestTransactionIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                latestTransactionIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                latestTransactionIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "isTransactionVerifiedIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                isTransactionVerifiedIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                isTransactionVerifiedIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "getTransactionJwsIOS":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                getTransactionJwsIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                getTransactionJwsIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
+            }
+
+        case "getReceiptDataIOS":
+            getReceiptDataIOS(result: result)
+
+        case "getAppTransactionIOS", "getAppTransaction":
+            if #available(iOS 16.0, macOS 14.0, tvOS 16.0, *) {
+                getAppTransactionIOS(result: result)
+            } else {
+                let code: ErrorCode = .featureNotSupported
+                result(FlutterError(code: code.rawValue, message: "getAppTransactionIOS requires iOS 16.0+", details: nil))
+            }
+
+        case "syncIOS":
+            syncIOS(result: result)
+
+        case "subscriptionStatusIOS", "getSubscriptionStatus":
+            if let args = call.arguments as? [String: Any],
+               let sku = args["sku"] as? String {
+                subscriptionStatusIOS(sku: sku, result: result)
+            } else if let sku = call.arguments as? String {
+                subscriptionStatusIOS(sku: sku, result: result)
+            } else {
+                let code: ErrorCode = .developerError
+                result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
             }
 
         case "validateReceiptIOS":
@@ -564,6 +644,22 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
     
+    private func beginRefundRequestIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("beginRefundRequestIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let status = try await OpenIapModule.shared.beginRefundRequestIOS(sku: sku)
+                FlutterIapLog.result("beginRefundRequestIOS", value: status ?? "nil")
+                result(status)
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
     @available(iOS 15.0, macOS 14.0, tvOS 15.0, *)
     private func showManageSubscriptionsIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("showManageSubscriptionsIOS called")
@@ -789,6 +885,152 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 await MainActor.run {
                     let code: ErrorCode = .purchaseVerificationFailed
                     result(FlutterError(code: code.rawValue, message: error.localizedDescription, details: nil))
+                }
+            }
+        }
+    }
+
+    private func syncIOS(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("syncIOS called")
+        Task { @MainActor in
+            do {
+                let success = try await OpenIapModule.shared.syncIOS()
+                FlutterIapLog.result("syncIOS", value: success)
+                result(success)
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .syncError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    private func subscriptionStatusIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("subscriptionStatusIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let statuses = try await OpenIapModule.shared.subscriptionStatusIOS(sku: sku)
+                let payload = statuses.map {
+                    FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0))
+                }
+                FlutterIapLog.result("subscriptionStatusIOS", value: payload)
+                result(payload)
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, *)
+    private func getAppTransactionIOS(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("getAppTransactionIOS called")
+        Task { @MainActor in
+            do {
+                if let tx = try await OpenIapModule.shared.getAppTransactionIOS() {
+                    let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(tx))
+                    FlutterIapLog.result("getAppTransactionIOS", value: payload)
+                    result(payload)
+                } else {
+                    result(nil)
+                }
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    // MARK: - StoreKit 2 entitlement queries (iOS 15.0+)
+
+    private func currentEntitlementIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("currentEntitlementIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                if let purchase = try await OpenIapModule.shared.currentEntitlementIOS(sku: sku) {
+                    let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+                    FlutterIapLog.result("currentEntitlementIOS", value: payload)
+                    result(payload)
+                } else {
+                    result(nil)
+                }
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    private func latestTransactionIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("latestTransactionIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                if let purchase = try await OpenIapModule.shared.latestTransactionIOS(sku: sku) {
+                    let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+                    FlutterIapLog.result("latestTransactionIOS", value: payload)
+                    result(payload)
+                } else {
+                    result(nil)
+                }
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    private func isTransactionVerifiedIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("isTransactionVerifiedIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let verified = try await OpenIapModule.shared.isTransactionVerifiedIOS(sku: sku)
+                FlutterIapLog.result("isTransactionVerifiedIOS", value: verified)
+                result(verified)
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    private func getTransactionJwsIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("getTransactionJwsIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
+                FlutterIapLog.result("getTransactionJwsIOS", value: jws ?? "nil")
+                result(jws)
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    private func getReceiptDataIOS(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("getReceiptDataIOS called")
+        Task { @MainActor in
+            do {
+                let receipt = try await OpenIapModule.shared.getReceiptDataIOS()
+                FlutterIapLog.result("getReceiptDataIOS", value: receipt ?? "nil")
+                result(receipt)
+            } catch {
+                await MainActor.run {
+                    let code: ErrorCode = .serviceError
+                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
                 }
             }
         }

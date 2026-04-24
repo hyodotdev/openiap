@@ -1820,6 +1820,26 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
 export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
 
 /**
+ * iOS-only receipt validation alias.
+ *
+ * @deprecated Use `verifyPurchase` (or `validateReceipt`) instead. Kept so
+ * consumers who imported `validateReceiptIOS` — which is still declared on the
+ * OpenIAP Query interface — keep working. Throws on non-iOS platforms.
+ */
+export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
+  options,
+) => {
+  if (Platform.OS !== 'ios') {
+    throw new Error('validateReceiptIOS is only available on iOS');
+  }
+  const result = await validateReceipt(options);
+  if ((result as {platform?: string}).platform !== 'ios') {
+    throw new Error('validateReceiptIOS: unexpected non-iOS result');
+  }
+  return result as VerifyPurchaseResultIOS;
+};
+
+/**
  * Verify purchase with a specific provider (e.g., IAPKit)
  *
  * This function allows you to verify purchases using external verification
