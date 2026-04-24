@@ -118,9 +118,44 @@ mutation {
 ```
 
 **Thread Resolution Rules:**
-- Only resolve threads where code changes have been made and pushed
-- Do not resolve threads that are just suggestions for future improvement
-- Do not resolve threads awaiting user clarification
+- Resolve threads where code changes have been made and pushed (after posting a reply with the commit hash).
+- **Auto-resolve outdated threads**: GitHub marks a thread as `isOutdated: true` when the underlying code has already shifted out from under the comment. Those findings no longer apply to the current diff, so resolve them without a reply at the start of every round — even if the commenter hasn't weighed in again.
+- **Auto-resolve threads whose latest comment is already from us**: if the last reply on a thread is yours (the PR author / agent posting as the author), the thread is already addressed — include it in the batch-resolve pass.
+- Do not resolve threads that are just suggestions for future improvement unless explicitly acknowledged.
+- Do not resolve threads awaiting user clarification.
+
+Outdated + already-replied sweep (run once per round before fetching open findings):
+
+```bash
+PR_NUMBER=...
+# Resolve threads that GitHub itself marks as outdated
+gh api graphql -f query='
+query($owner:String!,$name:String!,$pr:Int!) {
+  repository(owner:$owner, name:$name) {
+    pullRequest(number:$pr) {
+      reviewThreads(first:100) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          comments(last:1) { nodes { author { login } } }
+        }
+      }
+    }
+  }
+}' -F owner=hyodotdev -F name=openiap -F pr=$PR_NUMBER --jq '
+  .data.repository.pullRequest.reviewThreads.nodes[]
+  | select(.isResolved == false)
+  | select(.isOutdated == true or .comments.nodes[-1].author.login == "hyochan")
+  | .id' | while read tid; do
+  [ -n "$tid" ] && gh api graphql -f query='
+    mutation($id:ID!) {
+      resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } }
+    }' -F id="$tid" >/dev/null && echo "auto-resolved $tid"
+done
+```
+
+Replace `hyochan` with the repo owner's GitHub login that posts the replies (or `$(gh api user --jq .login)` for the current authenticated user). Only threads whose last comment is from that login get swept — bot comments or reviewer follow-ups stay open.
 
 ## Reply Format Rules (CRITICAL)
 
