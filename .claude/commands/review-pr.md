@@ -45,9 +45,25 @@ For each comment:
 After the fix batch is pushed (once per round, not per comment), trigger a fresh round from every automated reviewer wired into this repo:
 
 ```bash
-# Re-request Copilot review (note: capital C; the bot login is literally "Copilot")
+# Re-request Copilot review (note: capital C; the bot login is literally "Copilot").
+# GOTCHA: if Copilot has already submitted a review on an earlier commit, the
+# REST POST below returns HTTP 201 but silently leaves `requested_reviewers`
+# empty — it's idempotent against reviewers whose prior review is still on
+# record, so a plain re-POST does nothing. The reliable workaround is DELETE
+# + POST so GitHub treats it as a fresh request.
+gh api -X DELETE "repos/hyodotdev/openiap/pulls/$PR_NUMBER/requested_reviewers" \
+  -f 'reviewers[]=Copilot' >/dev/null 2>&1 || true
+sleep 2
 gh api -X POST "repos/hyodotdev/openiap/pulls/$PR_NUMBER/requested_reviewers" \
-  -f 'reviewers[]=Copilot'
+  -f 'reviewers[]=Copilot' >/dev/null
+
+# Verify it actually took — GitHub occasionally still drops the re-request
+# even after DELETE. If the list is empty, warn so the user can hit "Re-request
+# review" in the GitHub UI manually as a last resort (the UI uses a
+# privileged endpoint that works even when the API silently no-ops).
+if [ -z "$(gh api repos/hyodotdev/openiap/pulls/$PR_NUMBER --jq '.requested_reviewers | map(select(.login == "Copilot")) | .[0].login // empty')" ]; then
+  echo "WARN: Copilot re-request didn't stick via API; click Re-request review in the GitHub UI if you need it."
+fi
 
 # Kick off a new Gemini review pass
 gh pr comment "$PR_NUMBER" --body "/gemini review"
@@ -56,7 +72,7 @@ gh pr comment "$PR_NUMBER" --body "/gemini review"
 gh pr comment "$PR_NUMBER" --body "@coderabbitai review"
 ```
 
-All three are idempotent-ish — Copilot re-request is a no-op if still pending and re-requests if a review was already submitted; `/gemini review` and `@coderabbitai review` always start new passes. Run all three so the next polling cycle has fresh feedback from every bot to pick up.
+`/gemini review` and `@coderabbitai review` comments always start new passes. Copilot's bot is flakier — the DELETE+POST dance is the best programmatic option, and the verification step flags the cases where manual intervention is needed so we don't pretend the re-request succeeded when it silently didn't.
 
 ## Polling Loop (after fix batch)
 
