@@ -25,14 +25,14 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // April 19, 2026 — IAPKit verification host migration
+    // April 24, 2026 — IAPKit verification host migration shipped in native patches
     {
-      id: 'releases-2026-04-19',
-      date: new Date('2026-04-19'),
+      id: 'releases-2026-04-24',
+      date: new Date('2026-04-24'),
       element: (
-        <div key="releases-2026-04-19" style={noteCardStyle}>
-          <AnchorLink id="releases-2026-04-19" level="h4">
-            April 19, 2026
+        <div key="releases-2026-04-24" style={noteCardStyle}>
+          <AnchorLink id="releases-2026-04-24" level="h4">
+            April 24, 2026
           </AnchorLink>
 
           <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
@@ -55,7 +55,7 @@ function Releases() {
             </p>
             <ul
               style={{
-                marginBottom: 0,
+                marginBottom: '1rem',
                 paddingLeft: '1.25rem',
                 fontSize: '0.9rem',
               }}
@@ -79,6 +79,99 @@ function Releases() {
                   kit.openiap.dev
                 </a>
                 .
+              </li>
+            </ul>
+            <p
+              style={{
+                marginBottom: 0,
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              The legacy <code>api.iapkit.com</code> host redirects to{' '}
+              <code>kit.openiap.dev</code> until{' '}
+              <strong>August 12, 2026</strong>. Upgrade before that date to
+              avoid verification failures.
+            </p>
+          </div>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.3
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.1.1
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.2.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.2.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.2.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.2.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.2
+                </a>
               </li>
             </ul>
           </div>

@@ -178,24 +178,23 @@ jobs:
             if ! git pull --rebase origin main; then
               echo "⚠️ Rebase conflict detected, auto-resolving version files..."
 
-              # Auto-resolve openiap-versions.json conflicts by merging JSON keys
+              # Auto-resolve openiap-versions.json conflicts by applying only our
+              # key on top of theirs. Taking ours wholesale would regress other
+              # packages' versions when a concurrent release landed in between
+              # (race observed 2026-04-24: google bump regressed apple 2.1.3 → 2.1.2).
               for conflict_file in $(git diff --name-only --diff-filter=U); do
                 if [[ "$conflict_file" == *"openiap-versions.json" ]]; then
-                  # Get versions from both sides and merge
-                  git show REBASE_HEAD:"$conflict_file" > /tmp/ours.json 2>/dev/null || true
                   git show HEAD:"$conflict_file" > /tmp/theirs.json 2>/dev/null || true
 
-                  if [ -s /tmp/ours.json ] && [ -s /tmp/theirs.json ]; then
-                    # Merge: take all keys from both, our changes (google version) win on conflict
-                    jq -s '.[0] * .[1]' /tmp/theirs.json /tmp/ours.json > /tmp/merged.json
+                  if [ -s /tmp/theirs.json ]; then
+                    jq --arg version "$VERSION" '.google = $version' /tmp/theirs.json > /tmp/merged.json
                     cp /tmp/merged.json "$conflict_file"
                   else
-                    # Fallback: accept ours
                     git checkout --theirs "$conflict_file" 2>/dev/null || git checkout --ours "$conflict_file"
                   fi
                   git add "$conflict_file"
                 else
-                  echo "��� Unexpected conflict in $conflict_file"
+                  echo "❌ Unexpected conflict in $conflict_file"
                   exit 1
                 fi
               done
