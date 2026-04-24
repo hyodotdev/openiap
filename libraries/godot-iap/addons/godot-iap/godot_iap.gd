@@ -861,13 +861,25 @@ func get_transaction_jws_ios(sku: String) -> String:
 	return ""
 
 ## Await the next `products_fetched` emit whose `method` key matches the given
-## name, ignoring emits from other concurrent async calls. Prevents a race
-## where two in-flight methods race for the same signal emit.
-func _await_products_fetched_for(method: String) -> Dictionary:
+## name AND whose `requestId` matches (if provided). The requestId filter
+## prevents two concurrent calls to the same method from stealing each
+## other's results — both wake on every emit, but only the matching caller
+## returns.
+func _await_products_fetched_for(method: String, request_id: String = "") -> Dictionary:
 	while true:
 		var payload = await products_fetched
 		if payload is Dictionary and payload.get("method", "") == method:
-			return payload as Dictionary
+			if request_id.is_empty() or payload.get("requestId", "") == request_id:
+				return payload as Dictionary
+
+## Extract the native `requestId` token from the synchronous "pending" JSON
+## returned by a GDExtension @Callable, or empty string if missing.
+func _parse_request_id(pending_json) -> String:
+	if pending_json is String:
+		var decoded = JSON.parse_string(pending_json)
+		if decoded is Dictionary:
+			return String(decoded.get("requestId", ""))
+	return ""
 
 ## Get the current App Store storefront country code (iOS).
 ## The native method dispatches asynchronously and emits the result via
@@ -878,15 +890,16 @@ func _await_products_fetched_for(method: String) -> Dictionary:
 func get_storefront_ios() -> String:
 	if not (_native_plugin and _platform == "iOS"):
 		return ""
-	_native_plugin.call("getStorefrontIOS")
-	var payload = await _await_products_fetched_for("getStorefrontIOS")
+	var pending = _native_plugin.call("getStorefrontIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("getStorefrontIOS", request_id)
 	if payload.get("success", false):
 		return payload.get("storefront", "")
 	return ""
 
 ## Validate a receipt with the App Store for a specific SKU (iOS).
 ## Kicks off the native async validation and awaits the next `products_fetched`
-## emit tagged with method == "validateReceiptIOS". Returns null on error.
+## emit matching this call's requestId. Returns null on error.
 ## @deprecated Use verify_purchase or verify_purchase_with_provider instead.
 ## @param props: Types.VerifyPurchaseProps with `apple: {sku: String}` set
 ## @return Variant Types.VerifyPurchaseResultIOS on success, null otherwise
@@ -895,8 +908,9 @@ func validate_receipt_ios(props) -> Variant:
 		return null
 	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
 	var props_json = JSON.stringify(props_dict)
-	_native_plugin.call("validateReceiptIOS", props_json)
-	var payload = await _await_products_fetched_for("validateReceiptIOS")
+	var pending = _native_plugin.call("validateReceiptIOS", props_json)
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("validateReceiptIOS", request_id)
 	if payload.get("success", false):
 		var payload_json = payload.get("resultJson", "")
 		var decoded = JSON.parse_string(payload_json)
@@ -927,8 +941,9 @@ func validate_receipt(props) -> Variant:
 func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
-	_native_plugin.call("isEligibleForExternalPurchaseCustomLinkIOS")
-	var payload = await _await_products_fetched_for("isEligibleForExternalPurchaseCustomLinkIOS")
+	var pending = _native_plugin.call("isEligibleForExternalPurchaseCustomLinkIOS")
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("isEligibleForExternalPurchaseCustomLinkIOS", request_id)
 	if payload.get("success", false):
 		return bool(payload.get("eligible", false))
 	return false
@@ -942,8 +957,9 @@ func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
-	_native_plugin.call("getExternalPurchaseCustomLinkTokenIOS", token_type)
-	var payload = await _await_products_fetched_for("getExternalPurchaseCustomLinkTokenIOS")
+	var pending = _native_plugin.call("getExternalPurchaseCustomLinkTokenIOS", token_type)
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("getExternalPurchaseCustomLinkTokenIOS", request_id)
 	if payload.get("success", false):
 		var payload_json = payload.get("resultJson", "")
 		var decoded = JSON.parse_string(payload_json)
@@ -960,8 +976,9 @@ func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
-	_native_plugin.call("showExternalPurchaseCustomLinkNoticeIOS", notice_type)
-	var payload = await _await_products_fetched_for("showExternalPurchaseCustomLinkNoticeIOS")
+	var pending = _native_plugin.call("showExternalPurchaseCustomLinkNoticeIOS", notice_type)
+	var request_id = _parse_request_id(pending)
+	var payload = await _await_products_fetched_for("showExternalPurchaseCustomLinkNoticeIOS", request_id)
 	if payload.get("success", false):
 		var payload_json = payload.get("resultJson", "")
 		var decoded = JSON.parse_string(payload_json)

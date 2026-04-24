@@ -708,6 +708,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(
               error, 'sync iOS purchases');
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.SyncError,
+            message: 'Failed to sync iOS purchases: ${error.toString()}',
+          );
         }
       };
 
@@ -1042,6 +1048,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             error,
             'fetch current entitlement',
           );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch current entitlement: ${error.toString()}',
+          );
         }
       };
 
@@ -1071,6 +1083,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             error,
             'fetch latest transaction',
           );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch latest transaction: ${error.toString()}',
+          );
         }
       };
 
@@ -1092,6 +1110,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             error,
             'verify transaction',
           );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to verify transaction: ${error.toString()}',
+          );
         }
       };
 
@@ -1112,6 +1136,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             error,
             'fetch transaction jws',
           );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch transaction jws: ${error.toString()}',
+          );
         }
       };
 
@@ -1127,6 +1157,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           throw _purchaseErrorFromPlatformException(
             error,
             'fetch receipt data',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to fetch receipt data: ${error.toString()}',
           );
         }
       };
@@ -1147,6 +1183,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               throw _purchaseErrorFromPlatformException(
                 error,
                 'check external purchase notice eligibility',
+              );
+            } catch (error) {
+              if (error is PurchaseError) rethrow;
+              throw PurchaseError(
+                code: gentype.ErrorCode.ServiceError,
+                message:
+                    'Failed to check external purchase notice eligibility: ${error.toString()}',
               );
             }
           };

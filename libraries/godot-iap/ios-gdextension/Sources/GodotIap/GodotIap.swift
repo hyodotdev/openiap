@@ -659,6 +659,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func getStorefrontIOS() -> String {
         GodotIapLog.payload("Getting storefront", payload: nil)
+        let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -667,6 +668,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("getStorefrontIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     dict["storefront"] = Variant(storefront)
                     self.productsFetched.emit(dict)
@@ -676,6 +678,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("getStorefrontIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
@@ -683,7 +686,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
         }
 
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
@@ -1101,6 +1104,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func validateReceiptIOS(propsJson: String) -> String {
         GodotIapLog.payload("validateReceiptIOS", payload: propsJson)
+        let requestId = UUID().uuidString
         Task { [weak self] in
             guard let self = self else { return }
             do {
@@ -1113,6 +1117,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("validateReceiptIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
                        let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -1125,13 +1130,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("validateReceiptIOS")
+                    dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
             }
         }
-        return "{\"status\": \"pending\"}"
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
@@ -1145,6 +1151,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func isEligibleForExternalPurchaseCustomLinkIOS() -> String {
         GodotIapLog.payload("isEligibleForExternalPurchaseCustomLinkIOS", payload: nil)
         if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
+            let requestId = UUID().uuidString
             Task { [weak self] in
                 guard let self = self else { return }
                 do {
@@ -1152,6 +1159,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
                         dict["method"] = Variant("isEligibleForExternalPurchaseCustomLinkIOS")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(true)
                         dict["eligible"] = Variant(eligible)
                         self.productsFetched.emit(dict)
@@ -1161,13 +1169,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
                         dict["method"] = Variant("isEligibleForExternalPurchaseCustomLinkIOS")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(false)
                         dict["error"] = Variant(error.localizedDescription)
                         self.productsFetched.emit(dict)
                     }
                 }
             }
-            return "{\"status\": \"pending\"}"
+            return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
         return "{\"status\": \"unsupported\"}"
     }
@@ -1176,6 +1185,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func getExternalPurchaseCustomLinkTokenIOS(tokenType: String) -> String {
         GodotIapLog.payload("getExternalPurchaseCustomLinkTokenIOS", payload: tokenType)
         if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
+            let requestId = UUID().uuidString
             Task { [weak self] in
                 guard let self = self else { return }
                 do {
@@ -1187,6 +1197,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
                         dict["method"] = Variant("getExternalPurchaseCustomLinkTokenIOS")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(true)
                         if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
                            let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -1199,13 +1210,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
                         dict["method"] = Variant("getExternalPurchaseCustomLinkTokenIOS")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(false)
                         dict["error"] = Variant(error.localizedDescription)
                         self.productsFetched.emit(dict)
                     }
                 }
             }
-            return "{\"status\": \"pending\"}"
+            return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
         return "{\"status\": \"unsupported\"}"
     }
@@ -1214,6 +1226,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func showExternalPurchaseCustomLinkNoticeIOS(noticeType: String) -> String {
         GodotIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", payload: noticeType)
         if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
+            let requestId = UUID().uuidString
             Task { [weak self] in
                 guard let self = self else { return }
                 do {
@@ -1225,6 +1238,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
                         dict["method"] = Variant("showExternalPurchaseCustomLinkNoticeIOS")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(true)
                         if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
                            let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -1237,13 +1251,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
                         dict["method"] = Variant("showExternalPurchaseCustomLinkNoticeIOS")
+                        dict["requestId"] = Variant(requestId)
                         dict["success"] = Variant(false)
                         dict["error"] = Variant(error.localizedDescription)
                         self.productsFetched.emit(dict)
                     }
                 }
             }
-            return "{\"status\": \"pending\"}"
+            return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
         return "{\"status\": \"unsupported\"}"
     }
