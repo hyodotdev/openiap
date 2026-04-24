@@ -276,19 +276,19 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             validateReceiptIOS(productId: sku, result: result)
 
         case "canPresentExternalPurchaseNoticeIOS":
-            if #available(iOS 18.2, macOS 14.0, tvOS 18.2, *) {
+            if #available(iOS 17.4, macOS 14.4, tvOS 17.4, *) {
                 canPresentExternalPurchaseNoticeIOS(result: result)
             } else {
                 let code: ErrorCode = .featureNotSupported
-                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 18.2+, macOS 14.0+, or tvOS 18.2+", details: nil))
+                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 17.4+, macOS 14.4+, or tvOS 17.4+", details: nil))
             }
 
         case "presentExternalPurchaseNoticeSheetIOS":
-            if #available(iOS 18.2, macOS 14.0, tvOS 18.2, *) {
+            if #available(iOS 17.4, macOS 14.4, tvOS 17.4, *) {
                 presentExternalPurchaseNoticeSheetIOS(result: result)
             } else {
                 let code: ErrorCode = .featureNotSupported
-                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 18.2+, macOS 14.0+, or tvOS 18.2+", details: nil))
+                result(FlutterError(code: code.rawValue, message: "External purchase notice requires iOS 17.4+, macOS 14.4+, or tvOS 17.4+", details: nil))
             }
 
         case "presentExternalPurchaseLinkIOS":
@@ -1090,9 +1090,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    // MARK: - Alternative Billing (iOS 18.2+)
+    // MARK: - External Purchase Notice (iOS 17.4+)
 
-    @available(iOS 18.2, macOS 14.0, tvOS 18.2, *)
+    @available(iOS 17.4, macOS 14.4, tvOS 17.4, *)
     private func canPresentExternalPurchaseNoticeIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("canPresentExternalPurchaseNoticeIOS called")
         Task { @MainActor in
@@ -1109,7 +1109,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    @available(iOS 18.2, macOS 14.0, tvOS 18.2, *)
+    @available(iOS 17.4, macOS 14.4, tvOS 17.4, *)
     private func presentExternalPurchaseNoticeSheetIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("presentExternalPurchaseNoticeSheetIOS called")
         Task { @MainActor in

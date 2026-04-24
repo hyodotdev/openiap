@@ -1167,8 +1167,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS 18.2+: Whether the current device/region can present the external
-  /// purchase notice sheet.
+  /// iOS 17.4+: Whether the current device/region can present the external
+  /// purchase notice sheet. The underlying StoreKit call
+  /// `ExternalPurchase.canPresent` is available from iOS 17.4 / macOS 14.4 /
+  /// tvOS 17.4 / visionOS 1.1 — older runtimes return false.
   gentype.QueryCanPresentExternalPurchaseNoticeIOSHandler
       get canPresentExternalPurchaseNoticeIOS => () async {
             if (!_platform.isIOS || _platform.isMacOS) {
