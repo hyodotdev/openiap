@@ -860,20 +860,33 @@ func get_transaction_jws_ios(sku: String) -> String:
 			return result.get("jws", "")
 	return ""
 
+## Await the next `products_fetched` emit whose `method` key matches the given
+## name, ignoring emits from other concurrent async calls. Prevents a race
+## where two in-flight methods race for the same signal emit.
+func _await_products_fetched_for(method: String) -> Dictionary:
+	while true:
+		var payload = await products_fetched
+		if payload is Dictionary and payload.get("method", "") == method:
+			return payload as Dictionary
+
 ## Get the current App Store storefront country code (iOS).
+## The native method dispatches asynchronously and emits the result via
+## `products_fetched`; this wrapper awaits that emit and returns the country
+## code, so callers can use it like a synchronous getter.
 ## @deprecated Prefer cross-platform get_storefront() which also works on iOS.
 ## @return String ISO 3166-1 alpha-2 country code, or empty string on failure
 func get_storefront_ios() -> String:
-	if _native_plugin and _platform == "iOS":
-		var result_json = _native_plugin.call("getStorefrontIOS")
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary and result.get("success", false):
-			return result.get("storefront", "")
+	if not (_native_plugin and _platform == "iOS"):
+		return ""
+	_native_plugin.call("getStorefrontIOS")
+	var payload = await _await_products_fetched_for("getStorefrontIOS")
+	if payload.get("success", false):
+		return payload.get("storefront", "")
 	return ""
 
 ## Validate a receipt with the App Store for a specific SKU (iOS).
 ## Kicks off the native async validation and awaits the next `products_fetched`
-## signal carrying the result payload. Returns null on error.
+## emit tagged with method == "validateReceiptIOS". Returns null on error.
 ## @deprecated Use verify_purchase or verify_purchase_with_provider instead.
 ## @param props: Types.VerifyPurchaseProps with `apple: {sku: String}` set
 ## @return Variant Types.VerifyPurchaseResultIOS on success, null otherwise
@@ -883,8 +896,8 @@ func validate_receipt_ios(props) -> Variant:
 	var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
 	var props_json = JSON.stringify(props_dict)
 	_native_plugin.call("validateReceiptIOS", props_json)
-	var payload = await products_fetched
-	if payload is Dictionary and payload.get("success", false):
+	var payload = await _await_products_fetched_for("validateReceiptIOS")
+	if payload.get("success", false):
 		var payload_json = payload.get("resultJson", "")
 		var decoded = JSON.parse_string(payload_json)
 		if decoded is Dictionary:
@@ -898,34 +911,40 @@ func validate_receipt_ios(props) -> Variant:
 func validate_receipt(props) -> Variant:
 	if _platform == "iOS":
 		return await validate_receipt_ios(props)
-	# Android: delegate to verify_purchase which already exists
-	return _verify_purchase_raw(props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {}))
+	if _platform == "Android":
+		# Android path is synchronous via the `verifyPurchase` native call.
+		var props_dict: Dictionary = props.to_dict() if props is Object and props.has_method("to_dict") else (props if props is Dictionary else {})
+		var raw = _verify_purchase_raw(props_dict)
+		if raw.get("success", false) or raw.get("isValid", false):
+			return Types.VerifyPurchaseResultAndroid.from_dict(raw)
+	return null
 
 ## ExternalPurchaseCustomLink: check eligibility (iOS 18.1+).
 ## Kicks off the native async check and awaits the next `products_fetched`
-## signal carrying an `eligible` boolean; returns false on any error.
+## emit tagged with method == "isEligibleForExternalPurchaseCustomLinkIOS";
+## returns false on any error.
 ## @return bool true if the current context can show external purchase custom link
 func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
 	_native_plugin.call("isEligibleForExternalPurchaseCustomLinkIOS")
-	var payload = await products_fetched
-	if payload is Dictionary and payload.get("success", false):
+	var payload = await _await_products_fetched_for("isEligibleForExternalPurchaseCustomLinkIOS")
+	if payload.get("success", false):
 		return bool(payload.get("eligible", false))
 	return false
 
 ## ExternalPurchaseCustomLink: request a token for Apple reporting (iOS 18.1+).
 ## Kicks off the native async request and awaits the next `products_fetched`
-## signal carrying the token payload. Returns null on error or on unsupported
-## platforms (i.e. iOS < 18.1).
+## emit tagged with method == "getExternalPurchaseCustomLinkTokenIOS".
+## Returns null on error or on unsupported platforms (i.e. iOS < 18.1).
 ## @param token_type: String "acquisition" | "services"
 ## @return Variant Types.ExternalPurchaseCustomLinkTokenResultIOS or null
 func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
 	_native_plugin.call("getExternalPurchaseCustomLinkTokenIOS", token_type)
-	var payload = await products_fetched
-	if payload is Dictionary and payload.get("success", false):
+	var payload = await _await_products_fetched_for("getExternalPurchaseCustomLinkTokenIOS")
+	if payload.get("success", false):
 		var payload_json = payload.get("resultJson", "")
 		var decoded = JSON.parse_string(payload_json)
 		if decoded is Dictionary:
@@ -933,16 +952,17 @@ func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 	return null
 
 ## ExternalPurchaseCustomLink: show the disclosure notice sheet (iOS 18.1+).
-## Kicks off the native async UI and awaits the next `products_fetched` signal
-## carrying the notice result payload. Returns null on error.
+## Kicks off the native async UI and awaits the next `products_fetched` emit
+## tagged with method == "showExternalPurchaseCustomLinkNoticeIOS". Returns
+## null on error.
 ## @param notice_type: String "browser"
 ## @return Variant Types.ExternalPurchaseCustomLinkNoticeResultIOS or null
 func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
 	_native_plugin.call("showExternalPurchaseCustomLinkNoticeIOS", notice_type)
-	var payload = await products_fetched
-	if payload is Dictionary and payload.get("success", false):
+	var payload = await _await_products_fetched_for("showExternalPurchaseCustomLinkNoticeIOS")
+	if payload.get("success", false):
 		var payload_json = payload.get("resultJson", "")
 		var decoded = JSON.parse_string(payload_json)
 		if decoded is Dictionary:

@@ -666,12 +666,20 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let storefront = try await self.openIap.getStorefrontIOS() ?? ""
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("getStorefrontIOS")
                     dict["success"] = Variant(true)
                     dict["storefront"] = Variant(storefront)
                     self.productsFetched.emit(dict)
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] getStorefrontIOS error: \(error.localizedDescription)")
+                await MainActor.run { [self] in
+                    let dict = VariantDictionary()
+                    dict["method"] = Variant("getStorefrontIOS")
+                    dict["success"] = Variant(false)
+                    dict["error"] = Variant(error.localizedDescription)
+                    self.productsFetched.emit(dict)
+                }
             }
         }
 
@@ -1104,6 +1112,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let resultDict = OpenIapSerialization.encode(result)
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("validateReceiptIOS")
                     dict["success"] = Variant(true)
                     if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
                        let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -1115,6 +1124,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 GodotIapLog.debug("[GodotIap] validateReceiptIOS error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
+                    dict["method"] = Variant("validateReceiptIOS")
                     dict["success"] = Variant(false)
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
@@ -1141,6 +1151,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     let eligible = try await self.openIap.isEligibleForExternalPurchaseCustomLinkIOS()
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("isEligibleForExternalPurchaseCustomLinkIOS")
                         dict["success"] = Variant(true)
                         dict["eligible"] = Variant(eligible)
                         self.productsFetched.emit(dict)
@@ -1149,6 +1160,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     GodotIapLog.debug("[GodotIap] isEligibleForExternalPurchaseCustomLinkIOS error: \(error.localizedDescription)")
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("isEligibleForExternalPurchaseCustomLinkIOS")
                         dict["success"] = Variant(false)
                         dict["error"] = Variant(error.localizedDescription)
                         self.productsFetched.emit(dict)
@@ -1174,6 +1186,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     let resultDict = OpenIapSerialization.encode(result)
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("getExternalPurchaseCustomLinkTokenIOS")
                         dict["success"] = Variant(true)
                         if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
                            let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -1185,6 +1198,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     GodotIapLog.debug("[GodotIap] getExternalPurchaseCustomLinkTokenIOS error: \(error.localizedDescription)")
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("getExternalPurchaseCustomLinkTokenIOS")
                         dict["success"] = Variant(false)
                         dict["error"] = Variant(error.localizedDescription)
                         self.productsFetched.emit(dict)
@@ -1210,6 +1224,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     let resultDict = OpenIapSerialization.encode(result)
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("showExternalPurchaseCustomLinkNoticeIOS")
                         dict["success"] = Variant(true)
                         if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
                            let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -1221,6 +1236,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     GodotIapLog.debug("[GodotIap] showExternalPurchaseCustomLinkNoticeIOS error: \(error.localizedDescription)")
                     await MainActor.run { [self] in
                         let dict = VariantDictionary()
+                        dict["method"] = Variant("showExternalPurchaseCustomLinkNoticeIOS")
                         dict["success"] = Variant(false)
                         dict["error"] = Variant(error.localizedDescription)
                         self.productsFetched.emit(dict)
