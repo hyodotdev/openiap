@@ -135,43 +135,36 @@ mutation {
 
 **Thread Resolution Rules:**
 - Resolve threads where code changes have been made and pushed (after posting a reply with the commit hash).
-- **Auto-resolve outdated threads**: GitHub marks a thread as `isOutdated: true` when the underlying code has already shifted out from under the comment. Those findings no longer apply to the current diff, so resolve them without a reply at the start of every round — even if the commenter hasn't weighed in again.
-- **Auto-resolve threads whose latest comment is already from us**: if the last reply on a thread is yours (the PR author / agent posting as the author), the thread is already addressed — include it in the batch-resolve pass.
+- **Auto-resolve outdated threads only**: GitHub marks a thread as `isOutdated: true` when the underlying code has already shifted out from under the comment, so those findings no longer apply to the current diff. Sweep those without a reply at the start of every round. **Do not** auto-resolve threads just because the last comment is from the author — the reviewer may still need to confirm the fix.
 - Do not resolve threads that are just suggestions for future improvement unless explicitly acknowledged.
 - Do not resolve threads awaiting user clarification.
 
-Outdated + already-replied sweep (run once per round before fetching open findings):
+Outdated sweep (run once per round before fetching open findings):
 
 ```bash
 PR_NUMBER=...
-# Resolve threads that GitHub itself marks as outdated
 gh api graphql -f query='
 query($owner:String!,$name:String!,$pr:Int!) {
   repository(owner:$owner, name:$name) {
     pullRequest(number:$pr) {
       reviewThreads(first:100) {
-        nodes {
-          id
-          isResolved
-          isOutdated
-          comments(last:1) { nodes { author { login } } }
-        }
+        nodes { id isResolved isOutdated }
       }
     }
   }
 }' -F owner=hyodotdev -F name=openiap -F pr=$PR_NUMBER --jq '
   .data.repository.pullRequest.reviewThreads.nodes[]
   | select(.isResolved == false)
-  | select(.isOutdated == true or .comments.nodes[-1].author.login == "hyochan")
+  | select(.isOutdated == true)
   | .id' | while read tid; do
   [ -n "$tid" ] && gh api graphql -f query='
     mutation($id:ID!) {
       resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } }
-    }' -F id="$tid" >/dev/null && echo "auto-resolved $tid"
+    }' -F id="$tid" >/dev/null && echo "auto-resolved outdated $tid"
 done
 ```
 
-Replace `hyochan` with the repo owner's GitHub login that posts the replies (or `$(gh api user --jq .login)` for the current authenticated user). Only threads whose last comment is from that login get swept — bot comments or reviewer follow-ups stay open.
+Threads that the author has already replied to still show up in the "unresolved" list on the next round — that is intentional so the reviewer can confirm the fix landed and either agree (resolve manually / mark fixed) or push back. Resolving them as soon as the author replies would silence legitimate follow-up feedback.
 
 ## Reply Format Rules (CRITICAL)
 

@@ -1150,8 +1150,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @Callable
     public func isEligibleForExternalPurchaseCustomLinkIOS() -> String {
         GodotIapLog.payload("isEligibleForExternalPurchaseCustomLinkIOS", payload: nil)
+        let requestId = UUID().uuidString
         if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
-            let requestId = UUID().uuidString
             Task { [weak self] in
                 guard let self = self else { return }
                 do {
@@ -1178,14 +1178,27 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
             return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
-        return "{\"status\": \"unsupported\"}"
+        // Unsupported OS: still emit the signal so awaiting GDScript wrappers
+        // unblock with success=false, error="unsupported" instead of deadlocking.
+        Task { [weak self] in
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                let dict = VariantDictionary()
+                dict["method"] = Variant("isEligibleForExternalPurchaseCustomLinkIOS")
+                dict["requestId"] = Variant(requestId)
+                dict["success"] = Variant(false)
+                dict["error"] = Variant("unsupported")
+                self.productsFetched.emit(dict)
+            }
+        }
+        return "{\"status\": \"unsupported\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
     public func getExternalPurchaseCustomLinkTokenIOS(tokenType: String) -> String {
         GodotIapLog.payload("getExternalPurchaseCustomLinkTokenIOS", payload: tokenType)
+        let requestId = UUID().uuidString
         if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
-            let requestId = UUID().uuidString
             Task { [weak self] in
                 guard let self = self else { return }
                 do {
@@ -1219,14 +1232,25 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
             return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
-        return "{\"status\": \"unsupported\"}"
+        Task { [weak self] in
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                let dict = VariantDictionary()
+                dict["method"] = Variant("getExternalPurchaseCustomLinkTokenIOS")
+                dict["requestId"] = Variant(requestId)
+                dict["success"] = Variant(false)
+                dict["error"] = Variant("unsupported")
+                self.productsFetched.emit(dict)
+            }
+        }
+        return "{\"status\": \"unsupported\", \"requestId\": \"\(requestId)\"}"
     }
 
     @Callable
     public func showExternalPurchaseCustomLinkNoticeIOS(noticeType: String) -> String {
         GodotIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", payload: noticeType)
+        let requestId = UUID().uuidString
         if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
-            let requestId = UUID().uuidString
             Task { [weak self] in
                 guard let self = self else { return }
                 do {
@@ -1260,7 +1284,18 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
             return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
-        return "{\"status\": \"unsupported\"}"
+        Task { [weak self] in
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                let dict = VariantDictionary()
+                dict["method"] = Variant("showExternalPurchaseCustomLinkNoticeIOS")
+                dict["requestId"] = Variant(requestId)
+                dict["success"] = Variant(false)
+                dict["error"] = Variant("unsupported")
+                self.productsFetched.emit(dict)
+            }
+        }
+        return "{\"status\": \"unsupported\", \"requestId\": \"\(requestId)\"}"
     }
 
     // MARK: - Private Helpers

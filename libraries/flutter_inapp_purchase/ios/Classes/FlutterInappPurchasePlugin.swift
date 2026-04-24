@@ -651,7 +651,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let status = try await OpenIapModule.shared.beginRefundRequestIOS(sku: sku)
                 FlutterIapLog.result("beginRefundRequestIOS", value: status ?? "nil")
                 result(status)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("beginRefundRequestIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
             } catch {
+                FlutterIapLog.failure("beginRefundRequestIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -895,7 +903,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let success = try await OpenIapModule.shared.syncIOS()
                 FlutterIapLog.result("syncIOS", value: success)
                 result(success)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("syncIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
             } catch {
+                FlutterIapLog.failure("syncIOS", error: error)
                 let code: ErrorCode = .syncError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -912,7 +928,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 }
                 FlutterIapLog.result("subscriptionStatusIOS", value: payload)
                 result(payload)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("subscriptionStatusIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
             } catch {
+                FlutterIapLog.failure("subscriptionStatusIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -931,7 +955,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 } else {
                     result(nil)
                 }
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("getAppTransactionIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
             } catch {
+                FlutterIapLog.failure("getAppTransactionIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -951,7 +983,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 } else {
                     result(nil)
                 }
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("currentEntitlementIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
             } catch {
+                FlutterIapLog.failure("currentEntitlementIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -969,7 +1009,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 } else {
                     result(nil)
                 }
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("latestTransactionIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
             } catch {
+                FlutterIapLog.failure("latestTransactionIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -983,7 +1031,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let verified = try await OpenIapModule.shared.isTransactionVerifiedIOS(sku: sku)
                 FlutterIapLog.result("isTransactionVerifiedIOS", value: verified)
                 result(verified)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("isTransactionVerifiedIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
             } catch {
+                FlutterIapLog.failure("isTransactionVerifiedIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -997,7 +1053,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
                 FlutterIapLog.result("getTransactionJwsIOS", value: jws ?? "nil")
                 result(jws)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("getTransactionJwsIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId ?? sku
+                ))
             } catch {
+                FlutterIapLog.failure("getTransactionJwsIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
@@ -1011,7 +1075,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let receipt = try await OpenIapModule.shared.getReceiptDataIOS()
                 FlutterIapLog.result("getReceiptDataIOS", value: receipt ?? "nil")
                 result(receipt)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("getReceiptDataIOS", error: purchaseError)
+                result(FlutterError(
+                    code: purchaseError.code.rawValue,
+                    message: purchaseError.message,
+                    details: purchaseError.productId
+                ))
             } catch {
+                FlutterIapLog.failure("getReceiptDataIOS", error: error)
                 let code: ErrorCode = .serviceError
                 result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
             }
