@@ -42,6 +42,7 @@ function Events() {
               <CodeBlock language="typescript">{`enum IapEvent {
   PurchaseUpdated = 'purchaseUpdated',
   PurchaseError = 'purchaseError',
+  SubscriptionBillingIssue = 'subscriptionBillingIssue',
   PromotedProductIOS = 'promotedProductIOS',
   UserChoiceBillingAndroid = 'userChoiceBillingAndroid',
   DeveloperProvidedBillingAndroid = 'developerProvidedBillingAndroid', // 8.3.0+
@@ -51,6 +52,7 @@ function Events() {
               <CodeBlock language="swift">{`enum IapEvent {
     case purchaseUpdated
     case purchaseError
+    case subscriptionBillingIssue
     case promotedProductIOS
 }`}</CodeBlock>
             ),
@@ -58,6 +60,7 @@ function Events() {
               <CodeBlock language="kotlin">{`enum class IapEvent {
     PurchaseUpdated,
     PurchaseError,
+    SubscriptionBillingIssue,
     UserChoiceBillingAndroid,
     DeveloperProvidedBillingAndroid // 8.3.0+
 }`}</CodeBlock>
@@ -66,6 +69,7 @@ function Events() {
               <CodeBlock language="kotlin">{`enum class IapEvent {
     PurchaseUpdated,
     PurchaseError,
+    SubscriptionBillingIssue,
     UserChoiceBillingAndroid,
     DeveloperProvidedBillingAndroid // 8.3.0+
 }`}</CodeBlock>
@@ -74,6 +78,7 @@ function Events() {
               <CodeBlock language="dart">{`enum IapEvent {
   purchaseUpdated,
   purchaseError,
+  subscriptionBillingIssue,
   promotedProductIOS,
   userChoiceBillingAndroid,
   developerProvidedBillingAndroid, // 8.3.0+
@@ -83,9 +88,10 @@ function Events() {
               <CodeBlock language="gdscript">{`enum IapEvent {
     PURCHASE_UPDATED = 0,
     PURCHASE_ERROR = 1,
-    PROMOTED_PRODUCT_IOS = 2,
-    USER_CHOICE_BILLING_ANDROID = 3,
-    DEVELOPER_PROVIDED_BILLING_ANDROID = 4, # 8.3.0+
+    SUBSCRIPTION_BILLING_ISSUE = 2,
+    PROMOTED_PRODUCT_IOS = 3,
+    USER_CHOICE_BILLING_ANDROID = 4,
+    DEVELOPER_PROVIDED_BILLING_ANDROID = 5, # 8.3.0+
 }`}</CodeBlock>
             ),
           }}

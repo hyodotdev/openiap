@@ -70,7 +70,7 @@ type RequestPurchaseProps =
   | { request: RequestSubscriptionPropsByPlatforms; type: 'subs' }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func requestPurchase(_ props: RequestPurchaseProps) async throws -> Purchase?`}</CodeBlock>
+            <CodeBlock language="swift">{`func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): List<Purchase>`}</CodeBlock>

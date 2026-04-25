@@ -69,6 +69,9 @@ import APIsGetAppTransactionIOS from './apis/ios/get-app-transaction-ios';
 import APIsCanPresentExternalPurchaseNoticeIOS from './apis/ios/can-present-external-purchase-notice-ios';
 import APIsPresentExternalPurchaseNoticeSheetIOS from './apis/ios/present-external-purchase-notice-sheet-ios';
 import APIsPresentExternalPurchaseLinkIOS from './apis/ios/present-external-purchase-link-ios';
+import APIsIsEligibleForExternalPurchaseCustomLinkIOS from './apis/ios/is-eligible-for-external-purchase-custom-link-ios';
+import APIsGetExternalPurchaseCustomLinkTokenIOS from './apis/ios/get-external-purchase-custom-link-token-ios';
+import APIsShowExternalPurchaseCustomLinkNoticeIOS from './apis/ios/show-external-purchase-custom-link-notice-ios';
 import APIsRequestPurchaseOnPromotedProductIOS from './apis/ios/request-purchase-on-promoted-product-ios';
 import APIsValidateReceiptIOS from './apis/ios/validate-receipt-ios';
 import APIsAcknowledgePurchaseAndroid from './apis/android/acknowledge-purchase-android';
@@ -439,6 +442,18 @@ function Docs() {
                     {
                       to: '/docs/apis/ios/present-external-purchase-link-ios',
                       label: 'presentExternalPurchaseLinkIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios',
+                      label: 'isEligibleForExternalPurchaseCustomLinkIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-external-purchase-custom-link-token-ios',
+                      label: 'getExternalPurchaseCustomLinkTokenIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/show-external-purchase-custom-link-notice-ios',
+                      label: 'showExternalPurchaseCustomLinkNoticeIOS',
                     },
                     {
                       to: '/docs/apis/ios/request-purchase-on-promoted-product-ios',
@@ -980,6 +995,18 @@ function Docs() {
           <Route
             path="apis/ios/present-external-purchase-link-ios"
             element={<APIsPresentExternalPurchaseLinkIOS />}
+          />
+          <Route
+            path="apis/ios/is-eligible-for-external-purchase-custom-link-ios"
+            element={<APIsIsEligibleForExternalPurchaseCustomLinkIOS />}
+          />
+          <Route
+            path="apis/ios/get-external-purchase-custom-link-token-ios"
+            element={<APIsGetExternalPurchaseCustomLinkTokenIOS />}
+          />
+          <Route
+            path="apis/ios/show-external-purchase-custom-link-notice-ios"
+            element={<APIsShowExternalPurchaseCustomLinkNoticeIOS />}
           />
           <Route
             path="apis/ios/request-purchase-on-promoted-product-ios"

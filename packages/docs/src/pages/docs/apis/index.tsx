@@ -49,6 +49,12 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
     '/docs/apis/ios/present-external-purchase-notice-sheet-ios',
   'present-external-purchase-link-ios':
     '/docs/apis/ios/present-external-purchase-link-ios',
+  'is-eligible-for-external-purchase-custom-link-ios':
+    '/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios',
+  'get-external-purchase-custom-link-token-ios':
+    '/docs/apis/ios/get-external-purchase-custom-link-token-ios',
+  'show-external-purchase-custom-link-notice-ios':
+    '/docs/apis/ios/show-external-purchase-custom-link-notice-ios',
   'sync-ios': '/docs/apis/ios/sync-ios',
   'validate-receipt-ios': '/docs/apis/ios/validate-receipt-ios',
   // Android-specific
@@ -527,6 +533,39 @@ function APIsIndex() {
               </td>
               <td>
                 Present an external purchase link, StoreKit External (iOS 16+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios">
+                  <code>isEligibleForExternalPurchaseCustomLinkIOS</code>
+                </Link>
+              </td>
+              <td>
+                Check eligibility for the custom-link variant of external
+                purchase (iOS 18.1+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/ios/get-external-purchase-custom-link-token-ios">
+                  <code>getExternalPurchaseCustomLinkTokenIOS</code>
+                </Link>
+              </td>
+              <td>
+                Fetch a token for Apple's External Purchase Server reporting API
+                (iOS 18.1+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/ios/show-external-purchase-custom-link-notice-ios">
+                  <code>showExternalPurchaseCustomLinkNoticeIOS</code>
+                </Link>
+              </td>
+              <td>
+                Present the disclosure sheet required before linking out via
+                ExternalPurchaseCustomLink (iOS 18.1+).
               </td>
             </tr>
             <tr>
