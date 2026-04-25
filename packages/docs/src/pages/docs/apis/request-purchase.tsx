@@ -73,10 +73,10 @@ type RequestPurchaseProps =
             <CodeBlock language="swift">{`func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): List<Purchase>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): List<Purchase>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Future<Purchase?> requestPurchase(RequestPurchaseProps props);`}</CodeBlock>

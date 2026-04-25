@@ -149,11 +149,11 @@ export function MenuDropdown({
     }
   }, [isGroupActive]);
 
+  // Title click: always navigate + close the mobile drawer. Collapsing
+  // is handled exclusively by the dedicated chevron toggle so screen-
+  // reader semantics stay clean (the title is a nav control, not a
+  // disclosure control).
   const handleTitleClick = () => {
-    if (isExpanded && isTitleActive) {
-      setIsExpanded(false);
-      return;
-    }
     setIsExpanded(true);
     navigate(titleTo);
     onItemClick?.();
@@ -176,8 +176,6 @@ export function MenuDropdown({
             color:
               isTitleActive || isHovered ? 'var(--primary-color)' : 'inherit',
           }}
-          aria-expanded={isExpanded}
-          aria-controls={contentId}
         >
           {title}
         </button>

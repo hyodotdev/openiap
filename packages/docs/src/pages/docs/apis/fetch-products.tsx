@@ -94,7 +94,10 @@ type FetchProductsResult =
 });`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func fetch_products(request: ProductRequest) -> Array[Product]`}</CodeBlock>
+            <CodeBlock language="gdscript">{`# Returns Array[Product] for IN_APP, Array[ProductSubscription] for SUBS,
+# or a mixed Array for ALL — typed as Array because GDScript can't express
+# heterogeneous element types.
+func fetch_products(request: ProductRequest) -> Array`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
