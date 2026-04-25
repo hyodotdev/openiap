@@ -23,8 +23,8 @@ function RequestPurchase() {
 
       <div className="alert-card alert-card--warning">
         <p>
-          ⚠️ <strong>Important:</strong> APIs starting with{' '}
-          <code>request</code> are event-based operations, not promise-based.
+          ⚠️ <strong>Important:</strong> APIs starting with <code>request</code>{' '}
+          are event-based operations, not promise-based.
         </p>
         <p>
           While these APIs return values for various purposes, you should{' '}
@@ -55,8 +55,7 @@ function RequestPurchase() {
         </p>
         <p>
           The <code>request</code> prefix indicates that these are event
-          requests — use the appropriate listeners to handle the actual
-          results.
+          requests — use the appropriate listeners to handle the actual results.
         </p>
       </div>
 

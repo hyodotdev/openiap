@@ -26,8 +26,7 @@ function GettingStarted() {
 
       <p>
         This page is a five-minute walkthrough. If you'd rather jump straight
-        into your stack, head to{' '}
-        <Link to="/docs/setup">Framework Setup</Link>.
+        into your stack, head to <Link to="/docs/setup">Framework Setup</Link>.
       </p>
 
       <section>
@@ -35,8 +34,8 @@ function GettingStarted() {
           1. Configure the store
         </AnchorLink>
         <p>
-          Every framework wraps the same store APIs, so the platform setup
-          comes first. Finish these before installing any SDK:
+          Every framework wraps the same store APIs, so the platform setup comes
+          first. Finish these before installing any SDK:
         </p>
         <ul>
           <li>
@@ -59,8 +58,8 @@ function GettingStarted() {
           2. Pick a framework
         </AnchorLink>
         <p>
-          OpenIAP ships official SDKs for five frameworks. Pick the one your
-          app uses — the API surface is identical across all of them.
+          OpenIAP ships official SDKs for five frameworks. Pick the one your app
+          uses — the API surface is identical across all of them.
         </p>
         <ul>
           <li>
@@ -314,9 +313,9 @@ await iap.request_purchase(props)`}</CodeBlock>
           </li>
           <li>
             <Link to="/docs/lifecycle">Life Cycle</Link> — when to call{' '}
-            <code>initConnection</code>, where to mount listeners, and when
-            to call <code>finishTransaction</code>. Getting this wrong is the
-            #1 cause of "purchase succeeded but the user didn't get the
+            <code>initConnection</code>, where to mount listeners, and when to
+            call <code>finishTransaction</code>. Getting this wrong is the #1
+            cause of "purchase succeeded but the user didn't get the
             entitlement" reports, so read it once even if you skip everything
             else.
           </li>
@@ -324,8 +323,85 @@ await iap.request_purchase(props)`}</CodeBlock>
       </section>
 
       <section>
-        <AnchorLink id="5-where-next" level="h2">
-          5. Where to go next
+        <AnchorLink id="5-how-the-docs-are-organized" level="h2">
+          5. How the docs are organized
+        </AnchorLink>
+        <p>
+          The sidebar groups content by intent. Once you know which group fits
+          the question you're answering, navigation becomes muscle memory.
+        </p>
+        <ul>
+          <li>
+            <strong>
+              <Link to="/docs/apis">APIs</Link>
+            </strong>{' '}
+            — flat reference, one page per function (<code>initConnection</code>
+            , <code>fetchProducts</code>, <code>requestPurchase</code>, …).
+            Cross-platform symbols live at the root; iOS- and Android-only
+            symbols are grouped under{' '}
+            <Link to="/docs/apis#ios-specific">iOS Specific</Link> /{' '}
+            <Link to="/docs/apis#android-specific">Android Specific</Link>. Open
+            a function page when you need its exact signature, params, and a
+            copy-pasteable example.
+          </li>
+          <li>
+            <strong>
+              <Link to="/docs/types">Types</Link>
+            </strong>{' '}
+            — flat reference, one page per type (<code>Product</code>,{' '}
+            <code>Purchase</code>, <code>RequestPurchaseProps</code>, …). Same
+            iOS / Android grouping as APIs. Field tables auto-link to related
+            types so you can chase a shape without leaving the docs.
+          </li>
+          <li>
+            <strong>
+              <Link to="/docs/features/purchase">Features</Link>
+            </strong>{' '}
+            — task-oriented walkthroughs, not reference. Each page covers a real
+            flow end-to-end (<Link to="/docs/features/purchase">Purchase</Link>,{' '}
+            <Link to="/docs/features/subscription">Subscription</Link>,{' '}
+            <Link to="/docs/features/refund">Refund</Link>,{' '}
+            <Link to="/docs/features/validation">Validation</Link>,{' '}
+            <Link to="/docs/features/offer-code-redemption">
+              Offer Code Redemption
+            </Link>
+            , …) with verification, edge cases, and platform notes. Open a
+            Features page when you're shipping a flow, not just calling a
+            function.
+          </li>
+          <li>
+            <strong>
+              <Link to="/docs/setup">Setup Guide</Link>
+            </strong>{' '}
+            — install + native config per framework (
+            <Link to="/docs/setup/react-native">React Native</Link>,{' '}
+            <Link to="/docs/setup/expo">Expo</Link>,{' '}
+            <Link to="/docs/setup/flutter">Flutter</Link>,{' '}
+            <Link to="/docs/setup/godot">Godot</Link>,{' '}
+            <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>) plus the
+            store-side configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
+            <Link to="/docs/android-setup">Android</Link>,{' '}
+            <Link to="/docs/horizon-setup">Horizon OS</Link>).
+          </li>
+          <li>
+            <strong>
+              <Link to="/docs/events">Events</Link> &{' '}
+              <Link to="/docs/errors">Errors</Link>
+            </strong>{' '}
+            — listener patterns and the unified <code>PurchaseError</code> codes
+            that every SDK normalizes to.
+          </li>
+        </ul>
+        <p>
+          <strong>Rule of thumb:</strong> "How does this function work?" → APIs.
+          "What does this object look like?" → Types. "How do I ship
+          subscription upgrades?" → Features.
+        </p>
+      </section>
+
+      <section>
+        <AnchorLink id="6-where-next" level="h2">
+          6. Where to go next
         </AnchorLink>
         <ul>
           <li>
@@ -335,8 +411,8 @@ await iap.request_purchase(props)`}</CodeBlock>
             walkthroughs
           </li>
           <li>
-            <Link to="/docs/features/validation">Validation</Link> —
-            server-side verification (your own backend or IAPKit)
+            <Link to="/docs/features/validation">Validation</Link> — server-side
+            verification (your own backend or IAPKit)
           </li>
           <li>
             <Link to="/docs/apis">API Reference</Link> — every function with

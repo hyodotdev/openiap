@@ -42,7 +42,14 @@ function Chevron({ isExpanded }: { isExpanded: boolean }) {
         flexShrink: 0,
       }}
     >
-      <path d="M3 1 L7 5 L3 9" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M3 1 L7 5 L3 9"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
