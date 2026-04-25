@@ -29,10 +29,54 @@ interface SubMenuProps {
   onItemClick?: () => void;
 }
 
+function Chevron({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      aria-hidden="true"
+      style={{
+        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+        transition: 'transform 0.2s ease',
+        flexShrink: 0,
+      }}
+    >
+      <path d="M3 1 L7 5 L3 9" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function useCollapse(isExpanded: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    if (isExpanded) {
+      // Expanding: 0 → scrollHeight → none
+      el.style.maxHeight = `${el.scrollHeight}px`;
+      const handleEnd = (e: TransitionEvent) => {
+        if (e.propertyName === 'max-height') {
+          el.style.maxHeight = 'none';
+        }
+      };
+      el.addEventListener('transitionend', handleEnd, { once: true });
+      return () => el.removeEventListener('transitionend', handleEnd);
+    }
+
+    // Collapsing: snap from 'none' to scrollHeight, force reflow, then 0
+    el.style.maxHeight = `${el.scrollHeight}px`;
+    void el.offsetHeight;
+    el.style.maxHeight = '0px';
+  }, [isExpanded]);
+
+  return ref;
+}
+
 function SubMenu({ group, onItemClick }: SubMenuProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(0);
   const location = useLocation();
   const submenuContentId = useId();
 
@@ -40,11 +84,7 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
     (item) => location.pathname === item.to
   );
 
-  useEffect(() => {
-    if (contentRef.current) {
-      setHeight(isExpanded ? contentRef.current.scrollHeight : 0);
-    }
-  }, [isExpanded, group.items.length]);
+  const contentRef = useCollapse(isExpanded);
 
   useEffect(() => {
     if (isAnyChildActive) {
@@ -52,9 +92,7 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
     }
   }, [isAnyChildActive]);
 
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
+  const toggleExpanded = () => setIsExpanded((v) => !v);
 
   return (
     <li className="menu-dropdown menu-dropdown--nested">
@@ -74,23 +112,18 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
           type="button"
           onClick={toggleExpanded}
           className="menu-dropdown-toggle"
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-          }}
           aria-label={`Toggle ${group.label} submenu`}
           aria-expanded={isExpanded}
           aria-controls={submenuContentId}
         >
-          ▶
+          <Chevron isExpanded={isExpanded} />
         </button>
       </div>
       <div
         id={submenuContentId}
         ref={contentRef}
         className="menu-dropdown-content"
-        style={{
-          maxHeight: `${height}px`,
-        }}
+        style={{ maxHeight: '0px' }}
       >
         <ul className="menu-dropdown-items menu-dropdown-items--nested">
           {group.items.map((item) => (
@@ -121,8 +154,6 @@ export function MenuDropdown({
 }: MenuDropdownProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const contentId = useId();
@@ -135,11 +166,7 @@ export function MenuDropdown({
   );
   const isGroupActive = isTitleActive || isChildActive;
 
-  useEffect(() => {
-    if (contentRef.current) {
-      setHeight(isExpanded ? contentRef.current.scrollHeight : 0);
-    }
-  }, [isExpanded, items.length]);
+  const contentRef = useCollapse(isExpanded);
 
   useEffect(() => {
     if (isGroupActive) {
@@ -148,14 +175,16 @@ export function MenuDropdown({
   }, [isGroupActive]);
 
   const handleTitleClick = () => {
+    if (isExpanded && isTitleActive) {
+      setIsExpanded(false);
+      return;
+    }
     setIsExpanded(true);
     navigate(titleTo);
     onItemClick?.();
   };
 
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
+  const toggleExpanded = () => setIsExpanded((v) => !v);
 
   return (
     <li className="menu-dropdown">
@@ -181,28 +210,18 @@ export function MenuDropdown({
           type="button"
           onClick={toggleExpanded}
           className="menu-dropdown-toggle"
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-          }}
           aria-label={`Toggle ${title} submenu`}
           aria-expanded={isExpanded}
           aria-controls={contentId}
         >
-          ▶
+          <Chevron isExpanded={isExpanded} />
         </button>
       </div>
       <div
         id={contentId}
         ref={contentRef}
         className="menu-dropdown-content"
-        style={{
-          // Keep maxHeight numeric in both states so the CSS transition can
-          // interpolate. Use a large cap when expanded so nested submenus
-          // can still grow without re-clipping (`'none'` would break the
-          // open/close animation since CSS can't transition to/from `none`).
-          maxHeight: isExpanded ? '9999px' : `${height}px`,
-          overflow: isExpanded ? 'visible' : 'hidden',
-        }}
+        style={{ maxHeight: '0px' }}
       >
         <ul className="menu-dropdown-items">
           {items.map((entry, index) =>

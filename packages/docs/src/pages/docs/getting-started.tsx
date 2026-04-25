@@ -204,6 +204,40 @@ store.requestPurchase(
     )
 )`}</CodeBlock>
             ),
+            kmp: (
+              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIAP
+import io.github.hyochan.kmpiap.types.*
+
+// 1. Open the store connection on app start.
+kmpIAP.initConnection()
+
+// 2. Fetch products by SKU.
+val products = kmpIAP.fetchProducts(
+    ProductRequest(
+        skus = listOf("com.app.premium"),
+        type = ProductQueryType.InApp
+    )
+)
+
+// 3. Listen for purchase results.
+scope.launch {
+    kmpIAP.purchaseUpdatedFlow.collect { purchase ->
+        // Verify on your backend, grant entitlement, then finish.
+        kmpIAP.finishTransaction(purchase, isConsumable = false)
+    }
+}
+
+// 4. Initiate a purchase.
+kmpIAP.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            apple = RequestPurchaseIosProps(sku = "com.app.premium"),
+            google = RequestPurchaseAndroidProps(skus = listOf("com.app.premium"))
+        ),
+        type = ProductQueryType.InApp
+    )
+)`}</CodeBlock>
+            ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 

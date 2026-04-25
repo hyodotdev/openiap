@@ -15,27 +15,19 @@
   top: 56px;
   max-height: calc(100vh - 56px);
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
-  /* Extra right padding so long identifiers don't sit under the scrollbar */
-  padding: var(--spacing-lg) 1rem var(--spacing-lg) 0;
+  padding: var(--spacing-lg) 0;
 }
 
+/* Long identifiers wrap to a second line instead of forcing horizontal
+   scroll on the whole sidebar. */
 .docs-sidebar .menu-dropdown-item,
 .docs-sidebar .menu-dropdown-title {
-  white-space: nowrap;
-}
-
-/* Let the nav content grow with the longest identifier so the sidebar
-   actually scrolls horizontally instead of clipping mid-word. */
-.docs-sidebar .docs-nav {
-  min-width: max-content;
-}
-
-.docs-sidebar::-webkit-scrollbar:horizontal {
-  height: 6px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 :root.dark .docs-sidebar {
@@ -492,15 +484,19 @@
   opacity: 1;
 }
 
-/* Tables */
+/* Tables — block layout so they scroll horizontally only when content
+   exceeds the container. `display: block` plus `overflow-x: auto` keeps
+   the scrollbar hidden until a row actually overflows. */
 .error-table,
 .doc-page table {
-  width: 100%;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-collapse: collapse;
   margin: 1.5rem 0;
   background: var(--bg-primary);
   border-radius: 0.5rem;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -528,20 +524,23 @@
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Non-last columns (Name, Type, etc.) keep identifiers on one line.
-   Last column (Summary/Description) absorbs remaining width. */
+/* Non-last columns (Name, Type, etc.) keep identifiers on one line; if the
+   total exceeds the container width the whole table scrolls horizontally. */
 .error-table th:not(:last-child),
 .error-table td:not(:last-child),
 .doc-page table th:not(:last-child),
 .doc-page table td:not(:last-child) {
-  width: 1%;
   white-space: nowrap;
   vertical-align: top;
 }
 
-.error-table td:not(:last-child) code,
-.doc-page table td:not(:last-child) code {
-  white-space: nowrap;
+/* Last column (Summary/Description) wraps naturally. */
+.error-table th:last-child,
+.error-table td:last-child,
+.doc-page table th:last-child,
+.doc-page table td:last-child {
+  white-space: normal;
+  vertical-align: top;
 }
 
 .error-table tbody tr:last-child td,

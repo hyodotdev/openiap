@@ -586,15 +586,6 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/features/discount"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Discounts (Android)
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
                 to="/docs/features/offer-code-redemption"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
@@ -640,6 +631,15 @@ function Docs() {
               ]}
               onItemClick={closeSidebar}
             />
+            <li>
+              <NavLink
+                to="/docs/features/discount"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Discounts (Android)
+              </NavLink>
+            </li>
           </ul>
           <h3 style={{ marginTop: '2rem' }}>Foundation</h3>
           <ul>
