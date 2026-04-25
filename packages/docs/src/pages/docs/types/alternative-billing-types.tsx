@@ -14,7 +14,7 @@ function AlternativeBillingTypes() {
         title="Alternative Billing Types"
         description="Alternative Billing Types type definition and field reference."
         path="/docs/types/alternative-billing-types"
-        keywords="Alternative Billing Types, OpenIAP types, Alternative  Billing  Types"
+        keywords="Alternative Billing Types, OpenIAP types, Alternative Billing"
       />
       <h1>Alternative Billing Types</h1>
       <section>
@@ -277,7 +277,6 @@ await iap.init_connection()`}</CodeBlock>
   userChoiceBillingListenerAndroid,
   fetchProducts,
   requestPurchase,
-  createAlternativeBillingToken,
 } from 'expo-iap';
 
 // Step 1: Set up listener for when user selects alternative billing

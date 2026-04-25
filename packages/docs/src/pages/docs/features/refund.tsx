@@ -149,13 +149,17 @@ switch (status) {
 
 let status = try await OpenIapModule.shared.beginRefundRequestIOS(sku: purchase.productId)
 
-switch status {
-case "success":
-    print("Refund request submitted")
-case "userCancelled":
-    print("User cancelled refund flow")
-default:
-    print("Refund request status: \\(status ?? "nil")")
+if let status {
+    switch status {
+    case "success":
+        print("Refund request submitted")
+    case "userCancelled":
+        print("User cancelled refund flow")
+    default:
+        print("Refund request status: \\(status)")
+    }
+} else {
+    print("Refund request status: nil")
 }`}</CodeBlock>
                     ),
                     kotlin: (

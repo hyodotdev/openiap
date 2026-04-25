@@ -108,7 +108,7 @@ function ActiveSubscription() {
                 <code>purchaseToken</code>
               </td>
               <td>
-                <code>string</code>
+                <code>string?</code>
               </td>
               <td>
                 JWS token (iOS) or purchase token (Android) for server
@@ -180,7 +180,7 @@ function ActiveSubscription() {
                         <code>environmentIOS</code>
                       </td>
                       <td>
-                        <code>"Sandbox" | "Production"</code>
+                        <code>("Sandbox" | "Production")?</code>
                       </td>
                       <td>StoreKit environment</td>
                     </tr>

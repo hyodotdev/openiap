@@ -120,11 +120,17 @@ subscription.remove()`}</CodeBlock>
           kotlin: (
             <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
 
+val openIapStore = OpenIapStore(context)
+
 // Play Billing Library 8.1+
-openIapStore.addSubscriptionBillingIssueListener { purchase ->
+val listener: (Purchase) -> Unit = { purchase ->
     println("Billing issue on \${purchase.productId}")
     showBillingIssueBanner(purchase)
-}`}</CodeBlock>
+}
+openIapStore.addSubscriptionBillingIssueListener(listener)
+
+// Cleanup when the view disappears
+openIapStore.removeSubscriptionBillingIssueListener(listener)`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
