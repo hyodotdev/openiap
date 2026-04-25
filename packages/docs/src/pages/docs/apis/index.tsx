@@ -590,10 +590,19 @@ function APIsIndex() {
             <tr>
               <td>
                 <Link to="/docs/apis/ios/validate-receipt-ios">
-                  <code>validateReceiptIOS</code>
+                  <code style={{ textDecoration: 'line-through' }}>
+                    validateReceiptIOS
+                  </code>
                 </Link>
               </td>
-              <td>Validate a receipt against the App Store (legacy path).</td>
+              <td>
+                <strong>Deprecated.</strong> Legacy App Store receipt
+                validation. Use{' '}
+                <Link to="/docs/features/validation#verify-purchase">
+                  <code>verifyPurchase</code>
+                </Link>{' '}
+                instead.
+              </td>
             </tr>
           </tbody>
         </table>

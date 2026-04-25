@@ -107,7 +107,9 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
                 }
                 onClick={onItemClick}
               >
-                <span className="menu-dropdown-item-prefix">└</span>
+                <span className="menu-dropdown-item-prefix" aria-hidden="true">
+                  └
+                </span>
                 {item.label}
               </NavLink>
             </li>
@@ -192,10 +194,10 @@ export function MenuDropdown({
         aria-hidden={!isExpanded}
       >
         <ul className="menu-dropdown-items">
-          {items.map((entry, index) =>
+          {items.map((entry) =>
             isGroup(entry) ? (
               <SubMenu
-                key={`${titleTo}::group::${entry.label}::${index}`}
+                key={`${titleTo}::group::${entry.label.replace(/\s+/g, '-').toLowerCase()}`}
                 group={entry}
                 onItemClick={onItemClick}
               />
@@ -208,7 +210,12 @@ export function MenuDropdown({
                   }
                   onClick={onItemClick}
                 >
-                  <span className="menu-dropdown-item-prefix">└</span>
+                  <span
+                    className="menu-dropdown-item-prefix"
+                    aria-hidden="true"
+                  >
+                    └
+                  </span>
                   {entry.label}
                 </NavLink>
               </li>

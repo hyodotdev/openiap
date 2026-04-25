@@ -25,7 +25,7 @@ function DeepLinkToSubscriptions() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`deepLinkToSubscriptions(options: DeepLinkOptions): Promise<void>
+            <CodeBlock language="typescript">{`deepLinkToSubscriptions(options?: DeepLinkOptions): Promise<void>
 
 interface DeepLinkOptions {
   skuAndroid?: string;

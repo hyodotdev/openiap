@@ -103,8 +103,12 @@ function RestoreButton() {
   useEffect(() => {
     (async () => {
       for (const purchase of availablePurchases) {
-        const verified = await verifyOnServer(purchase);
-        if (!verified) continue;
+        const result = await verifyPurchase({
+          purchase,
+          serverUrl: 'https://your-server.com/api/verify',
+        });
+        if (!result.isValid) continue;
+        await grantProduct(purchase.productId);
         await finishTransaction({ purchase, isConsumable: false });
       }
     })();

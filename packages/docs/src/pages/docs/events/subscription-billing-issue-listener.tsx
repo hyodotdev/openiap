@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -26,7 +27,9 @@ function SubscriptionBillingIssueListener() {
         (tvOS, watchOS, visionOS, macOS, Meta Horizon).
       </p>
 
-      <h3>Listener Setup</h3>
+      <AnchorLink id="listener-setup" level="h2">
+        Listener Setup
+      </AnchorLink>
       <LanguageTabs>
         {{
           typescript: (
@@ -69,7 +72,9 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
         session; iOS fires per Message delivery.
       </p>
 
-      <h3>Example</h3>
+      <AnchorLink id="example" level="h2">
+        Example
+      </AnchorLink>
       <LanguageTabs>
         {{
           typescript: (
@@ -122,7 +127,9 @@ openIapStore.addSubscriptionBillingIssueListener { purchase ->
 }`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIAP
+            <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
 
 // Play Billing 8.1+ on Android, iOS 18+ on Apple targets
 lifecycleScope.launch {

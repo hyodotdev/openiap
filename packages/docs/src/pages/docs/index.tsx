@@ -1089,6 +1089,10 @@ function Docs() {
             path="apis/debugging"
             element={<NavigatePreservingHash to="/docs/features/debugging" />}
           />
+          <Route
+            path="apis/refund"
+            element={<NavigatePreservingHash to="/docs/features/refund" />}
+          />
           <Route path="events" element={<Events />} />
           <Route
             path="events/purchase-updated-listener"

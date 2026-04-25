@@ -24,7 +24,10 @@ function ValidateReceiptIOS() {
       <div className="alert-card alert-card--warning">
         <p>
           <strong>Deprecated.</strong> Use the modern cross-platform validation
-          API. Use <Link to="/docs/features/validation">verifyPurchase</Link>{' '}
+          API. Use{' '}
+          <Link to="/docs/features/validation#verify-purchase">
+            verifyPurchase
+          </Link>{' '}
           instead.
         </p>
       </div>
@@ -34,7 +37,7 @@ function ValidateReceiptIOS() {
         {{
           swift: (
             <CodeBlock language="swift">{`@available(*, deprecated, message: "Use verifyPurchase()")
-func validateReceiptIOS(options: PurchaseVerificationProps) async throws -> PurchaseVerificationResult`}</CodeBlock>
+func validateReceiptIOS(options: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

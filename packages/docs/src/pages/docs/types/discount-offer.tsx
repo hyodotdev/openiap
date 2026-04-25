@@ -22,9 +22,14 @@ function DiscountOffer() {
           DiscountOffer
         </AnchorLink>
         <p>
-          Standardized type for one-time product discount offers. Currently
-          supported on Android (Google Play Billing Library 7.0+). iOS does not
-          support one-time purchase discounts.
+          Unified discount-offer type covering both subscription discounts (
+          <code>Introductory</code>, <code>Promotional</code>) and one-time
+          product offers (<code>OneTime</code>, Android only on Google Play
+          Billing Library 7.0+). For iOS-specific WinBack offers see{' '}
+          <Link to="/docs/types/ios/subscription-offer-ios">
+            SubscriptionOfferTypeIOS
+          </Link>
+          ; iOS does not support one-time product discounts.
         </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
@@ -103,8 +108,8 @@ function DiscountOffer() {
               </td>
               <td>
                 Type of offer: <code>Introductory</code>,{' '}
-                <code>Promotional</code>, <code>WinBack</code> (iOS 18+), or{' '}
-                <code>OneTime</code>
+                <code>Promotional</code>, or <code>OneTime</code> (Android-only
+                Play Billing 7.0+ feature).
               </td>
             </tr>
           </tbody>

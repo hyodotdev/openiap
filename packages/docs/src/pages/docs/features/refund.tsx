@@ -258,14 +258,18 @@ match status:
                     </tr>
                   </tbody>
                 </table>
-                <CodeBlock language="typescript">{`// Server webhook handler (Node.js)
+                <CodeBlock language="typescript">{`// Server webhook handler (Node.js).
+// In App Store Server Notifications V2, signedTransactionInfo is itself a
+// signed JWS string — verify and decode it to read its fields.
 app.post('/webhooks/apple', async (req, res) => {
   const { signedPayload } = req.body;
   const decoded = await verifyAndDecodeJWS(signedPayload);
 
   if (decoded.notificationType === 'REFUND' || decoded.notificationType === 'REVOKE') {
-    const transactionId = decoded.data.signedTransactionInfo.transactionId;
-    await revokeEntitlement(transactionId);
+    const transactionInfo = await verifyAndDecodeJWS(
+      decoded.data.signedTransactionInfo,
+    );
+    await revokeEntitlement(transactionInfo.transactionId);
   }
 
   res.sendStatus(200);

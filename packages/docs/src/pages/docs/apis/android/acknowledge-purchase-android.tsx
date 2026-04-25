@@ -40,8 +40,20 @@ function AcknowledgePurchaseAndroid() {
       <h2>Signature</h2>
       <LanguageTabs>
         {{
+          typescript: (
+            <CodeBlock language="typescript">{`acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>`}</CodeBlock>
+          ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun acknowledgePurchase(purchaseToken: String): Boolean`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> acknowledgePurchaseAndroid(String purchaseToken);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func acknowledge_purchase_android(purchase_token: String) -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

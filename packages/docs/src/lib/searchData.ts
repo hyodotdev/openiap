@@ -289,7 +289,7 @@ export const apiData: ApiItem[] = [
     category: 'iOS Specific',
     description: 'Fetch the current app transaction (iOS 16+)',
     parameters: '',
-    returns: 'AppTransaction',
+    returns: 'AppTransactionIOS',
     path: '/docs/apis/ios/get-app-transaction-ios',
   },
   {

@@ -476,14 +476,17 @@ const result = await isBillingProgramAvailableAndroid('external-payments');
 if (result.isAvailable) {
   // Purchase with developer billing option
   await requestPurchase({
-    google: {
-      skus: ['product_id'],
-      developerBillingOption: {
-        billingProgram: 'external-payments',
-        linkUri: 'https://your-site.com/checkout',
-        launchMode: 'launch-in-external-browser-or-app',
+    request: {
+      google: {
+        skus: ['product_id'],
+        developerBillingOption: {
+          billingProgram: 'external-payments',
+          linkUri: 'https://your-site.com/checkout',
+          launchMode: 'launch-in-external-browser-or-app',
+        },
       },
     },
+    type: 'in-app',
   });
 }`}</CodeBlock>
             ),

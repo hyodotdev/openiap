@@ -52,7 +52,7 @@ function AlternativeBillingTypes() {
         </AnchorLink>
         <div className="warning-box" style={{ marginBottom: '1rem' }}>
           <strong>Deprecated:</strong> Use{' '}
-          <Link to="/docs/types/billing-programs#billing-program-android">
+          <Link to="#init-connection-config">
             <code>enableBillingProgramAndroid</code>
           </Link>{' '}
           with{' '}
@@ -483,9 +483,9 @@ await iap.request_purchase(props)
               <CodeBlock language="typescript">{`import {
   initConnection,
   fetchProducts,
-  checkAlternativeBillingAvailability,
-  showAlternativeBillingDialog,
-  createAlternativeBillingToken,
+  checkAlternativeBillingAvailabilityAndroid,
+  showAlternativeBillingDialogAndroid,
+  createAlternativeBillingTokenAndroid,
 } from 'expo-iap';
 
 // Step 1: Initialize with external offer (recommended)
@@ -494,8 +494,8 @@ await initConnection({
 });
 
 // Step 2: Check if alternative billing is available
-const availability = await checkAlternativeBillingAvailability();
-if (!availability.isAvailable) {
+const isAvailable = await checkAlternativeBillingAvailabilityAndroid();
+if (!isAvailable) {
   console.log('Alternative billing not available in this region');
   // Fall back to standard Google Play billing
   return;
@@ -508,14 +508,14 @@ const products = await fetchProducts({
 });
 
 // Step 4: Show required Google Play disclosure dialog
-const dialogResult = await showAlternativeBillingDialog();
-if (dialogResult.responseCode !== 0) {
+const accepted = await showAlternativeBillingDialogAndroid();
+if (!accepted) {
   console.log('User did not accept alternative billing');
   return;
 }
 
 // Step 5: Create token for this transaction
-const token = await createAlternativeBillingToken(products[0].id);
+const token = await createAlternativeBillingTokenAndroid(products[0].id);
 
 // Step 6: Process purchase with your backend
 const paymentResult = await yourBackend.processAlternativePurchase({
