@@ -27,13 +27,13 @@ function AcknowledgePurchaseAndroid() {
       <div className="alert-card alert-card--warning">
         <p>
           ⚠️ <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong>{' '}
-          Direct acknowledge / consume calls are being phased out in favor of
-          the unified Billing Programs API (
+          Direct acknowledge / consume calls are being phased out — use the
+          cross-platform{' '}
           <Link to="/docs/apis/finish-transaction">
             <code>finishTransaction</code>
           </Link>{' '}
-          handles acknowledgment automatically and is the recommended path for
-          new code).
+          API instead, which handles acknowledgment automatically and is the
+          recommended path for new code.
         </p>
       </div>
 
