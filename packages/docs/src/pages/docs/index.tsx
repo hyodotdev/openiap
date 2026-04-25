@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Route, Routes, Navigate, NavLink } from 'react-router-dom';
 import { MenuDropdown } from '../../components/MenuDropdown';
+import GettingStarted from './getting-started';
 import Ecosystem from './ecosystem';
 import LifeCycle from './lifecycle';
 import Subscription from './lifecycle/subscription';
@@ -89,6 +90,7 @@ import AlternativeMarketplaceOnside from './features/alternative-marketplace/ons
 import IOSSetup from './ios-setup';
 import AndroidSetup from './android-setup';
 import HorizonSetup from './horizon-setup';
+import SetupIndex from './setup/index';
 import ReactNativeSetup from './setup/react-native';
 import ExpoSetup from './setup/expo';
 import FlutterSetup from './setup/flutter';
@@ -154,6 +156,15 @@ function Docs() {
         <nav className="docs-nav">
           <h3>Documentation</h3>
           <ul>
+            <li>
+              <NavLink
+                to="/docs/getting-started"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Getting Started
+              </NavLink>
+            </li>
             <li>
               <NavLink
                 to="/docs/ecosystem"
@@ -495,7 +506,7 @@ function Docs() {
             />
             <MenuDropdown
               title="Framework Setup"
-              titleTo="/docs/setup/react-native"
+              titleTo="/docs/setup"
               items={[
                 { to: '/docs/setup/react-native', label: 'React Native' },
                 { to: '/docs/setup/expo', label: 'Expo' },
@@ -684,7 +695,11 @@ function Docs() {
       </aside>
       <main className="docs-content">
         <Routes>
-          <Route index element={<Navigate to="/docs/ecosystem" replace />} />
+          <Route
+            index
+            element={<Navigate to="/docs/getting-started" replace />}
+          />
+          <Route path="getting-started" element={<GettingStarted />} />
           <Route path="ecosystem" element={<Ecosystem />} />
           <Route path="lifecycle" element={<LifeCycle />} />
           <Route path="lifecycle/subscription" element={<Subscription />} />
@@ -1018,6 +1033,7 @@ function Docs() {
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
+          <Route path="setup" element={<SetupIndex />} />
           <Route path="setup/react-native" element={<ReactNativeSetup />} />
           <Route path="setup/expo" element={<ExpoSetup />} />
           <Route path="setup/flutter" element={<FlutterSetup />} />
