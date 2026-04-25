@@ -9,10 +9,10 @@ function SubscriptionOfferAndroid() {
   return (
     <div className="doc-page">
       <SEO
-        title="ProductSubscriptionAndroidOfferDetails"
-        description="ProductSubscriptionAndroidOfferDetails type definition and field reference."
+        title="ProductSubscriptionAndroidOfferDetails (Deprecated)"
+        description="Deprecated. Use the cross-platform SubscriptionOffer type instead. ProductSubscriptionAndroidOfferDetails type definition and field reference."
         path="/docs/types/android/subscription-offer-android"
-        keywords="ProductSubscriptionAndroidOfferDetails, SubscriptionOfferAndroid, OpenIAP types"
+        keywords="ProductSubscriptionAndroidOfferDetails, SubscriptionOfferAndroid, deprecated, OpenIAP types"
       />
       <h1>ProductSubscriptionAndroidOfferDetails</h1>
       <section>
