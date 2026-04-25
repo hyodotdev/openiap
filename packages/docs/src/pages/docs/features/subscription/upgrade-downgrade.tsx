@@ -1102,6 +1102,34 @@ func format_date(timestamp: int) -> String:
                 <ul>
                   <li>
                     <a
+                      href="https://developer.apple.com/app-store/subscriptions/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Apple · App Store Subscriptions
+                    </a>
+                    <br />
+                    <small>
+                      Subscription groups, upgrade/downgrade hierarchy, and tier
+                      order
+                    </small>
+                  </li>
+                  <li>
+                    <a
+                      href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Apple · Product.SubscriptionInfo.RenewalInfo
+                    </a>
+                    <br />
+                    <small>
+                      <code>autoRenewPreference</code> is the source of truth
+                      for the next-renewed product ID
+                    </small>
+                  </li>
+                  <li>
+                    <a
                       href="https://developer.apple.com/forums/thread/758315"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -2311,6 +2339,19 @@ func change_subscription(new_sku: String, is_upgrade: bool) -> void:
                 </AnchorLink>
 
                 <ul>
+                  <li>
+                    <a
+                      href="https://developer.android.com/google/play/billing/subscriptions#upgrade-downgrade"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Google Play Billing: Upgrade or downgrade a subscription
+                    </a>
+                    <br />
+                    <small>
+                      Replacement modes, proration, and base-plan switching
+                    </small>
+                  </li>
                   <li>
                     <a
                       href="https://developer.android.com/google/play/billing/subscriptions#replacement-modes"

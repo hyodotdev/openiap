@@ -583,6 +583,45 @@ func redeem_with_code(code: String) -> void:
           </li>
         </ul>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/appstore/presentofferCoderedeemsheet()"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              AppStore.presentOfferCodeRedeemSheet()
+            </a>{' '}
+            — StoreKit 2 in-app redemption sheet
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/app-store/subscriptions/offer-codes/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              App Store Subscription Offer Codes
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://support.google.com/googleplay/android-developer/answer/6321495"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Promo codes for Google Play
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

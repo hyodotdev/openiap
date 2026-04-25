@@ -2824,6 +2824,65 @@ func _ready_user_choice() -> void:
           </li>
         </ul>
       </section>
+
+      <section>
+        <AnchorLink id="native-references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/support/storekit-external-entitlement/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit External Purchase entitlement
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/externalpurchase"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit ExternalPurchase
+            </a>{' '}
+            — notice sheet and link APIs
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://support.google.com/googleplay/android-developer/answer/13821247"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              User Choice Billing
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/alternative"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Alternative billing in Play Billing Library
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#8-3-0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Play Billing 8.3.0 — External Payments (Japan)
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

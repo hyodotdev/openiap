@@ -23,6 +23,32 @@ function VerifyPurchase() {
           Types used with <code>verifyPurchase()</code> for server-side purchase
           verification.
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/appstoreserverapi"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · App Store Server API
+          </a>
+          {' · '}
+          <a
+            href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google Play Developer API · purchases.subscriptionsv2
+          </a>
+          {' · '}
+          <a
+            href="https://developers.meta.com/horizon/documentation/native/ps-iap-overview/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Meta Horizon · IAP Overview
+          </a>
+        </p>
 
         <AnchorLink id="verify-purchase-props" level="h3">
           VerifyPurchaseProps

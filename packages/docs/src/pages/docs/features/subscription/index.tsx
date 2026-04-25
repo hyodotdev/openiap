@@ -3339,6 +3339,54 @@ func manage_subscriptions() -> void:
           </li>
         </ul>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/app-store/subscriptions/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              App Store Subscriptions overview
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Product.SubscriptionInfo
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Add subscription support
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Subscription lifecycle
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

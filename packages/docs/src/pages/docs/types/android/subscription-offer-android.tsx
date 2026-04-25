@@ -28,6 +28,16 @@ function SubscriptionOfferAndroid() {
           (cross-platform) instead.
         </p>
         <p>Offer details for subscription purchases:</p>
+        <p className="type-link">
+          <strong>Native reference:</strong>{' '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.SubscriptionOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · ProductDetails.SubscriptionOfferDetails
+          </a>
+        </p>
 
         <table className="doc-table">
           <thead>

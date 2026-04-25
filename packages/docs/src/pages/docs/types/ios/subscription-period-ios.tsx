@@ -19,6 +19,16 @@ function SubscriptionPeriodIos() {
           SubscriptionPeriodIOS
         </AnchorLink>
         <p>Subscription period units:</p>
+        <p className="type-link">
+          <strong>Native reference:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptionperiod"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · Product.SubscriptionPeriod
+          </a>
+        </p>
         <table className="doc-table">
           <thead>
             <tr>

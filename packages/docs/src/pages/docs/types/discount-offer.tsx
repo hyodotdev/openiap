@@ -26,6 +26,24 @@ function DiscountOffer() {
           supported on Android (Google Play Billing Library 7.0+). iOS does not
           support one-time purchase discounts.
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.android.com/google/play/billing/subscriptions#discount-offer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · Discounted offers
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.OneTimePurchaseOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ProductDetails.OneTimePurchaseOfferDetails
+          </a>
+        </p>
 
         <AnchorLink id="discount-offer-common-fields" level="h3">
           Common Fields

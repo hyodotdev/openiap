@@ -25,6 +25,16 @@ function DiscountIos() {
           instead.
         </p>
         <p>Discount info returned as part of product details:</p>
+        <p className="type-link">
+          <strong>Native reference:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/skproductdiscount"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · SKProductDiscount (StoreKit 1)
+          </a>
+        </p>
 
         <table className="doc-table">
           <thead>

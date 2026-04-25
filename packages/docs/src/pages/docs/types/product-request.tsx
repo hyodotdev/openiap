@@ -28,6 +28,24 @@ function ProductRequest() {
           </Link>
           .
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/products(for:)"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · Product.products(for:)
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/QueryProductDetailsParams"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · QueryProductDetailsParams
+          </a>
+        </p>
 
         <AnchorLink id="product-request-fields" level="h3">
           Fields

@@ -1261,6 +1261,44 @@ async function purchaseWithOffer(
           </li>
         </ul>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions#discount-offer"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Discounted offers
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.OneTimePurchaseOfferDetails"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ProductDetails.OneTimePurchaseOfferDetails
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Play Billing Library 7.0 release notes
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

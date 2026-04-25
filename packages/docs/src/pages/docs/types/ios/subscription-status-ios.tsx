@@ -23,6 +23,16 @@ function SubscriptionStatusIos() {
           <code>subscriptionStatusIOS(sku)</code> to get detailed subscription
           state.
         </p>
+        <p className="type-link">
+          <strong>Native reference:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalstate"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · Product.SubscriptionInfo.RenewalState
+          </a>
+        </p>
 
         <table className="doc-table">
           <thead>

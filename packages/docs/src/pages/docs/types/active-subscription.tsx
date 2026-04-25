@@ -29,6 +29,24 @@ function ActiveSubscription() {
           </Link>
           . Provides a unified view of subscription status across platforms.
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · Product.SubscriptionInfo.Status
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/google/play/billing/subscriptions"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · Sell subscriptions
+          </a>
+        </p>
 
         <AnchorLink id="active-subscription-common" level="h3">
           Common Fields

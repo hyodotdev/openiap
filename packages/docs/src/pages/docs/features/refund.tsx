@@ -466,6 +466,58 @@ app.post('/webhooks/google', async (req, res) => {
           </li>
         </ul>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/transaction/beginrefundrequest(in:)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Transaction.beginRefundRequest(in:)
+            </a>{' '}
+            — StoreKit 2 in-app refund sheet
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/appstoreservernotifications"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              App Store Server Notifications V2
+            </a>{' '}
+            — server-to-server REFUND / REVOKE events
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/refunds"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Issue refunds
+            </a>{' '}
+            — Play Console refund flow
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developers.google.com/android-publisher/voided-purchases"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Voided Purchases API
+            </a>{' '}
+            — fallback polling for voided orders
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

@@ -32,6 +32,24 @@ function Purchase() {
           </Link>
           , discriminated by the <code>platform</code> field.
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/transaction"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · StoreKit Transaction
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · Purchase
+          </a>
+        </p>
 
         <AnchorLink id="purchase-state" level="h3">
           PurchaseState

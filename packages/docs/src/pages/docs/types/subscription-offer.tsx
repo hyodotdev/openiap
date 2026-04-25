@@ -26,6 +26,24 @@ function SubscriptionOffer() {
           both iOS (introductory and promotional offers) and Android (offer
           tokens with pricing phases).
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · Product.SubscriptionOffer
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.SubscriptionOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · ProductDetails.SubscriptionOfferDetails
+          </a>
+        </p>
 
         <AnchorLink id="subscription-offer-common-fields" level="h3">
           Common Fields

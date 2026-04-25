@@ -125,6 +125,34 @@ function AlternativeMarketplace() {
           </li>
         </ul>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/support/alternative-app-marketplaces-eu/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Alternative app marketplaces in the EU
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/marketplacekit"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              MarketplaceKit framework
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

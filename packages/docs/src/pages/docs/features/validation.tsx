@@ -521,6 +521,54 @@ if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLE
           duplicate content delivery.
         </p>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/validating-receipts-with-the-app-store"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Validating receipts with the App Store
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/appstoreserverapi"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              App Store Server API
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Play Developer API · purchases.subscriptionsv2
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/rtdn-reference"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Real-time Developer Notifications
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

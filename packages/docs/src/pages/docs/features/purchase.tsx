@@ -2029,6 +2029,64 @@ func _ready() -> void:
           }}
         </LanguageTabs>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/in-app-purchase/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              In-App Purchase overview
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/in-app_purchase/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit 2 In-App Purchase
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/transaction"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit Transaction
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/integrate"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Integrate the Google Play Billing Library
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              BillingClient reference
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

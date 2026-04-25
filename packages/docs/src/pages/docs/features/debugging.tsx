@@ -282,6 +282,54 @@ console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
           </tbody>
         </table>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/xcode/setting-up-storekit-testing-in-xcode"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Setting up StoreKit Testing in Xcode
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/testing-in-app-purchases-with-sandbox"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Testing in-app purchases with sandbox
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/test"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Test Google Play Billing integration
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Play Billing Purchase reference
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

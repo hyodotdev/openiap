@@ -19,6 +19,16 @@ function PaymentModeIos() {
           PaymentMode
         </AnchorLink>
         <p>Payment mode for offers:</p>
+        <p className="type-link">
+          <strong>Native reference:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer/paymentmode-swift.struct"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · Product.SubscriptionOffer.PaymentMode
+          </a>
+        </p>
         <table className="doc-table">
           <thead>
             <tr>

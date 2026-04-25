@@ -25,6 +25,24 @@ function SubscriptionProduct() {
           base Product type with subscription-specific fields like pricing
           phases, introductory offers, and billing periods.
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · Product.SubscriptionInfo
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.SubscriptionOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · ProductDetails.SubscriptionOfferDetails
+          </a>
+        </p>
 
         <AnchorLink id="subscription-product-common" level="h3">
           Common Fields

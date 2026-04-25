@@ -26,6 +26,24 @@ function ExternalPurchaseLink() {
           payment using Apple&apos;s StoreKit <code>ExternalPurchase</code> API.
           Available from iOS 17.4+ (notice sheet) and iOS 18.2+ (custom links).
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/externalpurchase"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · StoreKit ExternalPurchase
+          </a>
+          {' · '}
+          <a
+            href="https://developer.apple.com/support/storekit-external-entitlement/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            External purchase entitlement
+          </a>
+        </p>
 
         <blockquote className="info-note">
           <p>

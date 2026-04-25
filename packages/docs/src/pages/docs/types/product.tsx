@@ -32,6 +32,24 @@ function Product() {
           </Link>
           , discriminated by the <code>platform</code> field.
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · StoreKit Product
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · ProductDetails
+          </a>
+        </p>
 
         <AnchorLink id="product-common" level="h3">
           Common Fields

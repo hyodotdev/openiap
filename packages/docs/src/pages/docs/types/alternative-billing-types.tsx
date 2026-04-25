@@ -25,6 +25,24 @@ function AlternativeBillingTypes() {
           Types for configuring alternative billing systems, primarily used for
           Android.
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.android.com/google/play/billing/alternative"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · Alternative billing
+          </a>
+          {' · '}
+          <a
+            href="https://support.google.com/googleplay/android-developer/answer/13821247"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · User Choice Billing
+          </a>
+        </p>
 
         <AnchorLink id="alternative-billing-mode-android" level="h3">
           AlternativeBillingModeAndroid{' '}

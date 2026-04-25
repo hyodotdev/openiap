@@ -226,6 +226,54 @@ kmpIapInstance.subscriptionBillingIssueListener
           <code>.inBillingRetryPeriod</code> or <code>.inGracePeriod</code>.
         </p>
       </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/message"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit.Message
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Message.Reason.billingIssue
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/reference/com/android/billingclient/api/Purchase#isSuspended()"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Purchase.isSuspended()
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions#suspended"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Suspended subscriptions
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

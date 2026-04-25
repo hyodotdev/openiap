@@ -39,6 +39,16 @@ function OneTimePurchaseOfferDetailAndroid() {
           . For implementation examples, see the{' '}
           <Link to="/docs/features/discount">Discounts feature guide</Link>.
         </p>
+        <p className="type-link">
+          <strong>Native reference:</strong>{' '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.OneTimePurchaseOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · ProductDetails.OneTimePurchaseOfferDetails
+          </a>
+        </p>
 
         <table className="doc-table">
           <thead>

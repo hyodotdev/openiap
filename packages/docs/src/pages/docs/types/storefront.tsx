@@ -30,6 +30,24 @@ function Storefront() {
           </Link>
           .
         </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/storefront"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · StoreKit Storefront
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/BillingConfig#getCountryCode()"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · BillingConfig.getCountryCode()
+          </a>
+        </p>
 
         <h3>Return shape</h3>
         <table className="doc-table">
