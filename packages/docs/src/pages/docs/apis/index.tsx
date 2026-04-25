@@ -70,8 +70,9 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'create-billing-program-reporting-details-android':
     '/docs/apis/android/create-billing-program-reporting-details-android',
   // Validation/Refund/Debugging moved to Features
-  'verify-purchase': '/docs/features/validation',
-  'verify-purchase-with-provider': '/docs/features/validation',
+  'verify-purchase': '/docs/features/validation#verify-purchase',
+  'verify-purchase-with-provider':
+    '/docs/features/validation#verify-purchase-with-provider',
   validation: '/docs/features/validation',
   refund: '/docs/features/refund',
   debugging: '/docs/features/debugging',
