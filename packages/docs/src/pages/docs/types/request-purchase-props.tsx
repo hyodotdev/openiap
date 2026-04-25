@@ -467,7 +467,10 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                   RequestSubscriptionIosProps
                 </AnchorLink>
                 <p>
-                  iOS subscriptions extend <code>RequestPurchaseIosProps</code>{' '}
+                  iOS subscriptions extend{' '}
+                  <Link to="/docs/types/request-purchase-props#request-purchase-ios-props">
+                    <code>RequestPurchaseIosProps</code>
+                  </Link>{' '}
                   with these additional subscription-only fields:
                 </p>
                 <table className="doc-table">

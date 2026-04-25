@@ -32,8 +32,11 @@ function BillingPrograms() {
         </AnchorLink>
         <p>
           Enum for different billing program types. Use with{' '}
-          <code>enableBillingProgramAndroid</code> in{' '}
-          <Link to="/docs/types/alternative-billing-types">
+          <Link to="/docs/types/billing-programs#billing-program-android">
+            <code>enableBillingProgramAndroid</code>
+          </Link>{' '}
+          in{' '}
+          <Link to="/docs/types/alternative-billing-types#init-connection-config">
             <code>InitConnectionConfig</code>
           </Link>
           :

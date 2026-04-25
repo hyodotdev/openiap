@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -20,9 +21,16 @@ function EnableBillingProgramAndroid() {
       </h1>
       <p>
         Enables a billing program for Android (Billing Library 8.2.0+). Pass it
-        as the <code>enableBillingProgramAndroid</code> field of{' '}
-        <code>InitConnectionConfig</code> when calling{' '}
-        <code>initConnection()</code> — there is no separate top-level call.
+        as the{' '}
+        <Link to="/docs/types/billing-programs#billing-program-android">
+          <code>enableBillingProgramAndroid</code>
+        </Link>{' '}
+        field of{' '}
+        <Link to="/docs/types/alternative-billing-types#init-connection-config">
+          <code>InitConnectionConfig</code>
+        </Link>{' '}
+        when calling <code>initConnection()</code> — there is no separate
+        top-level call.
       </p>
 
       <h2>Signature</h2>

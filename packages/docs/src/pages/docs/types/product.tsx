@@ -22,8 +22,15 @@ function Product() {
         </AnchorLink>
         <p>
           Represents a product available for purchase in the store. The type is
-          a union of <code>ProductIOS</code> and <code>ProductAndroid</code>,
-          discriminated by the <code>platform</code> field.
+          a union of{' '}
+          <Link to="/docs/types/product#product-ios">
+            <code>ProductIOS</code>
+          </Link>{' '}
+          and{' '}
+          <Link to="/docs/types/product#product-android">
+            <code>ProductAndroid</code>
+          </Link>
+          , discriminated by the <code>platform</code> field.
         </p>
 
         <AnchorLink id="product-common" level="h3">

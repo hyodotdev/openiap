@@ -378,18 +378,31 @@ await iap.request_purchase(props)`}</CodeBlock>
             <strong>
               <Link to="/docs/types">Types</Link>
             </strong>{' '}
-            — flat reference, one page per type (<code>Product</code>,{' '}
-            <code>Purchase</code>, <code>RequestPurchaseProps</code>, …). Same
-            iOS / Android grouping as APIs. Field tables auto-link to related
-            types so you can chase a shape without leaving the docs.
+            — flat reference, one page per type (
+            <Link to="/docs/types/product">
+              <code>Product</code>
+            </Link>
+            ,{' '}
+            <Link to="/docs/types/purchase">
+              <code>Purchase</code>
+            </Link>
+            ,{' '}
+            <Link to="/docs/types/request-purchase-props">
+              <code>RequestPurchaseProps</code>
+            </Link>
+            , …). Same iOS / Android grouping as APIs. Field tables auto-link to
+            related types so you can chase a shape without leaving the docs.
           </li>
           <li>
             <strong>
               <Link to="/docs/events">Events</Link> &{' '}
               <Link to="/docs/errors">Errors</Link>
             </strong>{' '}
-            — listener patterns and the unified <code>PurchaseError</code> codes
-            that every SDK normalizes to.
+            — listener patterns and the unified{' '}
+            <Link to="/docs/errors">
+              <code>PurchaseError</code>
+            </Link>{' '}
+            codes that every SDK normalizes to.
           </li>
         </ul>
         <p>
@@ -423,7 +436,10 @@ await iap.request_purchase(props)`}</CodeBlock>
           </li>
           <li>
             <Link to="/docs/errors">Errors</Link> — unified{' '}
-            <code>PurchaseError</code> codes
+            <Link to="/docs/errors">
+              <code>PurchaseError</code>
+            </Link>{' '}
+            codes
           </li>
         </ul>
       </section>

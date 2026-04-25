@@ -111,8 +111,14 @@ var success = await iap.init_connection(config)`}</CodeBlock>
           InitConnectionConfig
         </Link>{' '}
         for the full list of supported config fields (
-        <code>alternativeBillingModeAndroid</code> [deprecated],{' '}
-        <code>enableBillingProgramAndroid</code>).
+        <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
+          <code>alternativeBillingModeAndroid</code>
+        </Link>{' '}
+        [deprecated],{' '}
+        <Link to="/docs/types/billing-programs#billing-program-android">
+          <code>enableBillingProgramAndroid</code>
+        </Link>
+        ).
       </p>
     </div>
   );

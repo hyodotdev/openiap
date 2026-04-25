@@ -34,8 +34,11 @@ function AlternativeBillingTypes() {
         </AnchorLink>
         <div className="warning-box" style={{ marginBottom: '1rem' }}>
           <strong>Deprecated:</strong> Use{' '}
-          <code>enableBillingProgramAndroid</code> with{' '}
-          <Link to="/docs/types/billing-programs">
+          <Link to="/docs/types/billing-programs#billing-program-android">
+            <code>enableBillingProgramAndroid</code>
+          </Link>{' '}
+          with{' '}
+          <Link to="/docs/types/billing-programs#billing-program-android">
             <code>BillingProgramAndroid</code>
           </Link>{' '}
           instead.
@@ -113,7 +116,9 @@ function AlternativeBillingTypes() {
           <tbody>
             <tr>
               <td>
-                <code>enableBillingProgramAndroid</code>
+                <Link to="/docs/types/billing-programs#billing-program-android">
+                  <code>enableBillingProgramAndroid</code>
+                </Link>
               </td>
               <td>
                 <strong>(Recommended)</strong> Enable a specific billing program
@@ -125,13 +130,19 @@ function AlternativeBillingTypes() {
             </tr>
             <tr>
               <td>
-                <code>alternativeBillingModeAndroid</code>
+                <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
+                  <code>alternativeBillingModeAndroid</code>
+                </Link>
               </td>
               <td>
                 <span style={{ color: 'var(--text-warning)' }}>
                   (Deprecated)
                 </span>{' '}
-                Use <code>enableBillingProgramAndroid</code> instead.
+                Use{' '}
+                <Link to="/docs/types/billing-programs#billing-program-android">
+                  <code>enableBillingProgramAndroid</code>
+                </Link>{' '}
+                instead.
               </td>
             </tr>
           </tbody>

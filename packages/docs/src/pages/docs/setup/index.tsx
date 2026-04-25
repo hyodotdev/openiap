@@ -147,7 +147,10 @@ function SetupIndex() {
           </li>
           <li>
             <Link to="/docs/errors">Error Handling</Link> — unified{' '}
-            <code>PurchaseError</code> codes
+            <Link to="/docs/errors">
+              <code>PurchaseError</code>
+            </Link>{' '}
+            codes
           </li>
         </ul>
       </section>

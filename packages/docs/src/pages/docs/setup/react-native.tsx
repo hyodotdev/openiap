@@ -364,7 +364,10 @@ await endConnection();`}
           </a>
         </h2>
         <p>
-          Errors are automatically normalized to the <code>ErrorCode</code>{' '}
+          Errors are automatically normalized to the{' '}
+          <Link to="/docs/errors">
+            <code>ErrorCode</code>
+          </Link>{' '}
           enum. Use the provided helper functions:
         </p>
         <CodeBlock language="typescript">

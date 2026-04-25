@@ -22,8 +22,15 @@ function Purchase() {
         </AnchorLink>
         <p>
           Represents a completed or pending purchase transaction. The type is a
-          union of <code>PurchaseIOS</code> and <code>PurchaseAndroid</code>,
-          discriminated by the <code>platform</code> field.
+          union of{' '}
+          <Link to="/docs/types/purchase#purchase-ios">
+            <code>PurchaseIOS</code>
+          </Link>{' '}
+          and{' '}
+          <Link to="/docs/types/purchase#purchase-android">
+            <code>PurchaseAndroid</code>
+          </Link>
+          , discriminated by the <code>platform</code> field.
         </p>
 
         <AnchorLink id="purchase-state" level="h3">
