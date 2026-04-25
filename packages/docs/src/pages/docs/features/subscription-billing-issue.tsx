@@ -34,7 +34,6 @@ function SubscriptionBillingIssue() {
               <th>Platform</th>
               <th>Signal Source</th>
               <th>Delivery</th>
-              <th>Minimum Version</th>
             </tr>
           </thead>
           <tbody>
@@ -42,42 +41,55 @@ function SubscriptionBillingIssue() {
               <td>iOS / iPadOS</td>
               <td>
                 <code>StoreKit.Message.Reason.billingIssue</code>
+                <br />
+                <small>iOS 18.0+</small>
               </td>
               <td>Push, while app is active</td>
-              <td>iOS 18.0+</td>
             </tr>
             <tr>
               <td>Mac Catalyst</td>
               <td>
                 <code>StoreKit.Message.Reason.billingIssue</code>
+                <br />
+                <small>Mac Catalyst 18.0+</small>
               </td>
               <td>Push, while app is active</td>
-              <td>Mac Catalyst 18.0+</td>
             </tr>
             <tr>
               <td>Android (Play)</td>
               <td>
                 <code>Purchase.isSuspended</code>
+                <br />
+                <small>Play Billing Library 8.1+</small>
               </td>
               <td>
                 Poll via <code>getAvailablePurchases</code> or on{' '}
                 <code>onPurchasesUpdated</code>
               </td>
-              <td>Play Billing Library 8.1+</td>
             </tr>
             <tr>
               <td>Android (Meta Horizon)</td>
-              <td>Not available</td>
+              <td>
+                Not available
+                <br />
+                <small>Billing 7.0 compat SDK</small>
+              </td>
               <td>Never fires (silent no-op)</td>
-              <td>N/A — Billing 7.0 compat SDK</td>
             </tr>
             <tr>
-              <td>macOS / tvOS / watchOS / visionOS</td>
+              <td>
+                macOS
+                <br />
+                tvOS
+                <br />
+                watchOS
+                <br />
+                visionOS
+              </td>
               <td>
                 <code>StoreKit.Message</code> not available
               </td>
               <td>Never fires</td>
-              <td>N/A</td>
             </tr>
           </tbody>
         </table>

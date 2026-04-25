@@ -52,7 +52,11 @@ function ExternalPurchase() {
             <tr>
               <td>iOS</td>
               <td>External Purchase URL</td>
-              <td>iOS 17.4+ (Notice Sheet), iOS 18.2+ (New APIs)</td>
+              <td>
+                iOS 17.4+ (Notice Sheet)
+                <br />
+                iOS 18.2+ (New APIs)
+              </td>
               <td>StoreKit 2</td>
             </tr>
             <tr>
