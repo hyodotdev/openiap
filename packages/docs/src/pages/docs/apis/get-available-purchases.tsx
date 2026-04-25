@@ -61,7 +61,7 @@ const purchases = await getAvailablePurchases();
 for (const purchase of purchases) {
   const verified = await verifyOnServer(purchase);
   if (verified) {
-    await finishTransaction(purchase, false);
+    await finishTransaction({ purchase, isConsumable: false });
   }
 }`}</CodeBlock>
           ),

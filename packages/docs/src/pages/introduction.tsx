@@ -341,7 +341,7 @@ const subscription = purchaseUpdatedListener(async (purchase) => {
 
   // 5. Acknowledge the purchase
   // Android: auto-refunds after 3 days if not acknowledged
-  await finishTransaction(purchase, isConsumable);
+  await finishTransaction({ purchase, isConsumable });
 });
 
 // 6. Fetch products

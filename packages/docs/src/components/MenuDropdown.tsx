@@ -100,6 +100,7 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
         id={submenuContentId}
         className="menu-dropdown-content"
         data-expanded={isExpanded}
+        aria-hidden={!isExpanded}
       >
         <ul className="menu-dropdown-items menu-dropdown-items--nested">
           {group.items.map((item) => (
@@ -195,12 +196,13 @@ export function MenuDropdown({
         id={contentId}
         className="menu-dropdown-content"
         data-expanded={isExpanded}
+        aria-hidden={!isExpanded}
       >
         <ul className="menu-dropdown-items">
           {items.map((entry) =>
             isGroup(entry) ? (
               <SubMenu
-                key={`${titleTo}::group::${entry.label}`}
+                key={`${titleTo}::group::${entry.label}::${entry.items[0]?.to ?? ''}`}
                 group={entry}
                 onItemClick={onItemClick}
               />

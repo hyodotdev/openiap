@@ -125,7 +125,7 @@ purchaseUpdatedListener(async (purchase) => {
   if (!isValid) return;
 
   await grantEntitlement(purchase.productId);
-  await finishTransaction(purchase, /* isConsumable */ false);
+  await finishTransaction({ purchase, isConsumable: false });
 });
 
 // 4. Initiate a purchase.

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -24,21 +25,24 @@ function GetAppTransactionIOS() {
       <LanguageTabs>
         {{
           swift: (
-            <CodeBlock language="swift">{`func getAppTransactionIOS() async throws -> AppTransaction?
-
-struct AppTransaction {
-    let bundleId: String
-    let appVersion: String
-    let originalAppVersion: String
-    let originalPurchaseDate: Date
-    let environment: String  // "Sandbox" | "Production"
-    // iOS 18.4+ properties
-    let appTransactionId: String?
-    let originalPlatform: String?
-}`}</CodeBlock>
+            <CodeBlock language="swift">{`func getAppTransactionIOS() async throws -> AppTransactionIOS?`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <p className="type-link">
+        See:{' '}
+        <Link to="/docs/types/ios/app-transaction-ios">
+          <code>AppTransactionIOS</code>
+        </Link>{' '}
+        for the full field reference (<code>bundleId</code>,{' '}
+        <code>appVersion</code>, <code>originalAppVersion</code>,{' '}
+        <code>originalPurchaseDate</code>, <code>environment</code>,{' '}
+        <code>deviceVerification</code>, <code>deviceVerificationNonce</code>,{' '}
+        <code>signedDate</code>, <code>appId</code>, <code>appVersionId</code>,{' '}
+        <code>preorderDate</code>, plus iOS 18.4+ additions like{' '}
+        <code>appTransactionId</code> and <code>originalPlatform</code>).
+      </p>
     </div>
   );
 }

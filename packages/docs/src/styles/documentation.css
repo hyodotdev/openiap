@@ -237,15 +237,26 @@
 /* Collapse animation via grid-template-rows. The track collapses from
    1fr → 0fr (or vice-versa) and CSS interpolates intrinsic content
    height for free — no JS measurement, no clipping when nested
-   submenus expand inside the parent. */
+   submenus expand inside the parent. The visibility step is delayed
+   on collapse so the closing animation plays, then the inner links
+   drop out of the tab order / accessibility tree. */
 .menu-dropdown-content {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.25s ease-in-out;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    grid-template-rows 0.25s ease-in-out,
+    visibility 0s 0.25s;
 }
 
 .menu-dropdown-content[data-expanded='true'] {
   grid-template-rows: 1fr;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    grid-template-rows 0.25s ease-in-out,
+    visibility 0s 0s;
 }
 
 .menu-dropdown-content > .menu-dropdown-items {

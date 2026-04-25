@@ -24,7 +24,12 @@ function FinishTransaction() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`finishTransaction(purchase: Purchase, isConsumable?: boolean): Promise<void>`}</CodeBlock>
+            <CodeBlock language="typescript">{`finishTransaction(args: MutationFinishTransactionArgs): Promise<void>
+
+interface MutationFinishTransactionArgs {
+  purchase: Purchase;
+  isConsumable?: boolean | null;
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`func finishTransaction(_ purchase: Purchase) async throws`}</CodeBlock>
@@ -57,7 +62,7 @@ purchaseUpdatedListener(async (purchase) => {
   await grantProduct(purchase.productId);
 
   const isConsumable = purchase.productId.includes('coins');
-  await finishTransaction(purchase, isConsumable);
+  await finishTransaction({ purchase, isConsumable });
 });`}</CodeBlock>
           ),
           swift: (

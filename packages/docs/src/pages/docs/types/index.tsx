@@ -67,15 +67,16 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'subscription-period': '/docs/types/ios/subscription-period-ios',
   'subscription-status': '/docs/types/ios/subscription-status-ios',
   'discount-ios-deprecated': '/docs/types/ios/discount-ios',
-  // Top-level anchors on the old combined types page
-  common: '/docs/types',
-  'platform-specific': '/docs/types',
-  ios: '/docs/types',
-  android: '/docs/types',
-  offer: '/docs/types',
-  request: '/docs/types',
-  alternative: '/docs/types',
-  verification: '/docs/types',
+  // Top-level anchors on the old combined types page — map to the
+  // matching section on the new types index when one exists.
+  common: '/docs/types#common',
+  'platform-specific': '/docs/types#ios-types',
+  ios: '/docs/types#ios-types',
+  android: '/docs/types#android-types',
+  alternative: '/docs/types#alternative-billing',
+  verification: '/docs/types#validation',
+  offer: '/docs/types#common',
+  request: '/docs/types#common',
 };
 
 interface TypeRow {

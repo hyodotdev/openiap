@@ -82,7 +82,7 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'ios-apis': '/docs/apis#ios-functions',
   'android-apis': '/docs/apis#android-functions',
   terminology: '/docs/apis#terminology',
-  'request-apis': '/docs/apis/request-purchase#request-apis',
+  'request-apis': '/docs/apis/fetch-products#request-apis',
   'transaction-vs-purchase': '/docs/apis#transaction-vs-purchase',
   'naming-convention': '/docs/apis#naming-convention',
 };

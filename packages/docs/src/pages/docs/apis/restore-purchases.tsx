@@ -69,7 +69,7 @@ const handleRestore = async () => {
     if (!result.isValid) continue;
 
     await grantProduct(purchase.productId);
-    await finishTransaction(purchase, false);
+    await finishTransaction({ purchase, isConsumable: false });
   }
 };`}</CodeBlock>
           ),
