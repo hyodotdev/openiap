@@ -11,12 +11,12 @@ function BillingPrograms() {
   return (
     <div className="doc-page">
       <SEO
-        title="Billing Programs Types"
-        description="Billing Programs Types type definition and field reference."
+        title="Billing Programs"
+        description="Billing Programs type definitions and field reference."
         path="/docs/types/billing-programs"
-        keywords="Billing Programs Types, OpenIAP types, Billing  Programs  Types"
+        keywords="BillingProgramAndroid, OpenIAP types, Billing Programs, External Payments"
       />
-      <h1>Billing Programs Types</h1>
+      <h1>Billing Programs</h1>
       <section>
         <AnchorLink id="billing-programs" level="h2">
           Billing Programs (Android 8.2.0+)
@@ -372,16 +372,16 @@ developerProvidedBillingListenerAndroid((details) => {
 });
 
 // Check availability (Japan only)
-const result = await isBillingProgramAvailableAndroid('EXTERNAL_PAYMENTS');
+const result = await isBillingProgramAvailableAndroid('external-payments');
 if (result.isAvailable) {
   // Purchase with developer billing option
   await requestPurchase({
     google: {
       skus: ['product_id'],
       developerBillingOption: {
-        billingProgram: 'EXTERNAL_PAYMENTS',
+        billingProgram: 'external-payments',
         linkUri: 'https://your-site.com/checkout',
-        launchMode: 'LAUNCH_IN_EXTERNAL_BROWSER_OR_APP',
+        launchMode: 'launch-in-external-browser-or-app',
       },
     },
   });

@@ -82,7 +82,7 @@ await requestPurchase({
         request: RequestPurchasePropsByPlatforms(
             apple: RequestPurchaseIosProps(sku: "com.app.premium")
         ),
-        type: .inapp
+        type: .inApp
     )
 )`}</CodeBlock>
           ),
@@ -107,7 +107,15 @@ await requestPurchase({
 )`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase('com.app.premium');`}</CodeBlock>
+            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase(
+  RequestPurchaseProps(
+    request: RequestPurchasePropsByPlatforms(
+      apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
+      google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
+    ),
+    type: ProductQueryType.inApp,
+  ),
+);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var props = RequestPurchaseProps.new()

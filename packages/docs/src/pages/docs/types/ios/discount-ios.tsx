@@ -12,7 +12,7 @@ function DiscountIos() {
         title="DiscountIOS"
         description="DiscountIOS type definition and field reference."
         path="/docs/types/ios/discount-ios"
-        keywords="DiscountIOS, OpenIAP types, Discount I O S"
+        keywords="DiscountIOS, OpenIAP types, iOS Discount"
       />
       <h1>DiscountIOS</h1>
       <section>

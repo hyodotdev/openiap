@@ -149,8 +149,9 @@ function SubscriptionProduct() {
                         <code>typeIOS</code>
                       </td>
                       <td>
-                        Detailed product type (e.g.,{' '}
-                        <code>auto-renewable-subscription</code>)
+                        Detailed product type — for subscriptions this is almost
+                        always <code>AutoRenewableSubscription</code> (or{' '}
+                        <code>NonRenewingSubscription</code>).
                       </td>
                     </tr>
                     <tr>

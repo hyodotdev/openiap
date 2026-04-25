@@ -243,7 +243,7 @@ function Docs() {
                     },
                     {
                       to: '/docs/types/ios/payment-mode-ios',
-                      label: 'PaymentMode',
+                      label: 'PaymentModeIOS',
                     },
                     {
                       to: '/docs/types/ios/subscription-status-ios',
@@ -251,7 +251,7 @@ function Docs() {
                     },
                     {
                       to: '/docs/types/ios/app-transaction-ios',
-                      label: 'AppTransaction',
+                      label: 'AppTransactionIOS',
                     },
                   ],
                 },

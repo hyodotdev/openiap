@@ -88,10 +88,16 @@ val products = kmpIAP.fetchProducts(
 )`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`final List<Product> products = await FlutterInappPurchase.instance.fetchProducts(
+            <CodeBlock language="dart">{`final FetchProductsResult result = await FlutterInappPurchase.instance.fetchProducts(
   skus: ['com.app.premium'],
   type: ProductQueryType.InApp,
-);`}</CodeBlock>
+);
+
+// fetchProducts returns a sealed FetchProductsResult — unwrap by variant.
+final List<Product> products = switch (result) {
+  FetchProductsResultProducts(value: final list) => list ?? <Product>[],
+  _ => <Product>[],
+};`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var request = ProductRequest.new()
