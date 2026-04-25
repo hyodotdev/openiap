@@ -48,12 +48,20 @@ function RestorePurchases() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import {
+            <CodeBlock language="typescript">{`// expo-iap
+import {
   restorePurchases,
   getAvailablePurchases,
   verifyPurchase,
   finishTransaction,
 } from 'expo-iap';
+// Same API in react-native-iap:
+// import {
+//   restorePurchases,
+//   getAvailablePurchases,
+//   verifyPurchase,
+//   finishTransaction,
+// } from 'react-native-iap';
 
 const handleRestore = async () => {
   await restorePurchases();
@@ -71,7 +79,39 @@ const handleRestore = async () => {
     await grantProduct(purchase.productId);
     await finishTransaction({ purchase, isConsumable: false });
   }
-};`}</CodeBlock>
+};
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP's restorePurchases() and getAvailablePurchases() both return
+// Promise<void> and update the reactive availablePurchases array — react
+// to it inside an effect.
+import { useIAP } from 'expo-iap';
+
+function RestoreButton() {
+  const {
+    availablePurchases,
+    restorePurchases,
+    getAvailablePurchases,
+    finishTransaction,
+  } = useIAP();
+
+  const handleRestore = async () => {
+    await restorePurchases();
+    await getAvailablePurchases();
+  };
+
+  useEffect(() => {
+    (async () => {
+      for (const purchase of availablePurchases) {
+        const verified = await verifyOnServer(purchase);
+        if (!verified) continue;
+        await finishTransaction({ purchase, isConsumable: false });
+      }
+    })();
+  }, [availablePurchases, finishTransaction]);
+
+  return <Button title="Restore Purchases" onPress={handleRestore} />;
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`try await OpenIapModule.shared.restorePurchases()`}</CodeBlock>

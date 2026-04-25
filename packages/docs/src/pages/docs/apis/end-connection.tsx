@@ -48,7 +48,10 @@ function EndConnection() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { endConnection } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { endConnection } from 'expo-iap';
+// Same API in react-native-iap:
+// import { endConnection } from 'react-native-iap';
 
 // In React useEffect cleanup
 useEffect(() => {
@@ -57,7 +60,20 @@ useEffect(() => {
   return () => {
     void endConnection();
   };
-}, []);`}</CodeBlock>
+}, []);
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP automatically calls endConnection() when the component unmounts,
+// so you only need the module-level call when you want to tear the
+// connection down outside of the hook's lifecycle (e.g. on sign-out).
+import { useIAP } from 'expo-iap';
+
+function PurchaseScreen() {
+  const { connected } = useIAP();
+
+  // No explicit endConnection() call needed — the hook handles cleanup.
+  return <Text>Store ready: {String(connected)}</Text>;
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`try await OpenIapModule.shared.endConnection()`}</CodeBlock>

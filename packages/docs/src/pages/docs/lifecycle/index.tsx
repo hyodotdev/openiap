@@ -66,8 +66,14 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           The store processes payment. Your app receives updates via{' '}
-          <code>purchaseUpdatedListener</code> or{' '}
-          <code>purchaseErrorListener</code>.
+          <Link to="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </Link>{' '}
+          or{' '}
+          <Link to="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </Link>
+          .
         </p>
 
         <AnchorLink id="purchase-verification" level="h3">

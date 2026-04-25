@@ -45,10 +45,27 @@ function HasActiveSubscriptions() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { hasActiveSubscriptions } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { hasActiveSubscriptions } from 'expo-iap';
+// Same API in react-native-iap:
+// import { hasActiveSubscriptions } from 'react-native-iap';
 
 const isPremium = await hasActiveSubscriptions();
-const hasProPlan = await hasActiveSubscriptions(['pro_monthly', 'pro_yearly']);`}</CodeBlock>
+const hasProPlan = await hasActiveSubscriptions(['pro_monthly', 'pro_yearly']);
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useIAP } from 'expo-iap';
+
+function PremiumGate({ children }: { children: React.ReactNode }) {
+  const { hasActiveSubscriptions } = useIAP();
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    void hasActiveSubscriptions().then(setIsPremium);
+  }, [hasActiveSubscriptions]);
+
+  return isPremium ? <>{children}</> : <Text>Subscribe to unlock</Text>;
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`let isPremium = try await OpenIapModule.shared.hasActiveSubscriptions()`}</CodeBlock>

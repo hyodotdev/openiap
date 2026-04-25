@@ -490,42 +490,54 @@ function Home() {
                   to="/docs/events/purchase-updated-listener"
                   className="spec-item"
                 >
-                  <code>purchaseUpdatedListener</code>
+                  <Link to="/docs/events/purchase-updated-listener">
+                    <code>purchaseUpdatedListener</code>
+                  </Link>
                   <span>Purchase state changes</span>
                 </Link>
                 <Link
                   to="/docs/events/purchase-error-listener"
                   className="spec-item"
                 >
-                  <code>purchaseErrorListener</code>
+                  <Link to="/docs/events/purchase-error-listener">
+                    <code>purchaseErrorListener</code>
+                  </Link>
                   <span>Error handling</span>
                 </Link>
                 <Link
                   to="/docs/events/ios/promoted-product-listener-ios"
                   className="spec-item"
                 >
-                  <code>promotedProductListenerIOS</code>
+                  <Link to="/docs/events/ios/promoted-product-listener-ios">
+                    <code>promotedProductListenerIOS</code>
+                  </Link>
                   <span>App Store promoted products</span>
                 </Link>
                 <Link
                   to="/docs/events/android/user-choice-billing-listener-android"
                   className="spec-item"
                 >
-                  <code>userChoiceBillingListenerAndroid</code>
+                  <Link to="/docs/events/android/user-choice-billing-listener-android">
+                    <code>userChoiceBillingListenerAndroid</code>
+                  </Link>
                   <span>User Choice Billing selection</span>
                 </Link>
                 <Link
                   to="/docs/events/android/developer-provided-billing-listener-android"
                   className="spec-item"
                 >
-                  <code>developerProvidedBillingListener</code>
+                  <Link to="/docs/events/android/developer-provided-billing-listener-android">
+                    <code>developerProvidedBillingListener</code>
+                  </Link>
                   <span>External billing choice</span>
                 </Link>
                 <Link
                   to="/docs/events/subscription-billing-issue-listener"
                   className="spec-item"
                 >
-                  <code>subscriptionBillingIssueListener</code>
+                  <Link to="/docs/events/subscription-billing-issue-listener">
+                    <code>subscriptionBillingIssueListener</code>
+                  </Link>
                   <span>Suspended / retry subscriptions</span>
                 </Link>
               </div>

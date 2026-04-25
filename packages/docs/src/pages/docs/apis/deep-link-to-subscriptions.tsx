@@ -54,12 +54,37 @@ interface DeepLinkOptions {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { deepLinkToSubscriptions } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { deepLinkToSubscriptions } from 'expo-iap';
+// Same API in react-native-iap:
+// import { deepLinkToSubscriptions } from 'react-native-iap';
 
 await deepLinkToSubscriptions({
   skuAndroid: 'com.app.premium',
   packageNameAndroid: 'com.yourcompany.app',
-});`}</CodeBlock>
+});
+
+// --- Or alongside the useIAP() hook (also exported from react-native-iap) ---
+// deepLinkToSubscriptions is a module-level helper; useIAP doesn't expose it
+// on the hook return, so call the module function from inside your
+// component (the hook still owns the connection lifecycle).
+import { useIAP } from 'expo-iap';
+
+function ManageSubscriptionsButton() {
+  useIAP();
+
+  return (
+    <Button
+      title="Manage subscriptions"
+      onPress={() =>
+        deepLinkToSubscriptions({
+          skuAndroid: 'com.app.premium',
+          packageNameAndroid: 'com.yourcompany.app',
+        })
+      }
+    />
+  );
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`try await OpenIapModule.shared.deepLinkToSubscriptions()`}</CodeBlock>

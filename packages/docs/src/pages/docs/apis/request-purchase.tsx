@@ -91,7 +91,10 @@ type RequestPurchaseProps =
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { requestPurchase } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { requestPurchase } from 'expo-iap';
+// Same API in react-native-iap:
+// import { requestPurchase } from 'react-native-iap';
 
 // One-time product
 await requestPurchase({
@@ -112,7 +115,35 @@ await requestPurchase({
     },
   },
   type: 'subs',
-});`}</CodeBlock>
+});
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP wires the purchase listeners for you and exposes the same
+// requestPurchase function — handle the result inside onPurchaseSuccess.
+import { useIAP } from 'expo-iap';
+
+function BuyButton({ sku }: { sku: string }) {
+  const { requestPurchase } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      // verify + finishTransaction here
+    },
+    onPurchaseError: (error) => {
+      console.warn('Purchase failed', error);
+    },
+  });
+
+  return (
+    <Button
+      title="Buy"
+      onPress={() =>
+        requestPurchase({
+          request: { apple: { sku }, google: { skus: [sku] } },
+          type: 'in-app',
+        })
+      }
+    />
+  );
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`try await OpenIapModule.shared.requestPurchase(
@@ -142,7 +173,27 @@ await requestPurchase({
         ),
         type = ProductQueryType.InApp
     )
-)`}</CodeBlock>
+)
+
+// --- Or via the DSL API ---
+// Platform-specific options are configured inside ios { } / android { }
+// blocks; you can include either or both depending on which stores you ship.
+val purchase = kmpIAP.requestPurchase {
+    ios {
+        sku = "com.app.premium"
+        quantity = 1
+    }
+    android {
+        skus = listOf("com.app.premium")
+    }
+}
+
+// Single-platform DSL (Android only)
+kmpIAP.requestPurchase {
+    android {
+        skus = listOf("com.app.premium")
+    }
+}`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase(
@@ -153,6 +204,28 @@ await requestPurchase({
     ),
     type: ProductQueryType.InApp,
   ),
+);
+
+// --- Or via the builder DSL ---
+// requestPurchaseWithBuilder mirrors the props above but lets you assign
+// platform-specific fields fluently inside the build closure.
+final iap = FlutterInappPurchase.instance;
+await iap.requestPurchaseWithBuilder(
+  build: (builder) {
+    builder
+      ..type = ProductQueryType.InApp
+      ..android.skus = ['com.app.premium']
+      ..ios.sku = 'com.app.premium';
+  },
+);
+
+// Single-platform builder DSL (Android only)
+await iap.requestPurchaseWithBuilder(
+  build: (builder) {
+    builder
+      ..type = ProductQueryType.InApp
+      ..android.skus = ['com.app.premium'];
+  },
 );`}</CodeBlock>
           ),
           gdscript: (
@@ -170,8 +243,14 @@ await iap.request_purchase(props)`}</CodeBlock>
         <p>
           <strong>Important:</strong> requestPurchase is event-based, not
           promise-based. Listen for the result via{' '}
-          <code>purchaseUpdatedListener</code> /{' '}
-          <code>purchaseErrorListener</code>.
+          <Link to="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </Link>{' '}
+          /{' '}
+          <Link to="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </Link>
+          .
         </p>
       </div>
 

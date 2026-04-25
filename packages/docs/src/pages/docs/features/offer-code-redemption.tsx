@@ -79,7 +79,9 @@ function OfferCodeRedemption() {
                   <li>Handled entirely by the iOS system</li>
                   <li>
                     Purchase updates delivered through{' '}
-                    <code>purchaseUpdatedListener</code>
+                    <Link to="/docs/events/purchase-updated-listener">
+                      <code>purchaseUpdatedListener</code>
+                    </Link>
                   </li>
                 </ul>
 
@@ -446,7 +448,9 @@ func redeem_code() -> void:
                   <li>User enters code in the Play Store</li>
                   <li>
                     Purchase updates delivered through{' '}
-                    <code>purchaseUpdatedListener</code>
+                    <Link to="/docs/events/purchase-updated-listener">
+                      <code>purchaseUpdatedListener</code>
+                    </Link>
                   </li>
                 </ul>
 

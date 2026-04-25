@@ -103,7 +103,10 @@ type FetchProductsResult =
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { fetchProducts } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { fetchProducts } from 'expo-iap';
+// Same API in react-native-iap:
+// import { fetchProducts } from 'react-native-iap';
 
 // Fetch one-time products
 const products = await fetchProducts({
@@ -115,7 +118,31 @@ const products = await fetchProducts({
 const subscriptions = await fetchProducts({
   skus: ['com.app.monthly', 'com.app.yearly'],
   type: 'subs',
-});`}</CodeBlock>
+});
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// The hook exposes fetchProducts plus a reactive products array that is
+// populated whenever fetchProducts resolves.
+import { useIAP } from 'expo-iap';
+
+function ProductList() {
+  const { products, fetchProducts } = useIAP();
+
+  useEffect(() => {
+    void fetchProducts({
+      skus: ['com.app.coins_100', 'com.app.premium'],
+      type: 'in-app',
+    });
+  }, [fetchProducts]);
+
+  return (
+    <View>
+      {products.map((p) => (
+        <Text key={p.id}>{p.title} — {p.displayPrice}</Text>
+      ))}
+    </View>
+  );
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`let products = try await OpenIapModule.shared.fetchProducts(

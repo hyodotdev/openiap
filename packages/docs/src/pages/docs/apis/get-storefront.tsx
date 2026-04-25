@@ -45,10 +45,31 @@ function GetStorefront() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { getStorefront } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { getStorefront } from 'expo-iap';
+// Same API in react-native-iap:
+// import { getStorefront } from 'react-native-iap';
 
 const countryCode = await getStorefront();
-console.log(countryCode); // "US", "JP", "GB", etc.`}</CodeBlock>
+console.log(countryCode); // "US", "JP", "GB", etc.
+
+// --- Or alongside the useIAP() hook (also exported from react-native-iap) ---
+// getStorefront is a module-level helper; useIAP doesn't expose it on the
+// hook return, so call the module function from inside your component once
+// the hook reports the connection is ready.
+import { useIAP } from 'expo-iap';
+
+function StorefrontBadge() {
+  const { connected } = useIAP();
+  const [country, setCountry] = useState('');
+
+  useEffect(() => {
+    if (!connected) return;
+    void getStorefront().then(setCountry);
+  }, [connected]);
+
+  return <Text>Storefront: {country}</Text>;
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`let countryCode = try await OpenIapModule.shared.getStorefront()`}</CodeBlock>

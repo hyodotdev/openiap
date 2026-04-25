@@ -37,10 +37,27 @@ function EnableBillingProgramAndroid() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`await initConnection({
+            <CodeBlock language="typescript">{`// expo-iap
+import { initConnection } from 'expo-iap';
+// Same API in react-native-iap:
+// import { initConnection } from 'react-native-iap';
+
+await initConnection({
   enableBillingProgramAndroid: 'external-offer',
   // 'user-choice-billing' | 'external-content-link' | 'external-offer' | 'external-payments'
-});`}</CodeBlock>
+});
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP auto-connects on mount and accepts the same enableBillingProgramAndroid
+// option directly, so the billing program is wired without an explicit
+// initConnection() call.
+import { useIAP } from 'expo-iap';
+
+function App() {
+  useIAP({ enableBillingProgramAndroid: 'external-offer' });
+
+  return <Root />;
+}`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`openIapStore.initConnection(

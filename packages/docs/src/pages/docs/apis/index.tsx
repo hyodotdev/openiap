@@ -623,8 +623,14 @@ function APIsIndex() {
               not rely on their return values for actual purchase results
             </strong>
             . Instead, listen for events through{' '}
-            <code>purchaseUpdatedListener</code> or{' '}
-            <code>purchaseErrorListener</code>.
+            <Link to="/docs/events/purchase-updated-listener">
+              <code>purchaseUpdatedListener</code>
+            </Link>{' '}
+            or{' '}
+            <Link to="/docs/events/purchase-error-listener">
+              <code>purchaseErrorListener</code>
+            </Link>
+            .
           </p>
           <p>
             This is because Apple's purchase system is fundamentally

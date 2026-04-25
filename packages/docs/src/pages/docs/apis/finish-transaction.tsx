@@ -53,7 +53,10 @@ interface MutationFinishTransactionArgs {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { finishTransaction, purchaseUpdatedListener } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { finishTransaction, purchaseUpdatedListener } from 'expo-iap';
+// Same API in react-native-iap:
+// import { finishTransaction, purchaseUpdatedListener } from 'react-native-iap';
 
 purchaseUpdatedListener(async (purchase) => {
   const verified = await verifyOnServer(purchase);
@@ -63,7 +66,27 @@ purchaseUpdatedListener(async (purchase) => {
 
   const isConsumable = purchase.productId.includes('coins');
   await finishTransaction({ purchase, isConsumable });
-});`}</CodeBlock>
+});
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP wires the purchase listener for you; finish the transaction inside
+// the onPurchaseSuccess callback.
+import { useIAP } from 'expo-iap';
+
+function PurchaseScreen() {
+  const { finishTransaction } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      const verified = await verifyOnServer(purchase);
+      if (!verified) return;
+
+      await grantProduct(purchase.productId);
+      const isConsumable = purchase.productId.includes('coins');
+      await finishTransaction({ purchase, isConsumable });
+    },
+  });
+
+  return null;
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`try await OpenIapModule.shared.finishTransaction(purchase, isConsumable: false)`}</CodeBlock>
@@ -72,7 +95,22 @@ purchaseUpdatedListener(async (purchase) => {
             <CodeBlock language="kotlin">{`openIapStore.finishTransaction(purchase, isConsumable = false)`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`kmpIAP.finishTransaction(purchase, isConsumable = false)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`kmpIAP.finishTransaction(purchase, isConsumable = false)
+
+// --- Or via the DSL API ---
+// requestPurchase { } returns a Purchase you pass through
+// .toPurchaseInput() into finishTransaction. Use isConsumable = true for
+// consumables, false for subscriptions / non-consumables.
+val purchase = kmpIAP.requestPurchase {
+    ios { sku = "com.app.coins_100" }
+    android { skus = listOf("com.app.coins_100") }
+}
+
+// After server-side validation:
+kmpIAP.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = true
+)`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`await FlutterInappPurchase.instance.finishTransaction(purchase);`}</CodeBlock>

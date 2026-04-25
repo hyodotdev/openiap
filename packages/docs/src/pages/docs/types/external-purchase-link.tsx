@@ -30,8 +30,12 @@ function ExternalPurchaseLink() {
         <blockquote className="info-note">
           <p>
             <strong>Important:</strong> External purchase links bypass StoreKit
-            completely. No <code>purchaseUpdatedListener</code> will fire. You
-            must implement deep links and server-side verification.
+            completely. No{' '}
+            <Link to="/docs/events/purchase-updated-listener">
+              <code>purchaseUpdatedListener</code>
+            </Link>{' '}
+            will fire. You must implement deep links and server-side
+            verification.
           </p>
         </blockquote>
 

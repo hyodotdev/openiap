@@ -48,7 +48,10 @@ function GetActiveSubscriptions() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { getActiveSubscriptions } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { getActiveSubscriptions } from 'expo-iap';
+// Same API in react-native-iap:
+// import { getActiveSubscriptions } from 'react-native-iap';
 
 const subscriptions = await getActiveSubscriptions();
 
@@ -57,6 +60,27 @@ for (const sub of subscriptions) {
   if (sub.renewalInfoIOS?.willAutoRenew === false) {
     console.log('Subscription cancelled, will not renew');
   }
+}
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP exposes getActiveSubscriptions plus a reactive activeSubscriptions
+// list that is refreshed whenever the call resolves.
+import { useIAP } from 'expo-iap';
+
+function SubscriptionStatus() {
+  const { activeSubscriptions, getActiveSubscriptions } = useIAP();
+
+  useEffect(() => {
+    void getActiveSubscriptions();
+  }, [getActiveSubscriptions]);
+
+  return (
+    <View>
+      {activeSubscriptions.map((sub) => (
+        <Text key={sub.productId}>{sub.productId}</Text>
+      ))}
+    </View>
+  );
 }`}</CodeBlock>
           ),
           swift: (

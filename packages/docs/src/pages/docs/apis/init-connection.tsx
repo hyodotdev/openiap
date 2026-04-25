@@ -49,7 +49,10 @@ function InitConnection() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { initConnection } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { initConnection } from 'expo-iap';
+// Same API in react-native-iap:
+// import { initConnection } from 'react-native-iap';
 
 // Standard connection
 await initConnection();
@@ -57,7 +60,22 @@ await initConnection();
 // Android with a billing program (preferred — see InitConnectionConfig)
 await initConnection({
   enableBillingProgramAndroid: 'external-offer',
-});`}</CodeBlock>
+});
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP auto-connects on mount and disconnects on unmount, so you almost
+// never need to call initConnection() yourself. Pass connection options
+// (e.g. enableBillingProgramAndroid) to the hook directly, and read the
+// reactive "connected" flag from its return value.
+import { useIAP } from 'expo-iap';
+
+function PurchaseScreen() {
+  const { connected } = useIAP({
+    enableBillingProgramAndroid: 'external-offer',
+  });
+
+  return <Text>Store ready: {String(connected)}</Text>;
+}`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`import OpenIap

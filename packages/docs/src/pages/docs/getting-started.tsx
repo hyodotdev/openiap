@@ -235,6 +235,25 @@ kmpIAP.requestPurchase(
         ),
         type = ProductQueryType.InApp
     )
+)
+
+// --- Or via the DSL API ---
+// Same flow, but platform options live inside ios { } / android { }
+// blocks. The call returns the resulting Purchase, which you pipe through
+// .toPurchaseInput() into finishTransaction.
+val purchase = kmpIAP.requestPurchase {
+    ios {
+        sku = "com.app.premium"
+        quantity = 1
+    }
+    android {
+        skus = listOf("com.app.premium")
+    }
+}
+
+kmpIAP.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = false
 )`}</CodeBlock>
             ),
             dart: (
@@ -267,6 +286,18 @@ await iap.requestPurchase(
     ),
     type: ProductQueryType.InApp,
   ),
+);
+
+// --- Or via the builder DSL ---
+// requestPurchaseWithBuilder accepts a build closure; assign type and
+// platform-specific fields fluently with cascade operators.
+await iap.requestPurchaseWithBuilder(
+  build: (builder) {
+    builder
+      ..type = ProductQueryType.InApp
+      ..android.skus = ['com.app.premium']
+      ..ios.sku = 'com.app.premium';
+  },
 );`}</CodeBlock>
             ),
             gdscript: (

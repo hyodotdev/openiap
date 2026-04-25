@@ -54,7 +54,10 @@ interface PurchaseOptions {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { getAvailablePurchases, finishTransaction } from 'expo-iap';
+            <CodeBlock language="typescript">{`// expo-iap
+import { getAvailablePurchases, finishTransaction } from 'expo-iap';
+// Same API in react-native-iap:
+// import { getAvailablePurchases, finishTransaction } from 'react-native-iap';
 
 const purchases = await getAvailablePurchases();
 
@@ -63,6 +66,33 @@ for (const purchase of purchases) {
   if (verified) {
     await finishTransaction({ purchase, isConsumable: false });
   }
+}
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP's getAvailablePurchases() returns Promise<void> and updates the
+// reactive availablePurchases array — process new entries inside an effect.
+import { useIAP } from 'expo-iap';
+
+function PendingPurchases() {
+  const { availablePurchases, getAvailablePurchases, finishTransaction } =
+    useIAP();
+
+  useEffect(() => {
+    void getAvailablePurchases();
+  }, [getAvailablePurchases]);
+
+  useEffect(() => {
+    (async () => {
+      for (const purchase of availablePurchases) {
+        const verified = await verifyOnServer(purchase);
+        if (verified) {
+          await finishTransaction({ purchase, isConsumable: false });
+        }
+      }
+    })();
+  }, [availablePurchases, finishTransaction]);
+
+  return null;
 }`}</CodeBlock>
           ),
           swift: (
