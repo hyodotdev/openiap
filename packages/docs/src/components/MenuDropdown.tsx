@@ -73,29 +73,24 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
 
   return (
     <li className="menu-dropdown menu-dropdown--nested">
-      <div
+      {/* Single disclosure button — both halves do the same thing, so
+          collapsing into one element keeps the keyboard tab order at one
+          stop per group instead of two redundant ones. */}
+      <button
+        type="button"
+        onClick={toggleExpanded}
         className={`menu-dropdown-header ${isAnyChildActive ? 'group-active' : ''}`}
+        aria-expanded={isExpanded}
+        aria-controls={submenuContentId}
+        aria-label={`Toggle ${group.label} submenu`}
       >
-        <button
-          type="button"
-          onClick={toggleExpanded}
-          className="menu-dropdown-title menu-dropdown-title--nested"
-          aria-expanded={isExpanded}
-          aria-controls={submenuContentId}
-        >
+        <span className="menu-dropdown-title menu-dropdown-title--nested">
           {group.label}
-        </button>
-        <button
-          type="button"
-          onClick={toggleExpanded}
-          className="menu-dropdown-toggle"
-          aria-label={`Toggle ${group.label} submenu`}
-          aria-expanded={isExpanded}
-          aria-controls={submenuContentId}
-        >
+        </span>
+        <span className="menu-dropdown-toggle" aria-hidden="true">
           <Chevron isExpanded={isExpanded} />
-        </button>
-      </div>
+        </span>
+      </button>
       <div
         id={submenuContentId}
         className="menu-dropdown-content"

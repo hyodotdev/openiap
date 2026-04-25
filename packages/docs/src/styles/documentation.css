@@ -167,13 +167,24 @@
   background: rgba(164, 116, 101, 0.15);
 }
 
-/* Menu Dropdown styles for sidebar */
+/* Menu Dropdown styles for sidebar.
+   `.menu-dropdown-header` may render as either a <div> (top-level
+   MenuDropdown — wraps a separate nav button + toggle button) or a
+   <button> (nested SubMenu — single disclosure button so a11y tab
+   order is one stop per group). The reset rules cover the button case. */
 .menu-dropdown-header {
   display: flex;
   align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: inherit;
   padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm)
     calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg));
-  border-left: 2px solid transparent;
   transition: all 0.15s ease;
 }
 
