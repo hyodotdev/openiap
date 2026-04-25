@@ -2810,7 +2810,7 @@ func _ready_user_choice() -> void:
             <Link to="/docs/features/alternative-marketplace">
               Alternative Marketplace
             </Link>{' '}
-            - Onsite &amp; alternative billing flows
+            - Onside &amp; alternative billing flows
           </li>
           <li>
             <Link to="/docs/types/alternative-billing-types">
