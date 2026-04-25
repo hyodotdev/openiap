@@ -32,7 +32,7 @@ interface MutationFinishTransactionArgs {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func finishTransaction(_ purchase: Purchase) async throws`}</CodeBlock>
+            <CodeBlock language="swift">{`func finishTransaction(_ purchase: Purchase, isConsumable: Bool = false) async throws`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>

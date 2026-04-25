@@ -1083,11 +1083,11 @@ function Docs() {
           />
           <Route
             path="apis/validation"
-            element={<Navigate to="/docs/features/validation" replace />}
+            element={<NavigatePreservingHash to="/docs/features/validation" />}
           />
           <Route
             path="apis/debugging"
-            element={<Navigate to="/docs/features/debugging" replace />}
+            element={<NavigatePreservingHash to="/docs/features/debugging" />}
           />
           <Route path="events" element={<Events />} />
           <Route

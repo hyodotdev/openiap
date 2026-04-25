@@ -137,7 +137,7 @@ function Events() {
               </td>
               <td>
                 Fires when an active subscription enters a billing issue state
-                (iOS 18+ / Play Billing 8.1+).
+                (iOS 18+ / Play Billing 8.1+; not emitted on Horizon).
               </td>
             </tr>
           </tbody>

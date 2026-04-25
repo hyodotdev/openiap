@@ -151,8 +151,8 @@ let products = try await store.fetchProducts(
 )
 
 // 3. Listen for purchase results — requestPurchase is event-based.
-store.onPurchaseSuccess = { purchase in
-    Task {
+Task {
+    for await purchase in store.purchaseUpdates {
         // Verify on your backend, grant entitlement, then finish.
         try await store.finishTransaction(purchase, isConsumable: false)
     }
@@ -187,7 +187,7 @@ val products = store.fetchProducts(
 
 // 3. Listen for purchase results.
 scope.launch {
-    store.purchaseFlow.collect { purchase ->
+    store.purchaseUpdates.collect { purchase ->
         // Verify on your backend, grant entitlement, then finish.
         store.finishTransaction(purchase, isConsumable = false)
     }
@@ -220,7 +220,7 @@ val products = kmpIAP.fetchProducts(
 
 // 3. Listen for purchase results.
 scope.launch {
-    kmpIAP.purchaseUpdatedFlow.collect { purchase ->
+    kmpIAP.purchaseUpdates.collect { purchase ->
         // Verify on your backend, grant entitlement, then finish.
         kmpIAP.finishTransaction(purchase, isConsumable = false)
     }

@@ -207,7 +207,7 @@ function ActiveSubscription() {
                         <code>autoRenewingAndroid</code>
                       </td>
                       <td>
-                        <code>boolean</code>
+                        <code>boolean?</code>
                       </td>
                       <td>Whether subscription will auto-renew</td>
                     </tr>
@@ -216,7 +216,7 @@ function ActiveSubscription() {
                         <code>basePlanIdAndroid</code>
                       </td>
                       <td>
-                        <code>string</code>
+                        <code>string?</code>
                       </td>
                       <td>
                         Base plan identifier. <strong>⚠️</strong> May be
@@ -232,7 +232,7 @@ function ActiveSubscription() {
                         <code>purchaseTokenAndroid</code>
                       </td>
                       <td>
-                        <code>string</code>
+                        <code>string?</code>
                       </td>
                       <td>Purchase token for upgrade/downgrade operations</td>
                     </tr>

@@ -69,6 +69,95 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
         session; iOS fires per Message delivery.
       </p>
 
+      <h3>Example</h3>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap
+import { subscriptionBillingIssueListener } from 'expo-iap';
+// Same API in react-native-iap:
+// import { subscriptionBillingIssueListener } from 'react-native-iap';
+
+const subscription = subscriptionBillingIssueListener((purchase) => {
+  console.log('Billing issue on', purchase.productId);
+  // Surface a "Update payment method" prompt and link the user to
+  // the platform's subscription management UI.
+  showBillingIssueBanner(purchase);
+});
+
+// Cleanup when the screen unmounts
+subscription.remove();
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useIAP } from 'expo-iap';
+
+function BillingIssueGate() {
+  useIAP({
+    onSubscriptionBillingIssue: (purchase) => {
+      showBillingIssueBanner(purchase);
+    },
+  });
+  return null;
+}`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`import OpenIap
+
+// iOS 18+ only — no-op on older versions
+let subscription = OpenIapModule.shared.subscriptionBillingIssueListener { purchase in
+    print("Billing issue on \\(purchase.productId)")
+    Task { await showBillingIssueBanner(purchase) }
+}
+
+// Cleanup when the view disappears
+subscription.remove()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
+
+// Play Billing Library 8.1+
+openIapStore.addSubscriptionBillingIssueListener { purchase ->
+    println("Billing issue on \${purchase.productId}")
+    showBillingIssueBanner(purchase)
+}`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.kmpIAP
+
+// Play Billing 8.1+ on Android, iOS 18+ on Apple targets
+lifecycleScope.launch {
+    kmpIAP.subscriptionBillingIssueListener.collect { purchase ->
+        println("Billing issue on \${purchase.productId}")
+        showBillingIssueBanner(purchase)
+    }
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+
+final subscription =
+  FlutterInappPurchase.subscriptionBillingIssueListener.listen((purchase) {
+    debugPrint('Billing issue on \${purchase.productId}');
+    showBillingIssueBanner(purchase);
+  });
+
+// Cleanup when the widget disposes
+subscription.cancel();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`iap.subscription_billing_issue.connect(_on_billing_issue)
+
+func _on_billing_issue(purchase: Purchase):
+    print("Billing issue on %s" % purchase.product_id)
+    show_billing_issue_banner(purchase)
+
+# Cleanup when leaving the scene
+func _exit_tree():
+    iap.subscription_billing_issue.disconnect(_on_billing_issue)`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <p>
         See{' '}
         <Link to="/docs/features/subscription-billing-issue">
