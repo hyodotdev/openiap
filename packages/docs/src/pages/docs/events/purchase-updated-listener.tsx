@@ -57,7 +57,9 @@ val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { purchaseUpdatedListener } from 'expo-iap';
+            <CodeBlock language="typescript">{`import { finishTransaction, purchaseUpdatedListener } from 'expo-iap';
+// Same API in react-native-iap:
+// import { finishTransaction, purchaseUpdatedListener } from 'react-native-iap';
 
 const subscription = purchaseUpdatedListener(async (purchase) => {
   console.log('Purchase updated:', purchase.productId);
@@ -70,7 +72,7 @@ const subscription = purchaseUpdatedListener(async (purchase) => {
     await deliverProduct(purchase.productId);
 
     // Finish the transaction
-    await finishTransaction(purchase, { isConsumable: false });
+    await finishTransaction({ purchase, isConsumable: false });
   }
 });
 

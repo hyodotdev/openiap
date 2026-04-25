@@ -136,6 +136,16 @@ export const apiData: ApiItem[] = [
     returns: 'VerifyPurchaseWithProviderResult!',
     path: '/docs/features/validation#verify-purchase-with-provider',
   },
+  {
+    id: 'validate-receipt',
+    title: 'validateReceipt',
+    category: 'Validation',
+    description:
+      'Deprecated. Use verifyPurchase instead. Cross-platform receipt validation entry point.',
+    parameters: 'options: ReceiptValidationProps!',
+    returns: 'ReceiptValidationResult!',
+    path: '/docs/apis/validate-receipt',
+  },
 
   // iOS Specific
   {
@@ -291,6 +301,92 @@ export const apiData: ApiItem[] = [
     returns: '',
     path: '/docs/features/external-purchase',
   },
+  {
+    id: 'get-all-transactions-ios',
+    title: 'getAllTransactionsIOS',
+    category: 'iOS Specific',
+    description:
+      'Get the full StoreKit 2 transaction history as PurchaseIOS values (iOS 18+ requires SK2ConsumableTransactionHistory Info.plist key for consumables)',
+    parameters: '',
+    returns: '[PurchaseIOS!]!',
+    path: '/docs/apis/ios/get-all-transactions-ios',
+  },
+  {
+    id: 'get-storefront-ios',
+    title: 'getStorefrontIOS',
+    category: 'iOS Specific',
+    description: 'Deprecated. Use getStorefront() (cross-platform) instead.',
+    parameters: '',
+    returns: 'String!',
+    path: '/docs/apis/ios/get-storefront-ios',
+  },
+  {
+    id: 'validate-receipt-ios',
+    title: 'validateReceiptIOS',
+    category: 'iOS Specific',
+    description: 'Deprecated. Use verifyPurchase instead.',
+    parameters: 'options: ReceiptValidationProps!',
+    returns: 'ReceiptValidationResultIOS!',
+    path: '/docs/apis/ios/validate-receipt-ios',
+  },
+  {
+    id: 'can-present-external-purchase-notice-ios',
+    title: 'canPresentExternalPurchaseNoticeIOS',
+    category: 'iOS Specific',
+    description:
+      'Check if the external purchase notice sheet can be presented (iOS 17.4+)',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis/ios/can-present-external-purchase-notice-ios',
+  },
+  {
+    id: 'present-external-purchase-notice-sheet-ios',
+    title: 'presentExternalPurchaseNoticeSheetIOS',
+    category: 'iOS Specific',
+    description: "Present Apple's compliance notice sheet (iOS 17.4+)",
+    parameters: '',
+    returns: 'ExternalPurchaseNoticeResultIOS!',
+    path: '/docs/apis/ios/present-external-purchase-notice-sheet-ios',
+  },
+  {
+    id: 'present-external-purchase-link-ios',
+    title: 'presentExternalPurchaseLinkIOS',
+    category: 'iOS Specific',
+    description: 'Open the external purchase URL in Safari (iOS 18.2+)',
+    parameters: 'url: String!',
+    returns: 'ExternalPurchaseLinkResultIOS!',
+    path: '/docs/apis/ios/present-external-purchase-link-ios',
+  },
+  {
+    id: 'is-eligible-for-external-purchase-custom-link-ios',
+    title: 'isEligibleForExternalPurchaseCustomLinkIOS',
+    category: 'iOS Specific',
+    description:
+      'Check whether the app can use the iOS 18.1+ ExternalPurchaseCustomLink API',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios',
+  },
+  {
+    id: 'get-external-purchase-custom-link-token-ios',
+    title: 'getExternalPurchaseCustomLinkTokenIOS',
+    category: 'iOS Specific',
+    description:
+      'Get the iOS 18.1+ ExternalPurchaseCustomLink token for reporting transactions to Apple',
+    parameters: '',
+    returns: 'String',
+    path: '/docs/apis/ios/get-external-purchase-custom-link-token-ios',
+  },
+  {
+    id: 'show-external-purchase-custom-link-notice-ios',
+    title: 'showExternalPurchaseCustomLinkNoticeIOS',
+    category: 'iOS Specific',
+    description:
+      'Show the iOS 18.1+ ExternalPurchaseCustomLink notice sheet before linking out to external purchases',
+    parameters: '',
+    returns: 'Boolean!',
+    path: '/docs/apis/ios/show-external-purchase-custom-link-notice-ios',
+  },
 
   // Android Specific
   {
@@ -340,6 +436,46 @@ export const apiData: ApiItem[] = [
     parameters: '',
     returns: 'String',
     path: '/docs/apis/android/create-alternative-billing-token-android',
+  },
+  {
+    id: 'enable-billing-program-android',
+    title: 'enableBillingProgramAndroid',
+    category: 'Android Specific',
+    description:
+      'Step 0 of Billing Programs API. Enable a billing program before initConnection() (Billing Library 8.2.0+)',
+    parameters: 'config: EnableBillingProgramConfigAndroid!',
+    returns: 'Boolean!',
+    path: '/docs/apis/android/enable-billing-program-android',
+  },
+  {
+    id: 'is-billing-program-available-android',
+    title: 'isBillingProgramAvailableAndroid',
+    category: 'Android Specific',
+    description:
+      'Step 1 of Billing Programs API. Check if a billing program is available for the current user',
+    parameters: 'programId: String!',
+    returns: 'BillingProgramAvailabilityResultAndroid!',
+    path: '/docs/apis/android/is-billing-program-available-android',
+  },
+  {
+    id: 'launch-external-link-android',
+    title: 'launchExternalLinkAndroid',
+    category: 'Android Specific',
+    description:
+      'Step 2 of Billing Programs API. Launch external link flow — shows Play Store dialog and optionally launches external URL',
+    parameters: 'params: LaunchExternalLinkParamsAndroid!',
+    returns: 'LaunchExternalLinkResultAndroid!',
+    path: '/docs/apis/android/launch-external-link-android',
+  },
+  {
+    id: 'create-billing-program-reporting-details-android',
+    title: 'createBillingProgramReportingDetailsAndroid',
+    category: 'Android Specific',
+    description:
+      'Step 3 of Billing Programs API. Create reporting details with external transaction token after successful payment',
+    parameters: '',
+    returns: 'BillingProgramReportingDetailsAndroid!',
+    path: '/docs/apis/android/create-billing-program-reporting-details-android',
   },
 
   // Debugging & Logging (moved to Features)
@@ -518,7 +654,7 @@ export const apiData: ApiItem[] = [
     category: 'Types',
     description:
       'ProductRequest, RequestPurchaseProps, platform-specific request types',
-    path: '/docs/types/request',
+    path: '/docs/types/request-purchase-props',
   },
   {
     id: 'types-verification',
@@ -526,7 +662,7 @@ export const apiData: ApiItem[] = [
     category: 'Types',
     description:
       'VerifyPurchaseProps, IAPKit integration, purchase verification',
-    path: '/docs/types/verification',
+    path: '/docs/types/verify-purchase',
   },
   {
     id: 'types-ios',
@@ -534,14 +670,14 @@ export const apiData: ApiItem[] = [
     category: 'Types',
     description:
       'DiscountOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction',
-    path: '/docs/types/ios',
+    path: '/docs/types#ios-types',
   },
   {
     id: 'types-android',
     title: 'Android Types',
     category: 'Types',
     description: 'SubscriptionOffer, PricingPhase, PricingPhasesAndroid',
-    path: '/docs/types/android',
+    path: '/docs/types#android-types',
   },
   {
     id: 'types-alternative',
@@ -549,7 +685,7 @@ export const apiData: ApiItem[] = [
     category: 'Types',
     description:
       'AlternativeBillingModeAndroid, InitConnectionConfig, External Purchase Link',
-    path: '/docs/types/alternative',
+    path: '/docs/types/alternative-billing-types',
   },
 
   // iOS-Specific Types (from types/ios.tsx)
@@ -622,7 +758,7 @@ export const apiData: ApiItem[] = [
     title: 'PricingPhasesAndroid',
     category: 'Types (Android)',
     description: 'Android pricing phases container: pricingPhaseList array',
-    path: '/docs/types/android/pricing-phase-android',
+    path: '/docs/types/android/pricing-phase-android#pricing-phases-android',
   },
 
   // Alternative Billing Types (from types/alternative.tsx)

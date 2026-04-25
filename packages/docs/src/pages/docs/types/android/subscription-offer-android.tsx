@@ -89,7 +89,7 @@ function SubscriptionOfferAndroid() {
                 <code>pricingPhases</code>
               </td>
               <td>
-                <Link to="/docs/types/android/pricing-phase-android">
+                <Link to="/docs/types/android/pricing-phase-android#pricing-phases-android">
                   <code>PricingPhasesAndroid</code>
                 </Link>
               </td>

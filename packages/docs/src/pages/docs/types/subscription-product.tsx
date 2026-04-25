@@ -135,10 +135,14 @@ function SubscriptionProduct() {
                   <tbody>
                     <tr>
                       <td>
-                        <code>discountsIOS</code>
+                        <code style={{ textDecoration: 'line-through' }}>
+                          discountsIOS
+                        </code>
                       </td>
                       <td>
-                        Array of available discounts. Each contains:{' '}
+                        <strong>Deprecated.</strong> Use{' '}
+                        <code>subscriptionOffers</code> instead. Array of
+                        available discounts. Each contains:{' '}
                         <code>identifier</code>, <code>type</code>,{' '}
                         <code>numberOfPeriods</code>, <code>price</code>,{' '}
                         <code>localizedPrice</code>, <code>paymentMode</code>,{' '}

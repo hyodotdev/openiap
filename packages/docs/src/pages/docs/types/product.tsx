@@ -190,11 +190,15 @@ function Product() {
                     </tr>
                     <tr>
                       <td>
-                        <code>subscriptionInfoIOS</code>
+                        <code style={{ textDecoration: 'line-through' }}>
+                          subscriptionInfoIOS
+                        </code>
                       </td>
                       <td>
-                        Subscription metadata (only for subscriptions).
-                        Contains: <code>subscriptionGroupId</code>,{' '}
+                        <strong>Deprecated.</strong> Use{' '}
+                        <code>subscriptionOffers</code> instead. Subscription
+                        metadata (only for subscriptions). Contains:{' '}
+                        <code>subscriptionGroupId</code>,{' '}
                         <code>subscriptionPeriod</code> (unit and value),{' '}
                         <code>introductoryOffer</code>,{' '}
                         <code>promotionalOffers</code>

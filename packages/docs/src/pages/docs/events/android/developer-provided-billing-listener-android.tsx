@@ -32,7 +32,7 @@ function DeveloperProvidedBillingListenerAndroid() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`developerProvidedBillingListener(
+            <CodeBlock language="typescript">{`developerProvidedBillingListenerAndroid(
   listener: (details: DeveloperProvidedBillingDetailsAndroid) => void
 ): Subscription`}</CodeBlock>
           ),
@@ -66,9 +66,9 @@ fun addDeveloperProvidedBillingListener(
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { developerProvidedBillingListener } from 'expo-iap';
+            <CodeBlock language="typescript">{`import { developerProvidedBillingListenerAndroid } from 'expo-iap';
 
-const subscription = developerProvidedBillingListener(async (details) => {
+const subscription = developerProvidedBillingListenerAndroid(async (details) => {
   console.log('User selected developer billing');
   console.log('Token:', details.externalTransactionToken);
 
