@@ -463,7 +463,7 @@ function Announcements() {
             <code>verifyPurchaseWithProvider</code> API with{' '}
             <code>provider: 'iapkit'</code>. See the{' '}
             <a
-              href="/docs/apis#verify-purchase-with-provider"
+              href="/docs/features/validation#verify-purchase-with-provider"
               className="external-link"
             >
               API documentation

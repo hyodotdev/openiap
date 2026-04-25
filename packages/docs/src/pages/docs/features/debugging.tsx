@@ -7,16 +7,16 @@ import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-function DebuggingAPIs() {
+function Debugging() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
       <SEO
-        title="Debugging APIs"
-        description="OpenIAP debugging and logging APIs - enable verbose logging and understand common warning messages."
-        path="/docs/apis/debugging"
-        keywords="debugging, logging, OpenIapLog, basePlanId limitation"
+        title="Debugging"
+        description="Debug in-app purchases with verbose logging. Enable OpenIapLog and understand common warning messages."
+        path="/docs/features/debugging"
+        keywords="debugging, logging, OpenIapLog, basePlanId limitation, IAP debugging"
       />
       <h1>Debugging & Logging</h1>
       <p>
@@ -94,11 +94,18 @@ OpenIapLog.enable(false)`}</CodeBlock>
 
         <h4>Root Cause</h4>
         <p>
-          Google Play Billing API's <code>Purchase</code> object does NOT
-          include <code>basePlanId</code> information. When a subscription group
-          has multiple base plans (weekly, monthly, yearly), there is no way to
-          determine which specific plan was purchased from the client-side{' '}
-          <code>Purchase</code> object.
+          Google Play Billing API's{' '}
+          <Link to="/docs/types/purchase">
+            <code>Purchase</code>
+          </Link>{' '}
+          object does NOT include <code>basePlanId</code> information. When a
+          subscription group has multiple base plans (weekly, monthly, yearly),
+          there is no way to determine which specific plan was purchased from
+          the client-side{' '}
+          <Link to="/docs/types/purchase">
+            <code>Purchase</code>
+          </Link>{' '}
+          object.
         </p>
 
         <div className="alert-card alert-card--info">
@@ -211,8 +218,11 @@ console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
           <p>
             <strong>Note:</strong> This is a fundamental limitation of Google
             Play Billing API, not a bug in this library. The{' '}
-            <code>Purchase</code> object from Google simply does not include{' '}
-            <code>basePlanId</code> information.
+            <Link to="/docs/types/purchase">
+              <code>Purchase</code>
+            </Link>{' '}
+            object from Google simply does not include <code>basePlanId</code>{' '}
+            information.
           </p>
         </div>
       </section>
@@ -252,9 +262,7 @@ console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
               <td>IAP operation called before initConnection()</td>
               <td>
                 Call{' '}
-                <Link to="/docs/apis/connection#init-connection">
-                  initConnection()
-                </Link>{' '}
+                <Link to="/docs/apis/init-connection">initConnection()</Link>{' '}
                 first
               </td>
             </tr>
@@ -265,7 +273,7 @@ console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
               <td>Purchase completed but finishTransaction not called</td>
               <td>
                 Call{' '}
-                <Link to="/docs/apis/purchase#finish-transaction">
+                <Link to="/docs/apis/finish-transaction">
                   finishTransaction()
                 </Link>{' '}
                 after verification
@@ -278,4 +286,4 @@ console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
   );
 }
 
-export default DebuggingAPIs;
+export default Debugging;

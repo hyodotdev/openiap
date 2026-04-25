@@ -17,7 +17,7 @@ export const apiData: ApiItem[] = [
     description: 'Initialize connection to the store service',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/connection#init-connection',
+    path: '/docs/apis/init-connection',
   },
   {
     id: 'end-connection',
@@ -26,7 +26,7 @@ export const apiData: ApiItem[] = [
     description: 'End connection to the store service',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/connection#end-connection',
+    path: '/docs/apis/end-connection',
   },
 
   // Product Management
@@ -37,7 +37,7 @@ export const apiData: ApiItem[] = [
     description: 'Retrieve products or subscriptions from the store',
     parameters: 'ProductRequest',
     returns: '[Product!]!',
-    path: '/docs/apis/products#fetch-products',
+    path: '/docs/apis/fetch-products',
   },
   {
     id: 'get-available-purchases',
@@ -46,7 +46,7 @@ export const apiData: ApiItem[] = [
     description: 'Get all available purchases for the current user',
     parameters: 'PurchaseOptions?',
     returns: '[Purchase!]!',
-    path: '/docs/apis/products#get-available-purchases',
+    path: '/docs/apis/get-available-purchases',
   },
 
   // Purchase Operations
@@ -57,7 +57,7 @@ export const apiData: ApiItem[] = [
     description: 'Request a purchase (one-time or subscription)',
     parameters: 'RequestPurchaseProps',
     returns: 'Purchase!',
-    path: '/docs/apis/purchase#request-purchase',
+    path: '/docs/apis/request-purchase',
   },
   {
     id: 'finish-transaction',
@@ -67,7 +67,7 @@ export const apiData: ApiItem[] = [
       'Complete a purchase transaction. Must be called after successful verification',
     parameters: 'Purchase!, isConsumable: Boolean?',
     returns: 'Void',
-    path: '/docs/apis/purchase#finish-transaction',
+    path: '/docs/apis/finish-transaction',
   },
   {
     id: 'restore-purchases',
@@ -76,7 +76,7 @@ export const apiData: ApiItem[] = [
     description: 'Restore completed transactions (cross-platform)',
     parameters: '',
     returns: 'Void',
-    path: '/docs/apis/purchase#restore-purchases',
+    path: '/docs/apis/restore-purchases',
   },
   {
     id: 'get-storefront',
@@ -85,7 +85,7 @@ export const apiData: ApiItem[] = [
     description: 'Get storefront country code for the active user',
     parameters: '',
     returns: 'String!',
-    path: '/docs/apis/purchase#get-storefront',
+    path: '/docs/apis/get-storefront',
   },
 
   // Subscription Management
@@ -96,7 +96,7 @@ export const apiData: ApiItem[] = [
     description: 'Get all active subscriptions with detailed information',
     parameters: 'subscriptionIds: [String]?',
     returns: '[ActiveSubscription!]!',
-    path: '/docs/apis/subscription#get-active-subscriptions',
+    path: '/docs/apis/get-active-subscriptions',
   },
   {
     id: 'has-active-subscriptions',
@@ -105,7 +105,7 @@ export const apiData: ApiItem[] = [
     description: 'Check if the user has any active subscriptions',
     parameters: 'subscriptionIds: [String]?',
     returns: 'Boolean!',
-    path: '/docs/apis/subscription#has-active-subscriptions',
+    path: '/docs/apis/has-active-subscriptions',
   },
   {
     id: 'deep-link-to-subscriptions',
@@ -114,7 +114,7 @@ export const apiData: ApiItem[] = [
     description: 'Open native subscription management interface',
     parameters: 'DeepLinkOptions',
     returns: 'Void',
-    path: '/docs/apis/subscription#deep-link-to-subscriptions',
+    path: '/docs/apis/deep-link-to-subscriptions',
   },
 
   // Verification
@@ -125,7 +125,7 @@ export const apiData: ApiItem[] = [
     description: 'Verify purchases with your server or platform providers',
     parameters: 'PurchaseVerificationProps!',
     returns: 'PurchaseVerificationResult!',
-    path: '/docs/apis/validation#verify-purchase',
+    path: '/docs/features/validation#verify-purchase',
   },
   {
     id: 'verify-purchase-with-provider',
@@ -134,7 +134,7 @@ export const apiData: ApiItem[] = [
     description: 'Verify purchases using IAPKit or other providers',
     parameters: 'VerifyPurchaseWithProviderProps!',
     returns: 'VerifyPurchaseWithProviderResult!',
-    path: '/docs/apis/validation#verify-purchase-with-provider',
+    path: '/docs/features/validation#verify-purchase-with-provider',
   },
 
   // iOS Specific
@@ -145,7 +145,7 @@ export const apiData: ApiItem[] = [
     description: 'Clear pending transactions',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/ios#clear-transaction-ios',
+    path: '/docs/apis/ios/clear-transaction-ios',
   },
   {
     id: 'sync-ios',
@@ -154,7 +154,7 @@ export const apiData: ApiItem[] = [
     description: 'Force StoreKit transaction sync (iOS 15+)',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/ios#sync-ios',
+    path: '/docs/apis/ios/sync-ios',
   },
   {
     id: 'get-promoted-product-ios',
@@ -163,7 +163,7 @@ export const apiData: ApiItem[] = [
     description: 'Get the currently promoted product (iOS 11+)',
     parameters: '',
     returns: 'ProductIOS',
-    path: '/docs/apis/ios#get-promoted-product-ios',
+    path: '/docs/apis/ios/get-promoted-product-ios',
   },
   {
     id: 'request-purchase-on-promoted-product-ios',
@@ -172,7 +172,7 @@ export const apiData: ApiItem[] = [
     description: 'Purchase a promoted product (iOS 11+)',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/ios#request-purchase-on-promoted-product-ios',
+    path: '/docs/apis/ios/request-purchase-on-promoted-product-ios',
   },
   {
     id: 'get-pending-transactions-ios',
@@ -181,7 +181,7 @@ export const apiData: ApiItem[] = [
     description: 'Retrieve pending StoreKit transactions',
     parameters: '',
     returns: '[PurchaseIOS!]!',
-    path: '/docs/apis/ios#get-pending-transactions-ios',
+    path: '/docs/apis/ios/get-pending-transactions-ios',
   },
   {
     id: 'is-eligible-for-intro-offer-ios',
@@ -190,7 +190,7 @@ export const apiData: ApiItem[] = [
     description: 'Check introductory offer eligibility',
     parameters: 'groupID: String!',
     returns: 'Boolean!',
-    path: '/docs/apis/ios#is-eligible-for-intro-offer-ios',
+    path: '/docs/apis/ios/is-eligible-for-intro-offer-ios',
   },
   {
     id: 'subscription-status-ios',
@@ -199,7 +199,7 @@ export const apiData: ApiItem[] = [
     description: 'Get StoreKit 2 subscription status (iOS 15+)',
     parameters: 'sku: String!',
     returns: '[SubscriptionStatusIOS!]!',
-    path: '/docs/apis/ios#subscription-status-ios',
+    path: '/docs/apis/ios/subscription-status-ios',
   },
   {
     id: 'current-entitlement-ios',
@@ -208,7 +208,7 @@ export const apiData: ApiItem[] = [
     description: 'Get current StoreKit 2 entitlement (iOS 15+)',
     parameters: 'sku: String!',
     returns: 'PurchaseIOS',
-    path: '/docs/apis/ios#current-entitlement-ios',
+    path: '/docs/apis/ios/current-entitlement-ios',
   },
   {
     id: 'latest-transaction-ios',
@@ -217,7 +217,7 @@ export const apiData: ApiItem[] = [
     description: 'Get latest StoreKit 2 transaction (iOS 15+)',
     parameters: 'sku: String!',
     returns: 'PurchaseIOS',
-    path: '/docs/apis/ios#latest-transaction-ios',
+    path: '/docs/apis/ios/latest-transaction-ios',
   },
   {
     id: 'show-manage-subscriptions-ios',
@@ -226,7 +226,7 @@ export const apiData: ApiItem[] = [
     description: 'Open subscription management UI and return changes (iOS 15+)',
     parameters: '',
     returns: '[PurchaseIOS!]!',
-    path: '/docs/apis/ios#show-manage-subscriptions-ios',
+    path: '/docs/apis/ios/show-manage-subscriptions-ios',
   },
   {
     id: 'begin-refund-request-ios',
@@ -235,7 +235,7 @@ export const apiData: ApiItem[] = [
     description: 'Initiate refund request (iOS 15+)',
     parameters: 'sku: String!',
     returns: 'String',
-    path: '/docs/apis/ios#begin-refund-request-ios',
+    path: '/docs/apis/ios/begin-refund-request-ios',
   },
   {
     id: 'is-transaction-verified-ios',
@@ -244,7 +244,7 @@ export const apiData: ApiItem[] = [
     description: 'Verify StoreKit 2 transaction signature',
     parameters: 'sku: String!',
     returns: 'Boolean!',
-    path: '/docs/apis/ios#is-transaction-verified-ios',
+    path: '/docs/apis/ios/is-transaction-verified-ios',
   },
   {
     id: 'get-transaction-jws-ios',
@@ -253,7 +253,7 @@ export const apiData: ApiItem[] = [
     description: 'Get the transaction JWS (StoreKit 2)',
     parameters: 'sku: String!',
     returns: 'String',
-    path: '/docs/apis/ios#get-transaction-jws-ios',
+    path: '/docs/apis/ios/get-transaction-jws-ios',
   },
   {
     id: 'get-receipt-data-ios',
@@ -262,7 +262,7 @@ export const apiData: ApiItem[] = [
     description: 'Get base64-encoded receipt data for validation',
     parameters: '',
     returns: 'String',
-    path: '/docs/apis/ios#get-receipt-data-ios',
+    path: '/docs/apis/ios/get-receipt-data-ios',
   },
   {
     id: 'present-code-redemption-sheet-ios',
@@ -271,7 +271,7 @@ export const apiData: ApiItem[] = [
     description: 'Present the App Store code redemption sheet',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/ios#present-code-redemption-sheet-ios',
+    path: '/docs/apis/ios/present-code-redemption-sheet-ios',
   },
   {
     id: 'get-app-transaction-ios',
@@ -280,7 +280,7 @@ export const apiData: ApiItem[] = [
     description: 'Fetch the current app transaction (iOS 16+)',
     parameters: '',
     returns: 'AppTransaction',
-    path: '/docs/apis/ios#get-app-transaction-ios',
+    path: '/docs/apis/ios/get-app-transaction-ios',
   },
   {
     id: 'external-purchase-ios',
@@ -289,7 +289,7 @@ export const apiData: ApiItem[] = [
     description: 'External purchase flow for iOS 17.4+',
     parameters: '',
     returns: '',
-    path: '/docs/apis/ios#external-purchase',
+    path: '/docs/features/external-purchase',
   },
 
   // Android Specific
@@ -300,7 +300,7 @@ export const apiData: ApiItem[] = [
     description: 'Acknowledge a non-consumable purchase or subscription',
     parameters: 'purchaseToken: String!',
     returns: 'Boolean!',
-    path: '/docs/apis/android#acknowledge-purchase-android',
+    path: '/docs/apis/android/acknowledge-purchase-android',
   },
   {
     id: 'consume-purchase-android',
@@ -309,7 +309,7 @@ export const apiData: ApiItem[] = [
     description: 'Consume a purchase (for consumable products only)',
     parameters: 'purchaseToken: String!',
     returns: 'Boolean!',
-    path: '/docs/apis/android#consume-purchase-android',
+    path: '/docs/apis/android/consume-purchase-android',
   },
   {
     id: 'check-alternative-billing-availability-android',
@@ -319,7 +319,7 @@ export const apiData: ApiItem[] = [
       'Check if alternative billing is available (Step 1 of alternative billing)',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/android#check-alternative-billing-availability-android',
+    path: '/docs/apis/android/check-alternative-billing-availability-android',
   },
   {
     id: 'show-alternative-billing-dialog-android',
@@ -329,7 +329,7 @@ export const apiData: ApiItem[] = [
       'Show alternative billing dialog to user (Step 2 of alternative billing)',
     parameters: '',
     returns: 'Boolean!',
-    path: '/docs/apis/android#show-alternative-billing-dialog-android',
+    path: '/docs/apis/android/show-alternative-billing-dialog-android',
   },
   {
     id: 'create-alternative-billing-token-android',
@@ -339,10 +339,10 @@ export const apiData: ApiItem[] = [
       'Create external transaction token for Google Play (Step 3 of alternative billing)',
     parameters: '',
     returns: 'String',
-    path: '/docs/apis/android#create-alternative-billing-token-android',
+    path: '/docs/apis/android/create-alternative-billing-token-android',
   },
 
-  // Debugging & Logging
+  // Debugging & Logging (moved to Features)
   {
     id: 'debugging-logging',
     title: 'Debugging & Logging',
@@ -350,7 +350,7 @@ export const apiData: ApiItem[] = [
     description: 'Enable verbose logging for development',
     parameters: '',
     returns: '',
-    path: '/docs/apis/debugging',
+    path: '/docs/features/debugging',
   },
   {
     id: 'enable-logging',
@@ -359,7 +359,7 @@ export const apiData: ApiItem[] = [
     description: 'Enable or disable debug logs',
     parameters: 'Boolean',
     returns: '',
-    path: '/docs/apis/debugging#enable-logging',
+    path: '/docs/features/debugging#enable-logging',
   },
   {
     id: 'baseplanid-limitation',
@@ -368,7 +368,7 @@ export const apiData: ApiItem[] = [
     description: 'Understanding basePlanId limitations with multiple offers',
     parameters: '',
     returns: '',
-    path: '/docs/apis/debugging#android-baseplanid-limitation',
+    path: '/docs/features/debugging#android-baseplanid-limitation',
   },
 
   // Documentation Pages
@@ -379,6 +379,69 @@ export const apiData: ApiItem[] = [
     description:
       'External purchase links for iOS - redirect users to external payment websites (iOS 16.0+)',
     path: '/docs/features/external-purchase',
+  },
+  {
+    id: 'refund-page',
+    title: 'Refund',
+    category: 'Documentation',
+    description:
+      'Handle refunds across iOS and Android. beginRefundRequestIOS, Android auto-refund, App Store Server Notifications, Real-time Developer Notifications',
+    path: '/docs/features/refund',
+  },
+  {
+    id: 'refund-ios',
+    title: 'iOS Refund Request',
+    category: 'Refund',
+    description:
+      'Present in-app refund sheet on iOS 15+ via beginRefundRequestIOS',
+    path: '/docs/features/refund#begin-refund-request-ios',
+  },
+  {
+    id: 'refund-ios-server-notifications',
+    title: 'App Store Server Notifications V2 (Refund)',
+    category: 'Refund',
+    description:
+      'Detect approved iOS refunds via REFUND, REVOKE, REFUND_DECLINED notifications',
+    path: '/docs/features/refund#ios-server-notifications',
+  },
+  {
+    id: 'refund-android-rtdn',
+    title: 'Real-time Developer Notifications (Refund)',
+    category: 'Refund',
+    description:
+      'Detect Android refunds via voidedPurchaseNotification and SUBSCRIPTION_REVOKED RTDN',
+    path: '/docs/features/refund#android-rtdn',
+  },
+  {
+    id: 'refund-android-voided-api',
+    title: 'Voided Purchases API',
+    category: 'Refund',
+    description: 'Poll Google Play Voided Purchases API as a fallback',
+    path: '/docs/features/refund#android-voided-api',
+  },
+  {
+    id: 'entitlement-revocation',
+    title: 'Revoking Entitlements',
+    category: 'Refund',
+    description:
+      'Revoke user entitlements after a refund is detected — server-side cleanup pattern',
+    path: '/docs/features/refund#entitlement-revocation',
+  },
+  {
+    id: 'validation-page',
+    title: 'Validation',
+    category: 'Documentation',
+    description:
+      'Server-side purchase validation with verifyPurchase and verifyPurchaseWithProvider (IAPKit)',
+    path: '/docs/features/validation',
+  },
+  {
+    id: 'debugging-page',
+    title: 'Debugging',
+    category: 'Documentation',
+    description:
+      'Enable OpenIapLog and understand common warnings such as Android basePlanId limitation',
+    path: '/docs/features/debugging',
   },
   {
     id: 'types-page',
@@ -405,18 +468,18 @@ export const apiData: ApiItem[] = [
   },
   {
     id: 'subscription-product',
-    title: 'SubscriptionProduct',
+    title: 'ProductSubscription',
     category: 'Types',
     description:
       'Subscription product with pricing phases, intro offers, billing periods',
-    path: '/docs/types/product#product-subscription',
+    path: '/docs/types/subscription-product',
   },
   {
     id: 'storefront',
     title: 'Storefront',
     category: 'Types',
     description: 'Store region info: countryCode returned by getStorefront()',
-    path: '/docs/types/product#storefront',
+    path: '/docs/types/storefront',
   },
   {
     id: 'types-purchase',
@@ -439,7 +502,7 @@ export const apiData: ApiItem[] = [
     category: 'Types',
     description:
       'Purchase state enum: purchased, pending, failed, restored, deferred',
-    path: '/docs/types/purchase#purchase-state',
+    path: '/docs/types/purchase',
   },
   {
     id: 'active-subscription',
@@ -447,7 +510,7 @@ export const apiData: ApiItem[] = [
     category: 'Types',
     description:
       'Active subscription: id, productId, isActive from getActiveSubscriptions()',
-    path: '/docs/types/purchase#active-subscription',
+    path: '/docs/types/active-subscription',
   },
   {
     id: 'types-request',
@@ -496,7 +559,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS promotional offer for purchase: identifier, keyIdentifier, nonce, signature, timestamp',
-    path: '/docs/types/ios#discount-offer',
+    path: '/docs/types/ios/discount-offer-ios',
   },
   {
     id: 'discount',
@@ -511,7 +574,7 @@ export const apiData: ApiItem[] = [
     title: 'SubscriptionPeriodIOS',
     category: 'Types (iOS)',
     description: 'iOS subscription period units: Day, Week, Month, Year',
-    path: '/docs/types/ios#subscription-period-ios',
+    path: '/docs/types/ios/subscription-period-ios',
   },
   {
     id: 'payment-mode',
@@ -519,14 +582,14 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS payment mode for offers: FreeTrial, PayAsYouGo, PayUpFront',
-    path: '/docs/types/ios#payment-mode',
+    path: '/docs/types/ios/payment-mode-ios',
   },
   {
     id: 'subscription-status-ios-type',
     title: 'SubscriptionStatusIOS',
     category: 'Types (iOS)',
     description: 'iOS subscription status from StoreKit 2: state, renewalInfo',
-    path: '/docs/types/ios#subscription-status-ios',
+    path: '/docs/types/ios/subscription-status-ios',
   },
   {
     id: 'app-transaction',
@@ -534,7 +597,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS app transaction info: bundleId, appVersion, originalAppVersion, environment',
-    path: '/docs/types/ios#app-transaction',
+    path: '/docs/types/ios/app-transaction-ios',
   },
 
   // Android-Specific Types (from types/android.tsx)
@@ -544,7 +607,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (Android)',
     description:
       'Android subscription offer: sku, offerToken for Play Billing purchases',
-    path: '/docs/types/android#subscription-offer',
+    path: '/docs/types/android/subscription-offer-android',
   },
   {
     id: 'pricing-phase',
@@ -552,14 +615,14 @@ export const apiData: ApiItem[] = [
     category: 'Types (Android)',
     description:
       'Android pricing phase: billingPeriod, formattedPrice, priceAmountMicros, recurrenceMode',
-    path: '/docs/types/android#pricing-phase',
+    path: '/docs/types/android/pricing-phase-android',
   },
   {
     id: 'pricing-phases-android',
     title: 'PricingPhasesAndroid',
     category: 'Types (Android)',
     description: 'Android pricing phases container: pricingPhaseList array',
-    path: '/docs/types/android#pricing-phases-android',
+    path: '/docs/types/android/pricing-phase-android',
   },
 
   // Alternative Billing Types (from types/alternative.tsx)
@@ -568,7 +631,7 @@ export const apiData: ApiItem[] = [
     title: 'AlternativeBillingModeAndroid',
     category: 'Types (Android)',
     description: 'Android billing mode: NONE, USER_CHOICE, ALTERNATIVE_ONLY',
-    path: '/docs/types/alternative#alternative-billing-mode-android',
+    path: '/docs/types/alternative-billing-types',
   },
   {
     id: 'init-connection-config',
@@ -576,7 +639,7 @@ export const apiData: ApiItem[] = [
     category: 'Types',
     description:
       'Configuration for initConnection: alternativeBillingModeAndroid',
-    path: '/docs/types/alternative#init-connection-config',
+    path: '/docs/types/alternative-billing-types',
   },
   {
     id: 'external-purchase-link-ios',
@@ -584,7 +647,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS external purchase APIs: canPresent, presentNoticeSheet, presentLink (iOS 17.4+)',
-    path: '/docs/types/alternative#external-purchase-link',
+    path: '/docs/types/external-purchase-link',
   },
 
   // Platform-Specific Request Types
@@ -594,7 +657,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS purchase request parameters: sku, appAccountToken, quantity, withOffer',
-    path: '/docs/types/request#request-purchase-ios-props',
+    path: '/docs/types/request-purchase-props',
   },
   {
     id: 'request-purchase-android-props',
@@ -602,7 +665,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (Android)',
     description:
       'Android purchase request parameters: skus, obfuscatedAccountId, isOfferPersonalized',
-    path: '/docs/types/request#request-purchase-android-props',
+    path: '/docs/types/request-purchase-props',
   },
   {
     id: 'request-subscription-ios-props',
@@ -610,7 +673,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS subscription request parameters (same as RequestPurchaseIosProps)',
-    path: '/docs/types/request#request-subscription-ios-props',
+    path: '/docs/types/request-purchase-props',
   },
   {
     id: 'request-subscription-android-props',
@@ -618,7 +681,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (Android)',
     description:
       'Android subscription request: purchaseToken, replacementMode, subscriptionOffers',
-    path: '/docs/types/request#request-subscription-android-props',
+    path: '/docs/types/request-purchase-props',
   },
 
   // Platform-Specific Product Types
@@ -640,18 +703,18 @@ export const apiData: ApiItem[] = [
   },
   {
     id: 'subscription-product-ios',
-    title: 'SubscriptionProductIOS',
+    title: 'ProductSubscriptionIOS',
     category: 'Types (iOS)',
     description:
       'iOS subscription fields: subscriptionOffers, introductoryPriceIOS, subscriptionPeriodUnitIOS',
-    path: '/docs/types/product#subscription-product-ios',
+    path: '/docs/types/subscription-product#subscription-product-ios',
   },
   {
     id: 'subscription-product-android',
-    title: 'SubscriptionProductAndroid',
+    title: 'ProductSubscriptionAndroid',
     category: 'Types (Android)',
     description: 'Android subscription fields: subscriptionOffers',
-    path: '/docs/types/product#subscription-product-android',
+    path: '/docs/types/subscription-product#subscription-product-android',
   },
 
   // Platform-Specific Purchase Types
@@ -685,7 +748,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS active subscription: expirationDateIOS, environmentIOS, daysUntilExpirationIOS',
-    path: '/docs/types/purchase#active-subscription-ios',
+    path: '/docs/types/active-subscription#active-subscription-ios',
   },
   {
     id: 'active-subscription-android',
@@ -693,7 +756,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (Android)',
     description:
       'Android active subscription: autoRenewingAndroid, basePlanIdAndroid, purchaseTokenAndroid',
-    path: '/docs/types/purchase#active-subscription-android',
+    path: '/docs/types/active-subscription#active-subscription-android',
   },
 
   // Platform-Specific Verification Types
@@ -703,7 +766,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS verification result: isValid, receiptData, jwsRepresentation, latestTransaction',
-    path: '/docs/types/verification#verify-purchase-result-ios',
+    path: '/docs/types/verify-purchase#verify-purchase-result-ios',
   },
   {
     id: 'verify-purchase-result-android',
@@ -711,14 +774,14 @@ export const apiData: ApiItem[] = [
     category: 'Types (Android)',
     description:
       'Android verification result: autoRenewing, cancelDate, renewalDate, transactionId',
-    path: '/docs/types/verification#verify-purchase-result-android',
+    path: '/docs/types/verify-purchase#verify-purchase-result-android',
   },
   {
     id: 'verify-purchase-result-horizon',
     title: 'VerifyPurchaseResultHorizon',
     category: 'Types (Horizon)',
     description: 'Meta Quest verification result: success, grantTime',
-    path: '/docs/types/verification#verify-purchase-result-horizon',
+    path: '/docs/types/verify-purchase#verify-purchase-result-horizon',
   },
 
   {

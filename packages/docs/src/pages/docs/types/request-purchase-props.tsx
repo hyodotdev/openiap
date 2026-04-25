@@ -1,212 +1,63 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
-import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-function TypesRequest() {
+function RequestPurchaseProps() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
       <SEO
-        title="Request Types"
-        description="OpenIAP Request type definitions - ProductRequest, RequestPurchaseProps, platform-specific purchase parameters for TypeScript, Swift, Kotlin, Dart."
-        path="/docs/types/request"
-        keywords="IAP types, ProductRequest, RequestPurchaseProps, TypeScript, Swift, Kotlin"
+        title="RequestPurchaseProps"
+        description="RequestPurchaseProps type definition and field reference."
+        path="/docs/types/request-purchase-props"
+        keywords="RequestPurchaseProps, OpenIAP types, Request Purchase Props"
       />
-      <h1>Request Types</h1>
-      <p>Type definitions for requesting products and initiating purchases.</p>
-
-      <TLDRBox>
-        <ul>
-          <li>
-            <a href="#product-request">
-              <code>ProductRequest</code>
-            </a>{' '}
-            - Parameters for fetchProducts()
-          </li>
-          <li>
-            <a href="#request-purchase-props">
-              <code>RequestPurchaseProps</code>
-            </a>{' '}
-            - Top-level arguments for requestPurchase()
-          </li>
-          <li>
-            <a href="#platform-specific-request-props">
-              Platform-specific props
-            </a>{' '}
-            for Apple (iOS) and Google (Android)
-          </li>
-          <li>
-            <a href="#subscription-request-props">
-              Subscription-specific props
-            </a>{' '}
-            with upgrade/downgrade support
-          </li>
-        </ul>
-      </TLDRBox>
-
-      <section>
-        <AnchorLink id="product-request" level="h2">
-          ProductRequest
-        </AnchorLink>
-        <p>
-          Parameters for fetching products from the store via{' '}
-          <code>fetchProducts()</code>.
-        </p>
-
-        <AnchorLink id="product-request-fields" level="h3">
-          Fields
-        </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>skus</code>
-              </td>
-              <td>Array of product identifiers to fetch</td>
-            </tr>
-            <tr>
-              <td>
-                <code>type</code>
-              </td>
-              <td>
-                Product type filter (optional): <code>"in-app"</code> (default),{' '}
-                <code>"subs"</code>, or <code>"all"</code>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <AnchorLink id="product-request-example" level="h3">
-          Usage Example
-        </AnchorLink>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`// Fetch in-app purchases (default)
-const inappProducts = await fetchProducts({ skus: ["product1", "product2"] });
-
-// Fetch only subscriptions
-const subscriptions = await fetchProducts({
-  skus: ["sub1", "sub2"],
-  type: "subs"
-});
-
-// Fetch all products (both in-app and subscriptions)
-const allProducts = await fetchProducts({
-  skus: ["product1", "sub1"],
-  type: "all"
-});`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// Fetch in-app purchases (default)
-let inappProducts = try await OpenIapModule.shared.fetchProducts(
-    ProductRequest(skus: ["product1", "product2"])
-)
-
-// Fetch only subscriptions
-let subscriptions = try await OpenIapModule.shared.fetchProducts(
-    ProductRequest(skus: ["sub1", "sub2"], type: .subs)
-)
-
-// Fetch all products (both in-app and subscriptions)
-let allProducts = try await OpenIapModule.shared.fetchProducts(
-    ProductRequest(skus: ["product1", "sub1"], type: .all)
-)`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`// Fetch in-app purchases (default)
-val inappProducts = openIapStore.fetchProducts(
-    ProductRequest(skus = listOf("product1", "product2"))
-)
-
-// Fetch only subscriptions
-val subscriptions = openIapStore.fetchProducts(
-    ProductRequest(skus = listOf("sub1", "sub2"), type = ProductQueryType.Subs)
-)
-
-// Fetch all products (both in-app and subscriptions)
-val allProducts = openIapStore.fetchProducts(
-    ProductRequest(skus = listOf("product1", "sub1"), type = ProductQueryType.All)
-)`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`// Fetch in-app purchases (default)
-final inappProducts = await FlutterInappPurchase.instance.fetchProducts(
-  skus: ['product1', 'product2'],
-);
-
-// Fetch only subscriptions
-final subscriptions = await FlutterInappPurchase.instance.fetchProducts(
-  skus: ['sub1', 'sub2'],
-  type: ProductQueryType.subs,
-);
-
-// Fetch all products (both in-app and subscriptions)
-final allProducts = await FlutterInappPurchase.instance.fetchProducts(
-  skus: ['product1', 'sub1'],
-  type: ProductQueryType.all,
-);`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`# Fetch in-app purchases (default)
-var request = ProductRequest.new()
-request.skus = ["product1", "product2"]
-var inapp_products = await iap.fetch_products(request)
-
-# Fetch only subscriptions
-var subs_request = ProductRequest.new()
-subs_request.skus = ["sub1", "sub2"]
-subs_request.type = ProductQueryType.SUBS
-var subscriptions = await iap.fetch_products(subs_request)
-
-# Fetch all products (both in-app and subscriptions)
-var all_request = ProductRequest.new()
-all_request.skus = ["product1", "sub1"]
-all_request.type = ProductQueryType.ALL
-var all_products = await iap.fetch_products(all_request)`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-      </section>
-
+      <h1>RequestPurchaseProps</h1>
       <section>
         <AnchorLink id="request-types" level="h2">
           Request Types
         </AnchorLink>
         <p>
           Types used when initiating purchases via{' '}
-          <code>requestPurchase()</code>.
+          <Link to="/docs/apis/request-purchase">
+            <code>requestPurchase()</code>
+          </Link>
+          .
         </p>
 
         <AnchorLink id="request-purchase-props" level="h3">
           RequestPurchaseProps
         </AnchorLink>
         <p>
-          Top-level arguments for <code>requestPurchase()</code>. Wraps
-          platform-specific props with a type discriminator.
+          Top-level arguments for{' '}
+          <Link to="/docs/apis/request-purchase">
+            <code>requestPurchase()</code>
+          </Link>
+          . Wraps platform-specific props with a type discriminator.
         </p>
+
         <table className="doc-table">
           <thead>
             <tr>
               <th>Name</th>
+              <th>Type</th>
               <th>Summary</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>
-                <code>params</code>
+                <code>request</code>
+              </td>
+              <td>
+                <Link to="/docs/types/request-purchase-props#request-purchase-props-by-platforms">
+                  <code>RequestPurchasePropsByPlatforms</code>
+                </Link>
               </td>
               <td>Platform-specific purchase parameters (see below)</td>
             </tr>
@@ -215,7 +66,27 @@ var all_products = await iap.fetch_products(all_request)`}</CodeBlock>
                 <code>type</code>
               </td>
               <td>
-                Purchase type: <code>"in-app"</code> or <code>"subs"</code>
+                <code>"in-app" | "subs"</code>
+              </td>
+              <td>Purchase type discriminator</td>
+            </tr>
+            <tr>
+              <td>
+                <code>useAlternativeBilling</code>
+              </td>
+              <td>
+                <code>boolean?</code>
+              </td>
+              <td>
+                <strong>Deprecated.</strong> Use{' '}
+                <Link to="/docs/apis/android/enable-billing-program-android">
+                  <code>enableBillingProgramAndroid</code>
+                </Link>{' '}
+                in{' '}
+                <Link to="/docs/types/alternative-billing-types">
+                  <code>InitConnectionConfig</code>
+                </Link>{' '}
+                instead. This flag only logs debug info and has no effect.
               </td>
             </tr>
           </tbody>
@@ -229,7 +100,7 @@ var all_products = await iap.fetch_products(all_request)`}</CodeBlock>
             typescript: (
               <CodeBlock language="typescript">{`// Standard in-app purchase
 await requestPurchase({
-  params: {
+  request: {
     apple: { sku: 'premium' },
     google: { skus: ['premium'] }
   },
@@ -238,7 +109,7 @@ await requestPurchase({
 
 // Subscription purchase
 await requestPurchase({
-  params: {
+  request: {
     apple: { sku: 'monthly_sub' },
     google: { skus: ['monthly_sub'] }
   },
@@ -362,28 +233,18 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>ios</code>{' '}
-                <span
-                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
-                >
-                  (deprecated)
-                </span>
+                <code style={{ textDecoration: 'line-through' }}>ios</code>
               </td>
               <td>
-                Use <code>apple</code> instead
+                <strong>Deprecated.</strong> Use <code>apple</code> instead.
               </td>
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
-                <span
-                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
-                >
-                  (deprecated)
-                </span>
+                <code style={{ textDecoration: 'line-through' }}>android</code>
               </td>
               <td>
-                Use <code>google</code> instead
+                <strong>Deprecated.</strong> Use <code>google</code> instead.
               </td>
             </tr>
           </tbody>
@@ -419,28 +280,18 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>ios</code>{' '}
-                <span
-                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
-                >
-                  (deprecated)
-                </span>
+                <code style={{ textDecoration: 'line-through' }}>ios</code>
               </td>
               <td>
-                Use <code>apple</code> instead
+                <strong>Deprecated.</strong> Use <code>apple</code> instead.
               </td>
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>android</code>{' '}
-                <span
-                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
-                >
-                  (deprecated)
-                </span>
+                <code style={{ textDecoration: 'line-through' }}>android</code>
               </td>
               <td>
-                Use <code>google</code> instead
+                <strong>Deprecated.</strong> Use <code>google</code> instead.
               </td>
             </tr>
           </tbody>
@@ -585,6 +436,19 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                       </td>
                       <td>True if offer is personalized (EU compliance)</td>
                     </tr>
+                    <tr>
+                      <td>
+                        <code>developerBillingOption</code>
+                      </td>
+                      <td>
+                        Developer billing option params for the External
+                        Payments flow (8.3.0+). See{' '}
+                        <Link to="/docs/types/billing-programs#developer-billing-option-params">
+                          DeveloperBillingOptionParamsAndroid
+                        </Link>
+                        .
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </>
@@ -603,9 +467,46 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                   RequestSubscriptionIosProps
                 </AnchorLink>
                 <p>
-                  iOS subscriptions use the same props as regular purchases
-                  (RequestPurchaseIosProps).
+                  iOS subscriptions extend <code>RequestPurchaseIosProps</code>{' '}
+                  with these additional subscription-only fields:
                 </p>
+                <table className="doc-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>winBackOffer</code>
+                      </td>
+                      <td>
+                        Win-back offer to re-engage churned subscribers (iOS
+                        18+).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>promotionalOfferJWS</code>
+                      </td>
+                      <td>
+                        JWS-signed promotional offer (iOS 15+, WWDC 2025).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>introductoryOfferEligibility</code>
+                      </td>
+                      <td>
+                        Override introductory offer eligibility (iOS 15+, WWDC
+                        2025). Pass <code>true</code>/<code>false</code> to
+                        force, omit to let the system decide.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ),
             android: (
@@ -633,10 +534,14 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                     </tr>
                     <tr>
                       <td>
-                        <code>replacementMode</code>
+                        <code style={{ textDecoration: 'line-through' }}>
+                          replacementMode
+                        </code>
                       </td>
                       <td>
-                        How to handle subscription change (proration mode)
+                        <strong>Deprecated.</strong> Use{' '}
+                        <code>subscriptionProductReplacementParams</code> for
+                        item-level replacement (Billing Library 8.1.0+).
                       </td>
                     </tr>
                     <tr>
@@ -646,6 +551,28 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                       <td>
                         Array of offers to apply. Each contains:{' '}
                         <code>sku</code>, <code>offerToken</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>subscriptionProductReplacementParams</code>
+                      </td>
+                      <td>
+                        Item-level replacement params for subscription
+                        upgrades/downgrades (Billing Library 8.1.0+).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>developerBillingOption</code>
+                      </td>
+                      <td>
+                        Developer billing option params (External Payments,
+                        8.3.0+). See{' '}
+                        <Link to="/docs/types/billing-programs#developer-billing-option-params">
+                          DeveloperBillingOptionParamsAndroid
+                        </Link>
+                        .
                       </td>
                     </tr>
                   </tbody>
@@ -659,4 +586,4 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
   );
 }
 
-export default TypesRequest;
+export default RequestPurchaseProps;

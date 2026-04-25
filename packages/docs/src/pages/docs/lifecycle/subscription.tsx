@@ -116,7 +116,7 @@ function Subscription() {
         <Accordion title={<>💡 Key Takeaway</>} variant="tip">
           <p>
             <strong>iOS</strong>: Rich client-side data via{' '}
-            <Link to="/docs/types#renewal-info-ios">
+            <Link to="/docs/types/purchase#renewal-info-ios">
               <code>RenewalInfoIOS</code>
             </Link>
             , but server validation is still recommended for production apps.
@@ -128,11 +128,11 @@ function Subscription() {
           </p>
           <p>
             <strong>Both platforms</strong>: Use{' '}
-            <Link to="/docs/apis#get-active-subscriptions">
+            <Link to="/docs/apis/get-active-subscriptions">
               getActiveSubscriptions
             </Link>{' '}
             or{' '}
-            <Link to="/docs/apis#get-available-purchases">
+            <Link to="/docs/apis/get-available-purchases">
               getAvailablePurchases
             </Link>{' '}
             to verify purchases client-side, and implement server-side
@@ -171,7 +171,7 @@ function Subscription() {
         <ul>
           <li>
             <strong>
-              <Link to="/docs/apis#get-active-subscriptions">
+              <Link to="/docs/apis/get-active-subscriptions">
                 getActiveSubscriptions
               </Link>
             </strong>
@@ -180,7 +180,7 @@ function Subscription() {
           </li>
           <li>
             <strong>
-              <Link to="/docs/apis#get-available-purchases">
+              <Link to="/docs/apis/get-available-purchases">
                 getAvailablePurchases
               </Link>
             </strong>
@@ -698,8 +698,10 @@ function Subscription() {
             <li>
               <strong>Always finish transactions</strong>: Unfinished
               transactions will keep appearing on app launch. Call{' '}
-              <code>finishTransaction()</code> after validation and content
-              delivery.
+              <Link to="/docs/apis/finish-transaction">
+                <code>finishTransaction()</code>
+              </Link>{' '}
+              after validation and content delivery.
             </li>
             <li>
               <strong>Android 3-day window</strong>: Android purchases must be
@@ -730,7 +732,7 @@ function Subscription() {
                 <p>
                   iOS provides rich subscription data client-side through
                   StoreKit 2. The{' '}
-                  <Link to="/docs/types#renewal-info-ios">
+                  <Link to="/docs/types/purchase#renewal-info-ios">
                     <code>RenewalInfoIOS</code>
                   </Link>{' '}
                   type contains detailed renewal information that lets you build
@@ -739,13 +741,21 @@ function Subscription() {
                 </p>
 
                 <AnchorLink id="ios-renewal-info" level="h3">
-                  <Link to="/docs/types#renewal-info-ios">RenewalInfoIOS</Link>
+                  <Link to="/docs/types/purchase#renewal-info-ios">
+                    RenewalInfoIOS
+                  </Link>
                   &nbsp;Fields
                 </AnchorLink>
                 <p>
-                  This type is available on <code>PurchaseIOS</code> and{' '}
-                  <code>ActiveSubscriptionIOS</code> via the{' '}
-                  <code>renewalInfoIOS</code> property:
+                  This type is available on{' '}
+                  <Link to="/docs/types/purchase">
+                    <code>PurchaseIOS</code>
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/docs/types/active-subscription">
+                    <code>ActiveSubscriptionIOS</code>
+                  </Link>{' '}
+                  via the <code>renewalInfoIOS</code> property:
                 </p>
 
                 <ul>
@@ -931,25 +941,25 @@ function Subscription() {
                 </AnchorLink>
                 <ul>
                   <li>
-                    <Link to="/docs/apis#get-active-subscriptions">
+                    <Link to="/docs/apis/get-active-subscriptions">
                       getActiveSubscriptions
                     </Link>{' '}
                     - Get active subscriptions with renewal info
                   </li>
                   <li>
-                    <Link to="/docs/apis#get-available-purchases">
+                    <Link to="/docs/apis/get-available-purchases">
                       getAvailablePurchases
                     </Link>{' '}
                     - Get all purchases including expired
                   </li>
                   <li>
-                    <Link to="/docs/apis#subscription-status-ios">
+                    <Link to="/docs/apis/ios/subscription-status-ios">
                       subscriptionStatusIOS
                     </Link>{' '}
                     - Get detailed subscription status
                   </li>
                   <li>
-                    <Link to="/docs/types#renewal-info-ios">
+                    <Link to="/docs/types/purchase#renewal-info-ios">
                       RenewalInfoIOS
                     </Link>{' '}
                     - Type reference
@@ -976,7 +986,7 @@ function Subscription() {
                 </AnchorLink>
                 <p>
                   The{' '}
-                  <Link to="/docs/types#purchase-android">
+                  <Link to="/docs/types/purchase#purchase-android">
                     <code>PurchaseAndroid</code>
                   </Link>{' '}
                   object provides only basic information:
@@ -1006,7 +1016,7 @@ function Subscription() {
                 </AnchorLink>
                 <p>
                   Unlike iOS where{' '}
-                  <Link to="/docs/types#renewal-info-ios">
+                  <Link to="/docs/types/purchase#renewal-info-ios">
                     <code>RenewalInfoIOS</code>
                   </Link>{' '}
                   provides rich client-side data, the following information on
@@ -1244,13 +1254,13 @@ function Subscription() {
                 </AnchorLink>
                 <ul>
                   <li>
-                    <Link to="/docs/apis#get-active-subscriptions">
+                    <Link to="/docs/apis/get-active-subscriptions">
                       getActiveSubscriptions
                     </Link>{' '}
                     - Get active subscriptions (limited data)
                   </li>
                   <li>
-                    <Link to="/docs/apis#get-available-purchases">
+                    <Link to="/docs/apis/get-available-purchases">
                       getAvailablePurchases
                     </Link>{' '}
                     - Get all purchases including subscriptions
@@ -1300,7 +1310,7 @@ function Subscription() {
             <ul style={{ marginBottom: 0 }}>
               <li>
                 Rich client-side data via{' '}
-                <Link to="/docs/types#renewal-info-ios">
+                <Link to="/docs/types/purchase#renewal-info-ios">
                   <code>RenewalInfoIOS</code>
                 </Link>
               </li>
@@ -1340,13 +1350,13 @@ function Subscription() {
                 - Tier change implementation
               </li>
               <li>
-                <Link to="/docs/types#renewal-info-ios">
+                <Link to="/docs/types/purchase#renewal-info-ios">
                   Types: RenewalInfoIOS
                 </Link>{' '}
                 - Type reference
               </li>
               <li>
-                <Link to="/docs/apis#get-active-subscriptions">
+                <Link to="/docs/apis/get-active-subscriptions">
                   APIs: getActiveSubscriptions
                 </Link>{' '}
                 - API reference

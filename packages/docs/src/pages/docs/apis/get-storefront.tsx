@@ -1,0 +1,79 @@
+import CodeBlock from '../../../components/CodeBlock';
+import LanguageTabs from '../../../components/LanguageTabs';
+import SEO from '../../../components/SEO';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+function GetStorefront() {
+  useScrollToHash();
+
+  return (
+    <div className="doc-page">
+      <SEO
+        title="getStorefront"
+        description="Get the storefront country code for the active user."
+        path="/docs/apis/get-storefront"
+        keywords="getStorefront, country code, storefront, region"
+      />
+      <h1>getStorefront</h1>
+      <p>Get the storefront country code for the active user.</p>
+
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`getStorefront(): Promise<string>`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`func getStorefront() async throws -> String`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<String> getStorefront();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_storefront() -> String`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`import { getStorefront } from 'expo-iap';
+
+const countryCode = await getStorefront();
+console.log(countryCode); // "US", "JP", "GB", etc.`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`let countryCode = try await OpenIapModule.shared.getStorefront()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`val countryCode = openIapStore.getStorefront()`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`val countryCode = kmpIAP.getStorefront()`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`final countryCode = await FlutterInappPurchase.instance.getStorefront();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`var country_code = await iap.get_storefront()`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <p>
+        Returns the ISO 3166-1 alpha-2 country code. Returns an empty string
+        when the storefront cannot be determined.
+      </p>
+    </div>
+  );
+}
+
+export default GetStorefront;

@@ -263,23 +263,21 @@ func _exit_tree():
         <h3>Event Payload</h3>
         <p>
           The purchase event delivers a{' '}
-          <Link to="/docs/types#purchase">Purchase</Link> object containing
+          <Link to="/docs/types/purchase">Purchase</Link> object containing
           transaction details.
         </p>
 
         <h3>Purchase Update Flow</h3>
         <ol>
           <li>
-            Receive <Link to="/docs/types#purchase">Purchase</Link> object via
+            Receive <Link to="/docs/types/purchase">Purchase</Link> object via
             listener
           </li>
           <li>Validate receipt with backend service</li>
           <li>Deliver purchased content to user</li>
           <li>
             Finish transaction with{' '}
-            <Link to="/docs/apis/purchase#finish-transaction">
-              finishTransaction
-            </Link>{' '}
+            <Link to="/docs/apis/finish-transaction">finishTransaction</Link>{' '}
             (handles acknowledgment on both platforms)
           </li>
           <li>Update application state</li>
@@ -551,11 +549,14 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
           }}
         </LanguageTabs>
         <p>
-          The emitted <code>Purchase</code> is a regular subscription payload —
-          use <code>productId</code>, <code>purchaseToken</code>, and platform
-          fields to prompt the user to update payment. Play deduplicates by{' '}
-          <code>purchaseToken</code> per session; iOS fires per Message
-          delivery.
+          The emitted{' '}
+          <Link to="/docs/types/purchase">
+            <code>Purchase</code>
+          </Link>{' '}
+          is a regular subscription payload — use <code>productId</code>,{' '}
+          <code>purchaseToken</code>, and platform fields to prompt the user to
+          update payment. Play deduplicates by <code>purchaseToken</code> per
+          session; iOS fires per Message delivery.
         </p>
 
         <p>
@@ -717,20 +718,17 @@ subscription.cancel();`}</CodeBlock>
           <li>Receive product SKU via listener</li>
           <li>
             Fetch product details using{' '}
-            <Link to="/docs/apis#fetch-products">fetchProducts</Link>
+            <Link to="/docs/apis/fetch-products">fetchProducts</Link>
           </li>
           <li>Display product information to user</li>
           <li>
-            Call{' '}
-            <Link to="/docs/apis/purchase#request-purchase">
-              requestPurchase
-            </Link>{' '}
+            Call <Link to="/docs/apis/request-purchase">requestPurchase</Link>{' '}
             with the received SKU if user confirms
           </li>
         </ol>
         <p>
           Also check{' '}
-          <Link to="/docs/apis/ios#get-promoted-product-ios">
+          <Link to="/docs/apis/ios/get-promoted-product-ios">
             getPromotedProductIOS
           </Link>{' '}
           on app launch for pending promoted products.
@@ -738,7 +736,10 @@ subscription.cancel();`}</CodeBlock>
         <div className="alert-card alert-card--info">
           <p>
             <strong>Note:</strong> In StoreKit 2, promoted products can be
-            purchased directly via the standard <code>requestPurchase()</code>{' '}
+            purchased directly via the standard{' '}
+            <Link to="/docs/apis/request-purchase">
+              <code>requestPurchase()</code>
+            </Link>{' '}
             flow. The deprecated{' '}
             <code style={{ textDecoration: 'line-through' }}>
               requestPurchaseOnPromotedProductIOS()

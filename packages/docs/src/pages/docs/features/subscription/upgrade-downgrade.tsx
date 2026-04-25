@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import Accordion from '../../../../components/Accordion';
 import CodeBlock from '../../../../components/CodeBlock';
@@ -1381,7 +1382,9 @@ func format_date(timestamp: int) -> String:
                   <li>New subscription becomes active immediately</li>
                   <li>
                     Old subscription is replaced in{' '}
-                    <code>getAvailablePurchases()</code>
+                    <Link to="/docs/apis/get-available-purchases">
+                      <code>getAvailablePurchases()</code>
+                    </Link>
                   </li>
                 </ol>
 
@@ -1408,8 +1411,11 @@ func format_date(timestamp: int) -> String:
 
                 <p>
                   Specify the <code>prorationModeAndroid</code> parameter when
-                  calling <code>requestPurchase()</code> to control upgrade
-                  behavior.
+                  calling{' '}
+                  <Link to="/docs/apis/request-purchase">
+                    <code>requestPurchase()</code>
+                  </Link>{' '}
+                  to control upgrade behavior.
                 </p>
 
                 <Accordion title={<>📝 Code Example: Upgrading Subscription</>}>

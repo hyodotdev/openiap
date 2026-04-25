@@ -10,14 +10,32 @@
 .docs-sidebar {
   width: 280px;
   flex-shrink: 0;
+  align-self: flex-start;
   position: sticky;
   top: 56px;
-  height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+  overscroll-behavior: contain;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
-  padding: var(--spacing-lg) 0;
+  /* Extra right padding so long identifiers don't sit under the scrollbar */
+  padding: var(--spacing-lg) 1rem var(--spacing-lg) 0;
+}
+
+.docs-sidebar .menu-dropdown-item,
+.docs-sidebar .menu-dropdown-title {
+  white-space: nowrap;
+}
+
+/* Let the nav content grow with the longest identifier so the sidebar
+   actually scrolls horizontally instead of clipping mid-word. */
+.docs-sidebar .docs-nav {
+  min-width: max-content;
+}
+
+.docs-sidebar::-webkit-scrollbar:horizontal {
+  height: 6px;
 }
 
 :root.dark .docs-sidebar {
@@ -246,6 +264,31 @@
 
 :root.dark .menu-dropdown-item-prefix {
   color: #666;
+}
+
+/* Nested sub-menu (used inside an outer MenuDropdown's items) */
+.menu-dropdown.menu-dropdown--nested {
+  list-style: none;
+}
+
+.menu-dropdown--nested > .menu-dropdown-header {
+  padding-left: calc(var(--spacing-lg) + 0.5rem);
+}
+
+.menu-dropdown-title.menu-dropdown-title--nested {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+
+:root.dark .menu-dropdown-title.menu-dropdown-title--nested {
+  color: #b8b8b8;
+}
+
+.menu-dropdown-items--nested .menu-dropdown-item {
+  padding-left: calc(var(--spacing-lg) + 1.5rem);
 }
 
 /* Main content area */
@@ -483,6 +526,22 @@
   padding: 0.75rem 1rem;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-color);
+}
+
+/* Non-last columns (Name, Type, etc.) keep identifiers on one line.
+   Last column (Summary/Description) absorbs remaining width. */
+.error-table th:not(:last-child),
+.error-table td:not(:last-child),
+.doc-page table th:not(:last-child),
+.doc-page table td:not(:last-child) {
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.error-table td:not(:last-child) code,
+.doc-page table td:not(:last-child) code {
+  white-space: nowrap;
 }
 
 .error-table tbody tr:last-child td,

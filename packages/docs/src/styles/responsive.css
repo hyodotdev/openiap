@@ -132,7 +132,7 @@
   html,
   body,
   #root {
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
     max-width: 100vw !important;
     width: 100% !important;
   }

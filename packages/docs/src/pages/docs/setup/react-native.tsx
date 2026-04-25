@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 
@@ -283,7 +284,10 @@ function Store() {
         <p>After calling methods, consume state from the hook:</p>
         <ul>
           <li>
-            <code>products</code> — Populated after <code>fetchProducts()</code>
+            <code>products</code> — Populated after{' '}
+            <Link to="/docs/apis/fetch-products">
+              <code>fetchProducts()</code>
+            </Link>
           </li>
           <li>
             <code>subscriptions</code> — Populated after fetching with type{' '}
@@ -291,12 +295,16 @@ function Store() {
           </li>
           <li>
             <code>availablePurchases</code> — Populated after{' '}
-            <code>getAvailablePurchases()</code>
+            <Link to="/docs/apis/get-available-purchases">
+              <code>getAvailablePurchases()</code>
+            </Link>
           </li>
           <li>
             <code>activeSubscriptions</code> — Populated after{' '}
-            <code>getActiveSubscriptions()</code>. Also returns the value
-            directly.
+            <Link to="/docs/apis/get-active-subscriptions">
+              <code>getActiveSubscriptions()</code>
+            </Link>
+            . Also returns the value directly.
           </li>
         </ul>
 

@@ -22,8 +22,7 @@ function Errors() {
         <h2>Error Structure</h2>
         <p>
           All purchase errors follow a consistent structure for easy handling.
-          See <Link to="/docs/types#purchase-error">PurchaseError type</Link>{' '}
-          for details.
+          See <Link to="/docs/errors">PurchaseError type</Link> for details.
         </p>
         <LanguageTabs>
           {{

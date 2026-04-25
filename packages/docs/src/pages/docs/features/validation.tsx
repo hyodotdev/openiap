@@ -8,21 +8,22 @@ import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 
-function ValidationAPIs() {
+function Validation() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
       <SEO
-        title="Validation APIs"
-        description="OpenIAP validation APIs - verifyPurchase and verifyPurchaseWithProvider for server-side purchase verification."
-        path="/docs/apis/validation"
-        keywords="verifyPurchase, purchase validation, IAPKit, receipt verification"
+        title="Validation"
+        description="Validate in-app purchases server-side. verifyPurchase and verifyPurchaseWithProvider for receipt and JWS verification."
+        path="/docs/features/validation"
+        keywords="verifyPurchase, purchase validation, IAPKit, receipt verification, server-side validation, JWS verification"
       />
-      <h1>Validation APIs</h1>
+      <h1>Validation</h1>
       <p>
-        APIs for verifying purchases with your server or third-party providers
-        like IAPKit.
+        Verify purchases with your own backend or a managed provider like IAPKit
+        before granting entitlements. Always validate server-side — client-side
+        checks can be bypassed.
       </p>
 
       <TLDRBox>
@@ -139,10 +140,88 @@ if result.is_valid:
         </LanguageTabs>
 
         <p className="type-link">
-          See:{' '}
-          <Link to="/docs/types#purchase-verification-types">
-            VerifyPurchaseProps
-          </Link>
+          See: <Link to="/docs/types/verify-purchase">VerifyPurchaseProps</Link>
+        </p>
+      </section>
+
+      <section>
+        <AnchorLink id="iapkit" level="h2">
+          What is IAPKit?
+        </AnchorLink>
+        <IapKitBanner />
+        <p>
+          <a
+            href={IAPKIT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={trackIapKitClick}
+          >
+            IAPKit
+          </a>{' '}
+          is a managed receipt-validation service for App Store and Google Play
+          purchases. Instead of running your own backend that talks to Apple's
+          App Store Server API and Google Play Developer API, you forward the
+          JWS / purchase token to IAPKit and get a normalized verification
+          response — so one-time in-app purchases can't be faked, replayed, or
+          tampered with.
+        </p>
+
+        <h4>Why use it</h4>
+        <ul>
+          <li>
+            <strong>Cross-store, one schema</strong> — same{' '}
+            <Link to="/docs/types/verify-purchase-with-provider-result">
+              <code>VerifyPurchaseWithProviderResult</code>
+            </Link>{' '}
+            shape for Apple and Google. No per-platform JSON parsing.
+          </li>
+          <li>
+            <strong>Fraud-proof</strong> — verifies Apple JWS signatures and
+            queries Google Play's authoritative subscription/purchase state on
+            the server, blocking forged receipts and replay attacks.
+          </li>
+          <li>
+            <strong>Entitlement state, not raw receipts</strong> — IAPKit
+            collapses raw store data into a single <code>state</code> field (
+            <code>entitled</code>, <code>pending</code>, <code>canceled</code>,{' '}
+            <code>expired</code>, <code>refunded</code>,{' '}
+            <code>inauthentic</code>, etc.) so your client and server can act on
+            a single value.
+          </li>
+          <li>
+            <strong>No backend boilerplate</strong> — no service account JSON,
+            no App Store private key rotation, no webhook plumbing required to
+            get started.
+          </li>
+        </ul>
+
+        <h4>When to roll your own instead</h4>
+        <ul>
+          <li>
+            You have strict data-residency requirements that disallow sending
+            purchase tokens to a third-party.
+          </li>
+          <li>
+            You already operate a hardened receipt-validation service and don't
+            want another vendor in the path.
+          </li>
+        </ul>
+
+        <p>
+          Get an API key at{' '}
+          <a
+            href={IAPKIT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={trackIapKitClick}
+          >
+            kit.openiap.dev
+          </a>
+          , then call{' '}
+          <a href="#verify-purchase-with-provider">
+            <code>verifyPurchaseWithProvider</code>
+          </a>{' '}
+          below.
         </p>
       </section>
 
@@ -150,7 +229,6 @@ if result.is_valid:
         <AnchorLink id="verify-purchase-with-provider" level="h2">
           verifyPurchaseWithProvider
         </AnchorLink>
-        <IapKitBanner />
         <p>
           Verify a purchase using a provider like{' '}
           <a
@@ -447,4 +525,4 @@ if result.iapkit.is_valid and result.iapkit.state == IapkitPurchaseState.ENTITLE
   );
 }
 
-export default ValidationAPIs;
+export default Validation;

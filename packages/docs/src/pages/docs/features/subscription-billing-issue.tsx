@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -115,11 +116,14 @@ function SubscriptionBillingIssue() {
         </AnchorLink>
         <p>
           When this event fires, route the user to the platform subscription
-          center via <code>deepLinkToSubscriptions()</code> so they can update
-          their payment method. Do <strong>not</strong> re-grant entitlements on
-          the assumption the subscription is still active — Play suspends
-          entitlement for these purchases, and iOS will re-emit the message
-          until the billing issue is resolved.
+          center via{' '}
+          <Link to="/docs/apis/deep-link-to-subscriptions">
+            <code>deepLinkToSubscriptions()</code>
+          </Link>{' '}
+          so they can update their payment method. Do <strong>not</strong>{' '}
+          re-grant entitlements on the assumption the subscription is still
+          active — Play suspends entitlement for these purchases, and iOS will
+          re-emit the message until the billing issue is resolved.
         </p>
       </section>
 
@@ -206,9 +210,12 @@ kmpIapInstance.subscriptionBillingIssueListener
           On Android, the native SDK tracks emitted purchase tokens per session
           so the event fires <em>once per affected purchase</em> even if the app
           polls <code>getAvailablePurchases</code> repeatedly. The dedupe set is
-          only cleared on <code>endConnection()</code> or app restart — a
-          purchase that exits suspension and re-enters within the same session
-          will
+          only cleared on{' '}
+          <Link to="/docs/apis/end-connection">
+            <code>endConnection()</code>
+          </Link>{' '}
+          or app restart — a purchase that exits suspension and re-enters within
+          the same session will
           <strong>not</strong> re-emit until the next reconnect or process
           restart.
         </p>

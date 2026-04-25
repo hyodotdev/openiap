@@ -1703,7 +1703,9 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                   </tbody>
                 </table>
 
-                <h4>External Payments (8.3.0+ - Japan Only)</h4>
+                <h4 id="external-payments-830---japan-only">
+                  External Payments (8.3.0+ - Japan Only)
+                </h4>
                 <p>
                   Google Play Billing Library 8.3.0 introduces the{' '}
                   <strong>External Payments</strong> program, currently
@@ -2432,7 +2434,9 @@ func _ready_user_choice() -> void:
                     <tr>
                       <td>1</td>
                       <td>
-                        <code>canPresentExternalPurchaseNoticeIOS()</code>
+                        <Link to="/docs/apis/ios/can-present-external-purchase-notice-ios">
+                          <code>canPresentExternalPurchaseNoticeIOS()</code>
+                        </Link>
                       </td>
                       <td>
                         Check if device supports external purchase notice sheet
@@ -2441,7 +2445,9 @@ func _ready_user_choice() -> void:
                     <tr>
                       <td>2</td>
                       <td>
-                        <code>presentExternalPurchaseNoticeSheetIOS()</code>
+                        <Link to="/docs/apis/ios/present-external-purchase-notice-sheet-ios">
+                          <code>presentExternalPurchaseNoticeSheetIOS()</code>
+                        </Link>
                       </td>
                       <td>
                         Show Apple's notice sheet informing user about external
@@ -2791,25 +2797,25 @@ func _ready_user_choice() -> void:
         </AnchorLink>
         <ul>
           <li>
-            <Link to="/docs/types#external-purchase-link">
+            <Link to="/docs/types/external-purchase-link">
               External Purchase Types
             </Link>{' '}
             - Type definitions and parameters
           </li>
           <li>
-            <Link to="/docs/examples/alternative-billing">
-              Alternative Billing Example
+            <Link to="/docs/features/alternative-marketplace">
+              Alternative Marketplace
             </Link>{' '}
-            - Complete React Native example
+            - Onside &amp; alternative billing flows
           </li>
           <li>
-            <Link to="/docs/guides/alternative-billing">
-              Alternative Billing Guide
+            <Link to="/docs/types/alternative-billing-types">
+              Alternative Billing Types
             </Link>{' '}
-            - Setup and configuration guide
+            - Type definitions and config
           </li>
           <li>
-            <Link to="/docs/apis#request-purchase">Request Purchase API</Link> -
+            <Link to="/docs/apis/request-purchase">Request Purchase API</Link> -
             API reference for requestPurchase
           </li>
           <li>

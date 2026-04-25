@@ -39,7 +39,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           Establish connection to the store service using{' '}
-          <Link to="/docs/apis#init-connection">initConnection</Link>. This must
+          <Link to="/docs/apis/init-connection">initConnection</Link>. This must
           be done before any other IAP operations.
         </p>
 
@@ -48,7 +48,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           Fetch available products from the store using{' '}
-          <Link to="/docs/apis#fetch-products">fetchProducts</Link>. Products
+          <Link to="/docs/apis/fetch-products">fetchProducts</Link>. Products
           must be configured in App Store Connect or Google Play Console.
         </p>
 
@@ -57,7 +57,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           User initiates purchase via{' '}
-          <Link to="/docs/apis#request-purchase">requestPurchase</Link>. The
+          <Link to="/docs/apis/request-purchase">requestPurchase</Link>. The
           platform payment UI is displayed.
         </p>
 
@@ -106,8 +106,10 @@ function LifeCycle() {
         <div className="alert-card alert-card--info">
           <p style={{ margin: 0 }}>
             <strong>ℹ️ Tip:</strong> Use{' '}
-            <Link to="/docs/apis#verify-purchase">verifyPurchase</Link> for
-            server-side purchase verification.
+            <Link to="/docs/features/validation#verify-purchase">
+              verifyPurchase
+            </Link>{' '}
+            for server-side purchase verification.
           </p>
         </div>
 
@@ -123,7 +125,7 @@ function LifeCycle() {
           7. Transaction Completion
         </AnchorLink>
         <p>
-          Call <Link to="/docs/apis#finish-transaction">finishTransaction</Link>{' '}
+          Call <Link to="/docs/apis/finish-transaction">finishTransaction</Link>{' '}
           to complete the purchase. Unfinished transactions remain in queue and
           may cause issues. Set <code>isConsumable=true</code> only for
           consumable products, and <code>false</code> or omit for
@@ -135,7 +137,7 @@ function LifeCycle() {
         </AnchorLink>
         <p>
           When IAP is no longer needed, call{' '}
-          <Link to="/docs/apis#end-connection">endConnection</Link> to free
+          <Link to="/docs/apis/end-connection">endConnection</Link> to free
           resources.
         </p>
       </section>

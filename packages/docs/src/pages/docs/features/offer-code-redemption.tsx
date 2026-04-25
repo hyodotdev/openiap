@@ -567,7 +567,7 @@ func redeem_with_code(code: String) -> void:
         </AnchorLink>
         <ul>
           <li>
-            <Link to="/docs/apis#present-code-redemption-sheet-ios">
+            <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
               presentCodeRedemptionSheetIOS API Reference
             </Link>
           </li>

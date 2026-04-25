@@ -356,8 +356,7 @@ func _exit_tree() -> void:
             purchase results — instead, listen for events through{' '}
             <code>purchaseUpdatedListener</code> or{' '}
             <code>purchaseErrorListener</code>. See{' '}
-            <Link to="/docs/apis/purchase#request-apis">API Terminology</Link>{' '}
-            for details.
+            <Link to="/docs/apis">API Terminology</Link> for details.
           </p>
         </div>
 
@@ -920,7 +919,7 @@ Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
             <strong>ℹ️ Endpoint:</strong> Requests are sent to{' '}
             <code>https://kit.openiap.dev/v1/purchase/verify</code> with{' '}
             <code>Authorization: Bearer &lt;apiKey&gt;</code>. See the{' '}
-            <Link to="/docs/types/verification#purchase-verification-provider">
+            <Link to="/docs/types/verify-purchase-with-provider-props">
               PurchaseVerificationProvider
             </Link>{' '}
             type reference for the full response shape.
@@ -1672,7 +1671,11 @@ func _exit_tree() -> void:
               <td>Purchase replays on launch</td>
               <td>Transaction not finished</td>
               <td>
-                Call <code>finishTransaction()</code> after verification
+                Call{' '}
+                <Link to="/docs/apis/finish-transaction">
+                  <code>finishTransaction()</code>
+                </Link>{' '}
+                after verification
               </td>
             </tr>
             <tr>
@@ -1685,7 +1688,9 @@ func _exit_tree() -> void:
               <td>Not consumed</td>
               <td>
                 Pass <code>isConsumable: true</code> to{' '}
-                <code>finishTransaction()</code>
+                <Link to="/docs/apis/finish-transaction">
+                  <code>finishTransaction()</code>
+                </Link>
               </td>
             </tr>
             <tr>

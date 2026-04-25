@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import HighlightText from '../../components/HighlightText';
 import SEO from '../../components/SEO';
 
@@ -392,8 +393,11 @@ function IOSSetup() {
         </h3>
         <p>
           All transactions must be explicitly finished using{' '}
-          <code>finishTransaction()</code> to remove them from the payment
-          queue. Unfinished transactions will be re-delivered on app launch.
+          <Link to="/docs/apis/finish-transaction">
+            <code>finishTransaction()</code>
+          </Link>{' '}
+          to remove them from the payment queue. Unfinished transactions will be
+          re-delivered on app launch.
         </p>
 
         <h3 id="restore-purchases" className="anchor-heading">
