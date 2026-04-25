@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Route, Routes, Navigate, NavLink } from 'react-router-dom';
+import {
+  Route,
+  Routes,
+  Navigate,
+  NavLink,
+  useLocation,
+} from 'react-router-dom';
 import { MenuDropdown } from '../../components/MenuDropdown';
 import GettingStarted from './getting-started';
 import Ecosystem from './ecosystem';
@@ -115,6 +121,16 @@ import FoundationSponsorship from './foundation/sponsorship';
 import FoundationRoadmapBudget from './foundation/roadmap-budget';
 import FoundationFoundingSupporters from './foundation/founding-supporters';
 import NotFound from '../404';
+
+/* Preserve the URL hash when redirecting away from a deprecated path so
+   downstream pages (apis/index, types/index) can still translate the
+   anchor into a flat per-symbol page. Without this, a link like
+   /docs/types/request#request-purchase-props would land on /docs/types
+   minus the hash, defeating LEGACY_ANCHOR_REDIRECTS. */
+function NavigatePreservingHash({ to }: { to: string }) {
+  const { hash } = useLocation();
+  return <Navigate to={`${to}${hash || ''}`} replace />;
+}
 
 function Docs() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -833,27 +849,27 @@ function Docs() {
           />
           <Route
             path="types/request"
-            element={<Navigate to="/docs/types" replace />}
+            element={<NavigatePreservingHash to="/docs/types" />}
           />
           <Route
             path="types/alternative"
-            element={<Navigate to="/docs/types" replace />}
+            element={<NavigatePreservingHash to="/docs/types" />}
           />
           <Route
             path="types/verification"
-            element={<Navigate to="/docs/types" replace />}
+            element={<NavigatePreservingHash to="/docs/types" />}
           />
           <Route
             path="types/ios"
-            element={<Navigate to="/docs/types" replace />}
+            element={<NavigatePreservingHash to="/docs/types" />}
           />
           <Route
             path="types/android"
-            element={<Navigate to="/docs/types" replace />}
+            element={<NavigatePreservingHash to="/docs/types" />}
           />
           <Route
             path="types/offer"
-            element={<Navigate to="/docs/types" replace />}
+            element={<NavigatePreservingHash to="/docs/types" />}
           />
           <Route path="apis" element={<APIsIndex />} />
           <Route path="apis/init-connection" element={<APIsInitConnection />} />
@@ -1011,27 +1027,27 @@ function Docs() {
           />
           <Route
             path="apis/connection"
-            element={<Navigate to="/docs/apis" replace />}
+            element={<NavigatePreservingHash to="/docs/apis" />}
           />
           <Route
             path="apis/products"
-            element={<Navigate to="/docs/apis" replace />}
+            element={<NavigatePreservingHash to="/docs/apis" />}
           />
           <Route
             path="apis/purchase"
-            element={<Navigate to="/docs/apis" replace />}
+            element={<NavigatePreservingHash to="/docs/apis" />}
           />
           <Route
             path="apis/subscription"
-            element={<Navigate to="/docs/apis" replace />}
+            element={<NavigatePreservingHash to="/docs/apis" />}
           />
           <Route
             path="apis/ios"
-            element={<Navigate to="/docs/apis" replace />}
+            element={<NavigatePreservingHash to="/docs/apis" />}
           />
           <Route
             path="apis/android"
-            element={<Navigate to="/docs/apis" replace />}
+            element={<NavigatePreservingHash to="/docs/apis" />}
           />
           <Route
             path="apis/validation"

@@ -76,6 +76,15 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   validation: '/docs/features/validation',
   refund: '/docs/features/refund',
   debugging: '/docs/features/debugging',
+  'debugging-logging': '/docs/features/debugging',
+  // Section-level anchors that pointed at the old combined page
+  'platform-specific-apis': '/docs/apis#ios-functions',
+  'ios-apis': '/docs/apis#ios-functions',
+  'android-apis': '/docs/apis#android-functions',
+  terminology: '/docs/apis#terminology',
+  'request-apis': '/docs/apis/request-purchase#request-apis',
+  'transaction-vs-purchase': '/docs/apis#transaction-vs-purchase',
+  'naming-convention': '/docs/apis#naming-convention',
 };
 
 function APIsIndex() {
@@ -258,6 +267,49 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>Open the platform's subscription management UI.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <AnchorLink id="validation" level="h2">
+          Validation
+        </AnchorLink>
+        <p>
+          Server-side verification helpers. Full walkthrough lives on{' '}
+          <Link to="/docs/features/validation">Features → Validation</Link> —
+          these signatures are listed here for completeness.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Function</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <Link to="/docs/features/validation#verify-purchase">
+                  <code>verifyPurchase</code>
+                </Link>
+              </td>
+              <td>
+                Verify a purchase against your own backend (returns{' '}
+                <code>isValid</code> + raw store metadata).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/features/validation#verify-purchase-with-provider">
+                  <code>verifyPurchaseWithProvider</code>
+                </Link>
+              </td>
+              <td>
+                Verify via a managed provider (IAPKit, Apple, Google, Horizon)
+                without standing up your own server.
+              </td>
             </tr>
           </tbody>
         </table>

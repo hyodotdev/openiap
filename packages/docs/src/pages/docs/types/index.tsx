@@ -42,6 +42,40 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'subscription-offer-android':
     '/docs/types/android/subscription-offer-android',
   'pricing-phase-android': '/docs/types/android/pricing-phase-android',
+  // Legacy section anchors that pointed at the old combined type pages
+  'product-common': '/docs/types/product#product-common',
+  'product-ios': '/docs/types/product#product-ios',
+  'product-android': '/docs/types/product#product-android',
+  'subscription-product-common':
+    '/docs/types/subscription-product#subscription-product-common',
+  'subscription-product-ios':
+    '/docs/types/subscription-product#subscription-product-ios',
+  'subscription-product-android':
+    '/docs/types/subscription-product#subscription-product-android',
+  'purchase-state': '/docs/types/purchase#purchase-state',
+  'purchase-common': '/docs/types/purchase#purchase-common',
+  'purchase-ios': '/docs/types/purchase#purchase-ios',
+  'purchase-android': '/docs/types/purchase#purchase-android',
+  'active-subscription-common':
+    '/docs/types/active-subscription#active-subscription-common',
+  'active-subscription-ios':
+    '/docs/types/active-subscription#active-subscription-ios',
+  'active-subscription-android':
+    '/docs/types/active-subscription#active-subscription-android',
+  'app-transaction': '/docs/types/ios/app-transaction-ios',
+  'payment-mode': '/docs/types/ios/payment-mode-ios',
+  'subscription-period': '/docs/types/ios/subscription-period-ios',
+  'subscription-status': '/docs/types/ios/subscription-status-ios',
+  'discount-ios-deprecated': '/docs/types/ios/discount-ios',
+  // Top-level anchors on the old combined types page
+  common: '/docs/types',
+  'platform-specific': '/docs/types',
+  ios: '/docs/types',
+  android: '/docs/types',
+  offer: '/docs/types',
+  request: '/docs/types',
+  alternative: '/docs/types',
+  verification: '/docs/types',
 };
 
 interface TypeRow {
