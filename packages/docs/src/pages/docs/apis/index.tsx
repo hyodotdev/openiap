@@ -104,14 +104,16 @@ function APIsIndex() {
     const anchor = location.hash.slice(1);
     const redirect = LEGACY_ANCHOR_REDIRECTS[anchor];
     if (!redirect) return;
-    // Skip the navigate when the legacy anchor already resolves to this
-    // exact page + hash — otherwise React Router fires the effect again
-    // and we infinite-loop on same-page anchors like `terminology`.
+    // Skip the navigate when the redirect target already matches the
+    // current pathname + hash. Same-page anchors (`terminology`, etc.)
+    // would otherwise re-fire this effect and infinite-loop, and even
+    // cross-page redirects would push a duplicate history entry on
+    // re-renders if the URL is already correct.
     const [redirectPath, redirectHash = ''] = redirect.split('#');
-    if (
-      redirectPath === location.pathname &&
-      (redirectHash === '' || `#${redirectHash}` === location.hash)
-    ) {
+    const currentHash = location.hash.startsWith('#')
+      ? location.hash.slice(1)
+      : '';
+    if (redirectPath === location.pathname && redirectHash === currentHash) {
       return;
     }
     navigate(redirect, { replace: true });

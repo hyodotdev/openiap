@@ -37,7 +37,7 @@ function ValidateReceipt() {
           </Link>{' '}
           input and returns the same{' '}
           <Link to="/docs/types/verify-purchase-with-provider-result">
-            <code>VerifyPurchaseResult</code>
+            <code>VerifyPurchaseWithProviderResult</code>
           </Link>
           .
         </p>

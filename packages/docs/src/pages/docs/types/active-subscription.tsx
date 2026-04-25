@@ -135,7 +135,9 @@ function ActiveSubscription() {
                 Unified plan identifier. On Android: basePlanId (e.g.,
                 "premium"). On iOS: productId (e.g.,
                 "com.example.premium_monthly"). <strong>⚠️ Android:</strong> May
-                be inaccurate for multi-plan subscriptions. See{' '}
+                be inaccurate for multi-plan subscriptions because Google Play
+                Billing's <code>Purchase</code> object does not expose{' '}
+                <code>basePlanId</code> directly — it has to be inferred. See{' '}
                 <Link to="/docs/features/debugging#android-baseplanid-limitation">
                   limitation
                 </Link>

@@ -96,6 +96,7 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
         className="menu-dropdown-content"
         data-expanded={isExpanded}
         aria-hidden={!isExpanded}
+        {...(!isExpanded ? { inert: '' } : {})}
       >
         <ul className="menu-dropdown-items menu-dropdown-items--nested">
           {group.items.map((item) => (
@@ -161,9 +162,26 @@ export function MenuDropdown({
       <div
         className={`menu-dropdown-header ${isTitleActive ? 'active' : isChildActive ? 'group-active' : ''}`}
       >
-        <button
-          type="button"
-          onClick={handleTitleClick}
+        <NavLink
+          to={titleTo}
+          end
+          onClick={(e) => {
+            // Let modifier-clicks (Cmd/Ctrl/Shift/middle) and right-clicks
+            // fall through to the browser so users can open in a new tab,
+            // copy the link, etc. — semantics a <button> wouldn't give us.
+            if (
+              e.defaultPrevented ||
+              e.button !== 0 ||
+              e.metaKey ||
+              e.ctrlKey ||
+              e.shiftKey ||
+              e.altKey
+            ) {
+              return;
+            }
+            e.preventDefault();
+            handleTitleClick();
+          }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           className={`menu-dropdown-title ${isTitleActive ? 'active' : ''}`}
@@ -173,7 +191,7 @@ export function MenuDropdown({
           }}
         >
           {title}
-        </button>
+        </NavLink>
         <button
           type="button"
           onClick={toggleExpanded}
@@ -185,17 +203,21 @@ export function MenuDropdown({
           <Chevron isExpanded={isExpanded} />
         </button>
       </div>
+      {/* `inert` removes collapsed descendants from the tab order and the
+          accessibility tree. `aria-hidden` alone wouldn't — keyboard users
+          would still tab into hidden links. */}
       <div
         id={contentId}
         className="menu-dropdown-content"
         data-expanded={isExpanded}
         aria-hidden={!isExpanded}
+        {...(!isExpanded ? { inert: '' } : {})}
       >
         <ul className="menu-dropdown-items">
-          {items.map((entry) =>
+          {items.map((entry, index) =>
             isGroup(entry) ? (
               <SubMenu
-                key={`${titleTo}::group::${entry.label}::${entry.items[0]?.to ?? ''}`}
+                key={`${titleTo}::group::${entry.label}::${index}`}
                 group={entry}
                 onItemClick={onItemClick}
               />

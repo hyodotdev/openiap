@@ -51,7 +51,12 @@ val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { purchaseErrorListener, ErrorCode } from 'expo-iap';
+            <CodeBlock language="typescript">{`import {
+  purchaseErrorListener,
+  ErrorCode,
+  restorePurchases,
+} from 'expo-iap';
+// showRetryDialog / showErrorMessage are user-defined UI helpers.
 
 const subscription = purchaseErrorListener((error) => {
   console.log('Purchase error:', error.code, error.message);
