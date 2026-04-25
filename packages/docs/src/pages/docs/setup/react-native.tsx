@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 
@@ -249,7 +250,7 @@ function Store() {
                 apple: { sku: item.productId },
                 google: { skus: [item.productId] },
               },
-              type: 'inapp',
+              type: 'in-app',
             })
           }
         />
@@ -283,7 +284,10 @@ function Store() {
         <p>After calling methods, consume state from the hook:</p>
         <ul>
           <li>
-            <code>products</code> — Populated after <code>fetchProducts()</code>
+            <code>products</code> — Populated after{' '}
+            <Link to="/docs/apis/fetch-products">
+              <code>fetchProducts()</code>
+            </Link>
           </li>
           <li>
             <code>subscriptions</code> — Populated after fetching with type{' '}
@@ -291,12 +295,16 @@ function Store() {
           </li>
           <li>
             <code>availablePurchases</code> — Populated after{' '}
-            <code>getAvailablePurchases()</code>
+            <Link to="/docs/apis/get-available-purchases">
+              <code>getAvailablePurchases()</code>
+            </Link>
           </li>
           <li>
             <code>activeSubscriptions</code> — Populated after{' '}
-            <code>getActiveSubscriptions()</code>. Also returns the value
-            directly.
+            <Link to="/docs/apis/get-active-subscriptions">
+              <code>getActiveSubscriptions()</code>
+            </Link>
+            .
           </li>
         </ul>
 
@@ -356,7 +364,10 @@ await endConnection();`}
           </a>
         </h2>
         <p>
-          Errors are automatically normalized to the <code>ErrorCode</code>{' '}
+          Errors are automatically normalized to the{' '}
+          <Link to="/docs/errors">
+            <code>ErrorCode</code>
+          </Link>{' '}
           enum. Use the provided helper functions:
         </p>
         <CodeBlock language="typescript">

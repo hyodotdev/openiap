@@ -1,0 +1,176 @@
+import AnchorLink from '../../../components/AnchorLink';
+import SEO from '../../../components/SEO';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
+
+function VerifyPurchaseWithProviderProps() {
+  useScrollToHash();
+
+  return (
+    <div className="doc-page">
+      <SEO
+        title="VerifyPurchaseWithProviderProps"
+        description="VerifyPurchaseWithProviderProps type definition and field reference."
+        path="/docs/types/verify-purchase-with-provider-props"
+        keywords="VerifyPurchaseWithProviderProps, OpenIAP types, Verify Purchase With Provider Props"
+      />
+      <h1>VerifyPurchaseWithProviderProps</h1>
+      <section>
+        <AnchorLink id="verify-purchase-with-provider-props" level="h2">
+          VerifyPurchaseWithProviderProps
+        </AnchorLink>
+        <p>
+          Input type for <code>verifyPurchaseWithProvider()</code> - used to
+          verify purchases through external providers like{' '}
+          <a
+            href={IAPKIT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={trackIapKitClick}
+          >
+            IAPKit
+          </a>
+          .
+        </p>
+
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>provider</code>
+              </td>
+              <td>
+                <code>PurchaseVerificationProvider</code>
+              </td>
+              <td>
+                The verification provider to use. Currently only{' '}
+                <code>'iapkit'</code> is supported.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>iapkit</code>
+              </td>
+              <td>
+                <code>RequestVerifyPurchaseWithIapkitProps?</code>
+              </td>
+              <td>IAPKit-specific verification parameters.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="request-verify-purchase-with-iapkit-props" level="h3">
+          RequestVerifyPurchaseWithIapkitProps
+        </AnchorLink>
+        <p>Parameters for IAPKit verification.</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>apiKey</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                API key used for the Authorization header (Bearer {'{apiKey}'}
+                ).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>apple</code>
+              </td>
+              <td>
+                <code>RequestVerifyPurchaseWithIapkitAppleProps?</code>
+              </td>
+              <td>Apple/iOS verification parameters.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>google</code>
+              </td>
+              <td>
+                <code>RequestVerifyPurchaseWithIapkitGoogleProps?</code>
+              </td>
+              <td>Google/Android verification parameters.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink
+          id="request-verify-purchase-with-iapkit-apple-props"
+          level="h4"
+        >
+          RequestVerifyPurchaseWithIapkitAppleProps
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>jws</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>The JWS token returned with the purchase response.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink
+          id="request-verify-purchase-with-iapkit-google-props"
+          level="h4"
+        >
+          RequestVerifyPurchaseWithIapkitGoogleProps
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>purchaseToken</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                The token provided to the user's device when the product or
+                subscription was purchased.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  );
+}
+
+export default VerifyPurchaseWithProviderProps;

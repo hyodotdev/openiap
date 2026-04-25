@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useMemo } from 'react';
 import SEO from '../../../components/SEO';
 import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
@@ -410,8 +411,11 @@ function Releases() {
               </li>
               <li>
                 New <code>advancedCommerceInfoIOS</code> field on{' '}
-                <code>PurchaseIOS</code> — present only for transactions using
-                the Advanced Commerce API with generic SKU purchases.
+                <Link to="/docs/types/purchase">
+                  <code>PurchaseIOS</code>
+                </Link>{' '}
+                — present only for transactions using the Advanced Commerce API
+                with generic SKU purchases.
               </li>
               <li>
                 Contains item details, tax info, and refund data from{' '}
@@ -433,8 +437,14 @@ function Releases() {
               }}
             >
               <li>
-                New <code>getAllTransactionsIOS()</code> query returns the full
-                StoreKit 2 transaction history as <code>PurchaseIOS</code>{' '}
+                New{' '}
+                <Link to="/docs/apis/ios/get-all-transactions-ios">
+                  <code>getAllTransactionsIOS()</code>
+                </Link>{' '}
+                query returns the full StoreKit 2 transaction history as{' '}
+                <Link to="/docs/types/purchase">
+                  <code>PurchaseIOS</code>
+                </Link>{' '}
                 values.
               </li>
               <li>
@@ -444,7 +454,11 @@ function Releases() {
               </li>
               <li>
                 Unlike <code>getAvailablePurchases</code>, always returns the
-                iOS-specific <code>PurchaseIOS</code> shape.
+                iOS-specific{' '}
+                <Link to="/docs/types/purchase">
+                  <code>PurchaseIOS</code>
+                </Link>{' '}
+                shape.
               </li>
             </ul>
 
@@ -459,12 +473,10 @@ function Releases() {
               }}
             >
               <li>
-                <a href="/docs/types/purchase#advanced-commerce-info-ios">
-                  AdvancedCommerceInfoIOS Type
-                </a>
+                <a href="/docs/types/purchase">AdvancedCommerceInfoIOS Type</a>
               </li>
               <li>
-                <a href="/docs/apis/ios#get-all-transactions-ios">
+                <a href="/docs/apis/ios/get-all-transactions-ios">
                   getAllTransactionsIOS API
                 </a>
               </li>
@@ -599,7 +611,10 @@ function Releases() {
                 <code>IapEvent.SubscriptionBillingIssue</code> enum value and{' '}
                 <code>subscriptionBillingIssue: Purchase!</code> subscription in{' '}
                 <code>event.graphql</code>. Payload is the affected{' '}
-                <code>Purchase</code>.
+                <Link to="/docs/types/purchase">
+                  <code>Purchase</code>
+                </Link>
+                .
               </li>
               <li>
                 <strong>iOS:</strong> registered via{' '}
@@ -933,8 +948,10 @@ function Releases() {
                   <code>subscriptionProductReplacementParams</code> on Android
                 </strong>{' '}
                 — the field was declared on{' '}
-                <code>RequestSubscriptionAndroidProps</code> and parsed
-                correctly by the native plugin, but{' '}
+                <Link to="/docs/types/request-purchase-props">
+                  <code>RequestSubscriptionAndroidProps</code>
+                </Link>{' '}
+                and parsed correctly by the native plugin, but{' '}
                 <code>flutter_inapp_purchase.dart</code> was dropping it when
                 building the method-channel payload, so the native side received{' '}
                 <code>null</code> and Google Play applied its default
@@ -1599,7 +1616,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
               }}
             >
               <a
-                href="/docs/types/android#one-time-purchase-offer-detail"
+                href="/docs/types/android/one-time-purchase-offer-detail-android"
                 style={{ fontSize: '0.85rem' }}
               >
                 <code>
@@ -1607,7 +1624,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
                 </code>
               </a>
               <a
-                href="/docs/types/offer#discount-offer"
+                href="/docs/types/discount-offer"
                 style={{ fontSize: '0.85rem' }}
               >
                 <code>DiscountOffer.purchaseOptionIdAndroid</code>
@@ -1643,7 +1660,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
               }}
             >
               <a
-                href="/docs/types/android#subscription-offer-details"
+                href="/docs/types/android/subscription-offer-android"
                 style={{ fontSize: '0.85rem' }}
               >
                 <code>
@@ -1651,7 +1668,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
                 </code>
               </a>
               <a
-                href="/docs/types/offer#subscription-offer"
+                href="/docs/types/subscription-offer"
                 style={{ fontSize: '0.85rem' }}
               >
                 <code>SubscriptionOffer.installmentPlanDetailsAndroid</code>
@@ -1662,8 +1679,11 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
           {/* Section 3: PendingPurchaseUpdateAndroid */}
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.25rem 0' }}>
-              3. <code>PendingPurchaseUpdateAndroid</code> for
-              Upgrades/Downgrades
+              3.{' '}
+              <Link to="/docs/types/purchase">
+                <code>PendingPurchaseUpdateAndroid</code>
+              </Link>{' '}
+              for Upgrades/Downgrades
             </h5>
             <p
               style={{
@@ -1687,10 +1707,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
                 marginTop: '0.5rem',
               }}
             >
-              <a
-                href="/docs/types/purchase#pending-purchase-update-android"
-                style={{ fontSize: '0.85rem' }}
-              >
+              <a href="/docs/types/purchase" style={{ fontSize: '0.85rem' }}>
                 <code>PurchaseAndroid.pendingPurchaseUpdateAndroid</code>
               </a>
             </div>
@@ -1832,7 +1849,10 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
 
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.25rem 0' }}>
-              3. Improved <code>presentExternalPurchaseNoticeSheetIOS()</code>
+              3. Improved{' '}
+              <Link to="/docs/apis/ios/present-external-purchase-notice-sheet-ios">
+                <code>presentExternalPurchaseNoticeSheetIOS()</code>
+              </Link>
             </h5>
             <p
               style={{
@@ -2058,8 +2078,14 @@ result.error                  // optional error`}</CodeBlock>
               }}
             >
               Removed subscription-specific fields from{' '}
-              <code>RequestPurchaseIosProps</code>. These fields now only exist
-              in <code>RequestSubscriptionIosProps</code>.
+              <Link to="/docs/types/request-purchase-props">
+                <code>RequestPurchaseIosProps</code>
+              </Link>
+              . These fields now only exist in{' '}
+              <Link to="/docs/types/request-purchase-props">
+                <code>RequestSubscriptionIosProps</code>
+              </Link>
+              .
             </p>
             <ul
               style={{
@@ -2332,7 +2358,9 @@ result.error                  // optional error`}</CodeBlock>
               </li>
               <li>
                 <code>productStatusAndroid</code> - New field on{' '}
-                <code>ProductAndroid</code>
+                <Link to="/docs/types/product">
+                  <code>ProductAndroid</code>
+                </Link>
               </li>
             </ul>
           </div>
@@ -2414,14 +2442,24 @@ result.error                  // optional error`}</CodeBlock>
               color: 'var(--text-secondary)',
             }}
           >
-            Introduced standardized <code>DiscountOffer</code> and{' '}
-            <code>SubscriptionOffer</code> types for unified handling across iOS
-            and Android.
+            Introduced standardized{' '}
+            <Link to="/docs/types/discount-offer">
+              <code>DiscountOffer</code>
+            </Link>{' '}
+            and{' '}
+            <Link to="/docs/types/subscription-offer">
+              <code>SubscriptionOffer</code>
+            </Link>{' '}
+            types for unified handling across iOS and Android.
           </p>
 
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.25rem 0' }}>
-              1. <code>DiscountOffer</code> (One-time products)
+              1.{' '}
+              <Link to="/docs/types/discount-offer">
+                <code>DiscountOffer</code>
+              </Link>{' '}
+              (One-time products)
             </h5>
             <ul
               style={{
@@ -2445,7 +2483,10 @@ result.error                  // optional error`}</CodeBlock>
 
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.25rem 0' }}>
-              2. <code>SubscriptionOffer</code>
+              2.{' '}
+              <Link to="/docs/types/subscription-offer">
+                <code>SubscriptionOffer</code>
+              </Link>
             </h5>
             <ul
               style={{
@@ -2465,7 +2506,13 @@ result.error                  // optional error`}</CodeBlock>
               <li>
                 Replaces deprecated{' '}
                 <code>ProductSubscriptionAndroidOfferDetails</code>,{' '}
-                <code>DiscountOfferIOS</code>, <code>DiscountIOS</code>
+                <Link to="/docs/types/ios/discount-offer-ios">
+                  <code>DiscountOfferIOS</code>
+                </Link>
+                ,{' '}
+                <Link to="/docs/types/ios/discount-ios">
+                  <code>DiscountIOS</code>
+                </Link>
               </li>
             </ul>
           </div>
@@ -2525,13 +2572,19 @@ result.error                  // optional error`}</CodeBlock>
                 <del>
                   <code>ProductAndroidOneTimePurchaseOfferDetail</code>
                 </del>{' '}
-                → <code>DiscountOffer</code>
+                →{' '}
+                <Link to="/docs/types/discount-offer">
+                  <code>DiscountOffer</code>
+                </Link>
               </li>
               <li>
                 <del>
                   <code>ProductSubscriptionAndroidOfferDetails</code>
                 </del>{' '}
-                → <code>SubscriptionOffer</code>
+                →{' '}
+                <Link to="/docs/types/subscription-offer">
+                  <code>SubscriptionOffer</code>
+                </Link>
               </li>
               <li>
                 <del>
@@ -2644,8 +2697,15 @@ result.error                  // optional error`}</CodeBlock>
                 color: 'var(--text-secondary)',
               }}
             >
-              Deprecated <code>AlternativeBillingModeAndroid</code> in favor of
-              unified <code>BillingProgramAndroid</code> enum.
+              Deprecated{' '}
+              <Link to="/docs/types/alternative-billing-types">
+                <code>AlternativeBillingModeAndroid</code>
+              </Link>{' '}
+              in favor of unified{' '}
+              <Link to="/docs/types/billing-programs">
+                <code>BillingProgramAndroid</code>
+              </Link>{' '}
+              enum.
             </p>
             <ul
               style={{
@@ -2660,7 +2720,9 @@ result.error                  // optional error`}</CodeBlock>
               </li>
               <li>
                 <del>
-                  <code>AlternativeBillingModeAndroid</code>
+                  <Link to="/docs/types/alternative-billing-types">
+                    <code>AlternativeBillingModeAndroid</code>
+                  </Link>
                 </del>{' '}
                 - Deprecated
               </li>
@@ -2778,7 +2840,10 @@ result.error                  // optional error`}</CodeBlock>
               Added{' '}
               <code>enableBillingProgramAndroid: BillingProgramAndroid</code>{' '}
               field for easier billing program setup during{' '}
-              <code>initConnection()</code>.
+              <Link to="/docs/apis/init-connection">
+                <code>initConnection()</code>
+              </Link>
+              .
             </p>
           </div>
 
@@ -2794,8 +2859,11 @@ result.error                  // optional error`}</CodeBlock>
               }}
             >
               All API methods now automatically call{' '}
-              <code>initConnection()</code> internally. No need to manually call
-              it before using any API. Backward compatible.
+              <Link to="/docs/apis/init-connection">
+                <code>initConnection()</code>
+              </Link>{' '}
+              internally. No need to manually call it before using any API.
+              Backward compatible.
             </p>
           </div>
 
@@ -3094,8 +3162,14 @@ result.error                  // optional error`}</CodeBlock>
               }}
             >
               <li>
-                New optional field in <code>RequestPurchaseIosProps</code> and{' '}
-                <code>RequestSubscriptionIosProps</code>
+                New optional field in{' '}
+                <Link to="/docs/types/request-purchase-props">
+                  <code>RequestPurchaseIosProps</code>
+                </Link>{' '}
+                and{' '}
+                <Link to="/docs/types/request-purchase-props">
+                  <code>RequestSubscriptionIosProps</code>
+                </Link>
               </li>
               <li>
                 Use cases: Campaign attribution, affiliate marketing,
@@ -3106,7 +3180,10 @@ result.error                  // optional error`}</CodeBlock>
 
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.25rem 0' }}>
-              2. Deprecated <code>requestPurchaseOnPromotedProductIOS()</code>
+              2. Deprecated{' '}
+              <Link to="/docs/apis/ios/request-purchase-on-promoted-product-ios">
+                <code>requestPurchaseOnPromotedProductIOS()</code>
+              </Link>
             </h5>
             <p
               style={{
@@ -3116,7 +3193,10 @@ result.error                  // optional error`}</CodeBlock>
               }}
             >
               In StoreKit 2, use <code>promotedProductListenerIOS</code> +{' '}
-              <code>requestPurchase()</code> directly.
+              <Link to="/docs/apis/request-purchase">
+                <code>requestPurchase()</code>
+              </Link>{' '}
+              directly.
             </p>
           </div>
 
@@ -3236,7 +3316,10 @@ result.error                  // optional error`}</CodeBlock>
           </ul>
 
           <p style={{ fontSize: '0.9rem' }}>
-            See: <a href="/docs/apis#verify-purchase">verifyPurchase API</a>
+            See:{' '}
+            <a href="/docs/features/validation#verify-purchase">
+              verifyPurchase API
+            </a>
           </p>
         </div>
       ),
@@ -3481,9 +3564,17 @@ result.error                  // optional error`}</CodeBlock>
             }}
           >
             <li>
-              <code>canPresentExternalPurchaseNoticeIOS()</code>,{' '}
-              <code>presentExternalPurchaseNoticeSheetIOS()</code>,{' '}
-              <code>presentExternalPurchaseLinkIOS()</code>
+              <Link to="/docs/apis/ios/can-present-external-purchase-notice-ios">
+                <code>canPresentExternalPurchaseNoticeIOS()</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/apis/ios/present-external-purchase-notice-sheet-ios">
+                <code>presentExternalPurchaseNoticeSheetIOS()</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/apis/ios/present-external-purchase-link-ios">
+                <code>presentExternalPurchaseLinkIOS()</code>
+              </Link>
             </li>
           </ul>
         </div>
@@ -3507,9 +3598,15 @@ result.error                  // optional error`}</CodeBlock>
               color: 'var(--text-secondary)',
             }}
           >
-            New standardized APIs: <code>getActiveSubscriptions()</code>,{' '}
-            <code>hasActiveSubscriptions()</code> - automatic detection without
-            requiring product IDs.
+            New standardized APIs:{' '}
+            <Link to="/docs/apis/get-active-subscriptions">
+              <code>getActiveSubscriptions()</code>
+            </Link>
+            ,{' '}
+            <Link to="/docs/apis/has-active-subscriptions">
+              <code>hasActiveSubscriptions()</code>
+            </Link>{' '}
+            - automatic detection without requiring product IDs.
           </p>
         </div>
       ),

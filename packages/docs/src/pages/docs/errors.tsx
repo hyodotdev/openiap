@@ -19,11 +19,10 @@ function Errors() {
       <h1>Error Codes</h1>
 
       <section>
-        <h2>Error Structure</h2>
+        <h2 id="error-structure">Error Structure</h2>
         <p>
           All purchase errors follow a consistent structure for easy handling.
-          See <Link to="/docs/types#purchase-error">PurchaseError type</Link>{' '}
-          for details.
+          The <code>PurchaseError</code> shape is defined below.
         </p>
         <LanguageTabs>
           {{

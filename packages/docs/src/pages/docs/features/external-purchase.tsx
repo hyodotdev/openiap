@@ -52,7 +52,11 @@ function ExternalPurchase() {
             <tr>
               <td>iOS</td>
               <td>External Purchase URL</td>
-              <td>iOS 17.4+ (Notice Sheet), iOS 18.2+ (New APIs)</td>
+              <td>
+                iOS 17.4+ (Notice Sheet)
+                <br />
+                iOS 18.2+ (New APIs)
+              </td>
               <td>StoreKit 2</td>
             </tr>
             <tr>
@@ -1703,7 +1707,9 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                   </tbody>
                 </table>
 
-                <h4>External Payments (8.3.0+ - Japan Only)</h4>
+                <h4 id="external-payments-830---japan-only">
+                  External Payments (8.3.0+ - Japan Only)
+                </h4>
                 <p>
                   Google Play Billing Library 8.3.0 introduces the{' '}
                   <strong>External Payments</strong> program, currently
@@ -2432,7 +2438,9 @@ func _ready_user_choice() -> void:
                     <tr>
                       <td>1</td>
                       <td>
-                        <code>canPresentExternalPurchaseNoticeIOS()</code>
+                        <Link to="/docs/apis/ios/can-present-external-purchase-notice-ios">
+                          <code>canPresentExternalPurchaseNoticeIOS()</code>
+                        </Link>
                       </td>
                       <td>
                         Check if device supports external purchase notice sheet
@@ -2441,7 +2449,9 @@ func _ready_user_choice() -> void:
                     <tr>
                       <td>2</td>
                       <td>
-                        <code>presentExternalPurchaseNoticeSheetIOS()</code>
+                        <Link to="/docs/apis/ios/present-external-purchase-notice-sheet-ios">
+                          <code>presentExternalPurchaseNoticeSheetIOS()</code>
+                        </Link>
                       </td>
                       <td>
                         Show Apple's notice sheet informing user about external
@@ -2791,30 +2801,89 @@ func _ready_user_choice() -> void:
         </AnchorLink>
         <ul>
           <li>
-            <Link to="/docs/types#external-purchase-link">
+            <Link to="/docs/types/external-purchase-link">
               External Purchase Types
             </Link>{' '}
             - Type definitions and parameters
           </li>
           <li>
-            <Link to="/docs/examples/alternative-billing">
-              Alternative Billing Example
+            <Link to="/docs/features/alternative-marketplace">
+              Alternative Marketplace
             </Link>{' '}
-            - Complete React Native example
+            - Onside &amp; alternative billing flows
           </li>
           <li>
-            <Link to="/docs/guides/alternative-billing">
-              Alternative Billing Guide
+            <Link to="/docs/types/alternative-billing-types">
+              Alternative Billing Types
             </Link>{' '}
-            - Setup and configuration guide
+            - Type definitions and config
           </li>
           <li>
-            <Link to="/docs/apis#request-purchase">Request Purchase API</Link> -
+            <Link to="/docs/apis/request-purchase">Request Purchase API</Link> -
             API reference for requestPurchase
           </li>
           <li>
             <Link to="/docs/errors">Error Codes</Link> - Error handling
             reference
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="native-references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/support/storekit-external-entitlement/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit External Purchase entitlement
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/externalpurchase"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit ExternalPurchase
+            </a>{' '}
+            — notice sheet and link APIs
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://support.google.com/googleplay/android-developer/answer/13821247"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              User Choice Billing
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/alternative"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Alternative billing in Play Billing Library
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#8-3-0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Play Billing 8.3.0 — External Payments (Japan)
+            </a>
           </li>
         </ul>
       </section>

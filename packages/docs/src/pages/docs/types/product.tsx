@@ -1,63 +1,54 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
-import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-function TypesProduct() {
+function Product() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
       <SEO
-        title="Product Types"
-        description="OpenIAP Product type definitions - Product, SubscriptionProduct, Unified Platform Types, and Storefront for TypeScript, Swift, Kotlin, Dart."
+        title="Product"
+        description="Product type definition and field reference."
         path="/docs/types/product"
-        keywords="IAP types, Product, SubscriptionProduct, Storefront, TypeScript, Swift, Kotlin"
+        keywords="Product, OpenIAP types, Product"
       />
-      <h1>Product Types</h1>
-      <p>
-        Type definitions for products available in the store, including
-        subscriptions and platform-specific fields.
-      </p>
-
-      <TLDRBox>
-        <ul>
-          <li>
-            <a href="#product">
-              <code>Product</code>
-            </a>{' '}
-            - Union of ProductIOS and ProductAndroid
-          </li>
-          <li>
-            <a href="#product-subscription">
-              <code>SubscriptionProduct</code>
-            </a>{' '}
-            - Extends Product with subscription fields
-          </li>
-          <li>
-            <a href="#store-discriminators">
-              <code>store</code>
-            </a>{' '}
-            discriminator: "apple", "google", or "horizon"
-          </li>
-          <li>
-            <a href="#storefront">
-              <code>Storefront</code>
-            </a>{' '}
-            - User's store region (ISO 3166-1 alpha-2)
-          </li>
-        </ul>
-      </TLDRBox>
-
+      <h1>Product</h1>
       <section>
         <AnchorLink id="product" level="h2">
           Product
         </AnchorLink>
         <p>
           Represents a product available for purchase in the store. The type is
-          a union of <code>ProductIOS</code> and <code>ProductAndroid</code>,
-          discriminated by the <code>platform</code> field.
+          a union of{' '}
+          <Link to="/docs/types/product#product-ios">
+            <code>ProductIOS</code>
+          </Link>{' '}
+          and{' '}
+          <Link to="/docs/types/product#product-android">
+            <code>ProductAndroid</code>
+          </Link>
+          , discriminated by the <code>platform</code> field.
+        </p>
+        <p className="type-link">
+          <strong>Native references:</strong>{' '}
+          <a
+            href="https://developer.apple.com/documentation/storekit/product"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple · StoreKit Product
+          </a>
+          {' · '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google · ProductDetails
+          </a>
         </p>
 
         <AnchorLink id="product-common" level="h3">
@@ -105,6 +96,12 @@ function TypesProduct() {
             </tr>
             <tr>
               <td>
+                <code>displayName</code>
+              </td>
+              <td>Display-friendly product name (optional)</td>
+            </tr>
+            <tr>
+              <td>
                 <code>displayPrice</code>
               </td>
               <td>
@@ -125,6 +122,12 @@ function TypesProduct() {
             </tr>
             <tr>
               <td>
+                <code>debugDescription</code>
+              </td>
+              <td>Debug-friendly description (optional)</td>
+            </tr>
+            <tr>
+              <td>
                 <code>store</code>
               </td>
               <td>
@@ -134,15 +137,10 @@ function TypesProduct() {
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>platform</code>{' '}
-                <span
-                  style={{ color: 'var(--text-warning)', fontSize: '0.8em' }}
-                >
-                  (deprecated)
-                </span>
+                <code style={{ textDecoration: 'line-through' }}>platform</code>
               </td>
               <td>
-                Use <code>store</code> instead
+                <strong>Deprecated.</strong> Use <code>store</code> instead.
               </td>
             </tr>
           </tbody>
@@ -192,15 +190,37 @@ function TypesProduct() {
                     </tr>
                     <tr>
                       <td>
-                        <code>subscriptionInfoIOS</code>
+                        <code style={{ textDecoration: 'line-through' }}>
+                          subscriptionInfoIOS
+                        </code>
                       </td>
                       <td>
-                        Subscription metadata (only for subscriptions).
-                        Contains: <code>subscriptionGroupId</code>,{' '}
+                        <strong>Deprecated.</strong> Use{' '}
+                        <code>subscriptionOffers</code> instead. Subscription
+                        metadata (only for subscriptions). Contains:{' '}
+                        <code>subscriptionGroupId</code>,{' '}
                         <code>subscriptionPeriod</code> (unit and value),{' '}
                         <code>introductoryOffer</code>,{' '}
                         <code>promotionalOffers</code>
                       </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>subscriptionOffers</code>
+                      </td>
+                      <td>
+                        Cross-platform array of{' '}
+                        <Link to="/docs/types/subscription-offer">
+                          <code>SubscriptionOffer</code>
+                        </Link>{' '}
+                        — unified across iOS/Android.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>jsonRepresentationIOS</code>
+                      </td>
+                      <td>Raw StoreKit 2 JWS payload as a JSON string.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -241,7 +261,7 @@ function TypesProduct() {
                         <code>limitedQuantityInfo</code>,{' '}
                         <code>preorderDetailsAndroid</code>,{' '}
                         <code>rentalDetailsAndroid</code>. See{' '}
-                        <a href="/docs/features/discount">Discounts</a>.
+                        <Link to="/docs/features/discount">Discounts</Link>.
                         Requires{' '}
                         <a
                           href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
@@ -280,155 +300,28 @@ function TypesProduct() {
                         </a>
                       </td>
                     </tr>
-                  </tbody>
-                </table>
-              </>
-            ),
-          }}
-        </PlatformTabs>
-      </section>
-
-      <section>
-        <AnchorLink id="product-subscription" level="h2">
-          SubscriptionProduct
-        </AnchorLink>
-        <p>
-          Represents a subscription product available for purchase. Extends the
-          base Product type with subscription-specific fields like pricing
-          phases, introductory offers, and billing periods.
-        </p>
-
-        <AnchorLink id="subscription-product-common" level="h3">
-          Common Fields
-        </AnchorLink>
-        <p>
-          In addition to all <a href="#product-common">Product common fields</a>
-          , subscription products include:
-        </p>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>type</code>
-              </td>
-              <td>
-                Always <code>"subs"</code> for subscription products
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <AnchorLink id="subscription-product-platform" level="h3">
-          Platform-Specific Fields
-        </AnchorLink>
-        <PlatformTabs>
-          {{
-            ios: (
-              <>
-                <AnchorLink id="subscription-product-ios" level="h4">
-                  SubscriptionProductIOS
-                </AnchorLink>
-                <p>Additional fields available on iOS subscriptions:</p>
-                <table className="doc-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Summary</th>
-                    </tr>
-                  </thead>
-                  <tbody>
                     <tr>
                       <td>
-                        <code>discountsIOS</code>
+                        <code>discountOffers</code>
                       </td>
                       <td>
-                        Array of available discounts. Each contains:{' '}
-                        <code>identifier</code>, <code>type</code>,{' '}
-                        <code>numberOfPeriods</code>, <code>price</code>,{' '}
-                        <code>localizedPrice</code>, <code>paymentMode</code>,{' '}
-                        <code>subscriptionPeriod</code>
+                        Cross-platform array of{' '}
+                        <Link to="/docs/types/discount-offer">
+                          <code>DiscountOffer</code>
+                        </Link>{' '}
+                        — unified discount metadata.
                       </td>
                     </tr>
                     <tr>
                       <td>
-                        <code>introductoryPriceIOS</code>
-                      </td>
-                      <td>Formatted introductory price (e.g., "$0.99")</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>introductoryPriceAsAmountIOS</code>
-                      </td>
-                      <td>Numeric introductory price value</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>introductoryPricePaymentModeIOS</code>
+                        <code>subscriptionOffers</code>
                       </td>
                       <td>
-                        Payment mode for intro offer (FreeTrial, PayAsYouGo,
-                        PayUpFront)
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>introductoryPriceNumberOfPeriodsIOS</code>
-                      </td>
-                      <td>Number of periods for intro pricing</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>introductoryPriceSubscriptionPeriodIOS</code>
-                      </td>
-                      <td>
-                        Period unit for intro pricing (Day, Week, Month, Year)
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionPeriodNumberIOS</code>
-                      </td>
-                      <td>Number of units in a subscription period</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionPeriodUnitIOS</code>
-                      </td>
-                      <td>Period unit (Day, Week, Month, Year)</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </>
-            ),
-            android: (
-              <>
-                <AnchorLink id="subscription-product-android" level="h4">
-                  SubscriptionProductAndroid
-                </AnchorLink>
-                <p>Additional fields available on Android subscriptions:</p>
-                <table className="doc-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Summary</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <code>subscriptionOfferDetailsAndroid</code>
-                      </td>
-                      <td>
-                        Array of subscription offers. Each contains:{' '}
-                        <code>basePlanId</code>, <code>offerId</code>,{' '}
-                        <code>offerToken</code>, <code>pricingPhases</code>,{' '}
-                        <code>offerTags</code>
+                        Cross-platform array of{' '}
+                        <Link to="/docs/types/subscription-offer">
+                          <code>SubscriptionOffer</code>
+                        </Link>{' '}
+                        — unified across iOS/Android.
                       </td>
                     </tr>
                   </tbody>
@@ -437,151 +330,9 @@ function TypesProduct() {
             ),
           }}
         </PlatformTabs>
-      </section>
-
-      <section>
-        <AnchorLink id="unified-platform-types" level="h2">
-          Unified Platform Types
-        </AnchorLink>
-        <p>
-          These types combine platform-specific types with a <code>store</code>{' '}
-          discriminator for type-safe handling across Apple, Google, and Horizon
-          stores.
-        </p>
-
-        <AnchorLink id="store-discriminators" level="h3">
-          Store Discriminators
-        </AnchorLink>
-        <p>
-          Each unified type includes a <code>store</code> field that identifies
-          the source store:
-        </p>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Value</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>"apple"</code>
-              </td>
-              <td>Apple App Store (iOS/macOS)</td>
-            </tr>
-            <tr>
-              <td>
-                <code>"google"</code>
-              </td>
-              <td>Google Play Store (Android)</td>
-            </tr>
-            <tr>
-              <td>
-                <code>"horizon"</code>
-              </td>
-              <td>Meta Horizon Store (Quest)</td>
-            </tr>
-            <tr>
-              <td>
-                <code>"unknown"</code>
-              </td>
-              <td>Unknown store (default)</td>
-            </tr>
-          </tbody>
-        </table>
-        <blockquote className="info-note">
-          <p>
-            <strong>Note:</strong> The <code>platform</code> field is
-            deprecated. Use <code>store</code> instead.
-          </p>
-        </blockquote>
-
-        <AnchorLink id="union-types" level="h3">
-          Union Types
-        </AnchorLink>
-        <p>The SDK provides these unified types for cross-platform code:</p>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>Product</code>
-              </td>
-              <td>
-                Union of <code>ProductIOS</code> and <code>ProductAndroid</code>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>SubscriptionProduct</code>
-              </td>
-              <td>
-                Union of <code>SubscriptionProductIOS</code> and{' '}
-                <code>SubscriptionProductAndroid</code>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>Purchase</code>
-              </td>
-              <td>
-                Union of <code>PurchaseIOS</code> and{' '}
-                <code>PurchaseAndroid</code>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p>
-          Use the <code>platform</code> field to narrow the type and access
-          platform-specific fields safely.
-        </p>
-      </section>
-
-      <section>
-        <AnchorLink id="storefront" level="h2">
-          Storefront
-        </AnchorLink>
-        <p>
-          Represents the user&apos;s App Store or Play Store region, returned by{' '}
-          <code>getStorefront()</code>.
-        </p>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>StorefrontCode</code>
-              </td>
-              <td>ISO 3166-1 alpha-2 country code (string)</td>
-            </tr>
-          </tbody>
-        </table>
-        <p>
-          Example values: <code>"US"</code>, <code>"KR"</code>,{' '}
-          <code>"JP"</code>. May return an empty string when the storefront
-          cannot be determined.
-        </p>
-        <blockquote className="info-note">
-          <p>
-            iOS sources the value from the active StoreKit storefront. Android
-            queries Google Play Billing configuration and returns the same
-            country code string when available.
-          </p>
-        </blockquote>
       </section>
     </div>
   );
 }
 
-export default TypesProduct;
+export default Product;

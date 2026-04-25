@@ -69,7 +69,11 @@ function Subscription() {
               <td>
                 Subscription offers are <strong>required</strong> when
                 purchasing. You must pass <code>subscriptionOffers</code> with
-                offer tokens from <code>fetchProducts()</code>.
+                offer tokens from{' '}
+                <Link to="/docs/apis/fetch-products">
+                  <code>fetchProducts()</code>
+                </Link>
+                .
               </td>
             </tr>
           </tbody>
@@ -741,7 +745,10 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                   Android requires explicit specification of subscription offers
                   when purchasing. Each offer is identified by an{' '}
                   <code>offerToken</code> obtained from{' '}
-                  <code>fetchProducts()</code>.
+                  <Link to="/docs/apis/fetch-products">
+                    <code>fetchProducts()</code>
+                  </Link>
+                  .
                 </p>
 
                 <div className="alert-card alert-card--warning">
@@ -1233,10 +1240,12 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                     </a>{' '}
                     returned by Google Play Billing does <strong>NOT</strong>{' '}
                     include <code>basePlanId</code>. This means{' '}
-                    <code>getActiveSubscriptions()</code> and purchase callbacks
-                    cannot reliably determine which specific plan was purchased
-                    within a subscription group. See{' '}
-                    <Link to="/docs/apis/debugging#android-baseplanid-limitation">
+                    <Link to="/docs/apis/get-active-subscriptions">
+                      <code>getActiveSubscriptions()</code>
+                    </Link>{' '}
+                    and purchase callbacks cannot reliably determine which
+                    specific plan was purchased within a subscription group. See{' '}
+                    <Link to="/docs/features/debugging#android-baseplanid-limitation">
                       detailed limitation and solutions
                     </Link>
                     .
@@ -1253,15 +1262,21 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                     <code>basePlanId</code>
                   </li>
                   <li>
-                    <code>Purchase</code> object (from purchase callbacks) - ❌
-                    Does NOT contain <code>basePlanId</code>
+                    <Link to="/docs/types/purchase">
+                      <code>Purchase</code>
+                    </Link>{' '}
+                    object (from purchase callbacks) - ❌ Does NOT contain{' '}
+                    <code>basePlanId</code>
                   </li>
                 </ul>
 
                 <p>
                   When a subscription group has multiple base plans (weekly,
                   monthly, yearly), there is no way to determine which specific
-                  plan was purchased from the client-side <code>Purchase</code>{' '}
+                  plan was purchased from the client-side{' '}
+                  <Link to="/docs/types/purchase">
+                    <code>Purchase</code>
+                  </Link>{' '}
                   object alone.
                 </p>
 
@@ -1551,7 +1566,7 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
                       IAPKit
                     </Link>{' '}
                     which handles all the complexity for you. Use{' '}
-                    <Link to="/docs/apis#verify-purchase-with-provider">
+                    <Link to="/docs/features/validation#verify-purchase-with-provider">
                       verifyPurchaseWithProvider
                     </Link>{' '}
                     to verify purchases with minimal setup.
@@ -1984,7 +1999,10 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
               Subscription remains valid until Day 30 (end of billing period)
             </li>
             <li>
-              <code>getAvailablePurchases()</code> still returns this purchase
+              <Link to="/docs/apis/get-available-purchases">
+                <code>getAvailablePurchases()</code>
+              </Link>{' '}
+              still returns this purchase
             </li>
             <li>
               iOS: <code>renewalInfo.willAutoRenew = false</code> (client-side)
@@ -2036,8 +2054,10 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
             <li>User requests refund from Apple/Google</li>
             <li>Refund is approved</li>
             <li>
-              <code>getAvailablePurchases()</code> may still return the purchase
-              temporarily
+              <Link to="/docs/apis/get-available-purchases">
+                <code>getAvailablePurchases()</code>
+              </Link>{' '}
+              may still return the purchase temporarily
             </li>
           </ol>
           <p style={{ marginTop: '0.5rem' }}>
@@ -2060,7 +2080,7 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
             <Link to="/docs/updates/announcements#2025-12-09">IAPKit</Link> to
             make your life easier - it provides backend verification with
             minimal setup via{' '}
-            <Link to="/docs/apis#verify-purchase-with-provider">
+            <Link to="/docs/features/validation#verify-purchase-with-provider">
               verifyPurchaseWithProvider
             </Link>
             .
@@ -2080,9 +2100,12 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
         <div className="alert-card alert-card--warning">
           <p>
             <strong>⚠️ Android Limitation:</strong> While{' '}
-            <code>getAvailablePurchases()</code> can retrieve purchase history,
-            Android clients cannot access expiry time, cancellation status, or
-            refund information. For complete subscription management, consider:
+            <Link to="/docs/apis/get-available-purchases">
+              <code>getAvailablePurchases()</code>
+            </Link>{' '}
+            can retrieve purchase history, Android clients cannot access expiry
+            time, cancellation status, or refund information. For complete
+            subscription management, consider:
           </p>
           <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
             <li>
@@ -2363,14 +2386,16 @@ for subscription in active_subscriptions:
               <>
                 <h4>
                   iOS: Using{' '}
-                  <Link to="/docs/types#subscription-status-ios">
+                  <Link to="/docs/types/ios/subscription-status-ios">
                     subscriptionStatusIOS
                   </Link>
                 </h4>
                 <p>
                   iOS provides detailed subscription status through{' '}
-                  <code>subscriptionStatusIOS()</code> which returns the
-                  StoreKit 2 subscription state.
+                  <Link to="/docs/apis/ios/subscription-status-ios">
+                    <code>subscriptionStatusIOS()</code>
+                  </Link>{' '}
+                  which returns the StoreKit 2 subscription state.
                 </p>
 
                 <table className="doc-table">
@@ -2807,7 +2832,7 @@ func check_from_active_subscriptions() -> void:
                 <p>
                   For the complete list of subscription state values and
                   expiration reasons, see{' '}
-                  <Link to="/docs/types#subscription-status-ios">
+                  <Link to="/docs/types/ios/subscription-status-ios">
                     SubscriptionStatusIOS
                   </Link>{' '}
                   in the Types reference.
@@ -3311,6 +3336,54 @@ func manage_subscriptions() -> void:
           <li>
             <Link to="/tutorials#verify-purchase">Verify Purchase</Link> -
             Server-side verification guides
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/app-store/subscriptions/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              App Store Subscriptions overview
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Product.SubscriptionInfo
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Add subscription support
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Subscription lifecycle
+            </a>
           </li>
         </ul>
       </section>

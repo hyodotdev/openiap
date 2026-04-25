@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -33,7 +34,6 @@ function SubscriptionBillingIssue() {
               <th>Platform</th>
               <th>Signal Source</th>
               <th>Delivery</th>
-              <th>Minimum Version</th>
             </tr>
           </thead>
           <tbody>
@@ -41,42 +41,55 @@ function SubscriptionBillingIssue() {
               <td>iOS / iPadOS</td>
               <td>
                 <code>StoreKit.Message.Reason.billingIssue</code>
+                <br />
+                <small>iOS 18.0+</small>
               </td>
               <td>Push, while app is active</td>
-              <td>iOS 18.0+</td>
             </tr>
             <tr>
               <td>Mac Catalyst</td>
               <td>
                 <code>StoreKit.Message.Reason.billingIssue</code>
+                <br />
+                <small>Mac Catalyst 18.0+</small>
               </td>
               <td>Push, while app is active</td>
-              <td>Mac Catalyst 18.0+</td>
             </tr>
             <tr>
               <td>Android (Play)</td>
               <td>
                 <code>Purchase.isSuspended</code>
+                <br />
+                <small>Play Billing Library 8.1+</small>
               </td>
               <td>
                 Poll via <code>getAvailablePurchases</code> or on{' '}
                 <code>onPurchasesUpdated</code>
               </td>
-              <td>Play Billing Library 8.1+</td>
             </tr>
             <tr>
               <td>Android (Meta Horizon)</td>
-              <td>Not available</td>
+              <td>
+                Not available
+                <br />
+                <small>Billing 7.0 compat SDK</small>
+              </td>
               <td>Never fires (silent no-op)</td>
-              <td>N/A — Billing 7.0 compat SDK</td>
             </tr>
             <tr>
-              <td>macOS / tvOS / watchOS / visionOS</td>
+              <td>
+                macOS
+                <br />
+                tvOS
+                <br />
+                watchOS
+                <br />
+                visionOS
+              </td>
               <td>
                 <code>StoreKit.Message</code> not available
               </td>
               <td>Never fires</td>
-              <td>N/A</td>
             </tr>
           </tbody>
         </table>
@@ -115,11 +128,14 @@ function SubscriptionBillingIssue() {
         </AnchorLink>
         <p>
           When this event fires, route the user to the platform subscription
-          center via <code>deepLinkToSubscriptions()</code> so they can update
-          their payment method. Do <strong>not</strong> re-grant entitlements on
-          the assumption the subscription is still active — Play suspends
-          entitlement for these purchases, and iOS will re-emit the message
-          until the billing issue is resolved.
+          center via{' '}
+          <Link to="/docs/apis/deep-link-to-subscriptions">
+            <code>deepLinkToSubscriptions()</code>
+          </Link>{' '}
+          so they can update their payment method. Do <strong>not</strong>{' '}
+          re-grant entitlements on the assumption the subscription is still
+          active — Play suspends entitlement for these purchases, and iOS will
+          re-emit the message until the billing issue is resolved.
         </p>
       </section>
 
@@ -206,9 +222,12 @@ kmpIapInstance.subscriptionBillingIssueListener
           On Android, the native SDK tracks emitted purchase tokens per session
           so the event fires <em>once per affected purchase</em> even if the app
           polls <code>getAvailablePurchases</code> repeatedly. The dedupe set is
-          only cleared on <code>endConnection()</code> or app restart — a
-          purchase that exits suspension and re-enters within the same session
-          will
+          only cleared on{' '}
+          <Link to="/docs/apis/end-connection">
+            <code>endConnection()</code>
+          </Link>{' '}
+          or app restart — a purchase that exits suspension and re-enters within
+          the same session will
           <strong>not</strong> re-emit until the next reconnect or process
           restart.
         </p>
@@ -218,6 +237,54 @@ kmpIapInstance.subscriptionBillingIssueListener
           scans current entitlements and fires one event per subscription in{' '}
           <code>.inBillingRetryPeriod</code> or <code>.inGracePeriod</code>.
         </p>
+      </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/message"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit.Message
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Message.Reason.billingIssue
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/reference/com/android/billingclient/api/Purchase#isSuspended()"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Purchase.isSuspended()
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions#suspended"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Suspended subscriptions
+            </a>
+          </li>
+        </ul>
       </section>
     </div>
   );

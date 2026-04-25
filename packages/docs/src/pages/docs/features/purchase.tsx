@@ -80,7 +80,8 @@ function Purchase() {
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { useEffect, useCallback } from 'react';
+              <CodeBlock language="typescript">{`// expo-iap
+import { useEffect, useCallback } from 'react';
 import {
   initConnection,
   endConnection,
@@ -89,6 +90,15 @@ import {
   type Purchase,
   type PurchaseError,
 } from 'expo-iap';
+// Same API in react-native-iap:
+// import {
+//   initConnection,
+//   endConnection,
+//   purchaseUpdatedListener,
+//   purchaseErrorListener,
+//   type Purchase,
+//   type PurchaseError,
+// } from 'react-native-iap';
 
 function App() {
   useEffect(() => {
@@ -122,6 +132,24 @@ function App() {
       void endConnection();
     };
   }, []);
+
+  return <YourAppContent />;
+}
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP handles connection, listener wiring, and cleanup for you. Pass
+// onPurchaseSuccess / onPurchaseError to receive the same callbacks.
+import { useIAP } from 'expo-iap';
+
+function AppWithHook() {
+  useIAP({
+    onPurchaseSuccess: (purchase) => {
+      void handlePurchase(purchase);
+    },
+    onPurchaseError: (error) => {
+      handlePurchaseError(error);
+    },
+  });
 
   return <YourAppContent />;
 }`}</CodeBlock>
@@ -354,9 +382,17 @@ func _exit_tree() -> void:
             <code>request</code> are <strong>event-based</strong> operations,
             not promise-based. Do not rely on their return values for actual
             purchase results — instead, listen for events through{' '}
-            <code>purchaseUpdatedListener</code> or{' '}
-            <code>purchaseErrorListener</code>. See{' '}
-            <Link to="/docs/apis/purchase#request-apis">API Terminology</Link>{' '}
+            <Link to="/docs/events/purchase-updated-listener">
+              <code>purchaseUpdatedListener</code>
+            </Link>{' '}
+            or{' '}
+            <Link to="/docs/events/purchase-error-listener">
+              <code>purchaseErrorListener</code>
+            </Link>
+            . See{' '}
+            <Link to="/docs/apis/fetch-products#request-apis">
+              API Terminology
+            </Link>{' '}
             for details.
           </p>
         </div>
@@ -367,7 +403,10 @@ func _exit_tree() -> void:
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { requestPurchase } from 'expo-iap';
+              <CodeBlock language="typescript">{`// expo-iap
+import { requestPurchase } from 'expo-iap';
+// Same API in react-native-iap:
+// import { requestPurchase } from 'react-native-iap';
 
 // Purchase a one-time product (consumable or non-consumable)
 const purchaseProduct = async (productId: string) => {
@@ -377,7 +416,7 @@ const purchaseProduct = async (productId: string) => {
         apple: { sku: productId },
         google: { skus: [productId] },
       },
-      type: 'inapp', // 'inapp' for consumables/non-consumables
+      type: 'in-app', // 'in-app' for consumables/non-consumables
     });
     // Purchase result will be delivered to purchaseUpdatedListener
   } catch (error) {
@@ -386,7 +425,29 @@ const purchaseProduct = async (productId: string) => {
 };
 
 // Example usage
-await purchaseProduct('com.app.coins_100');`}</CodeBlock>
+await purchaseProduct('com.app.coins_100');
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useIAP } from 'expo-iap';
+
+function BuyButton({ productId }: { productId: string }) {
+  const { requestPurchase } = useIAP();
+
+  return (
+    <Button
+      title="Buy"
+      onPress={() =>
+        requestPurchase({
+          request: {
+            apple: { sku: productId },
+            google: { skus: [productId] },
+          },
+          type: 'in-app',
+        })
+      }
+    />
+  );
+}`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`import OpenIap
@@ -514,8 +575,11 @@ await purchase_product("com.app.coins_100")`}</CodeBlock>
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { verifyPurchase, type Purchase } from 'expo-iap';
+              <CodeBlock language="typescript">{`// expo-iap
+import { verifyPurchase, type Purchase } from 'expo-iap';
 import { Platform } from 'react-native';
+// Same API in react-native-iap:
+// import { verifyPurchase, type Purchase } from 'react-native-iap';
 
 const verifyOnServer = async (purchase: Purchase) => {
   const result = await verifyPurchase({
@@ -533,7 +597,27 @@ const verifyOnServer = async (purchase: Purchase) => {
 
   console.error('Verification failed');
   return false;
-};`}</CodeBlock>
+};
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useIAP } from 'expo-iap';
+
+function PurchaseScreen() {
+  const { verifyPurchase } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      const result = await verifyPurchase({
+        purchase,
+        serverUrl: Platform.select({
+          ios: 'https://your-server.com/api/verify-ios',
+          android: 'https://your-server.com/api/verify-android',
+        })!,
+      });
+      if (!result.isValid) console.error('Verification failed');
+    },
+  });
+
+  return null;
+}`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`import OpenIap
@@ -732,8 +816,11 @@ Future<bool> verifyOnServer(ProductPurchase purchase) async {
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { Platform } from 'react-native';
+              <CodeBlock language="typescript">{`// expo-iap
+import { Platform } from 'react-native';
 import { verifyPurchaseWithProvider, type Purchase } from 'expo-iap';
+// Same API in react-native-iap:
+// import { verifyPurchaseWithProvider, type Purchase } from 'react-native-iap';
 
 const verifyWithIapkit = async (purchase: Purchase) => {
   const result = await verifyPurchaseWithProvider({
@@ -754,7 +841,29 @@ const verifyWithIapkit = async (purchase: Purchase) => {
 
   console.error('IAPKit verification failed');
   return false;
-};`}</CodeBlock>
+};
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useIAP } from 'expo-iap';
+
+function PurchaseScreen() {
+  const { verifyPurchaseWithProvider } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      const result = await verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+          ...(Platform.OS === 'ios'
+            ? { apple: { jws: purchase.purchaseToken ?? '' } }
+            : { google: { purchaseToken: purchase.purchaseToken ?? '' } }),
+        },
+      });
+      if (!result.iapkit?.isValid) console.error('IAPKit verification failed');
+    },
+  });
+
+  return null;
+}`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`import OpenIap
@@ -920,7 +1029,7 @@ Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
             <strong>ℹ️ Endpoint:</strong> Requests are sent to{' '}
             <code>https://kit.openiap.dev/v1/purchase/verify</code> with{' '}
             <code>Authorization: Bearer &lt;apiKey&gt;</code>. See the{' '}
-            <Link to="/docs/types/verification#purchase-verification-provider">
+            <Link to="/docs/types/verify-purchase-with-provider-props">
               PurchaseVerificationProvider
             </Link>{' '}
             type reference for the full response shape.
@@ -979,7 +1088,10 @@ Future<bool> verifyWithIapkit(ProductPurchase purchase) async {
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { finishTransaction, type Purchase } from 'expo-iap';
+              <CodeBlock language="typescript">{`// expo-iap
+import { finishTransaction, type Purchase } from 'expo-iap';
+// Same API in react-native-iap:
+// import { finishTransaction, type Purchase } from 'react-native-iap';
 
 // Complete purchase flow in listener
 const handlePurchase = async (purchase: Purchase) => {
@@ -997,10 +1109,29 @@ const handlePurchase = async (purchase: Purchase) => {
   // - isConsumable: true = consume the purchase (can buy again)
   // - isConsumable: false = acknowledge only (one-time purchase)
   const isConsumable = purchase.productId.includes('consumable');
-  await finishTransaction(purchase, isConsumable);
+  await finishTransaction({ purchase, isConsumable });
 
   console.log('Transaction finished successfully');
-};`}</CodeBlock>
+};
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP exposes finishTransaction and wires the listener for you. Run the
+// same verify + grant + finish flow inside onPurchaseSuccess.
+import { useIAP } from 'expo-iap';
+
+function PurchaseScreen() {
+  const { finishTransaction } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      const isValid = await verifyPurchase(purchase);
+      if (!isValid) return;
+      await grantProductToUser(purchase.productId);
+      const isConsumable = purchase.productId.includes('consumable');
+      await finishTransaction({ purchase, isConsumable });
+    },
+  });
+
+  return null;
+}`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`import OpenIap
@@ -1132,7 +1263,8 @@ func handle_purchase(purchase: Purchase) -> void:
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { useEffect, useCallback, useState } from 'react';
+              <CodeBlock language="typescript">{`// expo-iap
+import { useEffect, useCallback, useState } from 'react';
 import { Platform } from 'react-native';
 import {
   initConnection,
@@ -1145,6 +1277,18 @@ import {
   type Purchase,
   type PurchaseError,
 } from 'expo-iap';
+// Same API in react-native-iap:
+// import {
+//   initConnection,
+//   endConnection,
+//   fetchProducts,
+//   purchaseUpdatedListener,
+//   purchaseErrorListener,
+//   finishTransaction,
+//   verifyPurchase,
+//   type Purchase,
+//   type PurchaseError,
+// } from 'react-native-iap';
 
 const PRODUCT_IDS = ['com.app.premium', 'com.app.coins_100'];
 
@@ -1175,7 +1319,7 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
       // Step 3: Finish transaction
       const isConsumable = purchase.productId.includes('coins');
-      await finishTransaction(purchase, isConsumable);
+      await finishTransaction({ purchase, isConsumable });
 
       console.log('Purchase completed successfully!');
     } catch (error) {
@@ -1200,7 +1344,7 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
       // Fetch products
       const items = await fetchProducts({
         skus: PRODUCT_IDS,
-        type: 'inapp',
+        type: 'in-app',
       });
       setProducts(items);
 
@@ -1217,6 +1361,52 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
       void endConnection();
     };
   }, [handlePurchase, handleError]);
+
+  return (
+    <PurchaseContext.Provider value={{ products, isProcessing }}>
+      {children}
+    </PurchaseContext.Provider>
+  );
+}
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// Same flow without manual listener / connection wiring. useIAP fetches
+// state into reactive arrays and forwards purchase events to the callbacks.
+import { useIAP } from 'expo-iap';
+
+function PurchaseProviderWithHook({ children }: { children: React.ReactNode }) {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const { products, fetchProducts, finishTransaction, verifyPurchase } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      setIsProcessing(true);
+      try {
+        const verifyResult = await verifyPurchase({
+          purchase,
+          serverUrl: Platform.select({
+            ios: 'https://your-server.com/api/verify-ios',
+            android: 'https://your-server.com/api/verify-android',
+          })!,
+        });
+        if (!verifyResult.isValid) return;
+
+        await grantProductToUser(purchase.productId, verifyResult);
+
+        const isConsumable = purchase.productId.includes('coins');
+        await finishTransaction({ purchase, isConsumable });
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    onPurchaseError: (error) => {
+      console.warn('Purchase error:', error.code, error.message);
+      setIsProcessing(false);
+    },
+  });
+
+  useEffect(() => {
+    void fetchProducts({ skus: PRODUCT_IDS, type: 'in-app' });
+  }, [fetchProducts]);
 
   return (
     <PurchaseContext.Provider value={{ products, isProcessing }}>
@@ -1672,7 +1862,11 @@ func _exit_tree() -> void:
               <td>Purchase replays on launch</td>
               <td>Transaction not finished</td>
               <td>
-                Call <code>finishTransaction()</code> after verification
+                Call{' '}
+                <Link to="/docs/apis/finish-transaction">
+                  <code>finishTransaction()</code>
+                </Link>{' '}
+                after verification
               </td>
             </tr>
             <tr>
@@ -1685,7 +1879,9 @@ func _exit_tree() -> void:
               <td>Not consumed</td>
               <td>
                 Pass <code>isConsumable: true</code> to{' '}
-                <code>finishTransaction()</code>
+                <Link to="/docs/apis/finish-transaction">
+                  <code>finishTransaction()</code>
+                </Link>
               </td>
             </tr>
             <tr>
@@ -1706,7 +1902,10 @@ func _exit_tree() -> void:
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { getAvailablePurchases } from 'expo-iap';
+              <CodeBlock language="typescript">{`// expo-iap
+import { getAvailablePurchases } from 'expo-iap';
+// Same API in react-native-iap:
+// import { getAvailablePurchases } from 'react-native-iap';
 
 const checkPendingPurchases = async () => {
   const purchases = await getAvailablePurchases();
@@ -1728,7 +1927,29 @@ useEffect(() => {
   };
 
   void init();
-}, []);`}</CodeBlock>
+}, []);
+
+// --- Or via the useIAP() hook (also exported from react-native-iap) ---
+// useIAP's getAvailablePurchases() returns Promise<void> and writes into the
+// reactive availablePurchases array — react to it in an effect to process
+// any pending transactions found at launch.
+import { useIAP } from 'expo-iap';
+
+function PendingPurchaseHandler() {
+  const { availablePurchases, getAvailablePurchases } = useIAP({
+    onPurchaseSuccess: (purchase) => void handlePurchase(purchase),
+  });
+
+  useEffect(() => {
+    void getAvailablePurchases();
+  }, [getAvailablePurchases]);
+
+  useEffect(() => {
+    availablePurchases.forEach((purchase) => void handlePurchase(purchase));
+  }, [availablePurchases]);
+
+  return null;
+}`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`func checkPendingPurchases() async {
@@ -1807,6 +2028,64 @@ func _ready() -> void:
             ),
           }}
         </LanguageTabs>
+      </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/in-app-purchase/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              In-App Purchase overview
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/in-app_purchase/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit 2 In-App Purchase
+            </a>
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/transaction"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              StoreKit Transaction
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/integrate"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Integrate the Google Play Billing Library
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              BillingClient reference
+            </a>
+          </li>
+        </ul>
       </section>
     </div>
   );

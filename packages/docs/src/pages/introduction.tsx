@@ -75,19 +75,19 @@ function Introduction() {
           <ul className="intro-list">
             <li>
               <strong>Unified API methods</strong> —{' '}
-              <Link to="/docs/apis/connection#init-connection">
+              <Link to="/docs/apis/init-connection">
                 <code>initConnection()</code>
               </Link>
               ,{' '}
-              <Link to="/docs/apis/products#fetch-products">
+              <Link to="/docs/apis/fetch-products">
                 <code>fetchProducts()</code>
               </Link>
               ,{' '}
-              <Link to="/docs/apis/purchase#request-purchase">
+              <Link to="/docs/apis/request-purchase">
                 <code>requestPurchase()</code>
               </Link>
               ,{' '}
-              <Link to="/docs/apis/purchase#finish-transaction">
+              <Link to="/docs/apis/finish-transaction">
                 <code>finishTransaction()</code>
               </Link>
             </li>
@@ -101,21 +101,21 @@ function Introduction() {
                 <code>Purchase</code>
               </Link>
               ,{' '}
-              <Link to="/docs/types/subscription">
+              <Link to="/docs/types/ios/subscription-period-ios">
                 <code>SubscriptionPeriod</code>
               </Link>
               ,{' '}
-              <Link to="/docs/types/errors">
+              <Link to="/docs/errors">
                 <code>PurchaseError</code>
               </Link>
             </li>
             <li>
               <strong>Standard event patterns</strong> —{' '}
-              <Link to="/docs/events#purchase-updated-event">
+              <Link to="/docs/events/purchase-updated-listener">
                 <code>purchaseUpdatedListener</code>
               </Link>
               ,{' '}
-              <Link to="/docs/events#purchase-error-event">
+              <Link to="/docs/events/purchase-error-listener">
                 <code>purchaseErrorListener</code>
               </Link>
             </li>
@@ -251,7 +251,13 @@ src/generated/types.gd                       # GDScript types`}
                     <code>functionName</code>
                   </td>
                   <td>
-                    <code>fetchProducts()</code>, <code>requestPurchase()</code>
+                    <Link to="/docs/apis/fetch-products">
+                      <code>fetchProducts()</code>
+                    </Link>
+                    ,{' '}
+                    <Link to="/docs/apis/request-purchase">
+                      <code>requestPurchase()</code>
+                    </Link>
                   </td>
                 </tr>
                 <tr>
@@ -260,7 +266,13 @@ src/generated/types.gd                       # GDScript types`}
                     <code>functionNameIOS</code>
                   </td>
                   <td>
-                    <code>syncIOS()</code>, <code>getStorefrontIOS()</code>
+                    <Link to="/docs/apis/ios/sync-ios">
+                      <code>syncIOS()</code>
+                    </Link>
+                    ,{' '}
+                    <Link to="/docs/apis/ios/get-storefront-ios">
+                      <code>getStorefrontIOS()</code>
+                    </Link>
                   </td>
                 </tr>
                 <tr>
@@ -269,7 +281,9 @@ src/generated/types.gd                       # GDScript types`}
                     <code>functionNameAndroid</code>
                   </td>
                   <td>
-                    <code>acknowledgePurchaseAndroid()</code>
+                    <Link to="/docs/apis/android/acknowledge-purchase-android">
+                      <code>acknowledgePurchaseAndroid()</code>
+                    </Link>
                   </td>
                 </tr>
               </tbody>
@@ -327,13 +341,13 @@ const subscription = purchaseUpdatedListener(async (purchase) => {
 
   // 5. Acknowledge the purchase
   // Android: auto-refunds after 3 days if not acknowledged
-  await finishTransaction(purchase, isConsumable);
+  await finishTransaction({ purchase, isConsumable });
 });
 
 // 6. Fetch products
 const products = await fetchProducts({
   products: [
-    { id: 'com.app.premium', type: 'inapp' },
+    { id: 'com.app.premium', type: 'in-app' },
     { id: 'com.app.monthly', type: 'subs' },
   ],
 });
@@ -344,7 +358,7 @@ await requestPurchase({
     apple: { sku: 'com.app.premium' },
     google: { skus: ['com.app.premium'] },
   },
-  type: 'inapp',
+  type: 'in-app',
 });
 
 // 8. Cleanup on unmount

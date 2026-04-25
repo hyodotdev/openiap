@@ -446,31 +446,31 @@ function Home() {
                 <p>Standard methods across all platforms</p>
               </div>
               <div className="spec-items">
-                <Link to="/docs/apis#init-connection" className="spec-item">
+                <Link to="/docs/apis/init-connection" className="spec-item">
                   <code>initConnection()</code>
                   <span>Initialize IAP service</span>
                 </Link>
-                <Link to="/docs/apis#fetch-products" className="spec-item">
+                <Link to="/docs/apis/fetch-products" className="spec-item">
                   <code>fetchProducts()</code>
                   <span>Fetch product details</span>
                 </Link>
-                <Link to="/docs/apis#request-purchase" className="spec-item">
+                <Link to="/docs/apis/request-purchase" className="spec-item">
                   <code>requestPurchase()</code>
                   <span>Initiate purchase flow</span>
                 </Link>
-                <Link to="/docs/apis#finish-transaction" className="spec-item">
+                <Link to="/docs/apis/finish-transaction" className="spec-item">
                   <code>finishTransaction()</code>
                   <span>Complete purchase</span>
                 </Link>
                 <Link
-                  to="/docs/apis#get-available-purchases"
+                  to="/docs/apis/get-available-purchases"
                   className="spec-item"
                 >
                   <code>getAvailablePurchases()</code>
                   <span>Restore entitlements</span>
                 </Link>
                 <Link
-                  to="/docs/apis#get-active-subscriptions"
+                  to="/docs/apis/get-active-subscriptions"
                   className="spec-item"
                 >
                   <code>getActiveSubscriptions()</code>
@@ -487,42 +487,42 @@ function Home() {
               </div>
               <div className="spec-items">
                 <Link
-                  to="/docs/events#purchase-updated-event"
+                  to="/docs/events/purchase-updated-listener"
                   className="spec-item"
                 >
                   <code>purchaseUpdatedListener</code>
                   <span>Purchase state changes</span>
                 </Link>
                 <Link
-                  to="/docs/events#purchase-error-event"
+                  to="/docs/events/purchase-error-listener"
                   className="spec-item"
                 >
                   <code>purchaseErrorListener</code>
                   <span>Error handling</span>
                 </Link>
                 <Link
-                  to="/docs/events#promoted-product-event-ios"
+                  to="/docs/events/ios/promoted-product-listener-ios"
                   className="spec-item"
                 >
                   <code>promotedProductListenerIOS</code>
                   <span>App Store promoted products</span>
                 </Link>
                 <Link
-                  to="/docs/events#user-choice-billing-event-android"
+                  to="/docs/events/android/user-choice-billing-listener-android"
                   className="spec-item"
                 >
                   <code>userChoiceBillingListenerAndroid</code>
                   <span>User Choice Billing selection</span>
                 </Link>
                 <Link
-                  to="/docs/events#developer-provided-billing-event-android"
+                  to="/docs/events/android/developer-provided-billing-listener-android"
                   className="spec-item"
                 >
                   <code>developerProvidedBillingListener</code>
                   <span>External billing choice</span>
                 </Link>
                 <Link
-                  to="/docs/events#subscription-billing-issue-event"
+                  to="/docs/events/subscription-billing-issue-listener"
                   className="spec-item"
                 >
                   <code>subscriptionBillingIssueListener</code>
@@ -538,31 +538,34 @@ function Home() {
                 <p>Common data structures for all platforms</p>
               </div>
               <div className="spec-items">
-                <Link to="/docs/types#product" className="spec-item">
+                <Link to="/docs/types/product" className="spec-item">
                   <code>Product</code>
                   <span>Product information</span>
                 </Link>
-                <Link to="/docs/types#purchase" className="spec-item">
+                <Link to="/docs/types/purchase" className="spec-item">
                   <code>Purchase</code>
                   <span>Transaction details</span>
                 </Link>
-                <Link to="/docs/types#purchaseerror" className="spec-item">
+                <Link to="/docs/errors" className="spec-item">
                   <code>PurchaseError</code>
                   <span>Error definitions</span>
                 </Link>
-                <Link to="/docs/types#subscriptionperiod" className="spec-item">
+                <Link
+                  to="/docs/types/ios/subscription-period-ios"
+                  className="spec-item"
+                >
                   <code>SubscriptionPeriod</code>
                   <span>Billing cycles</span>
                 </Link>
                 <Link
-                  to="/docs/types#product-subscription"
+                  to="/docs/types/subscription-product"
                   className="spec-item"
                 >
                   <code>ProductSubscription</code>
                   <span>Subscription product shape</span>
                 </Link>
                 <Link
-                  to="/docs/types#active-subscription"
+                  to="/docs/types/active-subscription"
                   className="spec-item"
                 >
                   <code>ActiveSubscription</code>

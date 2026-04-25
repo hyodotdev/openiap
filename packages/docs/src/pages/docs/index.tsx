@@ -1,28 +1,96 @@
 import { useState, useEffect } from 'react';
-import { Route, Routes, Navigate, NavLink } from 'react-router-dom';
+import {
+  Route,
+  Routes,
+  Navigate,
+  NavLink,
+  useLocation,
+} from 'react-router-dom';
 import { MenuDropdown } from '../../components/MenuDropdown';
+import GettingStarted from './getting-started';
 import Ecosystem from './ecosystem';
 import LifeCycle from './lifecycle';
 import Subscription from './lifecycle/subscription';
 import TypesIndex from './types/index';
 import TypesProduct from './types/product';
+import TypesSubscriptionProduct from './types/subscription-product';
+import TypesStorefront from './types/storefront';
 import TypesPurchase from './types/purchase';
-import TypesRequest from './types/request';
-import TypesAlternative from './types/alternative';
-import TypesVerification from './types/verification';
-import TypesIOS from './types/ios';
-import TypesAndroid from './types/android';
-import TypesOffer from './types/offer';
+import TypesActiveSubscription from './types/active-subscription';
+import TypesProductRequest from './types/product-request';
+import TypesRequestPurchaseProps from './types/request-purchase-props';
+import TypesAlternativeBillingTypes from './types/alternative-billing-types';
+import TypesBillingPrograms from './types/billing-programs';
+import TypesExternalPurchaseLink from './types/external-purchase-link';
+import TypesVerifyPurchase from './types/verify-purchase';
+import TypesVerifyPurchaseWithProviderProps from './types/verify-purchase-with-provider-props';
+import TypesVerifyPurchaseWithProviderResult from './types/verify-purchase-with-provider-result';
+import TypesDiscountOfferIOS from './types/ios/discount-offer-ios';
+import TypesDiscountIOS from './types/ios/discount-ios';
+import TypesSubscriptionPeriodIOS from './types/ios/subscription-period-ios';
+import TypesPaymentModeIOS from './types/ios/payment-mode-ios';
+import TypesSubscriptionStatusIOS from './types/ios/subscription-status-ios';
+import TypesAppTransactionIOS from './types/ios/app-transaction-ios';
+import TypesRenewalInfoIOS from './types/ios/renewal-info-ios';
+import TypesOneTimePurchaseOfferDetailAndroid from './types/android/one-time-purchase-offer-detail-android';
+import TypesSubscriptionOfferAndroid from './types/android/subscription-offer-android';
+import TypesPricingPhaseAndroid from './types/android/pricing-phase-android';
+import TypesDiscountOffer from './types/discount-offer';
+import TypesSubscriptionOffer from './types/subscription-offer';
 import APIsIndex from './apis/index';
-import APIsConnection from './apis/connection';
-import APIsProducts from './apis/products';
-import APIsPurchase from './apis/purchase';
-import APIsSubscription from './apis/subscription';
-import APIsValidation from './apis/validation';
-import APIsIOS from './apis/ios';
-import APIsAndroid from './apis/android';
-import APIsDebugging from './apis/debugging';
+import APIsInitConnection from './apis/init-connection';
+import APIsEndConnection from './apis/end-connection';
+import APIsFetchProducts from './apis/fetch-products';
+import APIsGetAvailablePurchases from './apis/get-available-purchases';
+import APIsRequestPurchase from './apis/request-purchase';
+import APIsFinishTransaction from './apis/finish-transaction';
+import APIsRestorePurchases from './apis/restore-purchases';
+import APIsGetStorefront from './apis/get-storefront';
+import APIsGetActiveSubscriptions from './apis/get-active-subscriptions';
+import APIsHasActiveSubscriptions from './apis/has-active-subscriptions';
+import APIsDeepLinkToSubscriptions from './apis/deep-link-to-subscriptions';
+import APIsValidateReceipt from './apis/validate-receipt';
+import APIsClearTransactionIOS from './apis/ios/clear-transaction-ios';
+import APIsGetPendingTransactionsIOS from './apis/ios/get-pending-transactions-ios';
+import APIsGetAllTransactionsIOS from './apis/ios/get-all-transactions-ios';
+import APIsSyncIOS from './apis/ios/sync-ios';
+import APIsGetStorefrontIOS from './apis/ios/get-storefront-ios';
+import APIsGetPromotedProductIOS from './apis/ios/get-promoted-product-ios';
+import APIsIsEligibleForIntroOfferIOS from './apis/ios/is-eligible-for-intro-offer-ios';
+import APIsSubscriptionStatusIOS from './apis/ios/subscription-status-ios';
+import APIsCurrentEntitlementIOS from './apis/ios/current-entitlement-ios';
+import APIsLatestTransactionIOS from './apis/ios/latest-transaction-ios';
+import APIsShowManageSubscriptionsIOS from './apis/ios/show-manage-subscriptions-ios';
+import APIsIsTransactionVerifiedIOS from './apis/ios/is-transaction-verified-ios';
+import APIsGetTransactionJwsIOS from './apis/ios/get-transaction-jws-ios';
+import APIsGetReceiptDataIOS from './apis/ios/get-receipt-data-ios';
+import APIsBeginRefundRequestIOS from './apis/ios/begin-refund-request-ios';
+import APIsPresentCodeRedemptionSheetIOS from './apis/ios/present-code-redemption-sheet-ios';
+import APIsGetAppTransactionIOS from './apis/ios/get-app-transaction-ios';
+import APIsCanPresentExternalPurchaseNoticeIOS from './apis/ios/can-present-external-purchase-notice-ios';
+import APIsPresentExternalPurchaseNoticeSheetIOS from './apis/ios/present-external-purchase-notice-sheet-ios';
+import APIsPresentExternalPurchaseLinkIOS from './apis/ios/present-external-purchase-link-ios';
+import APIsIsEligibleForExternalPurchaseCustomLinkIOS from './apis/ios/is-eligible-for-external-purchase-custom-link-ios';
+import APIsGetExternalPurchaseCustomLinkTokenIOS from './apis/ios/get-external-purchase-custom-link-token-ios';
+import APIsShowExternalPurchaseCustomLinkNoticeIOS from './apis/ios/show-external-purchase-custom-link-notice-ios';
+import APIsRequestPurchaseOnPromotedProductIOS from './apis/ios/request-purchase-on-promoted-product-ios';
+import APIsValidateReceiptIOS from './apis/ios/validate-receipt-ios';
+import APIsAcknowledgePurchaseAndroid from './apis/android/acknowledge-purchase-android';
+import APIsConsumePurchaseAndroid from './apis/android/consume-purchase-android';
+import APIsCheckAlternativeBillingAvailabilityAndroid from './apis/android/check-alternative-billing-availability-android';
+import APIsShowAlternativeBillingDialogAndroid from './apis/android/show-alternative-billing-dialog-android';
+import APIsCreateAlternativeBillingTokenAndroid from './apis/android/create-alternative-billing-token-android';
+import APIsEnableBillingProgramAndroid from './apis/android/enable-billing-program-android';
+import APIsIsBillingProgramAvailableAndroid from './apis/android/is-billing-program-available-android';
+import APIsLaunchExternalLinkAndroid from './apis/android/launch-external-link-android';
+import APIsCreateBillingProgramReportingDetailsAndroid from './apis/android/create-billing-program-reporting-details-android';
 import Events from './events';
+import EventsPurchaseUpdatedListener from './events/purchase-updated-listener';
+import EventsPurchaseErrorListener from './events/purchase-error-listener';
+import EventsSubscriptionBillingIssueListener from './events/subscription-billing-issue-listener';
+import EventsPromotedProductListenerIOS from './events/ios/promoted-product-listener-ios';
+import EventsUserChoiceBillingListenerAndroid from './events/android/user-choice-billing-listener-android';
+import EventsDeveloperProvidedBillingListenerAndroid from './events/android/developer-provided-billing-listener-android';
 import Errors from './errors';
 import Purchase from './features/purchase';
 import SubscriptionFeature from './features/subscription/index';
@@ -31,11 +99,15 @@ import Discount from './features/discount';
 import OfferCodeRedemption from './features/offer-code-redemption';
 import ExternalPurchase from './features/external-purchase';
 import SubscriptionBillingIssue from './features/subscription-billing-issue';
+import Refund from './features/refund';
+import Validation from './features/validation';
+import Debugging from './features/debugging';
 import AlternativeMarketplace from './features/alternative-marketplace/index';
 import AlternativeMarketplaceOnside from './features/alternative-marketplace/onside';
 import IOSSetup from './ios-setup';
 import AndroidSetup from './android-setup';
 import HorizonSetup from './horizon-setup';
+import SetupIndex from './setup/index';
 import ReactNativeSetup from './setup/react-native';
 import ExpoSetup from './setup/expo';
 import FlutterSetup from './setup/flutter';
@@ -53,6 +125,16 @@ import FoundationSponsorship from './foundation/sponsorship';
 import FoundationRoadmapBudget from './foundation/roadmap-budget';
 import FoundationFoundingSupporters from './foundation/founding-supporters';
 import NotFound from '../404';
+
+/* Preserve the URL hash when redirecting away from a deprecated path so
+   downstream pages (apis/index, types/index) can still translate the
+   anchor into a flat per-symbol page. Without this, a link like
+   /docs/types/request#request-purchase-props would land on /docs/types
+   minus the hash, defeating LEGACY_ANCHOR_REDIRECTS. */
+function NavigatePreservingHash({ to }: { to: string }) {
+  const { hash } = useLocation();
+  return <Navigate to={`${to}${hash || ''}`} replace />;
+}
 
 function Docs() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -99,8 +181,16 @@ function Docs() {
 
       <aside className={`docs-sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <nav className="docs-nav">
-          <h3>Documentation</h3>
           <ul>
+            <li>
+              <NavLink
+                to="/docs/getting-started"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Getting Started
+              </NavLink>
+            </li>
             <li>
               <NavLink
                 to="/docs/ecosystem"
@@ -122,14 +212,107 @@ function Docs() {
               title="Types"
               titleTo="/docs/types"
               items={[
-                { to: '/docs/types/product', label: 'Product Types' },
-                { to: '/docs/types/purchase', label: 'Purchase Types' },
-                { to: '/docs/types/request', label: 'Request Types' },
-                { to: '/docs/types/alternative', label: 'Alternative Billing' },
-                { to: '/docs/types/verification', label: 'Verification' },
-                { to: '/docs/types/ios', label: 'iOS Types' },
-                { to: '/docs/types/android', label: 'Android Types' },
-                { to: '/docs/types/offer', label: 'Offer Types' },
+                { to: '/docs/types/product', label: 'Product' },
+                {
+                  to: '/docs/types/subscription-product',
+                  label: 'ProductSubscription',
+                },
+                { to: '/docs/types/storefront', label: 'Storefront' },
+                { to: '/docs/types/purchase', label: 'Purchase' },
+                {
+                  to: '/docs/types/active-subscription',
+                  label: 'ActiveSubscription',
+                },
+                {
+                  to: '/docs/types/product-request',
+                  label: 'ProductRequest',
+                },
+                {
+                  to: '/docs/types/request-purchase-props',
+                  label: 'RequestPurchaseProps',
+                },
+                {
+                  to: '/docs/types/discount-offer',
+                  label: 'DiscountOffer',
+                },
+                {
+                  to: '/docs/types/subscription-offer',
+                  label: 'SubscriptionOffer',
+                },
+                {
+                  to: '/docs/types/verify-purchase',
+                  label: 'VerifyPurchase',
+                },
+                {
+                  to: '/docs/types/verify-purchase-with-provider-props',
+                  label: 'VerifyPurchaseWithProviderProps',
+                },
+                {
+                  to: '/docs/types/verify-purchase-with-provider-result',
+                  label: 'VerifyPurchaseWithProviderResult',
+                },
+                {
+                  to: '/docs/types/alternative-billing-types',
+                  label: 'AlternativeBilling',
+                },
+                {
+                  to: '/docs/types/billing-programs',
+                  label: 'BillingPrograms',
+                },
+                {
+                  to: '/docs/types/external-purchase-link',
+                  label: 'ExternalPurchaseLink',
+                },
+                {
+                  label: 'iOS Specific',
+                  items: [
+                    {
+                      to: '/docs/types/ios/discount-offer-ios',
+                      label: 'DiscountOfferIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/discount-ios',
+                      label: 'DiscountIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/subscription-period-ios',
+                      label: 'SubscriptionPeriodIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/payment-mode-ios',
+                      label: 'PaymentModeIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/subscription-status-ios',
+                      label: 'SubscriptionStatusIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/app-transaction-ios',
+                      label: 'AppTransactionIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/renewal-info-ios',
+                      label: 'RenewalInfoIOS',
+                    },
+                  ],
+                },
+                {
+                  label: 'Android Specific',
+                  items: [
+                    {
+                      to: '/docs/types/android/one-time-purchase-offer-detail-android',
+                      label: 'ProductAndroidOneTimePurchaseOfferDetail',
+                    },
+                    {
+                      to: '/docs/types/android/subscription-offer-android',
+                      label: 'ProductSubscriptionAndroidOfferDetails',
+                    },
+                    {
+                      to: '/docs/types/android/pricing-phase-android',
+                      label: 'PricingPhaseAndroid',
+                    },
+                  ],
+                },
               ]}
               onItemClick={closeSidebar}
             />
@@ -137,26 +320,237 @@ function Docs() {
               title="APIs"
               titleTo="/docs/apis"
               items={[
-                { to: '/docs/apis/connection', label: 'Connection' },
-                { to: '/docs/apis/products', label: 'Products' },
-                { to: '/docs/apis/purchase', label: 'Purchase' },
-                { to: '/docs/apis/subscription', label: 'Subscription' },
-                { to: '/docs/apis/validation', label: 'Validation' },
-                { to: '/docs/apis/ios', label: 'iOS Specific' },
-                { to: '/docs/apis/android', label: 'Android Specific' },
-                { to: '/docs/apis/debugging', label: 'Debugging' },
+                {
+                  to: '/docs/apis/init-connection',
+                  label: 'initConnection',
+                },
+                {
+                  to: '/docs/apis/end-connection',
+                  label: 'endConnection',
+                },
+                {
+                  to: '/docs/apis/fetch-products',
+                  label: 'fetchProducts',
+                },
+                {
+                  to: '/docs/apis/get-available-purchases',
+                  label: 'getAvailablePurchases',
+                },
+                {
+                  to: '/docs/apis/request-purchase',
+                  label: 'requestPurchase',
+                },
+                {
+                  to: '/docs/apis/finish-transaction',
+                  label: 'finishTransaction',
+                },
+                {
+                  to: '/docs/apis/restore-purchases',
+                  label: 'restorePurchases',
+                },
+                {
+                  to: '/docs/apis/get-storefront',
+                  label: 'getStorefront',
+                },
+                {
+                  to: '/docs/apis/get-active-subscriptions',
+                  label: 'getActiveSubscriptions',
+                },
+                {
+                  to: '/docs/apis/has-active-subscriptions',
+                  label: 'hasActiveSubscriptions',
+                },
+                {
+                  to: '/docs/apis/deep-link-to-subscriptions',
+                  label: 'deepLinkToSubscriptions',
+                },
+                {
+                  label: 'iOS Specific',
+                  items: [
+                    { to: '/docs/apis/ios/sync-ios', label: 'syncIOS' },
+                    {
+                      to: '/docs/apis/ios/get-storefront-ios',
+                      label: 'getStorefrontIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/clear-transaction-ios',
+                      label: 'clearTransactionIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-pending-transactions-ios',
+                      label: 'getPendingTransactionsIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-all-transactions-ios',
+                      label: 'getAllTransactionsIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-promoted-product-ios',
+                      label: 'getPromotedProductIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/is-eligible-for-intro-offer-ios',
+                      label: 'isEligibleForIntroOfferIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/subscription-status-ios',
+                      label: 'subscriptionStatusIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/current-entitlement-ios',
+                      label: 'currentEntitlementIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/latest-transaction-ios',
+                      label: 'latestTransactionIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/show-manage-subscriptions-ios',
+                      label: 'showManageSubscriptionsIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/is-transaction-verified-ios',
+                      label: 'isTransactionVerifiedIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-transaction-jws-ios',
+                      label: 'getTransactionJwsIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-receipt-data-ios',
+                      label: 'getReceiptDataIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/begin-refund-request-ios',
+                      label: 'beginRefundRequestIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/present-code-redemption-sheet-ios',
+                      label: 'presentCodeRedemptionSheetIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-app-transaction-ios',
+                      label: 'getAppTransactionIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/can-present-external-purchase-notice-ios',
+                      label: 'canPresentExternalPurchaseNoticeIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/present-external-purchase-notice-sheet-ios',
+                      label: 'presentExternalPurchaseNoticeSheetIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/present-external-purchase-link-ios',
+                      label: 'presentExternalPurchaseLinkIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios',
+                      label: 'isEligibleForExternalPurchaseCustomLinkIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/get-external-purchase-custom-link-token-ios',
+                      label: 'getExternalPurchaseCustomLinkTokenIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/show-external-purchase-custom-link-notice-ios',
+                      label: 'showExternalPurchaseCustomLinkNoticeIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/request-purchase-on-promoted-product-ios',
+                      label: 'requestPurchaseOnPromotedProductIOS',
+                    },
+                    {
+                      to: '/docs/apis/ios/validate-receipt-ios',
+                      label: 'validateReceiptIOS',
+                    },
+                  ],
+                },
+                {
+                  label: 'Android Specific',
+                  items: [
+                    {
+                      to: '/docs/apis/android/acknowledge-purchase-android',
+                      label: 'acknowledgePurchaseAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/consume-purchase-android',
+                      label: 'consumePurchaseAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/check-alternative-billing-availability-android',
+                      label: 'checkAlternativeBillingAvailabilityAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/show-alternative-billing-dialog-android',
+                      label: 'showAlternativeBillingDialogAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/create-alternative-billing-token-android',
+                      label: 'createAlternativeBillingTokenAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/enable-billing-program-android',
+                      label: 'enableBillingProgramAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/is-billing-program-available-android',
+                      label: 'isBillingProgramAvailableAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/launch-external-link-android',
+                      label: 'launchExternalLinkAndroid',
+                    },
+                    {
+                      to: '/docs/apis/android/create-billing-program-reporting-details-android',
+                      label: 'createBillingProgramReportingDetailsAndroid',
+                    },
+                  ],
+                },
               ]}
               onItemClick={closeSidebar}
             />
-            <li>
-              <NavLink
-                to="/docs/events"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Events
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="Events"
+              titleTo="/docs/events"
+              items={[
+                {
+                  to: '/docs/events/purchase-updated-listener',
+                  label: 'purchaseUpdatedListener',
+                },
+                {
+                  to: '/docs/events/purchase-error-listener',
+                  label: 'purchaseErrorListener',
+                },
+                {
+                  to: '/docs/events/subscription-billing-issue-listener',
+                  label: 'subscriptionBillingIssueListener',
+                },
+                {
+                  label: 'iOS Specific',
+                  items: [
+                    {
+                      to: '/docs/events/ios/promoted-product-listener-ios',
+                      label: 'promotedProductListenerIOS',
+                    },
+                  ],
+                },
+                {
+                  label: 'Android Specific',
+                  items: [
+                    {
+                      to: '/docs/events/android/user-choice-billing-listener-android',
+                      label: 'userChoiceBillingListenerAndroid',
+                    },
+                    {
+                      to: '/docs/events/android/developer-provided-billing-listener-android',
+                      label: 'developerProvidedBillingListenerAndroid',
+                    },
+                  ],
+                },
+              ]}
+              onItemClick={closeSidebar}
+            />
             <li>
               <NavLink
                 to="/docs/errors"
@@ -186,7 +580,7 @@ function Docs() {
             />
             <MenuDropdown
               title="Framework Setup"
-              titleTo="/docs/setup/react-native"
+              titleTo="/docs/setup"
               items={[
                 { to: '/docs/setup/react-native', label: 'React Native' },
                 { to: '/docs/setup/expo', label: 'Expo' },
@@ -248,11 +642,20 @@ function Docs() {
             />
             <li>
               <NavLink
-                to="/docs/features/discount"
+                to="/docs/features/validation"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Discounts (Android)
+                Validation
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/features/refund"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Refund
               </NavLink>
             </li>
             <li>
@@ -282,6 +685,15 @@ function Docs() {
                 Subscription Billing Issue
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/docs/features/debugging"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Debugging
+              </NavLink>
+            </li>
             <MenuDropdown
               title="Alternative Marketplace"
               titleTo="/docs/features/alternative-marketplace"
@@ -293,6 +705,15 @@ function Docs() {
               ]}
               onItemClick={closeSidebar}
             />
+            <li>
+              <NavLink
+                to="/docs/features/discount"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Discounts (Android)
+              </NavLink>
+            </li>
           </ul>
           <h3 style={{ marginTop: '2rem' }}>Foundation</h3>
           <ul>
@@ -348,29 +769,355 @@ function Docs() {
       </aside>
       <main className="docs-content">
         <Routes>
-          <Route index element={<Navigate to="/docs/ecosystem" replace />} />
+          <Route
+            index
+            element={<Navigate to="/docs/getting-started" replace />}
+          />
+          <Route path="getting-started" element={<GettingStarted />} />
           <Route path="ecosystem" element={<Ecosystem />} />
           <Route path="lifecycle" element={<LifeCycle />} />
           <Route path="lifecycle/subscription" element={<Subscription />} />
           <Route path="types" element={<TypesIndex />} />
           <Route path="types/product" element={<TypesProduct />} />
+          <Route
+            path="types/subscription-product"
+            element={<TypesSubscriptionProduct />}
+          />
+          <Route path="types/storefront" element={<TypesStorefront />} />
           <Route path="types/purchase" element={<TypesPurchase />} />
-          <Route path="types/request" element={<TypesRequest />} />
-          <Route path="types/alternative" element={<TypesAlternative />} />
-          <Route path="types/verification" element={<TypesVerification />} />
-          <Route path="types/ios" element={<TypesIOS />} />
-          <Route path="types/android" element={<TypesAndroid />} />
-          <Route path="types/offer" element={<TypesOffer />} />
+          <Route
+            path="types/active-subscription"
+            element={<TypesActiveSubscription />}
+          />
+          <Route
+            path="types/product-request"
+            element={<TypesProductRequest />}
+          />
+          <Route
+            path="types/request-purchase-props"
+            element={<TypesRequestPurchaseProps />}
+          />
+          <Route
+            path="types/alternative-billing-types"
+            element={<TypesAlternativeBillingTypes />}
+          />
+          <Route
+            path="types/billing-programs"
+            element={<TypesBillingPrograms />}
+          />
+          <Route
+            path="types/external-purchase-link"
+            element={<TypesExternalPurchaseLink />}
+          />
+          <Route
+            path="types/verify-purchase"
+            element={<TypesVerifyPurchase />}
+          />
+          <Route
+            path="types/verify-purchase-with-provider-props"
+            element={<TypesVerifyPurchaseWithProviderProps />}
+          />
+          <Route
+            path="types/verify-purchase-with-provider-result"
+            element={<TypesVerifyPurchaseWithProviderResult />}
+          />
+          <Route
+            path="types/ios/discount-offer-ios"
+            element={<TypesDiscountOfferIOS />}
+          />
+          <Route path="types/ios/discount-ios" element={<TypesDiscountIOS />} />
+          <Route
+            path="types/ios/subscription-period-ios"
+            element={<TypesSubscriptionPeriodIOS />}
+          />
+          <Route
+            path="types/ios/payment-mode-ios"
+            element={<TypesPaymentModeIOS />}
+          />
+          <Route
+            path="types/ios/subscription-status-ios"
+            element={<TypesSubscriptionStatusIOS />}
+          />
+          <Route
+            path="types/ios/app-transaction-ios"
+            element={<TypesAppTransactionIOS />}
+          />
+          <Route
+            path="types/ios/renewal-info-ios"
+            element={<TypesRenewalInfoIOS />}
+          />
+          <Route
+            path="types/android/one-time-purchase-offer-detail-android"
+            element={<TypesOneTimePurchaseOfferDetailAndroid />}
+          />
+          <Route
+            path="types/android/subscription-offer-android"
+            element={<TypesSubscriptionOfferAndroid />}
+          />
+          <Route
+            path="types/android/pricing-phase-android"
+            element={<TypesPricingPhaseAndroid />}
+          />
+          <Route path="types/discount-offer" element={<TypesDiscountOffer />} />
+          <Route
+            path="types/subscription-offer"
+            element={<TypesSubscriptionOffer />}
+          />
+          <Route
+            path="types/request"
+            element={<NavigatePreservingHash to="/docs/types" />}
+          />
+          <Route
+            path="types/alternative"
+            element={<NavigatePreservingHash to="/docs/types" />}
+          />
+          <Route
+            path="types/verification"
+            element={<NavigatePreservingHash to="/docs/types" />}
+          />
+          <Route
+            path="types/ios"
+            element={<NavigatePreservingHash to="/docs/types" />}
+          />
+          <Route
+            path="types/android"
+            element={<NavigatePreservingHash to="/docs/types" />}
+          />
+          <Route
+            path="types/offer"
+            element={<NavigatePreservingHash to="/docs/types" />}
+          />
           <Route path="apis" element={<APIsIndex />} />
-          <Route path="apis/connection" element={<APIsConnection />} />
-          <Route path="apis/products" element={<APIsProducts />} />
-          <Route path="apis/purchase" element={<APIsPurchase />} />
-          <Route path="apis/subscription" element={<APIsSubscription />} />
-          <Route path="apis/validation" element={<APIsValidation />} />
-          <Route path="apis/ios" element={<APIsIOS />} />
-          <Route path="apis/android" element={<APIsAndroid />} />
-          <Route path="apis/debugging" element={<APIsDebugging />} />
+          <Route path="apis/init-connection" element={<APIsInitConnection />} />
+          <Route path="apis/end-connection" element={<APIsEndConnection />} />
+          <Route path="apis/fetch-products" element={<APIsFetchProducts />} />
+          <Route
+            path="apis/get-available-purchases"
+            element={<APIsGetAvailablePurchases />}
+          />
+          <Route
+            path="apis/request-purchase"
+            element={<APIsRequestPurchase />}
+          />
+          <Route
+            path="apis/finish-transaction"
+            element={<APIsFinishTransaction />}
+          />
+          <Route
+            path="apis/restore-purchases"
+            element={<APIsRestorePurchases />}
+          />
+          <Route path="apis/get-storefront" element={<APIsGetStorefront />} />
+          <Route
+            path="apis/get-active-subscriptions"
+            element={<APIsGetActiveSubscriptions />}
+          />
+          <Route
+            path="apis/has-active-subscriptions"
+            element={<APIsHasActiveSubscriptions />}
+          />
+          <Route
+            path="apis/deep-link-to-subscriptions"
+            element={<APIsDeepLinkToSubscriptions />}
+          />
+          <Route
+            path="apis/validate-receipt"
+            element={<APIsValidateReceipt />}
+          />
+          <Route
+            path="apis/ios/clear-transaction-ios"
+            element={<APIsClearTransactionIOS />}
+          />
+          <Route
+            path="apis/ios/get-pending-transactions-ios"
+            element={<APIsGetPendingTransactionsIOS />}
+          />
+          <Route
+            path="apis/ios/get-all-transactions-ios"
+            element={<APIsGetAllTransactionsIOS />}
+          />
+          <Route path="apis/ios/sync-ios" element={<APIsSyncIOS />} />
+          <Route
+            path="apis/ios/get-storefront-ios"
+            element={<APIsGetStorefrontIOS />}
+          />
+          <Route
+            path="apis/ios/get-promoted-product-ios"
+            element={<APIsGetPromotedProductIOS />}
+          />
+          <Route
+            path="apis/ios/is-eligible-for-intro-offer-ios"
+            element={<APIsIsEligibleForIntroOfferIOS />}
+          />
+          <Route
+            path="apis/ios/subscription-status-ios"
+            element={<APIsSubscriptionStatusIOS />}
+          />
+          <Route
+            path="apis/ios/current-entitlement-ios"
+            element={<APIsCurrentEntitlementIOS />}
+          />
+          <Route
+            path="apis/ios/latest-transaction-ios"
+            element={<APIsLatestTransactionIOS />}
+          />
+          <Route
+            path="apis/ios/show-manage-subscriptions-ios"
+            element={<APIsShowManageSubscriptionsIOS />}
+          />
+          <Route
+            path="apis/ios/is-transaction-verified-ios"
+            element={<APIsIsTransactionVerifiedIOS />}
+          />
+          <Route
+            path="apis/ios/get-transaction-jws-ios"
+            element={<APIsGetTransactionJwsIOS />}
+          />
+          <Route
+            path="apis/ios/get-receipt-data-ios"
+            element={<APIsGetReceiptDataIOS />}
+          />
+          <Route
+            path="apis/ios/begin-refund-request-ios"
+            element={<APIsBeginRefundRequestIOS />}
+          />
+          <Route
+            path="apis/ios/present-code-redemption-sheet-ios"
+            element={<APIsPresentCodeRedemptionSheetIOS />}
+          />
+          <Route
+            path="apis/ios/get-app-transaction-ios"
+            element={<APIsGetAppTransactionIOS />}
+          />
+          <Route
+            path="apis/ios/can-present-external-purchase-notice-ios"
+            element={<APIsCanPresentExternalPurchaseNoticeIOS />}
+          />
+          <Route
+            path="apis/ios/present-external-purchase-notice-sheet-ios"
+            element={<APIsPresentExternalPurchaseNoticeSheetIOS />}
+          />
+          <Route
+            path="apis/ios/present-external-purchase-link-ios"
+            element={<APIsPresentExternalPurchaseLinkIOS />}
+          />
+          <Route
+            path="apis/ios/is-eligible-for-external-purchase-custom-link-ios"
+            element={<APIsIsEligibleForExternalPurchaseCustomLinkIOS />}
+          />
+          <Route
+            path="apis/ios/get-external-purchase-custom-link-token-ios"
+            element={<APIsGetExternalPurchaseCustomLinkTokenIOS />}
+          />
+          <Route
+            path="apis/ios/show-external-purchase-custom-link-notice-ios"
+            element={<APIsShowExternalPurchaseCustomLinkNoticeIOS />}
+          />
+          <Route
+            path="apis/ios/request-purchase-on-promoted-product-ios"
+            element={<APIsRequestPurchaseOnPromotedProductIOS />}
+          />
+          <Route
+            path="apis/ios/validate-receipt-ios"
+            element={<APIsValidateReceiptIOS />}
+          />
+          <Route
+            path="apis/android/acknowledge-purchase-android"
+            element={<APIsAcknowledgePurchaseAndroid />}
+          />
+          <Route
+            path="apis/android/consume-purchase-android"
+            element={<APIsConsumePurchaseAndroid />}
+          />
+          <Route
+            path="apis/android/check-alternative-billing-availability-android"
+            element={<APIsCheckAlternativeBillingAvailabilityAndroid />}
+          />
+          <Route
+            path="apis/android/show-alternative-billing-dialog-android"
+            element={<APIsShowAlternativeBillingDialogAndroid />}
+          />
+          <Route
+            path="apis/android/create-alternative-billing-token-android"
+            element={<APIsCreateAlternativeBillingTokenAndroid />}
+          />
+          <Route
+            path="apis/android/enable-billing-program-android"
+            element={<APIsEnableBillingProgramAndroid />}
+          />
+          <Route
+            path="apis/android/is-billing-program-available-android"
+            element={<APIsIsBillingProgramAvailableAndroid />}
+          />
+          <Route
+            path="apis/android/launch-external-link-android"
+            element={<APIsLaunchExternalLinkAndroid />}
+          />
+          <Route
+            path="apis/android/create-billing-program-reporting-details-android"
+            element={<APIsCreateBillingProgramReportingDetailsAndroid />}
+          />
+          <Route
+            path="apis/connection"
+            element={<NavigatePreservingHash to="/docs/apis" />}
+          />
+          <Route
+            path="apis/products"
+            element={<NavigatePreservingHash to="/docs/apis" />}
+          />
+          <Route
+            path="apis/purchase"
+            element={<NavigatePreservingHash to="/docs/apis" />}
+          />
+          <Route
+            path="apis/subscription"
+            element={<NavigatePreservingHash to="/docs/apis" />}
+          />
+          <Route
+            path="apis/ios"
+            element={<NavigatePreservingHash to="/docs/apis" />}
+          />
+          <Route
+            path="apis/android"
+            element={<NavigatePreservingHash to="/docs/apis" />}
+          />
+          <Route
+            path="apis/validation"
+            element={<NavigatePreservingHash to="/docs/features/validation" />}
+          />
+          <Route
+            path="apis/debugging"
+            element={<NavigatePreservingHash to="/docs/features/debugging" />}
+          />
+          <Route
+            path="apis/refund"
+            element={<NavigatePreservingHash to="/docs/features/refund" />}
+          />
           <Route path="events" element={<Events />} />
+          <Route
+            path="events/purchase-updated-listener"
+            element={<EventsPurchaseUpdatedListener />}
+          />
+          <Route
+            path="events/purchase-error-listener"
+            element={<EventsPurchaseErrorListener />}
+          />
+          <Route
+            path="events/subscription-billing-issue-listener"
+            element={<EventsSubscriptionBillingIssueListener />}
+          />
+          <Route
+            path="events/ios/promoted-product-listener-ios"
+            element={<EventsPromotedProductListenerIOS />}
+          />
+          <Route
+            path="events/android/user-choice-billing-listener-android"
+            element={<EventsUserChoiceBillingListenerAndroid />}
+          />
+          <Route
+            path="events/android/developer-provided-billing-listener-android"
+            element={<EventsDeveloperProvidedBillingListenerAndroid />}
+          />
           <Route path="errors" element={<Errors />} />
           <Route path="features/purchase" element={<Purchase />} />
           <Route
@@ -394,6 +1141,9 @@ function Docs() {
             path="features/subscription-billing-issue"
             element={<SubscriptionBillingIssue />}
           />
+          <Route path="features/refund" element={<Refund />} />
+          <Route path="features/validation" element={<Validation />} />
+          <Route path="features/debugging" element={<Debugging />} />
           <Route
             path="features/alternative-marketplace"
             element={<AlternativeMarketplace />}
@@ -405,6 +1155,7 @@ function Docs() {
           <Route path="ios-setup" element={<IOSSetup />} />
           <Route path="android-setup" element={<AndroidSetup />} />
           <Route path="horizon-setup" element={<HorizonSetup />} />
+          <Route path="setup" element={<SetupIndex />} />
           <Route path="setup/react-native" element={<ReactNativeSetup />} />
           <Route path="setup/expo" element={<ExpoSetup />} />
           <Route path="setup/flutter" element={<FlutterSetup />} />

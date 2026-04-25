@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -33,10 +34,9 @@ function Discount() {
       <div className="alert-card alert-card--warning">
         <p>
           <strong>Standardized Types:</strong> For cross-platform development,
-          use the new{' '}
-          <a href="/docs/types/offer#discount-offer">DiscountOffer</a> type
-          which provides a unified interface with platform-specific fields via
-          suffixes (e.g., <code>offerTokenAndroid</code>).
+          use the new <Link to="/docs/types/discount-offer">DiscountOffer</Link>{' '}
+          type which provides a unified interface with platform-specific fields
+          via suffixes (e.g., <code>offerTokenAndroid</code>).
         </p>
       </div>
 
@@ -1258,6 +1258,44 @@ async function purchaseWithOffer(
           <li>
             <strong>Test with license testers</strong> - Use Google Play Console
             license testers to verify discount display before release
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/subscriptions#discount-offer"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Discounted offers
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.OneTimePurchaseOfferDetails"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ProductDetails.OneTimePurchaseOfferDetails
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://developer.android.com/google/play/billing/release-notes#7-0-0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Play Billing Library 7.0 release notes
+            </a>
           </li>
         </ul>
       </section>

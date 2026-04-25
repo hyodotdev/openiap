@@ -79,7 +79,9 @@ function OfferCodeRedemption() {
                   <li>Handled entirely by the iOS system</li>
                   <li>
                     Purchase updates delivered through{' '}
-                    <code>purchaseUpdatedListener</code>
+                    <Link to="/docs/events/purchase-updated-listener">
+                      <code>purchaseUpdatedListener</code>
+                    </Link>
                   </li>
                 </ul>
 
@@ -446,7 +448,9 @@ func redeem_code() -> void:
                   <li>User enters code in the Play Store</li>
                   <li>
                     Purchase updates delivered through{' '}
-                    <code>purchaseUpdatedListener</code>
+                    <Link to="/docs/events/purchase-updated-listener">
+                      <code>purchaseUpdatedListener</code>
+                    </Link>
                   </li>
                 </ul>
 
@@ -567,7 +571,7 @@ func redeem_with_code(code: String) -> void:
         </AnchorLink>
         <ul>
           <li>
-            <Link to="/docs/apis#present-code-redemption-sheet-ios">
+            <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
               presentCodeRedemptionSheetIOS API Reference
             </Link>
           </li>
@@ -576,6 +580,45 @@ func redeem_with_code(code: String) -> void:
           </li>
           <li>
             <Link to="/docs/events">Events & Listeners</Link>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="references" level="h2">
+          Native References
+        </AnchorLink>
+        <ul>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/documentation/storekit/appstore/presentofferCoderedeemsheet()"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              AppStore.presentOfferCodeRedeemSheet()
+            </a>{' '}
+            — StoreKit 2 in-app redemption sheet
+          </li>
+          <li>
+            Apple ·{' '}
+            <a
+              href="https://developer.apple.com/app-store/subscriptions/offer-codes/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              App Store Subscription Offer Codes
+            </a>
+          </li>
+          <li>
+            Google ·{' '}
+            <a
+              href="https://support.google.com/googleplay/android-developer/answer/6321495"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Promo codes for Google Play
+            </a>
           </li>
         </ul>
       </section>
