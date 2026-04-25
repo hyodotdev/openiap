@@ -299,8 +299,33 @@ await iap.request_purchase(props)`}</CodeBlock>
       </section>
 
       <section>
-        <AnchorLink id="4-where-next" level="h2">
-          4. Where to go next
+        <AnchorLink id="4-key-concepts" level="h2">
+          4. Key concepts
+        </AnchorLink>
+        <p>
+          Two background reads make every framework guide easier to follow —
+          skim them before you wire anything into production.
+        </p>
+        <ul>
+          <li>
+            <Link to="/docs/ecosystem">Ecosystem</Link> — how OpenIAP, the
+            native packages (Apple / Google), and each framework SDK fit
+            together. Read this first if you're choosing a stack.
+          </li>
+          <li>
+            <Link to="/docs/lifecycle">Life Cycle</Link> — when to call{' '}
+            <code>initConnection</code>, where to mount listeners, and when
+            to call <code>finishTransaction</code>. Getting this wrong is the
+            #1 cause of "purchase succeeded but the user didn't get the
+            entitlement" reports, so read it once even if you skip everything
+            else.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="5-where-next" level="h2">
+          5. Where to go next
         </AnchorLink>
         <ul>
           <li>
