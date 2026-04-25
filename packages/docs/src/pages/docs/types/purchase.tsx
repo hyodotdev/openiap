@@ -348,8 +348,11 @@ function Purchase() {
                         <code>renewalInfoIOS</code>
                       </td>
                       <td>
-                        Subscription renewal information (see RenewalInfoIOS
-                        below)
+                        Subscription renewal information — see{' '}
+                        <Link to="/docs/types/ios/renewal-info-ios">
+                          <code>RenewalInfoIOS</code>
+                        </Link>
+                        .
                       </td>
                     </tr>
                     <tr>
@@ -367,113 +370,13 @@ function Purchase() {
                   </tbody>
                 </table>
 
-                <div style={{ marginTop: '1rem' }}>
-                  <AnchorLink id="renewal-info-ios" level="h4">
-                    RenewalInfoIOS{' '}
-                    <span style={{ fontSize: '0.85rem', fontWeight: 'normal' }}>
-                      (from{' '}
-                      <a
-                        href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Product.SubscriptionInfo.RenewalInfo
-                      </a>
-                      )
-                    </span>
-                  </AnchorLink>
-                  <table className="doc-table" style={{ marginTop: '0.5rem' }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Summary</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>
-                          <code>willAutoRenew</code>
-                        </td>
-                        <td>Whether subscription will automatically renew</td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>autoRenewPreference</code>
-                        </td>
-                        <td>
-                          Product ID the subscription will renew to (may differ
-                          if upgrade/downgrade pending)
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>expirationReason</code>
-                        </td>
-                        <td>
-                          Why subscription expired: "VOLUNTARY",
-                          "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE",
-                          "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>gracePeriodExpirationDate</code>
-                        </td>
-                        <td>Grace period end timestamp (epoch ms)</td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>isInBillingRetry</code>
-                        </td>
-                        <td>True if retrying after billing failure</td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>pendingUpgradeProductId</code>
-                        </td>
-                        <td>Product ID for pending upgrade/downgrade</td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>priceIncreaseStatus</code>
-                        </td>
-                        <td>
-                          Price increase response: "AGREED", "PENDING", or null
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>renewalDate</code>
-                        </td>
-                        <td>Expected renewal timestamp (epoch ms)</td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>renewalOfferId</code>
-                        </td>
-                        <td>Offer ID for next renewal</td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>renewalOfferType</code>
-                        </td>
-                        <td>
-                          Offer type: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE",
-                          "WIN_BACK"
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <code>jsonRepresentation</code>
-                        </td>
-                        <td>
-                          Raw JWS representation of the StoreKit renewal info —
-                          useful for server-side validation.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <p style={{ marginTop: '1rem' }}>
+                  <code>renewalInfoIOS</code> resolves to{' '}
+                  <Link to="/docs/types/ios/renewal-info-ios">
+                    <code>RenewalInfoIOS</code>
+                  </Link>{' '}
+                  — see that page for the full field reference.
+                </p>
 
                 <div style={{ marginTop: '1rem' }}>
                   <AnchorLink id="advanced-commerce-info-ios" level="h4">

@@ -25,6 +25,7 @@ import TypesSubscriptionPeriodIOS from './types/ios/subscription-period-ios';
 import TypesPaymentModeIOS from './types/ios/payment-mode-ios';
 import TypesSubscriptionStatusIOS from './types/ios/subscription-status-ios';
 import TypesAppTransactionIOS from './types/ios/app-transaction-ios';
+import TypesRenewalInfoIOS from './types/ios/renewal-info-ios';
 import TypesOneTimePurchaseOfferDetailAndroid from './types/android/one-time-purchase-offer-detail-android';
 import TypesSubscriptionOfferAndroid from './types/android/subscription-offer-android';
 import TypesPricingPhaseAndroid from './types/android/pricing-phase-android';
@@ -263,6 +264,10 @@ function Docs() {
                     {
                       to: '/docs/types/ios/app-transaction-ios',
                       label: 'AppTransactionIOS',
+                    },
+                    {
+                      to: '/docs/types/ios/renewal-info-ios',
+                      label: 'RenewalInfoIOS',
                     },
                   ],
                 },
@@ -767,6 +772,10 @@ function Docs() {
           <Route
             path="types/ios/app-transaction-ios"
             element={<TypesAppTransactionIOS />}
+          />
+          <Route
+            path="types/ios/renewal-info-ios"
+            element={<TypesRenewalInfoIOS />}
           />
           <Route
             path="types/android/one-time-purchase-offer-detail-android"

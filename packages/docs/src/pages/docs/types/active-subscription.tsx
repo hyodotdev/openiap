@@ -176,7 +176,7 @@ function ActiveSubscription() {
                         <code>renewalInfoIOS</code>
                       </td>
                       <td>
-                        <Link to="/docs/types/purchase#renewal-info-ios">
+                        <Link to="/docs/types/ios/renewal-info-ios">
                           <code>RenewalInfoIOS?</code>
                         </Link>
                       </td>
