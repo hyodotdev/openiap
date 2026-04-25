@@ -90,7 +90,9 @@ function SubscriptionOfferAndroid() {
                 <code>installmentPlanDetails</code>
               </td>
               <td>
-                <code>InstallmentPlanDetailsAndroid?</code>
+                <Link to="/docs/types/android/subscription-offer-android#installment-plan-details-android">
+                  <code>InstallmentPlanDetailsAndroid?</code>
+                </Link>
               </td>
               <td>
                 Installment plan details (Play Billing 7.0+, null for
@@ -106,6 +108,52 @@ function SubscriptionOfferAndroid() {
           </Link>{' '}
           when purchasing Android subscriptions.
         </p>
+
+        <AnchorLink id="installment-plan-details-android" level="h3">
+          InstallmentPlanDetailsAndroid
+        </AnchorLink>
+        <p>
+          Installment plan details for subscription offers — Play Billing
+          Library 7.0+. Describes how many committed payments the user signs up
+          for and the subsequent commitment after renewal.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>commitmentPaymentsCount</code>
+              </td>
+              <td>
+                <code>number</code>
+              </td>
+              <td>
+                Committed payments count after the user signs up. e.g. for a
+                monthly subscription with <code>commitmentPaymentsCount</code>{' '}
+                of 12, the user is billed monthly for 12 months.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>subsequentCommitmentPaymentsCount</code>
+              </td>
+              <td>
+                <code>number</code>
+              </td>
+              <td>
+                Committed payments count after the plan renews. Returns{' '}
+                <code>0</code> when the installment plan has no subsequent
+                commitment (reverts to a regular plan after the first cycle).
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </div>
   );

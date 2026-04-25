@@ -18,11 +18,22 @@ function PricingPhaseAndroid() {
         <AnchorLink id="pricing-phase" level="h2">
           PricingPhase
         </AnchorLink>
-        <p>Pricing phase for Android subscriptions:</p>
+        <p>
+          Pricing phase for Android subscriptions. Mirrors{' '}
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.PricingPhase"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Play Billing's <code>PricingPhase</code>
+          </a>{' '}
+          one-to-one.
+        </p>
         <table className="doc-table">
           <thead>
             <tr>
               <th>Name</th>
+              <th>Type</th>
               <th>Summary</th>
             </tr>
           </thead>
@@ -31,17 +42,26 @@ function PricingPhaseAndroid() {
               <td>
                 <code>billingPeriod</code>
               </td>
+              <td>
+                <code>string</code>
+              </td>
               <td>ISO 8601 period (P1W, P1M, P1Y)</td>
             </tr>
             <tr>
               <td>
                 <code>formattedPrice</code>
               </td>
-              <td>Formatted price string</td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>Formatted price string with currency symbol</td>
             </tr>
             <tr>
               <td>
                 <code>priceAmountMicros</code>
+              </td>
+              <td>
+                <code>string</code>
               </td>
               <td>Price in micro-units (divide by 1,000,000)</td>
             </tr>
@@ -49,11 +69,17 @@ function PricingPhaseAndroid() {
               <td>
                 <code>priceCurrencyCode</code>
               </td>
+              <td>
+                <code>string</code>
+              </td>
               <td>ISO 4217 currency code</td>
             </tr>
             <tr>
               <td>
                 <code>billingCycleCount</code>
+              </td>
+              <td>
+                <code>number</code>
               </td>
               <td>Number of cycles for this phase</td>
             </tr>
@@ -62,8 +88,12 @@ function PricingPhaseAndroid() {
                 <code>recurrenceMode</code>
               </td>
               <td>
-                How this phase recurs (1 = infinite, 2 = finite, 3 =
-                non-recurring)
+                <code>number</code>
+              </td>
+              <td>
+                How this phase recurs — see{' '}
+                <a href="#recurrence-mode-values">Recurrence Mode Values</a>{' '}
+                below.
               </td>
             </tr>
           </tbody>

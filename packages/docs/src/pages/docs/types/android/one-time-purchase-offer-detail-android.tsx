@@ -110,7 +110,10 @@ function OneTimePurchaseOfferDetailAndroid() {
                 <code>discountDisplayInfo</code>
               </td>
               <td>
-                <code>DiscountDisplayInfoAndroid | null</code>
+                <a href="#discount-display-info-android">
+                  <code>DiscountDisplayInfoAndroid</code>
+                </a>{' '}
+                <code>| null</code>
               </td>
               <td>Discount display information (percentage, badge text)</td>
             </tr>
@@ -153,6 +156,33 @@ function OneTimePurchaseOfferDetailAndroid() {
             </tr>
             <tr>
               <td>
+                <code>preorderDetailsAndroid</code>
+              </td>
+              <td>
+                <a href="#preorder-details-android">
+                  <code>PreorderDetailsAndroid</code>
+                </a>{' '}
+                <code>| null</code>
+              </td>
+              <td>
+                Pre-order details for products available for pre-order (Play
+                Billing 8.1.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>rentalDetailsAndroid</code>
+              </td>
+              <td>
+                <a href="#rental-details-android">
+                  <code>RentalDetailsAndroid</code>
+                </a>{' '}
+                <code>| null</code>
+              </td>
+              <td>Rental details for rental offers.</td>
+            </tr>
+            <tr>
+              <td>
                 <code>purchaseOptionId</code>
               </td>
               <td>
@@ -161,6 +191,56 @@ function OneTimePurchaseOfferDetailAndroid() {
               <td>
                 Purchase option ID to identify which option was selected (7.0+)
               </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="discount-display-info-android" level="h3">
+          DiscountDisplayInfoAndroid
+        </AnchorLink>
+        <p>
+          Discount display metadata Google Play returns for promotional offers
+          (badge text, percentage off). Only populated when the offer is
+          discounted.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>discountAmount</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Amount discounted from the original price, formatted with
+                currency symbol.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>discountPercentage</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>Percentage discount label (e.g. "20%").</td>
+            </tr>
+            <tr>
+              <td>
+                <code>label</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>Display label such as "SALE" or "LIMITED TIME".</td>
             </tr>
           </tbody>
         </table>

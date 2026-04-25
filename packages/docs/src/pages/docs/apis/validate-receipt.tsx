@@ -10,10 +10,7 @@ function ValidateReceipt() {
   // bounce to the canonical Validation feature page, so old links keep
   // working without us maintaining a parallel reference.
   useEffect(() => {
-    const id = setTimeout(() => {
-      navigate('/docs/features/validation#verify-purchase', { replace: true });
-    }, 0);
-    return () => clearTimeout(id);
+    navigate('/docs/features/validation#verify-purchase', { replace: true });
   }, [navigate]);
 
   return (

@@ -271,14 +271,16 @@ if subscription.renewalInfoIOS?.willAutoRenew == false {
 }`}</CodeBlock>
             ),
             kotlin: (
-              <CodeBlock language="kotlin">{`// Check for pending upgrades
-subscription.renewalInfoIOS?.pendingUpgradeProductId?.let { pendingProductId ->
-    println("Upgrade pending to: $pendingProductId")
+              <CodeBlock language="kotlin">{`// Android: read auto-renew status straight off the active subscription.
+// (renewalInfoIOS is iOS-only — see the Swift / KMP tabs for that flow.)
+if (subscription.autoRenewingAndroid == false) {
+    println("Subscription will not auto-renew")
 }
 
-// Check if subscription is cancelled
-if (subscription.renewalInfoIOS?.willAutoRenew == false) {
-    println("Subscription will not auto-renew")
+// Use the upgrade/downgrade flow via requestPurchase — Android does not
+// surface a pending upgrade product id directly.
+subscription.basePlanIdAndroid?.let { basePlanId ->
+    println("Active base plan: $basePlanId")
 }`}</CodeBlock>
             ),
             dart: (
