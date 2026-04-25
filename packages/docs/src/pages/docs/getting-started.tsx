@@ -369,10 +369,10 @@ await iap.request_purchase(props)`}</CodeBlock>
             , <code>fetchProducts</code>, <code>requestPurchase</code>, …).
             Cross-platform symbols live at the root; iOS- and Android-only
             symbols are grouped under{' '}
-            <Link to="/docs/apis#ios-specific">iOS Specific</Link> /{' '}
-            <Link to="/docs/apis#android-specific">Android Specific</Link>. Open
-            a function page when you need its exact signature, params, and a
-            copy-pasteable example.
+            <Link to="/docs/apis#ios-functions">iOS Specific</Link> /{' '}
+            <Link to="/docs/apis#android-functions">Android Specific</Link>.
+            Open a function page when you need its exact signature, params, and
+            a copy-pasteable example.
           </li>
           <li>
             <strong>

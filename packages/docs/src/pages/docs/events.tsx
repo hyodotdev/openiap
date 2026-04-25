@@ -17,9 +17,18 @@ function Events() {
         keywords="IAP events, purchaseUpdatedListener, purchaseErrorListener, purchase listener, transaction events, async purchase handling"
       />
       <h1>Events</h1>
+      <p>
+        Complete listener reference for OpenIAP. Every event listener is listed
+        below with a one-line description and a link to its full signature. The
+        IAP library uses an event-driven architecture to handle purchase flows
+        asynchronously — set up listeners before initiating any purchase to
+        properly handle the results.
+      </p>
 
       <section>
-        <h2>Event System Overview</h2>
+        <AnchorLink id="event-system-overview" level="h2">
+          Event System Overview
+        </AnchorLink>
         <p>
           The IAP library uses an event-driven architecture to handle purchase
           flows asynchronously. You must set up event listeners before
@@ -84,1173 +93,114 @@ function Events() {
       </section>
 
       <section>
-        <AnchorLink id="purchase-updated-event" level="h2">
-          Purchase Updated Event
+        <AnchorLink id="listeners" level="h2">
+          Listeners
         </AnchorLink>
-        <p>
-          Fired when a purchase is successful or when a pending purchase is
-          completed.
-        </p>
-
-        <h3>Listener Setup</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`purchaseUpdatedListener(
-  listener: (purchase: Purchase) => void
-): Subscription`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// AsyncSequence approach
-var purchaseUpdates: AsyncStream<Purchase>
-
-// Combine approach
-var purchaseUpdatedPublisher: AnyPublisher<Purchase, Never>`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`// Flow approach
-val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`// Flow approach
-val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`Stream<Purchase> get purchaseUpdatedStream;`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`signal purchase_updated(purchase: Purchase)`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>Registers a listener for successful purchase events.</p>
-
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`import { purchaseUpdatedListener } from 'expo-iap';
-
-const subscription = purchaseUpdatedListener(async (purchase) => {
-  console.log('Purchase updated:', purchase.productId);
-
-  // Validate the receipt
-  const isValid = await validateReceipt(purchase);
-
-  if (isValid) {
-    // Deliver content to user
-    await deliverProduct(purchase.productId);
-
-    // Finish the transaction
-    await finishTransaction(purchase, { isConsumable: false });
-  }
-});
-
-// Cleanup when done
-subscription.remove();`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`import OpenIap
-
-// Using async/await
-Task {
-    for await purchase in OpenIapModule.shared.purchaseUpdates {
-        print("Purchase updated: \\(purchase.productId)")
-
-        // Validate and deliver
-        if await validateReceipt(purchase) {
-            await deliverProduct(purchase.productId)
-            try await OpenIapModule.shared.finishTransaction(purchase)
-        }
-    }
-}
-
-// Or using Combine
-OpenIapModule.shared.purchaseUpdatedPublisher
-    .sink { purchase in
-        print("Purchase updated: \\(purchase.productId)")
-    }
-    .store(in: &cancellables)`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapStore
-
-// Using Flow
-lifecycleScope.launch {
-    openIapStore.purchaseUpdates.collect { purchase ->
-        println("Purchase updated: \${purchase.productId}")
-
-        // Validate and deliver
-        if (validateReceipt(purchase)) {
-            deliverProduct(purchase.productId)
-            openIapStore.finishTransaction(purchase, isConsumable = false)
-        }
-    }
-}
-
-// Or with callback
-openIapStore.setPurchaseUpdatedListener { purchase ->
-    println("Purchase updated: \${purchase.productId}")
-}`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-
-val kmpIAP = KmpIAP()
-
-// Using Flow
-lifecycleScope.launch {
-    kmpIAP.purchaseUpdates.collect { purchase ->
-        println("Purchase updated: \${purchase.productId}")
-
-        // Validate and deliver
-        if (validateReceipt(purchase)) {
-            deliverProduct(purchase.productId)
-            kmpIAP.finishTransaction(purchase, isConsumable = false)
-        }
-    }
-}
-
-// Or with callback
-kmpIAP.setPurchaseUpdatedListener { purchase ->
-    println("Purchase updated: \${purchase.productId}")
-}`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-final subscription = FlutterInappPurchase.purchaseUpdated.listen((purchase) async {
-  print('Purchase updated: \${purchase?.productId}');
-
-  // Validate the receipt
-  final isValid = await validateReceipt(purchase);
-
-  if (isValid) {
-    // Deliver content to user
-    await deliverProduct(purchase!.productId);
-
-    // Finish the transaction
-    await FlutterInappPurchase.instance.finishTransaction(purchase);
-  }
-});
-
-// Cleanup when done
-subscription.cancel();`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`# Connect to the signal
-iap.purchase_updated.connect(_on_purchase_updated)
-
-func _on_purchase_updated(purchase: Purchase):
-    print("Purchase updated: %s" % purchase.product_id)
-
-    # Validate the receipt
-    var is_valid = await validate_receipt(purchase)
-
-    if is_valid:
-        # Deliver content to user
-        await deliver_product(purchase.product_id)
-
-        # Finish the transaction
-        await iap.finish_transaction(purchase, false)
-
-# Cleanup when done
-func _exit_tree():
-    iap.purchase_updated.disconnect(_on_purchase_updated)`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-
-        <h3>Event Payload</h3>
-        <p>
-          The purchase event delivers a{' '}
-          <Link to="/docs/types/purchase">Purchase</Link> object containing
-          transaction details.
-        </p>
-
-        <h3>Purchase Update Flow</h3>
-        <ol>
-          <li>
-            Receive <Link to="/docs/types/purchase">Purchase</Link> object via
-            listener
-          </li>
-          <li>Validate receipt with backend service</li>
-          <li>Deliver purchased content to user</li>
-          <li>
-            Finish transaction with{' '}
-            <Link to="/docs/apis/finish-transaction">finishTransaction</Link>{' '}
-            (handles acknowledgment on both platforms)
-          </li>
-          <li>Update application state</li>
-        </ol>
-      </section>
-
-      <section>
-        <AnchorLink id="purchase-error-event" level="h2">
-          Purchase Error Event
-        </AnchorLink>
-        <p>Fired when a purchase fails or is cancelled by the user.</p>
-
-        <h3>Listener Setup</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`purchaseErrorListener(
-  listener: (error: PurchaseError) => void
-): Subscription`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// AsyncSequence approach
-var purchaseErrors: AsyncStream<PurchaseError>
-
-// Combine approach
-var purchaseErrorPublisher: AnyPublisher<PurchaseError, Never>`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`// Flow approach
-val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`// Flow approach
-val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`Stream<PurchaseError> get purchaseErrorStream;`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>Registers a listener for purchase error events.</p>
-
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`import { purchaseErrorListener, ErrorCode } from 'expo-iap';
-
-const subscription = purchaseErrorListener((error) => {
-  console.log('Purchase error:', error.code, error.message);
-
-  switch (error.code) {
-    case ErrorCode.UserCancelled:
-      // User cancelled - no action needed
-      break;
-    case ErrorCode.AlreadyOwned:
-      // Restore purchases instead
-      restorePurchases();
-      break;
-    case ErrorCode.NetworkError:
-      // Show retry option
-      showRetryDialog();
-      break;
-    default:
-      showErrorMessage(error.message);
-  }
-});
-
-// Cleanup when done
-subscription.remove();`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`import OpenIap
-
-// Using async/await
-Task {
-    for await error in OpenIapModule.shared.purchaseErrors {
-        print("Purchase error: \\(error.code) - \\(error.message)")
-
-        switch error.code {
-        case .userCancelled:
-            // User cancelled - no action needed
-            break
-        case .alreadyOwned:
-            // Restore purchases instead
-            try await OpenIapModule.shared.restorePurchases()
-        case .networkError:
-            showRetryDialog()
-        default:
-            showErrorMessage(error.message)
-        }
-    }
-}
-
-// Or using Combine
-OpenIapModule.shared.purchaseErrorPublisher
-    .sink { error in
-        print("Purchase error: \\(error.code)")
-    }
-    .store(in: &cancellables)`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.OpenIapError
-
-// Using Flow
-lifecycleScope.launch {
-    openIapStore.purchaseErrors.collect { error ->
-        println("Purchase error: \${error.code} - \${error.message}")
-
-        when (error.code) {
-            OpenIapError.UserCancelled -> {
-                // User cancelled - no action needed
-            }
-            OpenIapError.AlreadyOwned -> {
-                // Restore purchases instead
-                openIapStore.restorePurchases()
-            }
-            OpenIapError.NetworkError -> {
-                showRetryDialog()
-            }
-            else -> {
-                showErrorMessage(error.message)
-            }
-        }
-    }
-}
-
-// Or with callback
-openIapStore.setPurchaseErrorListener { error ->
-    println("Purchase error: \${error.code}")
-}`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-
-val kmpIAP = KmpIAP()
-
-// Using Flow
-lifecycleScope.launch {
-    kmpIAP.purchaseErrors.collect { error ->
-        println("Purchase error: \${error.code} - \${error.message}")
-
-        when (error.code) {
-            OpenIapError.UserCancelled -> {
-                // User cancelled - no action needed
-            }
-            OpenIapError.AlreadyOwned -> {
-                // Restore purchases instead
-                kmpIAP.restorePurchases()
-            }
-            OpenIapError.NetworkError -> {
-                showRetryDialog()
-            }
-            else -> {
-                showErrorMessage(error.message)
-            }
-        }
-    }
-}
-
-// Or with callback
-kmpIAP.setPurchaseErrorListener { error ->
-    println("Purchase error: \${error.code}")
-}`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-final subscription = FlutterInappPurchase.purchaseError.listen((error) {
-  print('Purchase error: \${error?.code} - \${error?.message}');
-
-  switch (error?.code) {
-    case 'E_USER_CANCELLED':
-      // User cancelled - no action needed
-      break;
-    case 'E_ALREADY_OWNED':
-      // Restore purchases instead
-      FlutterInappPurchase.instance.restorePurchases();
-      break;
-    case 'E_NETWORK_ERROR':
-      showRetryDialog();
-      break;
-    default:
-      showErrorMessage(error?.message ?? 'Unknown error');
-  }
-});
-
-// Cleanup when done
-subscription.cancel();`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-
-        <h3>Error Payload</h3>
-        <p>
-          The error event delivers a{' '}
-          <Link to="/docs/errors">PurchaseError</Link> object with error
-          details. See <Link to="/docs/errors">Error Codes</Link> for complete
-          reference.
-        </p>
-
-        <h3>Error Handling Strategy</h3>
-        <p>
-          Handle errors based on their{' '}
-          <Link to="/docs/errors">error codes</Link>:
-        </p>
-        <ul>
-          <li>
-            <code>UserCancelled</code> - No action required
-          </li>
-          <li>
-            <code>ItemUnavailable</code> - Check product availability
-          </li>
-          <li>
-            <code>NetworkError</code> - Retry with backoff
-          </li>
-          <li>
-            <code>AlreadyOwned</code> - Restore purchases
-          </li>
-          <li>
-            <code>ReceiptFailed</code> - Retry validation
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <AnchorLink id="subscription-billing-issue-event" level="h2">
-          Subscription Billing Issue Event
-        </AnchorLink>
-        <p>
-          Fired when an active subscription enters a state that needs user
-          attention because of a payment problem — card declined, expired
-          payment method, billing retry, or grace period. Unifies StoreKit 2{' '}
-          <code>Message.billingIssue</code> (iOS 18+) and Play Billing{' '}
-          <code>Purchase.isSuspended</code> (Play Billing Library 8.1+) under a
-          single cross-platform stream. Silent no-op on platforms that cannot
-          emit (tvOS, watchOS, visionOS, macOS, Meta Horizon).
-        </p>
-
-        <h3>Listener Setup</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`subscriptionBillingIssueListener(
-  listener: (purchase: Purchase) => void
-): Subscription`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// Callback + Subscription handle (iOS 18+ only)
-func subscriptionBillingIssueListener(
-    _ listener: @escaping @Sendable (Purchase) -> Void
-) -> Subscription`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`// Callback approach (Play Billing 8.1+)
-fun addSubscriptionBillingIssueListener(
-    listener: OpenIapSubscriptionBillingIssueListener
-)`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`// Flow approach
-val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`Stream<Purchase> get subscriptionBillingIssueListener;`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`signal subscription_billing_issue(purchase: Purchase)`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>
-          The emitted{' '}
-          <Link to="/docs/types/purchase">
-            <code>Purchase</code>
-          </Link>{' '}
-          is a regular subscription payload — use <code>productId</code>,{' '}
-          <code>purchaseToken</code>, and platform fields to prompt the user to
-          update payment. Play deduplicates by <code>purchaseToken</code> per
-          session; iOS fires per Message delivery.
-        </p>
-
-        <p>
-          See{' '}
-          <Link to="/docs/features/subscription-billing-issue">
-            Subscription Billing Issue feature guide
-          </Link>{' '}
-          for platform coverage, signal sources, and UX recommendations.
-        </p>
-      </section>
-
-      <section>
-        <AnchorLink id="promoted-product-event-ios" level="h2">
-          Promoted Product Event (iOS)
-        </AnchorLink>
-        <p>
-          Fired when a user clicks on a promoted in-app purchase in the App
-          Store.
-        </p>
-
-        <h3>Listener Setup</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`promotedProductListenerIOS(
-  listener: (productId: string) => void
-): Subscription`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// AsyncSequence approach
-var promotedProducts: AsyncStream<String>
-
-// Combine approach
-var promotedProductPublisher: AnyPublisher<String, Never>`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`// iOS only - not available on Android`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`// iOS only - not available on Android`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`Stream<String> get promotedProductStream; // iOS only`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>Registers a listener for App Store promoted product events.</p>
-
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`import {
-  promotedProductListenerIOS,
-  fetchProducts,
-  requestPurchase
-} from 'expo-iap';
-
-const subscription = promotedProductListenerIOS(async (productId) => {
-  console.log('Promoted product tapped:', productId);
-
-  // Fetch product details
-  const products = await fetchProducts({
-    skus: [productId],
-    type: 'in-app'
-  });
-
-  if (products.length > 0) {
-    // Show product info to user and confirm purchase
-    const confirmed = await showPurchaseConfirmation(products[0]);
-
-    if (confirmed) {
-      // Purchase directly using requestPurchase with the received SKU
-      await requestPurchase({
-        request: { apple: { sku: productId } },
-        type: 'in-app'
-      });
-    }
-  }
-});
-
-// Cleanup when done
-subscription.remove();`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`import OpenIap
-
-// Using async/await
-Task {
-    for await productId in OpenIapModule.shared.promotedProducts {
-        print("Promoted product tapped: \\(productId)")
-
-        // Fetch product details
-        let products = try await OpenIapModule.shared.fetchProducts(
-            ProductRequest(skus: [productId], type: .inApp)
-        )
-
-        if let product = products.first {
-            // Show product info to user and confirm purchase
-            if await showPurchaseConfirmation(product) {
-                // Purchase directly using requestPurchase with the received SKU
-                try await OpenIapModule.shared.requestPurchase(
-                    RequestPurchaseProps(
-                        request: .purchase(RequestPurchasePropsByPlatforms(
-                            apple: RequestPurchaseIosProps(sku: productId)
-                        )),
-                        type: .inApp
-                    )
-                )
-            }
-        }
-    }
-}
-
-// Or using Combine
-OpenIapModule.shared.promotedProductPublisher
-    .sink { productId in
-        print("Promoted product: \\(productId)")
-    }
-    .store(in: &cancellables)`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-// iOS only - will not fire on Android
-final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) async {
-  print('Promoted product tapped: $productId');
-
-  // Fetch product details
-  final products = await FlutterInappPurchase.instance.fetchProducts(
-    ProductRequest(skus: [productId!], type: ProductQueryType.inApp),
-  );
-
-  if (products.isNotEmpty) {
-    // Show product info to user and confirm purchase
-    final confirmed = await showPurchaseConfirmation(products.first);
-
-    if (confirmed) {
-      // Purchase directly using requestPurchase with the received SKU
-      await FlutterInappPurchase.instance.requestPurchase(
-        RequestPurchaseProps(
-          request: RequestPurchasePropsByPlatforms(
-            apple: RequestPurchaseIosProps(sku: productId!),
-          ),
-          type: ProductQueryType.inApp,
-        ),
-      );
-    }
-  }
-});
-
-// Cleanup when done
-subscription.cancel();`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-
-        <h3>Handling Promoted Products</h3>
-        <ol>
-          <li>Receive product SKU via listener</li>
-          <li>
-            Fetch product details using{' '}
-            <Link to="/docs/apis/fetch-products">fetchProducts</Link>
-          </li>
-          <li>Display product information to user</li>
-          <li>
-            Call <Link to="/docs/apis/request-purchase">requestPurchase</Link>{' '}
-            with the received SKU if user confirms
-          </li>
-        </ol>
-        <p>
-          Also check{' '}
-          <Link to="/docs/apis/ios/get-promoted-product-ios">
-            getPromotedProductIOS
-          </Link>{' '}
-          on app launch for pending promoted products.
-        </p>
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>Note:</strong> In StoreKit 2, promoted products can be
-            purchased directly via the standard{' '}
-            <Link to="/docs/apis/request-purchase">
-              <code>requestPurchase()</code>
-            </Link>{' '}
-            flow. The deprecated{' '}
-            <code style={{ textDecoration: 'line-through' }}>
-              requestPurchaseOnPromotedProductIOS()
-            </code>{' '}
-            API is no longer needed.
-          </p>
-        </div>
-      </section>
-
-      <section>
-        <AnchorLink id="user-choice-billing-event-android" level="h2">
-          User Choice Billing Event (Android)
-        </AnchorLink>
-        <p>
-          Fired when a user selects alternative billing in the User Choice
-          Billing dialog on Android.
-        </p>
-
-        <h3>Listener Setup</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`userChoiceBillingListenerAndroid(
-  listener: (details: UserChoiceBillingDetails) => void
-): Subscription`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// Android only - not available on iOS`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`// Flow approach
-val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`// Flow approach
-val userChoiceBillingEvents: Flow<UserChoiceBillingDetails>`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`Stream<UserChoiceBillingDetails> get userChoiceBillingStream;
-// Android only`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>
-          Registers a listener for User Choice Billing events. This listener is
-          only triggered when the user selects alternative billing instead of
-          Google Play billing.
-        </p>
-
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`import { userChoiceBillingListenerAndroid } from 'expo-iap';
-
-const subscription = userChoiceBillingListenerAndroid(async (details) => {
-  console.log('User chose alternative billing');
-  console.log('Products:', details.products);
-  console.log('Token:', details.externalTransactionToken);
-
-  // Process payment with your backend
-  const paymentResult = await processPaymentWithBackend({
-    products: details.products,
-    token: details.externalTransactionToken,
-  });
-
-  if (paymentResult.success) {
-    // Backend should report token to Google Play within 24 hours
-    grantUserAccess(details.products);
-  }
-});
-
-// Cleanup when done
-subscription.remove();`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.UserChoiceBillingDetails
-
-// Using Flow
-lifecycleScope.launch {
-    openIapStore.userChoiceBillingEvents.collect { details ->
-        println("User chose alternative billing")
-        println("Products: \${details.products}")
-        println("Token: \${details.externalTransactionToken}")
-
-        // Process payment with your backend
-        val paymentResult = processPaymentWithBackend(
-            products = details.products,
-            token = details.externalTransactionToken
-        )
-
-        if (paymentResult.success) {
-            // Backend should report token to Google Play within 24 hours
-            grantUserAccess(details.products)
-        }
-    }
-}
-
-// Or with callback
-openIapStore.setUserChoiceBillingListener { details ->
-    println("User chose alternative billing for: \${details.products}")
-}`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-
-val kmpIAP = KmpIAP()
-
-// Using Flow
-lifecycleScope.launch {
-    kmpIAP.userChoiceBillingEvents.collect { details ->
-        println("User chose alternative billing")
-        println("Products: \${details.products}")
-        println("Token: \${details.externalTransactionToken}")
-
-        // Process payment with your backend
-        val paymentResult = processPaymentWithBackend(
-            products = details.products,
-            token = details.externalTransactionToken
-        )
-
-        if (paymentResult.success) {
-            // Backend should report token to Google Play within 24 hours
-            grantUserAccess(details.products)
-        }
-    }
-}
-
-// Or with callback
-kmpIAP.setUserChoiceBillingListener { details ->
-    println("User chose alternative billing for: \${details.products}")
-}`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-// Android only - will not fire on iOS
-final subscription = FlutterInappPurchase.userChoiceBillingAndroid.listen((details) async {
-  print('User chose alternative billing');
-  print('Products: \${details?.products}');
-  print('Token: \${details?.externalTransactionToken}');
-
-  // Process payment with your backend
-  final paymentResult = await processPaymentWithBackend(
-    products: details!.products,
-    token: details.externalTransactionToken,
-  );
-
-  if (paymentResult.success) {
-    // Backend should report token to Google Play within 24 hours
-    grantUserAccess(details.products);
-  }
-});
-
-// Cleanup when done
-subscription.cancel();`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-
-        <h3>Event Payload</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`interface UserChoiceBillingDetails {
-  externalTransactionToken: string;
-  products: string[];
-}`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// Android only - not available on iOS`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
-    val externalTransactionToken: String,
-    val products: List<String>
-)`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`data class UserChoiceBillingDetails(
-    val externalTransactionToken: String,
-    val products: List<String>
-)`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`class UserChoiceBillingDetails {
-  final String externalTransactionToken;
-  final List<String> products;
-}`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>
-          <strong>externalTransactionToken</strong> - Token that must be
-          reported to Google Play within 24 hours
-          <br />
-          <strong>products</strong> - List of product IDs selected by the user
-        </p>
-
-        <h3>Handling User Choice Billing</h3>
-        <ol>
-          <li>
-            Receive <code>UserChoiceBillingDetails</code> via listener
-          </li>
-          <li>Process payment with your backend payment system</li>
-          <li>Send the external transaction token to your backend</li>
-          <li>
-            Backend reports token to Google Play within 24 hours (required for
-            compliance)
-          </li>
-          <li>Grant user access to purchased content</li>
-        </ol>
-
-        <div
-          style={{
-            background: 'rgba(255, 200, 0, 0.1)',
-            border: '1px solid rgba(255, 200, 0, 0.3)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginTop: '1rem',
-          }}
-        >
-          <p style={{ margin: 0, fontSize: '0.875rem' }}>
-            <strong>⚠️ Important:</strong> The external transaction token MUST
-            be reported to Google Play within 24 hours. Failure to report tokens
-            may result in account suspension. It is strongly recommended to
-            handle token reporting on your backend server for reliability and
-            security.
-          </p>
-        </div>
-
-        <h3>Flow Comparison</h3>
-        <p>
-          When using User Choice Billing mode, there are two possible flows
-          depending on user selection:
-        </p>
-        <ul>
-          <li>
-            <strong>Google Play selected</strong> - Standard{' '}
-            <code>PurchaseUpdated</code> event fires (handle normally)
-          </li>
-          <li>
-            <strong>Alternative billing selected</strong> -{' '}
-            <code>UserChoiceBillingAndroid</code> event fires (handle with your
-            payment system)
-          </li>
-        </ul>
-
-        <p>
-          See{' '}
-          <Link to="/docs/features/external-purchase#platform-implementation">
-            External Purchase documentation
-          </Link>{' '}
-          for complete implementation examples.
-        </p>
-      </section>
-
-      <section>
-        <AnchorLink id="developer-provided-billing-event-android" level="h2">
-          Developer Provided Billing Event (Android 8.3.0+)
-        </AnchorLink>
-        <p>
-          Fired when a user selects developer-provided billing in the External
-          Payments flow on Android. This is different from User Choice Billing -
-          it presents a side-by-side choice dialog in the purchase flow itself.
-        </p>
-        <p>
-          <strong>Note:</strong> Currently only available in Japan.
-        </p>
-
-        <h3>Listener Setup</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`developerProvidedBillingListener(
-  listener: (details: DeveloperProvidedBillingDetails) => void
-): Subscription`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// Android only - not available on iOS`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`// Callback approach
-fun addDeveloperProvidedBillingListener(
-    listener: OpenIapDeveloperProvidedBillingListener
-)`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`// Callback approach
-fun addDeveloperProvidedBillingListener(
-    listener: OpenIapDeveloperProvidedBillingListener
-)`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`Stream<DeveloperProvidedBillingDetails> get developerProvidedBillingStream;
-// Android only (8.3.0+)`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>
-          Registers a listener for Developer Provided Billing events. This
-          listener is only triggered when the user selects the developer's
-          payment option (instead of Google Play) in the External Payments flow.
-        </p>
-
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`import { developerProvidedBillingListener } from 'expo-iap';
-
-const subscription = developerProvidedBillingListener(async (details) => {
-  console.log('User selected developer billing');
-  console.log('Token:', details.externalTransactionToken);
-
-  // Process payment with your payment system
-  const paymentResult = await processPaymentWithYourGateway({
-    token: details.externalTransactionToken,
-    // Your payment details
-  });
-
-  if (paymentResult.success) {
-    // IMPORTANT: Report the token to Google Play within 24 hours
-    await reportExternalTransactionToGoogle(details.externalTransactionToken);
-    grantUserAccess();
-  }
-});
-
-// Cleanup when done
-subscription.remove();`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
-
-// Using callback
-openIapStore.addDeveloperProvidedBillingListener { details ->
-    println("User selected developer billing")
-    println("Token: \${details.externalTransactionToken}")
-
-    lifecycleScope.launch {
-        // Process payment with your payment system
-        val paymentResult = processPaymentWithYourGateway(
-            token = details.externalTransactionToken
-        )
-
-        if (paymentResult.success) {
-            // IMPORTANT: Report the token to Google Play within 24 hours
-            reportExternalTransactionToGoogle(details.externalTransactionToken)
-            grantUserAccess()
-        }
-    }
-}`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
-
-val kmpIAP = KmpIAP()
-
-// Using callback
-kmpIAP.addDeveloperProvidedBillingListener { details ->
-    println("User selected developer billing")
-    println("Token: \${details.externalTransactionToken}")
-
-    lifecycleScope.launch {
-        // Process payment with your payment system
-        val paymentResult = processPaymentWithYourGateway(
-            token = details.externalTransactionToken
-        )
-
-        if (paymentResult.success) {
-            // IMPORTANT: Report the token to Google Play within 24 hours
-            reportExternalTransactionToGoogle(details.externalTransactionToken)
-            grantUserAccess()
-        }
-    }
-}`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-// Android only (8.3.0+) - will not fire on iOS or older Android
-final subscription = FlutterInappPurchase.developerProvidedBillingStream
-    .listen((details) async {
-  print('User selected developer billing');
-  print('Token: \${details.externalTransactionToken}');
-
-  // Process payment with your payment system
-  final paymentResult = await processPaymentWithYourGateway(
-    token: details.externalTransactionToken,
-  );
-
-  if (paymentResult.success) {
-    // IMPORTANT: Report the token to Google Play within 24 hours
-    await reportExternalTransactionToGoogle(details.externalTransactionToken);
-    grantUserAccess();
-  }
-});
-
-// Cleanup when done
-subscription.cancel();`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-
-        <h3>Event Payload</h3>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`interface DeveloperProvidedBillingDetails {
-  externalTransactionToken: string;
-}`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`// Android only - not available on iOS`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`data class DeveloperProvidedBillingDetailsAndroid(
-    val externalTransactionToken: String
-)`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`data class DeveloperProvidedBillingDetailsAndroid(
-    val externalTransactionToken: String
-)`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`class DeveloperProvidedBillingDetails {
-  final String externalTransactionToken;
-}`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-        <p>
-          <strong>externalTransactionToken</strong> - Token that must be
-          reported to Google Play within 24 hours after completing the payment
-        </p>
-
-        <h3>Comparison: User Choice vs Developer Provided Billing</h3>
         <table className="doc-table">
           <thead>
             <tr>
-              <th>Feature</th>
-              <th>User Choice Billing</th>
-              <th>Developer Provided Billing</th>
+              <th>Listener</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>Billing Library</td>
-              <td>7.0+</td>
-              <td>8.3.0+</td>
-            </tr>
-            <tr>
-              <td>Availability</td>
-              <td>Eligible regions</td>
-              <td>Japan only</td>
-            </tr>
-            <tr>
-              <td>When presented</td>
-              <td>After initConnection()</td>
-              <td>During requestPurchase()</td>
-            </tr>
-            <tr>
-              <td>UI</td>
-              <td>Separate dialog before purchase</td>
-              <td>Side-by-side choice in purchase dialog</td>
-            </tr>
-            <tr>
-              <td>Event</td>
               <td>
-                <code>UserChoiceBillingAndroid</code>
+                <Link to="/docs/events/purchase-updated-listener">
+                  <code>purchaseUpdatedListener</code>
+                </Link>
               </td>
               <td>
-                <code>DeveloperProvidedBillingAndroid</code>
+                Fires when a purchase is successful or a pending purchase is
+                completed.
               </td>
             </tr>
             <tr>
-              <td>Setup</td>
               <td>
-                <code>AlternativeBillingModeAndroid.UserChoice</code>
+                <Link to="/docs/events/purchase-error-listener">
+                  <code>purchaseErrorListener</code>
+                </Link>
+              </td>
+              <td>Fires when a purchase fails or is cancelled by the user.</td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/events/subscription-billing-issue-listener">
+                  <code>subscriptionBillingIssueListener</code>
+                </Link>
               </td>
               <td>
-                <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> +{' '}
-                <code>developerBillingOption</code> in requestPurchase
+                Fires when an active subscription enters a billing issue state
+                (iOS 18+ / Play Billing 8.1+).
               </td>
             </tr>
           </tbody>
         </table>
+      </section>
 
-        <div
-          style={{
-            background: 'rgba(255, 200, 0, 0.1)',
-            border: '1px solid rgba(255, 200, 0, 0.3)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginTop: '1rem',
-          }}
-        >
-          <p style={{ margin: 0, fontSize: '0.875rem' }}>
-            <strong>⚠️ Important:</strong> The external transaction token MUST
-            be reported to Google Play within 24 hours using the{' '}
-            <code>externaltransactions.createexternaltransaction</code> API.
-            Failure to report tokens may result in account suspension.
-          </p>
-        </div>
+      <section>
+        <AnchorLink id="ios-listeners" level="h2">
+          iOS Listeners
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Listener</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <Link to="/docs/events/ios/promoted-product-listener-ios">
+                  <code>promotedProductListenerIOS</code>
+                </Link>
+              </td>
+              <td>
+                Fires when a user clicks on a promoted in-app purchase in the
+                App Store.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-        <p>
-          See{' '}
-          <Link to="/docs/features/external-purchase#external-payments-830---japan-only">
-            External Payments documentation
-          </Link>{' '}
-          for complete implementation examples.
-        </p>
+      <section>
+        <AnchorLink id="android-listeners" level="h2">
+          Android Listeners
+        </AnchorLink>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Listener</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <Link to="/docs/events/android/user-choice-billing-listener-android">
+                  <code>userChoiceBillingListenerAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Fires when a user selects alternative billing in the User Choice
+                Billing dialog.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/events/android/developer-provided-billing-listener-android">
+                  <code>developerProvidedBillingListenerAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Fires when a user selects developer-provided billing in the
+                External Payments flow (8.3.0+, Japan only).
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section>

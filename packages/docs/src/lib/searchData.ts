@@ -740,7 +740,7 @@ export const apiData: ApiItem[] = [
     category: 'Types (iOS)',
     description:
       'iOS subscription renewal info: willAutoRenew, expirationReason, gracePeriodExpirationDate',
-    path: '/docs/types/purchase#renewal-info-ios',
+    path: '/docs/types/ios/renewal-info-ios',
   },
   {
     id: 'active-subscription-ios',

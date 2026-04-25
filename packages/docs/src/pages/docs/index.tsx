@@ -75,6 +75,12 @@ import APIsIsBillingProgramAvailableAndroid from './apis/android/is-billing-prog
 import APIsLaunchExternalLinkAndroid from './apis/android/launch-external-link-android';
 import APIsCreateBillingProgramReportingDetailsAndroid from './apis/android/create-billing-program-reporting-details-android';
 import Events from './events';
+import EventsPurchaseUpdatedListener from './events/purchase-updated-listener';
+import EventsPurchaseErrorListener from './events/purchase-error-listener';
+import EventsSubscriptionBillingIssueListener from './events/subscription-billing-issue-listener';
+import EventsPromotedProductListenerIOS from './events/ios/promoted-product-listener-ios';
+import EventsUserChoiceBillingListenerAndroid from './events/android/user-choice-billing-listener-android';
+import EventsDeveloperProvidedBillingListenerAndroid from './events/android/developer-provided-billing-listener-android';
 import Errors from './errors';
 import Purchase from './features/purchase';
 import SubscriptionFeature from './features/subscription/index';
@@ -155,7 +161,6 @@ function Docs() {
 
       <aside className={`docs-sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <nav className="docs-nav">
-          <h3>Documentation</h3>
           <ul>
             <li>
               <NavLink
@@ -473,15 +478,47 @@ function Docs() {
               ]}
               onItemClick={closeSidebar}
             />
-            <li>
-              <NavLink
-                to="/docs/events"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Events
-              </NavLink>
-            </li>
+            <MenuDropdown
+              title="Events"
+              titleTo="/docs/events"
+              items={[
+                {
+                  to: '/docs/events/purchase-updated-listener',
+                  label: 'purchaseUpdatedListener',
+                },
+                {
+                  to: '/docs/events/purchase-error-listener',
+                  label: 'purchaseErrorListener',
+                },
+                {
+                  to: '/docs/events/subscription-billing-issue-listener',
+                  label: 'subscriptionBillingIssueListener',
+                },
+                {
+                  label: 'iOS Specific',
+                  items: [
+                    {
+                      to: '/docs/events/ios/promoted-product-listener-ios',
+                      label: 'promotedProductListenerIOS',
+                    },
+                  ],
+                },
+                {
+                  label: 'Android Specific',
+                  items: [
+                    {
+                      to: '/docs/events/android/user-choice-billing-listener-android',
+                      label: 'userChoiceBillingListenerAndroid',
+                    },
+                    {
+                      to: '/docs/events/android/developer-provided-billing-listener-android',
+                      label: 'developerProvidedBillingListenerAndroid',
+                    },
+                  ],
+                },
+              ]}
+              onItemClick={closeSidebar}
+            />
             <li>
               <NavLink
                 to="/docs/errors"
@@ -1005,6 +1042,30 @@ function Docs() {
             element={<Navigate to="/docs/features/debugging" replace />}
           />
           <Route path="events" element={<Events />} />
+          <Route
+            path="events/purchase-updated-listener"
+            element={<EventsPurchaseUpdatedListener />}
+          />
+          <Route
+            path="events/purchase-error-listener"
+            element={<EventsPurchaseErrorListener />}
+          />
+          <Route
+            path="events/subscription-billing-issue-listener"
+            element={<EventsSubscriptionBillingIssueListener />}
+          />
+          <Route
+            path="events/ios/promoted-product-listener-ios"
+            element={<EventsPromotedProductListenerIOS />}
+          />
+          <Route
+            path="events/android/user-choice-billing-listener-android"
+            element={<EventsUserChoiceBillingListenerAndroid />}
+          />
+          <Route
+            path="events/android/developer-provided-billing-listener-android"
+            element={<EventsDeveloperProvidedBillingListenerAndroid />}
+          />
           <Route path="errors" element={<Errors />} />
           <Route path="features/purchase" element={<Purchase />} />
           <Route

@@ -111,11 +111,11 @@ function Introduction() {
             </li>
             <li>
               <strong>Standard event patterns</strong> —{' '}
-              <Link to="/docs/events#purchase-updated-event">
+              <Link to="/docs/events/purchase-updated-listener">
                 <code>purchaseUpdatedListener</code>
               </Link>
               ,{' '}
-              <Link to="/docs/events#purchase-error-event">
+              <Link to="/docs/events/purchase-error-listener">
                 <code>purchaseErrorListener</code>
               </Link>
             </li>

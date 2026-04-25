@@ -1,4 +1,4 @@
-import { useId, useState, useRef, useEffect } from 'react';
+import { useId, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 export interface MenuItem {
@@ -54,50 +54,6 @@ function Chevron({ isExpanded }: { isExpanded: boolean }) {
   );
 }
 
-function useCollapse(isExpanded: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isFirstRun = useRef(true);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    // Skip animation on first mount — set the resting state directly so
-    // pages don't flicker open/closed when the sidebar renders.
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      el.style.maxHeight = isExpanded ? 'none' : '0px';
-      return;
-    }
-
-    if (isExpanded) {
-      // Expanding: from 0 → scrollHeight, then unlock to 'none' so nested
-      // submenus can grow freely.
-      el.style.maxHeight = `${el.scrollHeight}px`;
-      const handleEnd = (e: TransitionEvent) => {
-        if (e.propertyName === 'max-height') {
-          el.style.maxHeight = 'none';
-        }
-      };
-      el.addEventListener('transitionend', handleEnd, { once: true });
-      return () => el.removeEventListener('transitionend', handleEnd);
-    }
-
-    // Collapsing: maxHeight is currently 'none' (after a previous expand)
-    // or some pixel value. Snap to a numeric pixel value, force a reflow
-    // so the browser registers it as the transition's starting point,
-    // then animate to 0 in the next frame.
-    el.style.maxHeight = `${el.scrollHeight}px`;
-    void el.offsetHeight;
-    const id = requestAnimationFrame(() => {
-      el.style.maxHeight = '0px';
-    });
-    return () => cancelAnimationFrame(id);
-  }, [isExpanded]);
-
-  return ref;
-}
-
 function SubMenu({ group, onItemClick }: SubMenuProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const location = useLocation();
@@ -106,8 +62,6 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
   const isAnyChildActive = group.items.some(
     (item) => location.pathname === item.to
   );
-
-  const contentRef = useCollapse(isExpanded);
 
   useEffect(() => {
     if (isAnyChildActive) {
@@ -144,9 +98,8 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
       </div>
       <div
         id={submenuContentId}
-        ref={contentRef}
         className="menu-dropdown-content"
-        style={{ maxHeight: '0px' }}
+        data-expanded={isExpanded}
       >
         <ul className="menu-dropdown-items menu-dropdown-items--nested">
           {group.items.map((item) => (
@@ -188,8 +141,6 @@ export function MenuDropdown({
       : location.pathname === entry.to
   );
   const isGroupActive = isTitleActive || isChildActive;
-
-  const contentRef = useCollapse(isExpanded);
 
   useEffect(() => {
     if (isGroupActive) {
@@ -242,9 +193,8 @@ export function MenuDropdown({
       </div>
       <div
         id={contentId}
-        ref={contentRef}
         className="menu-dropdown-content"
-        style={{ maxHeight: '0px' }}
+        data-expanded={isExpanded}
       >
         <ul className="menu-dropdown-items">
           {items.map((entry) =>

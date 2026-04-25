@@ -6,8 +6,16 @@
   min-height: calc(100vh - 56px);
 }
 
-/* Sidebar - Light mode: light bg, Dark mode: dark bg */
+/* Sidebar - Light mode: light bg, Dark mode: dark bg.
+   The container is centered with `margin: 0 auto`, so on wide screens
+   there's a gap between the viewport's left edge and the sidebar's
+   start. We pull the sidebar leftward by exactly that gap so the
+   background extends to the viewport edge. The gap amount is exposed
+   as a CSS variable (`--sidebar-edge-fill`) and added to each nav
+   row's left padding so the active highlight overlay reaches the
+   edge as well — instead of starting at the original 280px column. */
 .docs-sidebar {
+  --sidebar-edge-fill: max(0px, calc((100vw - var(--max-width)) / 2));
   width: 280px;
   flex-shrink: 0;
   align-self: flex-start;
@@ -19,7 +27,9 @@
   overscroll-behavior: contain;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
-  padding: var(--spacing-lg) 0;
+  padding: var(--spacing-sm) 0 var(--spacing-lg);
+  margin-left: calc((var(--max-width) - 100vw) / 2);
+  box-sizing: content-box;
 }
 
 /* Sidebar items: truncate long identifiers with an ellipsis so the
@@ -125,7 +135,8 @@
 .docs-nav a {
   color: var(--text-secondary);
   text-decoration: none;
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm)
+    calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg));
   display: block;
   font-size: var(--font-size-sm);
   transition: all 0.15s ease;
@@ -160,7 +171,8 @@
 .menu-dropdown-header {
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm)
+    calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg));
   border-left: 2px solid transparent;
   transition: all 0.15s ease;
 }
@@ -222,9 +234,23 @@
   color: #666;
 }
 
+/* Collapse animation via grid-template-rows. The track collapses from
+   1fr → 0fr (or vice-versa) and CSS interpolates intrinsic content
+   height for free — no JS measurement, no clipping when nested
+   submenus expand inside the parent. */
 .menu-dropdown-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease-in-out;
+}
+
+.menu-dropdown-content[data-expanded='true'] {
+  grid-template-rows: 1fr;
+}
+
+.menu-dropdown-content > .menu-dropdown-items {
   overflow: hidden;
-  transition: max-height 0.25s ease-in-out;
+  min-height: 0;
 }
 
 .menu-dropdown-items {
@@ -285,8 +311,13 @@
   list-style: none;
 }
 
+/* Nested group headers (e.g. "iOS Specific" inside Events / APIs / Types)
+   sit one indent level deeper than the listener/function rows above
+   them so the hierarchy reads as: parent group → listener rows →
+   sub-group → sub-group rows. The inner row indent stays even deeper
+   via `.menu-dropdown-items--nested .menu-dropdown-item`. */
 .menu-dropdown--nested > .menu-dropdown-header {
-  padding-left: calc(var(--spacing-lg) + 0.5rem);
+  padding-left: calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg) + 1rem);
 }
 
 .menu-dropdown-title.menu-dropdown-title--nested {
@@ -302,7 +333,7 @@
 }
 
 .menu-dropdown-items--nested .menu-dropdown-item {
-  padding-left: calc(var(--spacing-lg) + 1.5rem);
+  padding-left: calc(var(--sidebar-edge-fill, 0px) + var(--spacing-lg) + 2rem);
 }
 
 /* Main content area */

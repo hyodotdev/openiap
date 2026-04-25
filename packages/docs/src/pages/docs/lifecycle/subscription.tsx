@@ -116,7 +116,7 @@ function Subscription() {
         <Accordion title={<>💡 Key Takeaway</>} variant="tip">
           <p>
             <strong>iOS</strong>: Rich client-side data via{' '}
-            <Link to="/docs/types/purchase#renewal-info-ios">
+            <Link to="/docs/types/ios/renewal-info-ios">
               <code>RenewalInfoIOS</code>
             </Link>
             , but server validation is still recommended for production apps.
@@ -732,7 +732,7 @@ function Subscription() {
                 <p>
                   iOS provides rich subscription data client-side through
                   StoreKit 2. The{' '}
-                  <Link to="/docs/types/purchase#renewal-info-ios">
+                  <Link to="/docs/types/ios/renewal-info-ios">
                     <code>RenewalInfoIOS</code>
                   </Link>{' '}
                   type contains detailed renewal information that lets you build
@@ -741,7 +741,7 @@ function Subscription() {
                 </p>
 
                 <AnchorLink id="ios-renewal-info" level="h3">
-                  <Link to="/docs/types/purchase#renewal-info-ios">
+                  <Link to="/docs/types/ios/renewal-info-ios">
                     RenewalInfoIOS
                   </Link>
                   &nbsp;Fields
@@ -959,7 +959,7 @@ function Subscription() {
                     - Get detailed subscription status
                   </li>
                   <li>
-                    <Link to="/docs/types/purchase#renewal-info-ios">
+                    <Link to="/docs/types/ios/renewal-info-ios">
                       RenewalInfoIOS
                     </Link>{' '}
                     - Type reference
@@ -1016,7 +1016,7 @@ function Subscription() {
                 </AnchorLink>
                 <p>
                   Unlike iOS where{' '}
-                  <Link to="/docs/types/purchase#renewal-info-ios">
+                  <Link to="/docs/types/ios/renewal-info-ios">
                     <code>RenewalInfoIOS</code>
                   </Link>{' '}
                   provides rich client-side data, the following information on
@@ -1310,7 +1310,7 @@ function Subscription() {
             <ul style={{ marginBottom: 0 }}>
               <li>
                 Rich client-side data via{' '}
-                <Link to="/docs/types/purchase#renewal-info-ios">
+                <Link to="/docs/types/ios/renewal-info-ios">
                   <code>RenewalInfoIOS</code>
                 </Link>
               </li>
@@ -1350,7 +1350,7 @@ function Subscription() {
                 - Tier change implementation
               </li>
               <li>
-                <Link to="/docs/types/purchase#renewal-info-ios">
+                <Link to="/docs/types/ios/renewal-info-ios">
                   Types: RenewalInfoIOS
                 </Link>{' '}
                 - Type reference

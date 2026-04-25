@@ -487,42 +487,42 @@ function Home() {
               </div>
               <div className="spec-items">
                 <Link
-                  to="/docs/events#purchase-updated-event"
+                  to="/docs/events/purchase-updated-listener"
                   className="spec-item"
                 >
                   <code>purchaseUpdatedListener</code>
                   <span>Purchase state changes</span>
                 </Link>
                 <Link
-                  to="/docs/events#purchase-error-event"
+                  to="/docs/events/purchase-error-listener"
                   className="spec-item"
                 >
                   <code>purchaseErrorListener</code>
                   <span>Error handling</span>
                 </Link>
                 <Link
-                  to="/docs/events#promoted-product-event-ios"
+                  to="/docs/events/ios/promoted-product-listener-ios"
                   className="spec-item"
                 >
                   <code>promotedProductListenerIOS</code>
                   <span>App Store promoted products</span>
                 </Link>
                 <Link
-                  to="/docs/events#user-choice-billing-event-android"
+                  to="/docs/events/android/user-choice-billing-listener-android"
                   className="spec-item"
                 >
                   <code>userChoiceBillingListenerAndroid</code>
                   <span>User Choice Billing selection</span>
                 </Link>
                 <Link
-                  to="/docs/events#developer-provided-billing-event-android"
+                  to="/docs/events/android/developer-provided-billing-listener-android"
                   className="spec-item"
                 >
                   <code>developerProvidedBillingListener</code>
                   <span>External billing choice</span>
                 </Link>
                 <Link
-                  to="/docs/events#subscription-billing-issue-event"
+                  to="/docs/events/subscription-billing-issue-listener"
                   className="spec-item"
                 >
                   <code>subscriptionBillingIssueListener</code>

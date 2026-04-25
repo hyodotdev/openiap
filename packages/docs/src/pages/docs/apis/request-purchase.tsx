@@ -32,11 +32,11 @@ function RequestPurchase() {
             not rely on their return values for actual purchase results
           </strong>
           . Instead, listen for events through{' '}
-          <Link to="/docs/events#purchase-updated-listener">
+          <Link to="/docs/events/purchase-updated-listener">
             <code>purchaseUpdatedListener</code>
           </Link>{' '}
           or{' '}
-          <Link to="/docs/events#purchase-error-listener">
+          <Link to="/docs/events/purchase-error-listener">
             <code>purchaseErrorListener</code>
           </Link>
           .
