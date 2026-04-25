@@ -24,7 +24,7 @@ function SubscriptionStatusIOS() {
       <LanguageTabs>
         {{
           swift: (
-            <CodeBlock language="swift">{`func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatus]`}</CodeBlock>
+            <CodeBlock language="swift">{`func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS]`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

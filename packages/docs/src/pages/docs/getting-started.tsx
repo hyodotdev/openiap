@@ -333,25 +333,17 @@ await iap.request_purchase(props)`}</CodeBlock>
         <ul>
           <li>
             <strong>
-              <Link to="/docs/apis">APIs</Link>
+              <Link to="/docs/setup">Setup Guide</Link>
             </strong>{' '}
-            — flat reference, one page per function (<code>initConnection</code>
-            , <code>fetchProducts</code>, <code>requestPurchase</code>, …).
-            Cross-platform symbols live at the root; iOS- and Android-only
-            symbols are grouped under{' '}
-            <Link to="/docs/apis#ios-specific">iOS Specific</Link> /{' '}
-            <Link to="/docs/apis#android-specific">Android Specific</Link>. Open
-            a function page when you need its exact signature, params, and a
-            copy-pasteable example.
-          </li>
-          <li>
-            <strong>
-              <Link to="/docs/types">Types</Link>
-            </strong>{' '}
-            — flat reference, one page per type (<code>Product</code>,{' '}
-            <code>Purchase</code>, <code>RequestPurchaseProps</code>, …). Same
-            iOS / Android grouping as APIs. Field tables auto-link to related
-            types so you can chase a shape without leaving the docs.
+            — install + native config per framework (
+            <Link to="/docs/setup/react-native">React Native</Link>,{' '}
+            <Link to="/docs/setup/expo">Expo</Link>,{' '}
+            <Link to="/docs/setup/flutter">Flutter</Link>,{' '}
+            <Link to="/docs/setup/godot">Godot</Link>,{' '}
+            <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>) plus the
+            store-side configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
+            <Link to="/docs/android-setup">Android</Link>,{' '}
+            <Link to="/docs/horizon-setup">Horizon OS</Link>).
           </li>
           <li>
             <strong>
@@ -371,17 +363,25 @@ await iap.request_purchase(props)`}</CodeBlock>
           </li>
           <li>
             <strong>
-              <Link to="/docs/setup">Setup Guide</Link>
+              <Link to="/docs/apis">APIs</Link>
             </strong>{' '}
-            — install + native config per framework (
-            <Link to="/docs/setup/react-native">React Native</Link>,{' '}
-            <Link to="/docs/setup/expo">Expo</Link>,{' '}
-            <Link to="/docs/setup/flutter">Flutter</Link>,{' '}
-            <Link to="/docs/setup/godot">Godot</Link>,{' '}
-            <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>) plus the
-            store-side configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
-            <Link to="/docs/android-setup">Android</Link>,{' '}
-            <Link to="/docs/horizon-setup">Horizon OS</Link>).
+            — flat reference, one page per function (<code>initConnection</code>
+            , <code>fetchProducts</code>, <code>requestPurchase</code>, …).
+            Cross-platform symbols live at the root; iOS- and Android-only
+            symbols are grouped under{' '}
+            <Link to="/docs/apis#ios-specific">iOS Specific</Link> /{' '}
+            <Link to="/docs/apis#android-specific">Android Specific</Link>. Open
+            a function page when you need its exact signature, params, and a
+            copy-pasteable example.
+          </li>
+          <li>
+            <strong>
+              <Link to="/docs/types">Types</Link>
+            </strong>{' '}
+            — flat reference, one page per type (<code>Product</code>,{' '}
+            <code>Purchase</code>, <code>RequestPurchaseProps</code>, …). Same
+            iOS / Android grouping as APIs. Field tables auto-link to related
+            types so you can chase a shape without leaving the docs.
           </li>
           <li>
             <strong>

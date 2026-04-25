@@ -64,15 +64,23 @@ function FetchProducts() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`fetchProducts(params: ProductRequest): Promise<Product[]>
+            <CodeBlock language="typescript">{`fetchProducts(params: ProductRequest): Promise<FetchProductsResult>
 
 interface ProductRequest {
   skus: string[];
   type?: 'in-app' | 'subs' | 'all';  // Defaults to 'in-app'
-}`}</CodeBlock>
+}
+
+// FetchProductsResult is the union returned by the canonical schema —
+// the variant depends on the request \`type\`.
+type FetchProductsResult =
+  | Product[]
+  | ProductSubscription[]
+  | ProductOrSubscription[]
+  | null;`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func fetchProducts(_ request: ProductRequest) async throws -> [Product]`}</CodeBlock>
+            <CodeBlock language="swift">{`func fetchProducts(_ request: ProductRequest) async throws -> FetchProductsResult`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): List<Product>`}</CodeBlock>
@@ -112,7 +120,7 @@ const subscriptions = await fetchProducts({
           ),
           swift: (
             <CodeBlock language="swift">{`let products = try await OpenIapModule.shared.fetchProducts(
-    ProductRequest(skus: ["com.app.premium"], type: .inapp)
+    ProductRequest(skus: ["com.app.premium"], type: .inApp)
 )`}</CodeBlock>
           ),
           kotlin: (

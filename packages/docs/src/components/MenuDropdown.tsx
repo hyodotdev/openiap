@@ -247,10 +247,10 @@ export function MenuDropdown({
         style={{ maxHeight: '0px' }}
       >
         <ul className="menu-dropdown-items">
-          {items.map((entry, index) =>
+          {items.map((entry) =>
             isGroup(entry) ? (
               <SubMenu
-                key={`${titleTo}::${entry.label}::${index}`}
+                key={`${titleTo}::group::${entry.label}`}
                 group={entry}
                 onItemClick={onItemClick}
               />

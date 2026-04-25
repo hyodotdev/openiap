@@ -215,7 +215,9 @@ function BillingPrograms() {
                 <code>launchMode</code>
               </td>
               <td>
-                <code>ExternalLinkLaunchModeAndroid</code>
+                <Link to="/docs/types/billing-programs#external-link-launch-mode">
+                  <code>ExternalLinkLaunchModeAndroid</code>
+                </Link>
               </td>
               <td>How the external link is launched</td>
             </tr>
@@ -224,7 +226,9 @@ function BillingPrograms() {
                 <code>linkType</code>
               </td>
               <td>
-                <code>ExternalLinkTypeAndroid</code>
+                <Link to="/docs/types/billing-programs#external-link-type">
+                  <code>ExternalLinkTypeAndroid</code>
+                </Link>
               </td>
               <td>The type of the external link</td>
             </tr>
@@ -236,6 +240,77 @@ function BillingPrograms() {
                 <code>string</code>
               </td>
               <td>The URI where the external content will be accessed</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="external-link-launch-mode" level="h3">
+          ExternalLinkLaunchModeAndroid
+        </AnchorLink>
+        <p>How the external URL is launched (Play Billing Library 8.2.0+):</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>UNSPECIFIED</code>
+              </td>
+              <td>Unspecified launch mode. Do not use.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>LAUNCH_IN_EXTERNAL_BROWSER_OR_APP</code>
+              </td>
+              <td>
+                Play launches the URL in an external browser or eligible app.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>CALLER_WILL_LAUNCH_LINK</code>
+              </td>
+              <td>
+                Play does not launch the URL — the app handles launching the URL
+                after Play returns control.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="external-link-type" level="h3">
+          ExternalLinkTypeAndroid
+        </AnchorLink>
+        <p>Type of external link destination (Play Billing Library 8.2.0+):</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>UNSPECIFIED</code>
+              </td>
+              <td>Unspecified link type. Do not use.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>LINK_TO_DIGITAL_CONTENT_OFFER</code>
+              </td>
+              <td>The link directs users to a digital content offer.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>LINK_TO_APP_DOWNLOAD</code>
+              </td>
+              <td>The link directs users to download an app.</td>
             </tr>
           </tbody>
         </table>
@@ -261,7 +336,9 @@ function BillingPrograms() {
                 <code>billingProgram</code>
               </td>
               <td>
-                <code>BillingProgramAndroid</code>
+                <Link to="/docs/types/billing-programs#billing-program-android">
+                  <code>BillingProgramAndroid</code>
+                </Link>
               </td>
               <td>
                 The billing program (usually <code>EXTERNAL_PAYMENTS</code>)
@@ -272,7 +349,7 @@ function BillingPrograms() {
                 <code>linkUri</code>
               </td>
               <td>
-                <code>String</code>
+                <code>string</code>
               </td>
               <td>URL where the external payment will be processed</td>
             </tr>
@@ -281,7 +358,9 @@ function BillingPrograms() {
                 <code>launchMode</code>
               </td>
               <td>
-                <code>DeveloperBillingLaunchModeAndroid</code>
+                <Link to="/docs/types/billing-programs#developer-billing-launch-mode">
+                  <code>DeveloperBillingLaunchModeAndroid</code>
+                </Link>
               </td>
               <td>How to launch the external payment link</td>
             </tr>
@@ -337,7 +416,7 @@ function BillingPrograms() {
                 <code>externalTransactionToken</code>
               </td>
               <td>
-                <code>String</code>
+                <code>string</code>
               </td>
               <td>
                 Token to report external transaction to Google (must report

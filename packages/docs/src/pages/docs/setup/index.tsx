@@ -8,7 +8,6 @@ interface FrameworkRow {
   name: string;
   language: string;
   description: string;
-  status?: string;
 }
 
 const FRAMEWORKS: FrameworkRow[] = [

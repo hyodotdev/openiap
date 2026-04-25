@@ -22,10 +22,32 @@
   padding: var(--spacing-lg) 0;
 }
 
-/* Long identifiers wrap to a second line instead of forcing horizontal
-   scroll on the whole sidebar. */
+/* Sidebar items: truncate long identifiers with an ellipsis so the
+   sidebar stays fixed-width and visually clean. The active item wraps
+   to its full label so the reader always sees the page they're on. */
 .docs-sidebar .menu-dropdown-item,
-.docs-sidebar .menu-dropdown-title {
+.docs-sidebar .menu-dropdown-title,
+.docs-sidebar .docs-nav a {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.docs-sidebar .menu-dropdown-item.active,
+.docs-sidebar .docs-nav a.active {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Hovering an inactive item briefly expands it so the full identifier
+   is reachable without having to navigate first. */
+.docs-sidebar .menu-dropdown-item:hover,
+.docs-sidebar .docs-nav a:hover {
+  white-space: normal;
+  overflow: visible;
   overflow-wrap: anywhere;
   word-break: break-word;
 }

@@ -38,8 +38,9 @@ function SubscriptionProduct() {
           <code>displayName</code>, <code>displayPrice</code>,{' '}
           <code>currency</code>, <code>price</code>,{' '}
           <code>debugDescription</code>,{' '}
-          <code style={{ textDecoration: 'line-through' }}>platform</code>),
-          plus the subscription-only override below.
+          <code style={{ textDecoration: 'line-through' }}>platform</code> (
+          <strong>Deprecated.</strong>)), plus the subscription-only override
+          and the cross-platform offer arrays below.
         </p>
 
         <table className="doc-table">
@@ -61,6 +62,35 @@ function SubscriptionProduct() {
               <td>
                 Always <code>"subs"</code> for subscription products (overrides
                 the parent <code>type</code> discriminator).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>subscriptionOffers</code>
+              </td>
+              <td>
+                <Link to="/docs/types/subscription-offer">
+                  <code>SubscriptionOffer[]</code>
+                </Link>
+              </td>
+              <td>
+                Cross-platform offer list. Populated from StoreKit 2 promotional
+                offers on iOS and from Play Billing offer details on Android.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>discountOffers</code>
+              </td>
+              <td>
+                <Link to="/docs/types/discount-offer">
+                  <code>DiscountOffer[]</code>
+                </Link>
+              </td>
+              <td>
+                Cross-platform discount list (introductory pricing, promo
+                codes). Always present in the schema; iOS-only stores may return
+                an empty array.
               </td>
             </tr>
           </tbody>
@@ -172,17 +202,6 @@ function SubscriptionProduct() {
                       </td>
                       <td>Raw StoreKit 2 JWS payload</td>
                     </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionOffers</code>
-                      </td>
-                      <td>
-                        Cross-platform array of{' '}
-                        <Link to="/docs/types/subscription-offer">
-                          <code>SubscriptionOffer</code>
-                        </Link>
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
               </>
@@ -215,28 +234,6 @@ function SubscriptionProduct() {
                         Product fetch status code (<code>OK</code>,{' '}
                         <code>NOT_FOUND</code>, <code>NO_OFFERS_AVAILABLE</code>
                         , <code>UNKNOWN</code>) — Billing Library 8.0+
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>discountOffers</code>
-                      </td>
-                      <td>
-                        Cross-platform array of{' '}
-                        <Link to="/docs/types/discount-offer">
-                          <code>DiscountOffer</code>
-                        </Link>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionOffers</code>
-                      </td>
-                      <td>
-                        Cross-platform array of{' '}
-                        <Link to="/docs/types/subscription-offer">
-                          <code>SubscriptionOffer</code>
-                        </Link>
                       </td>
                     </tr>
                     <tr>
