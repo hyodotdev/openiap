@@ -113,7 +113,13 @@ function APIsIndex() {
     const currentHash = location.hash.startsWith('#')
       ? location.hash.slice(1)
       : '';
-    if (redirectPath === location.pathname && redirectHash === currentHash) {
+    // Normalise trailing slashes so `/foo` and `/foo/` compare equal.
+    const stripSlash = (p: string) =>
+      p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p;
+    if (
+      stripSlash(redirectPath) === stripSlash(location.pathname) &&
+      redirectHash === currentHash
+    ) {
       return;
     }
     navigate(redirect, { replace: true });

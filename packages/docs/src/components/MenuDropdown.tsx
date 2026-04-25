@@ -27,6 +27,7 @@ interface MenuDropdownProps {
 interface SubMenuProps {
   group: MenuGroup;
   onItemClick?: () => void;
+  parentExpanded: boolean;
 }
 
 function Chevron({ isExpanded }: { isExpanded: boolean }) {
@@ -54,10 +55,14 @@ function Chevron({ isExpanded }: { isExpanded: boolean }) {
   );
 }
 
-function SubMenu({ group, onItemClick }: SubMenuProps) {
+function SubMenu({ group, onItemClick, parentExpanded }: SubMenuProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const location = useLocation();
   const submenuContentId = useId();
+  // NavLinks should leave the tab order whenever this submenu OR its
+  // parent dropdown is collapsed — otherwise keyboard users can tab into
+  // hidden links.
+  const navLinkTabIndex = parentExpanded && isExpanded ? 0 : -1;
 
   const isAnyChildActive = group.items.some(
     (item) => location.pathname === item.to
@@ -102,6 +107,7 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
             <li key={item.to}>
               <NavLink
                 to={item.to}
+                tabIndex={navLinkTabIndex}
                 className={({ isActive }) =>
                   `menu-dropdown-item ${isActive ? 'active' : ''}`
                 }
@@ -127,7 +133,6 @@ export function MenuDropdown({
   onItemClick,
 }: MenuDropdownProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const contentId = useId();
@@ -166,13 +171,7 @@ export function MenuDropdown({
         <button
           type="button"
           onClick={handleTitleClick}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
           className={`menu-dropdown-title ${isTitleActive ? 'active' : ''}`}
-          style={{
-            color:
-              isTitleActive || isHovered ? 'var(--primary-color)' : 'inherit',
-          }}
         >
           {title}
         </button>
@@ -200,11 +199,13 @@ export function MenuDropdown({
                 key={`${titleTo}::group::${entry.label.replace(/\s+/g, '-').toLowerCase()}`}
                 group={entry}
                 onItemClick={onItemClick}
+                parentExpanded={isExpanded}
               />
             ) : (
               <li key={entry.to}>
                 <NavLink
                   to={entry.to}
+                  tabIndex={isExpanded ? 0 : -1}
                   className={({ isActive }) =>
                     `menu-dropdown-item ${isActive ? 'active' : ''}`
                   }

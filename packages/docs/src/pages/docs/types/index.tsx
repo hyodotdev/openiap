@@ -265,9 +265,15 @@ function TypesIndex() {
     // exact page + hash — prevents an infinite redirect loop on
     // same-page section anchors like `common`.
     const [redirectPath, redirectHash = ''] = redirect.split('#');
+    const currentHash = location.hash.startsWith('#')
+      ? location.hash.slice(1)
+      : '';
+    // Normalise trailing slashes so `/foo` and `/foo/` compare equal.
+    const stripSlash = (p: string) =>
+      p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p;
     if (
-      redirectPath === location.pathname &&
-      (redirectHash === '' || `#${redirectHash}` === location.hash)
+      stripSlash(redirectPath) === stripSlash(location.pathname) &&
+      redirectHash === currentHash
     ) {
       return;
     }
