@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
@@ -72,9 +73,9 @@ function Purchase() {
           Note: iOS StoreKit 2 only returns <code>Transaction</code> objects on
           successful purchases, so iOS purchases always have{' '}
           <code>Purchased</code> state. See{' '}
-          <a href="/docs/updates/releases#spec-1-3-11-google-1-3-20-apple-1-3-9">
+          <Link to="/docs/updates/releases#spec-1-3-11-google-1-3-20-apple-1-3-9">
             release notes
-          </a>{' '}
+          </Link>{' '}
           for details.
         </p>
 
@@ -170,9 +171,9 @@ function Purchase() {
                 "premium"). On iOS: productId (e.g.,
                 "com.example.premium_monthly"). <strong>⚠️ Android:</strong> May
                 be inaccurate for multi-plan subscriptions. See{' '}
-                <a href="/docs/features/debugging#android-baseplanid-limitation">
+                <Link to="/docs/features/debugging#android-baseplanid-limitation">
                   limitation
-                </a>
+                </Link>
                 .
               </td>
             </tr>

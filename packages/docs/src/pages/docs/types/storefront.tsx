@@ -9,10 +9,10 @@ function Storefront() {
   return (
     <div className="doc-page">
       <SEO
-        title="Storefront"
-        description="Storefront type definition and field reference."
+        title="Storefront (return value of getStorefront)"
+        description="Storefront country code returned by getStorefront() — a plain ISO 3166-1 alpha-2 string."
         path="/docs/types/storefront"
-        keywords="Storefront, OpenIAP types, Storefront"
+        keywords="Storefront, getStorefront, country code, OpenIAP"
       />
       <h1>Storefront</h1>
       <section>
@@ -20,34 +20,39 @@ function Storefront() {
           Storefront
         </AnchorLink>
         <p>
-          Represents the user&apos;s App Store or Play Store region, returned by{' '}
+          <strong>Note:</strong> <code>Storefront</code> is not a struct in the
+          OpenIAP GraphQL schema. The schema defines{' '}
+          <code>getStorefront: String!</code>, so the value returned is a plain
+          ISO 3166-1 alpha-2 country-code string. This page exists as a
+          conceptual reference for the value returned by{' '}
           <Link to="/docs/apis/get-storefront">
             <code>getStorefront()</code>
           </Link>
           .
         </p>
 
+        <h3>Return shape</h3>
         <table className="doc-table">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Type</th>
               <th>Summary</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>
-                <code>StorefrontCode</code>
+                <code>String!</code>
               </td>
-              <td>ISO 3166-1 alpha-2 country code (string)</td>
+              <td>
+                ISO 3166-1 alpha-2 country code (e.g. <code>"US"</code>,{' '}
+                <code>"KR"</code>, <code>"JP"</code>). Empty string when the
+                storefront cannot be determined.
+              </td>
             </tr>
           </tbody>
         </table>
-        <p>
-          Example values: <code>"US"</code>, <code>"KR"</code>,{' '}
-          <code>"JP"</code>. May return an empty string when the storefront
-          cannot be determined.
-        </p>
+
         <blockquote className="info-note">
           <p>
             iOS sources the value from the active StoreKit storefront. Android

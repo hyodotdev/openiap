@@ -48,14 +48,28 @@ function RestorePurchases() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { restorePurchases, getAvailablePurchases } from 'expo-iap';
+            <CodeBlock language="typescript">{`import {
+  restorePurchases,
+  getAvailablePurchases,
+  verifyPurchase,
+  finishTransaction,
+} from 'expo-iap';
 
 const handleRestore = async () => {
   await restorePurchases();
   const purchases = await getAvailablePurchases();
 
   for (const purchase of purchases) {
+    // Always verify before granting — restored purchases can include
+    // refunded or revoked transactions that must not re-grant entitlement.
+    const result = await verifyPurchase({
+      purchase,
+      serverUrl: 'https://your-server.com/api/verify',
+    });
+    if (!result.isValid) continue;
+
     await grantProduct(purchase.productId);
+    await finishTransaction(purchase, false);
   }
 };`}</CodeBlock>
           ),

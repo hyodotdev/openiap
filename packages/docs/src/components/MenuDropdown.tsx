@@ -14,7 +14,7 @@ export interface MenuGroup {
 export type MenuEntry = MenuItem | MenuGroup;
 
 function isGroup(entry: MenuEntry): entry is MenuGroup {
-  return (entry as MenuGroup).items !== undefined;
+  return 'items' in entry && Array.isArray((entry as MenuGroup).items);
 }
 
 interface MenuDropdownProps {
@@ -185,10 +185,10 @@ export function MenuDropdown({
         }}
       >
         <ul className="menu-dropdown-items">
-          {items.map((entry) =>
+          {items.map((entry, index) =>
             isGroup(entry) ? (
               <SubMenu
-                key={entry.label}
+                key={`${titleTo}::${entry.label}::${index}`}
                 group={entry}
                 onItemClick={onItemClick}
               />

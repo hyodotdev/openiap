@@ -27,8 +27,9 @@ function PresentExternalPurchaseNoticeSheetIOS() {
             <CodeBlock language="swift">{`func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
 
 struct ExternalPurchaseNoticeResultIOS {
-    let error: String?
     let result: ExternalPurchaseNoticeAction
+    let error: String?
+    let externalPurchaseToken: String?
 }`}</CodeBlock>
           ),
         }}

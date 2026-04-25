@@ -188,7 +188,7 @@ function DiscountOffer() {
                 <code>preorderDetailsAndroid</code>
               </td>
               <td>
-                <Link to="/docs/types/android/one-time-purchase-offer-detail-android">
+                <Link to="/docs/types/android/one-time-purchase-offer-detail-android#preorder-details-android">
                   <code>PreorderDetailsAndroid</code>
                 </Link>
               </td>
@@ -199,7 +199,7 @@ function DiscountOffer() {
                 <code>rentalDetailsAndroid</code>
               </td>
               <td>
-                <Link to="/docs/types/android/one-time-purchase-offer-detail-android">
+                <Link to="/docs/types/android/one-time-purchase-offer-detail-android#rental-details-android">
                   <code>RentalDetailsAndroid</code>
                 </Link>
               </td>

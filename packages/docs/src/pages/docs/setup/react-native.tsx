@@ -304,7 +304,7 @@ function Store() {
             <Link to="/docs/apis/get-active-subscriptions">
               <code>getActiveSubscriptions()</code>
             </Link>
-            . Also returns the value directly.
+            .
           </li>
         </ul>
 

@@ -354,16 +354,16 @@ function BillingPrograms() {
           {{
             typescript: (
               <CodeBlock language="typescript">{`import {
-  enableBillingProgramAndroid,
+  initConnection,
   isBillingProgramAvailableAndroid,
   requestPurchase,
   developerProvidedBillingListenerAndroid,
 } from 'expo-iap';
 
-// Enable External Payments before initConnection
-enableBillingProgramAndroid('EXTERNAL_PAYMENTS');
-
-await initConnection();
+// Enable External Payments via InitConnectionConfig
+await initConnection({
+  enableBillingProgramAndroid: 'external-payments',
+});
 
 // Listen for developer billing selection
 developerProvidedBillingListenerAndroid((details) => {
@@ -393,10 +393,12 @@ import dev.hyo.openiap.*
 
 val iapStore = OpenIapStore(context)
 
-// Enable External Payments before initConnection
-iapStore.enableBillingProgram(BillingProgramAndroid.ExternalPayments)
-
-iapStore.initConnection(null)
+// Enable External Payments via InitConnectionConfig
+iapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+    )
+)
 
 // Listen for developer billing selection
 iapStore.addDeveloperProvidedBillingListener { details ->
@@ -431,12 +433,12 @@ if (result.isAvailable) {
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Enable External Payments before initConnection
-FlutterInappPurchase.instance.enableBillingProgramAndroid(
-  BillingProgramAndroid.externalPayments,
+// Enable External Payments via InitConnectionConfig
+await FlutterInappPurchase.instance.initConnection(
+  config: InitConnectionConfig(
+    enableBillingProgramAndroid: BillingProgramAndroid.externalPayments,
+  ),
 );
-
-await FlutterInappPurchase.instance.initConnection();
 
 // Listen for developer billing selection
 FlutterInappPurchase.developerProvidedBillingStream.listen((details) {
@@ -460,10 +462,10 @@ if (result.isAvailable) {
 }`}</CodeBlock>
             ),
             gdscript: (
-              <CodeBlock language="gdscript">{`# Enable External Payments before initConnection
-iap.enable_billing_program_android(BillingProgramAndroid.EXTERNAL_PAYMENTS)
-
-await iap.init_connection()
+              <CodeBlock language="gdscript">{`# Enable External Payments via InitConnectionConfig
+var config = InitConnectionConfig.new()
+config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
+await iap.init_connection(config)
 
 # Listen for developer billing selection
 func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndroid):

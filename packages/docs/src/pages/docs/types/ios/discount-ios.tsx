@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
@@ -20,7 +21,7 @@ function DiscountIos() {
         </AnchorLink>
         <p>
           <strong>Deprecated:</strong> Use{' '}
-          <a href="/docs/types/subscription-offer">SubscriptionOffer</a>{' '}
+          <Link to="/docs/types/subscription-offer">SubscriptionOffer</Link>{' '}
           instead.
         </p>
         <p>Discount info returned as part of product details:</p>

@@ -19,17 +19,39 @@ function EnableBillingProgramAndroid() {
         enableBillingProgramAndroid
       </h1>
       <p>
-        Step 0 of Billing Programs API. Enable a billing program before
-        initConnection() (Billing Library 8.2.0+).
+        Enables a billing program for Android (Billing Library 8.2.0+). Pass it
+        as the <code>enableBillingProgramAndroid</code> field of{' '}
+        <code>InitConnectionConfig</code> when calling{' '}
+        <code>initConnection()</code> — there is no separate top-level call.
       </p>
 
       <h2>Signature</h2>
       <LanguageTabs>
         {{
+          typescript: (
+            <CodeBlock language="typescript">{`await initConnection({
+  enableBillingProgramAndroid: 'external-offer',
+  // 'user-choice-billing' | 'external-content-link' | 'external-offer' | 'external-payments'
+});`}</CodeBlock>
+          ),
           kotlin: (
-            <CodeBlock language="kotlin">{`// Call BEFORE initConnection()
-// program: BillingProgramAndroid.ExternalOffer or BillingProgramAndroid.ExternalContentLink
-fun enableBillingProgram(program: BillingProgramAndroid)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`openIapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection(
+  config: InitConnectionConfig(
+    enableBillingProgramAndroid: BillingProgramAndroid.externalOffer,
+  ),
+);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`var config = InitConnectionConfig.new()
+config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+await iap.init_connection(config)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

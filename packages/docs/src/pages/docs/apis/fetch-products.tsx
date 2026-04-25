@@ -26,7 +26,7 @@ function FetchProducts() {
 
 interface ProductRequest {
   skus: string[];
-  type?: 'inapp' | 'subs' | 'all';  // Defaults to 'inapp'
+  type?: 'in-app' | 'subs' | 'all';  // Defaults to 'in-app'
 }`}</CodeBlock>
           ),
           swift: (
@@ -39,7 +39,10 @@ interface ProductRequest {
             <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): List<Product>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<List<Product>> fetchProducts(ProductRequest request);`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<FetchProductsResult> fetchProducts({
+  required List<String> skus,
+  ProductQueryType? type,
+});`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func fetch_products(request: ProductRequest) -> Array[Product]`}</CodeBlock>
@@ -56,7 +59,7 @@ interface ProductRequest {
 // Fetch one-time products
 const products = await fetchProducts({
   skus: ['com.app.coins_100', 'com.app.premium'],
-  type: 'inapp',
+  type: 'in-app',
 });
 
 // Fetch subscriptions
@@ -85,8 +88,9 @@ val products = kmpIAP.fetchProducts(
 )`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`final products = await FlutterInappPurchase.instance.fetchProducts(
+            <CodeBlock language="dart">{`final List<Product> products = await FlutterInappPurchase.instance.fetchProducts(
   skus: ['com.app.premium'],
+  type: ProductQueryType.InApp,
 );`}</CodeBlock>
           ),
           gdscript: (

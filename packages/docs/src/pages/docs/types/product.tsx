@@ -232,7 +232,7 @@ function Product() {
                         <code>limitedQuantityInfo</code>,{' '}
                         <code>preorderDetailsAndroid</code>,{' '}
                         <code>rentalDetailsAndroid</code>. See{' '}
-                        <a href="/docs/features/discount">Discounts</a>.
+                        <Link to="/docs/features/discount">Discounts</Link>.
                         Requires{' '}
                         <a
                           href="https://developer.android.com/google/play/billing/release-notes#7-0-0"

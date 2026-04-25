@@ -232,6 +232,77 @@ function OneTimePurchaseOfferDetailAndroid() {
             </tr>
           </tbody>
         </table>
+
+        <AnchorLink id="preorder-details-android" level="h3">
+          PreorderDetailsAndroid
+        </AnchorLink>
+        <p>
+          Pre-order metadata returned for products that can be pre-purchased
+          (Billing Library 8.1.0+):
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>releaseTimeMillis</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                Scheduled release timestamp (Unix milliseconds) when the
+                pre-order will be charged.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink id="rental-details-android" level="h3">
+          RentalDetailsAndroid
+        </AnchorLink>
+        <p>Rental period metadata for rentable one-time products:</p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>rentalPeriod</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                ISO 8601 duration the user has access to the rented content
+                (e.g. <code>P30D</code>).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>activationPeriod</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Optional ISO 8601 activation grace period during which the
+                rental can be started.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </div>
   );

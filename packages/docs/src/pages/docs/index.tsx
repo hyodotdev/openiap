@@ -233,7 +233,10 @@ function Docs() {
                       to: '/docs/types/ios/discount-offer-ios',
                       label: 'DiscountOfferIOS',
                     },
-                    { to: '/docs/types/ios/discount-ios', label: 'DiscountIOS' },
+                    {
+                      to: '/docs/types/ios/discount-ios',
+                      label: 'DiscountIOS',
+                    },
                     {
                       to: '/docs/types/ios/subscription-period-ios',
                       label: 'SubscriptionPeriodIOS',

@@ -77,8 +77,11 @@ function Refund() {
               <td>Android</td>
               <td>None — store-driven</td>
               <td>
-                Real-time Developer Notifications (<code>REFUND</code>) +
-                purchase state polling
+                Real-time Developer Notifications —{' '}
+                <code>voidedPurchaseNotification</code> for one-time products,{' '}
+                <code>subscriptionNotification.SUBSCRIPTION_REVOKED</code> for
+                subscriptions — plus server-side reconciliation via the Voided
+                Purchases API
               </td>
             </tr>
           </tbody>
@@ -338,22 +341,22 @@ app.post('/webhooks/apple', async (req, res) => {
                   <tbody>
                     <tr>
                       <td>
-                        <code>oneTimeProductNotification.REFUNDED</code> (12)
-                      </td>
-                      <td>One-time product refunded</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionNotification.REVOKED</code> (12)
-                      </td>
-                      <td>Subscription was revoked (refund or chargeback)</td>
-                    </tr>
-                    <tr>
-                      <td>
                         <code>voidedPurchaseNotification</code>
                       </td>
                       <td>
-                        Voided purchase event (refund, chargeback, or other)
+                        One-time product refund or chargeback. Includes{' '}
+                        <code>refundType</code> (1 = full refund, 2 =
+                        quantity-based partial refund).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>subscriptionNotification</code> /{' '}
+                        <code>SUBSCRIPTION_REVOKED</code> (notificationType 12)
+                      </td>
+                      <td>
+                        Subscription was revoked before expiration (refund,
+                        chargeback, or developer revocation).
                       </td>
                     </tr>
                   </tbody>
