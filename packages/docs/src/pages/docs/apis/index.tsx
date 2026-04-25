@@ -96,10 +96,19 @@ function APIsIndex() {
     if (!location.hash) return;
     const anchor = location.hash.slice(1);
     const redirect = LEGACY_ANCHOR_REDIRECTS[anchor];
-    if (redirect) {
-      navigate(redirect, { replace: true });
+    if (!redirect) return;
+    // Skip the navigate when the legacy anchor already resolves to this
+    // exact page + hash — otherwise React Router fires the effect again
+    // and we infinite-loop on same-page anchors like `terminology`.
+    const [redirectPath, redirectHash = ''] = redirect.split('#');
+    if (
+      redirectPath === location.pathname &&
+      (redirectHash === '' || `#${redirectHash}` === location.hash)
+    ) {
+      return;
     }
-  }, [location.hash, navigate]);
+    navigate(redirect, { replace: true });
+  }, [location.hash, location.pathname, navigate]);
 
   return (
     <div className="doc-page">
@@ -385,6 +394,17 @@ function APIsIndex() {
             </tr>
             <tr>
               <td>
+                <Link to="/docs/apis/ios/get-all-transactions-ios">
+                  <code>getAllTransactionsIOS</code>
+                </Link>
+              </td>
+              <td>
+                List every StoreKit transaction (finished + unfinished) for the
+                current user.
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <Link to="/docs/apis/ios/is-eligible-for-intro-offer-ios">
                   <code>isEligibleForIntroOfferIOS</code>
                 </Link>
@@ -577,6 +597,50 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>Create a reporting token for an alternative billing flow.</td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/enable-billing-program-android">
+                  <code>enableBillingProgramAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Enable a Play Billing Program (Play Billing 8.2.0+) — used in
+                place of <code>alternativeBillingModeAndroid</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/is-billing-program-available-android">
+                  <code>isBillingProgramAvailableAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Check whether a billing program (e.g., External Payments) is
+                available for the current user.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/launch-external-link-android">
+                  <code>launchExternalLinkAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Launch an external content / offer link from inside the Billing
+                Programs flow (Play Billing 8.2.0+).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/android/create-billing-program-reporting-details-android">
+                  <code>createBillingProgramReportingDetailsAndroid</code>
+                </Link>
+              </td>
+              <td>
+                Create the reporting payload Google requires after a
+                Developer-Provided Billing transaction (Play Billing 8.3.0+).
+              </td>
             </tr>
           </tbody>
         </table>

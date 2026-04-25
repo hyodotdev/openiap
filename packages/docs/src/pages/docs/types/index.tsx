@@ -187,7 +187,7 @@ const IOS_TYPES: TypeRow[] = [
   },
   {
     to: '/docs/types/ios/payment-mode-ios',
-    name: 'PaymentMode',
+    name: 'PaymentModeIOS',
     description: 'iOS payment modes for promotional offers.',
   },
   {
@@ -197,8 +197,14 @@ const IOS_TYPES: TypeRow[] = [
   },
   {
     to: '/docs/types/ios/app-transaction-ios',
-    name: 'AppTransaction',
+    name: 'AppTransactionIOS',
     description: 'iOS 16+ app transaction info.',
+  },
+  {
+    to: '/docs/types/ios/renewal-info-ios',
+    name: 'RenewalInfoIOS',
+    description:
+      'StoreKit 2 subscription renewal details — auto-renew intent, billing-retry state, price-increase responses, JWS payload.',
   },
 ];
 
@@ -254,10 +260,19 @@ function TypesIndex() {
     if (!location.hash) return;
     const anchor = location.hash.slice(1);
     const redirect = LEGACY_ANCHOR_REDIRECTS[anchor];
-    if (redirect) {
-      navigate(redirect, { replace: true });
+    if (!redirect) return;
+    // Skip the navigate when the legacy anchor already resolves to this
+    // exact page + hash — prevents an infinite redirect loop on
+    // same-page section anchors like `common`.
+    const [redirectPath, redirectHash = ''] = redirect.split('#');
+    if (
+      redirectPath === location.pathname &&
+      (redirectHash === '' || `#${redirectHash}` === location.hash)
+    ) {
+      return;
     }
-  }, [location.hash, navigate]);
+    navigate(redirect, { replace: true });
+  }, [location.hash, location.pathname, navigate]);
 
   return (
     <div className="doc-page">
