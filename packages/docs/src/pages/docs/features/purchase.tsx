@@ -1109,7 +1109,7 @@ const handlePurchase = async (purchase: Purchase) => {
   // - isConsumable: true = consume the purchase (can buy again)
   // - isConsumable: false = acknowledge only (one-time purchase)
   const isConsumable = purchase.productId.includes('consumable');
-  await finishTransaction(purchase, isConsumable);
+  await finishTransaction({ purchase, isConsumable });
 
   console.log('Transaction finished successfully');
 };
@@ -1319,7 +1319,7 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
       // Step 3: Finish transaction
       const isConsumable = purchase.productId.includes('coins');
-      await finishTransaction(purchase, isConsumable);
+      await finishTransaction({ purchase, isConsumable });
 
       console.log('Purchase completed successfully!');
     } catch (error) {
