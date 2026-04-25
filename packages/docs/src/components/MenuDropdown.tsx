@@ -49,13 +49,23 @@ function Chevron({ isExpanded }: { isExpanded: boolean }) {
 
 function useCollapse(isExpanded: boolean) {
   const ref = useRef<HTMLDivElement>(null);
+  const isFirstRun = useRef(true);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
+    // Skip animation on first mount — set the resting state directly so
+    // pages don't flicker open/closed when the sidebar renders.
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      el.style.maxHeight = isExpanded ? 'none' : '0px';
+      return;
+    }
+
     if (isExpanded) {
-      // Expanding: 0 → scrollHeight → none
+      // Expanding: from 0 → scrollHeight, then unlock to 'none' so nested
+      // submenus can grow freely.
       el.style.maxHeight = `${el.scrollHeight}px`;
       const handleEnd = (e: TransitionEvent) => {
         if (e.propertyName === 'max-height') {
@@ -66,10 +76,16 @@ function useCollapse(isExpanded: boolean) {
       return () => el.removeEventListener('transitionend', handleEnd);
     }
 
-    // Collapsing: snap from 'none' to scrollHeight, force reflow, then 0
+    // Collapsing: maxHeight is currently 'none' (after a previous expand)
+    // or some pixel value. Snap to a numeric pixel value, force a reflow
+    // so the browser registers it as the transition's starting point,
+    // then animate to 0 in the next frame.
     el.style.maxHeight = `${el.scrollHeight}px`;
     void el.offsetHeight;
-    el.style.maxHeight = '0px';
+    const id = requestAnimationFrame(() => {
+      el.style.maxHeight = '0px';
+    });
+    return () => cancelAnimationFrame(id);
   }, [isExpanded]);
 
   return ref;
