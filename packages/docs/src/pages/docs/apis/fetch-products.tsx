@@ -160,7 +160,7 @@ var products = await iap.fetch_products(request)`}</CodeBlock>
 
       <p className="type-link">
         See: <Link to="/docs/types/product">Product</Link>,{' '}
-        <Link to="/docs/types/subscription-product">SubscriptionProduct</Link>
+        <Link to="/docs/types/subscription-product">ProductSubscription</Link>
       </p>
     </div>
   );

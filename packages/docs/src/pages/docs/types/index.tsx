@@ -1,7 +1,48 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+// Old bookmarks like /docs/types#product redirect to the flat
+// per-symbol pages introduced in this PR so existing links keep
+// working. Legacy combined-page anchors (request, alternative,
+// verification, ios, android, offer) point to the relevant section
+// of the new index instead.
+const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
+  product: '/docs/types/product',
+  'subscription-product': '/docs/types/subscription-product',
+  'product-subscription': '/docs/types/subscription-product',
+  storefront: '/docs/types/storefront',
+  purchase: '/docs/types/purchase',
+  'active-subscription': '/docs/types/active-subscription',
+  'product-request': '/docs/types/product-request',
+  'request-purchase-props': '/docs/types/request-purchase-props',
+  'discount-offer': '/docs/types/discount-offer',
+  'subscription-offer': '/docs/types/subscription-offer',
+  'verify-purchase': '/docs/types/verify-purchase',
+  'verify-purchase-with-provider-props':
+    '/docs/types/verify-purchase-with-provider-props',
+  'verify-purchase-with-provider-result':
+    '/docs/types/verify-purchase-with-provider-result',
+  'alternative-billing': '/docs/types/alternative-billing-types',
+  'billing-programs': '/docs/types/billing-programs',
+  'external-purchase-link': '/docs/types/external-purchase-link',
+  // iOS-specific
+  'discount-offer-ios': '/docs/types/ios/discount-offer-ios',
+  'discount-ios': '/docs/types/ios/discount-ios',
+  'subscription-period-ios': '/docs/types/ios/subscription-period-ios',
+  'payment-mode-ios': '/docs/types/ios/payment-mode-ios',
+  'subscription-status-ios': '/docs/types/ios/subscription-status-ios',
+  'app-transaction-ios': '/docs/types/ios/app-transaction-ios',
+  'renewal-info-ios': '/docs/types/ios/renewal-info-ios',
+  // Android-specific
+  'one-time-purchase-offer-detail-android':
+    '/docs/types/android/one-time-purchase-offer-detail-android',
+  'subscription-offer-android':
+    '/docs/types/android/subscription-offer-android',
+  'pricing-phase-android': '/docs/types/android/pricing-phase-android',
+};
 
 interface TypeRow {
   to: string;
@@ -17,7 +58,7 @@ const COMMON_TYPES: TypeRow[] = [
   },
   {
     to: '/docs/types/subscription-product',
-    name: 'SubscriptionProduct',
+    name: 'ProductSubscription',
     description: 'Subscription product with billing periods and offers.',
   },
   {
@@ -171,6 +212,17 @@ function TypeTable({ rows }: { rows: TypeRow[] }) {
 
 function TypesIndex() {
   useScrollToHash();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const anchor = location.hash.slice(1);
+    const redirect = LEGACY_ANCHOR_REDIRECTS[anchor];
+    if (redirect) {
+      navigate(redirect, { replace: true });
+    }
+  }, [location.hash, navigate]);
 
   return (
     <div className="doc-page">

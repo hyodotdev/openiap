@@ -356,7 +356,10 @@ func _exit_tree() -> void:
             purchase results — instead, listen for events through{' '}
             <code>purchaseUpdatedListener</code> or{' '}
             <code>purchaseErrorListener</code>. See{' '}
-            <Link to="/docs/apis">API Terminology</Link> for details.
+            <Link to="/docs/apis/fetch-products#request-apis">
+              API Terminology
+            </Link>{' '}
+            for details.
           </p>
         </div>
 

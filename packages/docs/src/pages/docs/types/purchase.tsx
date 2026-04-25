@@ -73,7 +73,7 @@ function Purchase() {
           Note: iOS StoreKit 2 only returns <code>Transaction</code> objects on
           successful purchases, so iOS purchases always have{' '}
           <code>Purchased</code> state. See{' '}
-          <Link to="/docs/updates/releases#spec-1-3-11-google-1-3-20-apple-1-3-9">
+          <Link to="/docs/updates/releases#spec-1-3-11-google-1-3-21-apple-1-3-9">
             release notes
           </Link>{' '}
           for details.

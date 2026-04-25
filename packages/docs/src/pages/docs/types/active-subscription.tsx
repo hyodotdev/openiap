@@ -63,7 +63,9 @@ function ActiveSubscription() {
             </tr>
             <tr>
               <td>
-                <code>willExpireSoon</code>
+                <code style={{ textDecoration: 'line-through' }}>
+                  willExpireSoon
+                </code>
               </td>
               <td>
                 <code>boolean?</code>

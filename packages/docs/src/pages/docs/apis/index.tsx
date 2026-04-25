@@ -1,10 +1,95 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
+// Old bookmarks pointed at /docs/apis#<symbol>; map those to the flat
+// per-symbol routes introduced in this PR so existing external links
+// keep working. The slug → route mapping mirrors the routes in
+// pages/docs/index.tsx; iOS / Android symbols redirect into their
+// platform subfolders.
+const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
+  'init-connection': '/docs/apis/init-connection',
+  'end-connection': '/docs/apis/end-connection',
+  'fetch-products': '/docs/apis/fetch-products',
+  'get-available-purchases': '/docs/apis/get-available-purchases',
+  'request-purchase': '/docs/apis/request-purchase',
+  'finish-transaction': '/docs/apis/finish-transaction',
+  'restore-purchases': '/docs/apis/restore-purchases',
+  'get-storefront': '/docs/apis/get-storefront',
+  'get-active-subscriptions': '/docs/apis/get-active-subscriptions',
+  'has-active-subscriptions': '/docs/apis/has-active-subscriptions',
+  'deep-link-to-subscriptions': '/docs/apis/deep-link-to-subscriptions',
+  // iOS-specific
+  'clear-transaction-ios': '/docs/apis/ios/clear-transaction-ios',
+  'get-storefront-ios': '/docs/apis/ios/get-storefront-ios',
+  'get-promoted-product-ios': '/docs/apis/ios/get-promoted-product-ios',
+  'request-purchase-on-promoted-product-ios':
+    '/docs/apis/ios/request-purchase-on-promoted-product-ios',
+  'get-pending-transactions-ios': '/docs/apis/ios/get-pending-transactions-ios',
+  'get-all-transactions-ios': '/docs/apis/ios/get-all-transactions-ios',
+  'is-eligible-for-intro-offer-ios':
+    '/docs/apis/ios/is-eligible-for-intro-offer-ios',
+  'subscription-status-ios': '/docs/apis/ios/subscription-status-ios',
+  'current-entitlement-ios': '/docs/apis/ios/current-entitlement-ios',
+  'latest-transaction-ios': '/docs/apis/ios/latest-transaction-ios',
+  'show-manage-subscriptions-ios':
+    '/docs/apis/ios/show-manage-subscriptions-ios',
+  'is-transaction-verified-ios': '/docs/apis/ios/is-transaction-verified-ios',
+  'get-transaction-jws-ios': '/docs/apis/ios/get-transaction-jws-ios',
+  'get-receipt-data-ios': '/docs/apis/ios/get-receipt-data-ios',
+  'begin-refund-request-ios': '/docs/apis/ios/begin-refund-request-ios',
+  'present-code-redemption-sheet-ios':
+    '/docs/apis/ios/present-code-redemption-sheet-ios',
+  'get-app-transaction-ios': '/docs/apis/ios/get-app-transaction-ios',
+  'can-present-external-purchase-notice-ios':
+    '/docs/apis/ios/can-present-external-purchase-notice-ios',
+  'present-external-purchase-notice-sheet-ios':
+    '/docs/apis/ios/present-external-purchase-notice-sheet-ios',
+  'present-external-purchase-link-ios':
+    '/docs/apis/ios/present-external-purchase-link-ios',
+  'sync-ios': '/docs/apis/ios/sync-ios',
+  'validate-receipt-ios': '/docs/apis/ios/validate-receipt-ios',
+  // Android-specific
+  'acknowledge-purchase-android':
+    '/docs/apis/android/acknowledge-purchase-android',
+  'consume-purchase-android': '/docs/apis/android/consume-purchase-android',
+  'check-alternative-billing-availability-android':
+    '/docs/apis/android/check-alternative-billing-availability-android',
+  'show-alternative-billing-dialog-android':
+    '/docs/apis/android/show-alternative-billing-dialog-android',
+  'create-alternative-billing-token-android':
+    '/docs/apis/android/create-alternative-billing-token-android',
+  'enable-billing-program-android':
+    '/docs/apis/android/enable-billing-program-android',
+  'is-billing-program-available-android':
+    '/docs/apis/android/is-billing-program-available-android',
+  'launch-external-link-android':
+    '/docs/apis/android/launch-external-link-android',
+  'create-billing-program-reporting-details-android':
+    '/docs/apis/android/create-billing-program-reporting-details-android',
+  // Validation/Refund/Debugging moved to Features
+  'verify-purchase': '/docs/features/validation',
+  'verify-purchase-with-provider': '/docs/features/validation',
+  validation: '/docs/features/validation',
+  refund: '/docs/features/refund',
+  debugging: '/docs/features/debugging',
+};
+
 function APIsIndex() {
   useScrollToHash();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const anchor = location.hash.slice(1);
+    const redirect = LEGACY_ANCHOR_REDIRECTS[anchor];
+    if (redirect) {
+      navigate(redirect, { replace: true });
+    }
+  }, [location.hash, navigate]);
 
   return (
     <div className="doc-page">
@@ -200,10 +285,18 @@ function APIsIndex() {
             <tr>
               <td>
                 <Link to="/docs/apis/ios/get-storefront-ios">
-                  <code>getStorefrontIOS</code>
+                  <code style={{ textDecoration: 'line-through' }}>
+                    getStorefrontIOS
+                  </code>
                 </Link>
               </td>
-              <td>Get the iOS storefront country code.</td>
+              <td>
+                <strong>Deprecated.</strong> Use cross-platform{' '}
+                <Link to="/docs/apis/get-storefront">
+                  <code>getStorefront</code>
+                </Link>{' '}
+                instead.
+              </td>
             </tr>
             <tr>
               <td>
@@ -340,7 +433,10 @@ function APIsIndex() {
                   <code>canPresentExternalPurchaseNoticeIOS</code>
                 </Link>
               </td>
-              <td>Check eligibility for the external purchase notice sheet.</td>
+              <td>
+                Check eligibility for the external purchase notice sheet (iOS
+                17.4+).
+              </td>
             </tr>
             <tr>
               <td>
@@ -348,7 +444,7 @@ function APIsIndex() {
                   <code>presentExternalPurchaseNoticeSheetIOS</code>
                 </Link>
               </td>
-              <td>Present the external purchase notice sheet.</td>
+              <td>Present the external purchase notice sheet (iOS 17.4+).</td>
             </tr>
             <tr>
               <td>
@@ -356,7 +452,9 @@ function APIsIndex() {
                   <code>presentExternalPurchaseLinkIOS</code>
                 </Link>
               </td>
-              <td>Present an external purchase link (StoreKit External).</td>
+              <td>
+                Present an external purchase link, StoreKit External (iOS 16+).
+              </td>
             </tr>
             <tr>
               <td>
