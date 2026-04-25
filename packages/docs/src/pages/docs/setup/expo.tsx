@@ -399,7 +399,7 @@ function Store() {
                 apple: { sku: product.productId },
                 google: { skus: [product.productId] },
               },
-              type: 'inapp',
+              type: 'in-app',
             })
           }
         />

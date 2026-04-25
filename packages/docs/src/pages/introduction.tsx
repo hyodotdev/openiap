@@ -347,7 +347,7 @@ const subscription = purchaseUpdatedListener(async (purchase) => {
 // 6. Fetch products
 const products = await fetchProducts({
   products: [
-    { id: 'com.app.premium', type: 'inapp' },
+    { id: 'com.app.premium', type: 'in-app' },
     { id: 'com.app.monthly', type: 'subs' },
   ],
 });
@@ -358,7 +358,7 @@ await requestPurchase({
     apple: { sku: 'com.app.premium' },
     google: { skus: ['com.app.premium'] },
   },
-  type: 'inapp',
+  type: 'in-app',
 });
 
 // 8. Cleanup on unmount

@@ -30,11 +30,16 @@ function SubscriptionProduct() {
           Common Fields
         </AnchorLink>
         <p>
-          Inherits all{' '}
+          Inherits every field from{' '}
           <Link to="/docs/types/product#product-common">
-            Product common fields
-          </Link>
-          .
+            <code>Product</code> common fields
+          </Link>{' '}
+          (<code>id</code>, <code>title</code>, <code>description</code>,{' '}
+          <code>displayName</code>, <code>displayPrice</code>,{' '}
+          <code>currency</code>, <code>price</code>,{' '}
+          <code>debugDescription</code>,{' '}
+          <code style={{ textDecoration: 'line-through' }}>platform</code>),
+          plus the subscription-only override below.
         </p>
 
         <table className="doc-table">
@@ -48,96 +53,14 @@ function SubscriptionProduct() {
           <tbody>
             <tr>
               <td>
-                <code>id</code>
-              </td>
-              <td>
-                <code>string</code>
-              </td>
-              <td>Unique product identifier</td>
-            </tr>
-            <tr>
-              <td>
-                <code>title</code>
-              </td>
-              <td>
-                <code>string</code>
-              </td>
-              <td>Localized product title</td>
-            </tr>
-            <tr>
-              <td>
-                <code>description</code>
-              </td>
-              <td>
-                <code>string</code>
-              </td>
-              <td>Localized description</td>
-            </tr>
-            <tr>
-              <td>
                 <code>type</code>
               </td>
               <td>
                 <code>"subs"</code>
               </td>
               <td>
-                Always <code>"subs"</code> for subscription products
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>displayName</code>
-              </td>
-              <td>
-                <code>string?</code>
-              </td>
-              <td>Display-friendly product name (optional)</td>
-            </tr>
-            <tr>
-              <td>
-                <code>displayPrice</code>
-              </td>
-              <td>
-                <code>string</code>
-              </td>
-              <td>Formatted price with currency symbol</td>
-            </tr>
-            <tr>
-              <td>
-                <code>currency</code>
-              </td>
-              <td>
-                <code>string</code>
-              </td>
-              <td>ISO 4217 currency code</td>
-            </tr>
-            <tr>
-              <td>
-                <code>price</code>
-              </td>
-              <td>
-                <code>number?</code>
-              </td>
-              <td>Numeric price value</td>
-            </tr>
-            <tr>
-              <td>
-                <code>debugDescription</code>
-              </td>
-              <td>
-                <code>string?</code>
-              </td>
-              <td>Debug-friendly description (optional)</td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>platform</code>
-              </td>
-              <td>
-                <code>IapPlatform</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>store</code> instead.
+                Always <code>"subs"</code> for subscription products (overrides
+                the parent <code>type</code> discriminator).
               </td>
             </tr>
           </tbody>

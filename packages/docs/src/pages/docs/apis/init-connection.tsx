@@ -25,11 +25,7 @@ function InitConnection() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`initConnection(config?: InitConnectionConfig): Promise<boolean>
-
-interface InitConnectionConfig {
-  alternativeBillingModeAndroid?: 'user-choice' | 'alternative-only';
-}`}</CodeBlock>
+            <CodeBlock language="typescript">{`initConnection(config?: InitConnectionConfig): Promise<boolean>`}</CodeBlock>
           ),
           swift: (
             <CodeBlock language="swift">{`func initConnection() async throws -> Bool`}</CodeBlock>
@@ -58,9 +54,9 @@ interface InitConnectionConfig {
 // Standard connection
 await initConnection();
 
-// Android with user choice billing
+// Android with a billing program (preferred — see InitConnectionConfig)
 await initConnection({
-  alternativeBillingModeAndroid: 'user-choice'
+  enableBillingProgramAndroid: 'external-offer',
 });`}</CodeBlock>
           ),
           swift: (
@@ -110,10 +106,13 @@ var success = await iap.init_connection(config)`}</CodeBlock>
       </LanguageTabs>
 
       <p className="type-link">
-        See:{' '}
+        See{' '}
         <Link to="/docs/types/alternative-billing-types">
           InitConnectionConfig
-        </Link>
+        </Link>{' '}
+        for the full list of supported config fields (
+        <code>alternativeBillingModeAndroid</code> [deprecated],{' '}
+        <code>enableBillingProgramAndroid</code>).
       </p>
     </div>
   );

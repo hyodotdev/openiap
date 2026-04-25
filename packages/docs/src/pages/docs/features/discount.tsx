@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -33,7 +34,7 @@ function Discount() {
       <div className="alert-card alert-card--warning">
         <p>
           <strong>Standardized Types:</strong> For cross-platform development,
-          use the new <a href="/docs/types/discount-offer">DiscountOffer</a>{' '}
+          use the new <Link to="/docs/types/discount-offer">DiscountOffer</Link>{' '}
           type which provides a unified interface with platform-specific fields
           via suffixes (e.g., <code>offerTokenAndroid</code>).
         </p>

@@ -376,7 +376,7 @@ const purchaseProduct = async (productId: string) => {
         apple: { sku: productId },
         google: { skus: [productId] },
       },
-      type: 'inapp', // 'inapp' for consumables/non-consumables
+      type: 'in-app', // 'in-app' for consumables/non-consumables
     });
     // Purchase result will be delivered to purchaseUpdatedListener
   } catch (error) {
@@ -1199,7 +1199,7 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
       // Fetch products
       const items = await fetchProducts({
         skus: PRODUCT_IDS,
-        type: 'inapp',
+        type: 'in-app',
       });
       setProducts(items);
 

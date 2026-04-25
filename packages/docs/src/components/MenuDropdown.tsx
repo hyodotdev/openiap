@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useId, useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 export interface MenuItem {
@@ -34,6 +34,7 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   const location = useLocation();
+  const submenuContentId = useId();
 
   const isAnyChildActive = group.items.some(
     (item) => location.pathname === item.to
@@ -61,23 +62,30 @@ function SubMenu({ group, onItemClick }: SubMenuProps) {
         className={`menu-dropdown-header ${isAnyChildActive ? 'group-active' : ''}`}
       >
         <button
+          type="button"
           onClick={toggleExpanded}
           className="menu-dropdown-title menu-dropdown-title--nested"
+          aria-expanded={isExpanded}
+          aria-controls={submenuContentId}
         >
           {group.label}
         </button>
         <button
+          type="button"
           onClick={toggleExpanded}
           className="menu-dropdown-toggle"
           style={{
             transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
           }}
           aria-label={`Toggle ${group.label} submenu`}
+          aria-expanded={isExpanded}
+          aria-controls={submenuContentId}
         >
           ▶
         </button>
       </div>
       <div
+        id={submenuContentId}
         ref={contentRef}
         className="menu-dropdown-content"
         style={{
@@ -117,6 +125,7 @@ export function MenuDropdown({
   const [height, setHeight] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+  const contentId = useId();
 
   const isTitleActive = location.pathname === titleTo;
   const isChildActive = items.some((entry) =>
@@ -154,6 +163,7 @@ export function MenuDropdown({
         className={`menu-dropdown-header ${isTitleActive ? 'active' : isChildActive ? 'group-active' : ''}`}
       >
         <button
+          type="button"
           onClick={handleTitleClick}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -162,25 +172,35 @@ export function MenuDropdown({
             color:
               isTitleActive || isHovered ? 'var(--primary-color)' : 'inherit',
           }}
+          aria-expanded={isExpanded}
+          aria-controls={contentId}
         >
           {title}
         </button>
         <button
+          type="button"
           onClick={toggleExpanded}
           className="menu-dropdown-toggle"
           style={{
             transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
           }}
           aria-label={`Toggle ${title} submenu`}
+          aria-expanded={isExpanded}
+          aria-controls={contentId}
         >
           ▶
         </button>
       </div>
       <div
+        id={contentId}
         ref={contentRef}
         className="menu-dropdown-content"
         style={{
-          maxHeight: isExpanded ? 'none' : `${height}px`,
+          // Keep maxHeight numeric in both states so the CSS transition can
+          // interpolate. Use a large cap when expanded so nested submenus
+          // can still grow without re-clipping (`'none'` would break the
+          // open/close animation since CSS can't transition to/from `none`).
+          maxHeight: isExpanded ? '9999px' : `${height}px`,
           overflow: isExpanded ? 'visible' : 'hidden',
         }}
       >

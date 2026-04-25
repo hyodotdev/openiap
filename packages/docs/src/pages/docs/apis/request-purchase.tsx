@@ -28,7 +28,7 @@ function RequestPurchase() {
             <CodeBlock language="typescript">{`requestPurchase(props: RequestPurchaseProps): Promise<Purchase | void>
 
 type RequestPurchaseProps =
-  | { request: RequestPurchasePropsByPlatforms; type: 'inapp' }
+  | { request: RequestPurchasePropsByPlatforms; type: 'in-app' }
   | { request: RequestSubscriptionPropsByPlatforms; type: 'subs' }`}</CodeBlock>
           ),
           swift: (
@@ -61,7 +61,7 @@ await requestPurchase({
     apple: { sku: 'com.app.premium' },
     google: { skus: ['com.app.premium'] },
   },
-  type: 'inapp',
+  type: 'in-app',
 });
 
 // Subscription

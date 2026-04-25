@@ -250,7 +250,7 @@ function Store() {
                 apple: { sku: item.productId },
                 google: { skus: [item.productId] },
               },
-              type: 'inapp',
+              type: 'in-app',
             })
           }
         />
