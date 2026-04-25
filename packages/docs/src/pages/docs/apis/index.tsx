@@ -79,6 +79,7 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'verify-purchase': '/docs/features/validation#verify-purchase',
   'verify-purchase-with-provider':
     '/docs/features/validation#verify-purchase-with-provider',
+  'validate-receipt': '/docs/features/validation#verify-purchase',
   validation: '/docs/features/validation',
   refund: '/docs/features/refund',
   debugging: '/docs/features/debugging',
@@ -324,6 +325,22 @@ function APIsIndex() {
               <td>
                 Verify via a managed provider (IAPKit, Apple, Google, Horizon)
                 without standing up your own server.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <Link to="/docs/apis/validate-receipt">
+                  <code style={{ textDecoration: 'line-through' }}>
+                    validateReceipt
+                  </code>
+                </Link>
+              </td>
+              <td>
+                <strong>Deprecated.</strong> Use{' '}
+                <Link to="/docs/features/validation#verify-purchase">
+                  <code>verifyPurchase</code>
+                </Link>{' '}
+                instead — same input/output shape.
               </td>
             </tr>
           </tbody>
@@ -644,8 +661,13 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Enable a Play Billing Program (Play Billing 8.2.0+) — used in
-                place of <code>alternativeBillingModeAndroid</code>.
+                Enable a Play Billing Program (Play Billing 8.2.0+). Note: this
+                is a config field of{' '}
+                <Link to="/docs/types/alternative-billing-types#init-connection-config">
+                  <code>InitConnectionConfig</code>
+                </Link>{' '}
+                passed to <code>initConnection()</code>, not a standalone
+                mutation; the page documents the config-flow shape.
               </td>
             </tr>
             <tr>

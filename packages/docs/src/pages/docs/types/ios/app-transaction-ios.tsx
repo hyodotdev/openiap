@@ -11,12 +11,12 @@ function AppTransactionIos() {
   return (
     <div className="doc-page">
       <SEO
-        title="AppTransaction"
-        description="AppTransaction type definition and field reference."
+        title="AppTransactionIOS"
+        description="AppTransactionIOS type definition and field reference."
         path="/docs/types/ios/app-transaction-ios"
-        keywords="AppTransaction, OpenIAP types, App Transaction"
+        keywords="AppTransactionIOS, AppTransaction, OpenIAP types, App Transaction"
       />
-      <h1>AppTransaction</h1>
+      <h1>AppTransactionIOS</h1>
       <section>
         <AnchorLink id="app-transaction" level="h2">
           AppTransaction

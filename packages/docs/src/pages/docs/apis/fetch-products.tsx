@@ -79,7 +79,7 @@ type FetchProductsResult =
   | null;`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`func fetchProducts(_ request: ProductRequest) async throws -> FetchProductsResult`}</CodeBlock>
+            <CodeBlock language="swift">{`func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): FetchProductsResult`}</CodeBlock>
