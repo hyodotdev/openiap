@@ -84,6 +84,7 @@ function SubMenu({ group, onItemClick, parentExpanded }: SubMenuProps) {
       <button
         type="button"
         onClick={toggleExpanded}
+        tabIndex={parentExpanded ? 0 : -1}
         className={`menu-dropdown-header ${isAnyChildActive ? 'group-active' : ''}`}
         aria-expanded={isExpanded}
         aria-controls={submenuContentId}

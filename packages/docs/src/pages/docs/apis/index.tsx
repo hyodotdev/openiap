@@ -90,7 +90,6 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'android-apis': '/docs/apis#android-functions',
   terminology: '/docs/apis#terminology',
   'request-apis': '/docs/apis/fetch-products#request-apis',
-  'transaction-vs-purchase': '/docs/apis#transaction-vs-purchase',
   'naming-convention': '/docs/apis#naming-convention',
 };
 
@@ -751,52 +750,6 @@ function APIsIndex() {
         <AnchorLink id="terminology" level="h2">
           Terminology
         </AnchorLink>
-        <AnchorLink id="request-apis" level="h3">
-          Request APIs
-        </AnchorLink>
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Important:</strong> APIs starting with <code>request</code>{' '}
-            are event-based operations, not promise-based.
-          </p>
-          <p>
-            While these APIs return values for various purposes, you should{' '}
-            <strong>
-              not rely on their return values for actual purchase results
-            </strong>
-            . Instead, listen for events through{' '}
-            <Link to="/docs/events/purchase-updated-listener">
-              <code>purchaseUpdatedListener</code>
-            </Link>{' '}
-            or{' '}
-            <Link to="/docs/events/purchase-error-listener">
-              <code>purchaseErrorListener</code>
-            </Link>
-            .
-          </p>
-          <p>
-            This is because Apple's purchase system is fundamentally
-            event-based, not promise-based. For more details, see this{' '}
-            <a
-              href="https://github.com/hyochan/react-native-iap/issues/307#issuecomment-449208083"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              issue comment
-            </a>
-            .
-          </p>
-          <p>
-            The <code>request</code> prefix indicates that these are event
-            requests - use the appropriate listeners to handle the actual
-            results.
-          </p>
-        </div>
-        <p className="type-link">
-          See: <Link to="/docs/events">Events</Link> for setting up purchase
-          listeners.
-        </p>
-
         <AnchorLink id="transaction-vs-purchase" level="h3">
           Transaction vs Purchase
         </AnchorLink>
