@@ -265,7 +265,7 @@ await iap.requestPurchase(
       apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
       google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
     ),
-    type: ProductQueryType.inApp,
+    type: ProductQueryType.InApp,
   ),
 );`}</CodeBlock>
             ),

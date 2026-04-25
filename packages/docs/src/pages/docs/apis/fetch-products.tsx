@@ -20,31 +20,34 @@ function FetchProducts() {
       <p>Retrieve products or subscriptions from the store by SKU.</p>
 
       <AnchorLink id="request-apis" level="h2">
-        Request APIs
+        Note about <code>request*</code> APIs
       </AnchorLink>
-      <div className="alert-card alert-card--warning">
+      <div className="alert-card alert-card--info">
         <p>
-          ⚠️ <strong>Important:</strong> APIs starting with <code>request</code>{' '}
-          are event-based operations, not promise-based.
+          ℹ️{' '}
+          <strong>This note is about sibling APIs, not fetchProducts.</strong>{' '}
+          <code>fetchProducts</code> itself is a regular promise-based call —
+          its <code>Promise&lt;FetchProductsResult&gt;</code> return value{' '}
+          <em>is</em> the canonical way to read the products you queried.
         </p>
         <p>
-          While these APIs return values for various purposes, you should{' '}
-          <strong>
-            not rely on their return values for actual purchase results
-          </strong>
-          . Instead, listen for events through{' '}
+          Reader pitfall to be aware of: APIs in this library that <em>do</em>{' '}
+          start with <code>request</code> (
+          <Link to="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </Link>
+          , <code>requestPurchaseOnPromotedProductIOS</code>) are{' '}
+          <strong>event-based</strong>. Their return values are not the purchase
+          result — listen via{' '}
           <Link to="/docs/events/purchase-updated-listener">
             <code>purchaseUpdatedListener</code>
           </Link>{' '}
-          or{' '}
+          /{' '}
           <Link to="/docs/events/purchase-error-listener">
             <code>purchaseErrorListener</code>
-          </Link>
-          .
-        </p>
-        <p>
-          This is because Apple's purchase system is fundamentally event-based,
-          not promise-based. For more details, see{' '}
+          </Link>{' '}
+          instead. This is because Apple's purchase system is fundamentally
+          event-based; see{' '}
           <a
             href="https://github.com/hyochan/react-native-iap/issues/307#issuecomment-449208273"
             target="_blank"
@@ -53,10 +56,6 @@ function FetchProducts() {
             this issue comment
           </a>
           .
-        </p>
-        <p>
-          The <code>request</code> prefix indicates that these are event
-          requests — use the appropriate listeners to handle the actual results.
         </p>
       </div>
 
@@ -83,10 +82,10 @@ type FetchProductsResult =
             <CodeBlock language="swift">{`func fetchProducts(_ request: ProductRequest) async throws -> FetchProductsResult`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): List<Product>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): FetchProductsResult`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): List<Product>`}</CodeBlock>
+            <CodeBlock language="kotlin">{`suspend fun fetchProducts(request: ProductRequest): FetchProductsResult`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Future<FetchProductsResult> fetchProducts({

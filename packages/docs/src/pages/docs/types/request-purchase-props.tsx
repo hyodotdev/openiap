@@ -166,7 +166,7 @@ await FlutterInappPurchase.instance.requestPurchase(
       apple: RequestPurchaseIosProps(sku: 'premium'),
       google: RequestPurchaseAndroidProps(skus: ['premium']),
     ),
-    type: ProductQueryType.inApp,
+    type: ProductQueryType.InApp,
   ),
 );
 

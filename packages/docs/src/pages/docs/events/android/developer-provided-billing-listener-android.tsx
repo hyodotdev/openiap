@@ -33,7 +33,7 @@ function DeveloperProvidedBillingListenerAndroid() {
         {{
           typescript: (
             <CodeBlock language="typescript">{`developerProvidedBillingListener(
-  listener: (details: DeveloperProvidedBillingDetails) => void
+  listener: (details: DeveloperProvidedBillingDetailsAndroid) => void
 ): Subscription`}</CodeBlock>
           ),
           swift: (
@@ -52,7 +52,7 @@ fun addDeveloperProvidedBillingListener(
 )`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Stream<DeveloperProvidedBillingDetails> get developerProvidedBillingStream;
+            <CodeBlock language="dart">{`Stream<DeveloperProvidedBillingDetailsAndroid> get developerProvidedBillingStream;
 // Android only (8.3.0+)`}</CodeBlock>
           ),
         }}
@@ -165,7 +165,7 @@ subscription.cancel();`}</CodeBlock>
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`interface DeveloperProvidedBillingDetails {
+            <CodeBlock language="typescript">{`interface DeveloperProvidedBillingDetailsAndroid {
   externalTransactionToken: string;
 }`}</CodeBlock>
           ),
@@ -183,7 +183,7 @@ subscription.cancel();`}</CodeBlock>
 )`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`class DeveloperProvidedBillingDetails {
+            <CodeBlock language="dart">{`class DeveloperProvidedBillingDetailsAndroid {
   final String externalTransactionToken;
 }`}</CodeBlock>
           ),

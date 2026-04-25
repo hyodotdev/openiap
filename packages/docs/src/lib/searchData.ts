@@ -649,6 +649,14 @@ export const apiData: ApiItem[] = [
       'iOS external purchase APIs: canPresent, presentNoticeSheet, presentLink (iOS 17.4+)',
     path: '/docs/types/external-purchase-link',
   },
+  {
+    id: 'billing-programs',
+    title: 'Billing Programs',
+    category: 'Types',
+    description:
+      'Android Billing Programs API (Play Billing 8.2.0+): BillingProgramAndroid, ExternalLink launch modes, Developer Provided Billing parameters',
+    path: '/docs/types/billing-programs',
+  },
 
   // Platform-Specific Request Types
   {

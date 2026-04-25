@@ -781,8 +781,11 @@ function Subscription() {
                   </li>
                   <li>
                     <strong>expirationReason</strong>: Why the subscription
-                    expired (autoRenewDisabled, billingError,
-                    didNotConsentToPriceIncrease, etc.).
+                    expired — <code>"VOLUNTARY"</code>,{' '}
+                    <code>"BILLING_ERROR"</code>,{' '}
+                    <code>"DID_NOT_AGREE_TO_PRICE_INCREASE"</code>,{' '}
+                    <code>"PRODUCT_NOT_AVAILABLE"</code>, or{' '}
+                    <code>"UNKNOWN"</code>.
                   </li>
                   <li>
                     <strong>gracePeriodExpirationDate</strong>: Grace period end
