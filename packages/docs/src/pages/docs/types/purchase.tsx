@@ -677,6 +677,86 @@ function Purchase() {
           }}
         </PlatformTabs>
       </section>
+
+      <section>
+        <AnchorLink id="purchase-options" level="h2">
+          PurchaseOptions
+        </AnchorLink>
+        <p>
+          Optional input to{' '}
+          <Link to="/docs/apis/get-available-purchases">
+            <code>getAvailablePurchases</code>
+          </Link>
+          . PurchaseOptions does not have its own dedicated page — it lives here
+          next to <code>Purchase</code> because every field is platform-
+          specific and changes which subset of purchases the query returns.
+        </p>
+        <p>
+          All fields are optional; pass <code>null</code> / omit the argument
+          entirely to use defaults. iOS-only fields are ignored on Android (and
+          vice-versa).
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Platform</th>
+              <th>Default</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>alsoPublishToEventListenerIOS</code>
+              </td>
+              <td>iOS</td>
+              <td>
+                <code>false</code>
+              </td>
+              <td>
+                When <code>true</code>, every purchase returned by the query is
+                also re-emitted on{' '}
+                <Link to="/docs/events/purchase-updated-listener">
+                  <code>purchaseUpdatedListener</code>
+                </Link>{' '}
+                so existing listeners can process them with the same code path
+                used for live purchases.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>onlyIncludeActiveItemsIOS</code>
+              </td>
+              <td>iOS</td>
+              <td>
+                <code>false</code>
+              </td>
+              <td>
+                Switches the query from <code>Transaction.all</code> (full
+                StoreKit 2 history, including refunded / revoked entries) to{' '}
+                <code>Transaction.currentEntitlements</code>, which narrows the
+                result to active non-consumables and live subscriptions.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>includeSuspendedAndroid</code>
+              </td>
+              <td>Android</td>
+              <td>
+                <code>false</code>
+              </td>
+              <td>
+                When <code>true</code>, includes subscriptions in a paused or
+                grace-period state in the returned list. Suspended subscriptions
+                should not grant entitlements — see{' '}
+                <code>isSuspendedAndroid</code> on the Purchase fields above.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
