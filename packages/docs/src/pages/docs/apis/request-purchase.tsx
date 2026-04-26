@@ -202,7 +202,7 @@ function RequestPurchase() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;Purchase | null&gt;</code> — dispatched purchase
+        <code>Promise&lt;Purchase | void&gt;</code> — dispatched purchase
         payload. <strong>Do not rely on this for the actual outcome</strong> —
         listen via{' '}
         <Link to="/docs/events/purchase-updated-listener">

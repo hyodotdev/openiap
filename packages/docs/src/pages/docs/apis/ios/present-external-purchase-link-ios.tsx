@@ -12,7 +12,7 @@ function PresentExternalPurchaseLinkIOS() {
     <div className="doc-page">
       <SEO
         title="presentExternalPurchaseLinkIOS"
-        description="Open external purchase URL in Safari (iOS 18.2+)."
+        description="Open external purchase URL in Safari (iOS 16+)."
         path="/docs/apis/ios/present-external-purchase-link-ios"
         keywords="presentExternalPurchaseLinkIOS, external link, external purchase"
       />
@@ -20,7 +20,7 @@ function PresentExternalPurchaseLinkIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         presentExternalPurchaseLinkIOS
       </h1>
-      <p>Open external purchase URL in Safari (iOS 18.2+).</p>
+      <p>Open external purchase URL in Safari (iOS 16+).</p>
       <p>
         Wraps <code>ExternalPurchaseLink.open(url:)</code> — StoreKit External,
         iOS 16+ (EU app store). See the{' '}

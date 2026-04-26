@@ -43,7 +43,7 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         Returns
       </AnchorLink>
       <p>
-        <Link to="/docs/types/external-purchase-link">
+        <Link to="/docs/types/external-purchase-link#external-purchase-types">
           <code>Promise&lt;ExternalPurchaseNoticeResultIOS&gt;</code>
         </Link>{' '}
         — carries:
@@ -62,21 +62,34 @@ function PresentExternalPurchaseNoticeSheetIOS() {
               <code>result</code>
             </td>
             <td>
-              <code>'continue' | 'cancelled'</code>
+              <code>'continue' | 'dismissed'</code>
             </td>
-            <td>Whether the user accepted the notice or dismissed it.</td>
+            <td>
+              User action on the notice sheet — see{' '}
+              <code>ExternalPurchaseNoticeAction</code>.
+            </td>
           </tr>
           <tr>
             <td>
-              <code>token</code>
+              <code>externalPurchaseToken</code>
             </td>
             <td>
               <code>string?</code>
             </td>
             <td>
-              Reporting token returned by Apple when the user continues. Pass to
-              your backend.
+              Reporting token returned by Apple when the user continues (
+              <code>result === 'continue'</code>). Pass to your backend / send
+              to Apple's External Purchase Server API.
             </td>
+          </tr>
+          <tr>
+            <td>
+              <code>error</code>
+            </td>
+            <td>
+              <code>string?</code>
+            </td>
+            <td>Populated when the sheet failed to present.</td>
           </tr>
         </tbody>
       </table>

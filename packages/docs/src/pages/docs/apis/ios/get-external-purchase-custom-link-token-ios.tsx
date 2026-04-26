@@ -79,7 +79,7 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         Returns
       </AnchorLink>
       <p>
-        <Link to="/docs/types/external-purchase-link">
+        <Link to="/docs/types/external-purchase-link#external-purchase-custom-link-token-result-ios">
           <code>Promise&lt;ExternalPurchaseCustomLinkTokenResultIOS&gt;</code>
         </Link>{' '}
         — token plus its acquired/expiry metadata. Send the <code>token</code>{' '}

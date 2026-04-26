@@ -76,7 +76,7 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
         Returns
       </AnchorLink>
       <p>
-        <Link to="/docs/types/external-purchase-link">
+        <Link to="/docs/types/external-purchase-link#external-purchase-custom-link-notice-result-ios">
           <code>Promise&lt;ExternalPurchaseCustomLinkNoticeResultIOS&gt;</code>
         </Link>{' '}
         — the user's response (<code>continue</code> / <code>cancelled</code>)

@@ -192,6 +192,117 @@ function ExternalPurchaseLink() {
           </tbody>
         </table>
 
+        <AnchorLink
+          id="external-purchase-custom-link-token-result-ios"
+          level="h4"
+        >
+          ExternalPurchaseCustomLinkTokenResultIOS
+        </AnchorLink>
+        <p>
+          Returned by{' '}
+          <Link to="/docs/apis/ios/get-external-purchase-custom-link-token-ios">
+            <code>getExternalPurchaseCustomLinkTokenIOS</code>
+          </Link>{' '}
+          (iOS 18.1+).
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>token</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                Token to send to Apple's External Purchase Server reporting API.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>tokenType</code>
+              </td>
+              <td>
+                <code>'acquisition' | 'services'</code>
+              </td>
+              <td>
+                Echoes the requested token type (new customers vs. existing
+                customers).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>error</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>Populated when token creation fails.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink
+          id="external-purchase-custom-link-notice-result-ios"
+          level="h4"
+        >
+          ExternalPurchaseCustomLinkNoticeResultIOS
+        </AnchorLink>
+        <p>
+          Returned by{' '}
+          <Link to="/docs/apis/ios/show-external-purchase-custom-link-notice-ios">
+            <code>showExternalPurchaseCustomLinkNoticeIOS</code>
+          </Link>{' '}
+          (iOS 18.1+).
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>result</code>
+              </td>
+              <td>
+                <code>'continue' | 'cancelled'</code>
+              </td>
+              <td>
+                Whether the user accepted the disclosure notice or dismissed it.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>noticeType</code>
+              </td>
+              <td>
+                <code>ExternalPurchaseCustomLinkNoticeTypeIOS</code>
+              </td>
+              <td>Echoes the disclosure type that was shown.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>error</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>Populated when the sheet failed to present.</td>
+            </tr>
+          </tbody>
+        </table>
+
         <LanguageTabs>
           {{
             typescript: (
