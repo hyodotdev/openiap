@@ -51,7 +51,7 @@ function CanPresentExternalPurchaseNoticeIOS() {
             <CodeBlock language="dart">{`Future<bool> canPresentExternalPurchaseNoticeIOS();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func can_present_external_purchase_notice_ios() -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func can_present_external_purchase_notice_ios() -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

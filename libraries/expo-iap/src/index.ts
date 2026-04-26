@@ -364,7 +364,7 @@ export const endConnection: MutationField<'endConnection'> = async () =>
 /**
  * Retrieve products or subscriptions from the store by SKU.
  *
- * @param params `ProductRequest` — `skus` (string[]) and optional `type`
+ * @param request `ProductRequest` — `skus` (string[]) and optional `type`
  *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
  * @returns Promise resolving to a `FetchProductsResult` union — `Product[]` for `'in-app'`,
  *   `ProductSubscription[]` for `'subs'`, or a mixed array for `'all'`.
@@ -611,7 +611,7 @@ function normalizeRequestProps(
  * Initiate a purchase or subscription flow. The result is delivered through
  * `purchaseUpdatedListener` — NOT the return value.
  *
- * @param props `RequestPurchaseProps`, discriminated by `type`:
+ * @param args `RequestPurchaseProps`, discriminated by `type`:
  *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
  *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
  * @returns The dispatched purchase payload. **Do not rely on it** for the actual outcome.

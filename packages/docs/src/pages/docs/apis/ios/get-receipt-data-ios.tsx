@@ -51,7 +51,7 @@ function GetReceiptDataIOS() {
             <CodeBlock language="dart">{`Future<String?> getReceiptDataIOS();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func get_receipt_data_ios() -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func get_receipt_data_ios() -> String`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

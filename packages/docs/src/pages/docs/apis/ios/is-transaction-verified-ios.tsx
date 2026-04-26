@@ -51,7 +51,7 @@ function IsTransactionVerifiedIOS() {
             <CodeBlock language="dart">{`Future<bool> isTransactionVerifiedIOS(String sku);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func is_transaction_verified_ios(sku: String) -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func is_transaction_verified_ios(sku: String) -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

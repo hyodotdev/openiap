@@ -50,7 +50,7 @@ function GetTransactionJwsIOS() {
             <CodeBlock language="dart">{`Future<String?> getTransactionJwsIOS(String sku);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func get_transaction_jws_ios(sku: String) -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func get_transaction_jws_ios(sku: String) -> String`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

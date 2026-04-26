@@ -103,8 +103,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Retrieve products or subscriptions from the App Store by SKU.
     ///
     /// - Parameter params: `ProductRequest` with `skus` (the product identifiers) and an
-    ///   optional `type` (`.inApp`, `.subs`, or `.all`; defaults to `.all` when omitted —
-    ///   the implementation falls back to `params.type ?? .all`).
+    ///   optional `type` (`.inApp`, `.subs`, or `.all`; defaults to `.inApp` when omitted —
+    ///   matches the cross-platform Flutter / expo-iap / react-native-iap / godot SDKs).
     /// - Returns: A `FetchProductsResult` variant — `Product[]` for `.inApp`,
     ///   `ProductSubscription[]` for `.subs`, or a mixed list for `.all`.
     /// - Throws: When the store rejects the request (unknown SKU, network failure, not connected).
@@ -153,7 +153,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
         }
 
-        switch params.type ?? .all {
+        switch params.type ?? .inApp {
         case .subs:
             // Return products that are subscriptions (both auto-renewable and non-renewing)
             // Auto-renewable subscriptions have product.subscription != nil and use subscriptionEntries
