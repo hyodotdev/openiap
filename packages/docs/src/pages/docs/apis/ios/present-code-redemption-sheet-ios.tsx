@@ -20,6 +20,19 @@ function PresentCodeRedemptionSheetIOS() {
         presentCodeRedemptionSheetIOS
       </h1>
       <p>Present the App Store promo code redemption sheet.</p>
+      <p>
+        Wraps <code>SKPaymentQueue.presentCodeRedemptionSheet()</code> (UIKit) /{' '}
+        <code>AppStore.presentOfferCodeRedeemSheet(in:)</code> (StoreKit 2). See
+        the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(in:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

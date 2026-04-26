@@ -19,6 +19,18 @@ function GetPendingTransactionsIOS() {
         getPendingTransactionsIOS
       </h1>
       <p>Retrieve all pending transactions in the StoreKit queue.</p>
+      <p>
+        Iterates <code>Transaction.unfinished</code> to surface transactions
+        still awaiting <code>finish()</code>. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/unfinished"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

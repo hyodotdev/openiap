@@ -26,6 +26,27 @@ function SubscriptionOffer() {
           both iOS (introductory and promotional offers) and Android (offer
           tokens with pricing phases).
         </p>
+        <p>
+          Cross-platform subscription-offer envelope. <strong>iOS:</strong>{' '}
+          maps to <code>Product.SubscriptionOffer</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> maps to{' '}
+          <code>SubscriptionOfferDetails</code> (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.SubscriptionOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

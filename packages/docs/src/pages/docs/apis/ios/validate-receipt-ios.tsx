@@ -20,6 +20,19 @@ function ValidateReceiptIOS() {
         validateReceiptIOS
       </h1>
       <p>Deprecated. Use verifyPurchase instead.</p>
+      <p>
+        <strong>Deprecated.</strong> Legacy <code>appStoreReceiptURL</code>{' '}
+        validation. Use <code>verifyPurchase</code> with the JWS instead. See
+        the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/original_api_for_in-app_purchase"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <div className="alert-card alert-card--warning">
         <p>

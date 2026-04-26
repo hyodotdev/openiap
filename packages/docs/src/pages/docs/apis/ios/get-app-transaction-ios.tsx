@@ -20,6 +20,18 @@ function GetAppTransactionIOS() {
         getAppTransactionIOS
       </h1>
       <p>Fetch the current app transaction (iOS 16+).</p>
+      <p>
+        Wraps <code>AppTransaction.shared</code> — the JWS-verified record of
+        how the app was acquired. iOS 16+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/apptransaction"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

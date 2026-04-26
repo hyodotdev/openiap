@@ -53,6 +53,8 @@ export function isProductIOS<T extends {platform?: string}>(
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/sync-ios}
  */
 export const syncIOS: MutationField<'syncIOS'> = async () => {
   return !!(await ExpoIapModule.syncIOS());
@@ -66,6 +68,8 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios}
  */
 export const isEligibleForIntroOfferIOS: QueryField<
   'isEligibleForIntroOfferIOS'
@@ -84,6 +88,8 @@ export const isEligibleForIntroOfferIOS: QueryField<
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/subscription-status-ios}
  */
 export const subscriptionStatusIOS: QueryField<
   'subscriptionStatusIOS'
@@ -103,6 +109,8 @@ export const subscriptionStatusIOS: QueryField<
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/current-entitlement-ios}
  */
 export const currentEntitlementIOS: QueryField<
   'currentEntitlementIOS'
@@ -122,6 +130,8 @@ export const currentEntitlementIOS: QueryField<
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/latest-transaction-ios}
  */
 export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
   sku,
@@ -141,6 +151,8 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios}
  */
 export const beginRefundRequestIOS: MutationField<
   'beginRefundRequestIOS'
@@ -160,6 +172,8 @@ export const beginRefundRequestIOS: MutationField<
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios}
  */
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
@@ -177,6 +191,8 @@ export const showManageSubscriptionsIOS: MutationField<
  * Apple's verifyReceipt endpoint, not directly from the app.
  *
  * @returns {Promise<string>} Base64 encoded receipt data
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios}
  */
 export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   return ExpoIapModule.getReceiptDataIOS();
@@ -195,6 +211,8 @@ export const getReceiptIOS = getReceiptDataIOS;
  * @returns {Promise<string>} ISO 3166-1 alpha-2 country code (e.g. "US")
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-storefront-ios}
  */
 export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
   return ExpoIapModule.getStorefront();
@@ -224,6 +242,8 @@ export const requestReceiptRefreshIOS = async (): Promise<string> => {
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios}
  */
 export const isTransactionVerifiedIOS: QueryField<
   'isTransactionVerifiedIOS'
@@ -243,6 +263,8 @@ export const isTransactionVerifiedIOS: QueryField<
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios}
  */
 export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   sku,
@@ -269,6 +291,8 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  *   jwsRepresentation: string;
  *   latestTransaction?: Purchase;
  * }>}
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/validate-receipt-ios}
  */
 const validateReceiptIOSImpl = async (props: VerifyPurchaseProps | string) => {
   const sku =
@@ -298,6 +322,8 @@ export const validateReceiptIOS =
  * @throws Error if called on non-iOS platform or tvOS
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
@@ -318,6 +344,8 @@ export const presentCodeRedemptionSheetIOS: MutationField<
  *
  * @platform iOS
  * @since iOS 16.0
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios}
  */
 export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
@@ -334,6 +362,8 @@ export const getAppTransactionIOS: QueryField<
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios}
  */
 export const getPromotedProductIOS: QueryField<
   'getPromotedProductIOS'
@@ -353,6 +383,8 @@ export const getPromotedProductIOS: QueryField<
  * @throws Error if called on non-iOS platform or no promoted product is available
  *
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
  */
 export const requestPurchaseOnPromotedProductIOS =
   async (): Promise<boolean> => {
@@ -365,6 +397,8 @@ export const requestPurchaseOnPromotedProductIOS =
  *
  * @returns Promise resolving to array of pending transactions
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios}
  */
 export const getPendingTransactionsIOS: QueryField<
   'getPendingTransactionsIOS'
@@ -373,6 +407,11 @@ export const getPendingTransactionsIOS: QueryField<
   return (transactions ?? []) as PurchaseIOS[];
 };
 
+/**
+ * List every StoreKit transaction (finished + unfinished) for the current user.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios}
+ */
 export const getAllTransactionsIOS: QueryField<
   'getAllTransactionsIOS'
 > = async () => {
@@ -385,6 +424,8 @@ export const getAllTransactionsIOS: QueryField<
  *
  * @returns Promise resolving when transaction is cleared
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/clear-transaction-ios}
  */
 export const clearTransactionIOS: MutationField<
   'clearTransactionIOS'
@@ -406,6 +447,8 @@ export const deepLinkToSubscriptionsIOS = (): Promise<void> =>
  *
  * @returns Promise resolving to true if the notice sheet can be presented
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios}
  */
 export const canPresentExternalPurchaseNoticeIOS: QueryField<
   'canPresentExternalPurchaseNoticeIOS'
@@ -420,6 +463,8 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  *
  * @returns Promise resolving to the result with action, token, and error if any
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios}
  */
 export const presentExternalPurchaseNoticeSheetIOS =
   async (): Promise<ExternalPurchaseNoticeResultIOS> => {
@@ -433,6 +478,8 @@ export const presentExternalPurchaseNoticeSheetIOS =
  * @param url - The external purchase URL to open
  * @returns Promise resolving to the result with success status and error if any
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios}
  */
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
@@ -448,6 +495,8 @@ export const presentExternalPurchaseLinkIOS: MutationField<
  * @returns Promise resolving to true if eligible
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios}
  */
 export const isEligibleForExternalPurchaseCustomLinkIOS =
   async (): Promise<boolean> => {
@@ -462,6 +511,8 @@ export const isEligibleForExternalPurchaseCustomLinkIOS =
  * @returns Promise resolving to the token result with token string or error
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios}
  */
 export const getExternalPurchaseCustomLinkTokenIOS = async (
   tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
@@ -486,6 +537,8 @@ export const getExternalPurchaseCustomLinkTokenIOS = async (
  * @returns Promise resolving to the result with continued status and error if any
  * @platform iOS
  * @see https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios}
  */
 export const showExternalPurchaseCustomLinkNoticeIOS = async (
   noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,

@@ -29,6 +29,19 @@ function PricingPhaseAndroid() {
           </a>{' '}
           one-to-one.
         </p>
+        <p>
+          <strong>Android only.</strong> Mirrors{' '}
+          <code>ProductDetails.PricingPhase</code> — one billing-cycle phase of
+          a subscription&apos;s pricing schedule (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.PricingPhase"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <table className="doc-table">
           <thead>
             <tr>

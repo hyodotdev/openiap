@@ -484,47 +484,160 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     // Interface implementation
     // ---------------------------------------------------------------------
+    /**
+     * Initialize the store connection. Must be called before any other IAP API.
+     *
+     * @param config Optional [InitConnectionConfig]. Use `enableBillingProgramAndroid`
+     *   (Android, Play Billing 8.2.0+) to opt into External Payments etc.; iOS ignores
+     *   Android-specific fields.
+     * @return `true` once the platform billing client is connected.
+     * @throws PurchaseException when the billing client fails to initialize.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/init-connection">init-connection</a>
+     */
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = initConnectionHandler(config)
 
+    /**
+     * Close the store connection and release resources.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/end-connection">https://www.openiap.dev/docs/apis/end-connection</a>
+     */
     override suspend fun endConnection(): Boolean = endConnectionHandler()
 
+    /**
+     * Retrieve products or subscriptions from the store by SKU.
+     *
+     * @param params [ProductRequest] with `skus` and optional `type`
+     *   ([ProductQueryType.InApp], [ProductQueryType.Subs], or [ProductQueryType.All];
+     *   defaults to InApp).
+     * @return [FetchProductsResult] sealed variant — Products for InApp, Subscriptions
+     *   for Subs, mixed for All.
+     * @throws PurchaseException on store rejection (unknown SKU, network, not connected).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/fetch-products">fetch-products</a>
+     */
     override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult =
         fetchProductsHandler(params)
 
+    /**
+     * Initiate a purchase or subscription flow. Result is delivered via the
+     * purchaseUpdated event flow — NOT the return value.
+     *
+     * @param props [RequestPurchaseProps]. Pass `request.apple.sku` (iOS) and/or
+     *   `request.google.skus` (Android); subscriptions need `subscriptionOffers`.
+     * @return The dispatched purchase payload (do not rely on this for the outcome).
+     * @throws PurchaseException on synchronous rejection (billing not ready, missing offerToken).
+     *
+     * Warning: Event-based. Collect from `purchaseUpdatedListener` / `purchaseErrorListener`
+     * (or the equivalent flows on `KmpIAP`) for the final state.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/request-purchase">request-purchase</a>
+     */
     override suspend fun requestPurchase(request: RequestPurchaseProps): RequestPurchaseResult? =
         requestPurchaseHandler(request)
 
+    /**
+     * List the user's unfinished purchases — non-consumables, active subscriptions, and
+     * any pending transactions not finished previously.
+     *
+     * @param options Optional [PurchaseOptions]. iOS-only fields
+     *   (`alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`) are ignored on Android.
+     * @return List of [Purchase] currently held by the platform store.
+     * @throws PurchaseException when the platform query fails.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
+     */
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
         getAvailablePurchasesHandler(options)
 
     suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> = emptyList()
 
+    /**
+     * Get details of all currently active subscriptions.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/get-active-subscriptions">https://www.openiap.dev/docs/apis/get-active-subscriptions</a>
+     */
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
         getActiveSubscriptionsHandler(subscriptionIds)
 
+    /**
+     * Check whether the user has any active subscription.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/has-active-subscriptions">https://www.openiap.dev/docs/apis/has-active-subscriptions</a>
+     */
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
         hasActiveSubscriptionsHandler(subscriptionIds)
 
+    /**
+     * Restore non-consumable and active subscription purchases.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/restore-purchases">https://www.openiap.dev/docs/apis/restore-purchases</a>
+     */
     override suspend fun restorePurchases() {
         getAvailablePurchasesHandler.invoke(null)
     }
 
+    /**
+     * Get the user's current entitlement for a product.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/current-entitlement-ios">https://www.openiap.dev/docs/apis/ios/current-entitlement-ios</a>
+     */
     override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? = null
 
+    /**
+     * Fetch the app transaction (iOS 16+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios">https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios</a>
+     */
     override suspend fun getAppTransactionIOS(): AppTransaction? = null
 
+    /**
+     * List unfinished StoreKit transactions.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios">https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios</a>
+     */
     override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> = emptyList()
 
+    /**
+     * List every StoreKit transaction (finished + unfinished).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios">https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios</a>
+     */
     override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> = emptyList()
 
+    /**
+     * Get base64 receipt data (legacy validation).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios">https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios</a>
+     */
     override suspend fun getReceiptDataIOS(): String? = null
 
+    /**
+     * Return the JWS string for a transaction.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios">https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios</a>
+     */
     override suspend fun getTransactionJwsIOS(sku: String): String? = null
 
+    /**
+     * Check intro-offer eligibility for a subscription group.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios">https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios</a>
+     */
     override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean = false
 
+    /**
+     * Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios">https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</a>
+     */
     override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean = false
 
+    /**
+     * Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios">https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios</a>
+     */
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(
         noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
     ): ExternalPurchaseCustomLinkNoticeResultIOS {
@@ -536,6 +649,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         )
     }
 
+    /**
+     * Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios">https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios</a>
+     */
     override suspend fun getExternalPurchaseCustomLinkTokenIOS(
         tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
     ): ExternalPurchaseCustomLinkTokenResultIOS {
@@ -547,12 +665,32 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         )
     }
 
+    /**
+     * Check whether a transaction's JWS verification passed.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios">https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios</a>
+     */
     override suspend fun isTransactionVerifiedIOS(sku: String): Boolean = false
 
+    /**
+     * Get the latest verified transaction for a product.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/latest-transaction-ios">https://www.openiap.dev/docs/apis/ios/latest-transaction-ios</a>
+     */
     override suspend fun latestTransactionIOS(sku: String): PurchaseIOS? = null
 
+    /**
+     * Get subscription status objects from StoreKit 2.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/subscription-status-ios">https://www.openiap.dev/docs/apis/ios/subscription-status-ios</a>
+     */
     override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> = emptyList()
 
+    /**
+     * Deprecated. Legacy App Store receipt validation.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/validate-receipt-ios">https://www.openiap.dev/docs/apis/ios/validate-receipt-ios</a>
+     */
     override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
         failWith(
             PurchaseError(
@@ -572,10 +710,28 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     override suspend fun subscriptionBillingIssue(): Purchase = subscriptionBillingIssueListener.first()
 
+    /**
+     * Complete a purchase transaction. Call after server-side verification.
+     *
+     * @param purchase The [Purchase] to finalize.
+     * @param isConsumable `true` for consumables (Android consume — token can be re-bought),
+     *   `false` for non-consumables and subscriptions (acknowledge only). Default `false`.
+     * @throws PurchaseException when the platform finalize call fails.
+     *
+     * Important: Android auto-refunds purchases NOT acknowledged/consumed within 3 days.
+     * iOS unfinished transactions replay on every app launch.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
+     */
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
         finishTransactionHandler(purchase, isConsumable)
     }
 
+    /**
+     * Open the platform's subscription management UI.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/deep-link-to-subscriptions">https://www.openiap.dev/docs/apis/deep-link-to-subscriptions</a>
+     */
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?) {
         deepLinkToSubscriptionsHandler(options)
     }
@@ -805,6 +961,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     // Android specific overrides
     // ---------------------------------------------------------------------
+    /**
+     * Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android">https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android</a>
+     */
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
         ensureConnectedOrFail(isConnected, ::failWith)
         val params = AcknowledgePurchaseParams.newBuilder()
@@ -829,6 +990,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
+    /**
+     * Consume a consumable purchase so it can be re-bought.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/consume-purchase-android">https://www.openiap.dev/docs/apis/android/consume-purchase-android</a>
+     */
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
         ensureConnectedOrFail(isConnected, ::failWith)
         val params = ConsumeParams.newBuilder()
@@ -851,18 +1017,78 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
+    /**
+     * Deprecated. Use cross-platform getStorefront instead.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-storefront-ios">https://www.openiap.dev/docs/apis/ios/get-storefront-ios</a>
+     */
     override suspend fun getStorefrontIOS(): String = ""
+
+    /**
+     * Show the App Store offer code redemption sheet.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
+     */
     override suspend fun presentCodeRedemptionSheetIOS(): Boolean = false
+
     suspend fun finishTransactionIOS(transactionId: String) {}
+
+    /**
+     * Clear pending transactions in the queue (sandbox helper).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/clear-transaction-ios">https://www.openiap.dev/docs/apis/ios/clear-transaction-ios</a>
+     */
     override suspend fun clearTransactionIOS(): Boolean = false
+
     suspend fun clearProductsIOS() {}
+
+    /**
+     * Read the App Store-promoted product, if any.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios">https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios</a>
+     */
     override suspend fun getPromotedProductIOS(): ProductIOS? = null
+
+    /**
+     * Buy the currently promoted product.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios">https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</a>
+     */
     override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean = false
+
+    /**
+     * Present the refund request sheet (iOS 15+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios">https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios</a>
+     */
     override suspend fun beginRefundRequestIOS(sku: String): String? = null
+
+    /**
+     * Present the manage-subscriptions sheet.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios">https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</a>
+     */
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
+
+    /**
+     * Force sync transactions with the App Store.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/sync-ios">https://www.openiap.dev/docs/apis/ios/sync-ios</a>
+     */
     override suspend fun syncIOS(): Boolean = false
+
+    /**
+     * Deprecated. Use verifyPurchase instead.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/validate-receipt">https://www.openiap.dev/docs/apis/validate-receipt</a>
+     */
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = validateReceiptHandler(options)
 
+    /**
+     * Verify a purchase against your own backend.
+     *
+     * @see <a href="https://www.openiap.dev/docs/features/validation#verify-purchase">https://www.openiap.dev/docs/features/validation#verify-purchase</a>
+     */
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
         // Android doesn't support native receipt verification like iOS
         // Use verifyPurchaseWithProvider for server-side verification via IAPKit
@@ -874,6 +1100,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         )
     }
 
+    /**
+     * Verify via a managed provider (IAPKit, Apple, Google, Horizon).
+     *
+     * @see <a href="https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider">https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider</a>
+     */
     override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult {
         if (options.provider != PurchaseVerificationProvider.Iapkit) {
             failWith(
@@ -961,6 +1192,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
 
+    /**
+     * Return the user's storefront country code.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/get-storefront">https://www.openiap.dev/docs/apis/get-storefront</a>
+     */
     override suspend fun getStorefront(): String {
         // Android doesn't have a storefront concept like iOS
         // Return a default value or country code based on locale
@@ -971,14 +1207,29 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // iOS External Purchase Methods (stubs for Android)
     // ---------------------------------------------------------------------
 
+    /**
+     * Present an external purchase link (iOS 16+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios">https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios</a>
+     */
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS {
         failWith(PurchaseError(code = ErrorCode.FeatureNotSupported, message = "External purchase links are iOS only"))
     }
 
+    /**
+     * Present the external purchase notice sheet (iOS 17.4+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios">https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</a>
+     */
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS {
         failWith(PurchaseError(code = ErrorCode.FeatureNotSupported, message = "External purchase notice sheet is iOS only"))
     }
 
+    /**
+     * Check eligibility for the external purchase notice sheet (iOS 17.4+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios">https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</a>
+     */
     override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean {
         return false // Not supported on Android
     }
@@ -1000,11 +1251,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
 
     /**
-     * Check if alternative billing is available for this user/device (Android only).
-     * Step 1 of alternative billing flow.
+     * Check whether alternative billing is available for the user.
      *
-     * For AlternativeOnly mode: Uses isAlternativeBillingOnlyAvailableAsync
-     * For UserChoice mode: Uses isFeatureSupported with ALTERNATIVE_BILLING feature
+     * @see <a href="https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
      */
     override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
         return withContext(Dispatchers.IO) {
@@ -1032,12 +1281,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     /**
-     * Show alternative billing information dialog to user (Android only).
-     * Step 2 of alternative billing flow.
-     * Must be called BEFORE processing payment in your payment system.
+     * Display Google's alternative billing information dialog.
      *
-     * Note: This is only applicable for AlternativeOnly mode.
-     * For UserChoice mode, Google automatically shows selection dialog.
+     * @see <a href="https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
      */
     override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
         // Only applicable for AlternativeOnly mode
@@ -1063,13 +1309,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     /**
-     * Create external transaction token for Google Play reporting (Android only).
-     * Step 3 of alternative billing flow.
-     * Must be called AFTER successful payment in your payment system.
-     * Token must be reported to Google Play backend within 24 hours.
+     * Create a reporting token for an alternative billing flow.
      *
-     * Note: This is only applicable for AlternativeOnly mode.
-     * For UserChoice mode, the token is provided in UserChoiceBillingDetails.
+     * @see <a href="https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
      */
     override suspend fun createAlternativeBillingTokenAndroid(): String? {
         // Only applicable for AlternativeOnly mode
@@ -1100,6 +1342,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // Full implementation uses Google Play Billing Library 8.2.1
     // ---------------------------------------------------------------------
 
+    /**
+     * Check whether a billing program is available.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/is-billing-program-available-android">https://www.openiap.dev/docs/apis/android/is-billing-program-available-android</a>
+     */
     override suspend fun isBillingProgramAvailableAndroid(
         program: BillingProgramAndroid
     ): BillingProgramAvailabilityResultAndroid {
@@ -1173,6 +1420,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
+    /**
+     * Create the reporting payload Google requires (Play Billing 8.3.0+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
+     */
     override suspend fun createBillingProgramReportingDetailsAndroid(
         program: BillingProgramAndroid
     ): BillingProgramReportingDetailsAndroid {
@@ -1275,6 +1527,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
+    /**
+     * Launch an external content/offer link (Play Billing 8.2.0+).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/launch-external-link-android">https://www.openiap.dev/docs/apis/android/launch-external-link-android</a>
+     */
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean {
         val client = billingClient ?: throw PurchaseException(
             PurchaseError(

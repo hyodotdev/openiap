@@ -19,6 +19,18 @@ function PresentExternalPurchaseLinkIOS() {
         presentExternalPurchaseLinkIOS
       </h1>
       <p>Open external purchase URL in Safari (iOS 18.2+).</p>
+      <p>
+        Wraps <code>ExternalPurchaseLink.open(url:)</code> — StoreKit External,
+        iOS 16+ (EU app store). See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/externalpurchaselink"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

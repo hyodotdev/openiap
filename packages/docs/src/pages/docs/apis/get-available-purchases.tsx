@@ -20,6 +20,30 @@ function GetAvailablePurchases() {
         Get all available (unfinished) purchases for the current user. Use this
         to restore purchases or check for pending transactions.
       </p>
+      <p>
+        <strong>iOS:</strong> Iterates{' '}
+        <code>Transaction.currentEntitlements</code> (StoreKit 2). Excludes
+        revoked / refunded transactions by default.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/currententitlements"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls{' '}
+        <code>BillingClient.queryPurchasesAsync</code> for both{' '}
+        <code>INAPP</code> and <code>SUBS</code> and merges. Only returns
+        purchases still owned by the user.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#queryPurchasesAsync(com.android.billingclient.api.QueryPurchasesParams,com.android.billingclient.api.PurchasesResponseListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

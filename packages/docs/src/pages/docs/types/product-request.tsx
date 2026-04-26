@@ -28,6 +28,27 @@ function ProductRequest() {
           </Link>
           .
         </p>
+        <p>
+          Input to <code>fetchProducts</code>. <strong>iOS:</strong> passed to{' '}
+          <code>Product.products(for:)</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/products(for:)"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> passed to{' '}
+          <code>BillingClient.queryProductDetailsAsync</code> (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#queryProductDetailsAsync(com.android.billingclient.api.QueryProductDetailsParams,com.android.billingclient.api.ProductDetailsResponseListener)"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

@@ -19,6 +19,28 @@ function EndConnection() {
         End connection to the store service. Call this when your app closes or
         the IAP component unmounts to clean up resources.
       </p>
+      <p>
+        <strong>iOS:</strong> Cancels the StoreKit{' '}
+        <code>Transaction.updates</code> task and clears in-memory caches.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/updates"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls{' '}
+        <code>BillingClient.endConnection()</code>; the client cannot be reused
+        after this — call <code>initConnection</code> again to reconnect.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#endConnection()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

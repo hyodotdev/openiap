@@ -22,6 +22,19 @@ function IsBillingProgramAvailableAndroid() {
         Step 1 of Billing Programs API. Check if a billing program is available
         for the current user.
       </p>
+      <p>
+        Wraps <code>BillingClient.isBillingProgramAvailableAsync(BillingProgram)</code>{' '}
+        — replaces <code>isExternalOfferAvailableAsync</code>. Play Billing
+        8.2.0+. See the{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/billing-programs"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google Play Billing reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

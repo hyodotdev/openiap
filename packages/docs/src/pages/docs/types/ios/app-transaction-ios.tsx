@@ -28,6 +28,18 @@ function AppTransactionIos() {
           </Link>
           . Contains metadata about the app&apos;s purchase and installation.
         </p>
+        <p>
+          <strong>iOS only.</strong> Mirrors <code>AppTransaction</code> (iOS
+          16+) — the JWS-verified record of how the app was acquired (
+          <a
+            href="https://developer.apple.com/documentation/storekit/apptransaction"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native reference:</strong>{' '}
           <a

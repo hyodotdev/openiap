@@ -19,6 +19,29 @@ function RestorePurchases() {
         Restore completed transactions. Use this to implement a "Restore
         Purchases" button for users who reinstall the app.
       </p>
+      <p>
+        <strong>iOS:</strong> Triggers <code>AppStore.sync()</code> and
+        re-emits entitlements on <code>Transaction.currentEntitlements</code>.
+        Asks the user to authenticate.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/appstore/sync()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls <code>queryPurchasesAsync</code> for
+        both <code>INAPP</code> and <code>SUBS</code>. No system-level UI
+        prompt — Play has no concept of an explicit "restore" action.{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/integrate#fetch"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

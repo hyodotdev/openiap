@@ -331,18 +331,57 @@ export const subscriptionBillingIssueListener = (
   );
 };
 
+/**
+ * Initialize the store connection. Must be called before any other IAP API.
+ *
+ * @param config Optional connection config. Use `enableBillingProgramAndroid` (Android,
+ *   Play Billing 8.2.0+) to opt into External Payments etc. iOS ignores Android-specific fields.
+ * @returns Promise resolving to `true` when the platform billing client is connected.
+ * @throws When the platform billing client fails to initialize.
+ *
+ * @example
+ * ```ts
+ * await initConnection();
+ * await initConnection({ enableBillingProgramAndroid: 'external-offer' });
+ * ```
+ *
+ * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
+ *   pass options to the hook instead of calling this directly.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/init-connection}
+ */
 export const initConnection: MutationField<'initConnection'> = async (config) =>
   ExpoIapModule.initConnection(config ?? null);
 
+/**
+ * Close the store connection and release resources.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/end-connection}
+ */
 export const endConnection: MutationField<'endConnection'> = async () =>
   ExpoIapModule.endConnection();
 
 /**
- * Fetch products with unified API (v2.7.0+)
+ * Retrieve products or subscriptions from the store by SKU.
  *
- * @param request - Product fetch configuration
- * @param request.skus - Array of product SKUs to fetch
- * @param request.type - Product query type: 'in-app', 'subs', or 'all'
+ * @param params `ProductRequest` — `skus` (string[]) and optional `type`
+ *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
+ * @returns Promise resolving to a `FetchProductsResult` union — `Product[]` for `'in-app'`,
+ *   `ProductSubscription[]` for `'subs'`, or a mixed array for `'all'`.
+ * @throws When the store rejects the request (unknown SKU, network, not connected).
+ *
+ * @example
+ * ```ts
+ * const products = await fetchProducts({
+ *   skus: ['com.app.coins_100', 'com.app.premium'],
+ *   type: 'in-app',
+ * });
+ * ```
+ *
+ * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
+ *   (`requestPurchase`), which are event-based.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/fetch-products}
  */
 export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
   ExpoIapConsole.debug('fetchProducts called with:', request);
@@ -413,6 +452,25 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
   throw new Error('Unsupported platform');
 };
 
+/**
+ * List the user's unfinished purchases — non-consumables, active subscriptions, and any
+ * pending transactions not yet finished.
+ *
+ * @param options Optional `PurchaseOptions`. iOS-only flags:
+ *   `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
+ * @returns Promise resolving to an array of `Purchase` currently held by the store.
+ * @throws When the platform query fails.
+ *
+ * @example
+ * ```ts
+ * const purchases = await getAvailablePurchases();
+ * for (const p of purchases) {
+ *   if (await verifyOnServer(p)) await finishTransaction({ purchase: p, isConsumable: false });
+ * }
+ * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
+ */
 export const getAvailablePurchases: QueryField<
   'getAvailablePurchases'
 > = async (options) => {
@@ -467,6 +525,8 @@ export const getAvailablePurchases: QueryField<
  *   }
  * });
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/get-active-subscriptions}
  */
 export const getActiveSubscriptions: QueryField<
   'getActiveSubscriptions'
@@ -491,6 +551,8 @@ export const getActiveSubscriptions: QueryField<
  * // Check specific subscriptions
  * const hasPremium = await hasActiveSubscriptions(['premium', 'premium_year']);
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/has-active-subscriptions}
  */
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
@@ -500,6 +562,11 @@ export const hasActiveSubscriptions: QueryField<
   ));
 };
 
+/**
+ * Return the user's storefront country code.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/get-storefront}
+ */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return '';
@@ -541,44 +608,30 @@ function normalizeRequestProps(
 }
 
 /**
- * Request a purchase for products or subscriptions.
+ * Initiate a purchase or subscription flow. The result is delivered through
+ * `purchaseUpdatedListener` — NOT the return value.
  *
- * @param requestObj - Purchase request configuration
- * @param requestObj.request - Store-specific purchase parameters
- * @param requestObj.type - Type of purchase: 'in-app' for products (default) or 'subs' for subscriptions
+ * @param props `RequestPurchaseProps`, discriminated by `type`:
+ *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
+ *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
+ * @returns The dispatched purchase payload. **Do not rely on it** for the actual outcome.
+ * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
  *
  * @example
- * ```typescript
- * // Product purchase (recommended: use apple/google)
+ * ```ts
  * await requestPurchase({
  *   request: {
- *     apple: { sku: productId },
- *     google: { skus: [productId] }
+ *     apple: { sku: 'com.app.premium' },
+ *     google: { skus: ['com.app.premium'] },
  *   },
- *   type: 'in-app'
- * });
- *
- * // Subscription purchase
- * await requestPurchase({
- *   request: {
- *     apple: { sku: subscriptionId },
- *     google: {
- *       skus: [subscriptionId],
- *       subscriptionOffers: [{ sku: subscriptionId, offerToken: 'token' }]
- *     }
- *   },
- *   type: 'subs'
- * });
- *
- * // Legacy format (deprecated, but still supported)
- * await requestPurchase({
- *   request: {
- *     ios: { sku: productId },
- *     android: { skus: [productId] }
- *   },
- *   type: 'in-app'
+ *   type: 'in-app',
  * });
  * ```
+ *
+ * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
+ *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/request-purchase}
  */
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   args,
@@ -739,6 +792,29 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   throw new Error('Platform not supported');
 };
 
+/**
+ * Complete a purchase transaction. Call after server-side verification to remove it
+ * from the queue.
+ *
+ * @param args.purchase The `Purchase` to finalize.
+ * @param args.isConsumable `true` for consumables (consumes the token so the SKU can be
+ *   re-bought, e.g. coins); `false` (default) for non-consumables and subscriptions.
+ * @returns Promise that resolves once the platform finalizes the transaction.
+ * @throws When the platform finalize call fails.
+ *
+ * @example
+ * ```ts
+ * // Inside purchaseUpdatedListener:
+ * if (await verifyOnServer(purchase)) {
+ *   await finishTransaction({ purchase, isConsumable: false });
+ * }
+ * ```
+ *
+ * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
+ *   auto-refunds. iOS unfinished transactions replay on every app launch.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/finish-transaction}
+ */
 export const finishTransaction: MutationField<'finishTransaction'> = async ({
   purchase,
   isConsumable = false,
@@ -781,6 +857,8 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
  *
  * This helper triggers the refresh flows but does not return the purchases; consumers should
  * call `getAvailablePurchases` or rely on hook state to inspect the latest items.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/restore-purchases}
  */
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
   if (Platform.OS === 'ios') {
@@ -810,6 +888,8 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
  *   skuAndroid: 'your_subscription_sku',
  *   packageNameAndroid: 'com.example.app'
  * });
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/deep-link-to-subscriptions}
  */
 export const deepLinkToSubscriptions: MutationField<
   'deepLinkToSubscriptions'
@@ -836,6 +916,8 @@ export const deepLinkToSubscriptions: MutationField<
  * - Android: Use Google Play Developer API with service account credentials
  *
  * @deprecated Use verifyPurchase instead
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/validate-receipt}
  */
 export const validateReceipt: MutationField<'validateReceipt'> = async (
   options,
@@ -881,6 +963,8 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
  *
  * @param options - Receipt validation options containing the SKU
  * @returns Promise resolving to receipt validation result
+ *
+ * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase}
  */
 export const verifyPurchase: MutationField<'verifyPurchase'> = async (
   options,
@@ -916,6 +1000,8 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
  *   }
  * });
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
  */
 export const verifyPurchaseWithProvider: MutationField<
   'verifyPurchaseWithProvider'

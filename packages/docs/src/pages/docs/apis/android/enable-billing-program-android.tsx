@@ -32,6 +32,20 @@ function EnableBillingProgramAndroid() {
         when calling <code>initConnection()</code> — there is no separate
         top-level call.
       </p>
+      <p>
+        Sets <code>enableBillingProgramAndroid</code> on{' '}
+        <code>InitConnectionConfig</code>; under the hood it configures{' '}
+        <code>BillingClient.Builder.enableBillingPrograms(...)</code> (Play
+        Billing 8.2.0+). See the{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/billing-programs"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google Play Billing reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

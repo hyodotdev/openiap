@@ -20,6 +20,18 @@ function GetTransactionJwsIOS() {
         getTransactionJwsIOS
       </h1>
       <p>Get the transaction JWS for server-side validation (iOS 15+).</p>
+      <p>
+        Returns <code>Transaction.jsonRepresentation</code> (signed JWS) — pass
+        to your backend for cryptographic validation. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/jsonrepresentation"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

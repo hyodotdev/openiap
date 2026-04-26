@@ -22,6 +22,23 @@ function ShowAlternativeBillingDialogAndroid() {
         Step 2 of alternative billing flow. Show alternative billing information
         dialog before processing payment.
       </p>
+      <p>
+        Wraps{' '}
+        <code>
+          BillingClient.showAlternativeBillingOnlyInformationDialog(activity,
+          listener)
+        </code>{' '}
+        — step 2. Required disclosure sheet before charging via your own payment
+        system. See the{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/alternative"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google Play Billing reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

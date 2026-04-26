@@ -22,6 +22,19 @@ function CheckAlternativeBillingAvailabilityAndroid() {
         Step 1 of alternative billing flow. Check if alternative billing is
         available for this user/device.
       </p>
+      <p>
+        Wraps <code>BillingClient.isAlternativeBillingOnlyAvailableAsync()</code>{' '}
+        — step 1 of the alternative billing flow. Returns whether the user/device
+        is eligible. See the{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/alternative"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google Play Billing reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

@@ -19,6 +19,30 @@ function FinishTransaction() {
         Complete a purchase transaction. Must be called after verifying the
         purchase to remove it from the queue.
       </p>
+      <p>
+        <strong>iOS:</strong> Calls <code>Transaction.finish()</code>. Until
+        you do, the same transaction replays through{' '}
+        <code>Transaction.updates</code> on every app launch.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/finish()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Acknowledges (
+        <code>acknowledgePurchase</code>) for non-consumables/subscriptions or
+        consumes (<code>consumeAsync</code>) for consumables. Google
+        auto-refunds within 3 days if neither runs.{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/integrate#process"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

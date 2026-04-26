@@ -26,6 +26,18 @@ function BillingPrograms() {
           API, which provides a more structured approach to external offers and
           content links. Version 8.3.0 adds External Payments for Japan.
         </p>
+        <p>
+          Identifiers for Play Billing 8.2.0+ programs (External Payments,
+          etc.). <strong>Android only</strong> (
+          <a
+            href="https://developer.android.com/google/play/billing/billing-programs"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

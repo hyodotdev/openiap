@@ -23,6 +23,20 @@ function SubscriptionStatusIos() {
           <code>subscriptionStatusIOS(sku)</code> to get detailed subscription
           state.
         </p>
+        <p>
+          <strong>iOS only.</strong> Mirrors{' '}
+          <code>Product.SubscriptionInfo.Status</code> — combines{' '}
+          <code>transaction</code>, <code>renewalInfo</code>, and{' '}
+          <code>state</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native reference:</strong>{' '}
           <a

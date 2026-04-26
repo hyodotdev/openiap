@@ -20,6 +20,19 @@ function GetReceiptDataIOS() {
         getReceiptDataIOS
       </h1>
       <p>Get base64-encoded receipt data for legacy validation.</p>
+      <p>
+        Reads <code>Bundle.main.appStoreReceiptURL</code> and base64-encodes the
+        file. Legacy StoreKit 1 flow — prefer JWS / <code>verifyPurchase</code>.
+        See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/original_api_for_in-app_purchase"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

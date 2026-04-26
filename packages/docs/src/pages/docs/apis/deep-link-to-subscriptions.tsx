@@ -20,6 +20,32 @@ function DeepLinkToSubscriptions() {
         Open the native subscription management interface where users can view
         and manage their subscriptions.
       </p>
+      <p>
+        <strong>iOS:</strong> Opens{' '}
+        <code>https://apps.apple.com/account/subscriptions</code> (universal
+        link) so the user can manage subscriptions in the App Store.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/manage-subscriptions-in-your-app"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Opens the Play Store subscription
+        management deep link{' '}
+        <code>
+          https://play.google.com/store/account/subscriptions?package=&lt;pkg&gt;&amp;sku=&lt;sku&gt;
+        </code>
+        .{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/subscriptions#deep-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

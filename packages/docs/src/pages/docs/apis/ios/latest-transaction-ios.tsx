@@ -19,6 +19,18 @@ function LatestTransactionIOS() {
         latestTransactionIOS
       </h1>
       <p>Get the most recent transaction for a product (iOS 15+).</p>
+      <p>
+        Wraps <code>Transaction.latest(for:)</code> — returns the most recent
+        verified transaction (success or refund). See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/latest(for:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

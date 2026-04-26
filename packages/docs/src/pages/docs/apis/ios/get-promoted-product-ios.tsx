@@ -19,6 +19,19 @@ function GetPromotedProductIOS() {
         getPromotedProductIOS
       </h1>
       <p>Get the currently promoted product from App Store (iOS 11+).</p>
+      <p>
+        Reads the product surfaced via App Store promoted IAP campaigns (
+        <code>SKPaymentTransactionObserver.shouldAddStorePayment</code>). iOS
+        11+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/in-app-purchase/promoting-in-app-purchases"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

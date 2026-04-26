@@ -19,6 +19,20 @@ function PaymentModeIos() {
           PaymentMode
         </AnchorLink>
         <p>Payment mode for offers:</p>
+        <p>
+          <strong>iOS only.</strong> Mirrors{' '}
+          <code>Product.SubscriptionOffer.PaymentMode</code> (
+          <code>payAsYouGo</code>, <code>payUpFront</code>,{' '}
+          <code>freeTrial</code>) (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer/paymentmode"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native reference:</strong>{' '}
           <a

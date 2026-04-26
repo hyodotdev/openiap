@@ -4800,7 +4800,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Retrieve products or subscriptions from the store
+	## Fetch products or subscriptions from the store.
 	class fetchProductsField:
 		const name = "fetchProducts"
 		const snake_name = "fetch_products"
@@ -4820,7 +4820,7 @@ class Query:
 		const return_type = "FetchProductsResult"
 		const is_array = false
 
-	## Get all available purchases for the current user
+	## List active purchases for the current user.
 	class getAvailablePurchasesField:
 		const name = "getAvailablePurchases"
 		const snake_name = "get_available_purchases"
@@ -4840,7 +4840,7 @@ class Query:
 		const return_type = "Purchase"
 		const is_array = true
 
-	## Get active subscriptions (filters by subscriptionIds when provided)
+	## Get details of all currently active subscriptions (filters by subscriptionIds when provided).
 	class getActiveSubscriptionsField:
 		const name = "getActiveSubscriptions"
 		const snake_name = "get_active_subscriptions"
@@ -4860,7 +4860,7 @@ class Query:
 		const return_type = "ActiveSubscription"
 		const is_array = true
 
-	## Check whether the user has active subscriptions
+	## Check whether the user has any active subscription.
 	class hasActiveSubscriptionsField:
 		const name = "hasActiveSubscriptions"
 		const snake_name = "has_active_subscriptions"
@@ -4880,7 +4880,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Get the current storefront country code
+	## Return the user's storefront country code.
 	class getStorefrontField:
 		const name = "getStorefront"
 		const snake_name = "get_storefront"
@@ -4889,7 +4889,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Get the current App Store storefront country code
+	## Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
 	class getStorefrontIOSField:
 		const name = "getStorefrontIOS"
 		const snake_name = "get_storefront_ios"
@@ -4898,7 +4898,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Get the currently promoted product (iOS 11+)
+	## Read the App Store-promoted product, if any (iOS 11+).
 	class getPromotedProductIOSField:
 		const name = "getPromotedProductIOS"
 		const snake_name = "get_promoted_product_ios"
@@ -4907,7 +4907,7 @@ class Query:
 		const return_type = "ProductIOS"
 		const is_array = false
 
-	## Check if external purchase notice sheet can be presented (iOS 17.4+)
+	## Check eligibility for the external purchase notice sheet (iOS 17.4+).
 	class canPresentExternalPurchaseNoticeIOSField:
 		const name = "canPresentExternalPurchaseNoticeIOS"
 		const snake_name = "can_present_external_purchase_notice_ios"
@@ -4916,7 +4916,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
+	## Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
 	class isEligibleForExternalPurchaseCustomLinkIOSField:
 		const name = "isEligibleForExternalPurchaseCustomLinkIOS"
 		const snake_name = "is_eligible_for_external_purchase_custom_link_ios"
@@ -4925,7 +4925,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Get external purchase token for reporting to Apple (iOS 18.1+).
+	## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
 	class getExternalPurchaseCustomLinkTokenIOSField:
 		const name = "getExternalPurchaseCustomLinkTokenIOS"
 		const snake_name = "get_external_purchase_custom_link_token_ios"
@@ -4953,7 +4953,7 @@ class Query:
 		const return_type = "ExternalPurchaseCustomLinkTokenResultIOS"
 		const is_array = false
 
-	## Retrieve all pending transactions in the StoreKit queue
+	## List unfinished StoreKit transactions in the queue.
 	class getPendingTransactionsIOSField:
 		const name = "getPendingTransactionsIOS"
 		const snake_name = "get_pending_transactions_ios"
@@ -4962,7 +4962,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Check introductory offer eligibility for a subscription group
+	## Check intro-offer eligibility for a subscription group.
 	class isEligibleForIntroOfferIOSField:
 		const name = "isEligibleForIntroOfferIOS"
 		const snake_name = "is_eligible_for_intro_offer_ios"
@@ -4982,7 +4982,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Get StoreKit 2 subscription status details (iOS 15+)
+	## Get subscription status objects from StoreKit 2 (iOS 15+).
 	class subscriptionStatusIOSField:
 		const name = "subscriptionStatusIOS"
 		const snake_name = "subscription_status_ios"
@@ -5002,7 +5002,7 @@ class Query:
 		const return_type = "SubscriptionStatusIOS"
 		const is_array = true
 
-	## Get current StoreKit 2 entitlements (iOS 15+)
+	## Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
 	class currentEntitlementIOSField:
 		const name = "currentEntitlementIOS"
 		const snake_name = "current_entitlement_ios"
@@ -5022,7 +5022,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = false
 
-	## Get the latest transaction for a product using StoreKit 2
+	## Get the latest verified transaction for a product, using StoreKit 2.
 	class latestTransactionIOSField:
 		const name = "latestTransactionIOS"
 		const snake_name = "latest_transaction_ios"
@@ -5042,7 +5042,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = false
 
-	## Verify a StoreKit 2 transaction signature
+	## Check whether a transaction's JWS verification passed (StoreKit 2).
 	class isTransactionVerifiedIOSField:
 		const name = "isTransactionVerifiedIOS"
 		const snake_name = "is_transaction_verified_ios"
@@ -5062,7 +5062,7 @@ class Query:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Get the transaction JWS (StoreKit 2)
+	## Return the JWS string for a transaction (StoreKit 2).
 	class getTransactionJwsIOSField:
 		const name = "getTransactionJwsIOS"
 		const snake_name = "get_transaction_jws_ios"
@@ -5082,7 +5082,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Get base64-encoded receipt data for validation
+	## Get base64-encoded receipt data (legacy validation).
 	class getReceiptDataIOSField:
 		const name = "getReceiptDataIOS"
 		const snake_name = "get_receipt_data_ios"
@@ -5091,7 +5091,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Fetch the current app transaction (iOS 16+)
+	## Fetch the app transaction (iOS 16+).
 	class getAppTransactionIOSField:
 		const name = "getAppTransactionIOS"
 		const snake_name = "get_app_transaction_ios"
@@ -5100,7 +5100,7 @@ class Query:
 		const return_type = "AppTransaction"
 		const is_array = false
 
-	## Get the full StoreKit 2 transaction history as PurchaseIOS values.
+	## List every StoreKit transaction (finished + unfinished) for the current user.
 	class getAllTransactionsIOSField:
 		const name = "getAllTransactionsIOS"
 		const snake_name = "get_all_transactions_ios"
@@ -5109,7 +5109,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Validate a receipt for a specific product
+	## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
 	class validateReceiptIOSField:
 		const name = "validateReceiptIOS"
 		const snake_name = "validate_receipt_ios"
@@ -5143,7 +5143,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Establish the platform billing connection
+	## Initialize the store connection. Call before any IAP API.
 	class initConnectionField:
 		const name = "initConnection"
 		const snake_name = "init_connection"
@@ -5163,7 +5163,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Close the platform billing connection
+	## Close the store connection and release resources.
 	class endConnectionField:
 		const name = "endConnection"
 		const snake_name = "end_connection"
@@ -5172,7 +5172,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Initiate a purchase flow; rely on events for final state
+	## Initiate a purchase or subscription flow; rely on events for final state.
 	class requestPurchaseField:
 		const name = "requestPurchase"
 		const snake_name = "request_purchase"
@@ -5192,7 +5192,7 @@ class Mutation:
 		const return_type = "RequestPurchaseResult"
 		const is_array = false
 
-	## Finish a transaction after validating receipts
+	## Complete a transaction after server-side verification. Required on Android within 3 days.
 	class finishTransactionField:
 		const name = "finishTransaction"
 		const snake_name = "finish_transaction"
@@ -5216,7 +5216,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Restore completed purchases across platforms
+	## Restore non-consumable and active subscription purchases.
 	class restorePurchasesField:
 		const name = "restorePurchases"
 		const snake_name = "restore_purchases"
@@ -5225,7 +5225,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Open the native subscription management surface
+	## Open the platform's subscription management UI.
 	class deepLinkToSubscriptionsField:
 		const name = "deepLinkToSubscriptions"
 		const snake_name = "deep_link_to_subscriptions"
@@ -5245,7 +5245,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Validate purchase receipts with the configured providers
+	## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
 	class validateReceiptField:
 		const name = "validateReceipt"
 		const snake_name = "validate_receipt"
@@ -5265,7 +5265,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
-	## Verify purchases with the configured providers
+	## Verify a purchase against your own backend (returns isValid + raw store metadata).
 	class verifyPurchaseField:
 		const name = "verifyPurchase"
 		const snake_name = "verify_purchase"
@@ -5285,7 +5285,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
-	## Verify purchases with a specific provider (e.g., IAPKit)
+	## Verify via a managed provider (IAPKit, Apple, Google, Horizon) without standing up your own server.
 	class verifyPurchaseWithProviderField:
 		const name = "verifyPurchaseWithProvider"
 		const snake_name = "verify_purchase_with_provider"
@@ -5305,7 +5305,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseWithProviderResult"
 		const is_array = false
 
-	## Clear pending transactions from the StoreKit payment queue
+	## Clear pending transactions in the queue (sandbox helper).
 	class clearTransactionIOSField:
 		const name = "clearTransactionIOS"
 		const snake_name = "clear_transaction_ios"
@@ -5314,7 +5314,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Purchase the promoted product surfaced by the App Store.
+	## Buy the currently promoted product.
 	class requestPurchaseOnPromotedProductIOSField:
 		const name = "requestPurchaseOnPromotedProductIOS"
 		const snake_name = "request_purchase_on_promoted_product_ios"
@@ -5323,7 +5323,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Open subscription management UI and return changed purchases (iOS 15+)
+	## Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
 	class showManageSubscriptionsIOSField:
 		const name = "showManageSubscriptionsIOS"
 		const snake_name = "show_manage_subscriptions_ios"
@@ -5332,7 +5332,7 @@ class Mutation:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Initiate a refund request for a product (iOS 15+)
+	## Present the refund request sheet (iOS 15+). See also Features → Refund.
 	class beginRefundRequestIOSField:
 		const name = "beginRefundRequestIOS"
 		const snake_name = "begin_refund_request_ios"
@@ -5352,7 +5352,7 @@ class Mutation:
 		const return_type = "String"
 		const is_array = false
 
-	## Force a StoreKit sync for transactions (iOS 15+)
+	## Force sync transactions with the App Store (iOS 15+).
 	class syncIOSField:
 		const name = "syncIOS"
 		const snake_name = "sync_ios"
@@ -5361,7 +5361,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present the App Store code redemption sheet
+	## Show the App Store offer code redemption sheet.
 	class presentCodeRedemptionSheetIOSField:
 		const name = "presentCodeRedemptionSheetIOS"
 		const snake_name = "present_code_redemption_sheet_ios"
@@ -5370,7 +5370,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Present external purchase notice sheet (iOS 17.4+).
+	## Present the external purchase notice sheet (iOS 17.4+).
 	class presentExternalPurchaseNoticeSheetIOSField:
 		const name = "presentExternalPurchaseNoticeSheetIOS"
 		const snake_name = "present_external_purchase_notice_sheet_ios"
@@ -5379,7 +5379,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseNoticeResultIOS"
 		const is_array = false
 
-	## Present external purchase custom link with StoreKit UI
+	## Present an external purchase link, StoreKit External (iOS 16+).
 	class presentExternalPurchaseLinkIOSField:
 		const name = "presentExternalPurchaseLinkIOS"
 		const snake_name = "present_external_purchase_link_ios"
@@ -5399,7 +5399,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseLinkResultIOS"
 		const is_array = false
 
-	## Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
+	## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
 	class showExternalPurchaseCustomLinkNoticeIOSField:
 		const name = "showExternalPurchaseCustomLinkNoticeIOS"
 		const snake_name = "show_external_purchase_custom_link_notice_ios"
@@ -5427,7 +5427,7 @@ class Mutation:
 		const return_type = "ExternalPurchaseCustomLinkNoticeResultIOS"
 		const is_array = false
 
-	## Acknowledge a non-consumable purchase or subscription
+	## Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
 	class acknowledgePurchaseAndroidField:
 		const name = "acknowledgePurchaseAndroid"
 		const snake_name = "acknowledge_purchase_android"
@@ -5447,7 +5447,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Consume a purchase token so it can be repurchased
+	## Consume a consumable purchase so it can be re-bought.
 	class consumePurchaseAndroidField:
 		const name = "consumePurchaseAndroid"
 		const snake_name = "consume_purchase_android"
@@ -5467,7 +5467,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Check if alternative billing is available for this user/device
+	## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
 	class checkAlternativeBillingAvailabilityAndroidField:
 		const name = "checkAlternativeBillingAvailabilityAndroid"
 		const snake_name = "check_alternative_billing_availability_android"
@@ -5476,7 +5476,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show alternative billing information dialog to user
+	## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
 	class showAlternativeBillingDialogAndroidField:
 		const name = "showAlternativeBillingDialogAndroid"
 		const snake_name = "show_alternative_billing_dialog_android"
@@ -5485,7 +5485,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Create external transaction token for Google Play reporting
+	## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
 	class createAlternativeBillingTokenAndroidField:
 		const name = "createAlternativeBillingTokenAndroid"
 		const snake_name = "create_alternative_billing_token_android"
@@ -5494,7 +5494,7 @@ class Mutation:
 		const return_type = "String"
 		const is_array = false
 
-	## Check if a billing program is available for the current user
+	## Check whether a billing program (e.g., External Payments) is available for the current user.
 	class isBillingProgramAvailableAndroidField:
 		const name = "isBillingProgramAvailableAndroid"
 		const snake_name = "is_billing_program_available_android"
@@ -5521,7 +5521,7 @@ class Mutation:
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
 
-	## Create reporting details for a billing program
+	## Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
 	class createBillingProgramReportingDetailsAndroidField:
 		const name = "createBillingProgramReportingDetailsAndroid"
 		const snake_name = "create_billing_program_reporting_details_android"
@@ -5548,7 +5548,7 @@ class Mutation:
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false
 
-	## Launch external link flow for external billing programs
+	## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
 	class launchExternalLinkAndroidField:
 		const name = "launchExternalLinkAndroid"
 		const snake_name = "launch_external_link_android"
@@ -5576,7 +5576,7 @@ class Mutation:
 
 # Query API helpers
 
-## Retrieve products or subscriptions from the store
+## Fetch products or subscriptions from the store.
 static func fetch_products_args(params: ProductRequest) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -5586,7 +5586,7 @@ static func fetch_products_args(params: ProductRequest) -> Dictionary:
 			args["params"] = params
 	return args
 
-## Get all available purchases for the current user
+## List active purchases for the current user.
 static func get_available_purchases_args(options: PurchaseOptions) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -5596,97 +5596,97 @@ static func get_available_purchases_args(options: PurchaseOptions) -> Dictionary
 			args["options"] = options
 	return args
 
-## Get active subscriptions (filters by subscriptionIds when provided)
+## Get details of all currently active subscriptions (filters by subscriptionIds when provided).
 static func get_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
 	var args = {}
 	args["subscriptionIds"] = subscription_ids
 	return args
 
-## Check whether the user has active subscriptions
+## Check whether the user has any active subscription.
 static func has_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
 	var args = {}
 	args["subscriptionIds"] = subscription_ids
 	return args
 
-## Get the current storefront country code
+## Return the user's storefront country code.
 static func get_storefront_args() -> Dictionary:
 	return {}
 
-## Get the current App Store storefront country code
+## Deprecated. Get the current App Store storefront country code — use cross-platform getStorefront instead.
 static func get_storefront_ios_args() -> Dictionary:
 	return {}
 
-## Get the currently promoted product (iOS 11+)
+## Read the App Store-promoted product, if any (iOS 11+).
 static func get_promoted_product_ios_args() -> Dictionary:
 	return {}
 
-## Check if external purchase notice sheet can be presented (iOS 17.4+)
+## Check eligibility for the external purchase notice sheet (iOS 17.4+).
 static func can_present_external_purchase_notice_ios_args() -> Dictionary:
 	return {}
 
-## Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
+## Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
 static func is_eligible_for_external_purchase_custom_link_ios_args() -> Dictionary:
 	return {}
 
-## Get external purchase token for reporting to Apple (iOS 18.1+).
+## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
 static func get_external_purchase_custom_link_token_ios_args(token_type: ExternalPurchaseCustomLinkTokenTypeIOS) -> Dictionary:
 	var args = {}
 	args["tokenType"] = token_type
 	return args
 
-## Retrieve all pending transactions in the StoreKit queue
+## List unfinished StoreKit transactions in the queue.
 static func get_pending_transactions_ios_args() -> Dictionary:
 	return {}
 
-## Check introductory offer eligibility for a subscription group
+## Check intro-offer eligibility for a subscription group.
 static func is_eligible_for_intro_offer_ios_args(group_id: String) -> Dictionary:
 	var args = {}
 	args["groupID"] = group_id
 	return args
 
-## Get StoreKit 2 subscription status details (iOS 15+)
+## Get subscription status objects from StoreKit 2 (iOS 15+).
 static func subscription_status_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Get current StoreKit 2 entitlements (iOS 15+)
+## Get the user's current entitlement for a product, using StoreKit 2 (iOS 15+).
 static func current_entitlement_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Get the latest transaction for a product using StoreKit 2
+## Get the latest verified transaction for a product, using StoreKit 2.
 static func latest_transaction_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Verify a StoreKit 2 transaction signature
+## Check whether a transaction's JWS verification passed (StoreKit 2).
 static func is_transaction_verified_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Get the transaction JWS (StoreKit 2)
+## Return the JWS string for a transaction (StoreKit 2).
 static func get_transaction_jws_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Get base64-encoded receipt data for validation
+## Get base64-encoded receipt data (legacy validation).
 static func get_receipt_data_ios_args() -> Dictionary:
 	return {}
 
-## Fetch the current app transaction (iOS 16+)
+## Fetch the app transaction (iOS 16+).
 static func get_app_transaction_ios_args() -> Dictionary:
 	return {}
 
-## Get the full StoreKit 2 transaction history as PurchaseIOS values.
+## List every StoreKit transaction (finished + unfinished) for the current user.
 static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 
-## Validate a receipt for a specific product
+## Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
 static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -5698,7 +5698,7 @@ static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionar
 
 # Mutation API helpers
 
-## Establish the platform billing connection
+## Initialize the store connection. Call before any IAP API.
 static func init_connection_args(config: InitConnectionConfig) -> Dictionary:
 	var args = {}
 	if config != null:
@@ -5708,11 +5708,11 @@ static func init_connection_args(config: InitConnectionConfig) -> Dictionary:
 			args["config"] = config
 	return args
 
-## Close the platform billing connection
+## Close the store connection and release resources.
 static func end_connection_args() -> Dictionary:
 	return {}
 
-## Initiate a purchase flow; rely on events for final state
+## Initiate a purchase or subscription flow; rely on events for final state.
 static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -5722,7 +5722,7 @@ static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
 			args["params"] = params
 	return args
 
-## Finish a transaction after validating receipts
+## Complete a transaction after server-side verification. Required on Android within 3 days.
 static func finish_transaction_args(purchase: PurchaseInput, is_consumable: bool) -> Dictionary:
 	var args = {}
 	if purchase != null:
@@ -5733,11 +5733,11 @@ static func finish_transaction_args(purchase: PurchaseInput, is_consumable: bool
 	args["isConsumable"] = is_consumable
 	return args
 
-## Restore completed purchases across platforms
+## Restore non-consumable and active subscription purchases.
 static func restore_purchases_args() -> Dictionary:
 	return {}
 
-## Open the native subscription management surface
+## Open the platform's subscription management UI.
 static func deep_link_to_subscriptions_args(options: DeepLinkOptions) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -5747,7 +5747,7 @@ static func deep_link_to_subscriptions_args(options: DeepLinkOptions) -> Diction
 			args["options"] = options
 	return args
 
-## Validate purchase receipts with the configured providers
+## Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
 static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -5757,7 +5757,7 @@ static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
 			args["options"] = options
 	return args
 
-## Verify purchases with the configured providers
+## Verify a purchase against your own backend (returns isValid + raw store metadata).
 static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -5767,7 +5767,7 @@ static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 			args["options"] = options
 	return args
 
-## Verify purchases with a specific provider (e.g., IAPKit)
+## Verify via a managed provider (IAPKit, Apple, Google, Horizon) without standing up your own server.
 static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProviderProps) -> Dictionary:
 	var args = {}
 	if options != null:
@@ -5777,85 +5777,85 @@ static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProvid
 			args["options"] = options
 	return args
 
-## Clear pending transactions from the StoreKit payment queue
+## Clear pending transactions in the queue (sandbox helper).
 static func clear_transaction_ios_args() -> Dictionary:
 	return {}
 
-## Purchase the promoted product surfaced by the App Store.
+## Buy the currently promoted product.
 static func request_purchase_on_promoted_product_ios_args() -> Dictionary:
 	return {}
 
-## Open subscription management UI and return changed purchases (iOS 15+)
+## Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
 static func show_manage_subscriptions_ios_args() -> Dictionary:
 	return {}
 
-## Initiate a refund request for a product (iOS 15+)
+## Present the refund request sheet (iOS 15+). See also Features → Refund.
 static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 	var args = {}
 	args["sku"] = sku
 	return args
 
-## Force a StoreKit sync for transactions (iOS 15+)
+## Force sync transactions with the App Store (iOS 15+).
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Present the App Store code redemption sheet
+## Show the App Store offer code redemption sheet.
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present external purchase notice sheet (iOS 17.4+).
+## Present the external purchase notice sheet (iOS 17.4+).
 static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
 	return {}
 
-## Present external purchase custom link with StoreKit UI
+## Present an external purchase link, StoreKit External (iOS 16+).
 static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
 	var args = {}
 	args["url"] = url
 	return args
 
-## Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
+## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
 static func show_external_purchase_custom_link_notice_ios_args(notice_type: ExternalPurchaseCustomLinkNoticeTypeIOS) -> Dictionary:
 	var args = {}
 	args["noticeType"] = notice_type
 	return args
 
-## Acknowledge a non-consumable purchase or subscription
+## Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
 static func acknowledge_purchase_android_args(purchase_token: String) -> Dictionary:
 	var args = {}
 	args["purchaseToken"] = purchase_token
 	return args
 
-## Consume a purchase token so it can be repurchased
+## Consume a consumable purchase so it can be re-bought.
 static func consume_purchase_android_args(purchase_token: String) -> Dictionary:
 	var args = {}
 	args["purchaseToken"] = purchase_token
 	return args
 
-## Check if alternative billing is available for this user/device
+## Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
 static func check_alternative_billing_availability_android_args() -> Dictionary:
 	return {}
 
-## Show alternative billing information dialog to user
+## Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
 static func show_alternative_billing_dialog_android_args() -> Dictionary:
 	return {}
 
-## Create external transaction token for Google Play reporting
+## Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
 static func create_alternative_billing_token_android_args() -> Dictionary:
 	return {}
 
-## Check if a billing program is available for the current user
+## Check whether a billing program (e.g., External Payments) is available for the current user.
 static func is_billing_program_available_android_args(program: BillingProgramAndroid) -> Dictionary:
 	var args = {}
 	args["program"] = program
 	return args
 
-## Create reporting details for a billing program
+## Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
 static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid) -> Dictionary:
 	var args = {}
 	args["program"] = program
 	return args
 
-## Launch external link flow for external billing programs
+## Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
 static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:

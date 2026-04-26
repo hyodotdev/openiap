@@ -25,6 +25,20 @@ function AlternativeBillingTypes() {
           Types for configuring alternative billing systems, primarily used for
           Android.
         </p>
+        <p>
+          Modes for opting into Google&apos;s alternative-billing programs.{' '}
+          <strong>Android only</strong> — passed via{' '}
+          <code>InitConnectionConfig.alternativeBillingModeAndroid</code>{' '}
+          (deprecated; prefer <code>enableBillingProgramAndroid</code>) (
+          <a
+            href="https://developer.android.com/google/play/billing/alternative"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

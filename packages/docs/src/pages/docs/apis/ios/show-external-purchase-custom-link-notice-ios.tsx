@@ -31,6 +31,18 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
         deliberate customer interaction, before you can route the user to an
         external purchase URL.
       </p>
+      <p>
+        Wraps <code>ExternalPurchaseCustomLink.showNotice(type:)</code> —
+        required disclosure sheet before linking out. iOS 18.1+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

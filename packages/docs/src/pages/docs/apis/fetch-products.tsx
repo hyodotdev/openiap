@@ -18,6 +18,30 @@ function FetchProducts() {
       />
       <h1>fetchProducts</h1>
       <p>Retrieve products or subscriptions from the store by SKU.</p>
+      <p>
+        <strong>iOS:</strong> Wraps <code>Product.products(for:)</code>{' '}
+        (StoreKit 2). Fetches the localized price/title for each SKU; throws if
+        any SKU is invalid.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/products(for:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls{' '}
+        <code>BillingClient.queryProductDetailsAsync</code> with the right{' '}
+        <code>ProductType</code> (INAPP/SUBS) per request. Unknown SKUs return
+        an empty list, not an error.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#queryProductDetailsAsync(com.android.billingclient.api.QueryProductDetailsParams,com.android.billingclient.api.ProductDetailsResponseListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs

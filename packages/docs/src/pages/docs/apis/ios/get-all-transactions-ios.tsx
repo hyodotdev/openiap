@@ -23,6 +23,19 @@ function GetAllTransactionsIOS() {
         Requires the SK2ConsumableTransactionHistory Info.plist key for finished
         consumables to be included (iOS 18+).
       </p>
+      <p>
+        Iterates <code>Transaction.all</code>. iOS 18+ requires{' '}
+        <code>SK2ConsumableTransactionHistory</code> Info.plist key for finished
+        consumables to appear. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/all"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

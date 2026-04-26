@@ -22,6 +22,18 @@ function IsEligibleForIntroOfferIOS() {
         Check introductory offer eligibility for a subscription group (iOS
         12.2+).
       </p>
+      <p>
+        Wraps <code>Product.SubscriptionInfo.isEligibleForIntroOffer(for:)</code>{' '}
+        — checks subscription-group level eligibility. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer(for:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

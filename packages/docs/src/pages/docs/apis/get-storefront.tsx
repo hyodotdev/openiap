@@ -16,6 +16,29 @@ function GetStorefront() {
       />
       <h1>getStorefront</h1>
       <p>Get the storefront country code for the active user.</p>
+      <p>
+        <strong>iOS:</strong> Reads <code>Storefront.current?.countryCode</code>{' '}
+        (StoreKit 2). Returns the user's App Store storefront, not the device
+        locale.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/storefront"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Reads <code>BillingConfig.countryCode</code>{' '}
+        from <code>BillingClient.getBillingConfigAsync</code>. Reflects the Play
+        Store account region, not the SIM/device locale.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#getBillingConfigAsync(com.android.billingclient.api.GetBillingConfigParams,com.android.billingclient.api.BillingConfigResponseListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

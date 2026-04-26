@@ -3,27 +3,32 @@
 # Product management
 extend type Query {
   """
-  Retrieve products or subscriptions from the store
+  Fetch products or subscriptions from the store.
+  See: https://www.openiap.dev/docs/apis/fetch-products
   """
   # Future
   fetchProducts(params: ProductRequest!): FetchProductsResult!
   """
-  Get all available purchases for the current user
+  List active purchases for the current user.
+  See: https://www.openiap.dev/docs/apis/get-available-purchases
   """
   # Future
   getAvailablePurchases(options: PurchaseOptions): [Purchase!]!
   """
-  Get active subscriptions (filters by subscriptionIds when provided)
+  Get details of all currently active subscriptions (filters by subscriptionIds when provided).
+  See: https://www.openiap.dev/docs/apis/get-active-subscriptions
   """
   # Future
   getActiveSubscriptions(subscriptionIds: [String!]): [ActiveSubscription!]!
   """
-  Check whether the user has active subscriptions
+  Check whether the user has any active subscription.
+  See: https://www.openiap.dev/docs/apis/has-active-subscriptions
   """
   # Future
   hasActiveSubscriptions(subscriptionIds: [String!]): Boolean!
   """
-  Get the current storefront country code
+  Return the user's storefront country code.
+  See: https://www.openiap.dev/docs/apis/get-storefront
   """
   # Future
   getStorefront: String!
@@ -32,22 +37,26 @@ extend type Query {
 # Request APIs (event driven)
 extend type Mutation {
   """
-  Establish the platform billing connection
+  Initialize the store connection. Call before any IAP API.
+  See: https://www.openiap.dev/docs/apis/init-connection
   """
   # Future
   initConnection(config: InitConnectionConfig): Boolean!
   """
-  Close the platform billing connection
+  Close the store connection and release resources.
+  See: https://www.openiap.dev/docs/apis/end-connection
   """
   # Future
   endConnection: Boolean!
   """
-  Initiate a purchase flow; rely on events for final state
+  Initiate a purchase or subscription flow; rely on events for final state.
+  See: https://www.openiap.dev/docs/apis/request-purchase
   """
   # Future
   requestPurchase(params: RequestPurchaseProps!): RequestPurchaseResult
   """
-  Finish a transaction after validating receipts
+  Complete a transaction after server-side verification. Required on Android within 3 days.
+  See: https://www.openiap.dev/docs/apis/finish-transaction
   """
   # Future
   finishTransaction(
@@ -55,27 +64,32 @@ extend type Mutation {
     isConsumable: Boolean
   ): VoidResult!
   """
-  Restore completed purchases across platforms
+  Restore non-consumable and active subscription purchases.
+  See: https://www.openiap.dev/docs/apis/restore-purchases
   """
   # Future
   restorePurchases: VoidResult!
   """
-  Open the native subscription management surface
+  Open the platform's subscription management UI.
+  See: https://www.openiap.dev/docs/apis/deep-link-to-subscriptions
   """
   # Future
   deepLinkToSubscriptions(options: DeepLinkOptions): VoidResult!
   """
-  Validate purchase receipts with the configured providers
+  Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
+  See: https://www.openiap.dev/docs/features/validation#verify-purchase
   """
   # Future
   validateReceipt(options: VerifyPurchaseProps!): VerifyPurchaseResult! @deprecated(reason: "Use verifyPurchase")
   """
-  Verify purchases with the configured providers
+  Verify a purchase against your own backend (returns isValid + raw store metadata).
+  See: https://www.openiap.dev/docs/features/validation#verify-purchase
   """
   # Future
   verifyPurchase(options: VerifyPurchaseProps!): VerifyPurchaseResult!
   """
-  Verify purchases with a specific provider (e.g., IAPKit)
+  Verify via a managed provider (IAPKit, Apple, Google, Horizon) without standing up your own server.
+  See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
   """
   # Future
   verifyPurchaseWithProvider(

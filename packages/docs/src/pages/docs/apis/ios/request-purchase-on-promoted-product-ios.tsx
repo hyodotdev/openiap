@@ -22,6 +22,19 @@ function RequestPurchaseOnPromotedProductIOS() {
       <p>
         Deprecated. Use promotedProductListenerIOS plus requestPurchase instead.
       </p>
+      <p>
+        Triggers the promoted product's purchase. <strong>Deprecated</strong> —
+        prefer <code>promotedProductListenerIOS</code> +{' '}
+        <code>requestPurchase</code> for StoreKit 2. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/in-app-purchase/promoting-in-app-purchases"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <div className="alert-card alert-card--warning">
         <p>

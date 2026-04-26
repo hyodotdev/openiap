@@ -32,6 +32,18 @@ function VerifyPurchaseWithProviderProps() {
           </a>
           .
         </p>
+        <p>
+          Input to <code>verifyPurchaseWithProvider</code> — pick a managed
+          validator (IAPKit, Apple, Google, Horizon). See{' '}
+          <a
+            href="https://www.openiap.dev/docs/features/validation"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Validation docs
+          </a>
+          .
+        </p>
 
         <table className="doc-table">
           <thead>

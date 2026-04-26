@@ -20,6 +20,19 @@ function IsTransactionVerifiedIOS() {
         isTransactionVerifiedIOS
       </h1>
       <p>Verify a StoreKit 2 transaction signature (iOS 15+).</p>
+      <p>
+        Inspects the <code>VerificationResult</code> from{' '}
+        <code>Transaction.latest(for:)</code> — <code>.verified</code> vs{' '}
+        <code>.unverified</code>. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/verificationresult"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

@@ -31,6 +31,18 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
         for the corresponding entitlement and music-streaming-app-style flows
         are allowed.
       </p>
+      <p>
+        Wraps <code>ExternalPurchaseCustomLink.isEligible</code> — iOS 18.1+.
+        See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

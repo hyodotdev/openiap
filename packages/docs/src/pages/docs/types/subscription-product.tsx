@@ -25,6 +25,28 @@ function SubscriptionProduct() {
           base Product type with subscription-specific fields like pricing
           phases, introductory offers, and billing periods.
         </p>
+        <p>
+          Cross-platform subscription product shape. <strong>iOS:</strong>{' '}
+          derived from <code>Product</code> with <code>subscription</code>{' '}
+          populated (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> derived from <code>ProductDetails</code>{' '}
+          with <code>subscriptionOfferDetails</code> (
+          <a
+            href="https://developer.android.com/google/play/billing/subscriptions"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

@@ -19,6 +19,18 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         presentExternalPurchaseNoticeSheetIOS
       </h1>
       <p>Present Apple's compliance notice sheet (iOS 17.4+).</p>
+      <p>
+        Wraps <code>ExternalPurchase.presentNoticeSheet()</code> — returns a
+        token if the user accepts. iOS 17.4+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

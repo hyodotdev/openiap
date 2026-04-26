@@ -19,6 +19,30 @@ function GetActiveSubscriptions() {
       <p>
         Get all active subscriptions with detailed renewal status information.
       </p>
+      <p>
+        <strong>iOS:</strong> Iterates{' '}
+        <code>Transaction.currentEntitlements</code> and filters to subscription
+        product types; checks <code>expirationDate</code> and{' '}
+        <code>revocationDate</code>.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls <code>queryPurchasesAsync(SUBS)</code>{' '}
+        and treats <code>purchaseState == PURCHASED &amp;&amp; autoRenewing</code>{' '}
+        as active.{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

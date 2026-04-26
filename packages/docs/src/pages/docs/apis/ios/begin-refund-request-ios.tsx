@@ -23,6 +23,18 @@ function BeginRefundRequestIOS() {
         Initiate a refund request for a product (iOS 15+). Presents the StoreKit
         refund sheet.
       </p>
+      <p>
+        Wraps <code>Transaction.beginRefundRequest(in:)</code> — presents the
+        refund-request sheet. iOS 15+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/beginrefundrequest(in:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

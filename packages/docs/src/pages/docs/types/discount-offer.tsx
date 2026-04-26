@@ -31,6 +31,27 @@ function DiscountOffer() {
           </Link>
           ; iOS does not support one-time product discounts.
         </p>
+        <p>
+          Cross-platform discount-offer envelope. <strong>iOS:</strong> maps to
+          a signed <code>Product.SubscriptionOffer</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> maps to a Play{' '}
+          <code>SubscriptionOfferDetails</code> entry (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.SubscriptionOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

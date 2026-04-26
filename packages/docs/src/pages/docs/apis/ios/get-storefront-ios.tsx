@@ -20,6 +20,18 @@ function GetStorefrontIOS() {
         getStorefrontIOS
       </h1>
       <p>Deprecated. Use getStorefront() (cross-platform) instead.</p>
+      <p>
+        Wraps <code>Storefront.current</code> — deprecated in OpenIAP. Returns
+        the App Store storefront country code. iOS 13+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/storefront"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <div className="alert-card alert-card--warning">
         <p>

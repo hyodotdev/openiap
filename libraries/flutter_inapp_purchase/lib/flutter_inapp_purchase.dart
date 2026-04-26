@@ -246,7 +246,22 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     });
   }
 
-  /// Initialize connection (flutter IAP compatible)
+  /// Initialize the store connection. Must be called before any other IAP API.
+  ///
+  /// Parameters:
+  /// - `alternativeBillingModeAndroid`: Android-only — opt into Google's alternative
+  ///   billing flow (deprecated; prefer `enableBillingProgramAndroid`).
+  /// - `enableBillingProgramAndroid`: Android-only — Play Billing 8.2.0+ billing program
+  ///   (e.g. External Payments). iOS ignores both fields.
+  ///
+  /// Returns `true` once the platform billing client is connected.
+  /// Throws when the billing client fails to initialize.
+  ///
+  /// ```dart
+  /// await FlutterInappPurchase.instance.initConnection();
+  /// ```
+  ///
+  /// See: https://www.openiap.dev/docs/apis/init-connection
   gentype.MutationInitConnectionHandler get initConnection => ({
         gentype.AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
         gentype.BillingProgramAndroid? enableBillingProgramAndroid,
@@ -289,7 +304,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// End connection (flutter IAP compatible)
+  /// Close the store connection and release resources.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/end-connection
   gentype.MutationEndConnectionHandler get endConnection => () async {
         if (!_isInitialized) {
           return false;
@@ -314,7 +331,32 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Request purchase (flutter IAP compatible)
+  /// Initiate a purchase or subscription flow. The result is delivered via the
+  /// `purchaseUpdated` stream — NOT the return value.
+  ///
+  /// Parameters:
+  /// - `params`: `RequestPurchaseProps`, discriminated by `type`. Pass platform fields
+  ///   via `request.apple` (iOS sku) and `request.google` (skus, subscriptionOffers).
+  ///
+  /// Returns the dispatched purchase payload. **Do not rely on it** for the outcome.
+  /// Throws on synchronous rejection (e.g. billing not ready, missing offerToken on subs).
+  ///
+  /// ```dart
+  /// await FlutterInappPurchase.instance.requestPurchase(
+  ///   RequestPurchaseProps(
+  ///     request: RequestPurchasePropsByPlatforms(
+  ///       apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
+  ///       google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
+  ///     ),
+  ///     type: ProductQueryType.InApp,
+  ///   ),
+  /// );
+  /// ```
+  ///
+  /// **Warning:** Event-based. Subscribe to `purchaseUpdated` / `purchaseError` for
+  /// the actual outcome.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/request-purchase
   @override
   gentype.MutationRequestPurchaseHandler get requestPurchase => (params) async {
         if (!_isInitialized) {
@@ -536,14 +578,33 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// DSL-like request subscription method with builder pattern
   // requestSubscriptionWithBuilder removed in 6.6.0 (use requestPurchaseWithBuilder)
 
-  /// Get all available purchases (OpenIAP standard)
-  /// Returns non-consumed purchases that are still pending acknowledgment or consumption
+  /// List the user's unfinished purchases — non-consumables, active subscriptions, and
+  /// any pending transactions not yet finished.
   ///
-  /// [options] - Optional configuration for the method behavior
-  /// - onlyIncludeActiveItemsIOS: Whether to only include active items (default: true)
-  ///   Set to false to include expired subscriptions
-  /// - includeSuspendedAndroid: Include suspended subscriptions (Android 8.1+, default: false)
-  ///   Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+  /// Parameters:
+  /// - `alsoPublishToEventListenerIOS`: iOS-only — also emit results to the
+  ///   `purchaseUpdated` event listener.
+  /// - `includeSuspendedAndroid`: Android-only — include suspended subscriptions in the
+  ///   result.
+  /// - `onlyIncludeActiveItemsIOS`: iOS-only — when `true` (default), excludes expired
+  ///   subscriptions from the result.
+  ///
+  /// Returns a list of `Purchase` currently held by the store.
+  /// Throws when the platform query fails.
+  ///
+  /// ```dart
+  /// final purchases = await FlutterInappPurchase.instance.getAvailablePurchases();
+  /// for (final p in purchases) {
+  ///   if (await verifyOnServer(p)) {
+  ///     await FlutterInappPurchase.instance.finishTransaction(
+  ///       purchase: p,
+  ///       isConsumable: false,
+  ///     );
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// See: https://www.openiap.dev/docs/apis/get-available-purchases
   gentype.QueryGetAvailablePurchasesHandler get getAvailablePurchases => ({
         bool? alsoPublishToEventListenerIOS,
         bool? includeSuspendedAndroid,
@@ -638,7 +699,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Get the current storefront country code (unified method)
+  /// Return the user's storefront country code.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/get-storefront
   gentype.QueryGetStorefrontHandler get getStorefront => () async {
         if (!isIOS && !_platform.isAndroid) {
           return '';
@@ -662,7 +725,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS specific: Get storefront
+  /// Deprecated. Use cross-platform `getStorefront` instead.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
   gentype.QueryGetStorefrontIOSHandler get getStorefrontIOS => () async {
         if (!_platform.isIOS || _platform.isMacOS) {
           throw PurchaseError(
@@ -696,6 +761,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
+  /// Force sync transactions with the App Store.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/sync-ios
   gentype.MutationSyncIOSHandler get syncIOS => () async {
         if (!_platform.isIOS || _platform.isMacOS) {
           debugPrint('syncIOS is only supported on iOS');
@@ -717,6 +785,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
+  /// Check intro-offer eligibility for a subscription group.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
   gentype.QueryIsEligibleForIntroOfferIOSHandler
       get isEligibleForIntroOfferIOS => (groupId) async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -735,6 +806,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
+  /// Get subscription status objects from StoreKit 2.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/subscription-status-ios
   gentype.QuerySubscriptionStatusIOSHandler get subscriptionStatusIOS =>
       (sku) async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -778,6 +852,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
+  /// Clear pending transactions in the queue (sandbox helper).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/clear-transaction-ios
   gentype.MutationClearTransactionIOSHandler get clearTransactionIOS =>
       () async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -793,6 +870,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
+  /// Read the App Store-promoted product, if any.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios
   gentype.QueryGetPromotedProductIOSHandler get getPromotedProductIOS =>
       () async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -826,26 +906,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Request purchase on promoted product (iOS only)
+  /// Buy the currently promoted product.
   ///
-  /// @deprecated Use `purchasePromoted` stream to receive the product ID when a
-  /// user taps a promoted product in the App Store, then call `requestPurchase()`
-  /// with the received SKU directly. In StoreKit 2, promoted products can be
-  /// purchased via the standard `requestPurchase()` flow.
-  ///
-  /// Example:
-  /// ```dart
-  /// iap.purchasePromoted.listen((productId) async {
-  ///   if (productId != null) {
-  ///     await iap.requestPurchaseWithBuilder(
-  ///       build: (builder) {
-  ///         builder.ios.sku = productId;
-  ///         builder.type = ProductQueryType.InApp;
-  ///       },
-  ///     );
-  ///   }
-  /// });
-  /// ```
+  /// See: https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
   @Deprecated(
     'Use purchasePromoted stream + requestPurchase() instead. '
     'In StoreKit 2, promoted products are purchased via standard flow.',
@@ -866,6 +929,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
+  /// Fetch the app transaction (iOS 16+).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios
   gentype.QueryGetAppTransactionIOSHandler get getAppTransactionIOS =>
       () async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -890,7 +956,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS specific: Present code redemption sheet
+  /// Show the App Store offer code redemption sheet.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
   gentype.MutationPresentCodeRedemptionSheetIOSHandler
       get presentCodeRedemptionSheetIOS => () async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -919,11 +987,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// iOS specific: Begin a refund request for a purchase
+  /// Present the refund request sheet (iOS 15+).
   ///
-  /// Opens the StoreKit 2 refund sheet for the given SKU and returns the
-  /// resulting status string (`"success"` or `"userCancelled"`). Returns
-  /// `null` when StoreKit reports an unknown status. Requires iOS 15.0+.
+  /// See: https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios
   gentype.MutationBeginRefundRequestIOSHandler get beginRefundRequestIOS =>
       (String sku) async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -953,7 +1019,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS specific: Show manage subscriptions
+  /// Present the manage-subscriptions sheet.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
   gentype.MutationShowManageSubscriptionsIOSHandler
       get showManageSubscriptionsIOS => () async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -983,6 +1051,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   // Original API methods (with deprecation annotations where needed)
 
+  /// List unfinished StoreKit transactions.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios
   gentype.QueryGetPendingTransactionsIOSHandler get getPendingTransactionsIOS =>
       () async {
         if (_platform.isIOS || _platform.isMacOS) {
@@ -1003,6 +1074,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         return const <gentype.PurchaseIOS>[];
       };
 
+  /// List every StoreKit transaction (finished + unfinished) for the current user.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios
   gentype.QueryGetAllTransactionsIOSHandler get getAllTransactionsIOS =>
       () async {
         if (_platform.isIOS || _platform.isMacOS) {
@@ -1023,7 +1097,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         return const <gentype.PurchaseIOS>[];
       };
 
-  /// iOS specific: Return the current active entitlement for a SKU, if any.
+  /// Get the user's current entitlement for a product.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/current-entitlement-ios
   gentype.QueryCurrentEntitlementIOSHandler get currentEntitlementIOS =>
       (String sku) async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -1057,8 +1133,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS specific: Return the most recent transaction for a SKU, including
-  /// expired or revoked ones.
+  /// Get the latest verified transaction for a product.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/latest-transaction-ios
   gentype.QueryLatestTransactionIOSHandler get latestTransactionIOS =>
       (String sku) async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -1092,8 +1169,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS specific: Whether the latest transaction for a SKU passes StoreKit 2
-  /// verification.
+  /// Check whether a transaction's JWS verification passed.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios
   gentype.QueryIsTransactionVerifiedIOSHandler get isTransactionVerifiedIOS =>
       (String sku) async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -1119,8 +1197,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS specific: Return the signed JWS representation of the latest
-  /// transaction for a SKU, suitable for server-side verification.
+  /// Return the JWS string for a transaction.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios
   gentype.QueryGetTransactionJwsIOSHandler get getTransactionJwsIOS =>
       (String sku) async {
         if (!_platform.isIOS || _platform.isMacOS) {
@@ -1145,8 +1224,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS specific: Return the base64-encoded App Store receipt data (legacy
-  /// StoreKit 1 API). Use JWS-based verification for StoreKit 2.
+  /// Get base64 receipt data (legacy validation).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios
   gentype.QueryGetReceiptDataIOSHandler get getReceiptDataIOS => () async {
         if (!_platform.isIOS || _platform.isMacOS) {
           return null;
@@ -1167,10 +1247,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// iOS 17.4+: Whether the current device/region can present the external
-  /// purchase notice sheet. The underlying StoreKit call
-  /// `ExternalPurchase.canPresent` is available from iOS 17.4 / macOS 14.4 /
-  /// tvOS 17.4 / visionOS 1.1 — older runtimes return false.
+  /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
   gentype.QueryCanPresentExternalPurchaseNoticeIOSHandler
       get canPresentExternalPurchaseNoticeIOS => () async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -1196,6 +1275,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
+  /// Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android
   gentype.MutationAcknowledgePurchaseAndroidHandler
       get acknowledgePurchaseAndroid => (purchaseToken) async {
             if (!_platform.isAndroid) {
@@ -1247,6 +1329,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
+  /// Consume a consumable purchase so it can be re-bought.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/consume-purchase-android
   gentype.MutationConsumePurchaseAndroidHandler get consumePurchaseAndroid =>
       (purchaseToken) async {
         if (!_platform.isAndroid) {
@@ -1280,6 +1365,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
+  /// Open the platform's subscription management UI.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/deep-link-to-subscriptions
   gentype.MutationDeepLinkToSubscriptionsHandler get deepLinkToSubscriptions =>
       ({String? packageNameAndroid, String? skuAndroid}) async {
         if (!_platform.isAndroid) {
@@ -1303,7 +1391,27 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         await _channel.invokeMethod('deepLinkToSubscriptionsAndroid', args);
       };
 
-  /// Finish a transaction using OpenIAP generated handler signature
+  /// Complete a purchase transaction. Call after server-side verification to remove
+  /// it from the queue.
+  ///
+  /// Parameters:
+  /// - `purchase` (required): the `Purchase` to finalize.
+  /// - `isConsumable`: `true` for consumables (re-buyable like coins); `false` (default)
+  ///   for non-consumables and subscriptions.
+  ///
+  /// Throws when the platform finalize call fails.
+  ///
+  /// ```dart
+  /// await FlutterInappPurchase.instance.finishTransaction(
+  ///   purchase: purchase,
+  ///   isConsumable: false,
+  /// );
+  /// ```
+  ///
+  /// **Critical:** Android purchases must be finalized within 3 days or Google
+  /// auto-refunds. iOS unfinished transactions replay on every app launch.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/finish-transaction
   gentype.MutationFinishTransactionHandler get finishTransaction =>
       ({required gentype.Purchase purchase, bool? isConsumable}) async {
         final bool consumable = isConsumable ?? false;
@@ -1453,44 +1561,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         );
       };
 
-  /// Validate receipt using StoreKit 2 (iOS only) - LOCAL TESTING ONLY
+  /// Deprecated. Legacy App Store receipt validation. Use `verifyPurchase` instead.
   ///
-  /// ⚠️ WARNING: This performs LOCAL validation for TESTING purposes.
-  /// For production, send the JWS representation to your server for validation.
-  ///
-  /// What this method does:
-  /// 1. Performs local on-device validation (for testing)
-  /// 2. Returns JWS representation (send this to your server)
-  /// 3. Provides transaction details for debugging
-  ///
-  /// Server-side validation guide:
-  /// 1. Send `result.jwsRepresentation` to your server
-  /// 2. Verify the JWS using Apple's public keys
-  /// 3. Decode and validate the transaction on your server
-  /// 4. Grant entitlements based on server validation
-  ///
-  /// Example for LOCAL TESTING:
-  /// ```dart
-  /// // Step 1: Local validation (testing only)
-  /// final result = await FlutterInappPurchase.instance.validateReceiptIOS(
-  ///   apple: VerifyPurchaseAppleOptions(sku: 'com.example.premium'),
-  /// );
-  ///
-  /// if (result.isValid) {
-  ///   print('Local validation passed (TEST ONLY)');
-  ///
-  ///   // Step 2: Send to your server for PRODUCTION validation
-  ///   final serverPayload = {
-  ///     'purchaseToken': result.purchaseToken,  // Unified field (JWS for iOS)
-  ///     'productId': 'com.example.premium',
-  ///   };
-  ///
-  ///   // await yourApi.validateOnServer(serverPayload);
-  ///   print('Send purchaseToken to your server for production validation');
-  /// }
-  /// ```
-  ///
-  /// Note: This method requires iOS 15.0+ for StoreKit 2 support.
+  /// See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
   gentype.QueryValidateReceiptIOSHandler get validateReceiptIOS => ({
         gentype.VerifyPurchaseAppleOptions? apple,
         gentype.VerifyPurchaseGoogleOptions? google,
@@ -1572,6 +1645,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           );
         }
       };
+
+  /// Deprecated. Use verifyPurchase instead — same input/output shape.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/validate-receipt
   gentype.MutationValidateReceiptHandler get validateReceipt => ({
         gentype.VerifyPurchaseAppleOptions? apple,
         gentype.VerifyPurchaseGoogleOptions? google,
@@ -1599,26 +1676,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         );
       };
 
-  /// Verify purchase with an external provider (IAPKit)
+  /// Verify via a managed provider (IAPKit, Apple, Google, Horizon).
   ///
-  /// This method allows you to verify purchases using external verification
-  /// providers like IAPKit. It sends the purchase receipt to the provider
-  /// for server-side verification.
-  ///
-  /// Example:
-  /// ```dart
-  /// final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
-  ///   provider: PurchaseVerificationProvider.Iapkit,
-  ///   iapkit: RequestVerifyPurchaseWithIapkitProps(
-  ///     apiKey: 'your-iapkit-api-key',
-  ///     apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.jws),
-  ///     // or for Android:
-  ///     // google: RequestVerifyPurchaseWithIapkitGoogleProps(
-  ///     //   purchaseToken: purchase.purchaseToken,
-  ///     // ),
-  ///   ),
-  /// );
-  /// ```
+  /// See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
   gentype.MutationVerifyPurchaseWithProviderHandler
       get verifyPurchaseWithProvider => ({
             required gentype.PurchaseVerificationProvider provider,
@@ -1726,33 +1786,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// Verifies a purchase using the native platform's local verification.
+  /// Verify a purchase against your own backend (returns isValid + raw store metadata).
   ///
-  /// On iOS, this verifies the transaction using StoreKit 2's built-in
-  /// verification. On Android, this requires providing Google Play Developer
-  /// API credentials via [google].
-  ///
-  /// Example (iOS):
-  /// ```dart
-  /// final result = await iap.verifyPurchase(
-  ///   apple: VerifyPurchaseAppleOptions(sku: 'premium_upgrade'),
-  /// );
-  /// if (result is VerifyPurchaseResultIOS && result.isValid) {
-  ///   // Purchase verified locally
-  /// }
-  /// ```
-  ///
-  /// Example (Android):
-  /// ```dart
-  /// final result = await iap.verifyPurchase(
-  ///   google: VerifyPurchaseGoogleOptions(
-  ///     sku: 'premium_upgrade',
-  ///     accessToken: 'your-google-access-token', // From your backend
-  ///     packageName: 'com.your.app',
-  ///     purchaseToken: purchase.purchaseToken,
-  ///   ),
-  /// );
-  /// ```
+  /// See: https://www.openiap.dev/docs/features/validation#verify-purchase
   gentype.MutationVerifyPurchaseHandler get verifyPurchase => ({
         gentype.VerifyPurchaseAppleOptions? apple,
         gentype.VerifyPurchaseGoogleOptions? google,
@@ -1944,24 +1980,31 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
-  /// Fetch products from the store
+  /// Retrieve products or subscriptions from the store by SKU.
   ///
-  /// When type is InApp, returns List<Product>
-  /// When type is Subs, returns List<ProductSubscription>
-  /// When type is All, returns List<ProductCommon>
+  /// Parameters:
+  /// - `skus` (required): list of product identifiers to fetch.
+  /// - `type`: `ProductQueryType.InApp`, `Subs`, or `All`. Defaults to `InApp`.
   ///
-  /// Example:
+  /// Returns a `List<T>` cast to the generic type — pass `<Product>` for one-time
+  /// items, `<ProductSubscription>` for subs, or `<ProductCommon>` for mixed `All`
+  /// queries.
+  /// Throws when the store rejects the request.
+  ///
   /// ```dart
-  /// final products = await iap.fetchProducts<Product>(
-  ///   skus: ['product_id'],
+  /// final products = await FlutterInappPurchase.instance.fetchProducts<Product>(
+  ///   skus: ['com.app.premium'],
   ///   type: ProductQueryType.InApp,
-  /// ); // Type: List<Product>
-  ///
-  /// final subs = await iap.fetchProducts<ProductSubscription>(
-  ///   skus: ['sub_id'],
-  ///   type: ProductQueryType.Subs,
-  /// ); // Type: List<ProductSubscription>
+  /// );
+  /// for (final product in products) {
+  ///   print('${product.title}: ${product.displayPrice}');
+  /// }
   /// ```
+  ///
+  /// **Note:** This is a regular promise-based call. Don't confuse with `request*`
+  /// APIs (e.g. `requestPurchase`), which are event-based.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/fetch-products
   Future<List<T>> fetchProducts<T extends gentype.ProductCommon>({
     required List<String> skus,
     gentype.ProductQueryType type = gentype.ProductQueryType.InApp,
@@ -1972,6 +2015,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   // MARK: - StoreKit 2 specific methods
 
+  /// Restore non-consumable and active subscription purchases.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/restore-purchases
   gentype.MutationRestorePurchasesHandler get restorePurchases => () async {
         try {
           if (_platform.isIOS || _platform.isMacOS) {
@@ -2071,15 +2117,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     return subscriptions;
   }
 
-  /// Get all active subscriptions with detailed information (OpenIAP compliant)
-  /// Returns an array of active subscriptions. If subscriptionIds is not provided,
-  /// returns all active subscriptions. Platform-specific fields are populated based
-  /// on the current platform.
+  /// Get details of all currently active subscriptions.
   ///
-  /// This uses the native getActiveSubscriptions method on both platforms:
-  /// - iOS: includes renewalInfoIOS with subscription renewal status, pending
-  ///   upgrades/downgrades, cancellation status, and auto-renewal preferences
-  /// - Android: includes autoRenewingAndroid and other subscription details
+  /// See: https://www.openiap.dev/docs/apis/get-active-subscriptions
   gentype.QueryGetActiveSubscriptionsHandler get getActiveSubscriptions =>
       ([subscriptionIds]) async {
         if (!_isInitialized) {
@@ -2119,9 +2159,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Check if the user has any active subscriptions (OpenIAP compliant)
-  /// Returns true if the user has at least one active subscription, false otherwise.
-  /// If subscriptionIds is provided, only checks for those specific subscriptions.
+  /// Check whether the user has any active subscription.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/has-active-subscriptions
   gentype.QueryHasActiveSubscriptionsHandler get hasActiveSubscriptions =>
       ([subscriptionIds]) async {
         try {
@@ -2149,7 +2189,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   // MARK: - Alternative Billing APIs
 
-  /// Check if alternative billing is available on Android
+  /// Check whether alternative billing is available for the user.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android
   gentype.MutationCheckAlternativeBillingAvailabilityAndroidHandler
       get checkAlternativeBillingAvailabilityAndroid => () async {
             if (!_platform.isAndroid) {
@@ -2167,7 +2209,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// Show alternative billing information dialog on Android
+  /// Display Google's alternative billing information dialog.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
   gentype.MutationShowAlternativeBillingDialogAndroidHandler
       get showAlternativeBillingDialogAndroid => () async {
             if (!_platform.isAndroid) {
@@ -2184,7 +2228,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// Create alternative billing reporting token on Android
+  /// Create a reporting token for an alternative billing flow.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android
   gentype.MutationCreateAlternativeBillingTokenAndroidHandler
       get createAlternativeBillingTokenAndroid => () async {
             if (!_platform.isAndroid) {
@@ -2203,7 +2249,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   // MARK: - Billing Programs API (Android 8.2.0+)
 
-  /// Check if a billing program is available on Android (8.2.0+)
+  /// Check whether a billing program (e.g., External Payments) is available.
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/is-billing-program-available-android
   Future<gentype.BillingProgramAvailabilityResultAndroid>
       isBillingProgramAvailableAndroid(
     gentype.BillingProgramAndroid program,
@@ -2236,7 +2284,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
-  /// Create billing program reporting details on Android (8.2.0+)
+  /// Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
   Future<gentype.BillingProgramReportingDetailsAndroid>
       createBillingProgramReportingDetailsAndroid(
     gentype.BillingProgramAndroid program,
@@ -2267,7 +2317,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
-  /// Launch external link on Android (8.2.0+)
+  /// Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/android/launch-external-link-android
   Future<bool> launchExternalLinkAndroid(
     gentype.LaunchExternalLinkParamsAndroid params,
   ) async {
@@ -2292,7 +2344,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
-  /// Present external purchase notice sheet on iOS (iOS 18.2+)
+  /// Present the external purchase notice sheet (iOS 17.4+).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
   gentype.MutationPresentExternalPurchaseNoticeSheetIOSHandler
       get presentExternalPurchaseNoticeSheetIOS => () async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -2321,7 +2375,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// Present external purchase link on iOS (iOS 16.0+)
+  /// Present an external purchase link, StoreKit External (iOS 16+).
+  ///
+  /// See: https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios
   gentype.MutationPresentExternalPurchaseLinkIOSHandler
       get presentExternalPurchaseLinkIOS => (String url) async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -2351,10 +2407,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
 
-  /// Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
-  /// Returns true if the app can use custom external purchase links.
+  /// Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
   ///
-  /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+  /// See: https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
   gentype.QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler
       get isEligibleForExternalPurchaseCustomLinkIOS => () async {
             if (!_platform.isIOS && !_platform.isMacOS) {
@@ -2380,12 +2435,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// Get external purchase token for reporting to Apple (iOS 18.1+).
-  /// Use this token with Apple's External Purchase Server API to report transactions.
+  /// Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
   ///
-  /// [tokenType] - Token type: 'acquisition' (new customers) or 'services' (existing customers)
-  ///
-  /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+  /// See: https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
   gentype.QueryGetExternalPurchaseCustomLinkTokenIOSHandler
       get getExternalPurchaseCustomLinkTokenIOS =>
           (gentype.ExternalPurchaseCustomLinkTokenTypeIOS tokenType) async {
@@ -2417,13 +2469,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
-  /// Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
-  /// Displays the system disclosure notice sheet for custom external purchase links.
-  /// Call this after a deliberate customer interaction before linking out to external purchases.
+  /// Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
   ///
-  /// [noticeType] - Notice type: 'browser' (external purchases displayed in browser)
-  ///
-  /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+  /// See: https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
   gentype.MutationShowExternalPurchaseCustomLinkNoticeIOSHandler
       get showExternalPurchaseCustomLinkNoticeIOS =>
           (gentype.ExternalPurchaseCustomLinkNoticeTypeIOS noticeType) async {

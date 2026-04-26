@@ -20,6 +20,30 @@ function RequestPurchase() {
         Initiate a purchase flow. The result is delivered through
         purchaseUpdatedListener, not the return value.
       </p>
+      <p>
+        <strong>iOS:</strong> Calls <code>Product.purchase(options:)</code> and
+        emits the result on the <code>Transaction.updates</code> listener — the
+        return value is just the dispatch ack.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/purchase(options:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls{' '}
+        <code>BillingClient.launchBillingFlow</code> and emits the result on{' '}
+        <code>PurchasesUpdatedListener</code>. Subscription offers require an{' '}
+        <code>offerToken</code>.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#launchBillingFlow(android.app.Activity,com.android.billingclient.api.BillingFlowParams)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <div className="alert-card alert-card--warning">
         <p>

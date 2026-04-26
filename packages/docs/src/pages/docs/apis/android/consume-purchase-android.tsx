@@ -23,6 +23,19 @@ function ConsumePurchaseAndroid() {
         Consume a consumable purchase, allowing repurchase. Automatically
         acknowledges the purchase.
       </p>
+      <p>
+        Wraps <code>BillingClient.consumeAsync(ConsumeParams)</code> — for
+        consumables (re-buyable like coins). Same 3-day deadline as acknowledge.
+        See the{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#consumeAsync(com.android.billingclient.api.ConsumeParams,com.android.billingclient.api.ConsumeResponseListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google Play Billing reference
+        </a>
+        .
+      </p>
 
       <div className="alert-card alert-card--warning">
         <p>

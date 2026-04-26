@@ -18,6 +18,19 @@ function SyncIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span> syncIOS
       </h1>
       <p>Force a StoreKit sync for transactions (iOS 15+).</p>
+      <p>
+        Wraps <code>AppStore.sync()</code> — forces StoreKit to refresh
+        transactions and entitlements, prompts the user to authenticate. iOS
+        15+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/appstore/sync()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

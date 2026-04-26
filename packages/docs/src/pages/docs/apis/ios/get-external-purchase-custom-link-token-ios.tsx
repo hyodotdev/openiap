@@ -30,6 +30,19 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         API (iOS 18.1+). Pair the returned token with Apple's External Purchase
         Server API to report acquisition or services transactions.
       </p>
+      <p>
+        Wraps <code>ExternalPurchaseCustomLink.token(for:)</code> — token to
+        report transactions to Apple's External Purchase Server. iOS 18.1+. See
+        the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

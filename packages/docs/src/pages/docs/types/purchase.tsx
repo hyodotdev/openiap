@@ -32,6 +32,26 @@ function Purchase() {
           </Link>
           , discriminated by the <code>platform</code> field.
         </p>
+        <p>
+          Normalized purchase / transaction record. <strong>iOS:</strong>{' '}
+          derived from <code>Transaction</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/transaction"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> derived from <code>Purchase</code> (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

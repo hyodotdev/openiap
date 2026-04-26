@@ -22,6 +22,22 @@ function CreateAlternativeBillingTokenAndroid() {
         Step 3 of alternative billing flow. Create external transaction token
         for Google Play reporting.
       </p>
+      <p>
+        Wraps{' '}
+        <code>
+          BillingClient.createAlternativeBillingOnlyReportingDetailsAsync()
+        </code>{' '}
+        — step 3. Token must be reported to Google within 24h of payment. See
+        the{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/alternative"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google Play Billing reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

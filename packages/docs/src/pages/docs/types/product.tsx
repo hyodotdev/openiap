@@ -32,6 +32,28 @@ function Product() {
           </Link>
           , discriminated by the <code>platform</code> field.
         </p>
+        <p>
+          Cross-platform one-time product shape returned by{' '}
+          <code>fetchProducts</code>. <strong>iOS:</strong> derived from{' '}
+          <code>Product</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> derived from <code>ProductDetails</code>{' '}
+          (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

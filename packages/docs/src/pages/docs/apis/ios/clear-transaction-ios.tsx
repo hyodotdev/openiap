@@ -19,6 +19,19 @@ function ClearTransactionIOS() {
         clearTransactionIOS
       </h1>
       <p>Clear pending transactions from the StoreKit payment queue.</p>
+      <p>
+        Iterates <code>Transaction.unfinished</code> and calls{' '}
+        <code>.finish()</code> on each — sandbox/dev helper, do NOT ship in
+        production paths. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/unfinished"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

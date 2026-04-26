@@ -20,6 +20,28 @@ function InitConnection() {
         Initialize connection to the store service. Must be called before any
         other IAP operations.
       </p>
+      <p>
+        <strong>iOS:</strong> Calls <code>AppStore.sync()</code> lazily and
+        verifies StoreKit 2 is available; safe to call repeatedly.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/updates"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Starts <code>BillingClient</code> and waits
+        for <code>onBillingSetupFinished</code>. Required before any other Play
+        Billing call.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#startConnection(com.android.billingclient.api.BillingClientStateListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

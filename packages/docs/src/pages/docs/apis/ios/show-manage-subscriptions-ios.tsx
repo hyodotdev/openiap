@@ -23,6 +23,18 @@ function ShowManageSubscriptionsIOS() {
         15+). Returns purchases for subscriptions whose auto-renewal status
         changed.
       </p>
+      <p>
+        Wraps <code>AppStore.showManageSubscriptions(in:)</code> — presents the
+        system manage-subscriptions sheet. iOS 15+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

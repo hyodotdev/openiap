@@ -21,6 +21,18 @@ function CanPresentExternalPurchaseNoticeIOS() {
       <p>
         Check if external purchase notice sheet can be presented (iOS 17.4+).
       </p>
+      <p>
+        Wraps <code>ExternalPurchase.canPresent</code> — gate before calling{' '}
+        <code>presentExternalPurchaseNoticeSheetIOS</code>. iOS 17.4+. See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/externalpurchase/canpresent"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

@@ -25,6 +25,19 @@ function DiscountIos() {
           instead.
         </p>
         <p>Discount info returned as part of product details:</p>
+        <p>
+          <strong>iOS only.</strong> Mirrors{' '}
+          <code>Product.SubscriptionOffer</code> for promotional/intro discounts
+          (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native reference:</strong>{' '}
           <a

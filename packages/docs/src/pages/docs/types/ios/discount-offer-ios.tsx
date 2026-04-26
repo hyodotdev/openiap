@@ -28,6 +28,18 @@ function DiscountOfferIos() {
           Used when requesting a purchase with a promotional offer. Generate
           signature server-side.
         </p>
+        <p>
+          <strong>iOS only.</strong> Signed-discount payload for{' '}
+          <code>Product.purchase(options:)</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/purchaseoption/promotionaloffer(_:signature:)"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native reference:</strong>{' '}
           <a
