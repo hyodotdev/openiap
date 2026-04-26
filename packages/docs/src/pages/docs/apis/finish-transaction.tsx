@@ -46,6 +46,35 @@ function FinishTransaction() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`finishTransaction(args: MutationFinishTransactionArgs): Promise<void>
+
+interface MutationFinishTransactionArgs {
+  purchase: Purchase;
+  isConsumable?: boolean | null;
+}`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`func finishTransaction(_ purchase: Purchase, isConsumable: Bool = false) async throws`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<void> finishTransaction(Purchase purchase, {bool isConsumable = false});`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func finish_transaction(purchase: Purchase, is_consumable: bool = false) -> void`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -87,35 +116,6 @@ function FinishTransaction() {
         Throws
       </AnchorLink>
       <p>When the platform finalize call fails.</p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          typescript: (
-            <CodeBlock language="typescript">{`finishTransaction(args: MutationFinishTransactionArgs): Promise<void>
-
-interface MutationFinishTransactionArgs {
-  purchase: Purchase;
-  isConsumable?: boolean | null;
-}`}</CodeBlock>
-          ),
-          swift: (
-            <CodeBlock language="swift">{`func finishTransaction(_ purchase: Purchase, isConsumable: Bool = false) async throws`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false)`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<void> finishTransaction(Purchase purchase, {bool isConsumable = false});`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func finish_transaction(purchase: Purchase, is_consumable: bool = false) -> void`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

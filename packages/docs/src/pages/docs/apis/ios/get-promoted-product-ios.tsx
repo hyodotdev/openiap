@@ -35,17 +35,6 @@ function GetPromotedProductIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <Link to="/docs/types/product">
-          <code>Promise&lt;ProductIOS | null&gt;</code>
-        </Link>{' '}
-        — the App Store-promoted product, or <code>null</code> if no campaign is
-        currently queued.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -66,6 +55,17 @@ function GetPromotedProductIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/product">
+          <code>Promise&lt;ProductIOS | null&gt;</code>
+        </Link>{' '}
+        — the App Store-promoted product, or <code>null</code> if no campaign is
+        currently queued.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

@@ -41,6 +41,38 @@ function IsBillingProgramAvailableAndroid() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`// Returns BillingProgramAvailabilityResultAndroid with isAvailable flag
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun isBillingProgramAvailable(
+    program: BillingProgramAndroid
+): BillingProgramAvailabilityResultAndroid`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun isBillingProgramAvailableAndroid(
+    program: BillingProgramAndroid
+): BillingProgramAvailabilityResultAndroid`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`isBillingProgramAvailableAndroid(
+  program: BillingProgramAndroid
+): Promise<BillingProgramAvailabilityResultAndroid>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<BillingProgramAvailabilityResultAndroid>
+    isBillingProgramAvailableAndroid(BillingProgramAndroid program);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func is_billing_program_available_android(
+    program: int
+) -> BillingProgramAvailabilityResultAndroid`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -90,38 +122,6 @@ function IsBillingProgramAvailableAndroid() {
           — Optional debug message from Play.
         </li>
       </ul>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          kotlin: (
-            <CodeBlock language="kotlin">{`// Returns BillingProgramAvailabilityResultAndroid with isAvailable flag
-// Throws OpenIapError.NotPrepared if billing client not ready
-suspend fun isBillingProgramAvailable(
-    program: BillingProgramAndroid
-): BillingProgramAvailabilityResultAndroid`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun isBillingProgramAvailableAndroid(
-    program: BillingProgramAndroid
-): BillingProgramAvailabilityResultAndroid`}</CodeBlock>
-          ),
-          typescript: (
-            <CodeBlock language="typescript">{`isBillingProgramAvailableAndroid(
-  program: BillingProgramAndroid
-): Promise<BillingProgramAvailabilityResultAndroid>`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<BillingProgramAvailabilityResultAndroid>
-    isBillingProgramAvailableAndroid(BillingProgramAndroid program);`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func is_billing_program_available_android(
-    program: int
-) -> BillingProgramAvailabilityResultAndroid`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

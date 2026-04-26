@@ -33,14 +33,6 @@ function SyncIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the App
-        Store sync completes.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -61,6 +53,14 @@ function SyncIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the App
+        Store sync completes.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

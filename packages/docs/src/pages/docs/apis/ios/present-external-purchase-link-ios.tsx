@@ -34,30 +34,6 @@ function PresentExternalPurchaseLinkIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>url</code>{' '}
-          <em>
-            (required, <code>string</code>)
-          </em>{' '}
-          — External purchase URL to present.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <Link to="/docs/types/external-purchase-link">
-          <code>Promise&lt;ExternalPurchaseLinkResultIOS&gt;</code>
-        </Link>{' '}
-        — carries the result of opening the external link (success flag + any
-        error string from StoreKit).
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -83,6 +59,30 @@ struct ExternalPurchaseLinkResultIOS {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>url</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — External purchase URL to present.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/external-purchase-link">
+          <code>Promise&lt;ExternalPurchaseLinkResultIOS&gt;</code>
+        </Link>{' '}
+        — carries the result of opening the external link (success flag + any
+        error string from StoreKit).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

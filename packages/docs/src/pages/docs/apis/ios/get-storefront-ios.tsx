@@ -41,14 +41,6 @@ function GetStorefrontIOS() {
         </p>
       </div>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;string&gt;</code> — ISO country code of the App Store
-        storefront.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -72,6 +64,14 @@ Future<String> getStorefrontIOS();`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string&gt;</code> — ISO country code of the App Store
+        storefront.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

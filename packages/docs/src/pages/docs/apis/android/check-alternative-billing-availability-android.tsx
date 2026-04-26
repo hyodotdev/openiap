@@ -38,14 +38,6 @@ function CheckAlternativeBillingAvailabilityAndroid() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — Whether alternative billing is
-        available for this user/device (step 1 of 3).
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -68,6 +60,14 @@ suspend fun checkAlternativeBillingAvailability(): Boolean`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — Whether alternative billing is
+        available for this user/device (step 1 of 3).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

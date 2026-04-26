@@ -41,16 +41,6 @@ function GetStorefront() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;string&gt;</code> — ISO 3166-1 alpha-2 country code of
-        the user's storefront (e.g. <code>"US"</code>, <code>"KR"</code>).
-        Returns the App Store / Play Store account region, NOT the device
-        locale.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -74,6 +64,16 @@ function GetStorefront() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string&gt;</code> — ISO 3166-1 alpha-2 country code of
+        the user's storefront (e.g. <code>"US"</code>, <code>"KR"</code>).
+        Returns the App Store / Play Store account region, NOT the device
+        locale.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

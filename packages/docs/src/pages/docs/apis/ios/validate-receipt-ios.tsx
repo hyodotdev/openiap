@@ -46,6 +46,30 @@ function ValidateReceiptIOS() {
         </p>
       </div>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`@available(*, deprecated, message: "Use verifyPurchase()")
+func validateReceiptIOS(options: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`@Deprecated("Use verifyPurchase()")
+suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`validateReceiptIOS(options: VerifyPurchaseProps): Promise<VerifyPurchaseResultIOS>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`@Deprecated('Use verifyPurchase()')
+Future<VerifyPurchaseResultIOS> validateReceiptIOS(VerifyPurchaseProps options);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func validate_receipt_ios(options: Dictionary) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -71,30 +95,6 @@ function ValidateReceiptIOS() {
         receipt/JWS metadata. <strong>Deprecated</strong> — use{' '}
         <Link to="/docs/apis/get-active-subscriptions">verifyPurchase</Link>.
       </p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          swift: (
-            <CodeBlock language="swift">{`@available(*, deprecated, message: "Use verifyPurchase()")
-func validateReceiptIOS(options: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`@Deprecated("Use verifyPurchase()")
-suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS`}</CodeBlock>
-          ),
-          typescript: (
-            <CodeBlock language="typescript">{`validateReceiptIOS(options: VerifyPurchaseProps): Promise<VerifyPurchaseResultIOS>`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`@Deprecated('Use verifyPurchase()')
-Future<VerifyPurchaseResultIOS> validateReceiptIOS(VerifyPurchaseProps options);`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func validate_receipt_ios(options: Dictionary) -> Variant`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

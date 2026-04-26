@@ -35,14 +35,6 @@ function CanPresentExternalPurchaseNoticeIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the
-        external-purchase notice sheet can be presented (iOS 17.4+).
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -63,6 +55,14 @@ function CanPresentExternalPurchaseNoticeIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the
+        external-purchase notice sheet can be presented (iOS 17.4+).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

@@ -34,6 +34,27 @@ function LatestTransactionIOS() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`func latestTransactionIOS(sku: String) async throws -> Purchase?`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun latestTransactionIOS(sku: String): PurchaseIOS?`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`latestTransactionIOS(sku: string): Promise<PurchaseIOS | null>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<PurchaseIOS?> latestTransactionIOS(String sku);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func latest_transaction_ios(sku: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -57,27 +78,6 @@ function LatestTransactionIOS() {
         — iOS purchase shape, or <code>null</code> if the SKU has no matching
         transaction.
       </p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          swift: (
-            <CodeBlock language="swift">{`func latestTransactionIOS(sku: String) async throws -> Purchase?`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun latestTransactionIOS(sku: String): PurchaseIOS?`}</CodeBlock>
-          ),
-          typescript: (
-            <CodeBlock language="typescript">{`latestTransactionIOS(sku: string): Promise<PurchaseIOS | null>`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<PurchaseIOS?> latestTransactionIOS(String sku);`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func latest_transaction_ios(sku: String) -> Variant`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

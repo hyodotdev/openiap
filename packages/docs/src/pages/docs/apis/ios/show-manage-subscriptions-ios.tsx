@@ -42,18 +42,6 @@ function ShowManageSubscriptionsIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <Link to="/docs/types/purchase">
-          <code>Promise&lt;PurchaseIOS[]&gt;</code>
-        </Link>{' '}
-        — purchases whose status changed while the manage-subscriptions sheet
-        was on screen (e.g. cancelled or auto-renew toggled). Empty array when
-        nothing changed.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -74,6 +62,18 @@ function ShowManageSubscriptionsIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/purchase">
+          <code>Promise&lt;PurchaseIOS[]&gt;</code>
+        </Link>{' '}
+        — purchases whose status changed while the manage-subscriptions sheet
+        was on screen (e.g. cancelled or auto-renew toggled). Empty array when
+        nothing changed.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

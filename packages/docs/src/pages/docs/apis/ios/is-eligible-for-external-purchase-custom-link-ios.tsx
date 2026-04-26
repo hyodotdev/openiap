@@ -45,14 +45,6 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — Whether the app can use
-        ExternalPurchaseCustomLink (iOS 18.1+).
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -73,6 +65,14 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — Whether the app can use
+        ExternalPurchaseCustomLink (iOS 18.1+).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

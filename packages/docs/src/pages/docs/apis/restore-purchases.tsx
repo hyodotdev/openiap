@@ -44,16 +44,6 @@ function RestorePurchases() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;void&gt;</code> — Resolves once the platform finishes
-        the restore. The restored purchases are emitted via{' '}
-        <code>purchaseUpdatedListener</code> / surface as{' '}
-        <code>getAvailablePurchases</code> results, depending on platform.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -77,6 +67,16 @@ function RestorePurchases() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves once the platform finishes
+        the restore. The restored purchases are emitted via{' '}
+        <code>purchaseUpdatedListener</code> / surface as{' '}
+        <code>getAvailablePurchases</code> results, depending on platform.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

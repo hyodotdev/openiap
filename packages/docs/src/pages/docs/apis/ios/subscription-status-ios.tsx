@@ -38,6 +38,27 @@ function SubscriptionStatusIOS() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS]`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS>`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`subscriptionStatusIOS(sku: string): Promise<SubscriptionStatusIOS[]>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func subscription_status_ios(sku: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -82,27 +103,6 @@ function SubscriptionStatusIOS() {
           May be <code>null</code>.
         </li>
       </ul>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          swift: (
-            <CodeBlock language="swift">{`func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS]`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS>`}</CodeBlock>
-          ),
-          typescript: (
-            <CodeBlock language="typescript">{`subscriptionStatusIOS(sku: string): Promise<SubscriptionStatusIOS[]>`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func subscription_status_ios(sku: String) -> Variant`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

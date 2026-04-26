@@ -35,14 +35,6 @@ function GetReceiptDataIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;string | null&gt;</code> — Base64-encoded receipt data
-        (legacy StoreKit 1 path).
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -63,6 +55,14 @@ function GetReceiptDataIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string | null&gt;</code> — Base64-encoded receipt data
+        (legacy StoreKit 1 path).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

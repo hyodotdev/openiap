@@ -43,14 +43,6 @@ function EndConnection() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> when the
-        connection was closed cleanly.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -74,6 +66,14 @@ function EndConnection() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> when the
+        connection was closed cleanly.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

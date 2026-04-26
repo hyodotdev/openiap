@@ -46,30 +46,6 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>noticeType</code>{' '}
-          <em>
-            (required, <code>ExternalPurchaseCustomLinkNoticeTypeIOS</code>)
-          </em>{' '}
-          — Disclosure style.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <Link to="/docs/types/external-purchase-link#external-purchase-custom-link-notice-result-ios">
-          <code>Promise&lt;ExternalPurchaseCustomLinkNoticeResultIOS&gt;</code>
-        </Link>{' '}
-        — the user's response (<code>continue</code> / <code>cancelled</code>)
-        plus the disclosure type that was shown.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -99,6 +75,30 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>noticeType</code>{' '}
+          <em>
+            (required, <code>ExternalPurchaseCustomLinkNoticeTypeIOS</code>)
+          </em>{' '}
+          — Disclosure style.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/external-purchase-link#external-purchase-custom-link-notice-result-ios">
+          <code>Promise&lt;ExternalPurchaseCustomLinkNoticeResultIOS&gt;</code>
+        </Link>{' '}
+        — the user's response (<code>continue</code> / <code>cancelled</code>)
+        plus the disclosure type that was shown.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

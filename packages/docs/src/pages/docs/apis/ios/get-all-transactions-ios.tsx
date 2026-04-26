@@ -39,20 +39,6 @@ function GetAllTransactionsIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <Link to="/docs/types/purchase">
-          <code>Promise&lt;PurchaseIOS[]&gt;</code>
-        </Link>{' '}
-        — array of StoreKit transactions in the iOS-specific shape. See{' '}
-        <Link to="/docs/types/purchase">
-          <code>Purchase</code>
-        </Link>{' '}
-        for the full field reference.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -73,6 +59,20 @@ function GetAllTransactionsIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/purchase">
+          <code>Promise&lt;PurchaseIOS[]&gt;</code>
+        </Link>{' '}
+        — array of StoreKit transactions in the iOS-specific shape. See{' '}
+        <Link to="/docs/types/purchase">
+          <code>Purchase</code>
+        </Link>{' '}
+        for the full field reference.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

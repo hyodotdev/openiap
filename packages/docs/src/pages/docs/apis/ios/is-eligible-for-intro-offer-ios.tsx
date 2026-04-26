@@ -37,27 +37,6 @@ function IsEligibleForIntroOfferIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>groupID</code>{' '}
-          <em>
-            (required, <code>string</code>)
-          </em>{' '}
-          — Subscription group identifier.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the user is
-        eligible for the group's introductory offer.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -78,6 +57,27 @@ function IsEligibleForIntroOfferIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>groupID</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Subscription group identifier.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the user is
+        eligible for the group's introductory offer.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

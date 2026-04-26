@@ -41,27 +41,6 @@ function AcknowledgePurchaseAndroid() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>purchaseToken</code>{' '}
-          <em>
-            (required, <code>string</code>)
-          </em>{' '}
-          — Purchase token from the Play Billing transaction.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
-        purchase has been acknowledged.
-      </p>
-
       <div className="alert-card alert-card--warning">
         <p>
           ⚠️ <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong>{' '}
@@ -95,6 +74,27 @@ function AcknowledgePurchaseAndroid() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>purchaseToken</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Purchase token from the Play Billing transaction.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
+        purchase has been acknowledged.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

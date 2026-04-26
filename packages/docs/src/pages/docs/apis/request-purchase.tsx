@@ -84,6 +84,34 @@ function RequestPurchase() {
         </p>
       </div>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`requestPurchase(props: RequestPurchaseProps): Promise<Purchase | void>
+
+type RequestPurchaseProps =
+  | { request: RequestPurchasePropsByPlatforms; type: 'in-app' }
+  | { request: RequestSubscriptionPropsByPlatforms; type: 'subs' }`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<Purchase?> requestPurchase(RequestPurchaseProps props);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func request_purchase(props: RequestPurchaseProps) -> Purchase`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -185,34 +213,6 @@ function RequestPurchase() {
         Synchronous rejection from the store (<code>E_NOT_PREPARED</code>,
         missing offerToken on subs, etc.).
       </p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          typescript: (
-            <CodeBlock language="typescript">{`requestPurchase(props: RequestPurchaseProps): Promise<Purchase | void>
-
-type RequestPurchaseProps =
-  | { request: RequestPurchasePropsByPlatforms; type: 'in-app' }
-  | { request: RequestSubscriptionPropsByPlatforms; type: 'subs' }`}</CodeBlock>
-          ),
-          swift: (
-            <CodeBlock language="swift">{`func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun requestPurchase(props: RequestPurchaseProps): Purchase?`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<Purchase?> requestPurchase(RequestPurchaseProps props);`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func request_purchase(props: RequestPurchaseProps) -> Purchase`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

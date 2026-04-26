@@ -40,15 +40,6 @@ function CreateAlternativeBillingTokenAndroid() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;string | null&gt;</code> — Reporting token to send to
-        Google within 24h, or <code>null</code> if creation failed (step 3 of
-        3).
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -71,6 +62,15 @@ suspend fun createAlternativeBillingToken(): String?`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string | null&gt;</code> — Reporting token to send to
+        Google within 24h, or <code>null</code> if creation failed (step 3 of
+        3).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

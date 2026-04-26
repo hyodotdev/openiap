@@ -42,46 +42,6 @@ function LaunchExternalLinkAndroid() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <p>
-        Pass a single{' '}
-        <Link to="/docs/types/billing-programs#launch-external-link-params-android">
-          <code>LaunchExternalLinkParamsAndroid</code>
-        </Link>
-        :
-      </p>
-      <ul className="api-params">
-        <li>
-          <code>program</code>{' '}
-          <em>
-            (required,{' '}
-            <Link to="/docs/types/billing-programs#billing-program-android">
-              <code>BillingProgramAndroid</code>
-            </Link>
-            )
-          </em>{' '}
-          — Billing program the link belongs to (e.g.{' '}
-          <code>EXTERNAL_OFFER</code>).
-        </li>
-        <li>
-          <code>url</code>{' '}
-          <em>
-            (required, <code>string</code>)
-          </em>{' '}
-          — External URL to launch after the Play disclosure dialog dismisses.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the Play
-        disclosure dialog finished and (optionally) the URL was opened.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -121,6 +81,46 @@ suspend fun launchExternalLink(
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        Pass a single{' '}
+        <Link to="/docs/types/billing-programs#launch-external-link-params-android">
+          <code>LaunchExternalLinkParamsAndroid</code>
+        </Link>
+        :
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>program</code>{' '}
+          <em>
+            (required,{' '}
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — Billing program the link belongs to (e.g.{' '}
+          <code>EXTERNAL_OFFER</code>).
+        </li>
+        <li>
+          <code>url</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — External URL to launch after the Play disclosure dialog dismisses.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the Play
+        disclosure dialog finished and (optionally) the URL was opened.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

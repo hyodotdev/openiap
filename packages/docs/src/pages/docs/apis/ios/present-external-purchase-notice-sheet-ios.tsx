@@ -34,6 +34,33 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
+
+struct ExternalPurchaseNoticeResultIOS {
+    let result: ExternalPurchaseNoticeAction
+    let error: String?
+    let externalPurchaseToken: String?
+}`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`presentExternalPurchaseNoticeSheetIOS(): Promise<ExternalPurchaseNoticeResultIOS>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func present_external_purchase_notice_sheet_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="returns" level="h2">
         Returns
       </AnchorLink>
@@ -69,33 +96,6 @@ function PresentExternalPurchaseNoticeSheetIOS() {
           — Populated when the sheet failed to present.
         </li>
       </ul>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          swift: (
-            <CodeBlock language="swift">{`func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
-
-struct ExternalPurchaseNoticeResultIOS {
-    let result: ExternalPurchaseNoticeAction
-    let error: String?
-    let externalPurchaseToken: String?
-}`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS`}</CodeBlock>
-          ),
-          typescript: (
-            <CodeBlock language="typescript">{`presentExternalPurchaseNoticeSheetIOS(): Promise<ExternalPurchaseNoticeResultIOS>`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func present_external_purchase_notice_sheet_ios() -> Variant`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

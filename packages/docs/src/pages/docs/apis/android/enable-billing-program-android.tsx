@@ -48,31 +48,6 @@ function EnableBillingProgramAndroid() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>billingProgramAndroid</code>{' '}
-          <em>
-            (required,{' '}
-            <Link to="/docs/types/billing-programs#billing-program-android">
-              <code>BillingProgramAndroid</code>
-            </Link>
-            )
-          </em>{' '}
-          — Note: this is a config field of <code>InitConnectionConfig</code>{' '}
-          passed to <code>initConnection()</code>, not a standalone mutation.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;void&gt;</code> — Resolves once the program is enabled.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -110,6 +85,31 @@ func init_connection(config: InitConnectionConfig) -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>billingProgramAndroid</code>{' '}
+          <em>
+            (required,{' '}
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — Note: this is a config field of <code>InitConnectionConfig</code>{' '}
+          passed to <code>initConnection()</code>, not a standalone mutation.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves once the program is enabled.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

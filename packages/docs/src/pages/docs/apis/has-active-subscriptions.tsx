@@ -42,6 +42,30 @@ function HasActiveSubscriptions() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`hasActiveSubscriptions(subscriptionIds?: string[]): Promise<boolean>`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`func hasActiveSubscriptions(subscriptionIds: [String]? = nil) async throws -> Bool`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> hasActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -67,30 +91,6 @@ function HasActiveSubscriptions() {
         </Link>{' '}
         when you only need a yes/no answer.
       </p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          typescript: (
-            <CodeBlock language="typescript">{`hasActiveSubscriptions(subscriptionIds?: string[]): Promise<boolean>`}</CodeBlock>
-          ),
-          swift: (
-            <CodeBlock language="swift">{`func hasActiveSubscriptions(subscriptionIds: [String]? = nil) async throws -> Bool`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<bool> hasActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

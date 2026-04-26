@@ -36,14 +36,6 @@ function PresentCodeRedemptionSheetIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
-        redemption sheet has been presented.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -64,6 +56,14 @@ function PresentCodeRedemptionSheetIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
+        redemption sheet has been presented.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

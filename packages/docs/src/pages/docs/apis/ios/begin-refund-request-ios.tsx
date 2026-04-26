@@ -37,27 +37,6 @@ function BeginRefundRequestIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>sku</code>{' '}
-          <em>
-            (required, <code>string</code>)
-          </em>{' '}
-          — Product identifier to refund.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;string | null&gt;</code> — Refund request status
-        string, or <code>null</code> if the user dismissed the sheet.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -78,6 +57,27 @@ function BeginRefundRequestIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>sku</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Product identifier to refund.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string | null&gt;</code> — Refund request status
+        string, or <code>null</code> if the user dismissed the sheet.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

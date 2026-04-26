@@ -43,75 +43,6 @@ function FetchProducts() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <p>
-        Pass a single{' '}
-        <Link to="/docs/types/product-request">
-          <code>ProductRequest</code>
-        </Link>{' '}
-        object:
-      </p>
-      <ul className="api-params">
-        <li>
-          <code>skus</code>{' '}
-          <em>
-            (required, <code>string[]</code>)
-          </em>{' '}
-          — Product identifiers to fetch.
-        </li>
-        <li>
-          <code>type</code>{' '}
-          <em>
-            (optional, <code>'in-app' | 'subs' | 'all'</code>, default{' '}
-            <code>'in-app'</code>)
-          </em>{' '}
-          — Filter by product kind. Use <code>'all'</code> to query both in one
-          call.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;FetchProductsResult&gt;</code> — sealed union,
-        discriminated by the request <code>type</code>:
-      </p>
-      <ul className="api-params">
-        <li>
-          <Link to="/docs/types/product">
-            <code>Product[]</code>
-          </Link>{' '}
-          <em>
-            (for <code>type: 'in-app'</code>)
-          </em>{' '}
-          — Array of one-time products. Empty array if none of the SKUs exist.
-        </li>
-        <li>
-          <Link to="/docs/types/subscription-product">
-            <code>ProductSubscription[]</code>
-          </Link>{' '}
-          <em>
-            (for <code>type: 'subs'</code>)
-          </em>{' '}
-          — Array of subscription products with offer details.
-        </li>
-        <li>
-          <code>(Product | ProductSubscription)[]</code>{' '}
-          <em>
-            (for <code>type: 'all'</code>)
-          </em>{' '}
-          — Mixed array; use each entry's <code>type</code> field to
-          disambiguate.
-        </li>
-        <li>
-          <code>null</code> <em>(legacy)</em> — Older schema branch retained for
-          backwards compatibility.
-        </li>
-      </ul>
-
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs
       </AnchorLink>
@@ -194,6 +125,75 @@ func fetch_products(request: ProductRequest) -> Array`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        Pass a single{' '}
+        <Link to="/docs/types/product-request">
+          <code>ProductRequest</code>
+        </Link>{' '}
+        object:
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>skus</code>{' '}
+          <em>
+            (required, <code>string[]</code>)
+          </em>{' '}
+          — Product identifiers to fetch.
+        </li>
+        <li>
+          <code>type</code>{' '}
+          <em>
+            (optional, <code>'in-app' | 'subs' | 'all'</code>, default{' '}
+            <code>'in-app'</code>)
+          </em>{' '}
+          — Filter by product kind. Use <code>'all'</code> to query both in one
+          call.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;FetchProductsResult&gt;</code> — sealed union,
+        discriminated by the request <code>type</code>:
+      </p>
+      <ul className="api-params">
+        <li>
+          <Link to="/docs/types/product">
+            <code>Product[]</code>
+          </Link>{' '}
+          <em>
+            (for <code>type: 'in-app'</code>)
+          </em>{' '}
+          — Array of one-time products. Empty array if none of the SKUs exist.
+        </li>
+        <li>
+          <Link to="/docs/types/subscription-product">
+            <code>ProductSubscription[]</code>
+          </Link>{' '}
+          <em>
+            (for <code>type: 'subs'</code>)
+          </em>{' '}
+          — Array of subscription products with offer details.
+        </li>
+        <li>
+          <code>(Product | ProductSubscription)[]</code>{' '}
+          <em>
+            (for <code>type: 'all'</code>)
+          </em>{' '}
+          — Mixed array; use each entry's <code>type</code> field to
+          disambiguate.
+        </li>
+        <li>
+          <code>null</code> <em>(legacy)</em> — Older schema branch retained for
+          backwards compatibility.
+        </li>
+      </ul>
 
       <h2>Example</h2>
       <LanguageTabs>

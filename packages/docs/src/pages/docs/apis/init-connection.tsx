@@ -46,6 +46,30 @@ function InitConnection() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`initConnection(config?: InitConnectionConfig): Promise<boolean>`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`func initConnection() async throws -> Bool`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun initConnection(config: InitConnectionConfig? = null): Boolean`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun initConnection(config: InitConnectionConfig? = null): Boolean`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func init_connection(config: InitConnectionConfig = null) -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -95,30 +119,6 @@ function InitConnection() {
         Throws
       </AnchorLink>
       <p>When the platform billing client fails to initialize.</p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          typescript: (
-            <CodeBlock language="typescript">{`initConnection(config?: InitConnectionConfig): Promise<boolean>`}</CodeBlock>
-          ),
-          swift: (
-            <CodeBlock language="swift">{`func initConnection() async throws -> Bool`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun initConnection(config: InitConnectionConfig? = null): Boolean`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun initConnection(config: InitConnectionConfig? = null): Boolean`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func init_connection(config: InitConnectionConfig = null) -> bool`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

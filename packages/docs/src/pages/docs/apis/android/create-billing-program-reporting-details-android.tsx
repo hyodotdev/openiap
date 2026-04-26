@@ -41,6 +41,41 @@ function CreateBillingProgramReportingDetailsAndroid() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`// Returns BillingProgramReportingDetailsAndroid with externalTransactionToken
+// Token must be reported to Google Play backend within 24 hours
+// Throws OpenIapError.NotPrepared if billing client not ready
+suspend fun createBillingProgramReportingDetails(
+    program: BillingProgramAndroid
+): BillingProgramReportingDetailsAndroid`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun createBillingProgramReportingDetailsAndroid(
+    program: BillingProgramAndroid
+): BillingProgramReportingDetailsAndroid`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`createBillingProgramReportingDetailsAndroid(
+  program: BillingProgramAndroid
+): Promise<BillingProgramReportingDetailsAndroid>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<BillingProgramReportingDetailsAndroid>
+    createBillingProgramReportingDetailsAndroid(
+  BillingProgramAndroid program,
+);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func create_billing_program_reporting_details_android(
+    program: int
+) -> BillingProgramReportingDetailsAndroid`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -90,41 +125,6 @@ function CreateBillingProgramReportingDetailsAndroid() {
           — Optional debug message from Play.
         </li>
       </ul>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          kotlin: (
-            <CodeBlock language="kotlin">{`// Returns BillingProgramReportingDetailsAndroid with externalTransactionToken
-// Token must be reported to Google Play backend within 24 hours
-// Throws OpenIapError.NotPrepared if billing client not ready
-suspend fun createBillingProgramReportingDetails(
-    program: BillingProgramAndroid
-): BillingProgramReportingDetailsAndroid`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun createBillingProgramReportingDetailsAndroid(
-    program: BillingProgramAndroid
-): BillingProgramReportingDetailsAndroid`}</CodeBlock>
-          ),
-          typescript: (
-            <CodeBlock language="typescript">{`createBillingProgramReportingDetailsAndroid(
-  program: BillingProgramAndroid
-): Promise<BillingProgramReportingDetailsAndroid>`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<BillingProgramReportingDetailsAndroid>
-    createBillingProgramReportingDetailsAndroid(
-  BillingProgramAndroid program,
-);`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func create_billing_program_reporting_details_android(
-    program: int
-) -> BillingProgramReportingDetailsAndroid`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

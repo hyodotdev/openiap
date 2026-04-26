@@ -34,17 +34,6 @@ function GetAppTransactionIOS() {
         .
       </p>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <Link to="/docs/types/ios/app-transaction-ios">
-          <code>Promise&lt;AppTransaction | null&gt;</code>
-        </Link>{' '}
-        — JWS-verified record of how the app was acquired. Returns{' '}
-        <code>null</code> on iOS &lt; 16 or when no transaction is available.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -65,6 +54,17 @@ function GetAppTransactionIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/ios/app-transaction-ios">
+          <code>Promise&lt;AppTransaction | null&gt;</code>
+        </Link>{' '}
+        — JWS-verified record of how the app was acquired. Returns{' '}
+        <code>null</code> on iOS &lt; 16 or when no transaction is available.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

@@ -48,6 +48,35 @@ function GetAvailablePurchases() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`getAvailablePurchases(options?: PurchaseOptions): Promise<Purchase[]>
+
+interface PurchaseOptions {
+  alsoPublishToEventListenerIOS?: boolean;
+  onlyIncludeActiveItemsIOS?: boolean;
+}`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`func getAvailablePurchases(options: PurchaseOptions? = nil) async throws -> [Purchase]`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<List<Purchase>> getAvailablePurchases({PurchaseOptions? options});`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -95,35 +124,6 @@ function GetAvailablePurchases() {
         </Link>{' '}
         — owned/available purchases held by the store.
       </p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          typescript: (
-            <CodeBlock language="typescript">{`getAvailablePurchases(options?: PurchaseOptions): Promise<Purchase[]>
-
-interface PurchaseOptions {
-  alsoPublishToEventListenerIOS?: boolean;
-  onlyIncludeActiveItemsIOS?: boolean;
-}`}</CodeBlock>
-          ),
-          swift: (
-            <CodeBlock language="swift">{`func getAvailablePurchases(options: PurchaseOptions? = nil) async throws -> [Purchase]`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun getAvailablePurchases(): List<Purchase>`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<List<Purchase>> getAvailablePurchases({PurchaseOptions? options});`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

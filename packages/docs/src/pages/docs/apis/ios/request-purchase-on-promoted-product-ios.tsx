@@ -46,14 +46,6 @@ function RequestPurchaseOnPromotedProductIOS() {
         </p>
       </div>
 
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the request
-        was dispatched.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -77,6 +69,14 @@ Future<bool> requestPurchaseOnPromotedProductIOS();`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the request
+        was dispatched.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

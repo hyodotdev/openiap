@@ -35,27 +35,6 @@ function IsTransactionVerifiedIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>sku</code>{' '}
-          <em>
-            (required, <code>string</code>)
-          </em>{' '}
-          — Product identifier.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;boolean&gt;</code> — Whether the latest transaction for{' '}
-        <code>sku</code> passed JWS verification.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -76,6 +55,27 @@ function IsTransactionVerifiedIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>sku</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Product identifier.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — Whether the latest transaction for{' '}
+        <code>sku</code> passed JWS verification.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

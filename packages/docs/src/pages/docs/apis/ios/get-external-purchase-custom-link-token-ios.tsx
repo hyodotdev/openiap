@@ -46,32 +46,6 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>tokenType</code>{' '}
-          <em>
-            (required, <code>ExternalPurchaseCustomLinkTokenTypeIOS</code>)
-          </em>{' '}
-          — <code>acquisition</code> (new customers) or <code>services</code>{' '}
-          (existing customers).
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <Link to="/docs/types/external-purchase-link#external-purchase-custom-link-token-result-ios">
-          <code>Promise&lt;ExternalPurchaseCustomLinkTokenResultIOS&gt;</code>
-        </Link>{' '}
-        — token plus its acquired/expiry metadata. Send the <code>token</code>{' '}
-        field to Apple's External Purchase Server within the documented validity
-        window.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -101,6 +75,32 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>tokenType</code>{' '}
+          <em>
+            (required, <code>ExternalPurchaseCustomLinkTokenTypeIOS</code>)
+          </em>{' '}
+          — <code>acquisition</code> (new customers) or <code>services</code>{' '}
+          (existing customers).
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/external-purchase-link#external-purchase-custom-link-token-result-ios">
+          <code>Promise&lt;ExternalPurchaseCustomLinkTokenResultIOS&gt;</code>
+        </Link>{' '}
+        — token plus its acquired/expiry metadata. Send the <code>token</code>{' '}
+        field to Apple's External Purchase Server within the documented validity
+        window.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

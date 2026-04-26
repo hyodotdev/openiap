@@ -49,6 +49,35 @@ function DeepLinkToSubscriptions() {
         .
       </p>
 
+      <h2>Signature</h2>
+      <LanguageTabs>
+        {{
+          typescript: (
+            <CodeBlock language="typescript">{`deepLinkToSubscriptions(options?: DeepLinkOptions): Promise<void>
+
+interface DeepLinkOptions {
+  skuAndroid?: string;
+  packageNameAndroid?: string;
+}`}</CodeBlock>
+          ),
+          swift: (
+            <CodeBlock language="swift">{`func deepLinkToSubscriptions() async throws`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null)`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<void> deepLinkToSubscriptions({String? skuAndroid, String? packageNameAndroid});`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> void`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -97,35 +126,6 @@ function DeepLinkToSubscriptions() {
       <p>
         <strong>iOS:</strong> When no <code>UIWindowScene</code> is available.
       </p>
-
-      <h2>Signature</h2>
-      <LanguageTabs>
-        {{
-          typescript: (
-            <CodeBlock language="typescript">{`deepLinkToSubscriptions(options?: DeepLinkOptions): Promise<void>
-
-interface DeepLinkOptions {
-  skuAndroid?: string;
-  packageNameAndroid?: string;
-}`}</CodeBlock>
-          ),
-          swift: (
-            <CodeBlock language="swift">{`func deepLinkToSubscriptions() async throws`}</CodeBlock>
-          ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null)`}</CodeBlock>
-          ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null)`}</CodeBlock>
-          ),
-          dart: (
-            <CodeBlock language="dart">{`Future<void> deepLinkToSubscriptions({String? skuAndroid, String? packageNameAndroid});`}</CodeBlock>
-          ),
-          gdscript: (
-            <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> void`}</CodeBlock>
-          ),
-        }}
-      </LanguageTabs>
 
       <h2>Example</h2>
       <LanguageTabs>

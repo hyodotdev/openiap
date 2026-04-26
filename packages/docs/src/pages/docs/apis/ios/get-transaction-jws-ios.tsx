@@ -34,27 +34,6 @@ function GetTransactionJwsIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>sku</code>{' '}
-          <em>
-            (required, <code>string</code>)
-          </em>{' '}
-          — Product identifier.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
-      </AnchorLink>
-      <p>
-        <code>Promise&lt;string | null&gt;</code> — Signed JWS for the latest
-        transaction, or <code>null</code>.
-      </p>
-
       <h2>Signature</h2>
       <LanguageTabs>
         {{
@@ -75,6 +54,27 @@ function GetTransactionJwsIOS() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>sku</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Product identifier.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string | null&gt;</code> — Signed JWS for the latest
+        transaction, or <code>null</code>.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>
