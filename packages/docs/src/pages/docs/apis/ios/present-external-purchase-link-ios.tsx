@@ -20,16 +20,20 @@ function PresentExternalPurchaseLinkIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         presentExternalPurchaseLinkIOS
       </h1>
-      <p>Open external purchase URL in Safari (iOS 16+).</p>
+      <p>Open an external purchase URL outside the app (iOS 16+).</p>
       <p>
-        Wraps <code>ExternalPurchaseLink.open(url:)</code> — StoreKit External,
-        iOS 16+ (EU app store). See the{' '}
+        Opens the URL via{' '}
+        <code>UIApplication.open(_:options:completionHandler:)</code> after a{' '}
+        <code>canOpenURL</code> guard — the openiap-apple implementation routes
+        through UIKit rather than StoreKit's <code>ExternalPurchaseLink</code>{' '}
+        API. The native call must still be gated by the StoreKit
+        external-purchase entitlement on production builds. See the{' '}
         <a
-          href="https://developer.apple.com/documentation/storekit/externalpurchaselink"
+          href="https://developer.apple.com/documentation/uikit/uiapplication/1648685-open"
           target="_blank"
           rel="noopener noreferrer"
         >
-          Apple StoreKit reference
+          Apple UIApplication.open reference
         </a>
         .
       </p>

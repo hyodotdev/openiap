@@ -368,7 +368,8 @@ export const endConnection: MutationField<'endConnection'> = async () =>
  *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
  * @returns Promise resolving to a `FetchProductsResult` union — `Product[]` for `'in-app'`,
  *   `ProductSubscription[]` for `'subs'`, or a mixed array for `'all'`.
- * @throws When the store rejects the request (unknown SKU, network, not connected).
+ * @throws When the store rejects the request (empty `skus`, not connected,
+ *   network/store error). Unknown SKUs are simply omitted from the result, not thrown.
  *
  * @example
  * ```ts

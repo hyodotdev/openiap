@@ -259,7 +259,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
    * @returns Promise that resolves when the request is dispatched; results land in the
    *   hook's reactive `products` / `subscriptions` state.
-   * @throws When the store rejects the request (unknown SKU, network, not connected).
+   * @throws When the store rejects the request (empty `skus`, not connected,
+   *   network/store error). Unknown SKUs are simply omitted from the result, not thrown.
    *
    * @example
    * ```ts

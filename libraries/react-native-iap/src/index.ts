@@ -669,7 +669,8 @@ export const subscriptionBillingIssueListener = (
  * @returns Promise resolving to a `FetchProductsResult` union — `Product[]` for `'in-app'`,
  *   `ProductSubscription[]` for `'subs'`, a mixed array for `'all'`, or `null`
  *   (the schema retains the nullable branch for backwards compatibility).
- * @throws When the store rejects the request (unknown SKU, network, not connected).
+ * @throws When the store rejects the request (empty `skus`, not connected,
+ *   network/store error). Unknown SKUs are simply omitted from the result, not thrown.
  *
  * @example
  * ```ts

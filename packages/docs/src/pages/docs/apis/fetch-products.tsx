@@ -20,8 +20,9 @@ function FetchProducts() {
       <p>Retrieve products or subscriptions from the store by SKU.</p>
       <p>
         <strong>iOS:</strong> Wraps <code>Product.products(for:)</code>{' '}
-        (StoreKit 2). Fetches the localized price/title for each SKU; throws if
-        any SKU is invalid.{' '}
+        (StoreKit 2). Fetches the localized price/title for each SKU. Unknown
+        SKUs are simply omitted from the returned array — only transport
+        failures (network, store unavailable, etc.) throw.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/product/products(for:)"
           target="_blank"
