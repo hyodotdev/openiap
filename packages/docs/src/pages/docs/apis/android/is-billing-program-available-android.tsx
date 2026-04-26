@@ -73,13 +73,51 @@ function IsBillingProgramAvailableAndroid() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;BillingProgramAvailabilityResultAndroid&gt;</code> —
-        Availability result with <code>isAvailable</code> flag. See{' '}
         <Link to="/docs/types/billing-programs#billing-program-availability-result-android">
-          <code>BillingProgramAvailabilityResultAndroid</code>
-        </Link>
-        .
+          <code>Promise&lt;BillingProgramAvailabilityResultAndroid&gt;</code>
+        </Link>{' '}
+        — carries:
       </p>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>isAvailable</code>
+            </td>
+            <td>
+              <code>boolean</code>
+            </td>
+            <td>
+              Whether the billing program is available for this user/device.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>responseCode</code>
+            </td>
+            <td>
+              <code>number?</code>
+            </td>
+            <td>Raw Play Billing response code (when Play returned one).</td>
+          </tr>
+          <tr>
+            <td>
+              <code>debugMessage</code>
+            </td>
+            <td>
+              <code>string?</code>
+            </td>
+            <td>Optional debug message from Play.</td>
+          </tr>
+        </tbody>
+      </table>
 
       <h2>Signature</h2>
       <LanguageTabs>

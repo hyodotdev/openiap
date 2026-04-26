@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -63,8 +64,11 @@ function PresentExternalPurchaseLinkIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;ExternalPurchaseLinkResultIOS&gt;</code> — Result
-        envelope.
+        <Link to="/docs/types/external-purchase-link">
+          <code>Promise&lt;ExternalPurchaseLinkResultIOS&gt;</code>
+        </Link>{' '}
+        — carries the result of opening the external link (success flag + any
+        error string from StoreKit).
       </p>
 
       <h2>Signature</h2>

@@ -45,10 +45,17 @@ function LaunchExternalLinkAndroid() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
+      <p>
+        Pass a single{' '}
+        <Link to="/docs/types/billing-programs#launch-external-link-params-android">
+          <code>LaunchExternalLinkParamsAndroid</code>
+        </Link>
+        :
+      </p>
       <table className="doc-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Field</th>
             <th>Type</th>
             <th>Required</th>
             <th>Description</th>
@@ -57,15 +64,30 @@ function LaunchExternalLinkAndroid() {
         <tbody>
           <tr>
             <td>
-              <code>params</code>
+              <code>program</code>
             </td>
             <td>
-              <Link to="/docs/types/billing-programs#launch-external-link-params-android">
-                <code>LaunchExternalLinkParamsAndroid</code>
+              <Link to="/docs/types/billing-programs#billing-program-android">
+                <code>BillingProgramAndroid</code>
               </Link>
             </td>
             <td>Yes</td>
-            <td>Includes the external URL plus per-program options.</td>
+            <td>
+              Billing program the link belongs to (e.g.{' '}
+              <code>EXTERNAL_OFFER</code>).
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>url</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>Yes</td>
+            <td>
+              External URL to launch after the Play disclosure dialog dismisses.
+            </td>
           </tr>
         </tbody>
       </table>

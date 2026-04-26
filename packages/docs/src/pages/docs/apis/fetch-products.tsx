@@ -46,10 +46,17 @@ function FetchProducts() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
+      <p>
+        Pass a single{' '}
+        <Link to="/docs/types/product-request">
+          <code>ProductRequest</code>
+        </Link>{' '}
+        object:
+      </p>
       <table className="doc-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Field</th>
             <th>Type</th>
             <th>Required</th>
             <th>Description</th>
@@ -58,18 +65,27 @@ function FetchProducts() {
         <tbody>
           <tr>
             <td>
-              <code>params</code>
+              <code>skus</code>
             </td>
             <td>
-              <Link to="/docs/types/product-request">
-                <code>ProductRequest</code>
-              </Link>
+              <code>string[]</code>
             </td>
             <td>Yes</td>
+            <td>Product identifiers to fetch.</td>
+          </tr>
+          <tr>
             <td>
-              Object with <code>skus: string[]</code> and optional{' '}
-              <code>type: 'in-app' | 'subs' | 'all'</code> (defaults to{' '}
-              <code>'in-app'</code>).
+              <code>type</code>
+            </td>
+            <td>
+              <code>'in-app' | 'subs' | 'all'</code>
+            </td>
+            <td>
+              No (default <code>'in-app'</code>)
+            </td>
+            <td>
+              Filter by product kind. Use <code>'all'</code> to query both in
+              one call.
             </td>
           </tr>
         </tbody>
@@ -79,11 +95,63 @@ function FetchProducts() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;FetchProductsResult&gt;</code> — Sealed union;{' '}
-        <code>Product[]</code> for <code>'in-app'</code>,{' '}
-        <code>ProductSubscription[]</code> for <code>'subs'</code>, mixed for{' '}
-        <code>'all'</code>, or <code>null</code> (legacy schema branch).
+        <code>Promise&lt;FetchProductsResult&gt;</code> — sealed union,
+        discriminated by the request <code>type</code>:
       </p>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Variant</th>
+            <th>Returned for</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <Link to="/docs/types/product">
+                <code>Product[]</code>
+              </Link>
+            </td>
+            <td>
+              <code>type: 'in-app'</code>
+            </td>
+            <td>
+              Array of one-time products. Empty array if none of the SKUs exist.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <Link to="/docs/types/subscription-product">
+                <code>ProductSubscription[]</code>
+              </Link>
+            </td>
+            <td>
+              <code>type: 'subs'</code>
+            </td>
+            <td>Array of subscription products with offer details.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>(Product | ProductSubscription)[]</code>
+            </td>
+            <td>
+              <code>type: 'all'</code>
+            </td>
+            <td>
+              Mixed array — use each entry's <code>type</code> field to
+              disambiguate.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>null</code>
+            </td>
+            <td>(legacy)</td>
+            <td>Older schema branch retained for backwards compatibility.</td>
+          </tr>
+        </tbody>
+      </table>
 
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs

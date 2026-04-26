@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -42,9 +43,43 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;ExternalPurchaseNoticeResultIOS&gt;</code> — Carries a
-        token if the user accepts.
+        <Link to="/docs/types/external-purchase-link">
+          <code>Promise&lt;ExternalPurchaseNoticeResultIOS&gt;</code>
+        </Link>{' '}
+        — carries:
       </p>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>result</code>
+            </td>
+            <td>
+              <code>'continue' | 'cancelled'</code>
+            </td>
+            <td>Whether the user accepted the notice or dismissed it.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>token</code>
+            </td>
+            <td>
+              <code>string?</code>
+            </td>
+            <td>
+              Reporting token returned by Apple when the user continues. Pass to
+              your backend.
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <h2>Signature</h2>
       <LanguageTabs>

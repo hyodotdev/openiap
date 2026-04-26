@@ -43,8 +43,11 @@ function GetAppTransactionIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;AppTransaction | null&gt;</code> — JWS-verified record
-        of how the app was acquired (iOS 16+).
+        <Link to="/docs/types/ios/app-transaction-ios">
+          <code>Promise&lt;AppTransaction | null&gt;</code>
+        </Link>{' '}
+        — JWS-verified record of how the app was acquired. Returns{' '}
+        <code>null</code> on iOS &lt; 16 or when no transaction is available.
       </p>
 
       <h2>Signature</h2>

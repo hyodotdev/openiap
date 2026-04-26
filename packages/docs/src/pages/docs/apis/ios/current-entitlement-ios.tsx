@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -63,8 +64,11 @@ function CurrentEntitlementIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;PurchaseIOS | null&gt;</code> — Current entitlement for
-        the product, or <code>null</code>.
+        <Link to="/docs/types/purchase">
+          <code>Promise&lt;PurchaseIOS | null&gt;</code>
+        </Link>{' '}
+        — iOS purchase shape, or <code>null</code> if the SKU has no matching
+        transaction.
       </p>
 
       <h2>Signature</h2>

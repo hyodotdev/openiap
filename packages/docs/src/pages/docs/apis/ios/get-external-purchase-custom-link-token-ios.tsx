@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -78,8 +79,12 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;ExternalPurchaseCustomLinkTokenResultIOS&gt;</code> —
-        Token for Apple's External Purchase Server reporting API.
+        <Link to="/docs/types/external-purchase-link">
+          <code>Promise&lt;ExternalPurchaseCustomLinkTokenResultIOS&gt;</code>
+        </Link>{' '}
+        — token plus its acquired/expiry metadata. Send the <code>token</code>{' '}
+        field to Apple's External Purchase Server within the documented validity
+        window.
       </p>
 
       <h2>Signature</h2>

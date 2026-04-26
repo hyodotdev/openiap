@@ -87,10 +87,17 @@ function RequestPurchase() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
+      <p>
+        Pass a single{' '}
+        <Link to="/docs/types/request-purchase-props">
+          <code>RequestPurchaseProps</code>
+        </Link>
+        , discriminated by <code>type</code>:
+      </p>
       <table className="doc-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Field</th>
             <th>Type</th>
             <th>Required</th>
             <th>Description</th>
@@ -99,20 +106,94 @@ function RequestPurchase() {
         <tbody>
           <tr>
             <td>
-              <code>props</code>
+              <code>type</code>
             </td>
             <td>
-              <Link to="/docs/types/request-purchase-props">
-                <code>RequestPurchaseProps</code>
-              </Link>
+              <code>'in-app' | 'subs'</code>
             </td>
             <td>Yes</td>
             <td>
-              Discriminated by <code>type: 'in-app' | 'subs'</code>. Pass
-              platform fields under <code>request.apple.sku</code> (iOS) and/or{' '}
-              <code>request.google.skus</code> (Android); subscriptions also
-              need <code>request.google.subscriptionOffers</code>.
+              Selects the request shape. Use <code>'in-app'</code> for one-time
+              products and <code>'subs'</code> for subscriptions.
             </td>
+          </tr>
+          <tr>
+            <td>
+              <code>request.apple.sku</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>iOS only</td>
+            <td>Single SKU for the iOS purchase.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>request.apple.appAccountToken</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>No</td>
+            <td>
+              UUID-format account token forwarded to Apple. Non-UUID values land
+              as <code>null</code> on the resulting <code>Purchase</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>request.apple.quantity</code>
+            </td>
+            <td>
+              <code>number</code>
+            </td>
+            <td>No</td>
+            <td>Quantity for consumable bulk purchases.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>request.google.skus</code>
+            </td>
+            <td>
+              <code>string[]</code>
+            </td>
+            <td>Android only</td>
+            <td>Product SKUs to launch the Play purchase flow for.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>request.google.subscriptionOffers</code>
+            </td>
+            <td>
+              <code>{`{ sku: string; offerToken: string }[]`}</code>
+            </td>
+            <td>
+              <code>'subs'</code> only
+            </td>
+            <td>
+              <strong>Android.</strong> Required for subscription requests; pair
+              each SKU with its offerToken from <code>fetchProducts</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>request.google.obfuscatedAccountIdAndroid</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>No</td>
+            <td>Optional account identifier passed to Play.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>request.google.obfuscatedProfileIdAndroid</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>No</td>
+            <td>Optional profile identifier passed to Play.</td>
           </tr>
         </tbody>
       </table>
@@ -121,10 +202,17 @@ function RequestPurchase() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;Purchase | null&gt;</code> — Dispatched purchase
+        <code>Promise&lt;Purchase | null&gt;</code> — dispatched purchase
         payload. <strong>Do not rely on this for the actual outcome</strong> —
-        listen via <code>purchaseUpdatedListener</code> /{' '}
-        <code>purchaseErrorListener</code> instead.
+        listen via{' '}
+        <Link to="/docs/events/purchase-updated-listener">
+          <code>purchaseUpdatedListener</code>
+        </Link>{' '}
+        /{' '}
+        <Link to="/docs/events/purchase-error-listener">
+          <code>purchaseErrorListener</code>
+        </Link>{' '}
+        instead.
       </p>
 
       <AnchorLink id="throws" level="h2">

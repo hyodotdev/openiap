@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -50,8 +51,12 @@ function ShowManageSubscriptionsIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;PurchaseIOS[]&gt;</code> — Purchases whose status
-        changed while the sheet was presented.
+        <Link to="/docs/types/purchase">
+          <code>Promise&lt;PurchaseIOS[]&gt;</code>
+        </Link>{' '}
+        — purchases whose status changed while the manage-subscriptions sheet
+        was on screen (e.g. cancelled or auto-renew toggled). Empty array when
+        nothing changed.
       </p>
 
       <h2>Signature</h2>

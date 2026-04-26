@@ -67,7 +67,11 @@ function GetActiveSubscriptions() {
               <code>string[]</code>
             </td>
             <td>No</td>
-            <td>When provided, narrows the result to these SKUs only.</td>
+            <td>
+              If provided, the result is filtered to these SKUs. Omit / pass{' '}
+              <code>null</code> to return every active subscription the store
+              knows about.
+            </td>
           </tr>
         </tbody>
       </table>
@@ -79,9 +83,95 @@ function GetActiveSubscriptions() {
         <Link to="/docs/types/active-subscription">
           <code>Promise&lt;ActiveSubscription[]&gt;</code>
         </Link>{' '}
-        — Active subscription details (see <code>ActiveSubscription</code>{' '}
-        type).
+        — one entry per active subscription. Each row carries:
       </p>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>productId</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>Subscription product identifier.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>basePlanId</code>
+            </td>
+            <td>
+              <code>string?</code>
+            </td>
+            <td>
+              <strong>Android.</strong> Base plan identifier when applicable.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>isActive</code>
+            </td>
+            <td>
+              <code>boolean</code>
+            </td>
+            <td>
+              <code>true</code> while the subscription is in a paying or grace
+              state.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>willExpireSoon</code>
+            </td>
+            <td>
+              <code>boolean?</code>
+            </td>
+            <td>Hint that renewal is imminent (cancelled or grace period).</td>
+          </tr>
+          <tr>
+            <td>
+              <code>expirationDateIOS</code>
+            </td>
+            <td>
+              <code>number?</code>
+            </td>
+            <td>
+              <strong>iOS.</strong> Epoch ms expiration timestamp.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>environmentIOS</code>
+            </td>
+            <td>
+              <code>string?</code>
+            </td>
+            <td>
+              <strong>iOS.</strong> <code>"Sandbox"</code> or{' '}
+              <code>"Production"</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>autoRenewingAndroid</code>
+            </td>
+            <td>
+              <code>boolean?</code>
+            </td>
+            <td>
+              <strong>Android.</strong> Whether Play will auto-renew at the next
+              cycle.
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <h2>Signature</h2>
       <LanguageTabs>

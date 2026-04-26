@@ -49,10 +49,17 @@ function InitConnection() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
+      <p>
+        Pass an optional{' '}
+        <Link to="/docs/types/alternative-billing-types#init-connection-config">
+          <code>InitConnectionConfig</code>
+        </Link>
+        :
+      </p>
       <table className="doc-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Field</th>
             <th>Type</th>
             <th>Required</th>
             <th>Description</th>
@@ -61,17 +68,33 @@ function InitConnection() {
         <tbody>
           <tr>
             <td>
-              <code>config</code>
+              <code>alternativeBillingModeAndroid</code>
             </td>
             <td>
-              <Link to="/docs/types/alternative-billing-types#init-connection-config">
-                <code>InitConnectionConfig</code>
+              <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
+                <code>AlternativeBillingModeAndroid</code>
               </Link>
             </td>
             <td>No</td>
             <td>
-              Connection config (e.g. <code>enableBillingProgramAndroid</code>{' '}
-              for Play Billing 8.2.0+; iOS ignores Android-specific fields).
+              <strong>Android · deprecated.</strong> Opt into Google's
+              user-choice billing flow. Prefer{' '}
+              <code>enableBillingProgramAndroid</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>enableBillingProgramAndroid</code>
+            </td>
+            <td>
+              <Link to="/docs/types/billing-programs#billing-program-android">
+                <code>BillingProgramAndroid</code>
+              </Link>
+            </td>
+            <td>No</td>
+            <td>
+              <strong>Android.</strong> Enable a Play Billing 8.2.0+ program
+              (External Payments etc.) at connection time.
             </td>
           </tr>
         </tbody>

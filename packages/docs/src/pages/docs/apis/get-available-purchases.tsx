@@ -51,10 +51,17 @@ function GetAvailablePurchases() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
+      <p>
+        Pass an optional{' '}
+        <Link to="/docs/types/purchase#purchase-options">
+          <code>PurchaseOptions</code>
+        </Link>
+        :
+      </p>
       <table className="doc-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Field</th>
             <th>Type</th>
             <th>Required</th>
             <th>Description</th>
@@ -63,19 +70,48 @@ function GetAvailablePurchases() {
         <tbody>
           <tr>
             <td>
-              <code>options</code>
+              <code>alsoPublishToEventListenerIOS</code>
             </td>
             <td>
-              <Link to="/docs/types/purchase#purchase-options">
-                <code>PurchaseOptions</code>
-              </Link>
+              <code>boolean</code>
             </td>
-            <td>No</td>
             <td>
-              Platform-specific filters (
-              <code>alsoPublishToEventListenerIOS</code>,{' '}
-              <code>onlyIncludeActiveItemsIOS</code>,{' '}
-              <code>includeSuspendedAndroid</code>).
+              No (default <code>false</code>)
+            </td>
+            <td>
+              <strong>iOS.</strong> Re-emit results on{' '}
+              <code>purchaseUpdatedListener</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>onlyIncludeActiveItemsIOS</code>
+            </td>
+            <td>
+              <code>boolean</code>
+            </td>
+            <td>
+              No (default <code>false</code>)
+            </td>
+            <td>
+              <strong>iOS.</strong> Switch from <code>Transaction.all</code>{' '}
+              (full history) to <code>Transaction.currentEntitlements</code>{' '}
+              (active only).
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>includeSuspendedAndroid</code>
+            </td>
+            <td>
+              <code>boolean</code>
+            </td>
+            <td>
+              No (default <code>false</code>)
+            </td>
+            <td>
+              <strong>Android.</strong> Include subscriptions in a paused/grace
+              state.
             </td>
           </tr>
         </tbody>
@@ -85,8 +121,10 @@ function GetAvailablePurchases() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;Purchase[]&gt;</code> — Owned/available purchases held
-        by the store.
+        <Link to="/docs/types/purchase">
+          <code>Promise&lt;Purchase[]&gt;</code>
+        </Link>{' '}
+        — owned/available purchases held by the store.
       </p>
 
       <h2>Signature</h2>

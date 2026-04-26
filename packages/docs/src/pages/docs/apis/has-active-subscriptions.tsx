@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -62,7 +63,10 @@ function HasActiveSubscriptions() {
               <code>string[]</code>
             </td>
             <td>No</td>
-            <td>When provided, checks only these SKUs.</td>
+            <td>
+              If provided, only these SKUs are checked. Omit to ask "any active
+              subscription at all?".
+            </td>
           </tr>
         </tbody>
       </table>
@@ -71,8 +75,12 @@ function HasActiveSubscriptions() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if any
-        (matching) subscription is active.
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> when at least
+        one (matching) subscription is in an active state. Convenience over{' '}
+        <Link to="/docs/apis/get-active-subscriptions">
+          <code>getActiveSubscriptions</code>
+        </Link>{' '}
+        when you only need a yes/no answer.
       </p>
 
       <h2>Signature</h2>

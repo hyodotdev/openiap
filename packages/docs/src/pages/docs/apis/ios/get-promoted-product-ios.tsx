@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -43,8 +44,11 @@ function GetPromotedProductIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;ProductIOS | null&gt;</code> — The currently promoted
-        product, or <code>null</code> if none is queued.
+        <Link to="/docs/types/product">
+          <code>Promise&lt;ProductIOS | null&gt;</code>
+        </Link>{' '}
+        — the App Store-promoted product, or <code>null</code> if no campaign is
+        currently queued.
       </p>
 
       <h2>Signature</h2>

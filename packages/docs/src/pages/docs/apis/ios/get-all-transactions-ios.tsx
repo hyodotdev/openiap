@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -47,8 +48,14 @@ function GetAllTransactionsIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;PurchaseIOS[]&gt;</code> — Every StoreKit transaction
-        (finished + unfinished).
+        <Link to="/docs/types/purchase">
+          <code>Promise&lt;PurchaseIOS[]&gt;</code>
+        </Link>{' '}
+        — array of StoreKit transactions in the iOS-specific shape. See{' '}
+        <Link to="/docs/types/purchase">
+          <code>Purchase</code>
+        </Link>{' '}
+        for the full field reference.
       </p>
 
       <h2>Signature</h2>

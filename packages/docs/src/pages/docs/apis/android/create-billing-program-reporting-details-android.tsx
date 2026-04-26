@@ -73,13 +73,51 @@ function CreateBillingProgramReportingDetailsAndroid() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;BillingProgramReportingDetailsAndroid&gt;</code> —
-        External transaction token + metadata for reporting. See{' '}
         <Link to="/docs/types/billing-programs#billing-program-reporting-details-android">
-          <code>BillingProgramReportingDetailsAndroid</code>
-        </Link>
-        .
+          <code>Promise&lt;BillingProgramReportingDetailsAndroid&gt;</code>
+        </Link>{' '}
+        — payload to report a Developer-Provided Billing transaction:
       </p>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>externalTransactionToken</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>
+              Token to send to Google's reporting API. Required for compliance.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>responseCode</code>
+            </td>
+            <td>
+              <code>number?</code>
+            </td>
+            <td>Raw Play Billing response code (when Play returned one).</td>
+          </tr>
+          <tr>
+            <td>
+              <code>debugMessage</code>
+            </td>
+            <td>
+              <code>string?</code>
+            </td>
+            <td>Optional debug message from Play.</td>
+          </tr>
+        </tbody>
+      </table>
 
       <h2>Signature</h2>
       <LanguageTabs>

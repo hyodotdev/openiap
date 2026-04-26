@@ -52,10 +52,17 @@ function DeepLinkToSubscriptions() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
+      <p>
+        Pass an optional{' '}
+        <Link to="/docs/types#common">
+          <code>DeepLinkOptions</code>
+        </Link>
+        :
+      </p>
       <table className="doc-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Field</th>
             <th>Type</th>
             <th>Required</th>
             <th>Description</th>
@@ -64,22 +71,37 @@ function DeepLinkToSubscriptions() {
         <tbody>
           <tr>
             <td>
-              <code>options</code>
+              <code>skuAndroid</code>
             </td>
             <td>
-              <Link to="/docs/types#common">
-                <code>DeepLinkOptions</code>
-              </Link>
+              <code>string</code>
             </td>
             <td>No</td>
             <td>
-              Android needs <code>skuAndroid</code> +{' '}
-              <code>packageNameAndroid</code> to deep-link to a specific
-              subscription; iOS ignores the argument.
+              <strong>Android.</strong> Subscription SKU to deep-link to.
+              Without it the user lands on the generic Play subscriptions page.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>packageNameAndroid</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>No</td>
+            <td>
+              <strong>Android.</strong> Defaults to the host app's package;
+              override only when proxying for another app.
             </td>
           </tr>
         </tbody>
       </table>
+      <p>
+        iOS ignores all fields — the wrapper calls{' '}
+        <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}
+        <code>UIWindowScene</code>.
+      </p>
 
       <AnchorLink id="returns" level="h2">
         Returns

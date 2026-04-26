@@ -79,8 +79,12 @@ function ValidateReceiptIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;VerifyPurchaseResultIOS&gt;</code> — Legacy receipt
-        validation result.
+        <Link to="/docs/types/verify-purchase">
+          <code>Promise&lt;VerifyPurchaseResultIOS&gt;</code>
+        </Link>{' '}
+        — legacy receipt validation result. Carries <code>isValid</code> +
+        receipt/JWS metadata. <strong>Deprecated</strong> — use{' '}
+        <Link to="/docs/apis/get-active-subscriptions">verifyPurchase</Link>.
       </p>
 
       <h2>Signature</h2>

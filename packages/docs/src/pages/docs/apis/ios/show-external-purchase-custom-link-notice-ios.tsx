@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -75,8 +76,11 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;ExternalPurchaseCustomLinkNoticeResultIOS&gt;</code> —
-        Disclosure result.
+        <Link to="/docs/types/external-purchase-link">
+          <code>Promise&lt;ExternalPurchaseCustomLinkNoticeResultIOS&gt;</code>
+        </Link>{' '}
+        — the user's response (<code>continue</code> / <code>cancelled</code>)
+        plus the disclosure type that was shown.
       </p>
 
       <h2>Signature</h2>

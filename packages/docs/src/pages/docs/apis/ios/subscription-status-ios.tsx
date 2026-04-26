@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -67,9 +68,48 @@ function SubscriptionStatusIOS() {
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;SubscriptionStatusIOS[]&gt;</code> — Status objects
-        from <code>Product.SubscriptionInfo.status</code>.
+        <Link to="/docs/types/ios/subscription-status-ios">
+          <code>Promise&lt;SubscriptionStatusIOS[]&gt;</code>
+        </Link>{' '}
+        — one entry per status the user has on the subscription:
       </p>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>state</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>
+              StoreKit 2 renewal state (e.g. <code>"subscribed"</code>,{' '}
+              <code>"inGracePeriod"</code>, <code>"expired"</code>).
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>renewalInfo</code>
+            </td>
+            <td>
+              <Link to="/docs/types/ios/renewal-info-ios">
+                <code>RenewalInfoIOS?</code>
+              </Link>
+            </td>
+            <td>
+              Renewal metadata (auto-renew flag, renewal date, expiration
+              reason). May be <code>null</code>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <h2>Signature</h2>
       <LanguageTabs>
