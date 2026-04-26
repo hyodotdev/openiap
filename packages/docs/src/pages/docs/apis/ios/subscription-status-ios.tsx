@@ -20,9 +20,12 @@ function SubscriptionStatusIOS() {
       </h1>
       <p>Get detailed subscription status using StoreKit 2 (iOS 15+).</p>
       <p>
-        Wraps <code>Product.SubscriptionInfo.status</code> — returns the array
-        of <code>Status</code> objects with <code>transaction</code>,{' '}
-        <code>renewalInfo</code>, <code>state</code>. iOS 15+. See the{' '}
+        Wraps <code>Product.SubscriptionInfo.status</code> — returns an array
+        projected onto <code>SubscriptionStatusIOS</code>, which exposes only{' '}
+        <code>renewalInfo</code> and <code>state</code>. The{' '}
+        <code>transaction</code> field on Apple's <code>Status</code> type is
+        not surfaced by this wrapper; if you need the underlying transaction,
+        call <code>latestTransactionIOS(sku)</code> separately. iOS 15+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status"
           target="_blank"

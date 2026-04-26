@@ -93,18 +93,28 @@ type UseIap = {
    * List the user's unfinished purchases — non-consumables, active subscriptions, and any
    * pending transactions not yet finished.
    *
-   * @param options Optional `PurchaseOptions`. iOS-only flags:
-   *   `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
+   * @param options Optional `PurchaseOptions`.
+   *   - iOS: `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
+   *   - Android: `includeSuspendedAndroid` (include subscriptions in a paused/grace state).
    * @returns Promise that resolves when the request is dispatched; results land in the
-   *   hook's reactive `availablePurchases` state.
+   *   hook's reactive `availablePurchases` state — read from there, don't expect a return value.
    * @throws When the platform query fails.
    *
    * @example
    * ```ts
-   * const purchases = await getAvailablePurchases();
-   * for (const p of purchases) {
-   *   if (await verifyOnServer(p)) await finishTransaction({ purchase: p, isConsumable: false });
-   * }
+   * const { availablePurchases, getAvailablePurchases, finishTransaction } = useIAP();
+   *
+   * useEffect(() => {
+   *   void getAvailablePurchases();
+   * }, [getAvailablePurchases]);
+   *
+   * useEffect(() => {
+   *   for (const p of availablePurchases) {
+   *     void verifyOnServer(p).then((ok) => {
+   *       if (ok) finishTransaction({ purchase: p, isConsumable: false });
+   *     });
+   *   }
+   * }, [availablePurchases, finishTransaction]);
    * ```
    *
    * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
@@ -116,15 +126,21 @@ type UseIap = {
    * @param params `ProductRequest` — `skus` (string[]) and optional `type`
    *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
    * @returns Promise that resolves when the request is dispatched; results land in the
-   *   hook's reactive `products` / `subscriptions` state.
+   *   hook's reactive `products` / `subscriptions` state — read from there, don't expect a return value.
    * @throws When the store rejects the request (unknown SKU, network, not connected).
    *
    * @example
    * ```ts
-   * const products = await fetchProducts({
-   *   skus: ['com.app.coins_100', 'com.app.premium'],
-   *   type: 'in-app',
-   * });
+   * const { products, fetchProducts } = useIAP();
+   *
+   * useEffect(() => {
+   *   void fetchProducts({
+   *     skus: ['com.app.coins_100', 'com.app.premium'],
+   *     type: 'in-app',
+   *   });
+   * }, [fetchProducts]);
+   *
+   * // Render `products` directly from hook state.
    * ```
    *
    * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
