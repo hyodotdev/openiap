@@ -95,6 +95,62 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
     tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
 ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun getExternalPurchaseCustomLinkTokenIOS(
+    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+): ExternalPurchaseCustomLinkTokenResultIOS`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`getExternalPurchaseCustomLinkTokenIOS(
+  tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
+): Promise<ExternalPurchaseCustomLinkTokenResultIOS>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<ExternalPurchaseCustomLinkTokenResultIOS>
+    getExternalPurchaseCustomLinkTokenIOS(
+  ExternalPurchaseCustomLinkTokenTypeIOS tokenType,
+);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let token = try await OpenIapModule.shared.getExternalPurchaseCustomLinkTokenIOS(
+    tokenType: .acquisition
+)`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val token = kmpIAP.getExternalPurchaseCustomLinkTokenIOS(
+    tokenType = ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION
+)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { getExternalPurchaseCustomLinkTokenIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const token = await getExternalPurchaseCustomLinkTokenIOS('acquisition');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final token = await FlutterInappPurchase.instance
+      .getExternalPurchaseCustomLinkTokenIOS(
+        ExternalPurchaseCustomLinkTokenTypeIOS.acquisition,
+      );
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var token = await iap.get_external_purchase_custom_link_token_ios("acquisition")`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 

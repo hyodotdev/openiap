@@ -63,6 +63,49 @@ function ShowAlternativeBillingDialogAndroid() {
 // Throws OpenIapError.NotPrepared if billing client not ready
 suspend fun showAlternativeBillingDialog(): Boolean`}</CodeBlock>
           ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun showAlternativeBillingDialogAndroid(): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`showAlternativeBillingDialogAndroid(): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> showAlternativeBillingDialogAndroid();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func show_alternative_billing_dialog_android() -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`val accepted = openIapStore.showAlternativeBillingDialog()`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+val accepted = kmpIAP.showAlternativeBillingDialogAndroid()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { showAlternativeBillingDialogAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  const accepted = await showAlternativeBillingDialogAndroid();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  final accepted = await FlutterInappPurchase.instance
+      .showAlternativeBillingDialogAndroid();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    var accepted: bool = await iap.show_alternative_billing_dialog_android()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

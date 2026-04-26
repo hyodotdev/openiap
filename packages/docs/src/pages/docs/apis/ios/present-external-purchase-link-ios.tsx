@@ -82,6 +82,49 @@ struct ExternalPurchaseLinkResultIOS {
     let success: Bool
 }`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`presentExternalPurchaseLinkIOS(url: string): Promise<ExternalPurchaseLinkResultIOS>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<ExternalPurchaseLinkResultIOS> presentExternalPurchaseLinkIOS(String url);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func present_external_purchase_link_ios(url: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let result = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS("https://yourstore.com/checkout")`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val result = kmpIAP.presentExternalPurchaseLinkIOS(url = "https://yourstore.com/checkout")`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { presentExternalPurchaseLinkIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  await presentExternalPurchaseLinkIOS('https://yourstore.com/checkout');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  await FlutterInappPurchase.instance
+      .presentExternalPurchaseLinkIOS('https://yourstore.com/checkout');
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var result = await iap.present_external_purchase_link_ios("https://yourstore.com/checkout")`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

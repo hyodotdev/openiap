@@ -56,6 +56,48 @@ function GetAppTransactionIOS() {
           swift: (
             <CodeBlock language="swift">{`func getAppTransactionIOS() async throws -> AppTransactionIOS?`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun getAppTransactionIOS(): AppTransaction?`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`getAppTransactionIOS(): Promise<AppTransaction | null>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<AppTransaction?> getAppTransactionIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_app_transaction_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let appTx = try await OpenIapModule.shared.getAppTransactionIOS()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val appTx = kmpIAP.getAppTransactionIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { getAppTransactionIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const appTx = await getAppTransactionIOS();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final appTx = await FlutterInappPurchase.instance.getAppTransactionIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var app_tx = await iap.get_app_transaction_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 

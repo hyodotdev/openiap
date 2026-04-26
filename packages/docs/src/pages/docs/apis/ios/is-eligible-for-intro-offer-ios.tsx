@@ -77,6 +77,49 @@ function IsEligibleForIntroOfferIOS() {
           swift: (
             <CodeBlock language="swift">{`func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`isEligibleForIntroOfferIOS(groupID: string): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> isEligibleForIntroOfferIOS(String groupID);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func is_eligible_for_intro_offer_ios(group_id: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let ok = try await OpenIapModule.shared.isEligibleForIntroOfferIOS(groupID: "com.app.subgroup")`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val ok = kmpIAP.isEligibleForIntroOfferIOS(groupID = "com.app.subgroup")`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { isEligibleForIntroOfferIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const ok = await isEligibleForIntroOfferIOS('com.app.subgroup');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final ok = await FlutterInappPurchase.instance
+      .isEligibleForIntroOfferIOS('com.app.subgroup');
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var ok = await iap.is_eligible_for_intro_offer_ios("com.app.subgroup")`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

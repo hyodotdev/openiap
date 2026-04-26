@@ -77,6 +77,49 @@ function BeginRefundRequestIOS() {
           swift: (
             <CodeBlock language="swift">{`func beginRefundRequestIOS(sku: String) async throws -> String?`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun beginRefundRequestIOS(sku: String): String?`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`beginRefundRequestIOS(sku: string): Promise<string | null>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<String?> beginRefundRequestIOS(String sku);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func begin_refund_request_ios(sku: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let status = try await OpenIapModule.shared.beginRefundRequestIOS(sku: "com.app.premium")`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val status = kmpIAP.beginRefundRequestIOS(sku = "com.app.premium")`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { beginRefundRequestIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const status = await beginRefundRequestIOS('com.app.premium');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final status = await FlutterInappPurchase.instance
+      .beginRefundRequestIOS('com.app.premium');
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var status = await iap.begin_refund_request_ios("com.app.premium")`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 

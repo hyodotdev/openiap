@@ -94,6 +94,51 @@ function ValidateReceiptIOS() {
             <CodeBlock language="swift">{`@available(*, deprecated, message: "Use verifyPurchase()")
 func validateReceiptIOS(options: ReceiptValidationProps) async throws -> ReceiptValidationResultIOS`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`@Deprecated("Use verifyPurchase()")
+suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`validateReceiptIOS(options: VerifyPurchaseProps): Promise<VerifyPurchaseResultIOS>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`@Deprecated('Use verifyPurchase()')
+Future<VerifyPurchaseResultIOS> validateReceiptIOS(VerifyPurchaseProps options);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func validate_receipt_ios(options: Dictionary) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`// Deprecated — prefer verifyPurchase().
+try await OpenIapModule.shared.validateReceiptIOS(options: .init(sku: "com.app.premium"))`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+// Deprecated — prefer verifyPurchase().
+kmpIAP.validateReceiptIOS(options = VerifyPurchaseProps(sku = "com.app.premium"))`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// Deprecated — prefer verifyPurchase().
+await validateReceiptIOS({ sku: 'com.app.premium' });`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`// Deprecated — prefer verifyPurchase().
+if (Platform.isIOS) {
+  await FlutterInappPurchase.instance.validateReceiptIOS(
+    VerifyPurchaseProps(sku: 'com.app.premium'),
+  );
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var result = await iap.validate_receipt_ios({"sku": "com.app.premium"})`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

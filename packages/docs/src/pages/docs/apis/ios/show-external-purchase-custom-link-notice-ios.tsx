@@ -91,6 +91,61 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
     noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
 ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+): ExternalPurchaseCustomLinkNoticeResultIOS`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`showExternalPurchaseCustomLinkNoticeIOS(
+  noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,
+): Promise<ExternalPurchaseCustomLinkNoticeResultIOS>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<ExternalPurchaseCustomLinkNoticeResultIOS>
+    showExternalPurchaseCustomLinkNoticeIOS(
+  ExternalPurchaseCustomLinkNoticeTypeIOS noticeType,
+);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let result = try await OpenIapModule.shared.showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType: .continue
+)`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val result = kmpIAP.showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType = ExternalPurchaseCustomLinkNoticeTypeIOS.CONTINUE
+)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { showExternalPurchaseCustomLinkNoticeIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  await showExternalPurchaseCustomLinkNoticeIOS('continue');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  await FlutterInappPurchase.instance.showExternalPurchaseCustomLinkNoticeIOS(
+    ExternalPurchaseCustomLinkNoticeTypeIOS.continue_,
+  );
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var result = await iap.show_external_purchase_custom_link_notice_ios("continue")`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 

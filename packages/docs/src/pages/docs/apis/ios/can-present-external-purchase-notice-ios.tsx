@@ -54,6 +54,49 @@ function CanPresentExternalPurchaseNoticeIOS() {
           swift: (
             <CodeBlock language="swift">{`func canPresentExternalPurchaseNoticeIOS() async throws -> Bool`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`canPresentExternalPurchaseNoticeIOS(): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> canPresentExternalPurchaseNoticeIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func can_present_external_purchase_notice_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let can = try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val can = kmpIAP.canPresentExternalPurchaseNoticeIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { canPresentExternalPurchaseNoticeIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const can = await canPresentExternalPurchaseNoticeIOS();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final can = await FlutterInappPurchase.instance
+      .canPresentExternalPurchaseNoticeIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var can = await iap.can_present_external_purchase_notice_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

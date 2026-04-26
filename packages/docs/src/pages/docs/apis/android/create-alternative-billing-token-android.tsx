@@ -62,6 +62,49 @@ function CreateAlternativeBillingTokenAndroid() {
 // Returns token string, or null if creation failed
 suspend fun createAlternativeBillingToken(): String?`}</CodeBlock>
           ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun createAlternativeBillingTokenAndroid(): String?`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`createAlternativeBillingTokenAndroid(): Promise<string | null>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<String?> createAlternativeBillingTokenAndroid();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func create_alternative_billing_token_android() -> String`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`val token = openIapStore.createAlternativeBillingToken()`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+val token = kmpIAP.createAlternativeBillingTokenAndroid()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { createAlternativeBillingTokenAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  const token = await createAlternativeBillingTokenAndroid();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  final token = await FlutterInappPurchase.instance
+      .createAlternativeBillingTokenAndroid();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    var token: String = await iap.create_alternative_billing_token_android()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

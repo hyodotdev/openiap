@@ -117,6 +117,82 @@ suspend fun launchExternalLink(
 // - linkType: ExternalLinkTypeAndroid
 // - linkUri: String`}</CodeBlock>
           ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun launchExternalLinkAndroid(
+    params: LaunchExternalLinkParamsAndroid
+): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`launchExternalLinkAndroid(
+  params: LaunchExternalLinkParamsAndroid
+): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> launchExternalLinkAndroid(
+  LaunchExternalLinkParamsAndroid params,
+);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func launch_external_link_android(
+    params: LaunchExternalLinkParamsAndroid
+) -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`openIapStore.launchExternalLink(
+    activity,
+    LaunchExternalLinkParamsAndroid(
+        billingProgram = BillingProgramAndroid.ExternalOffer,
+        launchMode = ExternalLinkLaunchModeAndroid.IN_APP_BROWSER,
+        linkType = ExternalLinkTypeAndroid.OFFER,
+        linkUri = "https://example.com/offer"
+    )
+)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+kmpIAP.launchExternalLinkAndroid(
+    LaunchExternalLinkParamsAndroid(
+        billingProgram = BillingProgramAndroid.ExternalOffer,
+        launchMode = ExternalLinkLaunchModeAndroid.IN_APP_BROWSER,
+        linkType = ExternalLinkTypeAndroid.OFFER,
+        linkUri = "https://example.com/offer"
+    )
+)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { launchExternalLinkAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  await launchExternalLinkAndroid({
+    program: 'external-offer',
+    url: 'https://example.com/offer',
+  });
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  await FlutterInappPurchase.instance.launchExternalLinkAndroid(
+    LaunchExternalLinkParamsAndroid(
+      program: BillingProgramAndroid.externalOffer,
+      url: 'https://example.com/offer',
+    ),
+  );
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    var params = LaunchExternalLinkParamsAndroid.new()
+    params.program = BillingProgramAndroid.EXTERNAL_OFFER
+    params.url = "https://example.com/offer"
+    await iap.launch_external_link_android(params)`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

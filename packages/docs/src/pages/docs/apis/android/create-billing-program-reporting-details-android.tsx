@@ -130,6 +130,68 @@ suspend fun createBillingProgramReportingDetails(
     program: BillingProgramAndroid
 ): BillingProgramReportingDetailsAndroid`}</CodeBlock>
           ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun createBillingProgramReportingDetailsAndroid(
+    program: BillingProgramAndroid
+): BillingProgramReportingDetailsAndroid`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`createBillingProgramReportingDetailsAndroid(
+  program: BillingProgramAndroid
+): Promise<BillingProgramReportingDetailsAndroid>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<BillingProgramReportingDetailsAndroid>
+    createBillingProgramReportingDetailsAndroid(
+  BillingProgramAndroid program,
+);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func create_billing_program_reporting_details_android(
+    program: int
+) -> BillingProgramReportingDetailsAndroid`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`val details = openIapStore.createBillingProgramReportingDetails(
+    BillingProgramAndroid.ExternalOffer
+)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+val details = kmpIAP.createBillingProgramReportingDetailsAndroid(
+    BillingProgramAndroid.ExternalOffer
+)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { createBillingProgramReportingDetailsAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  const details = await createBillingProgramReportingDetailsAndroid(
+    'external-offer',
+  );
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  final details = await FlutterInappPurchase.instance
+      .createBillingProgramReportingDetailsAndroid(
+    BillingProgramAndroid.externalOffer,
+  );
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    var details = await iap.create_billing_program_reporting_details_android(
+        BillingProgramAndroid.EXTERNAL_OFFER
+    )`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

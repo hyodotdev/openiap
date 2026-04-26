@@ -129,6 +129,62 @@ suspend fun isBillingProgramAvailable(
     program: BillingProgramAndroid
 ): BillingProgramAvailabilityResultAndroid`}</CodeBlock>
           ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun isBillingProgramAvailableAndroid(
+    program: BillingProgramAndroid
+): BillingProgramAvailabilityResultAndroid`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`isBillingProgramAvailableAndroid(
+  program: BillingProgramAndroid
+): Promise<BillingProgramAvailabilityResultAndroid>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<BillingProgramAvailabilityResultAndroid>
+    isBillingProgramAvailableAndroid(BillingProgramAndroid program);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func is_billing_program_available_android(
+    program: int
+) -> BillingProgramAvailabilityResultAndroid`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`val result = openIapStore.isBillingProgramAvailable(
+    BillingProgramAndroid.ExternalOffer
+)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+val result = kmpIAP.isBillingProgramAvailableAndroid(
+    BillingProgramAndroid.ExternalOffer
+)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { isBillingProgramAvailableAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  const result = await isBillingProgramAvailableAndroid('external-offer');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  final result = await FlutterInappPurchase.instance
+      .isBillingProgramAvailableAndroid(BillingProgramAndroid.externalOffer);
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    var result = await iap.is_billing_program_available_android(
+        BillingProgramAndroid.EXTERNAL_OFFER
+    )`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

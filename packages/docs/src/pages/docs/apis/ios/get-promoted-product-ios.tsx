@@ -57,6 +57,48 @@ function GetPromotedProductIOS() {
           swift: (
             <CodeBlock language="swift">{`func getPromotedProductIOS() async throws -> Product?`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun getPromotedProductIOS(): ProductIOS?`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`getPromotedProductIOS(): Promise<ProductIOS | null>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<ProductIOS?> getPromotedProductIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_promoted_product_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let product = try await OpenIapModule.shared.getPromotedProductIOS()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val product = kmpIAP.getPromotedProductIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { getPromotedProductIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const product = await getPromotedProductIOS();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final product = await FlutterInappPurchase.instance.getPromotedProductIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var product = await iap.get_promoted_product_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

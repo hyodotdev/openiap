@@ -64,6 +64,49 @@ function IsEligibleForExternalPurchaseCustomLinkIOS() {
           swift: (
             <CodeBlock language="swift">{`func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`isEligibleForExternalPurchaseCustomLinkIOS(): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> isEligibleForExternalPurchaseCustomLinkIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func is_eligible_for_external_purchase_custom_link_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let ok = try await OpenIapModule.shared.isEligibleForExternalPurchaseCustomLinkIOS()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val ok = kmpIAP.isEligibleForExternalPurchaseCustomLinkIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { isEligibleForExternalPurchaseCustomLinkIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const ok = await isEligibleForExternalPurchaseCustomLinkIOS();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final ok = await FlutterInappPurchase.instance
+      .isEligibleForExternalPurchaseCustomLinkIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var ok = await iap.is_eligible_for_external_purchase_custom_link_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

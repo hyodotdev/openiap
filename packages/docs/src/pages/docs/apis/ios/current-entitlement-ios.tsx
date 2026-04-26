@@ -77,6 +77,49 @@ function CurrentEntitlementIOS() {
           swift: (
             <CodeBlock language="swift">{`func currentEntitlementIOS(sku: String) async throws -> Purchase?`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun currentEntitlementIOS(sku: String): PurchaseIOS?`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`currentEntitlementIOS(sku: string): Promise<PurchaseIOS | null>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<PurchaseIOS?> currentEntitlementIOS(String sku);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func current_entitlement_ios(sku: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let entitlement = try await OpenIapModule.shared.currentEntitlementIOS(sku: "com.app.premium")`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val entitlement = kmpIAP.currentEntitlementIOS(sku = "com.app.premium")`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { currentEntitlementIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const entitlement = await currentEntitlementIOS('com.app.premium');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final entitlement = await FlutterInappPurchase.instance
+      .currentEntitlementIOS('com.app.premium');
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var entitlement = await iap.current_entitlement_ios("com.app.premium")`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

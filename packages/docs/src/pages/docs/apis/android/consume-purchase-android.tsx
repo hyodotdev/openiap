@@ -91,6 +91,50 @@ function ConsumePurchaseAndroid() {
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun consumePurchase(purchaseToken: String): Boolean`}</CodeBlock>
           ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`consumePurchaseAndroid(purchaseToken: string): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> consumePurchaseAndroid(String purchaseToken);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func consume_purchase_android(purchase_token: String) -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`openIapStore.consumePurchase(purchase.purchaseToken)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+kmpIAP.consumePurchaseAndroid(purchase.purchaseToken)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { consumePurchaseAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  await consumePurchaseAndroid(purchase.purchaseToken);
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  await FlutterInappPurchase.instance.consumePurchaseAndroid(
+    purchase.purchaseToken,
+  );
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    await iap.consume_purchase_android(purchase.purchase_token)`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 

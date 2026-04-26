@@ -63,6 +63,55 @@ function GetStorefrontIOS() {
             <CodeBlock language="swift">{`@available(*, deprecated, message: "Use getStorefront()")
 func getStorefrontIOS() async throws -> String`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`@Deprecated("Use getStorefront()")
+suspend fun getStorefrontIOS(): String`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`getStorefrontIOS(): Promise<string>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`@Deprecated('Use getStorefront()')
+Future<String> getStorefrontIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_storefront_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let code = try await OpenIapModule.shared.getStorefrontIOS()
+// Deprecated — prefer OpenIapModule.shared.getStorefront()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+// Deprecated — prefer kmpIAP.getStorefront()
+val code = kmpIAP.getStorefrontIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+// Deprecated — prefer the cross-platform getStorefront().
+import { getStorefrontIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const code = await getStorefrontIOS();
+  console.log(code); // "US", "JP", etc.
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`// Deprecated — prefer FlutterInappPurchase.instance.getStorefront().
+if (Platform.isIOS) {
+  final code = await FlutterInappPurchase.instance.getStorefrontIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var code = await iap.get_storefront_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

@@ -90,11 +90,62 @@ function EnableBillingProgramAndroid() {
       <h2>Signature</h2>
       <LanguageTabs>
         {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`// Config field on InitConnectionConfig — wired via initConnection()
+data class InitConnectionConfig(
+    val enableBillingProgramAndroid: BillingProgramAndroid? = null,
+    // ...other fields
+)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// Config field on InitConnectionConfig (kmp-iap)
+data class InitConnectionConfig(
+    val enableBillingProgramAndroid: BillingProgramAndroid? = null,
+    // ...other fields
+)`}</CodeBlock>
+          ),
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
+            <CodeBlock language="typescript">{`initConnection(config?: {
+  enableBillingProgramAndroid?: BillingProgramAndroid;
+  // ...other fields
+}): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> initConnection({InitConnectionConfig? config});
+
+class InitConnectionConfig {
+  final BillingProgramAndroid? enableBillingProgramAndroid;
+  // ...other fields
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`# InitConnectionConfig.enable_billing_program_android: BillingProgramAndroid
+func init_connection(config: InitConnectionConfig) -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`openIapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only)
+kmpIAP.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
 import { initConnection } from 'expo-iap';
-// Same API in react-native-iap:
-// import { initConnection } from 'react-native-iap';
 
 await initConnection({
   enableBillingProgramAndroid: 'external-offer',
@@ -113,24 +164,20 @@ function App() {
   return <Root />;
 }`}</CodeBlock>
           ),
-          kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.initConnection(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
-    )
-)`}</CodeBlock>
-          ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection(
-  config: InitConnectionConfig(
-    enableBillingProgramAndroid: BillingProgramAndroid.externalOffer,
-  ),
-);`}</CodeBlock>
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  await FlutterInappPurchase.instance.initConnection(
+    config: InitConnectionConfig(
+      enableBillingProgramAndroid: BillingProgramAndroid.externalOffer,
+    ),
+  );
+}`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var config = InitConnectionConfig.new()
-config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
-await iap.init_connection(config)`}</CodeBlock>
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    var config = InitConnectionConfig.new()
+    config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
+    await iap.init_connection(config)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

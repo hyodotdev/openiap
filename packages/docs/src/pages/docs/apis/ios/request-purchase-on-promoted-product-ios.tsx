@@ -69,6 +69,54 @@ function RequestPurchaseOnPromotedProductIOS() {
             <CodeBlock language="swift">{`@available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
 func requestPurchaseOnPromotedProductIOS() async throws -> Bool`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`@Deprecated("Use promotedProductListenerIOS + requestPurchase instead")
+suspend fun requestPurchaseOnPromotedProductIOS(): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`requestPurchaseOnPromotedProductIOS(): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`@Deprecated('Use promotedProductListenerIOS + requestPurchase instead')
+Future<bool> requestPurchaseOnPromotedProductIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func request_purchase_on_promoted_product_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+kmpIAP.requestPurchaseOnPromotedProductIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+import { requestPurchaseOnPromotedProductIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  await requestPurchaseOnPromotedProductIOS();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+if (Platform.isIOS) {
+  await FlutterInappPurchase.instance.requestPurchaseOnPromotedProductIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var ok = await iap.request_purchase_on_promoted_product_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

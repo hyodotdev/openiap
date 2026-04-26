@@ -91,20 +91,52 @@ function AcknowledgePurchaseAndroid() {
       <h2>Signature</h2>
       <LanguageTabs>
         {{
-          typescript: (
-            <CodeBlock language="typescript">{`acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>`}</CodeBlock>
-          ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun acknowledgePurchase(purchaseToken: String): Boolean`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean`}</CodeBlock>
           ),
+          typescript: (
+            <CodeBlock language="typescript">{`acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>`}</CodeBlock>
+          ),
           dart: (
             <CodeBlock language="dart">{`Future<bool> acknowledgePurchaseAndroid(String purchaseToken);`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`func acknowledge_purchase_android(purchase_token: String) -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`openIapStore.acknowledgePurchase(purchase.purchaseToken)`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+kmpIAP.acknowledgePurchaseAndroid(purchase.purchaseToken)`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { acknowledgePurchaseAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  await acknowledgePurchaseAndroid(purchase.purchaseToken);
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  await FlutterInappPurchase.instance.acknowledgePurchaseAndroid(
+    purchase.purchaseToken,
+  );
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    await iap.acknowledge_purchase_android(purchase.purchase_token)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

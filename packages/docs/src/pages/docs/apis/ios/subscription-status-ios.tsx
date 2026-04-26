@@ -117,6 +117,49 @@ function SubscriptionStatusIOS() {
           swift: (
             <CodeBlock language="swift">{`func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS]`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS>`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`subscriptionStatusIOS(sku: string): Promise<SubscriptionStatusIOS[]>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func subscription_status_ios(sku: String) -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let status = try await OpenIapModule.shared.subscriptionStatusIOS(sku: "com.app.monthly")`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val status = kmpIAP.subscriptionStatusIOS(sku = "com.app.monthly")`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { subscriptionStatusIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const status = await subscriptionStatusIOS('com.app.monthly');
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final status = await FlutterInappPurchase.instance
+      .subscriptionStatusIOS('com.app.monthly');
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var status = await iap.subscription_status_ios("com.app.monthly")`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

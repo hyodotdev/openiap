@@ -65,6 +65,49 @@ function ShowManageSubscriptionsIOS() {
           swift: (
             <CodeBlock language="swift">{`func showManageSubscriptionsIOS() async throws -> [Purchase]`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS>`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`showManageSubscriptionsIOS(): Promise<PurchaseIOS[]>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<List<PurchaseIOS>> showManageSubscriptionsIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func show_manage_subscriptions_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`let changed = try await OpenIapModule.shared.showManageSubscriptionsIOS()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val changed = kmpIAP.showManageSubscriptionsIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { showManageSubscriptionsIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const changed = await showManageSubscriptionsIOS();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final changed = await FlutterInappPurchase.instance
+      .showManageSubscriptionsIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var changed = await iap.show_manage_subscriptions_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

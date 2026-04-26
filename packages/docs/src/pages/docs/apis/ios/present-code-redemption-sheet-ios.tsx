@@ -55,6 +55,48 @@ function PresentCodeRedemptionSheetIOS() {
           swift: (
             <CodeBlock language="swift">{`func presentCodeRedemptionSheetIOS() async throws -> Bool`}</CodeBlock>
           ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`suspend fun presentCodeRedemptionSheetIOS(): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`presentCodeRedemptionSheetIOS(): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> presentCodeRedemptionSheetIOS();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func present_code_redemption_sheet_ios() -> Variant`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          swift: (
+            <CodeBlock language="swift">{`try await OpenIapModule.shared.presentCodeRedemptionSheetIOS()`}</CodeBlock>
+          ),
+          kotlin: (
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+kmpIAP.presentCodeRedemptionSheetIOS()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { presentCodeRedemptionSheetIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  await presentCodeRedemptionSheetIOS();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  await FlutterInappPurchase.instance.presentCodeRedemptionSheetIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var result = await iap.present_code_redemption_sheet_ios()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 

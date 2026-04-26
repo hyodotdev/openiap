@@ -59,6 +59,49 @@ function CheckAlternativeBillingAvailabilityAndroid() {
 // Throws OpenIapError.NotPrepared if billing client not ready
 suspend fun checkAlternativeBillingAvailability(): Boolean`}</CodeBlock>
           ),
+          kmp: (
+            <CodeBlock language="kotlin">{`suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`checkAlternativeBillingAvailabilityAndroid(): Promise<boolean>`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`Future<bool> checkAlternativeBillingAvailabilityAndroid();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func check_alternative_billing_availability_android() -> bool`}</CodeBlock>
+          ),
+        }}
+      </LanguageTabs>
+
+      <h2>Example</h2>
+      <LanguageTabs>
+        {{
+          kotlin: (
+            <CodeBlock language="kotlin">{`val ok = openIapStore.checkAlternativeBillingAvailability()`}</CodeBlock>
+          ),
+          kmp: (
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+val ok = kmpIAP.checkAlternativeBillingAvailabilityAndroid()`}</CodeBlock>
+          ),
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { checkAlternativeBillingAvailabilityAndroid } from 'expo-iap';
+
+if (Platform.OS === 'android') {
+  const ok = await checkAlternativeBillingAvailabilityAndroid();
+}`}</CodeBlock>
+          ),
+          dart: (
+            <CodeBlock language="dart">{`if (Platform.isAndroid) {
+  final ok = await FlutterInappPurchase.instance
+      .checkAlternativeBillingAvailabilityAndroid();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+    var ok: bool = await iap.check_alternative_billing_availability_android()`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
     </div>

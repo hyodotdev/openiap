@@ -71,20 +71,20 @@ function GetTransactionJwsIOS() {
       <h2>Signature</h2>
       <LanguageTabs>
         {{
-          typescript: (
-            <CodeBlock language="typescript">{`getTransactionJwsIOS(sku: string): Promise<string | null>`}</CodeBlock>
-          ),
           swift: (
             <CodeBlock language="swift">{`func getTransactionJwsIOS(sku: String) async throws -> String?`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun getTransactionJwsIOS(sku: String): String?`}</CodeBlock>
           ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun getTransactionJwsIOS(sku: String): String?`}</CodeBlock>
+          typescript: (
+            <CodeBlock language="typescript">{`getTransactionJwsIOS(sku: string): Promise<string | null>`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Future<String?> getTransactionJwsIOS(String sku);`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_transaction_jws_ios(sku: String) -> Variant`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -92,51 +92,30 @@ function GetTransactionJwsIOS() {
       <h2>Example</h2>
       <LanguageTabs>
         {{
-          typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
-import { getTransactionJwsIOS } from 'expo-iap';
-// Same API in react-native-iap:
-// import { getTransactionJwsIOS } from 'react-native-iap';
-
-const jws = await getTransactionJwsIOS('com.example.premium');
-if (jws) {
-  // Send the JWS to your server; verify it with Apple's public keys.
-  await fetch('/api/verify-transaction', {
-    method: 'POST',
-    body: JSON.stringify({ jws }),
-  });
-}
-
-// --- Or alongside the useIAP() hook (also exported from react-native-iap) ---
-// getTransactionJwsIOS is a module-level helper; useIAP doesn't expose it on
-// the hook return, so call the module function from inside your component.
-import { useIAP } from 'expo-iap';
-
-function ServerValidateButton({ sku }: { sku: string }) {
-  const { connected } = useIAP();
-
-  const validate = async () => {
-    if (!connected) return;
-    const jws = await getTransactionJwsIOS(sku);
-    if (!jws) return;
-    await api.verify(jws);
-  };
-
-  return <Button title="Validate on server" onPress={validate} />;
-}`}</CodeBlock>
-          ),
           swift: (
-            <CodeBlock language="swift">{`let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: "com.example.premium")`}</CodeBlock>
+            <CodeBlock language="swift">{`let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: "com.app.premium")`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`val jws = openIapStore.getTransactionJwsIOS(sku = "com.example.premium")`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val jws = kmpIAP.getTransactionJwsIOS(sku = "com.app.premium")`}</CodeBlock>
           ),
-          kmp: (
-            <CodeBlock language="kotlin">{`val jws = kmpIAP.getTransactionJwsIOS(sku = "com.example.premium")`}</CodeBlock>
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { getTransactionJwsIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const jws = await getTransactionJwsIOS('com.app.premium');
+}`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`final jws = await FlutterInappPurchase.instance
-    .getTransactionJwsIOS('com.example.premium');`}</CodeBlock>
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final jws = await FlutterInappPurchase.instance
+      .getTransactionJwsIOS('com.app.premium');
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var jws = await iap.get_transaction_jws_ios("com.app.premium")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
