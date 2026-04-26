@@ -4993,7 +4993,9 @@ public interface MutationResolver {
      */
     suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
-     * Verify via a managed provider (IAPKit, Apple, Google, Horizon) without standing up your own server.
+     * Verify via a managed provider without standing up your own server. The
+     * PurchaseVerificationProvider enum currently exposes only IAPKit; platform
+     * availability may differ by implementation.
      * See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
      */
     suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult

@@ -202,19 +202,14 @@ func _on_android_subscription_billing_issue(purchase_json: String) -> void:
 
 ## Initialize the store connection. Must be called before any other IAP API.
 ##
-## [param config] (optional): [InitConnectionConfig]. Use [code]enable_billing_program_android[/code]
-## (Android, Play Billing 8.2.0+) to opt into External Payments etc. iOS ignores Android fields.
+## This wrapper currently takes no arguments — Android billing-program flags
+## (e.g. [code]enable_billing_program_android[/code]) live on the underlying
+## [InitConnectionConfig] but are not yet plumbed through the GDScript API.
 ##
 ## Returns [code]true[/code] once the platform billing client is connected.
 ##
 ## [codeblock]
-## # Standard
 ## var ok = await iap.init_connection()
-##
-## # With Android billing program
-## var config = InitConnectionConfig.new()
-## config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
-## var ok = await iap.init_connection(config)
 ## [/codeblock]
 ##
 ## See: https://www.openiap.dev/docs/apis/init-connection
@@ -272,8 +267,11 @@ func is_store_connected() -> bool:
 ## [code]type[/code] ([code]ProductQueryType.IN_APP[/code], [code]SUBS[/code], or [code]ALL[/code]).
 ##
 ## Returns an Array — typed as [Array] because GDScript can't express heterogeneous element
-## types. The runtime variant is [Array][[Product]] for IN_APP, [Array][[ProductSubscription]]
-## for SUBS, or a mixed Array for ALL.
+## types. The wrapper maps results to platform-specific objects:
+## [Array][[Types.ProductAndroid]] on Android and [Array][[Types.ProductIOS]] on iOS,
+## regardless of whether the request was IN_APP, SUBS, or ALL. Use the platform-specific
+## fields ([code]subscription_offer_details_android[/code], [code]subscription_*_ios[/code])
+## to distinguish subscriptions from one-time products at the call site.
 ##
 ## [codeblock]
 ## var request = ProductRequest.new()

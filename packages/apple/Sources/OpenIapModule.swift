@@ -103,7 +103,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Retrieve products or subscriptions from the App Store by SKU.
     ///
     /// - Parameter params: `ProductRequest` with `skus` (the product identifiers) and an
-    ///   optional `type` (`.inApp`, `.subs`, or `.all`; defaults to `.inApp`).
+    ///   optional `type` (`.inApp`, `.subs`, or `.all`; defaults to `.all` when omitted —
+    ///   the implementation falls back to `params.type ?? .all`).
     /// - Returns: A `FetchProductsResult` variant — `Product[]` for `.inApp`,
     ///   `ProductSubscription[]` for `.subs`, or a mixed list for `.all`.
     /// - Throws: When the store rejects the request (unknown SKU, network failure, not connected).
@@ -512,12 +513,15 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         _ = try await syncIOS()
     }
 
-    /// List the user's unfinished purchases. Use this to restore non-consumables / active
-    /// subscriptions, or to pick up transactions that weren't finished previously.
+    /// List the user's purchases held by StoreKit. By default reads `Transaction.all` (the
+    /// full history including refunded / revoked entries). Pass
+    /// `onlyIncludeActiveItemsIOS = true` to switch to `Transaction.currentEntitlements`,
+    /// which narrows the result to active non-consumables and live subscriptions.
     ///
-    /// - Parameter options: Optional iOS-specific flags
-    ///   (`alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`).
-    /// - Returns: An array of `Purchase` values currently held by StoreKit.
+    /// - Parameter options: Optional iOS-specific flags. `onlyIncludeActiveItemsIOS`
+    ///   toggles between `Transaction.all` (default) and `Transaction.currentEntitlements`.
+    ///   `alsoPublishToEventListenerIOS` re-emits each purchase on the update listener.
+    /// - Returns: An array of `Purchase` values matching the selected scope.
     /// - Throws: When the StoreKit query fails.
     ///
     /// See: https://www.openiap.dev/docs/apis/get-available-purchases
@@ -763,7 +767,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return .verifyPurchaseResultIos(iosResult)
     }
 
-    /// Verify via a managed provider (IAPKit, Apple, Google, Horizon).
+    /// Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
     /// See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
     public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         try await ensureConnection()

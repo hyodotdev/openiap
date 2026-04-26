@@ -24,8 +24,12 @@ function ShowManageSubscriptionsIOS() {
         changed.
       </p>
       <p>
-        Wraps <code>AppStore.showManageSubscriptions(in:)</code> — presents the
-        system manage-subscriptions sheet. iOS 15+. See the{' '}
+        Opens Apple's subscription-management surface for the user. The current
+        iOS implementation forwards to the module's{' '}
+        <code>deepLinkToSubscriptions(nil)</code> path (which calls{' '}
+        <code>AppStore.showManageSubscriptions(in:)</code> when a window scene
+        is available, otherwise falls back to opening the App Store deep link).
+        iOS 15+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)"
           target="_blank"

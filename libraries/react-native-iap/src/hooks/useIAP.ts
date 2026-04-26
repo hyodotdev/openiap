@@ -181,7 +181,7 @@ type UseIap = {
     options: VerifyPurchaseProps,
   ) => Promise<VerifyPurchaseResult>;
   /**
-   * Verify via a managed provider (IAPKit, Apple, Google, Horizon).
+   * Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
    *
    * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
    */

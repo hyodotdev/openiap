@@ -667,7 +667,8 @@ export const subscriptionBillingIssueListener = (
  * @param params `ProductRequest` — `skus` (string[]) and optional `type`
  *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
  * @returns Promise resolving to a `FetchProductsResult` union — `Product[]` for `'in-app'`,
- *   `ProductSubscription[]` for `'subs'`, or a mixed array for `'all'`.
+ *   `ProductSubscription[]` for `'subs'`, a mixed array for `'all'`, or `null`
+ *   (the schema retains the nullable branch for backwards compatibility).
  * @throws When the store rejects the request (unknown SKU, network, not connected).
  *
  * @example
@@ -798,8 +799,9 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
  * List the user's unfinished purchases — non-consumables, active subscriptions, and any
  * pending transactions not yet finished.
  *
- * @param options Optional `PurchaseOptions`. iOS-only flags:
- *   `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
+ * @param options Optional `PurchaseOptions`.
+ *   - iOS: `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
+ *   - Android: `includeSuspendedAndroid` (include subscriptions in a paused/grace state).
  * @returns Promise resolving to an array of `Purchase` currently held by the store.
  * @throws When the platform query fails.
  *

@@ -919,7 +919,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     /**
-     * Verify via a managed provider (IAPKit, Apple, Google, Horizon).
+     * Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
      *
      * @see <a href="https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider">https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider</a>
      */

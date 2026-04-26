@@ -5285,7 +5285,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
-	## Verify via a managed provider (IAPKit, Apple, Google, Horizon) without standing up your own server.
+	## Verify via a managed provider without standing up your own server. The
 	class verifyPurchaseWithProviderField:
 		const name = "verifyPurchaseWithProvider"
 		const snake_name = "verify_purchase_with_provider"
@@ -5767,7 +5767,7 @@ static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 			args["options"] = options
 	return args
 
-## Verify via a managed provider (IAPKit, Apple, Google, Horizon) without standing up your own server.
+## Verify via a managed provider without standing up your own server. The
 static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProviderProps) -> Dictionary:
 	var args = {}
 	if options != null:

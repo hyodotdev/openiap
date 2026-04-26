@@ -24,10 +24,10 @@ function SubscriptionStatusIos() {
           state.
         </p>
         <p>
-          <strong>iOS only.</strong> Mirrors{' '}
-          <code>Product.SubscriptionInfo.Status</code> — combines{' '}
-          <code>transaction</code>, <code>renewalInfo</code>, and{' '}
-          <code>state</code> (
+          <strong>iOS only.</strong> A trimmed projection of Apple's{' '}
+          <code>Product.SubscriptionInfo.Status</code> — the OpenIAP wrapper
+          exposes <code>renewalInfo</code> and <code>state</code> only;{' '}
+          <code>transaction</code> from the Apple type is not surfaced (
           <a
             href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status"
             target="_blank"

@@ -2442,7 +2442,9 @@ public protocol MutationResolver {
     /// Verify a purchase against your own backend (returns isValid + raw store metadata).
     /// See: https://www.openiap.dev/docs/features/validation#verify-purchase
     func verifyPurchase(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
-    /// Verify via a managed provider (IAPKit, Apple, Google, Horizon) without standing up your own server.
+    /// Verify via a managed provider without standing up your own server. The
+    /// PurchaseVerificationProvider enum currently exposes only IAPKit; platform
+    /// availability may differ by implementation.
     /// See: https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider
     func verifyPurchaseWithProvider(_ options: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 }

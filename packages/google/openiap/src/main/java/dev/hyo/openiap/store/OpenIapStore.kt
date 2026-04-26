@@ -421,7 +421,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *   developer error such as missing offerToken on subs).
      *
      * Warning: Event-based. Collect from `purchaseUpdatedListener` / `purchaseErrorListener`
-     * (or `OpenIapStore.currentPurchase` / `currentError` flows) for the final state.
+     * (or `OpenIapStore.currentPurchase` and `OpenIapStore.status.lastError` flows) for the
+     * final state — there is no `currentError` field; errors live on `status.lastError`.
      *
      * @see <a href="https://www.openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */

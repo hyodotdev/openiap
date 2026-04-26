@@ -21,11 +21,12 @@ function PresentCodeRedemptionSheetIOS() {
       </h1>
       <p>Present the App Store promo code redemption sheet.</p>
       <p>
-        Wraps <code>SKPaymentQueue.presentCodeRedemptionSheet()</code> (UIKit) /{' '}
-        <code>AppStore.presentOfferCodeRedeemSheet(in:)</code> (StoreKit 2). See
-        the{' '}
+        Calls <code>SKPaymentQueue.default().presentCodeRedemptionSheet()</code>{' '}
+        (the StoreKit 1 API — the StoreKit 2 equivalent{' '}
+        <code>AppStore.presentOfferCodeRedeemSheet(in:)</code> is not currently
+        wired through this wrapper). See the{' '}
         <a
-          href="https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(in:)"
+          href="https://developer.apple.com/documentation/storekit/skpaymentqueue/presentcoderedemptionsheet()"
           target="_blank"
           rel="noopener noreferrer"
         >

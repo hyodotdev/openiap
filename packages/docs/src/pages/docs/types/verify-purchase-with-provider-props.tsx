@@ -34,7 +34,8 @@ function VerifyPurchaseWithProviderProps() {
         </p>
         <p>
           Input to <code>verifyPurchaseWithProvider</code> — pick a managed
-          validator (IAPKit, Apple, Google, Horizon). See{' '}
+          validator. The <code>PurchaseVerificationProvider</code> enum
+          currently exposes only IAPKit. See{' '}
           <a
             href="https://www.openiap.dev/docs/features/validation"
             target="_blank"
