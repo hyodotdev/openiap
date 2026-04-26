@@ -272,8 +272,14 @@ function highlightCode(element: HTMLElement, language: string) {
           // Capitalized identifiers → linkify known OpenIAP types (so e.g.
           // `ProductRequest`, `Purchase[]`, `Promise<FetchProductsResult>` in
           // a TS signature jump to /docs/types/...).
+          // The negative lookbehind `(?<![">])` skips capitals that sit
+          // immediately after an HTML attribute quote or a closing `>` —
+          // i.e. text already wrapped by the keyword / function passes
+          // above. Without it we'd nest tags (e.g. wrap `Future` inside
+          // `<span class="token keyword">Future</span>`) and clobber the
+          // upstream token color.
           processed = processed.replace(
-            /\b([A-Z][a-zA-Z0-9_]*)\b/g,
+            /(?<![">])\b([A-Z][a-zA-Z0-9_]*)\b/g,
             (_, name: string) => linkifyType(name)
           );
 
@@ -379,8 +385,13 @@ function highlightCode(element: HTMLElement, language: string) {
           // Types (capitalized words). Known OpenIAP type names render as
           // anchors to /docs/types/...; unknown ones stay as plain class-name
           // spans so styling is identical.
+          // Negative lookbehind `(?<![">])` skips capitals already inside
+          // tags emitted by the keyword/function/decorator passes above —
+          // languages like Dart treat `Future`/`Function` and GDScript treats
+          // `String`/`Array` as keywords, so the bare `\b[A-Z]...\b` pattern
+          // would re-wrap them and override the upstream token color.
           processed = processed.replace(
-            /\b([A-Z][a-zA-Z0-9_]*)\b/g,
+            /(?<![">])\b([A-Z][a-zA-Z0-9_]*)\b/g,
             (_, name: string) => linkifyType(name)
           );
 
