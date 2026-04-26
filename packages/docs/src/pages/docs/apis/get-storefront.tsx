@@ -122,7 +122,6 @@ function StorefrontBadge() {
           ),
         }}
       </LanguageTabs>
-
     </div>
   );
 }
