@@ -114,17 +114,27 @@ function linkifyType(name: string): string {
 }
 
 // Split an already-marked-up HTML string on `<...>` tag boundaries and
-// run the capitalized-identifier linkify pass ONLY on the text segments
-// in between. This avoids regex lookbehind (Safari < 16.4 doesn't
-// support it under Vite's default `target: 'modules'`) and stops
-// keywords already wrapped by upstream passes — Dart `Future`,
-// GDScript `String`, etc. — from being re-wrapped as class-name and
-// clobbering their original token color.
+// run the capitalized-identifier linkify pass ONLY on text segments
+// that sit OUTSIDE every existing tag. Tracks a tag-depth counter so
+// text content INSIDE a `<span class="token …">…</span>` emitted by an
+// upstream pass (Dart `Future`/`Function`, GDScript `String`/`Array`,
+// already-wrapped function names, …) is skipped — without the depth
+// check we'd nest a class-name span inside the keyword span and clobber
+// its color. Avoids regex lookbehind (Safari < 16.4 doesn't support it
+// under Vite's default `target: 'modules'`).
 function linkifyTypesInTextSegments(html: string): string {
+  let depth = 0;
   return html
     .split(/(<[^>]+>)/)
     .map((segment) => {
-      if (segment.startsWith('<')) return segment;
+      if (segment.startsWith('<')) {
+        // Self-closing `<br/>` etc. don't change depth.
+        if (segment.endsWith('/>')) return segment;
+        if (segment.startsWith('</')) depth = Math.max(0, depth - 1);
+        else depth += 1;
+        return segment;
+      }
+      if (depth > 0) return segment;
       return segment.replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, (_, name: string) =>
         linkifyType(name)
       );

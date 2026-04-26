@@ -47,7 +47,7 @@ function IsEligibleForIntroOfferIOS() {
             <CodeBlock language="kotlin">{`suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean`}</CodeBlock>
           ),
           typescript: (
-            <CodeBlock language="typescript">{`isEligibleForIntroOfferIOS(groupID: string): Promise<boolean>`}</CodeBlock>
+            <CodeBlock language="typescript">{`isEligibleForIntroOfferIOS(groupId: string): Promise<boolean>`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Future<bool> isEligibleForIntroOfferIOS(String groupID);`}</CodeBlock>
@@ -63,11 +63,13 @@ function IsEligibleForIntroOfferIOS() {
       </AnchorLink>
       <ul className="api-params">
         <li>
-          <code>groupID</code>{' '}
+          <code>groupId</code>{' '}
           <em>
             (required, <code>string</code>)
           </em>{' '}
-          — Subscription group identifier.
+          — Subscription group identifier. (Native Swift / Kotlin signatures
+          spell it <code>groupID</code>; the JavaScript / Dart wrappers expose
+          it as <code>groupId</code>.)
         </li>
       </ul>
 

@@ -70,9 +70,9 @@ function GetStorefront() {
       </AnchorLink>
       <p>
         <code>Promise&lt;string&gt;</code> — ISO 3166-1 alpha-2 country code of
-        the user's storefront (e.g. <code>"US"</code>, <code>"KR"</code>).
-        Returns the App Store / Play Store account region, NOT the device
-        locale.
+        the user's storefront (e.g. <code>"US"</code>, <code>"KR"</code>), or an
+        empty string when the storefront can't be determined. Returns the App
+        Store / Play Store account region, NOT the device locale.
       </p>
 
       <h2>Example</h2>
@@ -123,10 +123,6 @@ function StorefrontBadge() {
         }}
       </LanguageTabs>
 
-      <p>
-        Returns the ISO 3166-1 alpha-2 country code. Returns an empty string
-        when the storefront cannot be determined.
-      </p>
     </div>
   );
 }

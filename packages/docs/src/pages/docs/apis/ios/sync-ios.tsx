@@ -49,7 +49,7 @@ function SyncIOS() {
             <CodeBlock language="dart">{`Future<bool> syncIOS();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func sync_ios() -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func sync_ios() -> Types.VoidResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

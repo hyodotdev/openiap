@@ -101,25 +101,22 @@ suspend fun isBillingProgramAvailable(
       </p>
       <ul className="api-params">
         <li>
+          <code>billingProgram</code>{' '}
+          <em>
+            (
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — Echoes back the program that was checked.
+        </li>
+        <li>
           <code>isAvailable</code>{' '}
           <em>
             (<code>boolean</code>)
           </em>{' '}
           — Whether the billing program is available for this user/device.
-        </li>
-        <li>
-          <code>responseCode</code>{' '}
-          <em>
-            (<code>number?</code>)
-          </em>{' '}
-          — Raw Play Billing response code (when Play returned one).
-        </li>
-        <li>
-          <code>debugMessage</code>{' '}
-          <em>
-            (<code>string?</code>)
-          </em>{' '}
-          — Optional debug message from Play.
         </li>
       </ul>
 

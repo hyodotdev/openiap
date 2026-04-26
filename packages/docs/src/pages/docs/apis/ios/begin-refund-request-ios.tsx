@@ -53,7 +53,7 @@ function BeginRefundRequestIOS() {
             <CodeBlock language="dart">{`Future<String?> beginRefundRequestIOS(String sku);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func begin_refund_request_ios(sku: String) -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func begin_refund_request_ios(product_id: String) -> Types.RefundResultIOS`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -91,6 +91,7 @@ val status = kmpIAP.beginRefundRequestIOS(sku = "com.app.premium")`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { Platform } from 'react-native';
 import { beginRefundRequestIOS } from 'expo-iap';
 
 if (Platform.OS === 'ios') {
@@ -105,7 +106,8 @@ if (Platform.OS === 'ios') {
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
-    var status = await iap.begin_refund_request_ios("com.app.premium")`}</CodeBlock>
+    # Synchronous — no await; returns Types.RefundResultIOS directly.
+    var result = iap.begin_refund_request_ios("com.app.premium")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

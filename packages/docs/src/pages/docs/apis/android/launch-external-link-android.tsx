@@ -94,7 +94,7 @@ suspend fun launchExternalLink(
       </p>
       <ul className="api-params">
         <li>
-          <code>program</code>{' '}
+          <code>billingProgram</code>{' '}
           <em>
             (required,{' '}
             <Link to="/docs/types/billing-programs#billing-program-android">
@@ -103,14 +103,28 @@ suspend fun launchExternalLink(
             )
           </em>{' '}
           — Billing program the link belongs to (e.g.{' '}
-          <code>EXTERNAL_OFFER</code>).
+          <code>EXTERNAL_CONTENT_LINK</code> or <code>EXTERNAL_OFFER</code>).
         </li>
         <li>
-          <code>url</code>{' '}
+          <code>launchMode</code>{' '}
+          <em>
+            (required, <code>ExternalLinkLaunchModeAndroid</code>)
+          </em>{' '}
+          — How the link is presented (in-app browser, system browser, etc.).
+        </li>
+        <li>
+          <code>linkType</code>{' '}
+          <em>
+            (required, <code>ExternalLinkTypeAndroid</code>)
+          </em>{' '}
+          — Type of the external link (e.g. offer page).
+        </li>
+        <li>
+          <code>linkUri</code>{' '}
           <em>
             (required, <code>string</code>)
           </em>{' '}
-          — External URL to launch after the Play disclosure dialog dismisses.
+          — External URI to launch after the Play disclosure dialog dismisses.
         </li>
       </ul>
 
@@ -153,8 +167,10 @@ import { launchExternalLinkAndroid } from 'expo-iap';
 
 if (Platform.OS === 'android') {
   await launchExternalLinkAndroid({
-    program: 'external-offer',
-    url: 'https://example.com/offer',
+    billingProgram: 'external-offer',
+    launchMode: 'in-app-browser',
+    linkType: 'offer',
+    linkUri: 'https://example.com/offer',
   });
 }`}</CodeBlock>
           ),
@@ -162,8 +178,10 @@ if (Platform.OS === 'android') {
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
   await FlutterInappPurchase.instance.launchExternalLinkAndroid(
     LaunchExternalLinkParamsAndroid(
-      program: BillingProgramAndroid.externalOffer,
-      url: 'https://example.com/offer',
+      billingProgram: BillingProgramAndroid.externalOffer,
+      launchMode: ExternalLinkLaunchModeAndroid.inAppBrowser,
+      linkType: ExternalLinkTypeAndroid.offer,
+      linkUri: 'https://example.com/offer',
     ),
   );
 }`}</CodeBlock>
@@ -171,8 +189,10 @@ if (Platform.OS === 'android') {
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
     var params = LaunchExternalLinkParamsAndroid.new()
-    params.program = BillingProgramAndroid.EXTERNAL_OFFER
-    params.url = "https://example.com/offer"
+    params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
+    params.launch_mode = ExternalLinkLaunchModeAndroid.IN_APP_BROWSER
+    params.link_type = ExternalLinkTypeAndroid.OFFER
+    params.link_uri = "https://example.com/offer"
     await iap.launch_external_link_android(params)`}</CodeBlock>
           ),
         }}

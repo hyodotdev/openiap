@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -21,8 +22,12 @@ function RestorePurchases() {
         Purchases" button for users who reinstall the app.
       </p>
       <p>
-        <strong>iOS:</strong> Triggers <code>AppStore.sync()</code> and re-emits
-        entitlements on <code>Transaction.currentEntitlements</code>. Asks the
+        <strong>iOS:</strong> Triggers <code>AppStore.sync()</code> to refresh
+        StoreKit's transaction state; restored purchases are then read via{' '}
+        <Link to="/docs/apis/get-available-purchases">
+          <code>getAvailablePurchases</code>
+        </Link>{' '}
+        (or directly via <code>Transaction.currentEntitlements</code>). Asks the
         user to authenticate.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/sync()"
@@ -35,7 +40,7 @@ function RestorePurchases() {
         both <code>INAPP</code> and <code>SUBS</code>. No system-level UI prompt
         — Play has no concept of an explicit "restore" action.{' '}
         <a
-          href="https://developer.android.com/google/play/billing/integrate#fetch"
+          href="https://developer.android.com/google/play/billing/integrate"
           target="_blank"
           rel="noopener noreferrer"
         >

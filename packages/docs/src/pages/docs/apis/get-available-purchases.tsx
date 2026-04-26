@@ -110,8 +110,11 @@ interface PurchaseOptions {
           <em>
             (optional, <code>boolean</code>, default <code>false</code>)
           </em>{' '}
-          — <strong>Android.</strong> Include subscriptions in a paused/grace
-          state.
+          — <strong>Android (Billing 8.1+).</strong> Include suspended
+          subscriptions in the result. Suspended entries (
+          <code>isSuspendedAndroid === true</code>) should NOT grant
+          entitlements — direct the user to the subscription center to resolve
+          payment first.
         </li>
       </ul>
 

@@ -52,7 +52,7 @@ function PresentCodeRedemptionSheetIOS() {
             <CodeBlock language="dart">{`Future<bool> presentCodeRedemptionSheetIOS();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func present_code_redemption_sheet_ios() -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func present_code_redemption_sheet_ios() -> Types.VoidResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

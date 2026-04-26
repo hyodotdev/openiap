@@ -273,23 +273,14 @@ function ExternalPurchaseLink() {
           <tbody>
             <tr>
               <td>
-                <code>result</code>
+                <code>continued</code>
               </td>
               <td>
-                <code>'continue' | 'cancelled'</code>
+                <code>boolean</code>
               </td>
               <td>
-                Whether the user accepted the disclosure notice or dismissed it.
+                Whether the user chose to continue to the external purchase.
               </td>
-            </tr>
-            <tr>
-              <td>
-                <code>noticeType</code>
-              </td>
-              <td>
-                <code>ExternalPurchaseCustomLinkNoticeTypeIOS</code>
-              </td>
-              <td>Echoes the disclosure type that was shown.</td>
             </tr>
             <tr>
               <td>

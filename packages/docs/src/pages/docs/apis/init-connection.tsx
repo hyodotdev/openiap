@@ -102,8 +102,10 @@ function InitConnection() {
             </Link>
             )
           </em>{' '}
-          — <strong>Android.</strong> Enable a Play Billing 8.2.0+ program
-          (External Payments etc.) at connection time.
+          — <strong>Android.</strong> Enable a Play Billing 8.2.0+ program (
+          <code>EXTERNAL_CONTENT_LINK</code> / <code>EXTERNAL_OFFER</code>) at
+          connection time. <code>EXTERNAL_PAYMENTS</code> is gated to Billing
+          8.3.0+ (Japan only).
         </li>
       </ul>
 
