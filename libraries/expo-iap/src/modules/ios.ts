@@ -443,7 +443,11 @@ export const deepLinkToSubscriptionsIOS = (): Promise<void> =>
   Linking.openURL('https://apps.apple.com/account/subscriptions');
 
 /**
- * Check if the device can present an external purchase notice sheet (iOS 18.2+).
+ * Check if the device can present an external purchase notice sheet (iOS 17.4+).
+ *
+ * Wraps `ExternalPurchase.canPresent`, which Apple introduced in iOS 17.4.
+ * Note: the notice sheet itself (`presentExternalPurchaseNoticeSheetIOS`)
+ * still requires iOS 18.2+; only the eligibility check is available earlier.
  *
  * @returns Promise resolving to true if the notice sheet can be presented
  * @platform iOS

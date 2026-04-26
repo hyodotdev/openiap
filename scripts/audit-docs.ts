@@ -491,4 +491,8 @@ async function main() {
   process.exit(0);
 }
 
-main();
+main().catch((err) => {
+  console.error('audit-docs: fatal error');
+  console.error(err);
+  process.exit(2);
+});

@@ -144,8 +144,8 @@ suspend fun launchExternalLink(
     activity,
     LaunchExternalLinkParamsAndroid(
         billingProgram = BillingProgramAndroid.ExternalOffer,
-        launchMode = ExternalLinkLaunchModeAndroid.IN_APP_BROWSER,
-        linkType = ExternalLinkTypeAndroid.OFFER,
+        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
         linkUri = "https://example.com/offer"
     )
 )`}</CodeBlock>
@@ -155,8 +155,8 @@ suspend fun launchExternalLink(
 kmpIAP.launchExternalLinkAndroid(
     LaunchExternalLinkParamsAndroid(
         billingProgram = BillingProgramAndroid.ExternalOffer,
-        launchMode = ExternalLinkLaunchModeAndroid.IN_APP_BROWSER,
-        linkType = ExternalLinkTypeAndroid.OFFER,
+        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
         linkUri = "https://example.com/offer"
     )
 )`}</CodeBlock>
@@ -168,8 +168,8 @@ import { launchExternalLinkAndroid } from 'expo-iap';
 if (Platform.OS === 'android') {
   await launchExternalLinkAndroid({
     billingProgram: 'external-offer',
-    launchMode: 'in-app-browser',
-    linkType: 'offer',
+    launchMode: 'launch-in-external-browser-or-app',
+    linkType: 'link-to-digital-content-offer',
     linkUri: 'https://example.com/offer',
   });
 }`}</CodeBlock>
@@ -179,8 +179,8 @@ if (Platform.OS === 'android') {
   await FlutterInappPurchase.instance.launchExternalLinkAndroid(
     LaunchExternalLinkParamsAndroid(
       billingProgram: BillingProgramAndroid.externalOffer,
-      launchMode: ExternalLinkLaunchModeAndroid.inAppBrowser,
-      linkType: ExternalLinkTypeAndroid.offer,
+      launchMode: ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+      linkType: ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
       linkUri: 'https://example.com/offer',
     ),
   );
@@ -190,8 +190,8 @@ if (Platform.OS === 'android') {
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
     var params = LaunchExternalLinkParamsAndroid.new()
     params.billing_program = BillingProgramAndroid.EXTERNAL_OFFER
-    params.launch_mode = ExternalLinkLaunchModeAndroid.IN_APP_BROWSER
-    params.link_type = ExternalLinkTypeAndroid.OFFER
+    params.launch_mode = ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP
+    params.link_type = ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER
     params.link_uri = "https://example.com/offer"
     await iap.launch_external_link_android(params)`}</CodeBlock>
           ),
