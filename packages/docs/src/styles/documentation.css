@@ -896,8 +896,14 @@
   pointer-events: auto;
 }
 
+/* When the user scrolls, keep the toggle clear of the sticky top nav
+   (56px tall) instead of jumping it up to `top: 1rem` which lands the
+   button INSIDE the nav's bounding box. Even with z-index 9001 vs the
+   nav's 100, taps in the overlap zone were flaky on mobile WebKit —
+   keeping the toggle below the nav avoids the geometry collision
+   entirely. */
 .docs-sidebar-toggle.scrolled {
-  top: 1rem;
+  top: 64px;
 }
 
 .docs-sidebar-toggle svg {
@@ -976,13 +982,22 @@
     background: var(--bg-secondary);
     z-index: 9000;
     transition:
+      transform 0.25s ease,
       opacity 0.2s ease,
       visibility 0.2s ease;
     border-right: 1px solid var(--border-color);
     padding: var(--spacing-xl) 0;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    /* Closed state: slide fully off-screen, hide visually, AND disable
+       pointer events. iOS Safari has been observed to still deliver taps
+       to children of a `visibility: hidden; opacity: 0` fixed element,
+       so we belt-and-braces it: translateX moves the geometry out of the
+       hit-test area, and pointer-events: none turns off hit-testing for
+       this entire subtree even if the transform isn't honored. */
+    transform: translateX(-100%);
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
     overflow-y: auto;
     box-sizing: border-box;
   }
@@ -994,8 +1009,10 @@
   }
 
   .docs-sidebar.open {
+    transform: translateX(0);
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
   }
 
   .docs-content {

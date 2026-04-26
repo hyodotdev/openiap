@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Route,
   Routes,
@@ -151,29 +152,49 @@ function Docs() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Portal the sidebar toggle to document.body so it sits OUTSIDE any
+  // ancestor's stacking context, AND fully unmount it while the drawer
+  // is open. Earlier rounds left the toggle in the DOM with
+  // `.hidden { opacity: 0; pointer-events: none }` while the drawer was
+  // open, which on iOS Safari still let the toggle absorb taps that
+  // landed on the drawer's first menu item ("APIs" header sits at
+  // y≈88-120px, exactly where the fixed toggle at top: 70px lives).
+  // Removing the element from the DOM entirely guarantees the drawer
+  // items underneath get every tap they should.
+  const sidebarToggle = isSidebarOpen
+    ? null
+    : createPortal(
+        <button
+          type="button"
+          className={`docs-sidebar-toggle ${isScrolled ? 'scrolled' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsSidebarOpen(true);
+          }}
+          aria-label="Toggle sidebar"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 5h14M3 10h14M3 15h14"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span>Menu</span>
+        </button>,
+        document.body
+      );
+
   return (
     <div className="docs-container">
-      <button
-        className={`docs-sidebar-toggle ${isSidebarOpen ? 'hidden' : ''} ${isScrolled ? 'scrolled' : ''}`}
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        aria-label="Toggle sidebar"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M3 5h14M3 10h14M3 15h14"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-        <span>Menu</span>
-      </button>
+      {sidebarToggle}
 
       {isSidebarOpen && (
         <div className="sidebar-overlay" onClick={closeSidebar}></div>

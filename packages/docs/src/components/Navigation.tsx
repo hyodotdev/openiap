@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { DarkModeToggle } from './DarkModeToggle';
 import { Menu, X } from 'lucide-react';
@@ -8,10 +8,25 @@ import { IAPKIT_URL, LOGO_PATH, trackIapKitClick } from '../lib/config';
 
 function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  // Docs pages have their own sticky "Menu" toggle for the docs sidebar.
+  // The top nav's mobile hamburger ☰ sits in the same vertical area on
+  // mobile and was visually-and-tap competing with that toggle — users
+  // reported tapping the docs Menu button but having the top nav menu
+  // open instead. Hide the top hamburger on docs routes so the docs
+  // sidebar toggle is the only "open menu" affordance there.
+  const isDocsRoute = location.pathname.startsWith('/docs');
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
   };
+
+  // Force-close the top nav menu whenever the user navigates onto a
+  // docs route (covers the "I had the top menu open, then tapped a
+  // docs link" path).
+  useEffect(() => {
+    if (isDocsRoute) setIsMobileMenuOpen(false);
+  }, [isDocsRoute]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -118,84 +133,90 @@ function Navigation() {
             <FaGithub size={20} />
           </a>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="mobile-menu-button"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle mobile menu"
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          {/* Mobile Menu Button — hidden on /docs routes so it can't
+              compete with the docs sidebar's own Menu toggle. */}
+          {!isDocsRoute && (
+            <button
+              className="mobile-menu-button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle mobile menu"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          )}
         </div>
 
-        {/* Mobile Menu Dropdown */}
-        <div className={`mobile-menu ${isMobileMenuOpen ? 'open' : ''}`}>
-          <ul className="mobile-nav-list">
-            <li>
-              <NavLink
-                to="/introduction"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeMobileMenu}
-              >
-                Introduction
-              </NavLink>
-            </li>
+        {/* Mobile Menu Dropdown — also hidden on /docs to remove its
+            invisible-but-present 0-height absolute box from the DOM. */}
+        {!isDocsRoute && (
+          <div className={`mobile-menu ${isMobileMenuOpen ? 'open' : ''}`}>
+            <ul className="mobile-nav-list">
+              <li>
+                <NavLink
+                  to="/introduction"
+                  className={({ isActive }) => (isActive ? 'active' : '')}
+                  onClick={closeMobileMenu}
+                >
+                  Introduction
+                </NavLink>
+              </li>
 
-            <li>
-              <NavLink
-                to="/docs"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeMobileMenu}
-              >
-                Docs
-              </NavLink>
-            </li>
+              <li>
+                <NavLink
+                  to="/docs"
+                  className={({ isActive }) => (isActive ? 'active' : '')}
+                  onClick={closeMobileMenu}
+                >
+                  Docs
+                </NavLink>
+              </li>
 
-            <li>
-              <NavLink
-                to="/languages"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeMobileMenu}
-              >
-                Languages
-              </NavLink>
-            </li>
+              <li>
+                <NavLink
+                  to="/languages"
+                  className={({ isActive }) => (isActive ? 'active' : '')}
+                  onClick={closeMobileMenu}
+                >
+                  Languages
+                </NavLink>
+              </li>
 
-            <li>
-              <NavLink
-                to="/tutorials"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeMobileMenu}
-              >
-                Tutorials
-              </NavLink>
-            </li>
+              <li>
+                <NavLink
+                  to="/tutorials"
+                  className={({ isActive }) => (isActive ? 'active' : '')}
+                  onClick={closeMobileMenu}
+                >
+                  Tutorials
+                </NavLink>
+              </li>
 
-            <li>
-              <NavLink
-                to="/sponsors"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeMobileMenu}
-              >
-                Sponsors
-              </NavLink>
-            </li>
+              <li>
+                <NavLink
+                  to="/sponsors"
+                  className={({ isActive }) => (isActive ? 'active' : '')}
+                  onClick={closeMobileMenu}
+                >
+                  Sponsors
+                </NavLink>
+              </li>
 
-            <li>
-              <a
-                href={IAPKIT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => {
-                  trackIapKitClick();
-                  closeMobileMenu();
-                }}
-              >
-                IAPKit
-              </a>
-            </li>
-          </ul>
-        </div>
+              <li>
+                <a
+                  href={IAPKIT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    trackIapKitClick();
+                    closeMobileMenu();
+                  }}
+                >
+                  IAPKit
+                </a>
+              </li>
+            </ul>
+          </div>
+        )}
       </div>
     </nav>
   );
