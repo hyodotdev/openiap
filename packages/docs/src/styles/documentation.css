@@ -922,7 +922,10 @@
 
 /* Sidebar Overlay (mobile only). Starts below the top nav (56px) so the
    nav stays visible/interactive — but the backdrop swallows every other
-   tap on the page so menu items behind don't fire by accident. */
+   tap on the page so menu items behind don't fire by accident. The
+   alpha is high enough that page content doesn't read THROUGH the
+   overlay, which previously made the drawer look like it had a z-index
+   bug on long pages with code blocks behind it. */
 .sidebar-overlay {
   display: none;
   position: fixed;
@@ -930,7 +933,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.78);
   z-index: 8999;
 }
 
@@ -949,7 +952,8 @@
 
   .sidebar-overlay {
     display: block;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 
   .docs-sidebar {

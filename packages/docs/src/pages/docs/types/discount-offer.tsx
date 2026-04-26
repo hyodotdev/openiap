@@ -26,10 +26,8 @@ function DiscountOffer() {
           <code>Introductory</code>, <code>Promotional</code>) and one-time
           product offers (<code>OneTime</code>, Android only on Google Play
           Billing Library 7.0+). For iOS-specific WinBack offers see{' '}
-          <Link to="/docs/types/ios/subscription-offer-ios">
-            SubscriptionOfferTypeIOS
-          </Link>
-          ; iOS does not support one-time product discounts.
+          <Link to="/docs/types/ios/discount-offer-ios">DiscountOfferIOS</Link>;
+          iOS does not support one-time product discounts.
         </p>
         <p>
           Cross-platform discount-offer envelope. <strong>iOS:</strong> maps to
