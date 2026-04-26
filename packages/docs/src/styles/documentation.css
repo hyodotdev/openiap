@@ -563,16 +563,21 @@
   opacity: 1;
 }
 
-/* Tables — full-width table layout. Non-last columns shrink to fit their
-   nowrap content; the last column absorbs remaining width and wraps. */
+/* Tables — full-width layout, but allow horizontal scrolling when the
+   minimum content width exceeds the available space (rare, but
+   prevents catastrophic squeeze on phones). The `display: block`
+   trick + `overflow-x: auto` is the most portable way to scope the
+   scroll to the table without needing a wrapper element. */
 .error-table,
 .doc-page table {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   margin: 1.5rem 0;
   background: var(--bg-primary);
   border-radius: 0.5rem;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -600,24 +605,27 @@
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Non-last columns (Name, Type, etc.) shrink to fit their content and
-   keep identifiers on one line. */
-.error-table th:not(:last-child),
-.error-table td:not(:last-child),
-.doc-page table th:not(:last-child),
-.doc-page table td:not(:last-child) {
+/* Only the FIRST column (identifier name) stays on one line — applying
+   `nowrap; width:1%` to every non-last column also forced middle
+   columns like Description to refuse to wrap, which then squeezed the
+   last column (e.g. Availability `iOS 17.4+`) to per-character width
+   on narrow viewports. */
+.error-table th:first-child,
+.error-table td:first-child,
+.doc-page table th:first-child,
+.doc-page table td:first-child {
   width: 1%;
   white-space: nowrap;
   vertical-align: top;
 }
 
-/* Last column (Summary/Description) absorbs remaining width and wraps at
-   word boundaries only — never breaks single characters per line. */
-.error-table th:last-child,
-.error-table td:last-child,
-.doc-page table th:last-child,
-.doc-page table td:last-child {
-  width: auto;
+/* All other columns wrap at word boundaries; long fields like
+   identifiers stay readable thanks to overflow-wrap: anywhere as a
+   safety net (no per-character wrap unless absolutely necessary). */
+.error-table th:not(:first-child),
+.error-table td:not(:first-child),
+.doc-page table th:not(:first-child),
+.doc-page table td:not(:first-child) {
   white-space: normal;
   vertical-align: top;
   overflow-wrap: anywhere;
