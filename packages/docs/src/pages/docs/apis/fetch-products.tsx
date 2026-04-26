@@ -252,12 +252,25 @@ function ProductList() {
           ),
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.fetchProducts // DSL extension
 
 val kmpIAP = KmpIAP()
 
-val products = kmpIAP.fetchProducts(
-    ProductRequest(skus = listOf("com.app.premium"), type = ProductQueryType.InApp)
-)`}</CodeBlock>
+// 1) Builder pattern — pass a ProductRequest data class directly.
+//    Returns the sealed FetchProductsResult union; unwrap by variant.
+val result = kmpIAP.fetchProducts(
+    ProductRequest(
+        skus = listOf("com.app.premium"),
+        type = ProductQueryType.InApp,
+    )
+)
+
+// 2) DSL pattern — trailing-lambda builder.
+//    Returns List<Product> directly (already unwrapped).
+val products = kmpIAP.fetchProducts {
+    skus = listOf("com.app.premium")
+    type = ProductQueryType.InApp
+}`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`final FetchProductsResult result = await FlutterInappPurchase.instance.fetchProducts(
