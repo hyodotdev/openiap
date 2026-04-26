@@ -523,8 +523,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * Initiate a purchase or subscription flow. Result is delivered via the
      * purchaseUpdated event flow — NOT the return value.
      *
-     * @param props [RequestPurchaseProps]. Pass `request.apple.sku` (iOS) and/or
-     *   `request.google.skus` (Android); subscriptions need `subscriptionOffers`.
+     * @param request [RequestPurchaseProps]. The OUTER `request` is the props envelope;
+     *   the INNER `RequestPurchaseProps.request` field carries the per-platform payload —
+     *   set `request.request.apple.sku` (iOS) and/or `request.request.google.skus`
+     *   (Android). Subscriptions also need `subscriptionOffers` on Android.
      * @return The dispatched purchase payload (do not rely on this for the outcome).
      * @throws PurchaseException on synchronous rejection (billing not ready, missing offerToken).
      *

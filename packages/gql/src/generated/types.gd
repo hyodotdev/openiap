@@ -5265,7 +5265,7 @@ class Mutation:
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
-	## Verify a purchase against your own backend (returns isValid + raw store metadata).
+	## Verify a purchase against your own backend. Returns a platform-specific
 	class verifyPurchaseField:
 		const name = "verifyPurchase"
 		const snake_name = "verify_purchase"
@@ -5757,7 +5757,7 @@ static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
 			args["options"] = options
 	return args
 
-## Verify a purchase against your own backend (returns isValid + raw store metadata).
+## Verify a purchase against your own backend. Returns a platform-specific
 static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:

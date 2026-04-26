@@ -4986,7 +4986,11 @@ public interface MutationResolver {
      */
     suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
-     * Verify a purchase against your own backend (returns isValid + raw store metadata).
+     * Verify a purchase against your own backend. Returns a platform-specific
+     * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
+     * + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
+     * receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
+     * Inspect the concrete variant before reading fields.
      * See: https://www.openiap.dev/docs/features/validation#verify-purchase
      */
     suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult
