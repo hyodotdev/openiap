@@ -17,15 +17,17 @@ function GetAvailablePurchases() {
       />
       <h1>getAvailablePurchases</h1>
       <p>
-        Get all available (unfinished) purchases for the current user. Use this
-        to restore purchases or check for pending transactions.
+        Get the user's purchases held by the store — owned non-consumables,
+        active subscriptions, and any pending transactions not yet finished.
       </p>
       <p>
-        <strong>iOS:</strong> Iterates{' '}
-        <code>Transaction.currentEntitlements</code> (StoreKit 2). Excludes
-        revoked / refunded transactions by default.{' '}
+        <strong>iOS:</strong> By default iterates <code>Transaction.all</code>{' '}
+        (the full StoreKit 2 history, including refunded / revoked entries).
+        Pass <code>onlyIncludeActiveItemsIOS = true</code> to switch to{' '}
+        <code>Transaction.currentEntitlements</code>, which narrows the result
+        to active non-consumables and live subscriptions.{' '}
         <a
-          href="https://developer.apple.com/documentation/storekit/transaction/currententitlements"
+          href="https://developer.apple.com/documentation/storekit/transaction/all"
           target="_blank"
           rel="noopener noreferrer"
         >

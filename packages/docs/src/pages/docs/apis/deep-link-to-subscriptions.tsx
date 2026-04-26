@@ -21,11 +21,12 @@ function DeepLinkToSubscriptions() {
         and manage their subscriptions.
       </p>
       <p>
-        <strong>iOS:</strong> Opens{' '}
-        <code>https://apps.apple.com/account/subscriptions</code> (universal
-        link) so the user can manage subscriptions in the App Store.{' '}
+        <strong>iOS:</strong> Calls{' '}
+        <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}
+        <code>UIWindowScene</code>; throws if no window scene is available. Not
+        supported on tvOS / watchOS / macOS in the current implementation.{' '}
         <a
-          href="https://developer.apple.com/documentation/storekit/manage-subscriptions-in-your-app"
+          href="https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)"
           target="_blank"
           rel="noopener noreferrer"
         >

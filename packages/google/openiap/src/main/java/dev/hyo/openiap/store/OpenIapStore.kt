@@ -378,12 +378,16 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Purchases / Restore - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
     /**
-     * List the user's unfinished purchases. Use this to restore non-consumables /
-     * active subscriptions, or to pick up purchases that weren't finished previously.
+     * List the owned/available purchases held by Play Billing — non-consumables,
+     * active subscriptions, and any pending transactions returned by
+     * `BillingClient.queryPurchasesAsync` for INAPP + SUBS. Use this to restore
+     * purchases or to recover anything not finished previously. (iOS uses
+     * `Transaction.unfinished` / `Transaction.all` semantics; on Android the
+     * concept is "owned by the user", not strictly "unfinished".)
      *
      * @param options Optional [PurchaseOptions]. Most fields are iOS-only and ignored
      *   on Android.
-     * @return List of [Purchase] currently held by Play Billing.
+     * @return List of [Purchase] currently owned according to Play Billing.
      * @throws OpenIapError when the Play Billing query fails.
      *
      * @see <a href="https://www.openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>

@@ -26,10 +26,10 @@ function ShowManageSubscriptionsIOS() {
       <p>
         Opens Apple's subscription-management surface for the user. The current
         iOS implementation forwards to the module's{' '}
-        <code>deepLinkToSubscriptions(nil)</code> path (which calls{' '}
-        <code>AppStore.showManageSubscriptions(in:)</code> when a window scene
-        is available, otherwise falls back to opening the App Store deep link).
-        iOS 15+. See the{' '}
+        <code>deepLinkToSubscriptions(nil)</code> path, which calls{' '}
+        <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}
+        <code>UIWindowScene</code>; if no scene is available the call throws
+        instead of falling back to a URL. iOS 15+. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)"
           target="_blank"
