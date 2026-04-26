@@ -363,6 +363,21 @@ pre code {
   font-weight: 500;
 }
 
+/* Linkified type names (anchors emitted by `linkifyType` in CodeBlock.tsx).
+   Inherit the class-name color, no anchor underline by default, but show one
+   on hover to make it discoverable. */
+.code-block a.token.type-ref,
+.code-snippet a.token.type-ref {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.code-block a.token.type-ref:hover,
+.code-snippet a.token.type-ref:hover {
+  text-decoration: underline;
+}
+
 .code-block .token.decorator,
 .code-snippet .token.decorator {
   color: #6f42c1;
