@@ -23,8 +23,9 @@ function IsEligibleForIntroOfferIOS() {
         12.2+).
       </p>
       <p>
-        Wraps <code>Product.SubscriptionInfo.isEligibleForIntroOffer(for:)</code>{' '}
-        — checks subscription-group level eligibility. See the{' '}
+        Wraps{' '}
+        <code>Product.SubscriptionInfo.isEligibleForIntroOffer(for:)</code> —
+        checks subscription-group level eligibility. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer(for:)"
           target="_blank"

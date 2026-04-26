@@ -23,7 +23,10 @@ function IsBillingProgramAvailableAndroid() {
         for the current user.
       </p>
       <p>
-        Wraps <code>BillingClient.isBillingProgramAvailableAsync(BillingProgram)</code>{' '}
+        Wraps{' '}
+        <code>
+          BillingClient.isBillingProgramAvailableAsync(BillingProgram)
+        </code>{' '}
         — replaces <code>isExternalOfferAvailableAsync</code>. Play Billing
         8.2.0+. See the{' '}
         <a

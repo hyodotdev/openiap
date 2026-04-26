@@ -31,8 +31,8 @@ function DeepLinkToSubscriptions() {
         >
           Apple docs
         </a>
-        . <strong>Android:</strong> Opens the Play Store subscription
-        management deep link{' '}
+        . <strong>Android:</strong> Opens the Play Store subscription management
+        deep link{' '}
         <code>
           https://play.google.com/store/account/subscriptions?package=&lt;pkg&gt;&amp;sku=&lt;sku&gt;
         </code>

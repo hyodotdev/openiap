@@ -27,8 +27,8 @@ function SubscriptionOffer() {
           tokens with pricing phases).
         </p>
         <p>
-          Cross-platform subscription-offer envelope. <strong>iOS:</strong>{' '}
-          maps to <code>Product.SubscriptionOffer</code> (
+          Cross-platform subscription-offer envelope. <strong>iOS:</strong> maps
+          to <code>Product.SubscriptionOffer</code> (
           <a
             href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer"
             target="_blank"

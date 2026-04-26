@@ -24,9 +24,12 @@ function AcknowledgePurchaseAndroid() {
         days or the purchase will be refunded.
       </p>
       <p>
-        Wraps <code>BillingClient.acknowledgePurchase(AcknowledgePurchaseParams)</code>{' '}
-        — required for non-consumables and subscriptions within 3 days, otherwise
-        Google auto-refunds. See the{' '}
+        Wraps{' '}
+        <code>
+          BillingClient.acknowledgePurchase(AcknowledgePurchaseParams)
+        </code>{' '}
+        — required for non-consumables and subscriptions within 3 days,
+        otherwise Google auto-refunds. See the{' '}
         <a
           href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#acknowledgePurchase(com.android.billingclient.api.AcknowledgePurchaseParams,com.android.billingclient.api.AcknowledgePurchaseResponseListener)"
           target="_blank"

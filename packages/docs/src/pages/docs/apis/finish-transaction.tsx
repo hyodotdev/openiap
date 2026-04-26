@@ -20,8 +20,8 @@ function FinishTransaction() {
         purchase to remove it from the queue.
       </p>
       <p>
-        <strong>iOS:</strong> Calls <code>Transaction.finish()</code>. Until
-        you do, the same transaction replays through{' '}
+        <strong>iOS:</strong> Calls <code>Transaction.finish()</code>. Until you
+        do, the same transaction replays through{' '}
         <code>Transaction.updates</code> on every app launch.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/finish()"

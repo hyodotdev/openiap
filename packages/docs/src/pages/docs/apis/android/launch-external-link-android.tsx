@@ -23,9 +23,10 @@ function LaunchExternalLinkAndroid() {
         Store dialog and optionally launches external URL.
       </p>
       <p>
-        Wraps <code>BillingClient.launchExternalLinkFlow(activity, params)</code>{' '}
-        — replaces <code>showExternalOfferInformationDialog</code>. Shows the
-        Play disclosure dialog and (optionally) launches the URL. Play Billing
+        Wraps{' '}
+        <code>BillingClient.launchExternalLinkFlow(activity, params)</code> —
+        replaces <code>showExternalOfferInformationDialog</code>. Shows the Play
+        disclosure dialog and (optionally) launches the URL. Play Billing
         8.2.0+. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
