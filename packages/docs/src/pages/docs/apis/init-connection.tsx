@@ -21,8 +21,10 @@ function InitConnection() {
         other IAP operations.
       </p>
       <p>
-        <strong>iOS:</strong> Calls <code>AppStore.sync()</code> lazily and
-        verifies StoreKit 2 is available; safe to call repeatedly.{' '}
+        <strong>iOS:</strong> Verifies <code>AppStore.canMakePayments</code>,
+        registers the <code>SKPaymentQueue</code> observer for promoted IAPs,
+        and starts a <code>Transaction.updates</code> listener that drives the
+        purchase event stream. Safe to call repeatedly.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/updates"
           target="_blank"
