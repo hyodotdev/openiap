@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -35,6 +36,40 @@ function ConsumePurchaseAndroid() {
           Google Play Billing reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>purchaseToken</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>Yes</td>
+            <td>Purchase token from the Play Billing transaction.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
+        purchase has been consumed.
       </p>
 
       <div className="alert-card alert-card--warning">

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -36,6 +38,46 @@ function CreateBillingProgramReportingDetailsAndroid() {
         >
           Google Play Billing reference
         </a>
+        .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>program</code>
+            </td>
+            <td>
+              <Link to="/docs/types/billing-programs#billing-program-android">
+                <code>BillingProgramAndroid</code>
+              </Link>
+            </td>
+            <td>Yes</td>
+            <td>Billing program identifier.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;BillingProgramReportingDetailsAndroid&gt;</code> —
+        External transaction token + metadata for reporting. See{' '}
+        <Link to="/docs/types/billing-programs#billing-program-reporting-details-android">
+          <code>BillingProgramReportingDetailsAndroid</code>
+        </Link>
         .
       </p>
 

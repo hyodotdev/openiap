@@ -1,3 +1,4 @@
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -38,6 +39,19 @@ function GetStorefront() {
           Google docs
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>None.</p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string&gt;</code> — ISO 3166-1 alpha-2 country code of
+        the user's storefront.
       </p>
 
       <h2>Signature</h2>

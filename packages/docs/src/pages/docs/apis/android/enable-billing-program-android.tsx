@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -45,6 +46,45 @@ function EnableBillingProgramAndroid() {
           Google Play Billing reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>billingProgramAndroid</code>
+            </td>
+            <td>
+              <Link to="/docs/types/billing-programs#billing-program-android">
+                <code>BillingProgramAndroid</code>
+              </Link>
+            </td>
+            <td>Yes</td>
+            <td>
+              Note: this is a config field of <code>InitConnectionConfig</code>{' '}
+              passed to <code>initConnection()</code>, not a standalone
+              mutation.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves once the program is enabled.
       </p>
 
       <h2>Signature</h2>

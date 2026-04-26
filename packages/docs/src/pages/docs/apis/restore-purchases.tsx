@@ -1,3 +1,4 @@
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -41,6 +42,21 @@ function RestorePurchases() {
           Google docs
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>None.</p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves once the platform finishes
+        the restore. The restored purchases are emitted via{' '}
+        <code>purchaseUpdatedListener</code> / surface as{' '}
+        <code>getAvailablePurchases</code> results, depending on platform.
       </p>
 
       <h2>Signature</h2>

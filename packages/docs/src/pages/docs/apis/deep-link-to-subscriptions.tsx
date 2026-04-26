@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -46,6 +47,53 @@ function DeepLinkToSubscriptions() {
           Google docs
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>options</code>
+            </td>
+            <td>
+              <Link to="/docs/types#common">
+                <code>DeepLinkOptions</code>
+              </Link>
+            </td>
+            <td>No</td>
+            <td>
+              Android needs <code>skuAndroid</code> +{' '}
+              <code>packageNameAndroid</code> to deep-link to a specific
+              subscription; iOS ignores the argument.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves when the system surface is
+        presented (or the deep link is opened on Android).
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>
+        <strong>iOS:</strong> When no <code>UIWindowScene</code> is available.
       </p>
 
       <h2>Signature</h2>

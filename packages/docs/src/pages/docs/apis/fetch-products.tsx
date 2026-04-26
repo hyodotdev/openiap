@@ -43,6 +43,48 @@ function FetchProducts() {
         .
       </p>
 
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>params</code>
+            </td>
+            <td>
+              <Link to="/docs/types/product-request">
+                <code>ProductRequest</code>
+              </Link>
+            </td>
+            <td>Yes</td>
+            <td>
+              Object with <code>skus: string[]</code> and optional{' '}
+              <code>type: 'in-app' | 'subs' | 'all'</code> (defaults to{' '}
+              <code>'in-app'</code>).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;FetchProductsResult&gt;</code> — Sealed union;{' '}
+        <code>Product[]</code> for <code>'in-app'</code>,{' '}
+        <code>ProductSubscription[]</code> for <code>'subs'</code>, mixed for{' '}
+        <code>'all'</code>, or <code>null</code> (legacy schema branch).
+      </p>
+
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs
       </AnchorLink>

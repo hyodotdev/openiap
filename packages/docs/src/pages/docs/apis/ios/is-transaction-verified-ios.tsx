@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -32,6 +33,40 @@ function IsTransactionVerifiedIOS() {
           Apple StoreKit reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>sku</code>
+            </td>
+            <td>
+              <code>string</code>
+            </td>
+            <td>Yes</td>
+            <td>Product identifier.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — Whether the latest transaction for{' '}
+        <code>sku</code> passed JWS verification.
       </p>
 
       <h2>Signature</h2>

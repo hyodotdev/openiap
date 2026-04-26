@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -44,6 +45,43 @@ function ValidateReceiptIOS() {
           instead.
         </p>
       </div>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>options</code>
+            </td>
+            <td>
+              <code>VerifyPurchaseProps</code>
+            </td>
+            <td>Yes</td>
+            <td>
+              Receipt props. <strong>Deprecated</strong> — use{' '}
+              <code>verifyPurchase</code>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;VerifyPurchaseResultIOS&gt;</code> — Legacy receipt
+        validation result.
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

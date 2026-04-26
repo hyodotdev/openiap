@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -44,6 +45,50 @@ function InitConnection() {
         </a>
         .
       </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>config</code>
+            </td>
+            <td>
+              <Link to="/docs/types/alternative-billing-types#init-connection-config">
+                <code>InitConnectionConfig</code>
+              </Link>
+            </td>
+            <td>No</td>
+            <td>
+              Connection config (e.g. <code>enableBillingProgramAndroid</code>{' '}
+              for Play Billing 8.2.0+; iOS ignores Android-specific fields).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
+        platform billing client is connected.
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>When the platform billing client fails to initialize.</p>
 
       <h2>Signature</h2>
       <LanguageTabs>

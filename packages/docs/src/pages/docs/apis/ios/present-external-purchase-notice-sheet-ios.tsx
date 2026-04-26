@@ -1,3 +1,4 @@
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -30,6 +31,19 @@ function PresentExternalPurchaseNoticeSheetIOS() {
           Apple StoreKit reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>None.</p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;ExternalPurchaseNoticeResultIOS&gt;</code> — Carries a
+        token if the user accepts.
       </p>
 
       <h2>Signature</h2>

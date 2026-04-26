@@ -1,3 +1,4 @@
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -42,6 +43,40 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
           Apple StoreKit reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>noticeType</code>
+            </td>
+            <td>
+              <code>ExternalPurchaseCustomLinkNoticeTypeIOS</code>
+            </td>
+            <td>Yes</td>
+            <td>Disclosure style.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;ExternalPurchaseCustomLinkNoticeResultIOS&gt;</code> —
+        Disclosure result.
       </p>
 
       <h2>Signature</h2>

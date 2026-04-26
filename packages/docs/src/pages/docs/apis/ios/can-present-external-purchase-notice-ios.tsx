@@ -1,3 +1,4 @@
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -32,6 +33,19 @@ function CanPresentExternalPurchaseNoticeIOS() {
           Apple StoreKit reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>None.</p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the
+        external-purchase notice sheet can be presented (iOS 17.4+).
       </p>
 
       <h2>Signature</h2>

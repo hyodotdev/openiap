@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -43,6 +45,61 @@ function FinishTransaction() {
         </a>
         .
       </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>purchase</code>
+            </td>
+            <td>
+              <Link to="/docs/types/purchase">
+                <code>Purchase</code>
+              </Link>
+            </td>
+            <td>Yes</td>
+            <td>The purchase to finalize.</td>
+          </tr>
+          <tr>
+            <td>
+              <code>isConsumable</code>
+            </td>
+            <td>
+              <code>boolean</code>
+            </td>
+            <td>No</td>
+            <td>
+              Defaults to <code>false</code>. Pass <code>true</code> for
+              consumables (re-buyable like coins) so Android consumes the token;
+              non-consumables and subscriptions just get acknowledged.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves once the platform finalizes
+        the transaction.
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>When the platform finalize call fails.</p>
 
       <h2>Signature</h2>
       <LanguageTabs>

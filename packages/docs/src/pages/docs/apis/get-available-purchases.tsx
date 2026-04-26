@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -45,6 +46,47 @@ function GetAvailablePurchases() {
           Google docs
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>options</code>
+            </td>
+            <td>
+              <Link to="/docs/types/purchase#purchase-options">
+                <code>PurchaseOptions</code>
+              </Link>
+            </td>
+            <td>No</td>
+            <td>
+              Platform-specific filters (
+              <code>alsoPublishToEventListenerIOS</code>,{' '}
+              <code>onlyIncludeActiveItemsIOS</code>,{' '}
+              <code>includeSuspendedAndroid</code>).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;Purchase[]&gt;</code> — Owned/available purchases held
+        by the store.
       </p>
 
       <h2>Signature</h2>

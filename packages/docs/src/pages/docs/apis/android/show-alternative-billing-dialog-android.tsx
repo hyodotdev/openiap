@@ -1,3 +1,4 @@
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -38,6 +39,20 @@ function ShowAlternativeBillingDialogAndroid() {
           Google Play Billing reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>None.</p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> if the user
+        accepts the disclosure dialog, <code>false</code> if they cancel (step 2
+        of 3).
       </p>
 
       <h2>Signature</h2>

@@ -1,3 +1,4 @@
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -35,6 +36,19 @@ function CheckAlternativeBillingAvailabilityAndroid() {
           Google Play Billing reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>None.</p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — Whether alternative billing is
+        available for this user/device (step 1 of 3).
       </p>
 
       <h2>Signature</h2>

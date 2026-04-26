@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -82,6 +83,57 @@ function RequestPurchase() {
           requests — use the appropriate listeners to handle the actual results.
         </p>
       </div>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>props</code>
+            </td>
+            <td>
+              <Link to="/docs/types/request-purchase-props">
+                <code>RequestPurchaseProps</code>
+              </Link>
+            </td>
+            <td>Yes</td>
+            <td>
+              Discriminated by <code>type: 'in-app' | 'subs'</code>. Pass
+              platform fields under <code>request.apple.sku</code> (iOS) and/or{' '}
+              <code>request.google.skus</code> (Android); subscriptions also
+              need <code>request.google.subscriptionOffers</code>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;Purchase | null&gt;</code> — Dispatched purchase
+        payload. <strong>Do not rely on this for the actual outcome</strong> —
+        listen via <code>purchaseUpdatedListener</code> /{' '}
+        <code>purchaseErrorListener</code> instead.
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>
+        Synchronous rejection from the store (<code>E_NOT_PREPARED</code>,
+        missing offerToken on subs, etc.).
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

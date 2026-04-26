@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -38,6 +40,42 @@ function LaunchExternalLinkAndroid() {
           Google Play Billing reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>params</code>
+            </td>
+            <td>
+              <Link to="/docs/types/billing-programs#launch-external-link-params-android">
+                <code>LaunchExternalLinkParamsAndroid</code>
+              </Link>
+            </td>
+            <td>Yes</td>
+            <td>Includes the external URL plus per-program options.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the Play
+        disclosure dialog finished and (optionally) the URL was opened.
       </p>
 
       <h2>Signature</h2>

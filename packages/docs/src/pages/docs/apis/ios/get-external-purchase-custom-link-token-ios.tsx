@@ -1,3 +1,4 @@
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -42,6 +43,43 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
           Apple StoreKit reference
         </a>
         .
+      </p>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <table className="doc-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>tokenType</code>
+            </td>
+            <td>
+              <code>ExternalPurchaseCustomLinkTokenTypeIOS</code>
+            </td>
+            <td>Yes</td>
+            <td>
+              <code>acquisition</code> (new customers) or <code>services</code>{' '}
+              (existing customers).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;ExternalPurchaseCustomLinkTokenResultIOS&gt;</code> —
+        Token for Apple's External Purchase Server reporting API.
       </p>
 
       <h2>Signature</h2>

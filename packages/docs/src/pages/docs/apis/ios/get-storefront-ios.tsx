@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -39,6 +40,21 @@ function GetStorefrontIOS() {
           <Link to="/docs/apis/get-storefront">getStorefront</Link> instead.
         </p>
       </div>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        None. <strong>Deprecated</strong> — use <code>getStorefront</code>.
+      </p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string&gt;</code> — ISO country code of the App Store
+        storefront.
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>
