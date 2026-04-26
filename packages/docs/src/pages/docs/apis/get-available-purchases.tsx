@@ -58,64 +58,33 @@ function GetAvailablePurchases() {
         </Link>
         :
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>alsoPublishToEventListenerIOS</code>
-            </td>
-            <td>
-              <code>boolean</code>
-            </td>
-            <td>
-              No (default <code>false</code>)
-            </td>
-            <td>
-              <strong>iOS.</strong> Re-emit results on{' '}
-              <code>purchaseUpdatedListener</code>.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>onlyIncludeActiveItemsIOS</code>
-            </td>
-            <td>
-              <code>boolean</code>
-            </td>
-            <td>
-              No (default <code>false</code>)
-            </td>
-            <td>
-              <strong>iOS.</strong> Switch from <code>Transaction.all</code>{' '}
-              (full history) to <code>Transaction.currentEntitlements</code>{' '}
-              (active only).
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>includeSuspendedAndroid</code>
-            </td>
-            <td>
-              <code>boolean</code>
-            </td>
-            <td>
-              No (default <code>false</code>)
-            </td>
-            <td>
-              <strong>Android.</strong> Include subscriptions in a paused/grace
-              state.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>alsoPublishToEventListenerIOS</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Re-emit results on{' '}
+          <code>purchaseUpdatedListener</code>.
+        </li>
+        <li>
+          <code>onlyIncludeActiveItemsIOS</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Switch from <code>Transaction.all</code> (full
+          history) to <code>Transaction.currentEntitlements</code> (active
+          only).
+        </li>
+        <li>
+          <code>includeSuspendedAndroid</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Include subscriptions in a paused/grace
+          state.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

@@ -37,28 +37,15 @@ function PresentExternalPurchaseLinkIOS() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>url</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>Yes</td>
-            <td>External purchase URL to present.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>url</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — External purchase URL to present.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

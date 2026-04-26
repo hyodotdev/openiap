@@ -41,28 +41,15 @@ function SubscriptionStatusIOS() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>sku</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>Yes</td>
-            <td>Subscription product identifier.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>sku</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Subscription product identifier.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns
@@ -73,43 +60,28 @@ function SubscriptionStatusIOS() {
         </Link>{' '}
         — one entry per status the user has on the subscription:
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>state</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>
-              StoreKit 2 renewal state (e.g. <code>"subscribed"</code>,{' '}
-              <code>"inGracePeriod"</code>, <code>"expired"</code>).
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>renewalInfo</code>
-            </td>
-            <td>
-              <Link to="/docs/types/ios/renewal-info-ios">
-                <code>RenewalInfoIOS?</code>
-              </Link>
-            </td>
-            <td>
-              Renewal metadata (auto-renew flag, renewal date, expiration
-              reason). May be <code>null</code>.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>state</code>{' '}
+          <em>
+            (<code>string</code>)
+          </em>{' '}
+          — StoreKit 2 renewal state (e.g. <code>"subscribed"</code>,{' '}
+          <code>"inGracePeriod"</code>, <code>"expired"</code>).
+        </li>
+        <li>
+          <code>renewalInfo</code>{' '}
+          <em>
+            (
+            <Link to="/docs/types/ios/renewal-info-ios">
+              <code>RenewalInfoIOS?</code>
+            </Link>
+            )
+          </em>{' '}
+          — Renewal metadata (auto-renew flag, renewal date, expiration reason).
+          May be <code>null</code>.
+        </li>
+      </ul>
 
       <h2>Signature</h2>
       <LanguageTabs>

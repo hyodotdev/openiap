@@ -59,44 +59,24 @@ function DeepLinkToSubscriptions() {
         </Link>
         :
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>skuAndroid</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>No</td>
-            <td>
-              <strong>Android.</strong> Subscription SKU to deep-link to.
-              Without it the user lands on the generic Play subscriptions page.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>packageNameAndroid</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>No</td>
-            <td>
-              <strong>Android.</strong> Defaults to the host app's package;
-              override only when proxying for another app.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>skuAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Subscription SKU to deep-link to. Without
+          it the user lands on the generic Play subscriptions page.
+        </li>
+        <li>
+          <code>packageNameAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Defaults to the host app's package;
+          override only when proxying for another app.
+        </li>
+      </ul>
       <p>
         iOS ignores all fields — the wrapper calls{' '}
         <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}

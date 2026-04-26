@@ -45,31 +45,16 @@ function HasActiveSubscriptions() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>subscriptionIds</code>
-            </td>
-            <td>
-              <code>string[]</code>
-            </td>
-            <td>No</td>
-            <td>
-              If provided, only these SKUs are checked. Omit to ask "any active
-              subscription at all?".
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>subscriptionIds</code>{' '}
+          <em>
+            (optional, <code>string[]</code>)
+          </em>{' '}
+          — If provided, only these SKUs are checked. Omit to ask "any active
+          subscription at all?".
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

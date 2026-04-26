@@ -37,28 +37,15 @@ function GetTransactionJwsIOS() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>sku</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>Yes</td>
-            <td>Product identifier.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>sku</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Product identifier.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

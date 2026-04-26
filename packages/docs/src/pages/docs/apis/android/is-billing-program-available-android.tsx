@@ -44,30 +44,19 @@ function IsBillingProgramAvailableAndroid() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>program</code>
-            </td>
-            <td>
-              <Link to="/docs/types/billing-programs#billing-program-android">
-                <code>BillingProgramAndroid</code>
-              </Link>
-            </td>
-            <td>Yes</td>
-            <td>Billing program identifier.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>program</code>{' '}
+          <em>
+            (required,{' '}
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — Billing program identifier.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns
@@ -78,46 +67,29 @@ function IsBillingProgramAvailableAndroid() {
         </Link>{' '}
         — carries:
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>isAvailable</code>
-            </td>
-            <td>
-              <code>boolean</code>
-            </td>
-            <td>
-              Whether the billing program is available for this user/device.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>responseCode</code>
-            </td>
-            <td>
-              <code>number?</code>
-            </td>
-            <td>Raw Play Billing response code (when Play returned one).</td>
-          </tr>
-          <tr>
-            <td>
-              <code>debugMessage</code>
-            </td>
-            <td>
-              <code>string?</code>
-            </td>
-            <td>Optional debug message from Play.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>isAvailable</code>{' '}
+          <em>
+            (<code>boolean</code>)
+          </em>{' '}
+          — Whether the billing program is available for this user/device.
+        </li>
+        <li>
+          <code>responseCode</code>{' '}
+          <em>
+            (<code>number?</code>)
+          </em>{' '}
+          — Raw Play Billing response code (when Play returned one).
+        </li>
+        <li>
+          <code>debugMessage</code>{' '}
+          <em>
+            (<code>string?</code>)
+          </em>{' '}
+          — Optional debug message from Play.
+        </li>
+      </ul>
 
       <h2>Signature</h2>
       <LanguageTabs>

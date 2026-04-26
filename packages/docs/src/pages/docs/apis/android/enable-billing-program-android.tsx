@@ -51,34 +51,20 @@ function EnableBillingProgramAndroid() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>billingProgramAndroid</code>
-            </td>
-            <td>
-              <Link to="/docs/types/billing-programs#billing-program-android">
-                <code>BillingProgramAndroid</code>
-              </Link>
-            </td>
-            <td>Yes</td>
-            <td>
-              Note: this is a config field of <code>InitConnectionConfig</code>{' '}
-              passed to <code>initConnection()</code>, not a standalone
-              mutation.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>billingProgramAndroid</code>{' '}
+          <em>
+            (required,{' '}
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — Note: this is a config field of <code>InitConnectionConfig</code>{' '}
+          passed to <code>initConnection()</code>, not a standalone mutation.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

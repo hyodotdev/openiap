@@ -34,11 +34,6 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <p>None.</p>
-
       <AnchorLink id="returns" level="h2">
         Returns
       </AnchorLink>
@@ -48,51 +43,32 @@ function PresentExternalPurchaseNoticeSheetIOS() {
         </Link>{' '}
         — carries:
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>result</code>
-            </td>
-            <td>
-              <code>'continue' | 'dismissed'</code>
-            </td>
-            <td>
-              User action on the notice sheet — see{' '}
-              <code>ExternalPurchaseNoticeAction</code>.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>externalPurchaseToken</code>
-            </td>
-            <td>
-              <code>string?</code>
-            </td>
-            <td>
-              Reporting token returned by Apple when the user continues (
-              <code>result === 'continue'</code>). Pass to your backend / send
-              to Apple's External Purchase Server API.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>error</code>
-            </td>
-            <td>
-              <code>string?</code>
-            </td>
-            <td>Populated when the sheet failed to present.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>result</code>{' '}
+          <em>
+            (<code>'continue' | 'dismissed'</code>)
+          </em>{' '}
+          — User action on the notice sheet — see{' '}
+          <code>ExternalPurchaseNoticeAction</code>.
+        </li>
+        <li>
+          <code>externalPurchaseToken</code>{' '}
+          <em>
+            (<code>string?</code>)
+          </em>{' '}
+          — Reporting token returned by Apple when the user continues (
+          <code>result === 'continue'</code>). Pass to your backend / send to
+          Apple's External Purchase Server API.
+        </li>
+        <li>
+          <code>error</code>{' '}
+          <em>
+            (<code>string?</code>)
+          </em>{' '}
+          — Populated when the sheet failed to present.
+        </li>
+      </ul>
 
       <h2>Signature</h2>
       <LanguageTabs>

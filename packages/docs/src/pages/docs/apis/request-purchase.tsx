@@ -94,109 +94,72 @@ function RequestPurchase() {
         </Link>
         , discriminated by <code>type</code>:
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>type</code>
-            </td>
-            <td>
-              <code>'in-app' | 'subs'</code>
-            </td>
-            <td>Yes</td>
-            <td>
-              Selects the request shape. Use <code>'in-app'</code> for one-time
-              products and <code>'subs'</code> for subscriptions.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>request.apple.sku</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>iOS only</td>
-            <td>Single SKU for the iOS purchase.</td>
-          </tr>
-          <tr>
-            <td>
-              <code>request.apple.appAccountToken</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>No</td>
-            <td>
-              UUID-format account token forwarded to Apple. Non-UUID values land
-              as <code>null</code> on the resulting <code>Purchase</code>.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>request.apple.quantity</code>
-            </td>
-            <td>
-              <code>number</code>
-            </td>
-            <td>No</td>
-            <td>Quantity for consumable bulk purchases.</td>
-          </tr>
-          <tr>
-            <td>
-              <code>request.google.skus</code>
-            </td>
-            <td>
-              <code>string[]</code>
-            </td>
-            <td>Android only</td>
-            <td>Product SKUs to launch the Play purchase flow for.</td>
-          </tr>
-          <tr>
-            <td>
-              <code>request.google.subscriptionOffers</code>
-            </td>
-            <td>
-              <code>{`{ sku: string; offerToken: string }[]`}</code>
-            </td>
-            <td>
-              <code>'subs'</code> only
-            </td>
-            <td>
-              <strong>Android.</strong> Required for subscription requests; pair
-              each SKU with its offerToken from <code>fetchProducts</code>.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>request.google.obfuscatedAccountIdAndroid</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>No</td>
-            <td>Optional account identifier passed to Play.</td>
-          </tr>
-          <tr>
-            <td>
-              <code>request.google.obfuscatedProfileIdAndroid</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>No</td>
-            <td>Optional profile identifier passed to Play.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>type</code>{' '}
+          <em>
+            (required, <code>'in-app' | 'subs'</code>)
+          </em>{' '}
+          — Selects the request shape. Use <code>'in-app'</code> for one-time
+          products and <code>'subs'</code> for subscriptions.
+        </li>
+        <li>
+          <code>request.apple.sku</code>{' '}
+          <em>
+            (iOS only, <code>string</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Single SKU for the iOS purchase.
+        </li>
+        <li>
+          <code>request.apple.appAccountToken</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> UUID-format account token forwarded to Apple.
+          Non-UUID values land as <code>null</code> on the resulting{' '}
+          <code>Purchase</code>.
+        </li>
+        <li>
+          <code>request.apple.quantity</code>{' '}
+          <em>
+            (optional, <code>number</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Quantity for consumable bulk purchases.
+        </li>
+        <li>
+          <code>request.google.skus</code>{' '}
+          <em>
+            (Android only, <code>string[]</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Product SKUs to launch the Play purchase
+          flow for.
+        </li>
+        <li>
+          <code>request.google.subscriptionOffers</code>{' '}
+          <em>
+            (required for <code>'subs'</code>,{' '}
+            <code>{`{ sku: string; offerToken: string }[]`}</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Required for subscription requests; pair
+          each SKU with its offerToken from <code>fetchProducts</code>.
+        </li>
+        <li>
+          <code>request.google.obfuscatedAccountIdAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Optional account identifier passed to
+          Play.
+        </li>
+        <li>
+          <code>request.google.obfuscatedProfileIdAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Optional profile identifier passed to
+          Play.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

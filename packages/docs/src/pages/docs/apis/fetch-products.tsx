@@ -53,43 +53,24 @@ function FetchProducts() {
         </Link>{' '}
         object:
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>skus</code>
-            </td>
-            <td>
-              <code>string[]</code>
-            </td>
-            <td>Yes</td>
-            <td>Product identifiers to fetch.</td>
-          </tr>
-          <tr>
-            <td>
-              <code>type</code>
-            </td>
-            <td>
-              <code>'in-app' | 'subs' | 'all'</code>
-            </td>
-            <td>
-              No (default <code>'in-app'</code>)
-            </td>
-            <td>
-              Filter by product kind. Use <code>'all'</code> to query both in
-              one call.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>skus</code>{' '}
+          <em>
+            (required, <code>string[]</code>)
+          </em>{' '}
+          — Product identifiers to fetch.
+        </li>
+        <li>
+          <code>type</code>{' '}
+          <em>
+            (optional, <code>'in-app' | 'subs' | 'all'</code>, default{' '}
+            <code>'in-app'</code>)
+          </em>{' '}
+          — Filter by product kind. Use <code>'all'</code> to query both in one
+          call.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns
@@ -98,60 +79,38 @@ function FetchProducts() {
         <code>Promise&lt;FetchProductsResult&gt;</code> — sealed union,
         discriminated by the request <code>type</code>:
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Variant</th>
-            <th>Returned for</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <Link to="/docs/types/product">
-                <code>Product[]</code>
-              </Link>
-            </td>
-            <td>
-              <code>type: 'in-app'</code>
-            </td>
-            <td>
-              Array of one-time products. Empty array if none of the SKUs exist.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <Link to="/docs/types/subscription-product">
-                <code>ProductSubscription[]</code>
-              </Link>
-            </td>
-            <td>
-              <code>type: 'subs'</code>
-            </td>
-            <td>Array of subscription products with offer details.</td>
-          </tr>
-          <tr>
-            <td>
-              <code>(Product | ProductSubscription)[]</code>
-            </td>
-            <td>
-              <code>type: 'all'</code>
-            </td>
-            <td>
-              Mixed array — use each entry's <code>type</code> field to
-              disambiguate.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>null</code>
-            </td>
-            <td>(legacy)</td>
-            <td>Older schema branch retained for backwards compatibility.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <Link to="/docs/types/product">
+            <code>Product[]</code>
+          </Link>{' '}
+          <em>
+            (for <code>type: 'in-app'</code>)
+          </em>{' '}
+          — Array of one-time products. Empty array if none of the SKUs exist.
+        </li>
+        <li>
+          <Link to="/docs/types/subscription-product">
+            <code>ProductSubscription[]</code>
+          </Link>{' '}
+          <em>
+            (for <code>type: 'subs'</code>)
+          </em>{' '}
+          — Array of subscription products with offer details.
+        </li>
+        <li>
+          <code>(Product | ProductSubscription)[]</code>{' '}
+          <em>
+            (for <code>type: 'all'</code>)
+          </em>{' '}
+          — Mixed array; use each entry's <code>type</code> field to
+          disambiguate.
+        </li>
+        <li>
+          <code>null</code> <em>(legacy)</em> — Older schema branch retained for
+          backwards compatibility.
+        </li>
+      </ul>
 
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs

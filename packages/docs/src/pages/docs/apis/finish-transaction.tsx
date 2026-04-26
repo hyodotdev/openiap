@@ -50,51 +50,30 @@ function FinishTransaction() {
         Parameters
       </AnchorLink>
       <p>The transaction to close, plus an optional consumable flag:</p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>purchase</code>
-            </td>
-            <td>
-              <Link to="/docs/types/purchase">
-                <code>Purchase</code>
-              </Link>
-            </td>
-            <td>Yes</td>
-            <td>
-              The purchase / transaction to finalize. Must come from{' '}
-              <code>requestPurchase</code> or <code>getAvailablePurchases</code>
-              .
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>isConsumable</code>
-            </td>
-            <td>
-              <code>boolean</code>
-            </td>
-            <td>
-              No (default <code>false</code>)
-            </td>
-            <td>
-              <strong>Android.</strong> <code>true</code> consumes the token
-              (re-buyable like coins); <code>false</code> just acknowledges
-              (non-consumables, subscriptions). iOS always calls{' '}
-              <code>Transaction.finish()</code> regardless.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>purchase</code>{' '}
+          <em>
+            (required,{' '}
+            <Link to="/docs/types/purchase">
+              <code>Purchase</code>
+            </Link>
+            )
+          </em>{' '}
+          — The purchase / transaction to finalize. Must come from{' '}
+          <code>requestPurchase</code> or <code>getAvailablePurchases</code>.
+        </li>
+        <li>
+          <code>isConsumable</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>Android.</strong> <code>true</code> consumes the token
+          (re-buyable like coins); <code>false</code> just acknowledges
+          (non-consumables, subscriptions). iOS always calls{' '}
+          <code>Transaction.finish()</code> regardless.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

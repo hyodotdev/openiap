@@ -49,32 +49,17 @@ function GetActiveSubscriptions() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>subscriptionIds</code>
-            </td>
-            <td>
-              <code>string[]</code>
-            </td>
-            <td>No</td>
-            <td>
-              If provided, the result is filtered to these SKUs. Omit / pass{' '}
-              <code>null</code> to return every active subscription the store
-              knows about.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>subscriptionIds</code>{' '}
+          <em>
+            (optional, <code>string[]</code>)
+          </em>{' '}
+          — If provided, the result is filtered to these SKUs. Omit / pass{' '}
+          <code>null</code> to return every active subscription the store knows
+          about.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns
@@ -85,93 +70,60 @@ function GetActiveSubscriptions() {
         </Link>{' '}
         — one entry per active subscription. Each row carries:
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>productId</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>Subscription product identifier.</td>
-          </tr>
-          <tr>
-            <td>
-              <code>basePlanId</code>
-            </td>
-            <td>
-              <code>string?</code>
-            </td>
-            <td>
-              <strong>Android.</strong> Base plan identifier when applicable.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>isActive</code>
-            </td>
-            <td>
-              <code>boolean</code>
-            </td>
-            <td>
-              <code>true</code> while the subscription is in a paying or grace
-              state.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>willExpireSoon</code>
-            </td>
-            <td>
-              <code>boolean?</code>
-            </td>
-            <td>Hint that renewal is imminent (cancelled or grace period).</td>
-          </tr>
-          <tr>
-            <td>
-              <code>expirationDateIOS</code>
-            </td>
-            <td>
-              <code>number?</code>
-            </td>
-            <td>
-              <strong>iOS.</strong> Epoch ms expiration timestamp.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>environmentIOS</code>
-            </td>
-            <td>
-              <code>string?</code>
-            </td>
-            <td>
-              <strong>iOS.</strong> <code>"Sandbox"</code> or{' '}
-              <code>"Production"</code>.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>autoRenewingAndroid</code>
-            </td>
-            <td>
-              <code>boolean?</code>
-            </td>
-            <td>
-              <strong>Android.</strong> Whether Play will auto-renew at the next
-              cycle.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>productId</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Subscription product identifier.
+        </li>
+        <li>
+          <code>basePlanId</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Base plan identifier when applicable.
+        </li>
+        <li>
+          <code>isActive</code>{' '}
+          <em>
+            (required, <code>boolean</code>)
+          </em>{' '}
+          — <code>true</code> while the subscription is in a paying or grace
+          state.
+        </li>
+        <li>
+          <code>willExpireSoon</code>{' '}
+          <em>
+            (optional, <code>boolean</code>)
+          </em>{' '}
+          — Hint that renewal is imminent (cancelled or grace period).
+        </li>
+        <li>
+          <code>expirationDateIOS</code>{' '}
+          <em>
+            (optional, <code>number</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Epoch ms expiration timestamp.
+        </li>
+        <li>
+          <code>environmentIOS</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> <code>"Sandbox"</code> or{' '}
+          <code>"Production"</code>.
+        </li>
+        <li>
+          <code>autoRenewingAndroid</code>{' '}
+          <em>
+            (optional, <code>boolean</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Whether Play will auto-renew at the next
+          cycle.
+        </li>
+      </ul>
 
       <h2>Signature</h2>
       <LanguageTabs>

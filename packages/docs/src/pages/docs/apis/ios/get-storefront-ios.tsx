@@ -41,13 +41,6 @@ function GetStorefrontIOS() {
         </p>
       </div>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <p>
-        None. <strong>Deprecated</strong> — use <code>getStorefront</code>.
-      </p>
-
       <AnchorLink id="returns" level="h2">
         Returns
       </AnchorLink>

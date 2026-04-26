@@ -53,52 +53,35 @@ function InitConnection() {
         Pass an optional{' '}
         <Link to="/docs/types/alternative-billing-types#init-connection-config">
           <code>InitConnectionConfig</code>
-        </Link>
-        :
+        </Link>{' '}
+        — Android billing program flags. iOS ignores Android-specific fields.
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>alternativeBillingModeAndroid</code>
-            </td>
-            <td>
-              <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
-                <code>AlternativeBillingModeAndroid</code>
-              </Link>
-            </td>
-            <td>No</td>
-            <td>
-              <strong>Android · deprecated.</strong> Opt into Google's
-              user-choice billing flow. Prefer{' '}
-              <code>enableBillingProgramAndroid</code>.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>enableBillingProgramAndroid</code>
-            </td>
-            <td>
-              <Link to="/docs/types/billing-programs#billing-program-android">
-                <code>BillingProgramAndroid</code>
-              </Link>
-            </td>
-            <td>No</td>
-            <td>
-              <strong>Android.</strong> Enable a Play Billing 8.2.0+ program
-              (External Payments etc.) at connection time.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>alternativeBillingModeAndroid</code>{' '}
+          <em>
+            (optional,{' '}
+            <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
+              <code>AlternativeBillingModeAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — <strong>Android · deprecated.</strong> Opt into Google's user-choice
+          billing flow. Prefer <code>enableBillingProgramAndroid</code>.
+        </li>
+        <li>
+          <code>enableBillingProgramAndroid</code>{' '}
+          <em>
+            (optional,{' '}
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — <strong>Android.</strong> Enable a Play Billing 8.2.0+ program
+          (External Payments etc.) at connection time.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

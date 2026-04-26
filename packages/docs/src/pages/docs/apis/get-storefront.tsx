@@ -41,11 +41,6 @@ function GetStorefront() {
         .
       </p>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <p>None.</p>
-
       <AnchorLink id="returns" level="h2">
         Returns
       </AnchorLink>

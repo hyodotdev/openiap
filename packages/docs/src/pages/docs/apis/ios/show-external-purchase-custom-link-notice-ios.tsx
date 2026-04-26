@@ -49,28 +49,15 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>noticeType</code>
-            </td>
-            <td>
-              <code>ExternalPurchaseCustomLinkNoticeTypeIOS</code>
-            </td>
-            <td>Yes</td>
-            <td>Disclosure style.</td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>noticeType</code>{' '}
+          <em>
+            (required, <code>ExternalPurchaseCustomLinkNoticeTypeIOS</code>)
+          </em>{' '}
+          — Disclosure style.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns

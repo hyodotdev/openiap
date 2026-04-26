@@ -52,45 +52,27 @@ function LaunchExternalLinkAndroid() {
         </Link>
         :
       </p>
-      <table className="doc-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>program</code>
-            </td>
-            <td>
-              <Link to="/docs/types/billing-programs#billing-program-android">
-                <code>BillingProgramAndroid</code>
-              </Link>
-            </td>
-            <td>Yes</td>
-            <td>
-              Billing program the link belongs to (e.g.{' '}
-              <code>EXTERNAL_OFFER</code>).
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>url</code>
-            </td>
-            <td>
-              <code>string</code>
-            </td>
-            <td>Yes</td>
-            <td>
-              External URL to launch after the Play disclosure dialog dismisses.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="api-params">
+        <li>
+          <code>program</code>{' '}
+          <em>
+            (required,{' '}
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — Billing program the link belongs to (e.g.{' '}
+          <code>EXTERNAL_OFFER</code>).
+        </li>
+        <li>
+          <code>url</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — External URL to launch after the Play disclosure dialog dismisses.
+        </li>
+      </ul>
 
       <AnchorLink id="returns" level="h2">
         Returns
