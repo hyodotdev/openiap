@@ -113,6 +113,25 @@ function linkifyType(name: string): string {
   return `<span class="token class-name">${name}</span>`;
 }
 
+// Split an already-marked-up HTML string on `<...>` tag boundaries and
+// run the capitalized-identifier linkify pass ONLY on the text segments
+// in between. This avoids regex lookbehind (Safari < 16.4 doesn't
+// support it under Vite's default `target: 'modules'`) and stops
+// keywords already wrapped by upstream passes — Dart `Future`,
+// GDScript `String`, etc. — from being re-wrapped as class-name and
+// clobbering their original token color.
+function linkifyTypesInTextSegments(html: string): string {
+  return html
+    .split(/(<[^>]+>)/)
+    .map((segment) => {
+      if (segment.startsWith('<')) return segment;
+      return segment.replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, (_, name: string) =>
+        linkifyType(name)
+      );
+    })
+    .join('');
+}
+
 function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
   const codeRef = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
@@ -272,16 +291,7 @@ function highlightCode(element: HTMLElement, language: string) {
           // Capitalized identifiers → linkify known OpenIAP types (so e.g.
           // `ProductRequest`, `Purchase[]`, `Promise<FetchProductsResult>` in
           // a TS signature jump to /docs/types/...).
-          // The negative lookbehind `(?<![">])` skips capitals that sit
-          // immediately after an HTML attribute quote or a closing `>` —
-          // i.e. text already wrapped by the keyword / function passes
-          // above. Without it we'd nest tags (e.g. wrap `Future` inside
-          // `<span class="token keyword">Future</span>`) and clobber the
-          // upstream token color.
-          processed = processed.replace(
-            /(?<![">])\b([A-Z][a-zA-Z0-9_]*)\b/g,
-            (_, name: string) => linkifyType(name)
-          );
+          processed = linkifyTypesInTextSegments(processed);
 
           result += processed;
         }
@@ -385,15 +395,7 @@ function highlightCode(element: HTMLElement, language: string) {
           // Types (capitalized words). Known OpenIAP type names render as
           // anchors to /docs/types/...; unknown ones stay as plain class-name
           // spans so styling is identical.
-          // Negative lookbehind `(?<![">])` skips capitals already inside
-          // tags emitted by the keyword/function/decorator passes above —
-          // languages like Dart treat `Future`/`Function` and GDScript treats
-          // `String`/`Array` as keywords, so the bare `\b[A-Z]...\b` pattern
-          // would re-wrap them and override the upstream token color.
-          processed = processed.replace(
-            /(?<![">])\b([A-Z][a-zA-Z0-9_]*)\b/g,
-            (_, name: string) => linkifyType(name)
-          );
+          processed = linkifyTypesInTextSegments(processed);
 
           // Annotations/Attributes
           processed = processed.replace(

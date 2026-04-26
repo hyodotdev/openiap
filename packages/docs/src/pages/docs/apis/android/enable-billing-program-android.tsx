@@ -86,29 +86,27 @@ func init_connection(config: InitConnectionConfig) -> bool`}</CodeBlock>
         }}
       </LanguageTabs>
 
-      <AnchorLink id="parameters" level="h2">
-        Parameters
-      </AnchorLink>
-      <ul className="api-params">
-        <li>
-          <code>billingProgramAndroid</code>{' '}
-          <em>
-            (required,{' '}
-            <Link to="/docs/types/billing-programs#billing-program-android">
-              <code>BillingProgramAndroid</code>
-            </Link>
-            )
-          </em>{' '}
-          — Note: this is a config field of <code>InitConnectionConfig</code>{' '}
-          passed to <code>initConnection()</code>, not a standalone mutation.
-        </li>
-      </ul>
-
-      <AnchorLink id="returns" level="h2">
-        Returns
+      <AnchorLink id="config-field" level="h2">
+        Config field
       </AnchorLink>
       <p>
-        <code>Promise&lt;void&gt;</code> — Resolves once the program is enabled.
+        <code>enableBillingProgramAndroid</code> on{' '}
+        <Link to="/docs/types/alternative-billing-types#init-connection-config">
+          <code>InitConnectionConfig</code>
+        </Link>
+        : optional{' '}
+        <Link to="/docs/types/billing-programs#billing-program-android">
+          <code>BillingProgramAndroid</code>
+        </Link>
+        . Pass the program identifier you want to enable (e.g.{' '}
+        <code>'external-offer'</code>) as part of the config you hand to{' '}
+        <Link to="/docs/apis/init-connection">
+          <code>initConnection()</code>
+        </Link>
+        ; the connection succeeds with the program enabled, and{' '}
+        <code>initConnection()</code>'s own <code>Promise&lt;boolean&gt;</code>{' '}
+        return value indicates the overall connection result. There is no
+        separate <code>enableBillingProgramAndroid()</code> call.
       </p>
 
       <h2>Example</h2>

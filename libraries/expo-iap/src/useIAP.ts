@@ -588,7 +588,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   }, []);
 
   /**
-   * Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
+   * Verify via a managed provider — currently only `iapkit` (IAPKit). The PurchaseVerificationProvider enum exposes no other provider literal today.
    *
    * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
    */

@@ -93,7 +93,10 @@ Future<VerifyPurchaseResultIOS> validateReceiptIOS(VerifyPurchaseProps options);
         </Link>{' '}
         — legacy receipt validation result. Carries <code>isValid</code> +
         receipt/JWS metadata. <strong>Deprecated</strong> — use{' '}
-        <Link to="/docs/apis/get-active-subscriptions">verifyPurchase</Link>.
+        <Link to="/docs/features/validation#verify-purchase">
+          verifyPurchase
+        </Link>
+        .
       </p>
 
       <h2>Example</h2>
