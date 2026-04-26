@@ -330,8 +330,9 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Verify via a managed provider (IAPKit, Apple, Google, Horizon)
-                without standing up your own server.
+                Verify via a managed provider without standing up your own
+                server. The <code>PurchaseVerificationProvider</code> enum
+                currently exposes only IAPKit.
               </td>
             </tr>
             <tr>

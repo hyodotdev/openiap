@@ -14,6 +14,7 @@ This document provides an overview for AI agents working across the OpenIAP mono
 | Platform Packages | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md) |
 | Docs Patterns | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md) |
 | Git & Deployment | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md) |
+| Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits) |
 
 ## Monorepo Structure
 

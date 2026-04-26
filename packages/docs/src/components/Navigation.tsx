@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { DarkModeToggle } from './DarkModeToggle';
 import { Menu, X } from 'lucide-react';
@@ -8,10 +8,23 @@ import { IAPKIT_URL, LOGO_PATH, trackIapKitClick } from '../lib/config';
 
 function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
   };
+
+  // Auto-close the top nav menu on route change so a stale dropdown doesn't
+  // sit open over the new page (especially relevant when crossing into /docs
+  // where the docs sidebar takes over as the primary navigation surface).
+  // The top-nav hamburger stays mounted on every route — Introduction /
+  // Languages / Tutorials / Sponsors must remain reachable on mobile from
+  // /docs too, and the closed docs sidebar already uses
+  // `pointer-events: none` + `translateX(-100%)` so the two menus don't
+  // compete for taps.
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -118,7 +131,9 @@ function Navigation() {
             <FaGithub size={20} />
           </a>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button — visible on every route. Top-level pages
+              (Introduction / Languages / Tutorials / Sponsors) must remain
+              reachable on mobile, including from /docs. */}
           <button
             className="mobile-menu-button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -128,7 +143,6 @@ function Navigation() {
           </button>
         </div>
 
-        {/* Mobile Menu Dropdown */}
         <div className={`mobile-menu ${isMobileMenuOpen ? 'open' : ''}`}>
           <ul className="mobile-nav-list">
             <li>

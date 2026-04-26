@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -19,6 +20,33 @@ function DeepLinkToSubscriptions() {
       <p>
         Open the native subscription management interface where users can view
         and manage their subscriptions.
+      </p>
+      <p>
+        <strong>iOS:</strong> Calls{' '}
+        <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}
+        <code>UIWindowScene</code>; throws if no window scene is available. Not
+        supported on tvOS / watchOS / macOS in the current implementation.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Opens the Play Store subscription management
+        deep link{' '}
+        <code>
+          https://play.google.com/store/account/subscriptions?package=&lt;pkg&gt;&amp;sku=&lt;sku&gt;
+        </code>
+        .{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/subscriptions#deep-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
       </p>
 
       <h2>Signature</h2>
@@ -49,6 +77,55 @@ interface DeepLinkOptions {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        Pass an optional{' '}
+        <Link to="/docs/types#common">
+          <code>DeepLinkOptions</code>
+        </Link>
+        :
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>skuAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Subscription SKU to deep-link to. Without
+          it the user lands on the generic Play subscriptions page.
+        </li>
+        <li>
+          <code>packageNameAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Defaults to the host app's package;
+          override only when proxying for another app.
+        </li>
+      </ul>
+      <p>
+        iOS ignores all fields — the wrapper calls{' '}
+        <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}
+        <code>UIWindowScene</code>.
+      </p>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves when the system surface is
+        presented (or the deep link is opened on Android).
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>
+        <strong>iOS:</strong> When no <code>UIWindowScene</code> is available.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

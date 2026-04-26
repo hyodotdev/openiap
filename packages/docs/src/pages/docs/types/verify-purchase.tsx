@@ -23,6 +23,28 @@ function VerifyPurchase() {
           Types used with <code>verifyPurchase()</code> for server-side purchase
           verification.
         </p>
+        <p>
+          Input/output shape for <code>verifyPurchase</code>.{' '}
+          <strong>iOS:</strong> validates the JWS from{' '}
+          <code>Transaction.jsonRepresentation</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/transaction/jsonrepresentation"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> validates the <code>purchaseToken</code>{' '}
+          against Google Play Developer API (
+          <a
+            href="https://developer.android.com/google/play/developer-api"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

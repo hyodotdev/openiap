@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -16,6 +18,29 @@ function HasActiveSubscriptions() {
       />
       <h1>hasActiveSubscriptions</h1>
       <p>Quick check if the user has any active subscriptions.</p>
+      <p>
+        <strong>iOS:</strong> Convenience over{' '}
+        <code>getActiveSubscriptions</code> — returns <code>true</code> if the
+        iterator yields at least one non-expired subscription.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/currententitlements"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Convenience over{' '}
+        <code>queryPurchasesAsync(SUBS)</code> — returns <code>true</code> if
+        any subscription is in <code>PURCHASED</code> state.{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>
@@ -40,6 +65,32 @@ function HasActiveSubscriptions() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>subscriptionIds</code>{' '}
+          <em>
+            (optional, <code>string[]</code>)
+          </em>{' '}
+          — If provided, only these SKUs are checked. Omit to ask "any active
+          subscription at all?".
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> when at least
+        one (matching) subscription is in an active state. Convenience over{' '}
+        <Link to="/docs/apis/get-active-subscriptions">
+          <code>getActiveSubscriptions</code>
+        </Link>{' '}
+        when you only need a yes/no answer.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

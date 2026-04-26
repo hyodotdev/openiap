@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -17,8 +18,34 @@ function GetAvailablePurchases() {
       />
       <h1>getAvailablePurchases</h1>
       <p>
-        Get all available (unfinished) purchases for the current user. Use this
-        to restore purchases or check for pending transactions.
+        Get the user's purchases held by the store — owned non-consumables,
+        active subscriptions, and any pending transactions not yet finished.
+      </p>
+      <p>
+        <strong>iOS:</strong> By default iterates <code>Transaction.all</code>{' '}
+        (the full StoreKit 2 history, including refunded / revoked entries).
+        Pass <code>onlyIncludeActiveItemsIOS = true</code> to switch to{' '}
+        <code>Transaction.currentEntitlements</code>, which narrows the result
+        to active non-consumables and live subscriptions.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/all"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls{' '}
+        <code>BillingClient.queryPurchasesAsync</code> for both{' '}
+        <code>INAPP</code> and <code>SUBS</code> and merges. Only returns
+        purchases still owned by the user.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#queryPurchasesAsync(com.android.billingclient.api.QueryPurchasesParams,com.android.billingclient.api.PurchasesResponseListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
       </p>
 
       <h2>Signature</h2>
@@ -49,6 +76,57 @@ interface PurchaseOptions {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        Pass an optional{' '}
+        <Link to="/docs/types/purchase#purchase-options">
+          <code>PurchaseOptions</code>
+        </Link>
+        :
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>alsoPublishToEventListenerIOS</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Re-emit results on{' '}
+          <code>purchaseUpdatedListener</code>.
+        </li>
+        <li>
+          <code>onlyIncludeActiveItemsIOS</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Switch from <code>Transaction.all</code> (full
+          history) to <code>Transaction.currentEntitlements</code> (active
+          only).
+        </li>
+        <li>
+          <code>includeSuspendedAndroid</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>Android (Billing 8.1+).</strong> Include suspended
+          subscriptions in the result. Suspended entries (
+          <code>isSuspendedAndroid === true</code>) should NOT grant
+          entitlements — direct the user to the subscription center to resolve
+          payment first.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/purchase">
+          <code>Promise&lt;Purchase[]&gt;</code>
+        </Link>{' '}
+        — owned/available purchases held by the store.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

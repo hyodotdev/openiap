@@ -20,6 +20,128 @@ interface CodeBlockProps {
     | 'properties';
 }
 
+// Identifier → Type doc page slug. Used by `linkifyType` so capitalized
+// identifiers (Swift/Kotlin/Dart/GDScript class-name tokens, TypeScript
+// type references) render as clickable anchors that jump to the matching
+// `/docs/types/...` page. Add new entries here when a new type page ships.
+const TYPE_LINKS: Record<string, string> = {
+  // Cross-platform
+  ActiveSubscription: '/docs/types/active-subscription',
+  AlternativeBillingModeAndroid: '/docs/types/alternative-billing-types',
+  AlternativeBillingTypes: '/docs/types/alternative-billing-types',
+  BillingProgramAndroid: '/docs/types/billing-programs',
+  BillingProgramAvailabilityResultAndroid: '/docs/types/billing-programs',
+  BillingProgramReportingDetailsAndroid: '/docs/types/billing-programs',
+  DeepLinkOptions: '/docs/types#common',
+  DiscountOffer: '/docs/types/discount-offer',
+  ExternalPurchaseLinkResultIOS: '/docs/types/external-purchase-link',
+  ExternalPurchaseNoticeResultIOS: '/docs/types/external-purchase-link',
+  ExternalPurchaseCustomLinkNoticeResultIOS:
+    '/docs/types/external-purchase-link',
+  ExternalPurchaseCustomLinkTokenResultIOS:
+    '/docs/types/external-purchase-link',
+  ExternalPurchaseCustomLinkNoticeTypeIOS: '/docs/types/external-purchase-link',
+  ExternalPurchaseCustomLinkTokenTypeIOS: '/docs/types/external-purchase-link',
+  FetchProductsResult: '/docs/types/product-request',
+  InitConnectionConfig:
+    '/docs/types/alternative-billing-types#init-connection-config',
+  LaunchExternalLinkParamsAndroid: '/docs/types/billing-programs',
+  Product: '/docs/types/product',
+  ProductAndroid: '/docs/types/product',
+  ProductIOS: '/docs/types/product',
+  ProductOrSubscription: '/docs/types/product',
+  ProductQueryType: '/docs/types/product-request',
+  ProductRequest: '/docs/types/product-request',
+  ProductSubscription: '/docs/types/subscription-product',
+  ProductSubscriptionAndroid: '/docs/types/subscription-product',
+  ProductSubscriptionIOS: '/docs/types/subscription-product',
+  Purchase: '/docs/types/purchase',
+  PurchaseAndroid: '/docs/types/purchase',
+  PurchaseIOS: '/docs/types/purchase',
+  PurchaseInput: '/docs/types/purchase',
+  PurchaseOptions: '/docs/types/purchase',
+  PurchaseVerificationProvider:
+    '/docs/types/verify-purchase-with-provider-props',
+  RequestPurchaseAndroidProps: '/docs/types/request-purchase-props',
+  RequestPurchaseIosProps: '/docs/types/request-purchase-props',
+  RequestPurchaseProps: '/docs/types/request-purchase-props',
+  RequestPurchasePropsByPlatforms: '/docs/types/request-purchase-props',
+  RequestPurchaseResult: '/docs/types/request-purchase-props',
+  RequestSubscriptionPropsByPlatforms: '/docs/types/request-purchase-props',
+  Storefront: '/docs/types/storefront',
+  SubscriptionOffer: '/docs/types/subscription-offer',
+  SubscriptionProduct: '/docs/types/subscription-product',
+  VerifyPurchase: '/docs/types/verify-purchase',
+  VerifyPurchaseProps: '/docs/types/verify-purchase',
+  VerifyPurchaseResult: '/docs/types/verify-purchase',
+  VerifyPurchaseResultAndroid: '/docs/types/verify-purchase',
+  VerifyPurchaseResultHorizon: '/docs/types/verify-purchase',
+  VerifyPurchaseResultIOS: '/docs/types/verify-purchase',
+  VerifyPurchaseWithProviderProps:
+    '/docs/types/verify-purchase-with-provider-props',
+  VerifyPurchaseWithProviderResult:
+    '/docs/types/verify-purchase-with-provider-result',
+  VoidResult: '/docs/types#common',
+  // iOS-only
+  AppTransaction: '/docs/types/ios/app-transaction-ios',
+  AppTransactionIOS: '/docs/types/ios/app-transaction-ios',
+  Discount: '/docs/types/ios/discount-ios',
+  DiscountIOS: '/docs/types/ios/discount-ios',
+  DiscountOfferIOS: '/docs/types/ios/discount-offer-ios',
+  PaymentMode: '/docs/types/ios/payment-mode-ios',
+  PaymentModeIOS: '/docs/types/ios/payment-mode-ios',
+  RenewalInfo: '/docs/types/ios/renewal-info-ios',
+  RenewalInfoIOS: '/docs/types/ios/renewal-info-ios',
+  SubscriptionPeriod: '/docs/types/ios/subscription-period-ios',
+  SubscriptionPeriodIOS: '/docs/types/ios/subscription-period-ios',
+  SubscriptionStatus: '/docs/types/ios/subscription-status-ios',
+  SubscriptionStatusIOS: '/docs/types/ios/subscription-status-ios',
+  // Android-only
+  OneTimePurchaseOfferDetailAndroid:
+    '/docs/types/android/one-time-purchase-offer-detail-android',
+  PricingPhaseAndroid: '/docs/types/android/pricing-phase-android',
+  SubscriptionOfferAndroid: '/docs/types/android/subscription-offer-android',
+};
+
+// Wraps a class-name token in an anchor when it matches a known type.
+// Caller is responsible for HTML-escaping the input.
+function linkifyType(name: string): string {
+  const href = TYPE_LINKS[name];
+  if (href) {
+    return `<a class="token class-name type-ref" href="${href}">${name}</a>`;
+  }
+  return `<span class="token class-name">${name}</span>`;
+}
+
+// Split an already-marked-up HTML string on `<...>` tag boundaries and
+// run the capitalized-identifier linkify pass ONLY on text segments
+// that sit OUTSIDE every existing tag. Tracks a tag-depth counter so
+// text content INSIDE a `<span class="token …">…</span>` emitted by an
+// upstream pass (Dart `Future`/`Function`, GDScript `String`/`Array`,
+// already-wrapped function names, …) is skipped — without the depth
+// check we'd nest a class-name span inside the keyword span and clobber
+// its color. Avoids regex lookbehind (Safari < 16.4 doesn't support it
+// under Vite's default `target: 'modules'`).
+function linkifyTypesInTextSegments(html: string): string {
+  let depth = 0;
+  return html
+    .split(/(<[^>]+>)/)
+    .map((segment) => {
+      if (segment.startsWith('<')) {
+        // Self-closing `<br/>` etc. don't change depth.
+        if (segment.endsWith('/>')) return segment;
+        if (segment.startsWith('</')) depth = Math.max(0, depth - 1);
+        else depth += 1;
+        return segment;
+      }
+      if (depth > 0) return segment;
+      return segment.replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, (_, name: string) =>
+        linkifyType(name)
+      );
+    })
+    .join('');
+}
+
 function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
   const codeRef = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
@@ -176,6 +298,11 @@ function highlightCode(element: HTMLElement, language: string) {
             '<span class="token function">$1</span>'
           );
 
+          // Capitalized identifiers → linkify known OpenIAP types (so e.g.
+          // `ProductRequest`, `Purchase[]`, `Promise<FetchProductsResult>` in
+          // a TS signature jump to /docs/types/...).
+          processed = linkifyTypesInTextSegments(processed);
+
           result += processed;
         }
       });
@@ -275,11 +402,10 @@ function highlightCode(element: HTMLElement, language: string) {
             '<span class="token function">$1</span>'
           );
 
-          // Types (capitalized words not after a dot)
-          processed = processed.replace(
-            /\b([A-Z][a-zA-Z0-9_]*)\b/g,
-            '<span class="token class-name">$1</span>'
-          );
+          // Types (capitalized words). Known OpenIAP type names render as
+          // anchors to /docs/types/...; unknown ones stay as plain class-name
+          // spans so styling is identical.
+          processed = linkifyTypesInTextSegments(processed);
 
           // Annotations/Attributes
           processed = processed.replace(

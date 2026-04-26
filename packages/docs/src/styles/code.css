@@ -69,14 +69,38 @@ pre.code-block {
   margin: var(--spacing-md) 0;
 }
 
+/* Language badge + Copy button live as a tab-bar attached to the top of
+   the code block — same background, no floating overlap with horizontally
+   scrolling code (the previous absolute-positioned version masked code at
+   narrow widths even with a solid background). */
+.code-block-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
 .code-block-header {
-  position: absolute;
-  top: var(--spacing-sm);
-  right: var(--spacing-sm);
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--spacing-sm);
-  z-index: 10;
+  padding: 6px var(--spacing-md);
+  background: #f6f8fa;
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+}
+
+:root.dark .code-block-header {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Code block bonds visually to the header above it. */
+.code-block-wrapper .code-block,
+.code-block-wrapper pre.code-block {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .code-block-language {
@@ -337,6 +361,21 @@ pre code {
 .code-snippet .token.class-name {
   color: #005cc5;
   font-weight: 500;
+}
+
+/* Linkified type names (anchors emitted by `linkifyType` in CodeBlock.tsx).
+   Inherit the class-name color, no anchor underline by default, but show one
+   on hover to make it discoverable. */
+.code-block a.token.type-ref,
+.code-snippet a.token.type-ref {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.code-block a.token.type-ref:hover,
+.code-snippet a.token.type-ref:hover {
+  text-decoration: underline;
 }
 
 .code-block .token.decorator,

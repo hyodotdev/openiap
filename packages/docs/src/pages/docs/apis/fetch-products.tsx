@@ -18,6 +18,31 @@ function FetchProducts() {
       />
       <h1>fetchProducts</h1>
       <p>Retrieve products or subscriptions from the store by SKU.</p>
+      <p>
+        <strong>iOS:</strong> Wraps <code>Product.products(for:)</code>{' '}
+        (StoreKit 2). Fetches the localized price/title for each SKU. Unknown
+        SKUs are simply omitted from the returned array — only transport
+        failures (network, store unavailable, etc.) throw.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/products(for:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls{' '}
+        <code>BillingClient.queryProductDetailsAsync</code> with the right{' '}
+        <code>ProductType</code> (INAPP/SUBS) per request. Unknown SKUs return
+        an empty list, not an error.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#queryProductDetailsAsync(com.android.billingclient.api.QueryProductDetailsParams,com.android.billingclient.api.ProductDetailsResponseListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs
@@ -102,6 +127,75 @@ func fetch_products(request: ProductRequest) -> Array`}</CodeBlock>
         }}
       </LanguageTabs>
 
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        Pass a single{' '}
+        <Link to="/docs/types/product-request">
+          <code>ProductRequest</code>
+        </Link>{' '}
+        object:
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>skus</code>{' '}
+          <em>
+            (required, <code>string[]</code>)
+          </em>{' '}
+          — Product identifiers to fetch.
+        </li>
+        <li>
+          <code>type</code>{' '}
+          <em>
+            (optional, <code>'in-app' | 'subs' | 'all'</code>, default{' '}
+            <code>'in-app'</code>)
+          </em>{' '}
+          — Filter by product kind. Use <code>'all'</code> to query both in one
+          call.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;FetchProductsResult&gt;</code> — sealed union,
+        discriminated by the request <code>type</code>:
+      </p>
+      <ul className="api-params">
+        <li>
+          <Link to="/docs/types/product">
+            <code>Product[]</code>
+          </Link>{' '}
+          <em>
+            (for <code>type: 'in-app'</code>)
+          </em>{' '}
+          — Array of one-time products. Empty array if none of the SKUs exist.
+        </li>
+        <li>
+          <Link to="/docs/types/subscription-product">
+            <code>ProductSubscription[]</code>
+          </Link>{' '}
+          <em>
+            (for <code>type: 'subs'</code>)
+          </em>{' '}
+          — Array of subscription products with offer details.
+        </li>
+        <li>
+          <code>(Product | ProductSubscription)[]</code>{' '}
+          <em>
+            (for <code>type: 'all'</code>)
+          </em>{' '}
+          — Mixed array; use each entry's <code>type</code> field to
+          disambiguate.
+        </li>
+        <li>
+          <code>null</code> <em>(legacy)</em> — Older schema branch retained for
+          backwards compatibility.
+        </li>
+      </ul>
+
       <h2>Example</h2>
       <LanguageTabs>
         {{
@@ -159,12 +253,25 @@ function ProductList() {
           ),
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.fetchProducts // DSL extension
 
 val kmpIAP = KmpIAP()
 
-val products = kmpIAP.fetchProducts(
-    ProductRequest(skus = listOf("com.app.premium"), type = ProductQueryType.InApp)
-)`}</CodeBlock>
+// 1) Builder pattern — pass a ProductRequest data class directly.
+//    Returns the sealed FetchProductsResult union; unwrap by variant.
+val result = kmpIAP.fetchProducts(
+    ProductRequest(
+        skus = listOf("com.app.premium"),
+        type = ProductQueryType.InApp,
+    )
+)
+
+// 2) DSL pattern — trailing-lambda builder.
+//    Returns List<Product> directly (already unwrapped).
+val products = kmpIAP.fetchProducts {
+    skus = listOf("com.app.premium")
+    type = ProductQueryType.InApp
+}`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`final FetchProductsResult result = await FlutterInappPurchase.instance.fetchProducts(

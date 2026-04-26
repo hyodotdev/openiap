@@ -26,6 +26,19 @@ function ExternalPurchaseLink() {
           payment using Apple&apos;s StoreKit <code>ExternalPurchase</code> API.
           Available from iOS 17.4+ (notice sheet) and iOS 18.2+ (custom links).
         </p>
+        <p>
+          Result of <code>presentExternalPurchaseLinkIOS</code>.{' '}
+          <strong>iOS only</strong> — wraps{' '}
+          <code>ExternalPurchaseLink.open(url:)</code> (
+          <a
+            href="https://developer.apple.com/documentation/storekit/externalpurchaselink"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a
@@ -175,6 +188,108 @@ function ExternalPurchaseLink() {
                 <code>string?</code>
               </td>
               <td>Optional error message if presentation failed</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink
+          id="external-purchase-custom-link-token-result-ios"
+          level="h4"
+        >
+          ExternalPurchaseCustomLinkTokenResultIOS
+        </AnchorLink>
+        <p>
+          Returned by{' '}
+          <Link to="/docs/apis/ios/get-external-purchase-custom-link-token-ios">
+            <code>getExternalPurchaseCustomLinkTokenIOS</code>
+          </Link>{' '}
+          (iOS 18.1+).
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>token</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                Token to send to Apple's External Purchase Server reporting API.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>tokenType</code>
+              </td>
+              <td>
+                <code>'acquisition' | 'services'</code>
+              </td>
+              <td>
+                Echoes the requested token type (new customers vs. existing
+                customers).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>error</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>Populated when token creation fails.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <AnchorLink
+          id="external-purchase-custom-link-notice-result-ios"
+          level="h4"
+        >
+          ExternalPurchaseCustomLinkNoticeResultIOS
+        </AnchorLink>
+        <p>
+          Returned by{' '}
+          <Link to="/docs/apis/ios/show-external-purchase-custom-link-notice-ios">
+            <code>showExternalPurchaseCustomLinkNoticeIOS</code>
+          </Link>{' '}
+          (iOS 18.1+).
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>continued</code>
+              </td>
+              <td>
+                <code>boolean</code>
+              </td>
+              <td>
+                Whether the user chose to continue to the external purchase.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>error</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>Populated when the sheet failed to present.</td>
             </tr>
           </tbody>
         </table>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -19,6 +20,30 @@ function RequestPurchase() {
       <p>
         Initiate a purchase flow. The result is delivered through
         purchaseUpdatedListener, not the return value.
+      </p>
+      <p>
+        <strong>iOS:</strong> Calls <code>Product.purchase(options:)</code> and
+        emits the result on the <code>Transaction.updates</code> listener — the
+        return value is just the dispatch ack.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/purchase(options:)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls{' '}
+        <code>BillingClient.launchBillingFlow</code> and emits the result on{' '}
+        <code>PurchasesUpdatedListener</code>. Subscription offers require an{' '}
+        <code>offerToken</code>.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#launchBillingFlow(android.app.Activity,com.android.billingclient.api.BillingFlowParams)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
       </p>
 
       <div className="alert-card alert-card--warning">
@@ -86,6 +111,108 @@ type RequestPurchaseProps =
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        Pass a single{' '}
+        <Link to="/docs/types/request-purchase-props">
+          <code>RequestPurchaseProps</code>
+        </Link>
+        , discriminated by <code>type</code>:
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>type</code>{' '}
+          <em>
+            (required, <code>'in-app' | 'subs'</code>)
+          </em>{' '}
+          — Selects the request shape. Use <code>'in-app'</code> for one-time
+          products and <code>'subs'</code> for subscriptions.
+        </li>
+        <li>
+          <code>request.apple.sku</code>{' '}
+          <em>
+            (iOS only, <code>string</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Single SKU for the iOS purchase.
+        </li>
+        <li>
+          <code>request.apple.appAccountToken</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> UUID-format account token forwarded to Apple.
+          Non-UUID values land as <code>null</code> on the resulting{' '}
+          <code>Purchase</code>.
+        </li>
+        <li>
+          <code>request.apple.quantity</code>{' '}
+          <em>
+            (optional, <code>number</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Quantity for consumable bulk purchases.
+        </li>
+        <li>
+          <code>request.google.skus</code>{' '}
+          <em>
+            (Android only, <code>string[]</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Product SKUs to launch the Play purchase
+          flow for.
+        </li>
+        <li>
+          <code>request.google.subscriptionOffers</code>{' '}
+          <em>
+            (required for <code>'subs'</code>,{' '}
+            <code>{`{ sku: string; offerToken: string }[]`}</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Required for subscription requests; pair
+          each SKU with its offerToken from <code>fetchProducts</code>.
+        </li>
+        <li>
+          <code>request.google.obfuscatedAccountIdAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Optional account identifier passed to
+          Play.
+        </li>
+        <li>
+          <code>request.google.obfuscatedProfileIdAndroid</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Optional profile identifier passed to
+          Play.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;Purchase | void&gt;</code> — dispatched purchase
+        payload. <strong>Do not rely on this for the actual outcome</strong> —
+        listen via{' '}
+        <Link to="/docs/events/purchase-updated-listener">
+          <code>purchaseUpdatedListener</code>
+        </Link>{' '}
+        /{' '}
+        <Link to="/docs/events/purchase-error-listener">
+          <code>purchaseErrorListener</code>
+        </Link>{' '}
+        instead.
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>
+        Synchronous rejection from the store (<code>E_NOT_PREPARED</code>,
+        missing offerToken on subs, etc.).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

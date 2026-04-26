@@ -219,6 +219,17 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Connection Management - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
 
+    /**
+     * Initialize the store connection. Must be called before any other IAP API.
+     *
+     * @param config Optional [InitConnectionConfig]. Use `enableBillingProgramAndroid` to
+     *   opt in to External Payments / similar Play Billing programs. Pass `null` for default.
+     * @return `true` once the Play Billing client is connected.
+     * @throws OpenIapError.InitConnection when the billing client fails to initialize
+     *   (e.g. Play Store missing, version too old).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/init-connection">init-connection</a>
+     */
     val initConnection: MutationInitConnectionHandler = { config ->
         setLoading { it.initConnection = true }
         try {
@@ -237,13 +248,26 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     }
 
     /**
-     * Convenience overload that calls initConnection with null config
+     * Initialize the store connection. Must be called before any other IAP API.
+     *
+     * Convenience overload — calls the config-accepting variant with `null`.
+     *
+     * @return `true` once the Play Billing client is connected.
+     * @throws OpenIapError.InitConnection when the billing client fails to initialize
+     *   (e.g. Play Store missing, version too old).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/init-connection">init-connection</a>
      */
     suspend fun initConnection(): Boolean {
         OpenIapLog.i("OpenIapStore.initConnection(): Calling initConnection(null)...", "OpenIapStore")
         return initConnection(null)
     }
 
+    /**
+     * Close the store connection and release resources.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/end-connection">https://www.openiap.dev/docs/apis/end-connection</a>
+     */
     val endConnection: MutationEndConnectionHandler = {
         removePurchaseUpdateListener(purchaseUpdateListener)
         removePurchaseErrorListener(purchaseErrorListener)
@@ -262,6 +286,18 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // -------------------------------------------------------------------------
     // Product Management - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
+    /**
+     * Retrieve products or subscriptions from Google Play by SKU.
+     *
+     * @param params [ProductRequest] with `skus` and an optional `type`
+     *   ([ProductQueryType.InApp], [ProductQueryType.Subs], or [ProductQueryType.All];
+     *   defaults to InApp).
+     * @return A [FetchProductsResult] sealed variant — `Products` for InApp,
+     *   `Subscriptions` for Subs, mixed list for All.
+     * @throws OpenIapError on store rejection (unknown SKU, network failure, not connected).
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/fetch-products">fetch-products</a>
+     */
     val fetchProducts: QueryFetchProductsHandler = { request ->
         android.util.Log.i("OpenIapStore", "fetchProducts called with SKUs: ${request.skus}, type: ${request.type}")
         setLoading { it.fetchProducts = true }
@@ -341,6 +377,21 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // -------------------------------------------------------------------------
     // Purchases / Restore - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
+    /**
+     * List the owned/available purchases held by Play Billing — non-consumables,
+     * active subscriptions, and any pending transactions returned by
+     * `BillingClient.queryPurchasesAsync` for INAPP + SUBS. Use this to restore
+     * purchases or to recover anything not finished previously. (iOS uses
+     * `Transaction.unfinished` / `Transaction.all` semantics; on Android the
+     * concept is "owned by the user", not strictly "unfinished".)
+     *
+     * @param options Optional [PurchaseOptions]. Most fields are iOS-only and ignored
+     *   on Android.
+     * @return List of [Purchase] currently owned according to Play Billing.
+     * @throws OpenIapError when the Play Billing query fails.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
+     */
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
         android.util.Log.i("OpenIapStore", "getAvailablePurchases called, module type: ${module.javaClass.simpleName}")
         setLoading { it.restorePurchases = true }
@@ -363,6 +414,22 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // -------------------------------------------------------------------------
     // Purchase Flow - Using GraphQL handler pattern
     // -------------------------------------------------------------------------
+    /**
+     * Initiate a purchase flow. The result is delivered via the purchase update listener,
+     * NOT through the return value.
+     *
+     * @param props [RequestPurchaseProps]. Use `request.google.skus` and pass
+     *   `subscriptionOffers = [{sku, offerToken}]` for subscriptions.
+     * @return The dispatched purchase payload (do not rely on this for the actual outcome).
+     * @throws OpenIapError on synchronous rejection (e.g. billing client not ready,
+     *   developer error such as missing offerToken on subs).
+     *
+     * Warning: Event-based. Collect from `purchaseUpdatedListener` / `purchaseErrorListener`
+     * (or `OpenIapStore.currentPurchase` and `OpenIapStore.status.lastError` flows) for the
+     * final state — there is no `currentError` field; errors live on `status.lastError`.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/request-purchase">request-purchase</a>
+     */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val skuForStatus = when (val request = props.request) {
             is RequestPurchaseProps.Request.Purchase -> request.value.android?.skus?.firstOrNull()
@@ -383,7 +450,18 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     }
 
 
-    // Using GraphQL handler pattern
+    /**
+     * Complete a purchase transaction. Call after server-side verification.
+     *
+     * @param purchase The [PurchaseInput] to finalize.
+     * @param isConsumable Pass `true` for consumables (consumes the token so the SKU can be
+     *   bought again), `false` for non-consumables and subscriptions (acknowledges only).
+     * @throws OpenIapError when the Play Billing finalize call fails.
+     *
+     * Important: Google auto-refunds Android purchases NOT acknowledged/consumed within 3 days.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
+     */
     val finishTransaction: MutationFinishTransactionHandler = { purchaseInput, isConsumable ->
         val token = purchaseInput.purchaseToken
         // Check if already processed - but we can't check isAcknowledgedAndroid on PurchaseInput
@@ -402,32 +480,45 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // -------------------------------------------------------------------------
     // Subscriptions
     // -------------------------------------------------------------------------
+    /**
+     * Get details of all currently active subscriptions.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/get-active-subscriptions">https://www.openiap.dev/docs/apis/get-active-subscriptions</a>
+     */
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription> =
         module.queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds) ?: emptyList()
 
+    /**
+     * Check whether the user has any active subscription.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/has-active-subscriptions">https://www.openiap.dev/docs/apis/has-active-subscriptions</a>
+     */
     suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean =
         module.queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
 
+    /**
+     * Open the platform's subscription management UI.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/deep-link-to-subscriptions">https://www.openiap.dev/docs/apis/deep-link-to-subscriptions</a>
+     */
     suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.mutationHandlers.deepLinkToSubscriptions?.invoke(options)
 
     // -------------------------------------------------------------------------
     // Alternative Billing (Step-by-Step API)
     // -------------------------------------------------------------------------
     /**
-     * Step 1: Check if alternative billing is available for this user/device
-     * @return true if available, false otherwise
-     * @deprecated Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead
+     * Check whether alternative billing is available for the user.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
      */
     @Deprecated("Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead")
     @Suppress("DEPRECATION")
     suspend fun checkAlternativeBillingAvailability(): Boolean = module.checkAlternativeBillingAvailability()
 
     /**
-     * Step 2: Show alternative billing information dialog to user
-     * Must be called BEFORE processing payment
-     * @param activity Current activity context
-     * @return true if user accepted, false if canceled
-     * @deprecated Use launchExternalLink instead
+     * Display Google's alternative billing information dialog.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
      */
     @Deprecated("Use launchExternalLink instead")
     @Suppress("DEPRECATION")
@@ -435,11 +526,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         module.showAlternativeBillingInformationDialog(activity)
 
     /**
-     * Step 3: Create external transaction token for alternative billing
-     * Must be called AFTER successful payment in your payment system
-     * Token must be reported to Google Play backend within 24 hours
-     * @return External transaction token, or null if failed
-     * @deprecated Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead
+     * Create a reporting token for an alternative billing flow.
+     *
+     * @see <a href="https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
      */
     @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
     @Suppress("DEPRECATION")
@@ -450,32 +539,25 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Billing Programs (Google Play Billing Library 8.2.0+)
     // -------------------------------------------------------------------------
     /**
-     * Check if a billing program is available for this user/device.
-     * This is the new API that replaces checkAlternativeBillingAvailability for external offers.
+     * Check whether a billing program (e.g., External Payments) is available.
      *
-     * @param program The billing program to check (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
-     * @return Result containing availability information
+     * @see <a href="https://www.openiap.dev/docs/apis/android/is-billing-program-available-android">https://www.openiap.dev/docs/apis/android/is-billing-program-available-android</a>
      */
     suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =
         module.isBillingProgramAvailable(program)
 
     /**
-     * Create reporting details for transactions made outside of Google Play Billing.
-     * This is the new API that replaces createAlternativeBillingReportingToken for external offers.
+     * Create the reporting payload Google requires after a Developer-Provided Billing transaction (Play Billing 8.3.0+).
      *
-     * @param program The billing program (EXTERNAL_CONTENT_LINK or EXTERNAL_OFFER)
-     * @return Reporting details containing the external transaction token
+     * @see <a href="https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android">https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</a>
      */
     suspend fun createBillingProgramReportingDetails(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid =
         module.createBillingProgramReportingDetails(program)
 
     /**
-     * Launch an external link for external offer or app download.
-     * This is the new API that replaces showAlternativeBillingInformationDialog for external offers.
+     * Launch an external content/offer link from inside the Billing Programs flow (Play Billing 8.2.0+).
      *
-     * @param activity Current activity context
-     * @param params Parameters for the external link
-     * @return true if launch was successful, false otherwise
+     * @see <a href="https://www.openiap.dev/docs/apis/android/launch-external-link-android">https://www.openiap.dev/docs/apis/android/launch-external-link-android</a>
      */
     suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean =
         module.launchExternalLink(activity, params)

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -20,74 +21,75 @@ function GetReceiptDataIOS() {
         getReceiptDataIOS
       </h1>
       <p>Get base64-encoded receipt data for legacy validation.</p>
+      <p>
+        Reads <code>Bundle.main.appStoreReceiptURL</code> and base64-encodes the
+        file. Legacy StoreKit 1 flow — prefer JWS / <code>verifyPurchase</code>.
+        See the{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/original_api_for_in-app_purchase"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple StoreKit reference
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>
         {{
-          typescript: (
-            <CodeBlock language="typescript">{`getReceiptDataIOS(): Promise<string | null>`}</CodeBlock>
-          ),
           swift: (
             <CodeBlock language="swift">{`func getReceiptDataIOS() async throws -> String?`}</CodeBlock>
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`suspend fun getReceiptDataIOS(): String?`}</CodeBlock>
           ),
-          kmp: (
-            <CodeBlock language="kotlin">{`suspend fun getReceiptDataIOS(): String?`}</CodeBlock>
+          typescript: (
+            <CodeBlock language="typescript">{`getReceiptDataIOS(): Promise<string | null>`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Future<String?> getReceiptDataIOS();`}</CodeBlock>
           ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`func get_receipt_data_ios() -> String`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string | null&gt;</code> — Base64-encoded receipt data
+        (legacy StoreKit 1 path).
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>
         {{
-          typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
-import { getReceiptDataIOS } from 'expo-iap';
-// Same API in react-native-iap:
-// import { getReceiptDataIOS } from 'react-native-iap';
-
-const receipt = await getReceiptDataIOS();
-// Send the base64-encoded receipt to your server for legacy verifyReceipt.
-console.log(receipt?.length ?? 0, 'bytes');
-
-// --- Or alongside the useIAP() hook (also exported from react-native-iap) ---
-// getReceiptDataIOS is a module-level helper; useIAP doesn't expose it on the
-// hook return, so call the module function from inside your component once
-// the hook reports the connection is ready.
-import { useIAP } from 'expo-iap';
-
-function ReceiptUploader() {
-  const { connected } = useIAP();
-
-  const upload = async () => {
-    if (!connected) return;
-    const receipt = await getReceiptDataIOS();
-    if (!receipt) return;
-    await fetch('/api/validate-receipt', {
-      method: 'POST',
-      body: JSON.stringify({ receipt }),
-    });
-  };
-
-  return <Button title="Upload receipt" onPress={upload} />;
-}`}</CodeBlock>
-          ),
           swift: (
-            <CodeBlock language="swift">{`let receipt = try await OpenIapModule.shared.getReceiptDataIOS()`}</CodeBlock>
+            <CodeBlock language="swift">{`let data = try await OpenIapModule.shared.getReceiptDataIOS()`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`val receipt = openIapStore.getReceiptDataIOS()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
+val data = kmpIAP.getReceiptDataIOS()`}</CodeBlock>
           ),
-          kmp: (
-            <CodeBlock language="kotlin">{`val receipt = kmpIAP.getReceiptDataIOS()`}</CodeBlock>
+          typescript: (
+            <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
+import { getReceiptDataIOS } from 'expo-iap';
+
+if (Platform.OS === 'ios') {
+  const data = await getReceiptDataIOS();
+}`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`final receipt = await FlutterInappPurchase.instance.getReceiptDataIOS();`}</CodeBlock>
+            <CodeBlock language="dart">{`if (Platform.isIOS) {
+  final data = await FlutterInappPurchase.instance.getReceiptDataIOS();
+}`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+    var data = await iap.get_receipt_data_ios()`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

@@ -131,6 +131,8 @@ export const validateReceiptAndroid = async ({
  * Consume a purchase token so the user can purchase the same product again
  * (Android consumable products). Prefer using `finishTransaction` with
  * `isConsumable: true`, which dispatches to this under the hood.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/consume-purchase-android}
  */
 export const consumePurchaseAndroid: MutationField<
   'consumePurchaseAndroid'
@@ -163,6 +165,8 @@ export const consumePurchaseAndroid: MutationField<
  * @param {Object} params - The parameters object
  * @param {string} params.token - The product's token (on Android)
  * @returns {Promise<VoidResult | void>}
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android}
  */
 export const acknowledgePurchaseAndroid: MutationField<
   'acknowledgePurchaseAndroid'
@@ -213,6 +217,8 @@ export const openRedeemOfferCodeAndroid = async (): Promise<void> => {
  *   // Proceed with alternative billing flow
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
  */
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
@@ -243,6 +249,8 @@ export const checkAlternativeBillingAvailabilityAndroid: MutationField<
  *   }
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
  */
 export const showAlternativeBillingDialogAndroid: MutationField<
   'showAlternativeBillingDialogAndroid'
@@ -273,6 +281,8 @@ export const showAlternativeBillingDialogAndroid: MutationField<
  *   });
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android}
  */
 export const createAlternativeBillingTokenAndroid: MutationField<
   'createAlternativeBillingTokenAndroid'
@@ -298,6 +308,8 @@ export const createAlternativeBillingTokenAndroid: MutationField<
  *   // Proceed with billing program flow
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/is-billing-program-available-android}
  */
 export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'
@@ -321,6 +333,8 @@ export const isBillingProgramAvailableAndroid: MutationField<
  *   linkUri: 'https://your-payment-site.com',
  * });
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/launch-external-link-android}
  */
 export const launchExternalLinkAndroid: MutationField<
   'launchExternalLinkAndroid'
@@ -344,6 +358,8 @@ export const launchExternalLinkAndroid: MutationField<
  * // Report details.externalTransactionToken to Google Play within 24 hours
  * await reportToGooglePlay(details.externalTransactionToken);
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
 export const createBillingProgramReportingDetailsAndroid: MutationField<
   'createBillingProgramReportingDetailsAndroid'

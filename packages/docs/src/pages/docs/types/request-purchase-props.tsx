@@ -29,6 +29,29 @@ function RequestPurchaseProps() {
           </Link>
           .
         </p>
+        <p>
+          Discriminated input to <code>requestPurchase</code> (
+          <code>type: &apos;in-app&apos; | &apos;subs&apos;</code>).{' '}
+          <strong>iOS:</strong> maps to <code>Product.purchase(options:)</code>{' '}
+          (
+          <a
+            href="https://developer.apple.com/documentation/storekit/product/purchase(options:)"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> maps to{' '}
+          <code>BillingClient.launchBillingFlow</code> (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#launchBillingFlow(android.app.Activity,com.android.billingclient.api.BillingFlowParams)"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

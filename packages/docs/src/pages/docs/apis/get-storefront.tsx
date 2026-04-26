@@ -1,3 +1,4 @@
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -16,6 +17,29 @@ function GetStorefront() {
       />
       <h1>getStorefront</h1>
       <p>Get the storefront country code for the active user.</p>
+      <p>
+        <strong>iOS:</strong> Reads <code>Storefront.current?.countryCode</code>{' '}
+        (StoreKit 2). Returns the user's App Store storefront, not the device
+        locale.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/storefront"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Reads <code>BillingConfig.countryCode</code>{' '}
+        from <code>BillingClient.getBillingConfigAsync</code>. Reflects the Play
+        Store account region, not the SIM/device locale.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#getBillingConfigAsync(com.android.billingclient.api.GetBillingConfigParams,com.android.billingclient.api.BillingConfigResponseListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>
@@ -40,6 +64,16 @@ function GetStorefront() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;string&gt;</code> — ISO 3166-1 alpha-2 country code of
+        the user's storefront (e.g. <code>"US"</code>, <code>"KR"</code>), or an
+        empty string when the storefront can't be determined. Returns the App
+        Store / Play Store account region, NOT the device locale.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>
@@ -88,11 +122,6 @@ function StorefrontBadge() {
           ),
         }}
       </LanguageTabs>
-
-      <p>
-        Returns the ISO 3166-1 alpha-2 country code. Returns an empty string
-        when the storefront cannot be determined.
-      </p>
     </div>
   );
 }

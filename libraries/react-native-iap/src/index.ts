@@ -662,20 +662,28 @@ export const subscriptionBillingIssueListener = (
 // ------------------------------
 
 /**
- * Fetch products from the store
- * @param params - Product request configuration
- * @param params.skus - Array of product SKUs to fetch
- * @param params.type - Optional filter: 'in-app' (default) for products, 'subs' for subscriptions, or 'all' for both.
- * @returns Promise<Product[]> - Array of products from the store
+ * Retrieve products or subscriptions from the store by SKU.
+ *
+ * @param request `ProductRequest` — `skus` (string[]) and optional `type`
+ *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
+ * @returns Promise resolving to a `FetchProductsResult` union — `Product[]` for `'in-app'`,
+ *   `ProductSubscription[]` for `'subs'`, a mixed array for `'all'`, or `null`
+ *   (the schema retains the nullable branch for backwards compatibility).
+ * @throws When the store rejects the request (empty `skus`, not connected,
+ *   network/store error). Unknown SKUs are simply omitted from the result, not thrown.
  *
  * @example
- * ```typescript
- * // Regular products
- * const products = await fetchProducts({ skus: ['product1', 'product2'] });
- *
- * // Subscriptions
- * const subscriptions = await fetchProducts({ skus: ['sub1', 'sub2'], type: 'subs' });
+ * ```ts
+ * const products = await fetchProducts({
+ *   skus: ['com.app.coins_100', 'com.app.premium'],
+ *   type: 'in-app',
+ * });
  * ```
+ *
+ * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
+ *   (`requestPurchase`), which are event-based.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/fetch-products}
  */
 export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
   const {skus, type} = request;
@@ -789,17 +797,24 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 };
 
 /**
- * Get available purchases (purchased items not yet consumed/finished)
- * @param params - Options for getting available purchases
- * @param params.alsoPublishToEventListener - Whether to also publish to event listener
- * @param params.onlyIncludeActiveItems - Whether to only include active items
+ * List the user's unfinished purchases — non-consumables, active subscriptions, and any
+ * pending transactions not yet finished.
+ *
+ * @param options Optional `PurchaseOptions`.
+ *   - iOS: `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
+ *   - Android: `includeSuspendedAndroid` (include subscriptions in a paused/grace state).
+ * @returns Promise resolving to an array of `Purchase` currently held by the store.
+ * @throws When the platform query fails.
  *
  * @example
- * ```typescript
- * const purchases = await getAvailablePurchases({
- *   onlyIncludeActiveItemsIOS: true
- * });
+ * ```ts
+ * const purchases = await getAvailablePurchases();
+ * for (const p of purchases) {
+ *   if (await verifyOnServer(p)) await finishTransaction({ purchase: p, isConsumable: false });
+ * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
  */
 export const getAvailablePurchases: QueryField<
   'getAvailablePurchases'
@@ -866,6 +881,8 @@ export const getAvailablePurchases: QueryField<
  * Request the promoted product from the App Store (iOS only)
  * @returns Promise<Product | null> - The promoted product or null if none available
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-promoted-product-ios}
  */
 export const getPromotedProductIOS: QueryField<
   'getPromotedProductIOS'
@@ -898,6 +915,19 @@ export const getPromotedProductIOS: QueryField<
 
 export const requestPromotedProductIOS = getPromotedProductIOS;
 
+/**
+ * Get the storefront identifier for the user's App Store account (iOS only)
+ * @returns Promise<string> - The storefront identifier (e.g., 'USA' for United States)
+ * @platform iOS
+ *
+ * @example
+ * ```typescript
+ * const storefront = await getStorefrontIOS();
+ * console.log('User storefront:', storefront); // e.g., 'USA', 'GBR', 'KOR'
+ * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-storefront-ios}
+ */
 export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
   if (Platform.OS !== 'ios') {
     throw new Error('getStorefrontIOS is only available on iOS');
@@ -912,6 +942,11 @@ export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
   }
 };
 
+/**
+ * Return the user's storefront country code.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/get-storefront}
+ */
 export const getStorefront: QueryField<'getStorefront'> = async () => {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     RnIapConsole.warn(
@@ -945,6 +980,27 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
   }
 };
 
+/**
+ * iOS only - Gets the original app transaction ID if the app was purchased from the App Store
+ * @platform iOS
+ * @description
+ * This function retrieves the original app transaction information if the app was purchased
+ * from the App Store. Returns null if the app was not purchased (e.g., free app or TestFlight).
+ *
+ * @returns {Promise<string | null>} The original app transaction ID or null
+ *
+ * @example
+ * ```typescript
+ * const appTransaction = await getAppTransactionIOS();
+ * if (appTransaction) {
+ *   console.log('App was purchased, transaction ID:', appTransaction);
+ * } else {
+ *   console.log('App was not purchased from App Store');
+ * }
+ * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-app-transaction-ios}
+ */
 export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
 > = async () => {
@@ -977,6 +1033,15 @@ export const getAppTransactionIOS: QueryField<
   }
 };
 
+/**
+ * Get subscription status for a product (iOS only)
+ * @param sku - The product SKU
+ * @returns Promise<SubscriptionStatusIOS[]> - Array of subscription status objects
+ * @throws Error when called on non-iOS platforms or when IAP is not initialized
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/subscription-status-ios}
+ */
 export const subscriptionStatusIOS: QueryField<
   'subscriptionStatusIOS'
 > = async (sku) => {
@@ -1002,6 +1067,14 @@ export const subscriptionStatusIOS: QueryField<
   }
 };
 
+/**
+ * Get current entitlement for a product (iOS only)
+ * @param sku - The product SKU
+ * @returns Promise<Purchase | null> - Current entitlement or null
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/current-entitlement-ios}
+ */
 export const currentEntitlementIOS: QueryField<
   'currentEntitlementIOS'
 > = async (sku) => {
@@ -1028,6 +1101,14 @@ export const currentEntitlementIOS: QueryField<
   }
 };
 
+/**
+ * Get latest transaction for a product (iOS only)
+ * @param sku - The product SKU
+ * @returns Promise<Purchase | null> - Latest transaction or null
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/latest-transaction-ios}
+ */
 export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
   sku,
 ) => {
@@ -1054,6 +1135,13 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
   }
 };
 
+/**
+ * Get pending transactions (iOS only)
+ * @returns Promise<Purchase[]> - Array of pending transactions
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-pending-transactions-ios}
+ */
 export const getPendingTransactionsIOS: QueryField<
   'getPendingTransactionsIOS'
 > = async () => {
@@ -1080,6 +1168,11 @@ export const getPendingTransactionsIOS: QueryField<
   }
 };
 
+/**
+ * List every StoreKit transaction (finished + unfinished) for the current user.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-all-transactions-ios}
+ */
 export const getAllTransactionsIOS: QueryField<
   'getAllTransactionsIOS'
 > = async () => {
@@ -1106,6 +1199,13 @@ export const getAllTransactionsIOS: QueryField<
   }
 };
 
+/**
+ * Show manage subscriptions screen (iOS only)
+ * @returns Promise<Purchase[]> - Subscriptions where auto-renewal status changed
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/show-manage-subscriptions-ios}
+ */
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => {
@@ -1132,6 +1232,14 @@ export const showManageSubscriptionsIOS: MutationField<
   }
 };
 
+/**
+ * Check if user is eligible for intro offer (iOS only)
+ * @param groupID - The subscription group ID
+ * @returns Promise<boolean> - Eligibility status
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios}
+ */
 export const isEligibleForIntroOfferIOS: QueryField<
   'isEligibleForIntroOfferIOS'
 > = async (groupID) => {
@@ -1153,6 +1261,13 @@ export const isEligibleForIntroOfferIOS: QueryField<
   }
 };
 
+/**
+ * Get receipt data (iOS only)
+ * @returns Promise<string> - Base64 encoded receipt data
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-receipt-data-ios}
+ */
 export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   if (Platform.OS !== 'ios') {
     throw new Error('getReceiptDataIOS is only available on iOS');
@@ -1234,6 +1349,14 @@ export const requestReceiptRefreshIOS = async (): Promise<string> => {
   }
 };
 
+/**
+ * Check if transaction is verified (iOS only)
+ * @param sku - The product SKU
+ * @returns Promise<boolean> - Verification status
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/is-transaction-verified-ios}
+ */
 export const isTransactionVerifiedIOS: QueryField<
   'isTransactionVerifiedIOS'
 > = async (sku) => {
@@ -1255,6 +1378,14 @@ export const isTransactionVerifiedIOS: QueryField<
   }
 };
 
+/**
+ * Get transaction JWS representation (iOS only)
+ * @param sku - The product SKU
+ * @returns Promise<string | null> - JWS representation or null
+ * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-transaction-jws-ios}
+ */
 export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   sku,
 ) => {
@@ -1281,25 +1412,23 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
 // ------------------------------
 
 /**
- * Initialize connection to the store
- * @param config - Optional configuration including alternative billing mode for Android
- * @param config.alternativeBillingModeAndroid - Alternative billing mode: 'none', 'user-choice', or 'alternative-only'
+ * Initialize the store connection. Must be called before any other IAP API.
+ *
+ * @param config Optional connection config. Use `enableBillingProgramAndroid` (Android,
+ *   Play Billing 8.2.0+) to opt into External Payments etc. iOS ignores Android-specific fields.
+ * @returns Promise resolving to `true` when the platform billing client is connected.
+ * @throws When the platform billing client fails to initialize.
  *
  * @example
- * ```typescript
- * // Standard billing (default)
+ * ```ts
  * await initConnection();
- *
- * // User choice billing (Android)
- * await initConnection({
- *   alternativeBillingModeAndroid: 'user-choice'
- * });
- *
- * // Alternative billing only (Android)
- * await initConnection({
- *   alternativeBillingModeAndroid: 'alternative-only'
- * });
+ * await initConnection({ enableBillingProgramAndroid: 'external-offer' });
  * ```
+ *
+ * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
+ *   pass options to the hook instead of calling this directly.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/init-connection}
  */
 export const initConnection: MutationField<'initConnection'> = async (
   config,
@@ -1321,7 +1450,9 @@ export const initConnection: MutationField<'initConnection'> = async (
 };
 
 /**
- * End connection to the store
+ * Close the store connection and release resources.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/end-connection}
  */
 export const endConnection: MutationField<'endConnection'> = async () => {
   try {
@@ -1341,6 +1472,11 @@ export const endConnection: MutationField<'endConnection'> = async () => {
   }
 };
 
+/**
+ * Restore non-consumable and active subscription purchases.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/restore-purchases}
+ */
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
   try {
     if (Platform.OS === 'ios') {
@@ -1364,9 +1500,30 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
 };
 
 /**
- * Request a purchase for products or subscriptions
- * ⚠️ Important: This is an event-based operation, not promise-based.
- * Listen for events through purchaseUpdatedListener or purchaseErrorListener.
+ * Initiate a purchase or subscription flow. The result is delivered through
+ * `purchaseUpdatedListener` — NOT the return value.
+ *
+ * @param request `RequestPurchaseProps`, discriminated by `type`:
+ *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
+ *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
+ * @returns The dispatched purchase payload. **Do not rely on it** for the actual outcome.
+ * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+ *
+ * @example
+ * ```ts
+ * await requestPurchase({
+ *   request: {
+ *     apple: { sku: 'com.app.premium' },
+ *     google: { skus: ['com.app.premium'] },
+ *   },
+ *   type: 'in-app',
+ * });
+ * ```
+ *
+ * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
+ *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/request-purchase}
  */
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   request,
@@ -1513,19 +1670,28 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 };
 
 /**
- * Finish a transaction (consume or acknowledge)
- * @param params - Transaction finish parameters
- * @param params.purchase - The purchase to finish
- * @param params.isConsumable - Whether this is a consumable product (Android only)
- * @returns Promise<void> - Resolves when the transaction is successfully finished
+ * Complete a purchase transaction. Call after server-side verification to remove it
+ * from the queue.
+ *
+ * @param args.purchase The `Purchase` to finalize.
+ * @param args.isConsumable `true` for consumables (consumes the token so the SKU can be
+ *   re-bought, e.g. coins); `false` (default) for non-consumables and subscriptions.
+ * @returns Promise that resolves once the platform finalizes the transaction.
+ * @throws When the platform finalize call fails.
  *
  * @example
- * ```typescript
- * await finishTransaction({
- *   purchase: myPurchase,
- *   isConsumable: true
+ * ```ts
+ * purchaseUpdatedListener(async (purchase) => {
+ *   if (await verifyOnServer(purchase)) {
+ *     await finishTransaction({ purchase, isConsumable: false });
+ *   }
  * });
  * ```
+ *
+ * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
+ *   auto-refunds. iOS unfinished transactions replay on every app launch.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/finish-transaction}
  */
 export const finishTransaction: MutationField<'finishTransaction'> = async (
   args,
@@ -1593,6 +1759,8 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
  * ```typescript
  * await acknowledgePurchaseAndroid('purchase_token_here');
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/acknowledge-purchase-android}
  */
 export const acknowledgePurchaseAndroid: MutationField<
   'acknowledgePurchaseAndroid'
@@ -1632,6 +1800,8 @@ export const acknowledgePurchaseAndroid: MutationField<
  * ```typescript
  * await consumePurchaseAndroid('purchase_token_here');
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/consume-purchase-android}
  */
 export const consumePurchaseAndroid: MutationField<
   'consumePurchaseAndroid'
@@ -1687,6 +1857,8 @@ export const consumePurchaseAndroid: MutationField<
  *   }
  * });
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/validate-receipt}
  */
 export const validateReceipt: MutationField<'validateReceipt'> = async (
   options,
@@ -1816,6 +1988,8 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
  *
  * @param options - Receipt validation options containing the SKU
  * @returns Promise resolving to receipt validation result
+ *
+ * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase}
  */
 export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
 
@@ -1825,6 +1999,8 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
  * @deprecated Use `verifyPurchase` (or `validateReceipt`) instead. Kept so
  * consumers who imported `validateReceiptIOS` — which is still declared on the
  * OpenIAP Query interface — keep working. Throws on non-iOS platforms.
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/validate-receipt-ios}
  */
 export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
   options,
@@ -1856,6 +2032,8 @@ export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
  *   },
  * });
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
  */
 export const verifyPurchaseWithProvider: MutationField<
   'verifyPurchaseWithProvider'
@@ -1899,6 +2077,8 @@ export const verifyPurchaseWithProvider: MutationField<
  * Sync iOS purchases with App Store (iOS only)
  * @returns Promise<boolean>
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/sync-ios}
  */
 export const syncIOS: MutationField<'syncIOS'> = async () => {
   if (Platform.OS !== 'ios') {
@@ -1924,6 +2104,8 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
  * Present the code redemption sheet for offer codes (iOS only)
  * @returns Promise<boolean> - Indicates whether the redemption sheet was presented
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
@@ -1966,6 +2148,8 @@ export const presentCodeRedemptionSheetIOS: MutationField<
  *
  * @returns Promise<boolean> - true when the request triggers successfully
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
  */
 export const requestPurchaseOnPromotedProductIOS =
   async (): Promise<boolean> => {
@@ -2008,6 +2192,8 @@ export const requestPurchaseOnPromotedProductIOS =
  * Clear unfinished transactions on iOS
  * @returns Promise<boolean>
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/clear-transaction-ios}
  */
 export const clearTransactionIOS: MutationField<
   'clearTransactionIOS'
@@ -2036,6 +2222,8 @@ export const clearTransactionIOS: MutationField<
  * @param sku - The product SKU to refund
  * @returns Promise<string | null> - The refund status or null if not available
  * @platform iOS
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/begin-refund-request-ios}
  */
 export const beginRefundRequestIOS: MutationField<
   'beginRefundRequestIOS'
@@ -2060,71 +2248,10 @@ export const beginRefundRequestIOS: MutationField<
 };
 
 /**
- * Get subscription status for a product (iOS only)
- * @param sku - The product SKU
- * @returns Promise<SubscriptionStatusIOS[]> - Array of subscription status objects
- * @throws Error when called on non-iOS platforms or when IAP is not initialized
- * @platform iOS
- */
-/**
- * Get current entitlement for a product (iOS only)
- * @param sku - The product SKU
- * @returns Promise<Purchase | null> - Current entitlement or null
- * @platform iOS
- */
-/**
- * Get latest transaction for a product (iOS only)
- * @param sku - The product SKU
- * @returns Promise<Purchase | null> - Latest transaction or null
- * @platform iOS
- */
-/**
- * Get pending transactions (iOS only)
- * @returns Promise<Purchase[]> - Array of pending transactions
- * @platform iOS
- */
-/**
- * Show manage subscriptions screen (iOS only)
- * @returns Promise<Purchase[]> - Subscriptions where auto-renewal status changed
- * @platform iOS
- */
-/**
- * Check if user is eligible for intro offer (iOS only)
- * @param groupID - The subscription group ID
- * @returns Promise<boolean> - Eligibility status
- * @platform iOS
- */
-/**
- * Get receipt data (iOS only)
- * @returns Promise<string> - Base64 encoded receipt data
- * @platform iOS
- */
-/**
- * Check if transaction is verified (iOS only)
- * @param sku - The product SKU
- * @returns Promise<boolean> - Verification status
- * @platform iOS
- */
-/**
- * Get transaction JWS representation (iOS only)
- * @param sku - The product SKU
- * @returns Promise<string | null> - JWS representation or null
- * @platform iOS
- */
-/**
- * Get the storefront identifier for the user's App Store account (iOS only)
- * @returns Promise<string> - The storefront identifier (e.g., 'USA' for United States)
- * @platform iOS
- *
- * @example
- * ```typescript
- * const storefront = await getStorefrontIOS();
- * console.log('User storefront:', storefront); // e.g., 'USA', 'GBR', 'KOR'
- * ```
- */
-/**
  * Deeplinks to native interface that allows users to manage their subscriptions
  * Cross-platform alias aligning with expo-iap
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/deep-link-to-subscriptions}
  */
 export const deepLinkToSubscriptions: MutationField<
   'deepLinkToSubscriptions'
@@ -2175,25 +2302,6 @@ export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {
 };
 
 /**
- * iOS only - Gets the original app transaction ID if the app was purchased from the App Store
- * @platform iOS
- * @description
- * This function retrieves the original app transaction information if the app was purchased
- * from the App Store. Returns null if the app was not purchased (e.g., free app or TestFlight).
- *
- * @returns {Promise<string | null>} The original app transaction ID or null
- *
- * @example
- * ```typescript
- * const appTransaction = await getAppTransactionIOS();
- * if (appTransaction) {
- *   console.log('App was purchased, transaction ID:', appTransaction);
- * } else {
- *   console.log('App was not purchased from App Store');
- * }
- * ```
- */
-/**
  * Get all active subscriptions with detailed information (OpenIAP compliant)
  * Returns an array of active subscriptions. If subscriptionIds is not provided,
  * returns all active subscriptions. Platform-specific fields are populated based
@@ -2205,6 +2313,8 @@ export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {
  *
  * @param subscriptionIds - Optional array of subscription IDs to filter by
  * @returns Promise<ActiveSubscription[]> - Array of active subscriptions
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/get-active-subscriptions}
  */
 export const getActiveSubscriptions: QueryField<
   'getActiveSubscriptions'
@@ -2364,6 +2474,8 @@ export const getActiveSubscriptions_OLD: QueryField<
  *
  * @param subscriptionIds - Optional array of subscription IDs to check
  * @returns Promise<boolean> - True if there are active subscriptions
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/has-active-subscriptions}
  */
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
@@ -2491,6 +2603,8 @@ const normalizeProductQueryType = (
  *   // Proceed with alternative billing flow
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
  */
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
@@ -2531,6 +2645,8 @@ export const checkAlternativeBillingAvailabilityAndroid: MutationField<
  *   }
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
  */
 export const showAlternativeBillingDialogAndroid: MutationField<
   'showAlternativeBillingDialogAndroid'
@@ -2568,6 +2684,8 @@ export const showAlternativeBillingDialogAndroid: MutationField<
  *   });
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/create-alternative-billing-token-android}
  */
 export const createAlternativeBillingTokenAndroid: MutationField<
   'createAlternativeBillingTokenAndroid'
@@ -2663,6 +2781,8 @@ export const enableBillingProgramAndroid = (
  *   // External offers are available for this user
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/is-billing-program-available-android}
  */
 export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'
@@ -2702,6 +2822,8 @@ export const isBillingProgramAvailableAndroid: MutationField<
  *   body: JSON.stringify({ token: details.externalTransactionToken })
  * });
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/create-billing-program-reporting-details-android}
  */
 export const createBillingProgramReportingDetailsAndroid: MutationField<
   'createBillingProgramReportingDetailsAndroid'
@@ -2747,6 +2869,8 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<
  *   console.log('User accepted external link');
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/android/launch-external-link-android}
  */
 export const launchExternalLinkAndroid: MutationField<
   'launchExternalLinkAndroid'
@@ -2772,7 +2896,11 @@ export const launchExternalLinkAndroid: MutationField<
 // ------------------------------
 
 /**
- * Check if the device can present an external purchase notice sheet (iOS 18.2+).
+ * Check if the device can present an external purchase notice sheet (iOS 17.4+).
+ *
+ * Wraps `ExternalPurchase.canPresent`, which Apple introduced in iOS 17.4.
+ * Note: the notice sheet itself (`presentExternalPurchaseNoticeSheetIOS`)
+ * still requires iOS 18.2+; only the eligibility check is available earlier.
  *
  * @returns Promise<boolean> - true if notice sheet can be presented
  * @platform iOS
@@ -2785,6 +2913,8 @@ export const launchExternalLinkAndroid: MutationField<
  *   const result = await presentExternalPurchaseNoticeSheetIOS();
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios}
  */
 export const canPresentExternalPurchaseNoticeIOS: QueryField<
   'canPresentExternalPurchaseNoticeIOS'
@@ -2818,6 +2948,8 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
  *   await presentExternalPurchaseLinkIOS('https://your-website.com/purchase');
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios}
  */
 export const presentExternalPurchaseNoticeSheetIOS =
   async (): Promise<ExternalPurchaseNoticeResultIOS> => {
@@ -2849,6 +2981,8 @@ export const presentExternalPurchaseNoticeSheetIOS =
  *   console.log('User completed external purchase');
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/present-external-purchase-link-ios}
  */
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
@@ -2883,6 +3017,8 @@ export const presentExternalPurchaseLinkIOS: MutationField<
  *   // App can use custom external purchase links
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios}
  */
 export const isEligibleForExternalPurchaseCustomLinkIOS =
   async (): Promise<boolean> => {
@@ -2918,6 +3054,8 @@ export const isEligibleForExternalPurchaseCustomLinkIOS =
  *   await reportToApple(result.token);
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios}
  */
 export const getExternalPurchaseCustomLinkTokenIOS = async (
   tokenType: ExternalPurchaseCustomLinkTokenTypeIOS,
@@ -2956,6 +3094,8 @@ export const getExternalPurchaseCustomLinkTokenIOS = async (
  *   await Linking.openURL('https://your-store.com/checkout');
  * }
  * ```
+ *
+ * @see {@link https://www.openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios}
  */
 export const showExternalPurchaseCustomLinkNoticeIOS = async (
   noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS,

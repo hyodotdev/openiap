@@ -24,6 +24,18 @@ function VerifyPurchaseWithProviderResult() {
         <p>
           Result type returned by <code>verifyPurchaseWithProvider()</code>.
         </p>
+        <p>
+          Result envelope from <code>verifyPurchaseWithProvider</code>. Carries{' '}
+          <code>isValid</code> plus the underlying provider response. See{' '}
+          <a
+            href="https://www.openiap.dev/docs/features/validation"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Validation docs
+          </a>
+          .
+        </p>
 
         <table className="doc-table">
           <thead>

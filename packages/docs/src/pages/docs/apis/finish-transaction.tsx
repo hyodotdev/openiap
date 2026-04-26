@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -18,6 +20,30 @@ function FinishTransaction() {
       <p>
         Complete a purchase transaction. Must be called after verifying the
         purchase to remove it from the queue.
+      </p>
+      <p>
+        <strong>iOS:</strong> Calls <code>Transaction.finish()</code>. Until you
+        do, the same transaction replays through{' '}
+        <code>Transaction.updates</code> on every app launch.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/finish()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Acknowledges (
+        <code>acknowledgePurchase</code>) for non-consumables/subscriptions or
+        consumes (<code>consumeAsync</code>) for consumables. Google
+        auto-refunds within 3 days if neither runs.{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/integrate#process"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
       </p>
 
       <h2>Signature</h2>
@@ -48,6 +74,48 @@ interface MutationFinishTransactionArgs {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>The transaction to close, plus an optional consumable flag:</p>
+      <ul className="api-params">
+        <li>
+          <code>purchase</code>{' '}
+          <em>
+            (required,{' '}
+            <Link to="/docs/types/purchase">
+              <code>Purchase</code>
+            </Link>
+            )
+          </em>{' '}
+          — The purchase / transaction to finalize. Must come from{' '}
+          <code>requestPurchase</code> or <code>getAvailablePurchases</code>.
+        </li>
+        <li>
+          <code>isConsumable</code>{' '}
+          <em>
+            (optional, <code>boolean</code>, default <code>false</code>)
+          </em>{' '}
+          — <strong>Android.</strong> <code>true</code> consumes the token
+          (re-buyable like coins); <code>false</code> just acknowledges
+          (non-consumables, subscriptions). iOS always calls{' '}
+          <code>Transaction.finish()</code> regardless.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;void&gt;</code> — Resolves once the platform finalizes
+        the transaction.
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>When the platform finalize call fails.</p>
 
       <h2>Example</h2>
       <LanguageTabs>

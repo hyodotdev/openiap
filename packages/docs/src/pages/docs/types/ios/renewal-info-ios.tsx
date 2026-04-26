@@ -29,6 +29,19 @@ function RenewalInfoIOS() {
         . Carries auto-renewal intent, billing-retry state, price-increase
         responses, and the JWS payload for server-side verification.
       </p>
+      <p>
+        <strong>iOS only.</strong> Mirrors{' '}
+        <code>Product.SubscriptionInfo.RenewalInfo</code> — autoRenewStatus,
+        renewalDate, expirationReason (
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        ).
+      </p>
 
       <section>
         <AnchorLink id="renewal-info-ios" level="h2">

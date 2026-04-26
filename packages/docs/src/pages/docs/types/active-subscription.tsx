@@ -29,6 +29,29 @@ function ActiveSubscription() {
           </Link>
           . Provides a unified view of subscription status across platforms.
         </p>
+        <p>
+          Cross-platform shape returned by <code>getActiveSubscriptions</code>.{' '}
+          <strong>iOS:</strong> derived from{' '}
+          <code>Transaction.currentEntitlements</code> filtered to subscription
+          products (
+          <a
+            href="https://developer.apple.com/documentation/storekit/transaction/currententitlements"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple docs
+          </a>
+          ). <strong>Android:</strong> derived from{' '}
+          <code>BillingClient.queryPurchasesAsync(SUBS)</code> (
+          <a
+            href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a

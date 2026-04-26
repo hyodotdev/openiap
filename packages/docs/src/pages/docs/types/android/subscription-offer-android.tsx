@@ -28,6 +28,20 @@ function SubscriptionOfferAndroid() {
           (cross-platform) instead.
         </p>
         <p>Offer details for subscription purchases:</p>
+        <p>
+          <strong>Android only.</strong> Mirrors{' '}
+          <code>ProductDetails.SubscriptionOfferDetails</code> — the
+          offerToken-bearing offer payload required for subscription{' '}
+          <code>requestPurchase</code> (
+          <a
+            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.SubscriptionOfferDetails"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google docs
+          </a>
+          ).
+        </p>
         <p className="type-link">
           <strong>Native reference:</strong>{' '}
           <a

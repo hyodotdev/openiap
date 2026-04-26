@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -19,6 +20,30 @@ function InitConnection() {
       <p>
         Initialize connection to the store service. Must be called before any
         other IAP operations.
+      </p>
+      <p>
+        <strong>iOS:</strong> Verifies <code>AppStore.canMakePayments</code>,
+        registers the <code>SKPaymentQueue</code> observer for promoted IAPs,
+        and starts a <code>Transaction.updates</code> listener that drives the
+        purchase event stream. Safe to call repeatedly.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/transaction/updates"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Starts <code>BillingClient</code> and waits
+        for <code>onBillingSetupFinished</code>. Required before any other Play
+        Billing call.{' '}
+        <a
+          href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#startConnection(com.android.billingclient.api.BillingClientStateListener)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
       </p>
 
       <h2>Signature</h2>
@@ -44,6 +69,58 @@ function InitConnection() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <p>
+        Pass an optional{' '}
+        <Link to="/docs/types/alternative-billing-types#init-connection-config">
+          <code>InitConnectionConfig</code>
+        </Link>{' '}
+        — Android billing program flags. iOS ignores Android-specific fields.
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>alternativeBillingModeAndroid</code>{' '}
+          <em>
+            (optional,{' '}
+            <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
+              <code>AlternativeBillingModeAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — <strong>Android · deprecated.</strong> Opt into Google's user-choice
+          billing flow. Prefer <code>enableBillingProgramAndroid</code>.
+        </li>
+        <li>
+          <code>enableBillingProgramAndroid</code>{' '}
+          <em>
+            (optional,{' '}
+            <Link to="/docs/types/billing-programs#billing-program-android">
+              <code>BillingProgramAndroid</code>
+            </Link>
+            )
+          </em>{' '}
+          — <strong>Android.</strong> Enable a Play Billing 8.2.0+ program (
+          <code>EXTERNAL_CONTENT_LINK</code> / <code>EXTERNAL_OFFER</code>) at
+          connection time. <code>EXTERNAL_PAYMENTS</code> is gated to Billing
+          8.3.0+ (Japan only).
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
+        platform billing client is connected.
+      </p>
+
+      <AnchorLink id="throws" level="h2">
+        Throws
+      </AnchorLink>
+      <p>When the platform billing client fails to initialize.</p>
 
       <h2>Example</h2>
       <LanguageTabs>

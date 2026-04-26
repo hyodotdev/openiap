@@ -28,7 +28,11 @@
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   padding: var(--spacing-sm) 0 var(--spacing-lg);
-  margin-left: calc((var(--max-width) - 100vw) / 2);
+  /* Pull the sidebar to the viewport edge ONLY when viewport > --max-width
+     (calc is negative). Below --max-width the calc flips positive and would
+     visually shove the sidebar to the right of the viewport (the
+     tablet-range bug); clamp to 0 so it stays put. */
+  margin-left: min(0px, calc((var(--max-width) - 100vw) / 2));
   box-sizing: content-box;
 }
 
@@ -559,16 +563,21 @@
   opacity: 1;
 }
 
-/* Tables — full-width table layout. Non-last columns shrink to fit their
-   nowrap content; the last column absorbs remaining width and wraps. */
+/* Tables — full-width layout, but allow horizontal scrolling when the
+   minimum content width exceeds the available space (rare, but
+   prevents catastrophic squeeze on phones). The `display: block`
+   trick + `overflow-x: auto` is the most portable way to scope the
+   scroll to the table without needing a wrapper element. */
 .error-table,
 .doc-page table {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   margin: 1.5rem 0;
   background: var(--bg-primary);
   border-radius: 0.5rem;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -596,24 +605,27 @@
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Non-last columns (Name, Type, etc.) shrink to fit their content and
-   keep identifiers on one line. */
-.error-table th:not(:last-child),
-.error-table td:not(:last-child),
-.doc-page table th:not(:last-child),
-.doc-page table td:not(:last-child) {
+/* Only the FIRST column (identifier name) stays on one line — applying
+   `nowrap; width:1%` to every non-last column also forced middle
+   columns like Description to refuse to wrap, which then squeezed the
+   last column (e.g. Availability `iOS 17.4+`) to per-character width
+   on narrow viewports. */
+.error-table th:first-child,
+.error-table td:first-child,
+.doc-page table th:first-child,
+.doc-page table td:first-child {
   width: 1%;
   white-space: nowrap;
   vertical-align: top;
 }
 
-/* Last column (Summary/Description) absorbs remaining width and wraps at
-   word boundaries only — never breaks single characters per line. */
-.error-table th:last-child,
-.error-table td:last-child,
-.doc-page table th:last-child,
-.doc-page table td:last-child {
-  width: auto;
+/* All other columns wrap at word boundaries; long fields like
+   identifiers stay readable thanks to overflow-wrap: anywhere as a
+   safety net (no per-character wrap unless absolutely necessary). */
+.error-table th:not(:first-child),
+.error-table td:not(:first-child),
+.doc-page table th:not(:first-child),
+.doc-page table td:not(:first-child) {
   white-space: normal;
   vertical-align: top;
   overflow-wrap: anywhere;
@@ -859,13 +871,15 @@
   scrollbar-color: var(--border-color) transparent;
 }
 
-/* Docs Sidebar Toggle - Mobile Only */
+/* Docs Sidebar Toggle - Mobile Only.
+   z-index pushed well above the top nav (which is z-index: 100) so it
+   stays clickable even if the nav's mobile dropdown is mid-transition. */
 .docs-sidebar-toggle {
   display: none;
   position: fixed;
   top: 100px;
   left: 1.5rem;
-  z-index: 1001;
+  z-index: 9001;
   background: var(--primary-color);
   color: white;
   border: none;
@@ -882,8 +896,14 @@
   pointer-events: auto;
 }
 
+/* When the user scrolls, keep the toggle clear of the sticky top nav
+   (56px tall) instead of jumping it up to `top: 1rem` which lands the
+   button INSIDE the nav's bounding box. Even with z-index 9001 vs the
+   nav's 100, taps in the overlap zone were flaky on mobile WebKit —
+   keeping the toggle below the nav avoids the geometry collision
+   entirely. */
 .docs-sidebar-toggle.scrolled {
-  top: 1rem;
+  top: 64px;
 }
 
 .docs-sidebar-toggle svg {
@@ -906,16 +926,21 @@
   pointer-events: none;
 }
 
-/* Sidebar Overlay (mobile only) */
+/* Sidebar Overlay (mobile only). Starts below the top nav (56px) so the
+   nav stays visible/interactive — but the backdrop swallows every other
+   tap on the page so menu items behind don't fire by accident. The
+   alpha is high enough that page content doesn't read THROUGH the
+   overlay, which previously made the drawer look like it had a z-index
+   bug on long pages with code blocks behind it. */
 .sidebar-overlay {
   display: none;
   position: fixed;
-  top: 0;
+  top: 56px;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 8999;
 }
 
 /* Mobile Responsive Styles */
@@ -933,12 +958,16 @@
 
   .sidebar-overlay {
     display: block;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 
   .docs-sidebar {
     position: fixed !important;
-    top: 0 !important;
+    /* Start the drawer BELOW the sticky top nav (which is 56px tall) so
+       the two never overlap geometrically — taps at the very top of the
+       drawer can't bleed into the nav's hamburger menu and vice versa. */
+    top: 56px !important;
     left: 0;
     bottom: 0;
     /* Reset desktop centering offset — at viewports below --max-width,
@@ -948,18 +977,27 @@
     --sidebar-edge-fill: 0px;
     width: 280px;
     max-width: 85vw;
-    height: 100vh !important;
-    max-height: 100vh !important;
+    height: calc(100vh - 56px) !important;
+    max-height: calc(100vh - 56px) !important;
     background: var(--bg-secondary);
-    z-index: 1000;
+    z-index: 9000;
     transition:
+      transform 0.25s ease,
       opacity 0.2s ease,
       visibility 0.2s ease;
     border-right: 1px solid var(--border-color);
     padding: var(--spacing-xl) 0;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    /* Closed state: slide fully off-screen, hide visually, AND disable
+       pointer events. iOS Safari has been observed to still deliver taps
+       to children of a `visibility: hidden; opacity: 0` fixed element,
+       so we belt-and-braces it: translateX moves the geometry out of the
+       hit-test area, and pointer-events: none turns off hit-testing for
+       this entire subtree even if the transform isn't honored. */
+    transform: translateX(-100%);
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
     overflow-y: auto;
     box-sizing: border-box;
   }
@@ -971,8 +1009,10 @@
   }
 
   .docs-sidebar.open {
+    transform: translateX(0);
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
   }
 
   .docs-content {

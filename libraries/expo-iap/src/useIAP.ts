@@ -252,6 +252,30 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     }
   }, []);
 
+  /**
+   * Retrieve products or subscriptions from the store by SKU.
+   *
+   * @param params `ProductRequest` — `skus` (string[]) and optional `type`
+   *   (`'in-app' | 'subs' | 'all'`, defaults to `'in-app'`).
+   * @returns Promise that resolves when the request is dispatched; results land in the
+   *   hook's reactive `products` / `subscriptions` state.
+   * @throws When the store rejects the request (empty `skus`, not connected,
+   *   network/store error). Unknown SKUs are simply omitted from the result, not thrown.
+   *
+   * @example
+   * ```ts
+   * const { fetchProducts, products } = useIAP();
+   * await fetchProducts({
+   *   skus: ['com.app.coins_100', 'com.app.premium'],
+   *   type: 'in-app',
+   * });
+   * ```
+   *
+   * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
+   *   (`requestPurchase`), which are event-based.
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/fetch-products}
+   */
   const fetchProductsInternal = useCallback(
     async (params: {
       skus: string[];
@@ -349,6 +373,27 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     ],
   );
 
+  /**
+   * List the user's unfinished purchases — non-consumables, active subscriptions, and any
+   * pending transactions not yet finished.
+   *
+   * @param options Optional `PurchaseOptions`. iOS-only flags:
+   *   `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
+   * @returns Promise that resolves when the request is dispatched; results land in the
+   *   hook's reactive `availablePurchases` state.
+   * @throws When the platform query fails.
+   *
+   * @example
+   * ```ts
+   * const { getAvailablePurchases, availablePurchases } = useIAP();
+   * await getAvailablePurchases();
+   * for (const p of availablePurchases) {
+   *   if (await verifyOnServer(p)) await finishTransaction({ purchase: p, isConsumable: false });
+   * }
+   * ```
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/get-available-purchases}
+   */
   const getAvailablePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
       try {
@@ -368,6 +413,11 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [invokeOnError],
   );
 
+  /**
+   * Get details of all currently active subscriptions.
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/get-active-subscriptions}
+   */
   const getActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<void> => {
       try {
@@ -382,6 +432,11 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [invokeOnError],
   );
 
+  /**
+   * Check whether the user has any active subscription.
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/has-active-subscriptions}
+   */
   const hasActiveSubscriptionsInternal = useCallback(
     async (subscriptionIds?: string[]): Promise<boolean> => {
       try {
@@ -394,6 +449,29 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [],
   );
 
+  /**
+   * Complete a purchase transaction. Call after server-side verification to remove it
+   * from the queue.
+   *
+   * @param args.purchase The `Purchase` to finalize.
+   * @param args.isConsumable `true` for consumables (consumes the token so the SKU can be
+   *   re-bought, e.g. coins); `false` (default) for non-consumables and subscriptions.
+   * @returns Promise that resolves once the platform finalizes the transaction.
+   * @throws When the platform finalize call fails.
+   *
+   * @example
+   * ```ts
+   * // Inside purchaseUpdatedListener:
+   * if (await verifyOnServer(purchase)) {
+   *   await finishTransaction({ purchase, isConsumable: false });
+   * }
+   * ```
+   *
+   * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
+   *   auto-refunds. iOS unfinished transactions replay on every app launch.
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/finish-transaction}
+   */
   const finishTransaction = useCallback(
     async ({
       purchase,
@@ -410,6 +488,33 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [toPurchaseInput],
   );
 
+  /**
+   * Initiate a purchase or subscription flow. The result is delivered through
+   * `purchaseUpdatedListener` — NOT the return value.
+   *
+   * @param props `RequestPurchaseProps`, discriminated by `type`:
+   *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
+   *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
+   * @returns Promise that resolves when the request is dispatched; the actual purchase
+   *   outcome lands in the hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
+   * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+   *
+   * @example
+   * ```ts
+   * await requestPurchase({
+   *   request: {
+   *     apple: { sku: 'com.app.premium' },
+   *     google: { skus: ['com.app.premium'] },
+   *   },
+   *   type: 'in-app',
+   * });
+   * ```
+   *
+   * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
+   *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/request-purchase}
+   */
   const requestPurchaseWithReset = useCallback(
     (requestObj: MutationRequestPurchaseArgs) => {
       return requestPurchaseInternal(requestObj);
@@ -436,9 +541,11 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     ],
   );
 
-  // Restore completed transactions with cross-platform behavior.
-  // iOS: best-effort sync (ignore sync errors) then fetch available purchases.
-  // Android: fetch available purchases directly.
+  /**
+   * Restore non-consumable and active subscription purchases.
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/restore-purchases}
+   */
   const restorePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
       try {
@@ -463,14 +570,29 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [invokeOnError],
   );
 
+  /**
+   * Deprecated. Use verifyPurchase instead — same input/output shape.
+   *
+   * @see {@link https://www.openiap.dev/docs/apis/validate-receipt}
+   */
   const validateReceipt = useCallback(async (props: VerifyPurchaseProps) => {
     return validateReceiptInternal(props);
   }, []);
 
+  /**
+   * Verify a purchase against your own backend (returns isValid + raw store metadata).
+   *
+   * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase}
+   */
   const verifyPurchase = useCallback(async (props: VerifyPurchaseProps) => {
     return verifyPurchaseInternal(props);
   }, []);
 
+  /**
+   * Verify via a managed provider — currently only `iapkit` (IAPKit). The PurchaseVerificationProvider enum exposes no other provider literal today.
+   *
+   * @see {@link https://www.openiap.dev/docs/features/validation#verify-purchase-with-provider}
+   */
   const verifyPurchaseWithProvider = useCallback(
     async (props: VerifyPurchaseWithProviderProps) => {
       return verifyPurchaseWithProviderInternal(props);

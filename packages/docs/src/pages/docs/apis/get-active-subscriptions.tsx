@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -18,6 +19,31 @@ function GetActiveSubscriptions() {
       <h1>getActiveSubscriptions</h1>
       <p>
         Get all active subscriptions with detailed renewal status information.
+      </p>
+      <p>
+        <strong>iOS:</strong> Iterates{' '}
+        <code>Transaction.currentEntitlements</code> and filters to subscription
+        product types; checks <code>expirationDate</code> and{' '}
+        <code>revocationDate</code>.{' '}
+        <a
+          href="https://developer.apple.com/documentation/storekit/product/subscriptioninfo"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Apple docs
+        </a>
+        . <strong>Android:</strong> Calls <code>queryPurchasesAsync(SUBS)</code>{' '}
+        and treats{' '}
+        <code>purchaseState == PURCHASED &amp;&amp; autoRenewing</code> as
+        active.{' '}
+        <a
+          href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Google docs
+        </a>
+        .
       </p>
 
       <h2>Signature</h2>
@@ -43,6 +69,85 @@ function GetActiveSubscriptions() {
           ),
         }}
       </LanguageTabs>
+
+      <AnchorLink id="parameters" level="h2">
+        Parameters
+      </AnchorLink>
+      <ul className="api-params">
+        <li>
+          <code>subscriptionIds</code>{' '}
+          <em>
+            (optional, <code>string[]</code>)
+          </em>{' '}
+          — If provided, the result is filtered to these SKUs. Omit / pass{' '}
+          <code>null</code> to return every active subscription the store knows
+          about.
+        </li>
+      </ul>
+
+      <AnchorLink id="returns" level="h2">
+        Returns
+      </AnchorLink>
+      <p>
+        <Link to="/docs/types/active-subscription">
+          <code>Promise&lt;ActiveSubscription[]&gt;</code>
+        </Link>{' '}
+        — one entry per active subscription. Each row carries:
+      </p>
+      <ul className="api-params">
+        <li>
+          <code>productId</code>{' '}
+          <em>
+            (required, <code>string</code>)
+          </em>{' '}
+          — Subscription product identifier.
+        </li>
+        <li>
+          <code>basePlanId</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Base plan identifier when applicable.
+        </li>
+        <li>
+          <code>isActive</code>{' '}
+          <em>
+            (required, <code>boolean</code>)
+          </em>{' '}
+          — <code>true</code> while the subscription is in a paying or grace
+          state.
+        </li>
+        <li>
+          <code>willExpireSoon</code>{' '}
+          <em>
+            (optional, <code>boolean</code>)
+          </em>{' '}
+          — Hint that renewal is imminent (cancelled or grace period).
+        </li>
+        <li>
+          <code>expirationDateIOS</code>{' '}
+          <em>
+            (optional, <code>number</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> Epoch ms expiration timestamp.
+        </li>
+        <li>
+          <code>environmentIOS</code>{' '}
+          <em>
+            (optional, <code>string</code>)
+          </em>{' '}
+          — <strong>iOS.</strong> <code>"Sandbox"</code> or{' '}
+          <code>"Production"</code>.
+        </li>
+        <li>
+          <code>autoRenewingAndroid</code>{' '}
+          <em>
+            (optional, <code>boolean</code>)
+          </em>{' '}
+          — <strong>Android.</strong> Whether Play will auto-renew at the next
+          cycle.
+        </li>
+      </ul>
 
       <h2>Example</h2>
       <LanguageTabs>

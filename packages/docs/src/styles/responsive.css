@@ -48,14 +48,10 @@
     flex-direction: column;
   }
 
-  .docs-sidebar {
-    width: 100%;
-    margin-bottom: 2rem;
-  }
-
-  .docs-nav {
-    position: static;
-  }
+  /* Sidebar drawer styling lives in documentation.css's mobile block —
+     don't redefine width/position here (the older inline-sidebar layout
+     leaked `width: 100%` and `position: static` rules that would override
+     the drawer and let taps fall through to the top nav). */
 
   .features-container,
   .benefit-grid,
