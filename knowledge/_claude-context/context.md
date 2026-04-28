@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-04-16T13:44:54.257Z
+> Last updated: 2026-04-28T02:30:03.217Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -828,6 +828,83 @@ swift build  # Verifies ObjC bridge compiles
 
 ---
 
+## SDK Parity Checklist (CRITICAL — prevents "declared but not implemented")
+
+When the GraphQL schema in [`packages/gql`](../../packages/gql) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
+
+### The bug pattern
+
+A symptom like "interface exists in `types.dart` / `types.ts` / `Types.kt` but calling it does nothing / throws" means one or more of these layers is missing:
+
+```text
+GraphQL schema ─► generated types ─► public API ─► native bridge ─► core module impl
+    (SSOT)        (auto-generated)  (hand-written) (hand-written)   (shared Swift/Kotlin)
+                        ▲                 ▲              ▲
+                        │                 │              │
+                   must match       must be exported   must dispatch
+```
+
+### Per-library completion checklist
+
+For every new/changed handler in the generated types, verify **all five** of these per target library before considering the change shippable:
+
+| Library | 1. Type declared | 2. Public API exposed | 3. Platform bridge | 4. Wired into handlers bundle | 5. Test coverage |
+|---------|------------------|-----------------------|--------------------|-------------------------------|------------------|
+| **react-native-iap** | `src/types.ts` (generated) | `src/index.ts` export (Nitro or composed TS) | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android) | Not required (flat exports) | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory) |
+| **expo-iap** | `src/types.ts` (generated) | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts` | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt` | Not required (flat exports) | `src/modules/__tests__/*.test.ts` |
+| **flutter_inapp_purchase** | `lib/types.dart` (generated) | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart` | `case "<name>":` in `ios/Classes/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall` | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test) |
+| **kmp-iap** | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance` | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException` | Not required (interface dispatch) | `library/src/commonTest/` if testable cross-platform |
+| **godot-iap** | `addons/godot-iap/types.gd` (generated) | public `snake_case` function in `addons/godot-iap/godot_iap.gd` | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android) | Not required | Manual testing — no automated test suite yet |
+
+### Platform suffix rule (who needs what)
+
+The suffix on the handler name tells you which native bridges are required:
+
+- **`…IOS` suffix** → iOS bridge only. Non-iOS platforms should return the type's zero value (`false`, `null`, empty list) or throw a documented `PlatformException` for void ops. **Do not** wire into Android bridges.
+- **`…Android` suffix** → Android bridge only. Same rule in reverse.
+- **No suffix** → both iOS and Android bridges required.
+
+Wiring an iOS-suffixed method into an Android bridge is a bug — the earlier audit agents produced false positives like this.
+
+### Common failure modes observed in the codebase
+
+1. **Phantom interface** (GitHub issue #104, Flutter `beginRefundRequestIOS` pre-2026-04): generated type exists, nothing else does. Users see an uncallable interface.
+2. **`UnsupportedOperationException` stub** (KMP pattern): method declared, iOS impl deliberately throws with "not implemented in OpenIAP". Usually a stale stub — the ObjC bridge method may already exist. Always `grep OpenIapModule+ObjC.swift` for `<name>With*` before assuming the bridge is missing.
+3. **Channel-name drift** (Flutter `getAppTransactionIOS` pre-2026-04): Dart calls `_channel.invokeMethod('getAppTransaction')` but the Swift plugin only handles `"getAppTransactionIOS"` (or vice versa). Mocked tests passed because the test intercepted the wrong name too.
+4. **Handler bundle omission** (Flutter): Dart getter exists, Swift bridge exists, but the new handler is not listed in `queryHandlers` / `mutationHandlers`. Consumers using the generated handler bundle (e.g., for cross-platform dispatch) silently miss the API.
+
+### Audit command for a new handler
+
+After regenerating types, run for each library:
+
+```bash
+# Replace <name> with the new handler name (camelCase, e.g., beginRefundRequestIOS)
+NAME=<name>
+
+echo "=== Type declared? ==="
+rg -n "$NAME" \
+  libraries/*/lib/types.dart \
+  libraries/*/src/types.ts \
+  libraries/kmp-iap/library/src/commonMain/kotlin \
+  libraries/*/addons/godot-iap/types.gd
+
+echo "=== Public API exposed? ==="
+rg -n "^export (const|async function|function) $NAME\b|get $NAME\b|func $NAME\b|snake_case equivalent" libraries/
+
+echo "=== Native bridge? ==="
+rg -n "\"$NAME\"|\.$NAME\b" libraries/*/ios libraries/*/android libraries/*/ios-gdextension
+
+echo "=== Wired into handlers bundle? (Flutter only) ==="
+rg -n "$NAME:" libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart
+
+echo "=== Throws stub? ==="
+rg -n "UnsupportedOperationException.*$NAME" libraries/
+```
+
+Any empty result for a layer that *should* have the handler (per the suffix rule) is a gap that must be filled before merging.
+
+---
+
 ## Google Package (packages/google)
 
 ### Required Pre-Work (Google)
@@ -1543,9 +1620,214 @@ Each package uses a different tag format for GitHub Releases:
 This file is automatically managed by CI/CD workflows during releases:
 - Apple releases update `apple` version
 - Google releases update `google` version
-- GQL releases update `gql` and `docs` versions
+- GQL releases update `spec` version
+- Deploy script (`npm run deploy`) updates `spec` version
 
-Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows to update versions.
+Manual edits will cause version conflicts and deployment issues. Always use the GitHub Actions workflows or deploy script to update versions.
+
+**Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
+
+**Rule:** Feature PRs must NEVER touch version fields in `openiap-versions.json`. Version bumps happen only via:
+
+1. Release workflows (Apple Release, Google Release)
+2. Deploy script (`npm run deploy <version>`)
+3. CI auto-bump after merge
+
+
+---
+
+<!-- Source: internal/07-docs-consistency.md -->
+
+# Docs Consistency Rules — Single Source of Truth (SSOT)
+
+This document captures the consistency rules for OpenIAP documentation, code
+comments, and generated types. PR #107 (and earlier rounds) repeatedly
+surfaced the same class of drift — the docs claimed one field/default/type,
+but the SDK code actually used another. These rules + the companion audit
+script (`scripts/audit-docs.ts`) catch those before review.
+
+## Sources of truth
+
+When two places disagree, the upstream wins:
+
+```
+GraphQL schema  →  generated Types  →  hand-written wrapper SDK  →  docs page
+(packages/gql      (libraries/*/src       (Swift / Kotlin /          (packages/docs/
+ /src/*.graphql)   /types.{ts,kt,...})    Dart / TS / GDScript)        src/pages/...)
+```
+
+- `packages/gql/src/*.graphql` — schema descriptions ARE the canonical doc
+  string. Edits propagate via `bun run generate` to every generated
+  `Types.{ts,kt,swift,dart,gd}`.
+- `libraries/*/src/types.ts` (or equivalent) — generated; never hand-edit.
+  When a docs page mentions a field name, that field MUST exist in the
+  generated TS type. The audit script enforces this.
+- Wrapper SDK source (e.g. `libraries/expo-iap/src/index.ts`) — JSDoc
+  parameter names MUST match the actual function-signature parameter
+  names. ESLint rule `tsdoc/syntax` + the audit script catch drift.
+- Doc pages — the surface visible to users. Must reflect what each upstream
+  layer actually exposes.
+
+## Rules
+
+### R1 — JSDoc / KDoc / Dartdoc / Swift `@param` names match the signature
+
+If the function declares `(args) =>`, the JSDoc tag is `@param args …`.
+If it declares `(request) =>`, the tag is `@param request …`. Don't carry
+over the schema field name (`props`, `params`) when the wrapper destructured
+or renamed.
+
+```ts
+// ✅ wrapper destructures from `args`
+/** @param args Purchase request. … */
+export const requestPurchase = async (args) => { … };
+
+// ❌ JSDoc says `props`; signature says `args`
+/** @param props … */
+export const requestPurchase = async (args) => { … };
+```
+
+### R2 — Defaults match across SDKs
+
+If `fetchProducts.type` defaults to `'in-app'` in Flutter / expo-iap /
+react-native-iap / godot-iap, then the Apple wrapper must also default to
+`.inApp` — and the Apple doc comment must say `.inApp`. The schema
+description is the canonical statement.
+
+When changing a default, update:
+1. The GraphQL schema description.
+2. Re-run `bun run generate`.
+3. Every wrapper SDK's `?? <default>` expression and JSDoc / KDoc / etc.
+4. Every API doc page (`packages/docs/src/pages/docs/apis/<symbol>.tsx`).
+
+### R3 — Doc pages reference real fields only
+
+When a Type doc page lists fields in a `<table>` or `<ul>`, every field name
+MUST exist in the generated `libraries/expo-iap/src/types.ts` (or
+`libraries/react-native-iap/src/types.ts` — they're identical in shape).
+The audit script greps for fields that don't appear in the type definition
+and flags them.
+
+Example failure modes already encountered:
+- `BillingProgramAvailabilityResultAndroid` doc listed
+  `responseCode` + `debugMessage` — neither field exists; the type has
+  `billingProgram` + `isAvailable`.
+- `LaunchExternalLinkParamsAndroid` doc listed `program` + `url` — neither
+  exists; the type has `billingProgram` + `launchMode` + `linkType` +
+  `linkUri`.
+- `ExternalPurchaseCustomLinkNoticeResultIOS` doc listed `result` +
+  `noticeType` — neither exists; the type has `continued` + `error`.
+
+### R4 — Enum values listed in docs must exist
+
+When a doc page mentions enum values (e.g.
+`'continue' | 'cancelled'`, `.acquisition`, `.services`), they must
+appear in the generated enum definition. The audit script extracts string
+literals from `<code>'…'</code>` blocks in doc pages and checks them
+against the generated TypeScript union types.
+
+`ExternalPurchaseCustomLinkNoticeTypeIOS` is the canonical recent miss —
+the union is `'browser'` only, but the doc claimed
+`'continue' | 'cancelled' | …`.
+
+### R5 — `<Link to="/docs/...">` targets must resolve
+
+Anchor links should point to existing pages and section anchors. Common
+recent failures:
+- "Use verifyPurchase" link pointed to `/docs/apis/get-active-subscriptions`
+  (totally unrelated).
+- `getExternalPurchaseCustomLinkTokenIOS` Returns linked to the
+  `external-purchase-link` page without an anchor — but that page
+  documents only `ExternalPurchaseNoticeResultIOS`, so users land in the
+  wrong section. Add a precise `#external-purchase-custom-link-token-result-ios`
+  anchor on the type page AND link to it.
+
+The audit script crawls every internal `<Link to="/docs/...">` and asserts
+the target file (and anchor when given) exists.
+
+### R6 — Native version constraints are honest
+
+`enableBillingProgramAndroid: 'external-payments'` is gated to Play Billing
+8.3.0+ (Japan only); the 8.2.0+ programs are `EXTERNAL_CONTENT_LINK` /
+`EXTERNAL_OFFER`. A doc page that mixes these up misleads readers about
+what works on which SDK.
+
+When you write `<X> 8.2.0+`, you should be able to point to the matching
+release-notes line. Don't paraphrase — quote the version requirement
+exactly as Google / Apple states it.
+
+### R7 — Code-example snippets compile-check
+
+Code examples in doc pages should at minimum parse / type-check against
+the wrapper they target. The audit script does NOT yet run a full
+TypeScript / Kotlin / Dart parser, but it does:
+- Verify imports (`import {…} from 'expo-iap'`) reference symbols that
+  expo-iap actually exports.
+- Verify field accesses on shown objects (e.g. `purchase.purchaseToken`)
+  exist on the corresponding generated type.
+
+When in doubt, run the example in a real example app before publishing.
+
+### R8 — Platform-only callouts use the right wrapper
+
+iOS-suffixed APIs (`syncIOS`, `getStorefrontIOS`, …) and Android-suffixed
+APIs (`acknowledgePurchaseAndroid`, …) are exposed via every framework
+wrapper (expo-iap, rn-iap, kmp-iap, flutter, godot-iap). The TS / Dart /
+KMP / GDScript example tabs MUST show how to call the function from each
+wrapper, with a `Platform.OS === 'ios'` (or `Platform.isIOS` / etc.)
+guard so readers don't accidentally call iOS-only methods on Android.
+
+The native Swift / Kotlin tab keeps the platform-native call. The
+wrapper tabs use the suffixed name (`syncIOS()`, etc.) — except in
+`packages/google` Kotlin (the Android-only native), where convention
+strips the `Android` suffix from method names.
+
+## Pre-commit checklist
+
+Run before every `git push` on docs / SDK changes:
+
+```bash
+# 1. Format + lint the docs site
+cd packages/docs
+bunx prettier --check "src/**/*.{ts,tsx,css}"
+bun run lint
+
+# 2. Cross-library typecheck for SDKs you touched
+cd libraries/expo-iap && bun run lint:tsc
+cd libraries/react-native-iap && yarn typecheck   # ignore example-expo errors
+cd libraries/flutter_inapp_purchase && dart analyze lib
+cd packages/apple && swift build
+cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin
+
+# 3. SSOT audit — run the docs-consistency audit script
+cd scripts && bun run audit-docs.ts
+```
+
+Auto-mode users: the `commit-push-pr` skill runs steps 1 + 2 automatically
+before pushing. Step 3 is opt-in until the audit script has zero false
+positives in CI.
+
+## Audit script
+
+`scripts/audit-docs.ts` is the executable companion to this guide. It
+parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
+- `<Link to="/docs/...">` targets
+- `<code>fieldName</code>` mentions inside Returns / Parameters tables
+- String-literal enum values in `<code>'…'</code>` blocks
+- `@see {@link openiap.dev/...}` URLs
+
+…and cross-references each against the generated TypeScript types in
+`libraries/expo-iap/src/types.ts`. Failures print as a punch-list with the
+file, line, and the offending mention.
+
+Run with:
+
+```bash
+cd /Users/hyo/Github/hyodotdev/openiap
+bun run scripts/audit-docs.ts
+```
+
+Exit code 1 means at least one drift; 0 means clean.
 
 
 ---
