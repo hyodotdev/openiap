@@ -8,8 +8,8 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
     labels:
-      - "kit"
-      - "dependencies"
+      - "openiap-kit"
+      - "📦 update packages"
     groups:
       kit-convex:
         patterns:
@@ -37,8 +37,8 @@ updates:
       day: "monday"
     open-pull-requests-limit: 3
     labels:
-      - "ci"
-      - "dependencies"
+      - "💨 ci"
+      - "📦 update packages"
 
   # packages/kit Dockerfile base image
   - package-ecosystem: "docker"
@@ -48,5 +48,6 @@ updates:
       day: "monday"
     open-pull-requests-limit: 2
     labels:
-      - "kit"
-      - "dependencies"
+      - "openiap-kit"
+      - "👷‍♀️ build"
+      - "📦 update packages"
