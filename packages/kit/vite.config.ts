@@ -69,13 +69,22 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("react-dom")) return "vendor-react-dom";
-            if (id.includes("react-router")) return "vendor-react-router";
-            if (id.includes("lucide-react")) return "vendor-lucide";
-            if (id.includes("antd")) return "vendor-antd";
+        manualChunks(id: string): string | undefined {
+          if (!id.includes("node_modules")) return undefined;
+          // Group React core, react-dom, react-router, antd, and
+          // antd-adjacent rc-component libs into ONE vendor chunk.
+          // Splitting React from its consumers (antd, react-router,
+          // lucide-react) creates cross-chunk cycles that crash with
+          // `Cannot set properties of undefined (setting 'Activity')`
+          // when antd initializes before React's chunk finishes loading.
+          if (
+            /[\\/](react|react-dom|react-is|react-router(?:-dom)?|scheduler|use-sync-external-store|antd|@ant-design|@rc-component|rc-[^/\\]+|lucide-react|@preact[\\/]signals-(?:react|core))[\\/]/.test(
+              id,
+            )
+          ) {
+            return "vendor-react";
           }
+          return undefined;
         },
       },
     },
