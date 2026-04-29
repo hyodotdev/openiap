@@ -246,7 +246,7 @@ function parseAndValidateServiceAccountKey(
     // and then embedded in another JSON payload can contain a mix of
     // real newlines and escaped ones; the old "only-if-no-newlines"
     // guard left those mixed keys broken.
-    keyData.private_key = keyData.private_key.replace(/\\n/g, "\n");
+    keyData.private_key = keyData.private_key.replaceAll("\\n", "\n");
 
     return keyData;
   } catch (parseError) {

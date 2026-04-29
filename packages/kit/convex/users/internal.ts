@@ -1,5 +1,4 @@
 import { internalMutation, internalQuery } from "../_generated/server";
-import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 
 // Indexed lookup of a user by email. Called from `auth.ts` where the ctx is
@@ -14,63 +13,76 @@ export const findByEmail = internalQuery({
   },
 });
 
-// Max users this cron scans per tick. Keeps the mutation under Convex's
-// per-transaction read/write limits even as the `users` table grows; the
-// next cron run picks up whatever wasn't processed.
-const CLEANUP_SCAN_BATCH_SIZE = 500;
+// Read budget per cron tick. We walk this many candidate users (oldest
+// first, capped at the 24h boundary) before yielding to the next tick;
+// keeps Convex's per-transaction read budget bounded even when most
+// scanned rows are kept legitimate users with profiles.
+const CLEANUP_READ_BUDGET = 5000;
 
-// Clean up incomplete users (users without profiles after 24 hours).
-// Uses the implicit `by_creation_time` system index to skip fresh rows
-// and caps the scan so growth in `users` doesn't blow the transaction.
+// Write budget per cron tick. Each delete fires 1 user delete + N auth
+// session deletes (typically 1-3 per user), so 200 users × ~4 writes
+// = ~800 writes — well under Convex's per-mutation write budget. The
+// remainder rolls into the next cron tick. Lowered from 500 in response
+// to a Gemini review flag about exceeding limits at peak concurrency.
+const CLEANUP_DELETE_BUDGET = 200;
+
+// Clean up incomplete users (users older than 24h without profiles).
+// Uses the implicit `by_creation_time` system index to skip fresh rows.
+//
+// Decoupling read budget from delete budget addresses a degenerate case
+// where the oldest CLEANUP_DELETE_BUDGET users all have profiles —
+// previously the loop would stop at that hard cap and never reach the
+// genuinely incomplete users behind them. Now we walk up to
+// CLEANUP_READ_BUDGET rows, skip ones with profiles cheaply, and only
+// stop the *delete* loop when CLEANUP_DELETE_BUDGET is hit.
 export const cleanupIncompleteUsers = internalMutation({
   handler: async (ctx) => {
     const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
 
-    // Walk users by creation time ascending and stop once we cross the
-    // 24-hour boundary — everything after is too fresh to delete.
-    const candidates: Array<Doc<"users">> = [];
+    let scanned = 0;
+    let deletedCount = 0;
+
     for await (const user of ctx.db
       .query("users")
       .withIndex("by_creation_time")
       .order("asc")) {
+      // Everything past this point is younger than 24h — bail out.
       if (user._creationTime > twentyFourHoursAgo) {
         break;
       }
-      candidates.push(user);
-      if (candidates.length >= CLEANUP_SCAN_BATCH_SIZE) {
+
+      scanned++;
+      if (scanned > CLEANUP_READ_BUDGET) {
         break;
       }
-    }
 
-    let deletedCount = 0;
-
-    for (const user of candidates) {
-      // Check if user has a profile
+      // Skip users with profiles (legitimate accounts) cheaply via the
+      // by_user index so they don't consume the delete budget.
       const profile = await ctx.db
         .query("userProfiles")
         .withIndex("by_user", (q) => q.eq("userId", user._id))
         .unique();
+      if (profile) {
+        continue;
+      }
 
-      // If no profile exists after 24 hours, delete the user
-      if (!profile) {
-        // Also delete any orphaned auth sessions — use the `userId`
-        // index that `@convex-dev/auth` defines on `authSessions` so
-        // this stays fast as the table grows.
-        const sessions = await ctx.db
-          .query("authSessions")
-          .withIndex("userId", (q) => q.eq("userId", user._id))
-          .collect();
+      // Delete orphaned auth sessions first — use the `userId` index
+      // that `@convex-dev/auth` defines on `authSessions`.
+      const sessions = await ctx.db
+        .query("authSessions")
+        .withIndex("userId", (q) => q.eq("userId", user._id))
+        .collect();
+      for (const session of sessions) {
+        await ctx.db.delete(session._id);
+      }
+      await ctx.db.delete(user._id);
+      deletedCount++;
 
-        for (const session of sessions) {
-          await ctx.db.delete(session._id);
-        }
-
-        // Delete the user
-        await ctx.db.delete(user._id);
-        deletedCount++;
+      if (deletedCount >= CLEANUP_DELETE_BUDGET) {
+        break;
       }
     }
 
-    return { deletedCount };
+    return { deletedCount, scanned };
   },
 });

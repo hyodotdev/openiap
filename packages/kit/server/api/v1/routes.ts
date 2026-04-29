@@ -141,7 +141,7 @@ const servers =
  * Open API specification.
  */
 app.get(
-  "openapi",
+  "/openapi",
   openAPIRouteHandler(app, {
     documentation: {
       info: {
@@ -423,7 +423,7 @@ const verifyMiddleware = [
 ] as const;
 
 app.post(
-  "purchase/verify",
+  "/purchase/verify",
   verifyPurchaseRouteDescription,
   ...verifyMiddleware,
 );
@@ -432,6 +432,6 @@ app.post(
 // PR description / test plan (`POST /v1/verify-purchase`). Not listed
 // separately in the OpenAPI output — both paths dispatch to the exact
 // same handler with the same middleware stack.
-app.post("verify-purchase", ...verifyMiddleware);
+app.post("/verify-purchase", ...verifyMiddleware);
 
 export { app as apiRoutes };

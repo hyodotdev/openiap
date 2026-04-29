@@ -176,110 +176,71 @@ const createOTPEmailTemplate = (code: string, lang: "en" | "ko" | "ja") => {
   };
 };
 
-export const ResendOTPEmailEn = Resend({
-  id: "resend-otp-en",
-  apiKey: process.env.RESEND_API_KEY || "",
-  from: `IAPKit <${process.env.RESEND_EMAIL_FROM}>`,
-  async generateVerificationToken() {
-    return generateRandomString(8, alphabet("0-9"));
-  },
-  async sendVerificationRequest({ identifier: email, provider, token }) {
-    if (!provider.apiKey) {
-      console.error(
-        "RESEND_API_KEY is not configured. Please set it in Convex dashboard.",
-      );
-      throw new Error(
-        "Email service is not configured. Please contact support.",
-      );
-    }
-    const resend = new ResendAPI(provider.apiKey);
-    const template = createOTPEmailTemplate(token, "en");
-    const { error } = await resend.emails.send({
-      from: provider.from!,
-      to: email,
-      subject: template.subject,
-      html: template.html,
-    });
+// Three locale-specific Resend providers exist only because pre-existing
+// email-only users authenticate via the original provider id they signed
+// up under (resend-otp-{en,ko,ja}). New email signups are gated off in
+// auth.ts; once those legacy users are migrated to GitHub OAuth, the
+// Ko/Ja providers can be retired and the dashboard's English-only policy
+// becomes uniform end-to-end. Until then, keep the providers but
+// generate them through a factory so the only per-locale state is the
+// id, the email template, and the user-facing error strings.
+type OTPLocale = "en" | "ko" | "ja";
 
-    if (error) {
-      console.error("Resend API error:", error);
-      console.error("Failed to send email to:", email);
-      // Show generic error to users, log actual error for debugging
-      throw new Error(
-        "We're having trouble sending emails right now. Please try again later or contact support.",
-      );
-    }
+const otpErrorMessages: Record<
+  OTPLocale,
+  { unconfigured: string; sendFailed: string }
+> = {
+  en: {
+    unconfigured: "Email service is not configured. Please contact support.",
+    sendFailed:
+      "We're having trouble sending emails right now. Please try again later or contact support.",
   },
-});
+  ko: {
+    unconfigured: "이메일 서비스가 구성되지 않았습니다. 지원팀에 문의해주세요.",
+    sendFailed:
+      "현재 이메일 전송에 문제가 있습니다. 잠시 후 다시 시도하거나 지원팀에 문의해주세요.",
+  },
+  ja: {
+    unconfigured:
+      "メールサービスが設定されていません。サポートにお問い合わせください。",
+    sendFailed:
+      "現在メール送信に問題が発生しています。しばらくしてから再度お試しいただくか、サポートにお問い合わせください。",
+  },
+};
 
-export const ResendOTPEmailKo = Resend({
-  id: "resend-otp-ko",
-  apiKey: process.env.RESEND_API_KEY || "",
-  from: `IAPKit <${process.env.RESEND_EMAIL_FROM}>`,
-  async generateVerificationToken() {
-    return generateRandomString(8, alphabet("0-9"));
-  },
-  async sendVerificationRequest({ identifier: email, provider, token }) {
-    if (!provider.apiKey) {
-      console.error(
-        "RESEND_API_KEY is not configured. Please set it in Convex dashboard.",
-      );
-      throw new Error(
-        "이메일 서비스가 구성되지 않았습니다. 지원팀에 문의해주세요.",
-      );
-    }
-    const resend = new ResendAPI(provider.apiKey);
-    const template = createOTPEmailTemplate(token, "ko");
-    const { error } = await resend.emails.send({
-      from: provider.from!,
-      to: email,
-      subject: template.subject,
-      html: template.html,
-    });
+const createResendOTPProvider = (locale: OTPLocale) =>
+  Resend({
+    id: `resend-otp-${locale}`,
+    apiKey: process.env.RESEND_API_KEY || "",
+    from: `IAPKit <${process.env.RESEND_EMAIL_FROM}>`,
+    async generateVerificationToken() {
+      return generateRandomString(8, alphabet("0-9"));
+    },
+    async sendVerificationRequest({ identifier: email, provider, token }) {
+      const messages = otpErrorMessages[locale];
+      if (!provider.apiKey) {
+        console.error(
+          "RESEND_API_KEY is not configured. Please set it in Convex dashboard.",
+        );
+        throw new Error(messages.unconfigured);
+      }
+      const resend = new ResendAPI(provider.apiKey);
+      const template = createOTPEmailTemplate(token, locale);
+      const { error } = await resend.emails.send({
+        from: provider.from!,
+        to: email,
+        subject: template.subject,
+        html: template.html,
+      });
 
-    if (error) {
-      console.error("Resend API error:", error);
-      console.error("Failed to send email to:", email);
-      // Show generic error to users, log actual error for debugging
-      throw new Error(
-        "현재 이메일 전송에 문제가 있습니다. 잠시 후 다시 시도하거나 지원팀에 문의해주세요.",
-      );
-    }
-  },
-});
+      if (error) {
+        console.error("Resend API error:", error);
+        console.error("Failed to send email to:", email);
+        throw new Error(messages.sendFailed);
+      }
+    },
+  });
 
-export const ResendOTPEmailJa = Resend({
-  id: "resend-otp-ja",
-  apiKey: process.env.RESEND_API_KEY || "",
-  from: `IAPKit <${process.env.RESEND_EMAIL_FROM}>`,
-  async generateVerificationToken() {
-    return generateRandomString(8, alphabet("0-9"));
-  },
-  async sendVerificationRequest({ identifier: email, provider, token }) {
-    if (!provider.apiKey) {
-      console.error(
-        "RESEND_API_KEY is not configured. Please set it in Convex dashboard.",
-      );
-      throw new Error(
-        "メールサービスが設定されていません。サポートにお問い合わせください。",
-      );
-    }
-    const resend = new ResendAPI(provider.apiKey);
-    const template = createOTPEmailTemplate(token, "ja");
-    const { error } = await resend.emails.send({
-      from: provider.from!,
-      to: email,
-      subject: template.subject,
-      html: template.html,
-    });
-
-    if (error) {
-      console.error("Resend API error:", error);
-      console.error("Failed to send email to:", email);
-      // Show generic error to users, log actual error for debugging
-      throw new Error(
-        "現在メール送信に問題が発生しています。しばらくしてから再度お試しいただくか、サポートにお問い合わせください。",
-      );
-    }
-  },
-});
+export const ResendOTPEmailEn = createResendOTPProvider("en");
+export const ResendOTPEmailKo = createResendOTPProvider("ko");
+export const ResendOTPEmailJa = createResendOTPProvider("ja");
