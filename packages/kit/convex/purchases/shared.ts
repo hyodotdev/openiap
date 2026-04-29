@@ -210,11 +210,24 @@ function hasConsumptionFlag(consumptionState?: string): boolean {
     case "NOT_CONSUMED":
       return false;
     default:
-      // Fall back to simple substring match for other documented Google responses.
-      return (
-        normalized.includes("CONSUMED") && !normalized.includes("NOT_CONSUMED")
-      );
+      return matchesConsumedToken(normalized);
   }
+}
+
+// Anchored fallback for Google states the switch above doesn't list
+// (e.g. future `CONSUMPTION_STATE_*_CONSUMED` variants). The earlier
+// loose `.includes("CONSUMED")` check would have wrongly matched
+// arbitrary substrings like `RECONSUMED`; key on word-boundary tokens
+// (`_CONSUMED` suffix or full equality) and treat any `_NOT_CONSUMED`
+// suffix or `YET_TO_BE_CONSUMED` substring as a negative.
+function matchesConsumedToken(normalized: string): boolean {
+  const isConsumedToken =
+    normalized.endsWith("_CONSUMED") || normalized === "CONSUMED";
+  const isNotConsumedToken =
+    normalized.endsWith("_NOT_CONSUMED") ||
+    normalized === "NOT_CONSUMED" ||
+    normalized.includes("YET_TO_BE_CONSUMED");
+  return isConsumedToken && !isNotConsumedToken;
 }
 
 export function mapGooglePlayPurchaseState(

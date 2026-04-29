@@ -316,10 +316,20 @@ type VerifyPurchaseJson =
   | { store: "google"; purchaseToken: string }
   | { store: "horizon"; userId: string; sku: string };
 
+// Tell Hono's Context what `c.req.valid("json")` returns for this
+// route so we don't need a `"json" as never` cast + `as VerifyPurchaseJson`.
+// The `Input` generic on `Context<Env, Path, Input>` is what
+// `c.req.valid(target)` narrows against; declaring both `in` and `out`
+// keeps middleware composition (validator → handler) type-checked.
+type VerifyPurchaseInput = {
+  in: { json: VerifyPurchaseJson };
+  out: { json: VerifyPurchaseJson };
+};
+
 const verifyPurchaseHandler = async (
-  c: Context<{ Variables: V1AppVariables }>,
+  c: Context<{ Variables: V1AppVariables }, string, VerifyPurchaseInput>,
 ) => {
-  const json = c.req.valid("json" as never) as VerifyPurchaseJson;
+  const json = c.req.valid("json");
   const apiKey = c.var.apiKey;
   const requestIp = getRequestIp(c);
 
