@@ -78,7 +78,7 @@ export default defineConfig({
           // `Cannot set properties of undefined (setting 'Activity')`
           // when antd initializes before React's chunk finishes loading.
           if (
-            /[\\/](react|react-dom|react-router(?:-dom)?|antd|@ant-design|@rc-component|rc-[^/\\]+|lucide-react)[\\/]/.test(
+            /[\\/](react|react-dom|react-is|react-router(?:-dom)?|scheduler|use-sync-external-store|antd|@ant-design|@rc-component|rc-[^/\\]+|lucide-react|@preact[\\/]signals-(?:react|core))[\\/]/.test(
               id,
             )
           ) {
