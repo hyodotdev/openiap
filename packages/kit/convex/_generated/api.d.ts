@@ -1,0 +1,139 @@
+/* eslint-disable */
+/**
+ * Generated `api` utility.
+ *
+ * THIS CODE IS AUTOMATICALLY GENERATED.
+ *
+ * To regenerate, run `npx convex dev`.
+ * @module
+ */
+
+import type * as ResendOTP from "../ResendOTP.js";
+import type * as analytics_action from "../analytics/action.js";
+import type * as apiKeys_helpers from "../apiKeys/helpers.js";
+import type * as apiKeys_internal from "../apiKeys/internal.js";
+import type * as apiKeys_mutation from "../apiKeys/mutation.js";
+import type * as apiKeys_query from "../apiKeys/query.js";
+import type * as auth from "../auth.js";
+import type * as certificates_apple_root_certificates from "../certificates/apple_root_certificates.js";
+import type * as crons from "../crons.js";
+import type * as files_internal from "../files/internal.js";
+import type * as files_mutation from "../files/mutation.js";
+import type * as files_query from "../files/query.js";
+import type * as files_validation from "../files/validation.js";
+import type * as http from "../http.js";
+import type * as migrations from "../migrations.js";
+import type * as organizations_internal from "../organizations/internal.js";
+import type * as organizations_mutation from "../organizations/mutation.js";
+import type * as organizations_query from "../organizations/query.js";
+import type * as plans from "../plans.js";
+import type * as projects_helpers from "../projects/helpers.js";
+import type * as projects_internal from "../projects/internal.js";
+import type * as projects_mutation from "../projects/mutation.js";
+import type * as projects_query from "../projects/query.js";
+import type * as purchases_action from "../purchases/action.js";
+import type * as purchases_android from "../purchases/android.js";
+import type * as purchases_cleanup from "../purchases/cleanup.js";
+import type * as purchases_errors from "../purchases/errors.js";
+import type * as purchases_horizon from "../purchases/horizon.js";
+import type * as purchases_internal from "../purchases/internal.js";
+import type * as purchases_ios from "../purchases/ios.js";
+import type * as purchases_mutation from "../purchases/mutation.js";
+import type * as purchases_purchaseState from "../purchases/purchaseState.js";
+import type * as purchases_query from "../purchases/query.js";
+import type * as purchases_retry from "../purchases/retry.js";
+import type * as purchases_shared from "../purchases/shared.js";
+import type * as purchases_stats from "../purchases/stats.js";
+import type * as userProfiles_action from "../userProfiles/action.js";
+import type * as userProfiles_internal from "../userProfiles/internal.js";
+import type * as userProfiles_mutation from "../userProfiles/mutation.js";
+import type * as userProfiles_query from "../userProfiles/query.js";
+import type * as users_internal from "../users/internal.js";
+import type * as users_query from "../users/query.js";
+import type * as utils_errors from "../utils/errors.js";
+import type * as utils_helpers from "../utils/helpers.js";
+import type * as utils_validation from "../utils/validation.js";
+
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
+declare const fullApi: ApiFromModules<{
+  ResendOTP: typeof ResendOTP;
+  "analytics/action": typeof analytics_action;
+  "apiKeys/helpers": typeof apiKeys_helpers;
+  "apiKeys/internal": typeof apiKeys_internal;
+  "apiKeys/mutation": typeof apiKeys_mutation;
+  "apiKeys/query": typeof apiKeys_query;
+  auth: typeof auth;
+  "certificates/apple_root_certificates": typeof certificates_apple_root_certificates;
+  crons: typeof crons;
+  "files/internal": typeof files_internal;
+  "files/mutation": typeof files_mutation;
+  "files/query": typeof files_query;
+  "files/validation": typeof files_validation;
+  http: typeof http;
+  migrations: typeof migrations;
+  "organizations/internal": typeof organizations_internal;
+  "organizations/mutation": typeof organizations_mutation;
+  "organizations/query": typeof organizations_query;
+  plans: typeof plans;
+  "projects/helpers": typeof projects_helpers;
+  "projects/internal": typeof projects_internal;
+  "projects/mutation": typeof projects_mutation;
+  "projects/query": typeof projects_query;
+  "purchases/action": typeof purchases_action;
+  "purchases/android": typeof purchases_android;
+  "purchases/cleanup": typeof purchases_cleanup;
+  "purchases/errors": typeof purchases_errors;
+  "purchases/horizon": typeof purchases_horizon;
+  "purchases/internal": typeof purchases_internal;
+  "purchases/ios": typeof purchases_ios;
+  "purchases/mutation": typeof purchases_mutation;
+  "purchases/purchaseState": typeof purchases_purchaseState;
+  "purchases/query": typeof purchases_query;
+  "purchases/retry": typeof purchases_retry;
+  "purchases/shared": typeof purchases_shared;
+  "purchases/stats": typeof purchases_stats;
+  "userProfiles/action": typeof userProfiles_action;
+  "userProfiles/internal": typeof userProfiles_internal;
+  "userProfiles/mutation": typeof userProfiles_mutation;
+  "userProfiles/query": typeof userProfiles_query;
+  "users/internal": typeof users_internal;
+  "users/query": typeof users_query;
+  "utils/errors": typeof utils_errors;
+  "utils/helpers": typeof utils_helpers;
+  "utils/validation": typeof utils_validation;
+}>;
+
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
+export declare const api: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "public">
+>;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
+export declare const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+>;
+
+export declare const components: {
+  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
+};
