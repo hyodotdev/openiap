@@ -53,6 +53,7 @@ export function extractHttpStatus(error: unknown): number | undefined {
   const asRecord = error as {
     code?: unknown;
     status?: unknown;
+    httpStatusCode?: unknown;
     response?: { status?: unknown } | undefined;
   };
 
@@ -65,6 +66,14 @@ export function extractHttpStatus(error: unknown): number | undefined {
   // Some libraries use `.status` directly.
   if (typeof asRecord.status === "number") {
     return asRecord.status;
+  }
+
+  // `@apple/app-store-server-library`'s APIException exposes the HTTP
+  // status as `.httpStatusCode`. Without this branch a transient 502
+  // / 503 from the App Store Server API would surface as a permanent
+  // failure to the caller.
+  if (typeof asRecord.httpStatusCode === "number") {
+    return asRecord.httpStatusCode;
   }
 
   // Fall back to nested response object.

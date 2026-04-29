@@ -32,6 +32,7 @@ import {
   AppStoreServerCredentialsMissingError,
   AppStoreServerCredentialField,
 } from "./errors";
+import { retryOnTransient } from "./retry";
 
 export const verifyAppStoreReceiptInternalV1 = action({
   args: {
@@ -171,7 +172,14 @@ async function verifyJWSTransaction(
       appAppleId,
     );
 
-    const verifiedTransaction = await verifier.verifyAndDecodeTransaction(jws);
+    // `enableOnlineChecks: true` makes verifyAndDecodeTransaction
+    // perform an HTTP call against Apple's CRL/OCSP endpoints, so a
+    // transient Apple-edge 5xx or DNS hiccup would otherwise bubble
+    // up as a permanent verification failure. Retry-on-transient
+    // matches the policy the Server API + Google Play paths use.
+    const verifiedTransaction = await retryOnTransient(() =>
+      verifier.verifyAndDecodeTransaction(jws),
+    );
 
     const transactionData = {
       transactionId: verifiedTransaction.transactionId,
@@ -288,8 +296,12 @@ async function verifyTransactionWithServerApi(params: {
   );
 
   try {
-    const response = await client.getTransactionInfo(
-      decodedJwsPayload.transactionId as string,
+    // App Store Server API can return transient 5xx during incidents;
+    // retry matches the shared policy (max 3 attempts, sub-second
+    // backoff, 4xx fails fast). `extractHttpStatus` reads
+    // `httpStatusCode` from APIException so retry-on-5xx fires here.
+    const response = await retryOnTransient(() =>
+      client.getTransactionInfo(decodedJwsPayload.transactionId as string),
     );
 
     if (!response.signedTransactionInfo) {
