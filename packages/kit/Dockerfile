@@ -22,7 +22,6 @@ RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/kit/node_modules ./packages/kit/node_modules
 COPY package.json bun.lock ./
 COPY packages/kit ./packages/kit
 WORKDIR /app/packages/kit
