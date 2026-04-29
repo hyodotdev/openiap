@@ -33,7 +33,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.3.0
 
       - name: Install dependencies (workspace root)
         working-directory: ${{ github.workspace }}
@@ -67,6 +67,11 @@ jobs:
     concurrency:
       group: deploy-kit-${{ github.ref }}
       cancel-in-progress: false
+    # Lift KIT_CONVEX_DEPLOY_KEY to the job env so step-level `if:` can
+    # gate on it. GitHub Actions disallows the `secrets` context in
+    # step `if:` expressions; reading it via env is the supported pattern.
+    env:
+      KIT_CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v6
 
@@ -107,16 +112,16 @@ jobs:
             --build-arg VITE_KIT_MIXPANEL_TOKEN="$VITE_KIT_MIXPANEL_TOKEN"
 
       - name: Setup Bun (for convex deploy)
-        if: ${{ secrets.KIT_CONVEX_DEPLOY_KEY != '' }}
+        if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.3.0
 
       - name: Deploy Convex functions
-        if: ${{ secrets.KIT_CONVEX_DEPLOY_KEY != '' }}
+        if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}
         working-directory: packages/kit
         env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
+          CONVEX_DEPLOY_KEY: ${{ env.KIT_CONVEX_DEPLOY_KEY }}
         run: |
           # Convex deploy needs node_modules; install from monorepo root
           # with --filter so we only pull kit's deps (skip apple/google/docs).

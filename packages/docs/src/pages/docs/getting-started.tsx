@@ -457,8 +457,8 @@ await iap.request_purchase(props)`}</CodeBlock>
           <li>
             <Link to="/docs/features/validation">Validation</Link> — server-side
             verification (your own backend or IAPKit — open source, hosted at
-            kit.openiap.dev or self-host from{' '}
-            <code>packages/kit</code> under MIT)
+            kit.openiap.dev or self-host from <code>packages/kit</code> under
+            MIT)
           </li>
           <li>
             <Link to="/docs/apis">API Reference</Link> — every function with

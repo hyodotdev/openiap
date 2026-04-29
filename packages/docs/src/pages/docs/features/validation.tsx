@@ -161,10 +161,9 @@ if result.is_valid:
           is an <strong>open-source</strong> (MIT) receipt-validation service
           for App Store and Google Play purchases. Instead of running your own
           backend that talks to Apple's App Store Server API and Google Play
-          Developer API, you forward the JWS / purchase token to IAPKit and
-          get a normalized verification response — so one-time in-app
-          purchases can't be faked, replayed, or tampered with. Use the
-          hosted version at{' '}
+          Developer API, you forward the JWS / purchase token to IAPKit and get
+          a normalized verification response — so one-time in-app purchases
+          can't be faked, replayed, or tampered with. Use the hosted version at{' '}
           <a
             href={IAPKIT_URL}
             target="_blank"
