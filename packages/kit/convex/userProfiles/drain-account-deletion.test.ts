@@ -244,17 +244,9 @@ async function drainAccountDeletionBatch(
     return { done: false };
   }
 
-  const org = await ctx.db
-    .query("organizations")
-    .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))
-    .first();
-  if (org) {
-    const progress = await drainOrganizationPage(ctx, org._id);
-    if (!progress) {
-      await ctx.db.delete(org._id);
-    }
-    return { done: false };
-  }
+  // Orphan-org cleanup is intentionally NOT inside drainAccountDeletionBatch
+  // anymore — see drainPendingDeletionOrganizations below + the cron entry
+  // in convex/crons.ts.
 
   const user = await ctx.db.get(userId);
   if (user) {
@@ -263,6 +255,24 @@ async function drainAccountDeletionBatch(
   }
 
   return { done: true };
+}
+
+async function drainPendingDeletionOrganizations(
+  ctx: ReturnType<typeof makeCtx>,
+): Promise<{ progressed: boolean; deletedOrganizationId: string | null }> {
+  const org = await ctx.db
+    .query("organizations")
+    .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))
+    .first();
+  if (!org) {
+    return { progressed: false, deletedOrganizationId: null };
+  }
+  const progress = await drainOrganizationPage(ctx, org._id);
+  if (!progress) {
+    await ctx.db.delete(org._id);
+    return { progressed: true, deletedOrganizationId: org._id };
+  }
+  return { progressed: true, deletedOrganizationId: null };
 }
 
 async function drainOrganizationPage(
@@ -384,7 +394,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("authAccounts")).toBe(0);
   });
 
-  it("flags orphaned orgs and drains their project+purchase tree", async () => {
+  it("flags orphaned orgs in the membership phase and the separate cron drains them", async () => {
     const orgId = await ctx.db.insert("organizations", {
       name: "acme",
     });
@@ -397,7 +407,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     const projectId = await ctx.db.insert("projects", {
       organizationId: orgId,
     });
-    // 350 purchases → must page across 4+ drain calls.
+    // 350 purchases → must page across 4+ orphan-cron ticks.
     for (let i = 0; i < 350; i++) {
       await ctx.db.insert("purchases", { projectId });
     }
@@ -408,7 +418,24 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
       storageId: "storage_1",
     });
 
+    // User-deletion path completes immediately, leaving the org flagged
+    // `pendingDeletion: true` for the global cron to clean up later.
     await runDrainToCompletion(ctx);
+    expect(ctx.db.countRows("organizations")).toBe(1);
+    const flagged = await ctx.db
+      .query("organizations")
+      .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))
+      .first();
+    expect(flagged?._id).toBe(orgId);
+
+    // The orphan-org cron drains the rest. Each tick processes one
+    // bounded page; loop until it stops finding work.
+    let iters = 0;
+    while (iters < 1000) {
+      const { progressed } = await drainPendingDeletionOrganizations(ctx);
+      iters++;
+      if (!progressed) break;
+    }
 
     expect(ctx.db.countRows("purchases")).toBe(0);
     expect(ctx.db.countRows("apiKeys")).toBe(0);

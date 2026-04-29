@@ -49,16 +49,43 @@ app.get("*", async (c, next) => {
 
 // SPA fallback: any unmatched path returns index.html so React Router
 // can take over for deep links and page reloads.
-app.get("*", async (c) => {
-  const indexPath = path.join(STATIC_ROOT, "index.html");
+//
+// Cache the file contents in module scope. The compiled-in-Docker SPA
+// is immutable for the lifetime of the process, so a per-request
+// `fs.readFile` would just be repeated work — under SPA traffic
+// (deep-link refreshes, OG-tag previews) the file is read on every
+// React Router miss, which adds up.
+const indexPath = path.join(STATIC_ROOT, "index.html");
+let cachedIndexHtml: string | null = null;
+let cachedIndexHtmlError: string | null = null;
+async function loadIndexHtml(): Promise<string> {
+  if (cachedIndexHtml !== null) {
+    return cachedIndexHtml;
+  }
+  if (cachedIndexHtmlError !== null) {
+    throw new Error(cachedIndexHtmlError);
+  }
   try {
     const html = await fs.readFile(indexPath, "utf-8");
+    cachedIndexHtml = html;
+    return html;
+  } catch (err) {
+    // Cache the *failure* too, but keep it on a separate channel so a
+    // future successful read (e.g. dev hot-reload regenerated dist/)
+    // can still take over by clearing it. We only set it for the
+    // missing-file case so that every request gets the same friendly
+    // 500 instead of repeatedly hitting the disk.
+    cachedIndexHtmlError = `index.html missing at ${indexPath} — run \`bun run build\` first.`;
+    throw err;
+  }
+}
+
+app.get("*", async (c) => {
+  try {
+    const html = await loadIndexHtml();
     return c.html(html);
   } catch {
-    return c.text(
-      `index.html missing at ${indexPath} — run \`bun run build\` first.`,
-      500,
-    );
+    return c.text(cachedIndexHtmlError ?? "index.html unavailable", 500);
   }
 });
 

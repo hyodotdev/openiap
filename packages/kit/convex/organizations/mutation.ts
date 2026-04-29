@@ -42,18 +42,30 @@ export const createOrganization = mutation({
       }
     }
 
-    // Ensure slug is unique: check the base slug once; if taken, append a
-    // random suffix so we don't do a 'query-in-a-loop' probe of `slug-1`,
-    // `slug-2`, ... under contention.
-    const existingBase = await ctx.db
-      .query("organizations")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
-      .first();
-
+    // Ensure slug is unique. We probe the base slug first and append a
+    // random suffix on collision instead of `slug-1`, `slug-2`, ... so we
+    // don't do a query-in-a-loop scan under contention. The retry loop
+    // covers the (astronomically unlikely) case where TWO concurrent
+    // creates land on the same base AND the same random suffix — without
+    // it, both transactions would commit and the `by_slug` index would
+    // hold duplicates (Convex has no unique-index enforcement).
+    const SLUG_RETRY_LIMIT = 5;
     let finalSlug = slug;
-    if (existingBase) {
+    let attempt = 0;
+    while (attempt < SLUG_RETRY_LIMIT) {
+      const existing = await ctx.db
+        .query("organizations")
+        .withIndex("by_slug", (q) => q.eq("slug", finalSlug))
+        .first();
+      if (!existing) {
+        break;
+      }
       const randomSuffix = Math.random().toString(36).slice(2, 8);
       finalSlug = `${slug}-${randomSuffix}`;
+      attempt++;
+    }
+    if (attempt >= SLUG_RETRY_LIMIT) {
+      throw createError(ErrorCode.SLUG_NOT_AVAILABLE);
     }
 
     const now = Date.now();

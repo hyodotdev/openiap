@@ -24,4 +24,15 @@ crons.daily(
   internal.users.internal.cleanupIncompleteUsers,
 );
 
+// Drain organizations flagged `pendingDeletion: true`. Runs separately
+// from the user-account-deletion path so an individual user's teardown
+// never blocks on global orphan-org backlog. Each tick processes one
+// org one bounded page at a time; we run every 5 minutes so a deletion
+// queue clears within minutes, not hours.
+crons.interval(
+  "drain pending-deletion organizations",
+  { minutes: 5 },
+  internal.userProfiles.internal.drainPendingDeletionOrganizations,
+);
+
 export default crons;

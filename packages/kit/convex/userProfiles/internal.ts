@@ -131,23 +131,12 @@ export const drainAccountDeletionBatch = internalMutation({
       return { done: false };
     }
 
-    // Phase: drain orphaned orgs flagged by the membership phase.
-    const org = await ctx.db
-      .query("organizations")
-      .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))
-      .first();
-    if (org) {
-      const madeProgress = await drainOrganizationPage(ctx, org._id);
-      if (!madeProgress) {
-        // Org has no more data attached — delete the org row itself.
-        // Stripe customer teardown is no longer needed after the free
-        // transition; legacy stripeCustomerId values are left as-is.
-        await ctx.db.delete(org._id);
-      }
-      return { done: false };
-    }
-
-    // Phase: finally delete the user row itself.
+    // Phase: finally delete the user row itself. Orgs flagged by the
+    // membership phase (sole-member case) are picked up by the
+    // separate `drainPendingDeletionOrganizations` cron — running it
+    // inside the user-deletion drain would let one user's account
+    // teardown be indefinitely delayed by orphan-org backlog from
+    // unrelated users.
     const user = await ctx.db.get(userId);
     if (user) {
       await ctx.db.delete(userId);
@@ -155,6 +144,37 @@ export const drainAccountDeletionBatch = internalMutation({
     }
 
     return { done: true };
+  },
+});
+
+/**
+ * Drain one bounded slice of any organization currently flagged
+ * `pendingDeletion: true`. Run on a cron rather than inline in the
+ * account-deletion path so a single user's teardown never has to
+ * wait on global orphan-org cleanup.
+ */
+export const drainPendingDeletionOrganizations = internalMutation({
+  args: {},
+  returns: v.object({
+    progressed: v.boolean(),
+    deletedOrganizationId: v.union(v.id("organizations"), v.null()),
+  }),
+  handler: async (ctx) => {
+    const org = await ctx.db
+      .query("organizations")
+      .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))
+      .first();
+    if (!org) {
+      return { progressed: false, deletedOrganizationId: null };
+    }
+    const madeProgress = await drainOrganizationPage(ctx, org._id);
+    if (!madeProgress) {
+      // Stripe customer teardown is no longer needed after the free
+      // transition; legacy stripeCustomerId values are left as-is.
+      await ctx.db.delete(org._id);
+      return { progressed: true, deletedOrganizationId: org._id };
+    }
+    return { progressed: true, deletedOrganizationId: null };
   },
 });
 
