@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+set -e
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+# packages/kit pre-commit gate — paths-aware.
+# Only runs when staged changes touch packages/kit/**, so unrelated
+# package edits (apple/google/gql/docs/libraries) aren't blocked by
+# kit's tsc + eslint.
+#
+# Smoke test (Bun compile + boot probe) is intentionally NOT run here
+# — that's CI's job. Keeping the local gate fast (~5–10s) means it
+# actually gets used instead of being bypassed with --no-verify.
+if git diff --cached --name-only --diff-filter=ACMR | grep -q '^packages/kit/'; then
+  echo "🧰 kit-touched commit — running typecheck + eslint…"
+  bun run --filter @hyodotdev/openiap-kit lint
+fi

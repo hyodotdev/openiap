@@ -122,6 +122,18 @@
             "runtimeArgs": ["-lc", "adb uninstall dev.hyo.martie || true && ./gradlew :example:composeApp:installDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
             "cwd": "${workspaceFolder}/libraries/kmp-iap",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "🧰 Kit: Dev (Vite + Hono + Convex)",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && (bun run dev:convex & bun run dev:server & bun run dev; kill 0)"
+            ],
+            "cwd": "${workspaceFolder}/packages/kit",
+            "console": "integratedTerminal"
         }
     ]
 }

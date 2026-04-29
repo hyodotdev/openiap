@@ -1,0 +1,11 @@
+fly.toml
+node_modules
+.git
+
+# Local env files must never enter the Docker build context. The
+# Dockerfile receives Vite env via --build-arg (CI secrets or
+# scripts/deploy-prod.sh), so copying a stray .env.local into the
+# image would just be a footgun — a dev value in the repo could
+# silently override the build-arg that CI / the script passes in.
+.env
+.env.*

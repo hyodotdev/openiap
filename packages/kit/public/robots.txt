@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# The API and post-sign-in flows have no crawlable content — /api/*
+# is JSON, /onboarding/* is the new-user setup wizard, /profile is
+# per-user. Authenticated org dashboards live at /:orgSlug/... and
+# render an auth modal for anon visitors (no marketing surface to
+# index), so they self-exclude without an explicit rule.
+Disallow: /api/
+Disallow: /onboarding/
+Disallow: /profile
+
+Sitemap: https://kit.openiap.dev/sitemap.xml

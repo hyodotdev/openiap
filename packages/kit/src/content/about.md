@@ -1,0 +1,1 @@
+Created with love and passion in Korea 🇰🇷 and Sweden 🇸🇪 by [Hyo Chan](https://www.linkedin.com/in/hyochanjang/) and [Adam Gerthel](https://www.linkedin.com/in/adamgerthel/). Managed by [Hyo Dev](https://hyo.dev), the [OpenIAP](https://openiap.dev) founding company.

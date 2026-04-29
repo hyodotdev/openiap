@@ -1,0 +1,244 @@
+# IAPKit — full reference
+
+> Receipt-validation SaaS managed by OpenIAP. https://kit.openiap.dev
+> Source of truth for every fact here: the repo at
+> github.com/hyodotdev/openiap-kit (private) and the in-dashboard docs at
+> https://kit.openiap.dev/docs. If something below conflicts with live
+> behavior, the live server wins — this file is regenerated from the repo.
+
+## Architecture
+
+Single-package repo deployed as one Fly.io machine:
+
+- `src/` — React 19 SPA (dashboard, auth, usage, projects, API keys, docs)
+- `server/` — Hono + Bun server for `/api/v1/*` + `/v1/*` + SPA fallback
+- `convex/` — Convex functions (auth, orgs, projects, receipts)
+- `public/` — static assets (served by Vite in dev, Hono in prod)
+
+The Convex backend is imported by both the frontend (via `@/convex` barrel
+at `src/convex.ts`) and the Hono server (via `./convex` direct path).
+
+## Authentication
+
+Every API request must carry a Bearer token:
+
+```http
+Authorization: Bearer openiap-kit_<your-project-key>
+```
+
+Each project has its own API key. Keys are stored in Convex
+(`convex/apiKeys`), looked up by SHA-256 hash, and can be rotated from the
+dashboard. Dashboard users sign in via GitHub / Google OAuth or email-OTP
+(Resend).
+
+## Endpoints
+
+Mounted at both `/v1/*` (canonical) and `/api/v1/*` (alias).
+
+### POST /v1/purchase/verify
+
+Verify an in-app purchase. The body is a tagged union discriminated on
+`store`. Response always has shape `{ isValid: boolean, state: <enum> }`.
+
+Request (Apple):
+```json
+{ "store": "apple", "jws": "eyJhbGciOi..." }
+```
+
+Request (Google):
+```json
+{ "store": "google", "purchaseToken": "ljhjpg..." }
+```
+
+Request (Meta Horizon / Quest):
+```json
+{ "store": "horizon", "userId": "1234567890", "sku": "coin_pack_100" }
+```
+
+IAPKit does not expose the Meta App Secret to the client. The dashboard
+stores it as a write-only credential and the server composes the
+`OC|APP_ID|APP_SECRET` access token when calling
+`POST https://graph.oculus.com/{APP_ID}/verify_entitlement`.
+
+### Aliases
+
+- `POST /v1/verify-purchase` — identical handler, kept for the path
+  documented in the original `api.iapkit.com` spec.
+- `POST /api/v1/*` — every `/v1/*` path is also reachable under `/api/v1/*`.
+
+### GET /v1 / GET /v1/openapi
+
+`/v1` serves a Redoc UI for the generated OpenAPI spec. `/v1/openapi`
+returns the raw JSON. Both are unauthenticated.
+
+### GET /health
+
+```json
+{ "ok": true }
+```
+
+Intentionally cheap — no Convex round-trip. Used by Fly.io liveness /
+readiness probes. Sentry is configured to drop `/health` transactions so
+probe traffic doesn't dominate trace quota.
+
+## Harmonized purchase states
+
+| State                     | `isValid` | Meaning                                              |
+| ------------------------- | :-------: | ---------------------------------------------------- |
+| `ENTITLED`                | true      | Paid, not refunded, entitlement active               |
+| `PENDING_ACKNOWLEDGMENT`  | true      | Android: paid but awaiting acknowledgement           |
+| `READY_TO_CONSUME`        | true      | iOS: consumable ready to be fulfilled                |
+| `PENDING`                 | false     | In progress or awaiting confirmation                 |
+| `CONSUMED`                | false     | Google Play: consumable already fulfilled            |
+| `CANCELED`                | false     | Refunded, revoked, or canceled                       |
+| `EXPIRED`                 | false     | Subscription past its expiry date                    |
+| `INAUTHENTIC`             | false     | Receipt not recognized by the store                  |
+| `UNKNOWN`                 | false     | State could not be determined                        |
+
+## Status codes
+
+| Code | Body                            | When                                              |
+| ---- | ------------------------------- | ------------------------------------------------- |
+| 200  | `{ isValid, state }`            | Verification ran                                  |
+| 400  | `INVALID_INPUT`                 | Malformed body, unknown store, oversized input    |
+| 401  | `MISSING_API_KEY`               | No `Authorization` header                         |
+| 403  | `INVALID_API_KEY`               | Wrong scheme, malformed, or unknown key           |
+| 429  | `RATE_LIMITED`                  | Per-key bucket empty; honor `Retry-After`         |
+| 500  | `UNKNOWN_ERROR`                 | Server-side failure; include `X-Correlation-Id`   |
+
+Error body shape:
+```json
+{
+  "errors": [
+    {
+      "code": "META_HORIZON_APP_SECRET_NOT_CONFIGURED",
+      "message": "Meta Horizon App Secret is not set for this project.",
+      "path": "horizon.appSecret"
+    }
+  ]
+}
+```
+
+`path` is present on validation errors (400) and points at the offending
+field. Store-specific failure codes carry details in `message` — see the
+per-store docs pages.
+
+## Response headers
+
+Every authenticated response (2xx, validation 4xx, 429) carries:
+
+- `X-Correlation-Id` — UUIDv4, matches the stdout log line
+- `X-RateLimit-Limit` — bucket capacity for this API key
+- `X-RateLimit-Remaining` — tokens left in the bucket
+
+On 429 the response also carries `Retry-After` in seconds. 401 / 403
+responses from the auth layer run before rate-limit middleware and do not
+carry these headers.
+
+## Rate limits
+
+In-memory token bucket keyed on SHA-256(api-key). Defaults: 60-request
+burst + 1 req/sec steady state (≈ 60 req/min sustained). Tunable on
+self-hosted deployments via `RATE_LIMIT_CAPACITY` and
+`RATE_LIMIT_REFILL_PER_SEC`. The Map is capped at 10,000 entries with LRU
+eviction (`RATE_LIMIT_MAX_STORE`).
+
+## Input size caps
+
+- `jws` ≤ 16 KB (Apple)
+- `purchaseToken` ≤ 2 KB (Google)
+- `userId` ≤ 256 chars (Horizon)
+- `sku` ≤ 256 chars (Horizon)
+
+Oversized requests return `400 INVALID_INPUT` before IAPKit calls the
+upstream store, so a misbehaving client can't burn Apple / Google / Meta
+quota.
+
+## Structured logs
+
+Every verify request emits one JSON line to stdout:
+
+```json
+{
+  "level": "info",
+  "kind": "verify_request",
+  "corrId": "6ebb9c9e-2e6e-4f9a-9bf2-4a6a9d5f9d20",
+  "method": "POST",
+  "path": "/v1/purchase/verify",
+  "statusCode": 200,
+  "durationMs": 187,
+  "apiKeyHash": "c3d1f4a2b1e27f0a",
+  "store": "google",
+  "isValid": true,
+  "state": "ENTITLED"
+}
+```
+
+The API key is never logged in plaintext — only the first 16 hex chars of
+its SHA-256 prefix (the same value the rate limiter keys on).
+
+## Outbound retries
+
+Calls to Google Play's Android Publisher API and Meta Graph API are
+wrapped in an exponential-backoff retry (max 3 attempts, base 200 ms, cap
+2 s, full jitter). Retries fire on HTTP 5xx and Node network errors
+(`ECONNRESET`, `ETIMEDOUT`, `EAI_AGAIN`, …). 4xx responses — including 404
+and 410, which are deterministic — are **not** retried.
+
+Apple calls (App Store Server API) follow the same policy.
+
+## Graceful shutdown
+
+The server installs `SIGTERM` and `SIGINT` handlers that call
+`Bun.serve().stop()` and drain in-flight `/v1/*` and `/api/v1/*` requests
+before the process exits. Fly.io sends `SIGTERM` before stopping a
+machine, so rolling deploys don't cut off requests mid-verify.
+
+## Sentry
+
+Two Sentry projects — one for the Bun server (`@sentry/bun`), one for the
+browser SPA (`@sentry/react`). Default `tracesSampleRate` is 0.05; errors
+are sampled at 1.0. `/health` transactions are dropped via
+`ignoreTransactions` so Fly probes don't dominate the trace budget.
+
+## Data model (Convex)
+
+Domains under `convex/` follow a CQRS layout — each has `query.ts`,
+`mutation.ts`, `internal.ts`, and sometimes `action.ts`:
+
+- `users/`, `userProfiles/` — auth identities + profile settings
+- `organizations/` — top-level account boundary; one or more members
+- `projects/` — a single app; holds store credentials (Apple / Google /
+  Horizon), owns API keys, owns verify events
+- `apiKeys/` — per-project bearer tokens, stored hashed
+- `purchases/` — receipt validation history (apple, google, horizon)
+- `certificates/` — uploaded `.p8` / service-account JSON blobs
+- `files/` — generic file store used by certificates
+- `migrations/` — one-off schema migrations
+
+`convex/schema.ts` is the canonical data model. Never edit
+`convex/_generated/` by hand — it's regenerated by the Convex CLI.
+
+## Deployment
+
+- Image: `Dockerfile` produces a single-stage binary image; multi-stage
+  build compiles the SPA (`vite build`), compiles the server
+  (`bun build --compile`), and copies both into the final image.
+- Host: Fly.io app `openiap-kit` (one machine, sufficient for current
+  load).
+- CI: `.github/workflows/ci.yml` runs typecheck + build + server smoke on
+  every PR. `.github/workflows/deploy.yml` runs `flyctl deploy` on merge
+  to `main`.
+
+## Related docs
+
+- [/docs](https://kit.openiap.dev/docs) — in-dashboard documentation index
+- [/docs/quickstart](https://kit.openiap.dev/docs/quickstart)
+- [/docs/projects](https://kit.openiap.dev/docs/projects) — project + key hierarchy
+- [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple)
+- [/docs/verification/google](https://kit.openiap.dev/docs/verification/google)
+- [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon)
+- [/docs/api](https://kit.openiap.dev/docs/api)
+- [/docs/operations](https://kit.openiap.dev/docs/operations)
+- [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to consume this file
+- [/docs/release-notes](https://kit.openiap.dev/docs/release-notes)
