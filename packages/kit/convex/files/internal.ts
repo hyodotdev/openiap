@@ -178,14 +178,10 @@ export const readFileAsBase64 = internalAction({
     //   accessCount: (file.accessCount || 0) + 1,
     // });
 
-    // Convert blob to base64 using btoa (works in Convex environment)
+    // Convert blob to base64 via Buffer (Convex actions run on Node/Bun
+    // — Buffer is available globally and avoids the per-byte loop).
     const arrayBuffer = await blob.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64 = btoa(binary);
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
 
     return {
       fileId: file._id,

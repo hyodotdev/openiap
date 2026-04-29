@@ -20,7 +20,25 @@ import { replayGuardMiddleware } from "./replay-guard";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
 
-const app = new Hono();
+// Variables that the request middleware chain attaches to the Hono
+// context. Declaring them here (and passing the generic to `new Hono()`)
+// lets handlers access `c.var.apiKey` / `c.set("verifyOutcome", ...)`
+// directly with full type safety, instead of the `as unknown` casts
+// that earlier flow-control between strongly-typed middleware (each
+// declaring its own Variables shape via createMiddleware) and the
+// untyped app instance required.
+type V1AppVariables = {
+  // apiKeyMiddleware
+  apiKey: string;
+  // rate-limit middleware
+  apiKeyHash: string;
+  // request-logger middleware
+  corrId: string;
+  // verify-purchase handler → request-logger
+  verifyOutcome: { isValid: boolean; state: string };
+};
+
+const app = new Hono<{ Variables: V1AppVariables }>();
 
 const DEV_BASE_URL = "http://localhost:3000";
 const PROD_BASE_URL = "https://kit.openiap.dev";
@@ -298,21 +316,15 @@ type VerifyPurchaseJson =
   | { store: "google"; purchaseToken: string }
   | { store: "horizon"; userId: string; sku: string };
 
-const verifyPurchaseHandler = async (c: Context) => {
+const verifyPurchaseHandler = async (
+  c: Context<{ Variables: V1AppVariables }>,
+) => {
   const json = c.req.valid("json" as never) as VerifyPurchaseJson;
-  const apiKey = (c as unknown as { var: { apiKey: string } }).var.apiKey;
+  const apiKey = c.var.apiKey;
   const requestIp = getRequestIp(c);
 
-  // Type-erased setter used to hand the verification outcome to the
-  // request logger middleware running on the outside of this handler.
-  // Kept local so the OpenAPI context type above doesn't need to
-  // declare a log variable every route would have to acknowledge.
-  const setOutcome = (outcome: { isValid: boolean; state: string }) => {
-    (
-      c as unknown as {
-        set: (key: "verifyOutcome", value: typeof outcome) => void;
-      }
-    ).set("verifyOutcome", outcome);
+  const setOutcome = (outcome: V1AppVariables["verifyOutcome"]) => {
+    c.set("verifyOutcome", outcome);
   };
 
   try {
