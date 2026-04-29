@@ -125,24 +125,31 @@ Always use icon components, never inline `<svg>`:
 ## Pre-commit gate
 
 Husky lives at the **monorepo root**, not inside `packages/kit`. The
-hook (`.husky/pre-commit`) is paths-aware: it only runs when staged
-changes touch `packages/kit/**`, and it runs only the fast `lint`
-script:
+hook (`.husky/pre-commit`) is paths-aware: when staged changes touch
+`packages/kit/**` it runs the **full CI-equivalent gate** mirroring
+the `verify` job in `.github/workflows/deploy-kit.yml`:
 
-```bash
-bun run --filter @hyodotdev/openiap-kit lint
-```
+1. `bun install --frozen-lockfile` (catches lockfile drift)
+2. `bun run --filter @hyodotdev/openiap-kit lint` (tsc + eslint)
+3. prettier check on `src` / `server` / `convex`
+4. `bun run --filter @hyodotdev/openiap-kit test` (vitest)
+5. `bun run --filter @hyodotdev/openiap-kit smoke:server` (compile + boot probe)
 
-which is `tsc --noEmit` + `eslint`. The fuller `precommit` script
-(`bunx lint-staged && bun run lint && bun run test && bun run smoke:server`)
-is available as `bun run --filter @hyodotdev/openiap-kit precommit` for
-ad-hoc use, but the husky hook intentionally skips `test` and
-`smoke:server` to keep the local gate ~5–10 s — that's CI's job.
+The hook is intentionally CI-equivalent — past kit pushes failed in CI
+for issues that were silently passing locally (e.g. tsc inferring
+third-party callback types correctly against an incremental
+`node_modules` but failing on CI's fresh install, or prettier flagging
+files that local lint-staged hadn't reformatted). Running the same
+checks on commit avoids the push → red CI → fix-up → push loop.
+
+Cost: ~30-60 s on first run after a clean checkout, ~15-20 s on warm
+checkouts. If you really need to bypass, fix the underlying issue
+rather than passing `--no-verify`.
 
 `smoke:server` (`scripts/smoke-server.sh`) compiles the Bun binary,
-boots it on port 3100, and probes `/health`, `/`, `/api/v1`. Adds
-~10–15 s but catches startup regressions (missing env, bind
-conflicts, missing `dist/index.html`).
+boots it on port 3100, and probes `/health`, `/`, `/api/v1` — catches
+startup regressions (missing env, bind conflicts, missing
+`dist/index.html`).
 
 ## Commit messages
 

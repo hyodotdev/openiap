@@ -4,15 +4,68 @@ set -e
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# packages/kit pre-commit gate — paths-aware.
-# Only runs when staged changes touch packages/kit/**, so unrelated
-# package edits (apple/google/gql/docs/libraries) aren't blocked by
-# kit's tsc + eslint.
+# Paths-aware kit pre-commit gate. Only runs when staged changes touch
+# packages/kit/**, so unrelated edits to apple/google/gql/docs/libraries
+# aren't blocked.
 #
-# Smoke test (Bun compile + boot probe) is intentionally NOT run here
-# — that's CI's job. Keeping the local gate fast (~5–10s) means it
-# actually gets used instead of being bypassed with --no-verify.
+# This hook is intentionally CI-equivalent for kit changes: every step
+# CI's `verify` job runs (deploy-kit.yml) is mirrored here. Past kit
+# pushes have failed in CI for issues that were silently passing
+# locally — e.g. tsc inferring third-party callback types correctly
+# against an incremental node_modules but failing on CI's fresh install,
+# or prettier flagging files that locally weren't reformatted. Running
+# the same checks on commit avoids the push → red CI → fix-up → push
+# loop.
+#
+# Cost: roughly 30-60s on first run after a clean checkout, ~15-20s on
+# warm checkouts (lint + tests + smoke). If you really need to bypass,
+# fix the underlying issue rather than passing --no-verify.
 if git diff --cached --name-only --diff-filter=ACMR | grep -q '^packages/kit/'; then
-  echo "🧰 kit-touched commit — running typecheck + eslint…"
+  echo "🧰 kit-touched commit — running CI-equivalent gate…"
+
+  # Lockfile must satisfy package.json. Without --frozen-lockfile,
+  # `bun install` would silently regenerate the lockfile and leave a
+  # stale-vs-CI commit; CI's frozen install would then fail on push.
+  echo "→ bun install --frozen-lockfile"
+  bun install --frozen-lockfile
+
+  # tsc + eslint across src / server / convex.
+  echo "→ kit lint (tsc + eslint)"
   bun run --filter @hyodotdev/openiap-kit lint
+
+  # prettier check (CI mirror — kit's deploy-kit.yml runs this exact
+  # glob, and it's separate from `lint` because eslint config delegates
+  # formatting to prettier).
+  echo "→ kit prettier check"
+  (
+    cd packages/kit \
+      && bunx prettier --check \
+        "src/**/*.{ts,tsx,css,json}" \
+        "server/**/*.ts" \
+        "convex/**/*.ts"
+  )
+
+  # vitest (convex + server unit tests). Fast (~2s) but catches
+  # regressions in receipt validation, rate limiting, etc.
+  echo "→ kit tests"
+  bun run --filter @hyodotdev/openiap-kit test
+
+  # Bun-compile + boot probe. Most expensive step (~10-15s) but the
+  # only thing that catches startup regressions: missing env, bind
+  # conflicts, missing dist/index.html, server.ts import order issues.
+  echo "→ kit smoke (compile + boot probe)"
+  bun run --filter @hyodotdev/openiap-kit smoke:server
+fi
+
+# Paths-aware docs typecheck. The kit integration brought React 19 into
+# the workspace alongside docs's React 18, which previously caused
+# @types/react hoisting to break docs's tsc only in CI. Both are now on
+# React 19, but if either drifts again we want to know on commit.
+if git diff --cached --name-only --diff-filter=ACMR | grep -q '^packages/docs/'; then
+  echo "📘 docs-touched commit — running typecheck + format…"
+  bun install --frozen-lockfile
+  bun run --filter @hyodotdev/openiap-docs typecheck
+  (
+    cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,css}"
+  )
 fi
