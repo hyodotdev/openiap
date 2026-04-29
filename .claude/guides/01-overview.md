@@ -10,7 +10,8 @@ openiap/
 │   ├── apple/         # iOS/macOS library (Swift, StoreKit 2)
 │   ├── google/        # Android library (Kotlin, Play Billing)
 │   ├── gql/           # GraphQL schema & type generation
-│   └── docs/          # Documentation site (React/Vite)
+│   ├── docs/          # Documentation site (React/Vite)
+│   └── kit/           # Hosted receipt-validation SaaS (kit.openiap.dev)
 ├── scripts/           # Monorepo-wide automation
 ├── .github/workflows/ # CI/CD workflows
 ├── CLAUDE.md          # Main agent guidelines
@@ -19,12 +20,13 @@ openiap/
 
 ## Package Responsibilities
 
-| Package  | Purpose                       | Language         | Output                        |
-| -------- | ----------------------------- | ---------------- | ----------------------------- |
-| `apple`  | iOS/macOS IAP implementation  | Swift            | CocoaPods, SPM                |
-| `google` | Android IAP implementation    | Kotlin           | Maven Central                 |
-| `gql`    | Type definitions & generation | TypeScript       | Swift, Kotlin, Dart, TS types |
-| `docs`   | Documentation website         | React/TypeScript | Vercel deployment             |
+| Package  | Purpose                                                   | Language         | Output                        |
+| -------- | --------------------------------------------------------- | ---------------- | ----------------------------- |
+| `apple`  | iOS/macOS IAP implementation                              | Swift            | CocoaPods, SPM                |
+| `google` | Android IAP implementation                                | Kotlin           | Maven Central                 |
+| `gql`    | Type definitions & generation                             | TypeScript       | Swift, Kotlin, Dart, TS types |
+| `docs`   | Documentation website                                     | React/TypeScript | Vercel deployment             |
+| `kit`    | Hosted receipt-validation SaaS (free, MIT, self-hostable) | TypeScript       | Fly.io app (`openiap-kit`)    |
 
 ## Version Management
 

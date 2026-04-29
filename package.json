@@ -16,10 +16,15 @@
     "generate": "cd packages/gql && bun run generate && cd ../apple && ./scripts/generate-types.sh && cd ../google && ./scripts/generate-types.sh",
     "version:sync": "bun scripts/sync-versions.mjs",
     "version:bump": "bun scripts/bump-version.mjs",
-    "deploy": "./scripts/deploy.sh"
+    "deploy": "./scripts/deploy.sh",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "typescript": "^5.9.2"
   },
-  "packageManager": "bun@1.1.0"
+  "overrides": {
+    "csstype": "3.2.3"
+  },
+  "packageManager": "bun@1.3.0"
 }

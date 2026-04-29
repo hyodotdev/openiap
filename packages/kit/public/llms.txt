@@ -1,0 +1,69 @@
+# IAPKit
+
+> Receipt-validation SaaS managed by OpenIAP. Hosted at https://kit.openiap.dev.
+> One Bearer-authed endpoint for all three stores (Apple / Google / Horizon);
+> harmonized response shape so your backend has a single code path for
+> entitlement + refund detection.
+
+IAPKit is a single-package Bun + Hono server bundled with a Convex backend
+and a React SPA, deployed as one Fly.io machine. The dashboard and the
+receipt-validation API live behind the same origin.
+
+## API quick reference
+
+Base URL: https://kit.openiap.dev
+Auth: `Authorization: Bearer openiap-kit_<project-key>`
+
+- [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
+- [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
+- [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
+- [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
+
+Also mounted at `/api/v1/*` for backwards compatibility. `/v1/verify-purchase`
+is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
+
+## Request shapes (discriminated on `store`)
+
+- Apple — `{ store: "apple", jws }` where `jws` is a StoreKit 2 JWS (≤ 16 KB)
+- Google — `{ store: "google", purchaseToken }` (≤ 2 KB)
+- Horizon — `{ store: "horizon", userId, sku }` (≤ 256 chars each). IAPKit
+  holds the App ID + App Secret server-side and composes the
+  `OC|APP_ID|APP_SECRET` access token per-request.
+
+## Success response
+
+```json
+{ "isValid": true, "state": "ENTITLED" }
+```
+
+Harmonized `state` values (truthy `isValid`): `ENTITLED`,
+`PENDING_ACKNOWLEDGMENT`, `READY_TO_CONSUME`. Falsey `isValid`: `PENDING`,
+`CONSUMED`, `CANCELED`, `EXPIRED`, `INAUTHENTIC`, `UNKNOWN`.
+
+## Status codes
+
+- `200` — verification ran; check `isValid`
+- `400 INVALID_INPUT` — malformed body / unknown store / input exceeds size cap
+- `401 MISSING_API_KEY` — no `Authorization` header
+- `403 INVALID_API_KEY` — wrong scheme, malformed, or unrecognized key
+- `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds
+- `500 UNKNOWN_ERROR` — quote the `X-Correlation-Id` header in a support ticket
+
+## Response headers (on 2xx / 4xx validation / 429)
+
+- `X-Correlation-Id` — UUIDv4, matches the stdout log line
+- `X-RateLimit-Limit` — bucket capacity (default 60 per key)
+- `X-RateLimit-Remaining` — tokens left in the bucket
+- `Retry-After` (429 only) — seconds to wait
+
+## Docs
+
+- [/docs](https://kit.openiap.dev/docs) — full in-dashboard documentation
+- [/docs/quickstart](https://kit.openiap.dev/docs/quickstart) — signup → project → API key → first verify
+- [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple) — bundle ID, Issuer ID, Key ID, .p8
+- [/docs/verification/google](https://kit.openiap.dev/docs/verification/google) — package name, service account JSON
+- [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
+- [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers
+- [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
+- [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Claude / Cursor / etc. at this file
+- [/docs/release-notes](https://kit.openiap.dev/docs/release-notes) — changelog

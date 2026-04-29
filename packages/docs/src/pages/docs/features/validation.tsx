@@ -158,12 +158,29 @@ if result.is_valid:
           >
             IAPKit
           </a>{' '}
-          is a managed receipt-validation service for App Store and Google Play
-          purchases. Instead of running your own backend that talks to Apple's
-          App Store Server API and Google Play Developer API, you forward the
-          JWS / purchase token to IAPKit and get a normalized verification
-          response — so one-time in-app purchases can't be faked, replayed, or
-          tampered with.
+          is an <strong>open-source</strong> (MIT) receipt-validation service
+          for App Store and Google Play purchases. Instead of running your own
+          backend that talks to Apple's App Store Server API and Google Play
+          Developer API, you forward the JWS / purchase token to IAPKit and get
+          a normalized verification response — so one-time in-app purchases
+          can't be faked, replayed, or tampered with. Use the hosted version at{' '}
+          <a
+            href={IAPKIT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={trackIapKitClick}
+          >
+            kit.openiap.dev
+          </a>{' '}
+          (free for everyone) or self-host the source from{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <code>packages/kit</code>
+          </a>{' '}
+          in this monorepo.
         </p>
 
         <h4>Why use it</h4>

@@ -24,7 +24,8 @@ openiap/
 │   ├── docs/          # Documentation site (React/Vite/Vercel)
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library
-│   └── apple/         # iOS/macOS library
+│   ├── apple/         # iOS/macOS library
+│   └── kit/           # Hosted receipt-validation SaaS (Fly.io app)
 ├── libraries/         # Framework SDK implementations
 │   ├── react-native-iap/  # React Native (npm)
 │   ├── expo-iap/          # Expo (npm)
@@ -49,6 +50,7 @@ openiap/
    - [`packages/gql/CONVENTION.md`](packages/gql/CONVENTION.md)
    - [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)
    - [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
+   - [`packages/kit/CONVENTION.md`](packages/kit/CONVENTION.md) — kit is a deployable SaaS (not a library); has its own Convex schema and isn't part of the GQL type-sync chain
 3. **For framework libraries, read the library-specific CLAUDE.md**:
    - [`libraries/react-native-iap/CLAUDE.md`](libraries/react-native-iap/CLAUDE.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
    - [`libraries/expo-iap/CLAUDE.md`](libraries/expo-iap/CLAUDE.md) — Bun, Expo Modules, iOS podspec 13.4 workaround, tvOS 16.0 requirement

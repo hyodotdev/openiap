@@ -1,0 +1,1028 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap");
+
+/* Tailwind v4 entry: pulls in `base`, `components`, `utilities`. The
+ * `@config` directive keeps the existing JS config working without
+ * having to port theme tokens into CSS-native @theme blocks. */
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Override Tailwind's base text-size-adjust to include standard property */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  :host {
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Add vendor prefixes for better browser support */
+@supports (-webkit-appearance: none) {
+  * {
+    -webkit-user-select: inherit;
+  }
+
+  .select-none {
+    -webkit-user-select: none;
+  }
+
+  .select-text {
+    -webkit-user-select: text;
+  }
+
+  .select-all {
+    -webkit-user-select: all;
+  }
+}
+
+@layer base {
+  :root {
+    /* Core colors inspired by hyo.dev */
+    --primary-50: #faf8f6;
+    --primary-100: #f5f1ed;
+    --primary-200: #ebe3db;
+    --primary-300: #dccfc2;
+    --primary-400: #c5b19f;
+    --primary-500: #b68b7c;
+    --primary-600: #a47465;
+    --primary-700: #8a5d52;
+    --primary-800: #724d45;
+    --primary-900: #5f403a;
+    --primary-950: #3a251f;
+
+    /* Semantic colors */
+    --background: #fefefe;
+    --foreground: #1a1a1a;
+    --card: #ffffff;
+    --card-foreground: #1a1a1a;
+    --popover: #ffffff;
+    --popover-foreground: #1a1a1a;
+    --primary: var(--primary-600);
+    --primary-foreground: #ffffff;
+    --secondary: #f5f1ed;
+    --secondary-foreground: var(--primary-900);
+    --muted: #f9f8f7;
+    --muted-foreground: #6b5d54;
+    --accent: #dc6843;
+    --accent-foreground: #ffffff;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: rgba(0, 0, 0, 0.12);
+    --input: rgba(0, 0, 0, 0.12);
+    --ring: var(--primary-500);
+    --radius: 0.5rem;
+
+    /* Typography scale */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+    --font-size-5xl: 3rem;
+    --font-size-6xl: 3.75rem;
+
+    /* Spacing scale */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    --spacing-3xl: 4rem;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md:
+      0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg:
+      0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl:
+      0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Blur values */
+    --blur-sm: 4px;
+    --blur-md: 8px;
+    --blur-lg: 16px;
+    --blur-xl: 24px;
+  }
+
+  :root.dark,
+  .dark {
+    --background: #18181b;
+    --foreground: #e1e1e6;
+    --card: #18181f;
+    --card-foreground: #e1e1e6;
+    --popover: #1e1e26;
+    --popover-foreground: #e1e1e6;
+    --primary: var(--primary-400);
+    --primary-foreground: #0f0f14;
+    --secondary: #252530;
+    --secondary-foreground: #e1e1e6;
+    --muted: #252530;
+    --muted-foreground: #9ca3af;
+    --accent: #ff8066;
+    --accent-foreground: #0f0f14;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 230 14% 90%;
+    --border: rgba(255, 255, 255, 0.12);
+    --input: rgba(255, 255, 255, 0.12);
+    --ring: var(--primary-400);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  /* Ensure proper user-select support across browsers */
+  * {
+    -webkit-user-select: inherit;
+    -moz-user-select: inherit;
+    user-select: inherit;
+  }
+
+  /* Specific user-select utilities */
+  .select-none {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    user-select: none !important;
+  }
+
+  .select-text {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    user-select: text !important;
+  }
+
+  .select-all {
+    -webkit-user-select: all !important;
+    -moz-user-select: all !important;
+    user-select: all !important;
+  }
+
+  .select-auto {
+    -webkit-user-select: auto !important;
+    -moz-user-select: auto !important;
+    user-select: auto !important;
+  }
+
+  html {
+    overflow-x: hidden;
+    width: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      "Roboto",
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "Helvetica Neue",
+      Arial,
+      "Noto Sans",
+      sans-serif;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+    /* GPU acceleration for better performance */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: scroll-position;
+  }
+
+  /* Tailwind v4 dropped the historical `cursor: pointer` default on
+     <button> elements. Restore it project-wide for anything that's
+     actually interactive — buttons, links, role="button", summary,
+     selectable form controls — and explicitly keep `not-allowed` for
+     disabled controls so the affordance still reads correctly. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="file"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* Reusable inline-link style. Tailwind's default `<a>` has no
+     affordance at all — in a dark UI with light text, that makes links
+     invisible. Opt-in via `className="link"` anywhere an inline URL
+     should read as clickable (settings rows, prose, footer attributions,
+     etc). Standalone "button-y" anchors (CTAs, nav items, cards) keep
+     their bespoke styling; this is only for text that should look like
+     a link inside surrounding copy. */
+  .link {
+    color: #d4a24c;
+    font-weight: 500;
+    text-decoration: none;
+    text-underline-offset: 3px;
+    transition: color 0.15s ease;
+  }
+
+  /* Underline appears on hover AND on keyboard focus so the link has
+     a non-color affordance. WCAG 1.4.1 (Use of Color) requires that
+     information conveyed by color alone is also available via a
+     second cue — color-blind / low-vision users can't reliably
+     distinguish the yellow tint from surrounding text, so we need
+     the underline at the interaction boundary. */
+  .link:hover,
+  .link:focus-visible {
+    color: #eab858;
+    text-decoration: underline;
+  }
+
+  .link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  .dark .link {
+    color: #e6b66a;
+  }
+
+  .dark .link:hover,
+  .dark .link:focus-visible {
+    color: #f5c97d;
+  }
+
+  /* Blog post typography — Medium-inspired reading layout. No
+     `@tailwindcss/typography` in this repo, so we ship bespoke rules
+     that cover the elements the post templates actually use (h2/h3,
+     p, ul/ol, a, strong, code, blockquote). Tuned for comfortable
+     long-form reading: serif-ish sizing, generous line-height, real
+     gaps between blocks. */
+  .blog-content {
+    font-size: 18px;
+    line-height: 1.75;
+    color: var(--foreground);
+  }
+
+  .blog-content > * + * {
+    margin-top: 1.5em;
+  }
+
+  .blog-content h2 {
+    margin-top: 2.4em;
+    margin-bottom: 0.6em;
+    font-size: 1.5em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .blog-content h3 {
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    font-size: 1.2em;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .blog-content p {
+    margin: 0;
+  }
+
+  .blog-content ul,
+  .blog-content ol {
+    margin: 0;
+    padding-left: 1.5em;
+  }
+
+  .blog-content ul {
+    list-style-type: disc;
+  }
+
+  .blog-content ol {
+    list-style-type: decimal;
+  }
+
+  .blog-content li {
+    margin-top: 0.5em;
+  }
+
+  .blog-content li > * + * {
+    margin-top: 0.5em;
+  }
+
+  .blog-content strong {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  /* Blog-body inline link. Same a11y contract as `.link`: color
+     alone isn't a sufficient cue, so underline on hover and on
+     keyboard focus. The blog has denser prose than the dashboard,
+     so extra care to keep the default state underline-free per
+     hyo's request — the hover/focus state does the heavy lifting. */
+  .blog-content a {
+    color: #d4a24c;
+    font-weight: 500;
+    text-decoration: none;
+    text-underline-offset: 3px;
+    transition: color 0.15s ease;
+  }
+
+  .blog-content a:hover,
+  .blog-content a:focus-visible {
+    color: #eab858;
+    text-decoration: underline;
+  }
+
+  .blog-content a:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  .dark .blog-content a {
+    color: #e6b66a;
+  }
+
+  .dark .blog-content a:hover,
+  .dark .blog-content a:focus-visible {
+    color: #f5c97d;
+  }
+
+  .blog-content code {
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    font-size: 0.88em;
+    padding: 0.15em 0.4em;
+    border-radius: 0.3rem;
+    background-color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .blog-content blockquote {
+    padding-left: 1em;
+    border-left: 3px solid var(--border);
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+
+  .blog-content hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 3em 0;
+  }
+
+  .blog-content .blog-faq > * + * {
+    margin-top: 1.25em;
+  }
+
+  .blog-content .blog-faq dt {
+    margin-bottom: 0.25em;
+  }
+
+  .blog-content .blog-faq dd {
+    margin: 0;
+    color: var(--muted-foreground);
+  }
+
+  /* Inline <code> inside docs prose — more legible than the browser
+     default monospace by giving it a pill-chip treatment. `pre code`
+     is excluded so CodeBlock's syntax-highlighted tokens keep their
+     own styling untouched. `--muted` / `--border` / `--foreground`
+     in this theme are hex values (not hsl tuples), so we reference
+     them directly rather than wrapping in `hsl()`. */
+  .docs-content :not(pre) > code {
+    border-radius: 0.3rem;
+    padding: 0.12em 0.4em;
+    font-size: 0.85em;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    background-color: var(--muted);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    /* Long identifiers can break anywhere; don't blow out the
+       container on narrow viewports. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .dark .docs-content :not(pre) > code {
+    /* Muted in dark theme sits right next to card bg; nudge the
+       chip a shade warmer so it reads as a call-out, not a block. */
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .docs-content p,
+  .docs-content li {
+    overflow-wrap: anywhere;
+  }
+
+  /* Container adjustments for mobile */
+  .container {
+    @apply px-4 sm:px-6 lg:px-8;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Paper texture background - optimized */
+  .paper-texture {
+    position: relative;
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 35px,
+        rgba(255, 255, 255, 0.03) 35px,
+        rgba(255, 255, 255, 0.03) 70px
+      );
+      pointer-events: none;
+      will-change: transform;
+      transform: translateZ(0);
+    }
+  }
+
+  /* Glass morphism */
+  .glass {
+    @apply backdrop-blur-md bg-white/80 dark:bg-[#18181f]/90;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Button variants */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
+
+  /* Tailwind v4 dropped support for `@apply` referencing component
+   * classes defined in the same `@layer components` block. The
+   * `.btn` base styles are inlined into each variant below instead
+   * of composed via `@apply btn ...`. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2.5;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 px-4 py-2.5;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent/10 hover:text-accent px-6 py-3;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .btn-destructive {
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2.5;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
+
+  .btn-gradient {
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden px-4 py-2.5;
+    background: var(--primary-600);
+    color: white !important;
+    transition: all 0.2s ease;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+
+    &:hover {
+      background: var(--primary-700);
+      color: white !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    & * {
+      color: white !important;
+    }
+  }
+
+  /* Input styles */
+  .input {
+    @apply flex h-10 w-full rounded-lg bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s ease;
+  }
+
+  .input::placeholder {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.5;
+  }
+
+  .dark .input::placeholder {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.4;
+  }
+
+  .input:focus {
+    border-color: var(--primary);
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    user-select: text;
+  }
+
+  /* Card styles */
+  .card {
+    @apply rounded-lg bg-card text-card-foreground;
+    border: 1px solid var(--border);
+  }
+
+  .card-hover {
+    @apply rounded-lg bg-card text-card-foreground transition-all duration-200 hover:shadow-sm;
+    border: 1px solid var(--border);
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 z-50 bg-black/50 backdrop-blur-sm;
+  }
+
+  /* Modal content */
+  .modal-content {
+    @apply fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 rounded-xl;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin h-5 w-5 border-2 border-current border-t-transparent rounded-full;
+  }
+
+  /* Text gradient */
+  .text-gradient {
+    @apply font-black tracking-tight;
+    background: linear-gradient(135deg, var(--accent) 0%, #10b981 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    position: relative;
+  }
+
+  .dark .text-gradient {
+    @apply font-black tracking-tight;
+    background: linear-gradient(135deg, #34d399 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-shift 4s ease-in-out infinite;
+    background-size: 200% 200%;
+    will-change: background-position;
+  }
+
+  @keyframes gradient-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  /* Hero section background */
+  .hero-background {
+    @apply relative overflow-hidden;
+    background: linear-gradient(
+      135deg,
+      var(--primary-50) 0%,
+      var(--secondary) 50%,
+      var(--primary-100) 100%
+    );
+  }
+
+  .hero-background::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(
+        circle at 20% 80%,
+        var(--primary-200) 0%,
+        transparent 50%
+      ),
+      radial-gradient(circle at 80% 20%, var(--accent) 0%, transparent 50%);
+    opacity: 0.1;
+    mix-blend-mode: multiply;
+  }
+
+  :root.dark .hero-background,
+  .dark .hero-background {
+    background: linear-gradient(
+      135deg,
+      #0f0f14 0%,
+      #18181f 50%,
+      #1e1e26 100%
+    ) !important;
+  }
+
+  :root.dark .hero-background::before,
+  .dark .hero-background::before {
+    background-image:
+      radial-gradient(
+        circle at 20% 80%,
+        var(--primary-600) 0%,
+        transparent 50%
+      ),
+      radial-gradient(circle at 80% 20%, var(--accent) 0%, transparent 50%);
+    opacity: 0.05;
+    mix-blend-mode: screen;
+  }
+
+  /* Animated gradient background - performance optimized */
+  .animated-gradient {
+    background: linear-gradient(
+      -45deg,
+      var(--primary-100),
+      var(--primary-200),
+      var(--accent),
+      var(--primary-300)
+    );
+    background-size: 200% 200%;
+    animation: gradient 20s ease infinite;
+    will-change: background-position;
+  }
+
+  .dark .animated-gradient {
+    background: linear-gradient(
+      -45deg,
+      #1e1e26,
+      #252530,
+      var(--accent),
+      #2a2a3c
+    );
+    background-size: 200% 200%;
+    animation: gradient 20s ease infinite;
+    will-change: background-position;
+  }
+
+  /* Divider */
+  .divider {
+    @apply relative flex py-5 items-center;
+    &::before,
+    &::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      @apply bg-border;
+    }
+    &:not(:empty)::before {
+      margin-right: 1rem;
+    }
+    &:not(:empty)::after {
+      margin-left: 1rem;
+    }
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+
+  .badge-primary {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-primary/10 text-primary hover:bg-primary/20;
+  }
+
+  .badge-secondary {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+
+  /* Logo styling */
+  .logo-image {
+    @apply object-contain;
+    image-rendering: -webkit-optimize-contrast; /* Edge, Safari */
+    image-rendering: -moz-crisp-edges; /* Firefox */
+    image-rendering: crisp-edges; /* Chrome */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    filter: contrast(1.05);
+  }
+}
+
+/* Dark mode overrides */
+:root.dark,
+.dark {
+  color-scheme: dark;
+}
+
+:root.dark *,
+.dark * {
+  --tw-bg-opacity: 1;
+  --tw-text-opacity: 1;
+}
+
+/* Ensure text is visible in dark mode */
+:root.dark h1,
+:root.dark h2,
+:root.dark h3,
+:root.dark h4,
+:root.dark h5,
+:root.dark h6,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: var(--foreground) !important;
+}
+
+@layer utilities {
+  /* Thin border utilities */
+  .border-thin {
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--border);
+  }
+
+  .border-b-thin {
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+    border-bottom-color: var(--border);
+  }
+
+  .border-t-thin {
+    border-top-width: 1px;
+    border-top-style: solid;
+    border-top-color: var(--border);
+  }
+
+  .border-r-thin {
+    border-right-width: 1px;
+    border-right-style: solid;
+    border-right-color: var(--border);
+  }
+
+  .border-l-thin {
+    border-left-width: 1px;
+    border-left-style: solid;
+    border-left-color: var(--border);
+  }
+  /* Animations */
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slide-in-from-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-from-left {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-from-top {
+    from {
+      transform: translateY(-100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in-from-bottom {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  /* Rotating text animations */
+  @keyframes slide-out-up {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+  }
+
+  @keyframes slide-in-from-bottom-opacity {
+    0% {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Apple-style fade in up animation */
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Animation classes */
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.5s ease-out;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+
+  .animate-slide-in-from-right {
+    animation: slide-in-from-right 0.3s ease-out;
+  }
+
+  .animate-slide-in-from-left {
+    animation: slide-in-from-left 0.3s ease-out;
+  }
+
+  .animate-slide-in-from-top {
+    animation: slide-in-from-top 0.3s ease-out;
+  }
+
+  .animate-slide-in-from-bottom {
+    animation: slide-in-from-bottom 0.3s ease-out;
+  }
+
+  .animate-slide-out-up {
+    animation: slide-out-up 0.5s ease-in forwards;
+  }
+
+  .animate-slide-in-from-bottom-opacity {
+    animation: slide-in-from-bottom-opacity 0.5s ease-out forwards;
+  }
+
+  /* Utility classes */
+  .text-balance {
+    text-wrap: balance;
+    /* Fallback for Safari < 17.5 */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none; /* Firefox */
+    &::-webkit-scrollbar {
+      display: none; /* Safari and Chrome */
+    }
+  }
+
+  /* Animation delays */
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  /* Performance optimizations */
+  .performance-optimized {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+    perspective: 1000px;
+  }
+
+  /* Smooth scrolling for elements */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

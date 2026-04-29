@@ -1,0 +1,19 @@
+# NOTE: This file applies ONLY to ad-hoc local builds run from inside
+# `packages/kit/` (e.g. `cd packages/kit && docker build .`). The
+# production deploy paths — `.github/workflows/deploy-kit.yml` and
+# `packages/kit/scripts/deploy-prod.sh` — set the build context to the
+# **monorepo root**, so the root `/.dockerignore` governs those builds
+# and this file is bypassed. Keep both in sync if you change `.env*` or
+# build-artifact rules.
+
+fly.toml
+node_modules
+.git
+
+# Local env files must never enter the Docker build context. The
+# Dockerfile receives Vite env via --build-arg (CI secrets or
+# scripts/deploy-prod.sh), so copying a stray .env.local into the
+# image would just be a footgun — a dev value in the repo could
+# silently override the build-arg that CI / the script passes in.
+.env
+.env.*

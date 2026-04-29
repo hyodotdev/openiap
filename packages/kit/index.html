@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/index.css" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Theme color for mobile browsers (not supported in Firefox) -->
+    <meta name="theme-color" content="#a47465" />
+
+    <title>IAPKit – Fraud-Proof App Store & Play Receipt Validation</title>
+
+    <!-- SEO Meta Tags -->
+    <meta
+      name="description"
+      content="Validate App Store and Google Play receipts on your backend so one-time in-app purchases can’t be faked, replayed, or tampered with."
+    />
+    <meta
+      name="keywords"
+      content="receipt validation, in-app purchases, App Store, Google Play, fraud prevention, mobile games, IAP backend"
+    />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kit.openiap.dev/" />
+    <meta
+      property="og:title"
+      content="IAPKit – Receipt Validation for App Store & Google Play, managed by OpenIAP"
+    />
+    <meta
+      property="og:description"
+      content="Validate App Store and Google Play receipts on your backend so one-time in-app purchases can’t be faked, replayed, or tampered with."
+    />
+    <meta property="og:image" content="/og-preview.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://kit.openiap.dev/" />
+    <meta
+      property="twitter:title"
+      content="IAPKit – Fraud-Proof App Store & Play Receipt Validation"
+    />
+    <meta
+      property="twitter:description"
+      content="Validate App Store and Google Play receipts on your backend so one-time in-app purchases can’t be faked, replayed, or tampered with."
+    />
+    <meta property="twitter:image" content="/og-preview.png" />
+    <!-- Prevent white flash during loading -->
+    <script>
+      // Apply theme immediately to prevent flash and sync with useThemeMode hook.
+      (function () {
+        const THEME_STORAGE_KEY = "theme";
+        const DARK_BACKGROUND = "#18181B";
+        const LIGHT_BACKGROUND = "#fefefe";
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+        const getStoredTheme = () => {
+          try {
+            const stored = localStorage.getItem(THEME_STORAGE_KEY);
+            if (stored === "light" || stored === "dark" || stored === "auto") {
+              return stored;
+            }
+          } catch (error) {
+            console.warn("Unable to read stored theme preference:", error);
+          }
+          return "auto";
+        };
+
+        const resolveIsDark = (mode) => {
+          if (mode === "auto") {
+            return mediaQuery.matches;
+          }
+          return mode === "dark";
+        };
+
+        const applyDocumentTheme = (isDark) => {
+          const root = document.documentElement;
+          const backgroundColor = isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND;
+
+          if (isDark) {
+            root.classList.add("dark");
+          } else {
+            root.classList.remove("dark");
+          }
+
+          root.style.backgroundColor = backgroundColor;
+          if (document.body) {
+            document.body.style.backgroundColor = backgroundColor;
+          }
+        };
+
+        const applyCurrentTheme = () => {
+          const mode = getStoredTheme();
+          const isDark = resolveIsDark(mode);
+          applyDocumentTheme(isDark);
+          return mode;
+        };
+
+        let currentMode;
+        try {
+          currentMode = applyCurrentTheme();
+        } catch (error) {
+          console.error("Failed to apply initial theme:", error);
+          currentMode = "light";
+          applyDocumentTheme(false);
+        }
+
+        const handleMediaChange = (event) => {
+          if (currentMode === "auto") {
+            applyDocumentTheme(event.matches);
+          }
+        };
+
+        if (mediaQuery.addEventListener) {
+          mediaQuery.addEventListener("change", handleMediaChange);
+        } else if (mediaQuery.addListener) {
+          mediaQuery.addListener(handleMediaChange);
+        }
+
+        window.addEventListener("storage", (event) => {
+          if (event.key === THEME_STORAGE_KEY) {
+            currentMode = applyCurrentTheme();
+          }
+        });
+      })();
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        transition: background-color 0.2s ease;
+      }
+
+      html.dark {
+        background-color: #18181b;
+      }
+
+      html:not(.dark) {
+        background-color: #fefefe;
+      }
+
+      body {
+        background-color: inherit;
+        min-height: 100vh;
+      }
+
+      #root {
+        min-height: 100vh;
+        background-color: inherit;
+      }
+
+      /* Ensure background is always visible */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
+        background: inherit;
+      }
+
+      /* Loading spinner for initial load */
+      .initial-loader {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(164, 116, 101, 0.2);
+        border-top-color: #a47465;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Initial loading state -->
+      <div class="initial-loader" id="initial-loader">
+        <div class="spinner"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Hide initial loader when React app loads
+      window.addEventListener("DOMContentLoaded", function () {
+        setTimeout(function () {
+          const loader = document.getElementById("initial-loader");
+          if (loader && loader.style) {
+            loader.style.display = "none";
+          }
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

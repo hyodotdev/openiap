@@ -201,6 +201,27 @@ xcodebuild -project Martie.xcodeproj \\
                     Returns <code>isValid: true/false</code> and purchase state
                   </li>
                   <li>Recommended for production apps</li>
+                  <li>
+                    <strong>Open source (MIT)</strong> — hosted at{' '}
+                    <a
+                      href={IAPKIT_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="external-link"
+                      onClick={trackIapKitClick}
+                    >
+                      kit.openiap.dev
+                    </a>{' '}
+                    (free for everyone) or self-host from{' '}
+                    <a
+                      href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="external-link"
+                    >
+                      packages/kit
+                    </a>
+                  </li>
                 </ul>
 
                 <div
@@ -554,6 +575,27 @@ adb install Example/build/outputs/apk/debug/Example-debug.apk`}</pre>
                     Returns <code>isValid: true/false</code> and purchase state
                   </li>
                   <li>Recommended for production apps</li>
+                  <li>
+                    <strong>Open source (MIT)</strong> — hosted at{' '}
+                    <a
+                      href={IAPKIT_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="external-link"
+                      onClick={trackIapKitClick}
+                    >
+                      kit.openiap.dev
+                    </a>{' '}
+                    (free for everyone) or self-host from{' '}
+                    <a
+                      href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="external-link"
+                    >
+                      packages/kit
+                    </a>
+                  </li>
                 </ul>
 
                 <div

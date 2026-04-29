@@ -48,8 +48,12 @@ temp/
 .build
 
 # RAG Agent generated outputs (benchmark comparisons)
-_generated/
+scripts/agent/_generated/
 scripts/agent/.lancedb/
+
+# Convex codegen — committed because CI doesn't run `convex dev`,
+# but the AI assistance subdirectory holds dev-machine state and stays ignored.
+packages/kit/convex/_generated/ai/
 
 # ─── Libraries ───
 
