@@ -70,11 +70,19 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("react-dom")) return "vendor-react-dom";
-            if (id.includes("react-router")) return "vendor-react-router";
-            if (id.includes("lucide-react")) return "vendor-lucide";
-            if (id.includes("antd")) return "vendor-antd";
+          if (!id.includes("node_modules")) return;
+          // Group React core, react-dom, react-router, antd, and
+          // antd-adjacent rc-component libs into ONE vendor chunk.
+          // Splitting React from its consumers (antd, react-router,
+          // lucide-react) creates cross-chunk cycles that crash with
+          // `Cannot set properties of undefined (setting 'Activity')`
+          // when antd initializes before React's chunk finishes loading.
+          if (
+            /[\\/](react|react-dom|react-router(?:-dom)?|antd|@ant-design|@rc-component|rc-[^/\\]+|lucide-react)[\\/]/.test(
+              id,
+            )
+          ) {
+            return "vendor-react";
           }
         },
       },
