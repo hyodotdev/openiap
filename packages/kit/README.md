@@ -167,21 +167,33 @@ transactions are mapped to `CANCELED` in the harmonized state — see
 
 ### Pre-commit gate
 
-A husky hook runs the full `precommit` npm script on every commit:
+The monorepo-root husky hook (`.husky/pre-commit`) is paths-aware:
+when staged changes touch `packages/kit/**` it runs the full
+**CI-equivalent** chain mirroring the `verify` job in
+`.github/workflows/deploy-kit.yml`:
 
 ```bash
-bunx lint-staged   # prettier on staged files
-bun run lint       # tsc + eslint across src/server/convex
-bun run smoke:server
+bun install --frozen-lockfile                           # catches lockfile drift
+bun run --filter @hyodotdev/openiap-kit lint            # tsc + eslint
+bunx prettier --check src/** server/** convex/**        # prettier check
+bun run --filter @hyodotdev/openiap-kit test            # vitest (225+ tests)
+bun run --filter @hyodotdev/openiap-kit smoke:server    # bun compile + boot probe
 ```
 
-`bun run smoke:server` compiles the binary via `build:all` and runs
+The hook is intentionally CI-equivalent — past pushes failed in CI
+for issues that silently passed locally (e.g. tsc inferring
+third-party callback types correctly against an incremental
+`node_modules` but failing on CI's fresh install). Running the same
+checks on commit avoids the push → red CI → fix-up → push loop.
+
+Cost: ~30-60 s on first run after a clean checkout, ~15-20 s on warm
+checkouts. Don't bypass with `--no-verify` — fix the underlying issue.
+
+`smoke:server` compiles the Bun binary via `build:all` and runs
 [`scripts/smoke-server.sh`](scripts/smoke-server.sh), which boots the
 server on port 3100, polls `/health` until ready, and probes `/`,
-`/api/v1`, `/health`. Adds ~10–15 s per commit but catches startup
-regressions (missing env, bind conflicts, missing `dist/index.html`)
-locally instead of in CI. Same script runs in CI so both paths use
-identical code.
+`/api/v1`, `/health` — catches startup regressions (missing env, bind
+conflicts, missing `dist/index.html`). Same script runs in CI.
 
 To run ad-hoc:
 
