@@ -34,7 +34,7 @@ jobs:
         with:
           bun-version: "1.1.38"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('libraries/expo-iap/bun.lock') }}
@@ -59,7 +59,7 @@ jobs:
         with:
           bun-version: "1.1.38"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('libraries/expo-iap/bun.lock') }}
