@@ -180,9 +180,13 @@ export const inviteMember = mutation({
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 
-    // Find user by email
-    const users = await ctx.db.query("users").collect();
-    const invitedUser = users.find((u) => u.email === args.email);
+    // Find user by email via the indexed lookup; the prior
+    // `.collect()` + `.find()` was a full table scan that would have
+    // failed past Convex's per-query read budget once the user count grew.
+    const invitedUser = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", args.email))
+      .first();
 
     if (!invitedUser) {
       throw createError(ErrorCode.USER_NOT_REGISTERED);

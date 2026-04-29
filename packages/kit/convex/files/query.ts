@@ -216,17 +216,16 @@ export const getAppStoreFileByProject = query({
       return null;
     }
 
-    // Find App Store file for this project
-    const files = await ctx.db
+    // Find App Store file for this project via the by_project index.
+    // Prior `by_organization + filter in memory` returned every file
+    // across every project in the org, which scaled with the org's
+    // total file count rather than just the target project's.
+    const projectFiles = await ctx.db
       .query("files")
-      .withIndex("by_organization", (q) =>
-        q.eq("organizationId", project.organizationId),
-      )
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    const appStoreFile = files.find(
-      (f) => f.projectId === args.projectId && f.purpose === "apple_p8_key",
-    );
+    const appStoreFile = projectFiles.find((f) => f.purpose === "apple_p8_key");
 
     if (!appStoreFile) {
       return null;
@@ -271,18 +270,15 @@ export const getGooglePlayFileByProject = query({
       return null;
     }
 
-    // Find Google Play file for this project
-    const files = await ctx.db
+    // Find Google Play file for this project via the by_project index
+    // (see appStore counterpart above for why).
+    const projectFiles = await ctx.db
       .query("files")
-      .withIndex("by_organization", (q) =>
-        q.eq("organizationId", project.organizationId),
-      )
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    const googlePlayFile = files.find(
-      (f) =>
-        f.projectId === args.projectId &&
-        f.purpose === "android_service_account",
+    const googlePlayFile = projectFiles.find(
+      (f) => f.purpose === "android_service_account",
     );
 
     if (!googlePlayFile) {

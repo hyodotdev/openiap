@@ -388,6 +388,19 @@ const schema = defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_pending_quantity", ["pendingQuantity"]),
+
+  // Tiny KV state for internal cron jobs. Currently used by
+  // cleanupIncompleteUsers to persist its cursor (`_creationTime` of
+  // the last fully-processed user) across cron ticks. Without this,
+  // every tick walked from the oldest user — once enough legitimate
+  // users had aged past 24h, the read budget was exhausted on them
+  // before the loop ever reached actually-incomplete users behind
+  // them.
+  cronState: defineTable({
+    jobName: v.string(),
+    cursor: v.number(),
+    updatedAt: v.number(),
+  }).index("by_jobName", ["jobName"]),
 });
 
 export default schema;
