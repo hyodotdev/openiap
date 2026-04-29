@@ -33,7 +33,7 @@
     "@auth/core": "^0.41.2",
     "@convex-dev/auth": "^0.0.91",
     "@convex-dev/migrations": "^0.3.4",
-    "@hono/standard-validator": "^0.1.5",
+    "@hono/standard-validator": "^0.2.2",
     "@icons-pack/react-simple-icons": "^13.7.0",
     "@preact/signals-react": "^3.2.1",
     "@sentry/bun": "^10.26.0",
