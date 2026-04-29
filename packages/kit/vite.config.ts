@@ -69,8 +69,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
+        manualChunks(id: string): string | undefined {
+          if (!id.includes("node_modules")) return undefined;
           // Group React core, react-dom, react-router, antd, and
           // antd-adjacent rc-component libs into ONE vendor chunk.
           // Splitting React from its consumers (antd, react-router,
@@ -84,6 +84,7 @@ export default defineConfig({
           ) {
             return "vendor-react";
           }
+          return undefined;
         },
       },
     },
