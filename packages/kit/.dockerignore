@@ -1,3 +1,11 @@
+# NOTE: This file applies ONLY to ad-hoc local builds run from inside
+# `packages/kit/` (e.g. `cd packages/kit && docker build .`). The
+# production deploy paths — `.github/workflows/deploy-kit.yml` and
+# `packages/kit/scripts/deploy-prod.sh` — set the build context to the
+# **monorepo root**, so the root `/.dockerignore` governs those builds
+# and this file is bypassed. Keep both in sync if you change `.env*` or
+# build-artifact rules.
+
 fly.toml
 node_modules
 .git

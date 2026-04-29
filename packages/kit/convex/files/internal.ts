@@ -3,6 +3,7 @@ import {
   internalMutation,
   internalAction,
 } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
@@ -192,7 +193,16 @@ export const readFileAsBase64 = internalAction({
   },
 });
 
-// Internal query to find files by purpose
+// Internal query to find files by purpose. The return type is the
+// safe-to-export projection (no `storageId` / no `uploadedBy` —
+// callers like `getAppleP8Key` must not see those). Annotated
+// explicitly so callers get a strong type instead of `any[]` from
+// inference through the Convex handler wrapper.
+type FilePublicProjection = Omit<
+  Doc<"files">,
+  "storageId" | "uploadedBy" | "accessCount" | "lastAccessedAt"
+>;
+
 export const findFilesByPurpose = internalQuery({
   args: {
     organizationId: v.id("organizations"),
@@ -201,7 +211,7 @@ export const findFilesByPurpose = internalQuery({
       v.literal("android_service_account"),
     ),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<FilePublicProjection[]> => {
     const files = await ctx.db
       .query("files")
       .withIndex("by_org_and_purpose", (q) =>
@@ -209,9 +219,9 @@ export const findFilesByPurpose = internalQuery({
       )
       .collect();
 
-    // Return files without storageId
     return files.map((file) => ({
       _id: file._id,
+      _creationTime: file._creationTime,
       organizationId: file.organizationId,
       projectId: file.projectId,
       fileName: file.fileName,
