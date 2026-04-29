@@ -16,7 +16,8 @@ COPY packages/gql/package.json ./packages/gql/
 COPY packages/apple/package.json ./packages/apple/
 COPY packages/google/package.json ./packages/google/
 COPY packages/docs/package.json ./packages/docs/
-RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
+RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit && \
+    mkdir -p /app/packages/kit/node_modules
 
 # --- Build the unified app (Vite SPA + compiled Bun server) --------------
 FROM base AS builder
