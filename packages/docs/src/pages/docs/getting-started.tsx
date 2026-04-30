@@ -456,9 +456,24 @@ await iap.request_purchase(props)`}</CodeBlock>
           </li>
           <li>
             <Link to="/docs/features/validation">Validation</Link> — server-side
-            verification (your own backend or IAPKit — open source, hosted at
-            kit.openiap.dev or self-host from <code>packages/kit</code> under
-            MIT)
+            verification (your own backend or IAPKit — open source under MIT,
+            hosted free at{' '}
+            <a
+              href="https://kit.openiap.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              kit.openiap.dev
+            </a>{' '}
+            or self-host from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <code>packages/kit</code>
+            </a>
+            )
           </li>
           <li>
             <Link to="/docs/apis">API Reference</Link> — every function with

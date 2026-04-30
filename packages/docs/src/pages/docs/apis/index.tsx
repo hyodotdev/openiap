@@ -332,7 +332,15 @@ function APIsIndex() {
               <td>
                 Verify via a managed provider without standing up your own
                 server. The <code>PurchaseVerificationProvider</code> enum
-                currently exposes only IAPKit.
+                currently exposes only IAPKit (open source, MIT — source at{' '}
+                <a
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <code>packages/kit</code>
+                </a>
+                ).
               </td>
             </tr>
             <tr>
