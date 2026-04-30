@@ -19,6 +19,7 @@ import { rateLimitMiddleware } from "./rate-limit";
 import { replayGuardMiddleware } from "./replay-guard";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
+import { webhooksRoutes } from "./webhooks";
 
 // Variables that the request middleware chain attaches to the Hono
 // context. Declaring them here (and passing the generic to `new Hono()`)
@@ -455,5 +456,17 @@ app.post(
 // separately in the OpenAPI output — both paths dispatch to the exact
 // same handler with the same middleware stack.
 app.post("/verify-purchase", ...verifyMiddleware);
+
+// Lifecycle webhook receivers — Apple App Store Server Notifications v2
+// and Google Pub/Sub RTDN. These bypass the apiKeyMiddleware /
+// rate-limit / replay-guard chain because Apple cannot send custom
+// auth headers and Google's Pub/Sub push has its own delivery
+// guarantees. Auth is enforced inside the receiver:
+//   - Apple: project apiKey is in the path; the action verifies the
+//     signedPayload against Apple's root certificates so a leaked URL
+//     can't be used to inject forged events.
+//   - Google: OIDC bearer JWT (when GOOGLE_PUBSUB_PUSH_AUDIENCE is
+//     configured) plus the path apiKey.
+app.route("/webhooks", webhooksRoutes);
 
 export { app as apiRoutes };

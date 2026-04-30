@@ -53,6 +53,12 @@ import type * as users_query from "../users/query.js";
 import type * as utils_errors from "../utils/errors.js";
 import type * as utils_helpers from "../utils/helpers.js";
 import type * as utils_validation from "../utils/validation.js";
+import type * as webhooks_apple from "../webhooks/apple.js";
+import type * as webhooks_google from "../webhooks/google.js";
+import type * as webhooks_internal from "../webhooks/internal.js";
+import type * as webhooks_query from "../webhooks/query.js";
+import type * as webhooks_shared from "../webhooks/shared.js";
+import type * as webhooks_validators from "../webhooks/validators.js";
 
 import type {
   ApiFromModules,
@@ -106,6 +112,12 @@ declare const fullApi: ApiFromModules<{
   "utils/errors": typeof utils_errors;
   "utils/helpers": typeof utils_helpers;
   "utils/validation": typeof utils_validation;
+  "webhooks/apple": typeof webhooks_apple;
+  "webhooks/google": typeof webhooks_google;
+  "webhooks/internal": typeof webhooks_internal;
+  "webhooks/query": typeof webhooks_query;
+  "webhooks/shared": typeof webhooks_shared;
+  "webhooks/validators": typeof webhooks_validators;
 }>;
 
 /**

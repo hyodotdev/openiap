@@ -401,6 +401,100 @@ const schema = defineSchema({
     cursor: v.number(),
     updatedAt: v.number(),
   }).index("by_jobName", ["jobName"]),
+
+  // Normalized lifecycle webhook events ingested from Apple ASN v2 and
+  // Google RTDN. Mirrors the GraphQL `WebhookEvent` shape defined in
+  // `packages/gql/src/webhook.graphql` — kit's Subscription endpoint
+  // streams rows from this table to authenticated clients, and the
+  // `webhookEventsSince` query backfills events that occurred while a
+  // client's WebSocket was closed.
+  //
+  // Retention: rows are pruned by the `pruneWebhookEvents` cron after
+  // 30 days. The replay window matches `webhookEventsSince` so clients
+  // returning from a long offline period can still reconcile.
+  webhookEvents: defineTable({
+    projectId: v.id("projects"),
+    type: v.union(
+      v.literal("SubscriptionStarted"),
+      v.literal("SubscriptionRenewed"),
+      v.literal("SubscriptionExpired"),
+      v.literal("SubscriptionInGracePeriod"),
+      v.literal("SubscriptionInBillingRetry"),
+      v.literal("SubscriptionRecovered"),
+      v.literal("SubscriptionCanceled"),
+      v.literal("SubscriptionUncanceled"),
+      v.literal("SubscriptionRevoked"),
+      v.literal("SubscriptionPriceChange"),
+      v.literal("SubscriptionProductChanged"),
+      v.literal("SubscriptionPaused"),
+      v.literal("SubscriptionResumed"),
+      v.literal("PurchaseRefunded"),
+      v.literal("PurchaseConsumptionRequest"),
+      v.literal("TestNotification"),
+    ),
+    source: v.union(
+      v.literal("AppleAppStoreServerNotificationsV2"),
+      v.literal("GooglePlayRealTimeDeveloperNotifications"),
+    ),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    environment: v.union(
+      v.literal("Production"),
+      v.literal("Sandbox"),
+      v.literal("Xcode"),
+    ),
+    purchaseToken: v.string(),
+    // Original notification id from the store (ASN v2 `notificationUUID`
+    // or RTDN Pub/Sub `messageId`). Surfaced as the GraphQL `id` field
+    // for clients and used to correlate events during pruning.
+    sourceNotificationId: v.string(),
+    productId: v.optional(v.string()),
+    subscriptionState: v.optional(
+      v.union(
+        v.literal("Active"),
+        v.literal("InGracePeriod"),
+        v.literal("InBillingRetry"),
+        v.literal("Expired"),
+        v.literal("Revoked"),
+        v.literal("Refunded"),
+        v.literal("Paused"),
+        v.literal("Unknown"),
+      ),
+    ),
+    expiresAt: v.optional(v.number()),
+    renewsAt: v.optional(v.number()),
+    cancellationReason: v.optional(
+      v.union(
+        v.literal("UserCanceled"),
+        v.literal("BillingError"),
+        v.literal("PriceIncreaseDeclined"),
+        v.literal("ProductUnavailable"),
+        v.literal("Refunded"),
+        v.literal("Other"),
+      ),
+    ),
+    currency: v.optional(v.string()),
+    priceAmountMicros: v.optional(v.number()),
+    rawSignedPayload: v.optional(v.string()),
+    occurredAt: v.number(),
+    receivedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_purchase_token", ["purchaseToken"])
+    .index("by_project_and_received", ["projectId", "receivedAt"])
+    .index("by_received_at", ["receivedAt"]),
+
+  // Dedup table for webhook payloads. Insertion uses
+  // `(source, sourceNotificationId)` as the natural key; duplicates
+  // detected here cause kit to silently ACK the upstream request with
+  // 200 without re-emitting the event, matching Apple's documented
+  // expectation that ASN may retry the same notification on transient
+  // 5xx and Google's at-least-once Pub/Sub delivery contract.
+  webhookIdempotencyKeys: defineTable({
+    source: v.union(v.literal("apple"), v.literal("google")),
+    sourceNotificationId: v.string(),
+    eventId: v.optional(v.id("webhookEvents")),
+    firstSeenAt: v.number(),
+  }).index("by_source_and_id", ["source", "sourceNotificationId"]),
 });
 
 export default schema;
