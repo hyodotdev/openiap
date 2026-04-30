@@ -31,7 +31,7 @@ if [[ ! -f "$DIST/index.html" ]]; then
 fi
 
 # Run the binary in the background with placeholder env.
-CONVEX_URL="https://placeholder.convex.cloud" \
+CONVEX_URL="https://placeholder-build-1.convex.cloud" \
 STATIC_ROOT="$DIST" \
 PORT="$PORT" \
 "$BINARY" > /tmp/openiap-kit-smoke.log 2>&1 &

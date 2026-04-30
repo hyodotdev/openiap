@@ -14,6 +14,20 @@ import { chromium } from "@playwright/test";
 
 const url = process.env.SMOKE_URL ?? "http://localhost:3100/";
 
+// Errors that are expected when the SPA is built against placeholder env
+// (CI smoke and local `bun run smoke:server`). We still want the smoke to
+// fail on bundle-integrity problems — chunk cycles, missing modules,
+// hydration crashes — but a Convex/Sentry config rejection that fires
+// AFTER React has already mounted #root is not a bundle bug.
+const IGNORED_ERROR_PATTERNS: RegExp[] = [
+  /CONVEX FATAL ERROR.*Couldn't parse deployment name/i,
+  /Sentry.*Invalid DSN/i,
+];
+
+function isIgnored(message: string): boolean {
+  return IGNORED_ERROR_PATTERNS.some((re) => re.test(message));
+}
+
 async function main(): Promise<void> {
   const errors: string[] = [];
 
@@ -23,12 +37,14 @@ async function main(): Promise<void> {
     const page = await context.newPage();
 
     page.on("pageerror", (err) => {
+      if (isIgnored(err.message)) return;
       errors.push(`pageerror: ${err.message}`);
     });
     page.on("console", (msg) => {
-      if (msg.type() === "error") {
-        errors.push(`console.error: ${msg.text()}`);
-      }
+      if (msg.type() !== "error") return;
+      const text = msg.text();
+      if (isIgnored(text)) return;
+      errors.push(`console.error: ${text}`);
     });
 
     await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });

@@ -50,7 +50,7 @@ jobs:
 
       - name: Vite build
         env:
-          VITE_KIT_CONVEX_URL: https://placeholder.convex.cloud
+          VITE_KIT_CONVEX_URL: https://placeholder-build-1.convex.cloud
         run: bun run build
 
       - name: Bun compile server
@@ -80,7 +80,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VITE_KIT_CONVEX_URL=https://placeholder.convex.cloud
+            VITE_KIT_CONVEX_URL=https://placeholder-build-1.convex.cloud
 
   deploy:
     name: Deploy openiap-kit to Fly.io
