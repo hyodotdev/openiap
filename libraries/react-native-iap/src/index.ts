@@ -141,6 +141,14 @@ export type {
   WebhookListenerError,
   WebhookListenerOptions,
 } from './webhook-client';
+export {kitApi, KitApiError} from './kit-api';
+export type {
+  KitApiOptions,
+  KitSubscription,
+  EntitlementsResponse,
+  StatusResponse,
+  Paywall,
+} from './kit-api';
 
 // Restore completed transactions (cross-platform)
 // Development utilities removed - use type bridge functions directly if needed

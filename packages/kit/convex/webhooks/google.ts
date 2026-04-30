@@ -131,6 +131,28 @@ export const ingestGoogleRtdn = action({
       },
     );
 
+    if (!result.deduped) {
+      await ctx.runMutation(
+        internal.subscriptions.internal.applySubscriptionEvent,
+        {
+          projectId: project._id,
+          eventId: result.eventId,
+          event: {
+            type: normalized.type,
+            productId: normalized.productId,
+            subscriptionState: normalized.subscriptionState,
+            expiresAt: normalized.expiresAt,
+            renewsAt: normalized.renewsAt,
+            cancellationReason: normalized.cancellationReason,
+            currency: normalized.currency,
+            priceAmountMicros: normalized.priceAmountMicros,
+            platform: normalized.platform,
+            purchaseToken: normalized.purchaseToken,
+          },
+        },
+      );
+    }
+
     return {
       eventId: result.eventId,
       type: normalized.type,

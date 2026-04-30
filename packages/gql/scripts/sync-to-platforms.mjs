@@ -57,6 +57,16 @@ const expoWebhookClientTarget = resolve(
   'libraries/expo-iap/src/webhook-client.ts',
 );
 
+const kitApiSource = resolve(gqlRoot, 'src/kit-api.ts');
+const rnKitApiTarget = resolve(
+  monorepoRoot,
+  'libraries/react-native-iap/src/kit-api.ts',
+);
+const expoKitApiTarget = resolve(
+  monorepoRoot,
+  'libraries/expo-iap/src/kit-api.ts',
+);
+
 const kmpSource = resolve(gqlRoot, 'src/generated/Types.kt');
 const kmpTarget = resolve(
   monorepoRoot,
@@ -139,6 +149,16 @@ if (existsSync(webhookClientSource)) {
   console.log('✅ webhook-client → react-native-iap + expo-iap');
   console.log(`   ${rnWebhookClientTarget}`);
   console.log(`   ${expoWebhookClientTarget}\n`);
+}
+
+if (existsSync(kitApiSource)) {
+  for (const target of [rnKitApiTarget, expoKitApiTarget]) {
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(kitApiSource, target);
+  }
+  console.log('✅ kit-api → react-native-iap + expo-iap');
+  console.log(`   ${rnKitApiTarget}`);
+  console.log(`   ${expoKitApiTarget}\n`);
 }
 
 // Sync Kotlin to kmp-iap with the library-specific package declaration and

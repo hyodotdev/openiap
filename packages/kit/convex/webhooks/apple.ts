@@ -144,6 +144,31 @@ export const ingestAppleAsn = action({
       },
     );
 
+    // Skip subscription state update on dedup-replay so transitions stay
+    // single-shot. The state mutation is itself idempotent against
+    // `lastEventId` but bypassing here keeps the action telemetry honest.
+    if (!result.deduped) {
+      await ctx.runMutation(
+        internal.subscriptions.internal.applySubscriptionEvent,
+        {
+          projectId: project._id,
+          eventId: result.eventId,
+          event: {
+            type: normalized.type,
+            productId: normalized.productId,
+            subscriptionState: normalized.subscriptionState,
+            expiresAt: normalized.expiresAt,
+            renewsAt: normalized.renewsAt,
+            cancellationReason: normalized.cancellationReason,
+            currency: normalized.currency,
+            priceAmountMicros: normalized.priceAmountMicros,
+            platform: normalized.platform,
+            purchaseToken: normalized.purchaseToken,
+          },
+        },
+      );
+    }
+
     return {
       eventId: result.eventId,
       type: normalized.type,

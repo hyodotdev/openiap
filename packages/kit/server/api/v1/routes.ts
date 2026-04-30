@@ -20,6 +20,9 @@ import { replayGuardMiddleware } from "./replay-guard";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
 import { webhooksRoutes } from "./webhooks";
+import { subscriptionsRoutes } from "./subscriptions";
+import { paywallsRoutes } from "./paywalls";
+import { productsRoutes } from "./products";
 
 // Variables that the request middleware chain attaches to the Hono
 // context. Declaring them here (and passing the generic to `new Hono()`)
@@ -468,5 +471,23 @@ app.post("/verify-purchase", ...verifyMiddleware);
 //   - Google: OIDC bearer JWT (when GOOGLE_PUBSUB_PUSH_AUDIENCE is
 //     configured) plus the path apiKey.
 app.route("/webhooks", webhooksRoutes);
+
+// Subscription state, entitlements, metrics, and SDK user-binding.
+// Provides the `/onesub/status` analog (`/v1/subscriptions/status/{apiKey}`)
+// plus the multi-product entitlements view that onesub gates feature
+// access on, and the metrics summary used by the kit dashboard.
+app.route("/subscriptions", subscriptionsRoutes);
+
+// Paywall CRUD + hosted HTML renderer for in-app WebView. The HTML
+// posts a `{ openiap: "purchase", productId }` message via the host
+// platform's WebView bridge (RN `ReactNativeWebView.postMessage`,
+// flutter_inappwebview's handler, or `window.parent.postMessage` for
+// other WebViews / browsers) when the user taps the CTA.
+app.route("/paywalls", paywallsRoutes);
+
+// Product catalog (kit-side cache shared by the dashboard, MCP server,
+// and SDK helpers). Phase 3 will extend this with App Store Connect /
+// Play Developer push-sync; the surface stays the same.
+app.route("/products", productsRoutes);
 
 export { app as apiRoutes };
