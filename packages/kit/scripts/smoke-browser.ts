@@ -53,11 +53,20 @@ async function main(): Promise<number> {
     // both — leaving a zombie chromium process and hiding any
     // pageerror/console.error we already collected.
     try {
-      await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+      // `waitUntil: "networkidle"` hangs in apps with persistent
+      // sockets (Convex WebSockets, Sentry beacons). Use
+      // domcontentloaded + an explicit wait for #root to mount
+      // children — that's the actual signal we want, and it surfaces
+      // bundle crashes as a clean TimeoutError.
+      await page.goto(url, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      await page.waitForSelector("#root > *", { timeout: 30_000 });
 
-      // Verify the SPA actually mounted something non-trivial. An empty
-      // <div id="root"></div> is what every fatal-bundle-crash leaves
-      // behind, and it's what shipped to kit.openiap.dev pre-#120.
+      // Defensive: confirm content actually rendered. waitForSelector
+      // already covers this, but keep the explicit emptiness check so
+      // a future change that swaps the assertion still has a tripwire.
       const rootHtml = await page.locator("#root").innerHTML();
       if (rootHtml.trim().length === 0) {
         errors.push("SPA mount target #root is empty — bundle likely crashed");
