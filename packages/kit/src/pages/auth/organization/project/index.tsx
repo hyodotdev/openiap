@@ -3,12 +3,31 @@ import { useParams, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
 import type { LucideIcon } from "lucide-react";
-import { Settings, ChevronLeft, Package, Key, ShoppingBag } from "lucide-react";
+import {
+  Settings,
+  ChevronLeft,
+  Package,
+  Key,
+  ShoppingBag,
+  Activity,
+  CreditCard,
+  Layers,
+  Webhook,
+} from "lucide-react";
 import { PageLoading } from "@/components/LoadingSpinner";
 
 import { api } from "@/convex";
 
-const TAB_IDS = ["dashboard", "purchases", "apikeys", "settings"] as const;
+const TAB_IDS = [
+  "dashboard",
+  "purchases",
+  "subscriptions",
+  "products",
+  "paywalls",
+  "webhooks",
+  "apikeys",
+  "settings",
+] as const;
 type TabId = (typeof TAB_IDS)[number];
 type VisibleTabId = Exclude<TabId, "dashboard">;
 const DEFAULT_TAB: VisibleTabId = "purchases";
@@ -41,6 +60,26 @@ export default function ProjectIndex() {
       id: "purchases",
       label: "Purchases",
       icon: ShoppingBag,
+    },
+    {
+      id: "subscriptions",
+      label: "Subscriptions",
+      icon: Activity,
+    },
+    {
+      id: "products",
+      label: "Products",
+      icon: Layers,
+    },
+    {
+      id: "paywalls",
+      label: "Paywalls",
+      icon: CreditCard,
+    },
+    {
+      id: "webhooks",
+      label: "Webhooks",
+      icon: Webhook,
     },
     {
       id: "apikeys",

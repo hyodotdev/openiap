@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import type { Context } from "hono";
 
 import { api } from "@/convex";
 import { client } from "../../convex";

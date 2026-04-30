@@ -87,6 +87,49 @@ products.post("/:apiKey", async (c) => {
   }
 });
 
+products.post("/:apiKey/sync/:platform", async (c) => {
+  const apiKey = c.req.param("apiKey");
+  const platform = c.req.param("platform");
+  const direction =
+    (c.req.query("direction") as "pull" | "push" | "both" | undefined) ??
+    "both";
+  if (platform !== "ios" && platform !== "android") {
+    return c.json(
+      {
+        errors: [
+          { code: "INVALID_INPUT", message: "platform must be ios|android" },
+        ],
+      },
+      400,
+    );
+  }
+  try {
+    const result =
+      platform === "ios"
+        ? await client.action(api.products.asc.pushSyncProductsApple, {
+            apiKey,
+            direction,
+          })
+        : await client.action(api.products.play.pushSyncProductsGoogle, {
+            apiKey,
+            direction,
+          });
+    return c.json(result);
+  } catch (error) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "PRODUCT_SYNC_FAILED",
+            message: error instanceof Error ? error.message : String(error),
+          },
+        ],
+      },
+      400,
+    );
+  }
+});
+
 products.delete("/:apiKey/:productId", async (c) => {
   const apiKey = c.req.param("apiKey");
   const productId = c.req.param("productId");

@@ -13,6 +13,12 @@ if (!convexUrl) {
 }
 export const client = new ConvexHttpClient(convexUrl);
 
+// Used by the SSE webhook stream to subscribe to live query updates
+// instead of polling. The reactive client is exported lazily so unit
+// tests that only need `client` (the HTTP client) don't pay for a
+// WebSocket dial when no subscription is opened.
+export const convexUrlForRealtime = convexUrl;
+
 interface ApiError {
   code: string;
   message: string;

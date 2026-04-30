@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { OAuth2Client } from "google-auth-library";
+import { ConvexClient } from "convex/browser";
 
 import { api } from "@/convex";
-import { client, handleConvexError } from "../../convex";
+import { client, convexUrlForRealtime, handleConvexError } from "../../convex";
 
 // Inbound webhook receivers for Apple ASN v2 and Google Pub/Sub RTDN.
 //
@@ -199,12 +200,10 @@ webhooks.post("/google/:apiKey", async (c) => {
 });
 
 // Server-Sent Events stream of normalized webhook events tied to the
-// caller's API key. Built on `webhookEventsSince` polling rather than
-// Convex's native subscription stream because the Hono server uses
-// `ConvexHttpClient` (no streaming subscribe) and SSE works
-// universally — RN, Expo, Flutter, KMP, and Godot all have stable SSE
-// or chunked-HTTP support without needing a Convex client dependency
-// in each SDK.
+// caller's API key. Per-connection, we open a Convex `onUpdate`
+// subscription against `webhookEventsSince(apiKey, sinceMs)` so kit
+// pushes new events to the SSE client the moment Convex commits them.
+// No polling — Convex's reactive query is the source of liveness.
 //
 // Protocol:
 //   GET /v1/webhooks/stream/:apiKey
@@ -219,12 +218,10 @@ webhooks.post("/google/:apiKey", async (c) => {
 //   from there, so events that fired while the connection was closed
 //   are delivered in order on the next connect.
 //
-// Polling cadence: 1.5s. This trades a half-step of real-time
-// freshness for not opening a Convex subscribe socket per client. The
-// SDKs treat the SSE connection as authoritative real-time anyway —
-// any further hardening (push, true streaming) is additive.
-const STREAM_POLL_MS = 1_500;
-const STREAM_PAGE_LIMIT = 100;
+//   Heartbeat: an SSE `event: heartbeat` is emitted every 25s so
+//   intermediate proxies (Fly edge, Cloudflare, browser fetch) don't
+//   close the idle connection.
+const HEARTBEAT_MS = 25_000;
 
 webhooks.get("/stream/:apiKey", async (c) => {
   const apiKey = c.req.param("apiKey");
@@ -233,64 +230,81 @@ webhooks.get("/stream/:apiKey", async (c) => {
   let cursor = await resolveStreamStartCursor(apiKey, lastEventId);
 
   return streamSSE(c, async (stream) => {
-    // Heartbeats keep proxies (Fly edge, Cloudflare, browser fetch)
-    // from timing the connection out during long quiet periods. SSE
-    // comments are ignored by EventSource clients but count as
-    // bytes-on-the-wire for the proxy idle timer.
     let aborted = false;
     stream.onAbort(() => {
       aborted = true;
     });
+
+    const reactive = new ConvexClient(convexUrlForRealtime);
+    const seen = new Set<string>();
 
     await stream.writeSSE({
       event: "ready",
       data: JSON.stringify({ cursor }),
     });
 
-    while (!aborted) {
-      let events: Array<Record<string, unknown>> = [];
+    // Convex `onUpdate` re-fires the callback every time the query
+    // result changes. We track previously-emitted ids so a row that
+    // was already emitted earlier in the connection isn't re-sent
+    // when the result set grows. The `cursor` advances whenever we
+    // emit so the next reconnect resumes from the right point.
+    let unsubscribe: (() => void) | null = null;
+    try {
+      unsubscribe = reactive.onUpdate(
+        api.webhooks.query.webhookEventsSince,
+        { apiKey, sinceMs: cursor, limit: 500 },
+        (events: unknown) => {
+          if (aborted) return;
+          if (!Array.isArray(events)) return;
+          for (const event of events as Array<Record<string, unknown>>) {
+            const id = typeof event.id === "string" ? event.id : null;
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            if (
+              typeof event.receivedAt === "number" &&
+              event.receivedAt > cursor
+            ) {
+              cursor = event.receivedAt;
+            }
+            stream
+              .writeSSE({
+                id,
+                event:
+                  typeof event.type === "string" ? event.type : "WebhookEvent",
+                data: JSON.stringify(event),
+              })
+              .catch((err) => {
+                console.error("[webhooks/stream] write failed", err);
+              });
+          }
+        },
+      );
+    } catch (error) {
+      console.error("[webhooks/stream] subscribe failed", error);
+      await stream.writeSSE({
+        event: "stream-error",
+        data: JSON.stringify({
+          message: error instanceof Error ? error.message : "Subscribe failed",
+        }),
+      });
+      void reactive.close();
+      return;
+    }
+
+    try {
+      while (!aborted) {
+        await stream.sleep(HEARTBEAT_MS);
+        if (aborted) break;
+        await stream.writeSSE({ event: "heartbeat", data: "" });
+      }
+    } finally {
       try {
-        events = (await client.query(api.webhooks.query.webhookEventsSince, {
-          apiKey,
-          sinceMs: cursor,
-          limit: STREAM_PAGE_LIMIT,
-        })) as Array<Record<string, unknown>>;
-      } catch (error) {
-        console.error("[webhooks/stream] poll failed", error);
-        await stream.writeSSE({
-          event: "stream-error",
-          data: JSON.stringify({
-            message:
-              error instanceof Error ? error.message : "Unknown poll error",
-          }),
-        });
-        // Sleep before retrying to avoid hot-looping on persistent
-        // backend errors.
-        await stream.sleep(STREAM_POLL_MS * 4);
-        continue;
+        unsubscribe?.();
+      } catch {
+        // closing twice (close() + unsubscribe) is benign in some
+        // hot-reload paths.
       }
-
-      for (const event of events) {
-        if (aborted) {
-          break;
-        }
-        // Strict-equality `>` — events at exactly `sinceMs` are
-        // already-seen on reconnect so we'd emit a dupe otherwise.
-        if (typeof event.receivedAt === "number" && event.receivedAt > cursor) {
-          cursor = event.receivedAt;
-        }
-        await stream.writeSSE({
-          id: typeof event.id === "string" ? event.id : Date.now().toString(),
-          event: typeof event.type === "string" ? event.type : "WebhookEvent",
-          data: JSON.stringify(event),
-        });
-      }
-
-      // Heartbeat sent regardless of new events so quiet connections
-      // stay alive. Comment line per the SSE spec.
-      await stream.writeSSE({ event: "heartbeat", data: "" });
-
-      await stream.sleep(STREAM_POLL_MS);
+      void reactive.close();
     }
   });
 });
