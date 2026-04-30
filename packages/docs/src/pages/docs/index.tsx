@@ -86,6 +86,7 @@ import APIsIsBillingProgramAvailableAndroid from './apis/android/is-billing-prog
 import APIsLaunchExternalLinkAndroid from './apis/android/launch-external-link-android';
 import APIsCreateBillingProgramReportingDetailsAndroid from './apis/android/create-billing-program-reporting-details-android';
 import Events from './events';
+import Webhooks from './webhooks';
 import EventsPurchaseUpdatedListener from './events/purchase-updated-listener';
 import EventsPurchaseErrorListener from './events/purchase-error-listener';
 import EventsSubscriptionBillingIssueListener from './events/subscription-billing-issue-listener';
@@ -1115,6 +1116,7 @@ function Docs() {
             element={<NavigatePreservingHash to="/docs/features/refund" />}
           />
           <Route path="events" element={<Events />} />
+          <Route path="webhooks" element={<Webhooks />} />
           <Route
             path="events/purchase-updated-listener"
             element={<EventsPurchaseUpdatedListener />}

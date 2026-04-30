@@ -43,6 +43,20 @@ const tsSource = resolve(gqlRoot, 'src/generated/types.ts');
 const rnTsTarget = resolve(monorepoRoot, 'libraries/react-native-iap/src/types.ts');
 const expoTsTarget = resolve(monorepoRoot, 'libraries/expo-iap/src/types.ts');
 
+// `webhook-client.ts` is a hand-maintained runtime helper rather than
+// generated output, but it lives in `packages/gql` so RN and Expo can
+// share a single canonical implementation. Sync alongside the types so
+// the two never drift.
+const webhookClientSource = resolve(gqlRoot, 'src/webhook-client.ts');
+const rnWebhookClientTarget = resolve(
+  monorepoRoot,
+  'libraries/react-native-iap/src/webhook-client.ts',
+);
+const expoWebhookClientTarget = resolve(
+  monorepoRoot,
+  'libraries/expo-iap/src/webhook-client.ts',
+);
+
 const kmpSource = resolve(gqlRoot, 'src/generated/Types.kt');
 const kmpTarget = resolve(
   monorepoRoot,
@@ -112,6 +126,19 @@ if (existsSync(tsSource)) {
   console.log('✅ TypeScript → react-native-iap + expo-iap');
   console.log(`   ${rnTsTarget}`);
   console.log(`   ${expoTsTarget}\n`);
+}
+
+// Sync the webhook client to react-native-iap + expo-iap. Doing this
+// during type-sync means the per-library copies can never silently
+// drift from the canonical implementation in `packages/gql`.
+if (existsSync(webhookClientSource)) {
+  for (const target of [rnWebhookClientTarget, expoWebhookClientTarget]) {
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(webhookClientSource, target);
+  }
+  console.log('✅ webhook-client → react-native-iap + expo-iap');
+  console.log(`   ${rnWebhookClientTarget}`);
+  console.log(`   ${expoWebhookClientTarget}\n`);
 }
 
 // Sync Kotlin to kmp-iap with the library-specific package declaration and

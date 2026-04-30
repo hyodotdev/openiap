@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
+import { streamSSE } from "hono/streaming";
 import { OAuth2Client } from "google-auth-library";
 
 import { api } from "@/convex";
@@ -196,6 +197,131 @@ webhooks.post("/google/:apiKey", async (c) => {
     return mapWebhookError(c, error, "google");
   }
 });
+
+// Server-Sent Events stream of normalized webhook events tied to the
+// caller's API key. Built on `webhookEventsSince` polling rather than
+// Convex's native subscription stream because the Hono server uses
+// `ConvexHttpClient` (no streaming subscribe) and SSE works
+// universally — RN, Expo, Flutter, KMP, and Godot all have stable SSE
+// or chunked-HTTP support without needing a Convex client dependency
+// in each SDK.
+//
+// Protocol:
+//   GET /v1/webhooks/stream/:apiKey
+//
+//   Response: text/event-stream with one event per webhook,
+//     id: <sourceNotificationId>
+//     event: <WebhookEventType>
+//     data: <serialized WebhookEvent JSON>
+//
+//   Reconnection: the standard `Last-Event-ID` header is honored on
+//   reconnect — kit looks up that event's `receivedAt` and resumes
+//   from there, so events that fired while the connection was closed
+//   are delivered in order on the next connect.
+//
+// Polling cadence: 1.5s. This trades a half-step of real-time
+// freshness for not opening a Convex subscribe socket per client. The
+// SDKs treat the SSE connection as authoritative real-time anyway —
+// any further hardening (push, true streaming) is additive.
+const STREAM_POLL_MS = 1_500;
+const STREAM_PAGE_LIMIT = 100;
+
+webhooks.get("/stream/:apiKey", async (c) => {
+  const apiKey = c.req.param("apiKey");
+  const lastEventId = c.req.header("last-event-id") ?? undefined;
+
+  let cursor = await resolveStreamStartCursor(apiKey, lastEventId);
+
+  return streamSSE(c, async (stream) => {
+    // Heartbeats keep proxies (Fly edge, Cloudflare, browser fetch)
+    // from timing the connection out during long quiet periods. SSE
+    // comments are ignored by EventSource clients but count as
+    // bytes-on-the-wire for the proxy idle timer.
+    let aborted = false;
+    stream.onAbort(() => {
+      aborted = true;
+    });
+
+    await stream.writeSSE({
+      event: "ready",
+      data: JSON.stringify({ cursor }),
+    });
+
+    while (!aborted) {
+      let events: Array<Record<string, unknown>> = [];
+      try {
+        events = (await client.query(api.webhooks.query.webhookEventsSince, {
+          apiKey,
+          sinceMs: cursor,
+          limit: STREAM_PAGE_LIMIT,
+        })) as Array<Record<string, unknown>>;
+      } catch (error) {
+        console.error("[webhooks/stream] poll failed", error);
+        await stream.writeSSE({
+          event: "stream-error",
+          data: JSON.stringify({
+            message:
+              error instanceof Error ? error.message : "Unknown poll error",
+          }),
+        });
+        // Sleep before retrying to avoid hot-looping on persistent
+        // backend errors.
+        await stream.sleep(STREAM_POLL_MS * 4);
+        continue;
+      }
+
+      for (const event of events) {
+        if (aborted) {
+          break;
+        }
+        // Strict-equality `>` — events at exactly `sinceMs` are
+        // already-seen on reconnect so we'd emit a dupe otherwise.
+        if (typeof event.receivedAt === "number" && event.receivedAt > cursor) {
+          cursor = event.receivedAt;
+        }
+        await stream.writeSSE({
+          id: typeof event.id === "string" ? event.id : Date.now().toString(),
+          event: typeof event.type === "string" ? event.type : "WebhookEvent",
+          data: JSON.stringify(event),
+        });
+      }
+
+      // Heartbeat sent regardless of new events so quiet connections
+      // stay alive. Comment line per the SSE spec.
+      await stream.writeSSE({ event: "heartbeat", data: "" });
+
+      await stream.sleep(STREAM_POLL_MS);
+    }
+  });
+});
+
+// Translate an EventSource `Last-Event-ID` (which is the spec's stable
+// `sourceNotificationId`) into a `sinceMs` cursor by looking up the
+// event's `receivedAt`. Falls back to "now" when the id is unknown so
+// we never replay the entire 30-day window for a confused client.
+async function resolveStreamStartCursor(
+  apiKey: string,
+  lastEventId: string | undefined,
+): Promise<number> {
+  if (!lastEventId) {
+    return 0;
+  }
+  try {
+    const events = (await client.query(api.webhooks.query.webhookEventsSince, {
+      apiKey,
+      sinceMs: 0,
+      limit: 500,
+    })) as Array<{ id: string; receivedAt: number }>;
+    const match = events.find((event) => event.id === lastEventId);
+    if (match) {
+      return match.receivedAt;
+    }
+    return Date.now();
+  } catch (error) {
+    console.warn("[webhooks/stream] cursor resolution failed", error);
+    return Date.now();
+  }
+}
 
 const oauth2Client = new OAuth2Client();
 
