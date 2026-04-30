@@ -1,0 +1,236 @@
+# Server-side lifecycle webhook events normalized across stores.
+#
+# kit (kit.openiap.dev) ingests Apple App Store Server Notifications v2 (ASN v2)
+# and Google Play Real-Time Developer Notifications (RTDN), normalizes them into
+# a unified WebhookEvent shape, and streams them to authenticated clients via the
+# `webhookEvent` GraphQL Subscription.
+#
+# Design goals:
+# - Single event shape regardless of which store fired the notification.
+# - Idempotency: every normalized event has a stable `id` so consumers can dedupe.
+# - Escape hatch: the raw signed payload from the store is preserved in
+#   `rawSignedPayload` for consumers that need platform-specific fields.
+
+# What kind of lifecycle change occurred. Mapped from ASN v2 notificationType
+# and RTDN notificationType to a unified vocabulary.
+enum WebhookEventType {
+  """
+  Initial purchase or first conversion from a free trial / intro offer.
+  iOS: SUBSCRIBED (initialBuy / resubscribe).
+  Android: SUBSCRIPTION_PURCHASED.
+  """
+  SubscriptionStarted
+  """
+  Auto-renewal succeeded for an existing subscription.
+  iOS: DID_RENEW.
+  Android: SUBSCRIPTION_RENEWED.
+  """
+  SubscriptionRenewed
+  """
+  Subscription reached its expiration without a successful renewal.
+  iOS: EXPIRED.
+  Android: SUBSCRIPTION_EXPIRED.
+  """
+  SubscriptionExpired
+  """
+  Billing failed; the subscription is in a grace period during which the user
+  retains entitlement while payment is retried.
+  iOS: DID_FAIL_TO_RENEW (with grace period active).
+  Android: SUBSCRIPTION_IN_GRACE_PERIOD.
+  """
+  SubscriptionInGracePeriod
+  """
+  Billing failed and the subscription is in account-hold / billing retry,
+  during which entitlement is paused but the subscription is not yet expired.
+  iOS: DID_FAIL_TO_RENEW (no grace period; billing retry).
+  Android: SUBSCRIPTION_ON_HOLD.
+  """
+  SubscriptionInBillingRetry
+  """
+  Subscription returned to active state after a billing issue or pause.
+  iOS: DID_RECOVER.
+  Android: SUBSCRIPTION_RECOVERED / SUBSCRIPTION_RESTARTED.
+  """
+  SubscriptionRecovered
+  """
+  User turned off auto-renew. Access continues until the current period ends.
+  iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned off).
+  Android: SUBSCRIPTION_CANCELED.
+  """
+  SubscriptionCanceled
+  """
+  User reactivated auto-renew before the subscription expired.
+  iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned on).
+  Android: SUBSCRIPTION_RESTARTED (when re-enabled, not after billing recovery).
+  """
+  SubscriptionUncanceled
+  """
+  Access immediately revoked (family sharing removal, admin action, fraud).
+  iOS: REVOKE.
+  Android: SUBSCRIPTION_REVOKED.
+  """
+  SubscriptionRevoked
+  """
+  A price change is pending or has been confirmed by the user.
+  iOS: PRICE_INCREASE.
+  Android: SUBSCRIPTION_PRICE_CHANGE_CONFIRMED.
+  """
+  SubscriptionPriceChange
+  """
+  User upgraded, downgraded, or crossgraded their plan.
+  iOS: DID_CHANGE_RENEWAL_PREF.
+  Android: SUBSCRIPTION_DEFERRED / SUBSCRIPTION_PRODUCT_CHANGED.
+  """
+  SubscriptionProductChanged
+  """
+  Subscription paused (Android only feature).
+  Android: SUBSCRIPTION_PAUSED.
+  """
+  SubscriptionPaused
+  """
+  Paused subscription resumed (Android only feature).
+  Android: SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED / SUBSCRIPTION_RECOVERED from pause.
+  """
+  SubscriptionResumed
+  """
+  Refund issued for a one-time purchase or subscription period.
+  iOS: REFUND.
+  Android: ONE_TIME_PRODUCT_REFUNDED / VOIDED_PURCHASE.
+  """
+  PurchaseRefunded
+  """
+  iOS-only: App Store requests a consumption status report for a refund decision.
+  Servers should respond via the StoreKit consumption API.
+  """
+  PurchaseConsumptionRequest
+  """
+  Sandbox or test notification fired by the store for diagnostic purposes.
+  Useful for verifying webhook plumbing without a live transaction.
+  """
+  TestNotification
+}
+
+# Which store-side notification system produced this event.
+enum WebhookEventSource {
+  AppleAppStoreServerNotificationsV2
+  GooglePlayRealTimeDeveloperNotifications
+}
+
+# Environment of the source notification, as reported by the store.
+enum WebhookEventEnvironment {
+  Production
+  Sandbox
+  Xcode
+}
+
+# Normalized cross-store subscription state derived from the webhook event.
+enum SubscriptionState {
+  Active
+  InGracePeriod
+  InBillingRetry
+  Expired
+  Revoked
+  Refunded
+  Paused
+  Unknown
+}
+
+# Why a subscription was canceled, when applicable.
+enum WebhookCancellationReason {
+  UserCanceled
+  BillingError
+  PriceIncreaseDeclined
+  ProductUnavailable
+  Refunded
+  Other
+}
+
+# A normalized lifecycle event delivered to clients via Subscription.webhookEvent.
+type WebhookEvent {
+  """
+  Stable identifier suitable for idempotency. Derived from the source notification
+  UUID where the store provides one (ASN v2 `notificationUUID`, RTDN message id);
+  otherwise hashed from the canonicalized payload.
+  """
+  id: ID!
+  type: WebhookEventType!
+  source: WebhookEventSource!
+  platform: IapPlatform!
+  """
+  kit project that owns the subscription / purchase this event refers to.
+  """
+  projectId: ID!
+  """
+  Time the underlying event occurred at the store. Epoch milliseconds.
+  """
+  occurredAt: Float!
+  """
+  Time kit ingested and normalized this event. Epoch milliseconds.
+  """
+  receivedAt: Float!
+  environment: WebhookEventEnvironment!
+  """
+  Cross-platform purchase identity used to correlate this event with an existing
+  purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+  """
+  purchaseToken: String!
+  """
+  Product the event pertains to. May be null for account-level events.
+  """
+  productId: String
+  """
+  Normalized subscription state at the time of event, when the event refers to
+  a subscription. Null for one-time purchase events.
+  """
+  subscriptionState: SubscriptionState
+  """
+  When the current subscription period ends. Epoch milliseconds.
+  """
+  expiresAt: Float
+  """
+  When auto-renewal will charge again. Epoch milliseconds.
+  """
+  renewsAt: Float
+  """
+  Reason for cancellation, when applicable.
+  """
+  cancellationReason: WebhookCancellationReason
+  """
+  Localized currency code (ISO 4217) at event time, when available.
+  """
+  currency: String
+  """
+  Price in micros (1/1,000,000 of the currency unit) at event time, when available.
+  Matches Google Play's `priceAmountMicros` convention; iOS values are converted.
+  """
+  priceAmountMicros: Float
+  """
+  Original signed payload from the store. ASN v2 events expose the JWS string;
+  RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that
+  consumers can independently verify or extract platform-specific fields. kit
+  always validates this payload before emitting the event.
+  """
+  rawSignedPayload: String
+}
+
+extend type Subscription {
+  """
+  Streams normalized webhook events tied to the authenticated client's purchases.
+  Clients only receive events whose `purchaseToken` matches a purchase they own.
+
+  Transport: kit serves this over WebSocket. SDKs auto-connect when the host app
+  enters foreground and disconnect when it goes to background. Events that fire
+  while the connection is closed are reconciled via `webhookEventsSince` on
+  reconnect or the next foreground entry.
+  """
+  webhookEvent: WebhookEvent!
+}
+
+extend type Query {
+  """
+  Replay missed webhook events for the authenticated client since the given
+  timestamp. SDKs call this on reconnect / foreground entry to backfill events
+  that occurred while the WebSocket was closed.
+  """
+  webhookEventsSince(sinceMs: Float!, limit: Int): [WebhookEvent!]!
+}

@@ -424,6 +424,102 @@ public enum SubscriptionReplacementModeAndroid: String, Codable, CaseIterable {
     case keepExisting = "keep-existing"
 }
 
+public enum SubscriptionState: String, Codable, CaseIterable {
+    case active = "active"
+    case inGracePeriod = "in-grace-period"
+    case inBillingRetry = "in-billing-retry"
+    case expired = "expired"
+    case revoked = "revoked"
+    case refunded = "refunded"
+    case paused = "paused"
+    case unknown = "unknown"
+}
+
+public enum WebhookCancellationReason: String, Codable, CaseIterable {
+    case userCanceled = "user-canceled"
+    case billingError = "billing-error"
+    case priceIncreaseDeclined = "price-increase-declined"
+    case productUnavailable = "product-unavailable"
+    case refunded = "refunded"
+    case other = "other"
+}
+
+public enum WebhookEventEnvironment: String, Codable, CaseIterable {
+    case production = "production"
+    case sandbox = "sandbox"
+    case xcode = "xcode"
+}
+
+public enum WebhookEventSource: String, Codable, CaseIterable {
+    case appleAppStoreServerNotificationsV2 = "apple-app-store-server-notifications-v2"
+    case googlePlayRealTimeDeveloperNotifications = "google-play-real-time-developer-notifications"
+}
+
+public enum WebhookEventType: String, Codable, CaseIterable {
+    /// Initial purchase or first conversion from a free trial / intro offer.
+    /// iOS: SUBSCRIBED (initialBuy / resubscribe).
+    /// Android: SUBSCRIPTION_PURCHASED.
+    case subscriptionStarted = "subscription-started"
+    /// Auto-renewal succeeded for an existing subscription.
+    /// iOS: DID_RENEW.
+    /// Android: SUBSCRIPTION_RENEWED.
+    case subscriptionRenewed = "subscription-renewed"
+    /// Subscription reached its expiration without a successful renewal.
+    /// iOS: EXPIRED.
+    /// Android: SUBSCRIPTION_EXPIRED.
+    case subscriptionExpired = "subscription-expired"
+    /// Billing failed; the subscription is in a grace period during which the user
+    /// retains entitlement while payment is retried.
+    /// iOS: DID_FAIL_TO_RENEW (with grace period active).
+    /// Android: SUBSCRIPTION_IN_GRACE_PERIOD.
+    case subscriptionInGracePeriod = "subscription-in-grace-period"
+    /// Billing failed and the subscription is in account-hold / billing retry,
+    /// during which entitlement is paused but the subscription is not yet expired.
+    /// iOS: DID_FAIL_TO_RENEW (no grace period; billing retry).
+    /// Android: SUBSCRIPTION_ON_HOLD.
+    case subscriptionInBillingRetry = "subscription-in-billing-retry"
+    /// Subscription returned to active state after a billing issue or pause.
+    /// iOS: DID_RECOVER.
+    /// Android: SUBSCRIPTION_RECOVERED / SUBSCRIPTION_RESTARTED.
+    case subscriptionRecovered = "subscription-recovered"
+    /// User turned off auto-renew. Access continues until the current period ends.
+    /// iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned off).
+    /// Android: SUBSCRIPTION_CANCELED.
+    case subscriptionCanceled = "subscription-canceled"
+    /// User reactivated auto-renew before the subscription expired.
+    /// iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned on).
+    /// Android: SUBSCRIPTION_RESTARTED (when re-enabled, not after billing recovery).
+    case subscriptionUncanceled = "subscription-uncanceled"
+    /// Access immediately revoked (family sharing removal, admin action, fraud).
+    /// iOS: REVOKE.
+    /// Android: SUBSCRIPTION_REVOKED.
+    case subscriptionRevoked = "subscription-revoked"
+    /// A price change is pending or has been confirmed by the user.
+    /// iOS: PRICE_INCREASE.
+    /// Android: SUBSCRIPTION_PRICE_CHANGE_CONFIRMED.
+    case subscriptionPriceChange = "subscription-price-change"
+    /// User upgraded, downgraded, or crossgraded their plan.
+    /// iOS: DID_CHANGE_RENEWAL_PREF.
+    /// Android: SUBSCRIPTION_DEFERRED / SUBSCRIPTION_PRODUCT_CHANGED.
+    case subscriptionProductChanged = "subscription-product-changed"
+    /// Subscription paused (Android only feature).
+    /// Android: SUBSCRIPTION_PAUSED.
+    case subscriptionPaused = "subscription-paused"
+    /// Paused subscription resumed (Android only feature).
+    /// Android: SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED / SUBSCRIPTION_RECOVERED from pause.
+    case subscriptionResumed = "subscription-resumed"
+    /// Refund issued for a one-time purchase or subscription period.
+    /// iOS: REFUND.
+    /// Android: ONE_TIME_PRODUCT_REFUNDED / VOIDED_PURCHASE.
+    case purchaseRefunded = "purchase-refunded"
+    /// iOS-only: App Store requests a consumption status report for a refund decision.
+    /// Servers should respond via the StoreKit consumption API.
+    case purchaseConsumptionRequest = "purchase-consumption-request"
+    /// Sandbox or test notification fired by the store for diagnostic purposes.
+    /// Useful for verifying webhook plumbing without a live transaction.
+    case testNotification = "test-notification"
+}
+
 // MARK: - Interfaces
 
 public protocol ProductCommon: Codable {
@@ -1319,6 +1415,47 @@ public struct VerifyPurchaseWithProviderResult: Codable {
 }
 
 public typealias VoidResult = Void
+
+public struct WebhookEvent: Codable {
+    /// Reason for cancellation, when applicable.
+    public var cancellationReason: WebhookCancellationReason? = nil
+    /// Localized currency code (ISO 4217) at event time, when available.
+    public var currency: String? = nil
+    public var environment: WebhookEventEnvironment
+    /// When the current subscription period ends. Epoch milliseconds.
+    public var expiresAt: Double? = nil
+    /// Stable identifier suitable for idempotency. Derived from the source notification
+    /// UUID where the store provides one (ASN v2 `notificationUUID`, RTDN message id);
+    /// otherwise hashed from the canonicalized payload.
+    public var id: String
+    /// Time the underlying event occurred at the store. Epoch milliseconds.
+    public var occurredAt: Double
+    public var platform: IapPlatform
+    /// Price in micros (1/1,000,000 of the currency unit) at event time, when available.
+    /// Matches Google Play's `priceAmountMicros` convention; iOS values are converted.
+    public var priceAmountMicros: Double? = nil
+    /// Product the event pertains to. May be null for account-level events.
+    public var productId: String? = nil
+    /// kit project that owns the subscription / purchase this event refers to.
+    public var projectId: String
+    /// Cross-platform purchase identity used to correlate this event with an existing
+    /// purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+    public var purchaseToken: String
+    /// Original signed payload from the store. ASN v2 events expose the JWS string;
+    /// RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that
+    /// consumers can independently verify or extract platform-specific fields. kit
+    /// always validates this payload before emitting the event.
+    public var rawSignedPayload: String? = nil
+    /// Time kit ingested and normalized this event. Epoch milliseconds.
+    public var receivedAt: Double
+    /// When auto-renewal will charge again. Epoch milliseconds.
+    public var renewsAt: Double? = nil
+    public var source: WebhookEventSource
+    /// Normalized subscription state at the time of event, when the event refers to
+    /// a subscription. Null for one-time purchase events.
+    public var subscriptionState: SubscriptionState? = nil
+    public var type: WebhookEventType
+}
 
 // MARK: - Input Objects
 
@@ -2526,6 +2663,10 @@ public protocol QueryResolver {
     /// Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
     /// See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
     func validateReceiptIOS(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
+    /// Replay missed webhook events for the authenticated client since the given
+    /// timestamp. SDKs call this on reconnect / foreground entry to backfill events
+    /// that occurred while the WebSocket was closed.
+    func webhookEventsSince(sinceMs: Double, limit: Int?) async throws -> [WebhookEvent]
 }
 
 /// GraphQL root subscription operations.
@@ -2557,6 +2698,14 @@ public protocol SubscriptionResolver {
     /// Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
     /// Only triggered when the user selects alternative billing instead of Google Play billing
     func userChoiceBillingAndroid() async throws -> UserChoiceBillingDetails
+    /// Streams normalized webhook events tied to the authenticated client's purchases.
+    /// Clients only receive events whose `purchaseToken` matches a purchase they own.
+    /// 
+    /// Transport: kit serves this over WebSocket. SDKs auto-connect when the host app
+    /// enters foreground and disconnect when it goes to background. Events that fire
+    /// while the connection is closed are reconciled via `webhookEventsSince` on
+    /// reconnect or the next foreground entry.
+    func webhookEvent() async throws -> WebhookEvent
 }
 
 // MARK: - Root Operation Helpers
@@ -2698,6 +2847,7 @@ public typealias QueryIsTransactionVerifiedIOSHandler = (_ sku: String) async th
 public typealias QueryLatestTransactionIOSHandler = (_ sku: String) async throws -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = (_ sku: String) async throws -> [SubscriptionStatusIOS]
 public typealias QueryValidateReceiptIOSHandler = (_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
+public typealias QueryWebhookEventsSinceHandler = (_ sinceMs: Double, _ limit: Int?) async throws -> [WebhookEvent]
 
 public struct QueryHandlers {
     public var canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler?
@@ -2721,6 +2871,7 @@ public struct QueryHandlers {
     public var latestTransactionIOS: QueryLatestTransactionIOSHandler?
     public var subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler?
     public var validateReceiptIOS: QueryValidateReceiptIOSHandler?
+    public var webhookEventsSince: QueryWebhookEventsSinceHandler?
 
     public init(
         canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = nil,
@@ -2743,7 +2894,8 @@ public struct QueryHandlers {
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = nil,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = nil,
         subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = nil,
-        validateReceiptIOS: QueryValidateReceiptIOSHandler? = nil
+        validateReceiptIOS: QueryValidateReceiptIOSHandler? = nil,
+        webhookEventsSince: QueryWebhookEventsSinceHandler? = nil
     ) {
         self.canPresentExternalPurchaseNoticeIOS = canPresentExternalPurchaseNoticeIOS
         self.currentEntitlementIOS = currentEntitlementIOS
@@ -2766,6 +2918,7 @@ public struct QueryHandlers {
         self.latestTransactionIOS = latestTransactionIOS
         self.subscriptionStatusIOS = subscriptionStatusIOS
         self.validateReceiptIOS = validateReceiptIOS
+        self.webhookEventsSince = webhookEventsSince
     }
 }
 
@@ -2777,6 +2930,7 @@ public typealias SubscriptionPurchaseErrorHandler = () async throws -> PurchaseE
 public typealias SubscriptionPurchaseUpdatedHandler = () async throws -> Purchase
 public typealias SubscriptionSubscriptionBillingIssueHandler = () async throws -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = () async throws -> UserChoiceBillingDetails
+public typealias SubscriptionWebhookEventHandler = () async throws -> WebhookEvent
 
 public struct SubscriptionHandlers {
     public var developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler?
@@ -2785,6 +2939,7 @@ public struct SubscriptionHandlers {
     public var purchaseUpdated: SubscriptionPurchaseUpdatedHandler?
     public var subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler?
     public var userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler?
+    public var webhookEvent: SubscriptionWebhookEventHandler?
 
     public init(
         developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler? = nil,
@@ -2792,7 +2947,8 @@ public struct SubscriptionHandlers {
         purchaseError: SubscriptionPurchaseErrorHandler? = nil,
         purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = nil,
         subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler? = nil,
-        userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = nil
+        userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = nil,
+        webhookEvent: SubscriptionWebhookEventHandler? = nil
     ) {
         self.developerProvidedBillingAndroid = developerProvidedBillingAndroid
         self.promotedProductIOS = promotedProductIOS
@@ -2800,5 +2956,6 @@ public struct SubscriptionHandlers {
         self.purchaseUpdated = purchaseUpdated
         self.subscriptionBillingIssue = subscriptionBillingIssue
         self.userChoiceBillingAndroid = userChoiceBillingAndroid
+        self.webhookEvent = webhookEvent
     }
 }

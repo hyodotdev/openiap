@@ -295,6 +295,72 @@ enum SubscriptionReplacementModeAndroid {
 	KEEP_EXISTING = 6,
 }
 
+enum SubscriptionState {
+	ACTIVE = 0,
+	IN_GRACE_PERIOD = 1,
+	IN_BILLING_RETRY = 2,
+	EXPIRED = 3,
+	REVOKED = 4,
+	REFUNDED = 5,
+	PAUSED = 6,
+	UNKNOWN = 7,
+}
+
+enum WebhookCancellationReason {
+	USER_CANCELED = 0,
+	BILLING_ERROR = 1,
+	PRICE_INCREASE_DECLINED = 2,
+	PRODUCT_UNAVAILABLE = 3,
+	REFUNDED = 4,
+	OTHER = 5,
+}
+
+enum WebhookEventEnvironment {
+	PRODUCTION = 0,
+	SANDBOX = 1,
+	XCODE = 2,
+}
+
+enum WebhookEventSource {
+	APPLE_APP_STORE_SERVER_NOTIFICATIONS_V2 = 0,
+	GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS = 1,
+}
+
+enum WebhookEventType {
+	## Initial purchase or first conversion from a free trial / intro offer. iOS: SUBSCRIBED (initialBuy / resubscribe). Android: SUBSCRIPTION_PURCHASED.
+	SUBSCRIPTION_STARTED = 0,
+	## Auto-renewal succeeded for an existing subscription. iOS: DID_RENEW. Android: SUBSCRIPTION_RENEWED.
+	SUBSCRIPTION_RENEWED = 1,
+	## Subscription reached its expiration without a successful renewal. iOS: EXPIRED. Android: SUBSCRIPTION_EXPIRED.
+	SUBSCRIPTION_EXPIRED = 2,
+	## Billing failed; the subscription is in a grace period during which the user retains entitlement while payment is retried. iOS: DID_FAIL_TO_RENEW (with grace period active). Android: SUBSCRIPTION_IN_GRACE_PERIOD.
+	SUBSCRIPTION_IN_GRACE_PERIOD = 3,
+	## Billing failed and the subscription is in account-hold / billing retry, during which entitlement is paused but the subscription is not yet expired. iOS: DID_FAIL_TO_RENEW (no grace period; billing retry). Android: SUBSCRIPTION_ON_HOLD.
+	SUBSCRIPTION_IN_BILLING_RETRY = 4,
+	## Subscription returned to active state after a billing issue or pause. iOS: DID_RECOVER. Android: SUBSCRIPTION_RECOVERED / SUBSCRIPTION_RESTARTED.
+	SUBSCRIPTION_RECOVERED = 5,
+	## User turned off auto-renew. Access continues until the current period ends. iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned off). Android: SUBSCRIPTION_CANCELED.
+	SUBSCRIPTION_CANCELED = 6,
+	## User reactivated auto-renew before the subscription expired. iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned on). Android: SUBSCRIPTION_RESTARTED (when re-enabled, not after billing recovery).
+	SUBSCRIPTION_UNCANCELED = 7,
+	## Access immediately revoked (family sharing removal, admin action, fraud). iOS: REVOKE. Android: SUBSCRIPTION_REVOKED.
+	SUBSCRIPTION_REVOKED = 8,
+	## A price change is pending or has been confirmed by the user. iOS: PRICE_INCREASE. Android: SUBSCRIPTION_PRICE_CHANGE_CONFIRMED.
+	SUBSCRIPTION_PRICE_CHANGE = 9,
+	## User upgraded, downgraded, or crossgraded their plan. iOS: DID_CHANGE_RENEWAL_PREF. Android: SUBSCRIPTION_DEFERRED / SUBSCRIPTION_PRODUCT_CHANGED.
+	SUBSCRIPTION_PRODUCT_CHANGED = 10,
+	## Subscription paused (Android only feature). Android: SUBSCRIPTION_PAUSED.
+	SUBSCRIPTION_PAUSED = 11,
+	## Paused subscription resumed (Android only feature). Android: SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED / SUBSCRIPTION_RECOVERED from pause.
+	SUBSCRIPTION_RESUMED = 12,
+	## Refund issued for a one-time purchase or subscription period. iOS: REFUND. Android: ONE_TIME_PRODUCT_REFUNDED / VOIDED_PURCHASE.
+	PURCHASE_REFUNDED = 13,
+	## iOS-only: App Store requests a consumption status report for a refund decision. Servers should respond via the StoreKit consumption API.
+	PURCHASE_CONSUMPTION_REQUEST = 14,
+	## Sandbox or test notification fired by the store for diagnostic purposes. Useful for verifying webhook plumbing without a live transaction.
+	TEST_NOTIFICATION = 15,
+}
+
 # ============================================================================
 # Types
 # ============================================================================
@@ -3238,6 +3304,145 @@ class VoidResult:
 		dict["success"] = success
 		return dict
 
+class WebhookEvent:
+	## Stable identifier suitable for idempotency. Derived from the source notification
+	var id: String = ""
+	var type: WebhookEventType
+	var source: WebhookEventSource
+	var platform: IapPlatform
+	## kit project that owns the subscription / purchase this event refers to.
+	var project_id: String = ""
+	## Time the underlying event occurred at the store. Epoch milliseconds.
+	var occurred_at: float = 0.0
+	## Time kit ingested and normalized this event. Epoch milliseconds.
+	var received_at: float = 0.0
+	var environment: WebhookEventEnvironment
+	## Cross-platform purchase identity used to correlate this event with an existing
+	var purchase_token: String = ""
+	## Product the event pertains to. May be null for account-level events.
+	var product_id: Variant = null
+	## Normalized subscription state at the time of event, when the event refers to
+	var subscription_state: SubscriptionState
+	## When the current subscription period ends. Epoch milliseconds.
+	var expires_at: Variant = null
+	## When auto-renewal will charge again. Epoch milliseconds.
+	var renews_at: Variant = null
+	## Reason for cancellation, when applicable.
+	var cancellation_reason: WebhookCancellationReason
+	## Localized currency code (ISO 4217) at event time, when available.
+	var currency: Variant = null
+	## Price in micros (1/1,000,000 of the currency unit) at event time, when available.
+	var price_amount_micros: Variant = null
+	## Original signed payload from the store. ASN v2 events expose the JWS string;
+	var raw_signed_payload: Variant = null
+
+	static func from_dict(data: Dictionary) -> WebhookEvent:
+		var obj = WebhookEvent.new()
+		if data.has("id") and data["id"] != null:
+			obj.id = data["id"]
+		if data.has("type") and data["type"] != null:
+			var enum_str = data["type"]
+			if enum_str is String and WEBHOOK_EVENT_TYPE_FROM_STRING.has(enum_str):
+				obj.type = WEBHOOK_EVENT_TYPE_FROM_STRING[enum_str]
+			else:
+				obj.type = enum_str
+		if data.has("source") and data["source"] != null:
+			var enum_str = data["source"]
+			if enum_str is String and WEBHOOK_EVENT_SOURCE_FROM_STRING.has(enum_str):
+				obj.source = WEBHOOK_EVENT_SOURCE_FROM_STRING[enum_str]
+			else:
+				obj.source = enum_str
+		if data.has("platform") and data["platform"] != null:
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			else:
+				obj.platform = enum_str
+		if data.has("projectId") and data["projectId"] != null:
+			obj.project_id = data["projectId"]
+		if data.has("occurredAt") and data["occurredAt"] != null:
+			obj.occurred_at = data["occurredAt"]
+		if data.has("receivedAt") and data["receivedAt"] != null:
+			obj.received_at = data["receivedAt"]
+		if data.has("environment") and data["environment"] != null:
+			var enum_str = data["environment"]
+			if enum_str is String and WEBHOOK_EVENT_ENVIRONMENT_FROM_STRING.has(enum_str):
+				obj.environment = WEBHOOK_EVENT_ENVIRONMENT_FROM_STRING[enum_str]
+			else:
+				obj.environment = enum_str
+		if data.has("purchaseToken") and data["purchaseToken"] != null:
+			obj.purchase_token = data["purchaseToken"]
+		if data.has("productId") and data["productId"] != null:
+			obj.product_id = data["productId"]
+		if data.has("subscriptionState") and data["subscriptionState"] != null:
+			var enum_str = data["subscriptionState"]
+			if enum_str is String and SUBSCRIPTION_STATE_FROM_STRING.has(enum_str):
+				obj.subscription_state = SUBSCRIPTION_STATE_FROM_STRING[enum_str]
+			else:
+				obj.subscription_state = enum_str
+		if data.has("expiresAt") and data["expiresAt"] != null:
+			obj.expires_at = data["expiresAt"]
+		if data.has("renewsAt") and data["renewsAt"] != null:
+			obj.renews_at = data["renewsAt"]
+		if data.has("cancellationReason") and data["cancellationReason"] != null:
+			var enum_str = data["cancellationReason"]
+			if enum_str is String and WEBHOOK_CANCELLATION_REASON_FROM_STRING.has(enum_str):
+				obj.cancellation_reason = WEBHOOK_CANCELLATION_REASON_FROM_STRING[enum_str]
+			else:
+				obj.cancellation_reason = enum_str
+		if data.has("currency") and data["currency"] != null:
+			obj.currency = data["currency"]
+		if data.has("priceAmountMicros") and data["priceAmountMicros"] != null:
+			obj.price_amount_micros = data["priceAmountMicros"]
+		if data.has("rawSignedPayload") and data["rawSignedPayload"] != null:
+			obj.raw_signed_payload = data["rawSignedPayload"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["id"] = id
+		if WEBHOOK_EVENT_TYPE_VALUES.has(type):
+			dict["type"] = WEBHOOK_EVENT_TYPE_VALUES[type]
+		else:
+			dict["type"] = type
+		if WEBHOOK_EVENT_SOURCE_VALUES.has(source):
+			dict["source"] = WEBHOOK_EVENT_SOURCE_VALUES[source]
+		else:
+			dict["source"] = source
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["projectId"] = project_id
+		dict["occurredAt"] = occurred_at
+		dict["receivedAt"] = received_at
+		if WEBHOOK_EVENT_ENVIRONMENT_VALUES.has(environment):
+			dict["environment"] = WEBHOOK_EVENT_ENVIRONMENT_VALUES[environment]
+		else:
+			dict["environment"] = environment
+		dict["purchaseToken"] = purchase_token
+		if product_id != null:
+			dict["productId"] = product_id
+		if SUBSCRIPTION_STATE_VALUES.has(subscription_state):
+			dict["subscriptionState"] = SUBSCRIPTION_STATE_VALUES[subscription_state]
+		else:
+			dict["subscriptionState"] = subscription_state
+		if expires_at != null:
+			dict["expiresAt"] = expires_at
+		if renews_at != null:
+			dict["renewsAt"] = renews_at
+		if WEBHOOK_CANCELLATION_REASON_VALUES.has(cancellation_reason):
+			dict["cancellationReason"] = WEBHOOK_CANCELLATION_REASON_VALUES[cancellation_reason]
+		else:
+			dict["cancellationReason"] = cancellation_reason
+		if currency != null:
+			dict["currency"] = currency
+		if price_amount_micros != null:
+			dict["priceAmountMicros"] = price_amount_micros
+		if raw_signed_payload != null:
+			dict["rawSignedPayload"] = raw_signed_payload
+		return dict
+
 # ============================================================================
 # Input Types
 # ============================================================================
@@ -4569,6 +4774,56 @@ const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES = {
 	SubscriptionReplacementModeAndroid.KEEP_EXISTING: "keep-existing"
 }
 
+const SUBSCRIPTION_STATE_VALUES = {
+	SubscriptionState.ACTIVE: "active",
+	SubscriptionState.IN_GRACE_PERIOD: "in-grace-period",
+	SubscriptionState.IN_BILLING_RETRY: "in-billing-retry",
+	SubscriptionState.EXPIRED: "expired",
+	SubscriptionState.REVOKED: "revoked",
+	SubscriptionState.REFUNDED: "refunded",
+	SubscriptionState.PAUSED: "paused",
+	SubscriptionState.UNKNOWN: "unknown"
+}
+
+const WEBHOOK_CANCELLATION_REASON_VALUES = {
+	WebhookCancellationReason.USER_CANCELED: "user-canceled",
+	WebhookCancellationReason.BILLING_ERROR: "billing-error",
+	WebhookCancellationReason.PRICE_INCREASE_DECLINED: "price-increase-declined",
+	WebhookCancellationReason.PRODUCT_UNAVAILABLE: "product-unavailable",
+	WebhookCancellationReason.REFUNDED: "refunded",
+	WebhookCancellationReason.OTHER: "other"
+}
+
+const WEBHOOK_EVENT_ENVIRONMENT_VALUES = {
+	WebhookEventEnvironment.PRODUCTION: "production",
+	WebhookEventEnvironment.SANDBOX: "sandbox",
+	WebhookEventEnvironment.XCODE: "xcode"
+}
+
+const WEBHOOK_EVENT_SOURCE_VALUES = {
+	WebhookEventSource.APPLE_APP_STORE_SERVER_NOTIFICATIONS_V2: "apple-app-store-server-notifications-v2",
+	WebhookEventSource.GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS: "google-play-real-time-developer-notifications"
+}
+
+const WEBHOOK_EVENT_TYPE_VALUES = {
+	WebhookEventType.SUBSCRIPTION_STARTED: "subscription-started",
+	WebhookEventType.SUBSCRIPTION_RENEWED: "subscription-renewed",
+	WebhookEventType.SUBSCRIPTION_EXPIRED: "subscription-expired",
+	WebhookEventType.SUBSCRIPTION_IN_GRACE_PERIOD: "subscription-in-grace-period",
+	WebhookEventType.SUBSCRIPTION_IN_BILLING_RETRY: "subscription-in-billing-retry",
+	WebhookEventType.SUBSCRIPTION_RECOVERED: "subscription-recovered",
+	WebhookEventType.SUBSCRIPTION_CANCELED: "subscription-canceled",
+	WebhookEventType.SUBSCRIPTION_UNCANCELED: "subscription-uncanceled",
+	WebhookEventType.SUBSCRIPTION_REVOKED: "subscription-revoked",
+	WebhookEventType.SUBSCRIPTION_PRICE_CHANGE: "subscription-price-change",
+	WebhookEventType.SUBSCRIPTION_PRODUCT_CHANGED: "subscription-product-changed",
+	WebhookEventType.SUBSCRIPTION_PAUSED: "subscription-paused",
+	WebhookEventType.SUBSCRIPTION_RESUMED: "subscription-resumed",
+	WebhookEventType.PURCHASE_REFUNDED: "purchase-refunded",
+	WebhookEventType.PURCHASE_CONSUMPTION_REQUEST: "purchase-consumption-request",
+	WebhookEventType.TEST_NOTIFICATION: "test-notification"
+}
+
 # ============================================================================
 # Enum Reverse Lookup (string -> enum for deserialization)
 # ============================================================================
@@ -4785,6 +5040,56 @@ const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING = {
 	"without-proration": SubscriptionReplacementModeAndroid.WITHOUT_PRORATION,
 	"deferred": SubscriptionReplacementModeAndroid.DEFERRED,
 	"keep-existing": SubscriptionReplacementModeAndroid.KEEP_EXISTING
+}
+
+const SUBSCRIPTION_STATE_FROM_STRING = {
+	"active": SubscriptionState.ACTIVE,
+	"in-grace-period": SubscriptionState.IN_GRACE_PERIOD,
+	"in-billing-retry": SubscriptionState.IN_BILLING_RETRY,
+	"expired": SubscriptionState.EXPIRED,
+	"revoked": SubscriptionState.REVOKED,
+	"refunded": SubscriptionState.REFUNDED,
+	"paused": SubscriptionState.PAUSED,
+	"unknown": SubscriptionState.UNKNOWN
+}
+
+const WEBHOOK_CANCELLATION_REASON_FROM_STRING = {
+	"user-canceled": WebhookCancellationReason.USER_CANCELED,
+	"billing-error": WebhookCancellationReason.BILLING_ERROR,
+	"price-increase-declined": WebhookCancellationReason.PRICE_INCREASE_DECLINED,
+	"product-unavailable": WebhookCancellationReason.PRODUCT_UNAVAILABLE,
+	"refunded": WebhookCancellationReason.REFUNDED,
+	"other": WebhookCancellationReason.OTHER
+}
+
+const WEBHOOK_EVENT_ENVIRONMENT_FROM_STRING = {
+	"production": WebhookEventEnvironment.PRODUCTION,
+	"sandbox": WebhookEventEnvironment.SANDBOX,
+	"xcode": WebhookEventEnvironment.XCODE
+}
+
+const WEBHOOK_EVENT_SOURCE_FROM_STRING = {
+	"apple-app-store-server-notifications-v2": WebhookEventSource.APPLE_APP_STORE_SERVER_NOTIFICATIONS_V2,
+	"google-play-real-time-developer-notifications": WebhookEventSource.GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS
+}
+
+const WEBHOOK_EVENT_TYPE_FROM_STRING = {
+	"subscription-started": WebhookEventType.SUBSCRIPTION_STARTED,
+	"subscription-renewed": WebhookEventType.SUBSCRIPTION_RENEWED,
+	"subscription-expired": WebhookEventType.SUBSCRIPTION_EXPIRED,
+	"subscription-in-grace-period": WebhookEventType.SUBSCRIPTION_IN_GRACE_PERIOD,
+	"subscription-in-billing-retry": WebhookEventType.SUBSCRIPTION_IN_BILLING_RETRY,
+	"subscription-recovered": WebhookEventType.SUBSCRIPTION_RECOVERED,
+	"subscription-canceled": WebhookEventType.SUBSCRIPTION_CANCELED,
+	"subscription-uncanceled": WebhookEventType.SUBSCRIPTION_UNCANCELED,
+	"subscription-revoked": WebhookEventType.SUBSCRIPTION_REVOKED,
+	"subscription-price-change": WebhookEventType.SUBSCRIPTION_PRICE_CHANGE,
+	"subscription-product-changed": WebhookEventType.SUBSCRIPTION_PRODUCT_CHANGED,
+	"subscription-paused": WebhookEventType.SUBSCRIPTION_PAUSED,
+	"subscription-resumed": WebhookEventType.SUBSCRIPTION_RESUMED,
+	"purchase-refunded": WebhookEventType.PURCHASE_REFUNDED,
+	"purchase-consumption-request": WebhookEventType.PURCHASE_CONSUMPTION_REQUEST,
+	"test-notification": WebhookEventType.TEST_NOTIFICATION
 }
 
 # ============================================================================
@@ -5128,6 +5433,30 @@ class Query:
 				return dict
 		const return_type = "VerifyPurchaseResultIOS"
 		const is_array = false
+
+	## Replay missed webhook events for the authenticated client since the given
+	class webhookEventsSinceField:
+		const name = "webhookEventsSince"
+		const snake_name = "webhook_events_since"
+		class Args:
+			var since_ms: float
+			var limit: int
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sinceMs") and data["sinceMs"] != null:
+					obj.since_ms = data["sinceMs"]
+				if data.has("limit") and data["limit"] != null:
+					obj.limit = data["limit"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var dict = {}
+				dict["sinceMs"] = since_ms
+				dict["limit"] = limit
+				return dict
+		const return_type = "WebhookEvent"
+		const is_array = true
 
 
 # ============================================================================
@@ -5694,6 +6023,13 @@ static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionar
 			args["options"] = options.to_dict()
 		else:
 			args["options"] = options
+	return args
+
+## Replay missed webhook events for the authenticated client since the given
+static func webhook_events_since_args(since_ms: float, limit: int) -> Dictionary:
+	var args = {}
+	args["sinceMs"] = since_ms
+	args["limit"] = limit
 	return args
 
 # Mutation API helpers

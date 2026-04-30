@@ -33,6 +33,7 @@ const DEFAULT_SCHEMA_PATHS = [
   '../src/api-android.graphql',
   '../src/error.graphql',
   '../src/event.graphql',
+  '../src/webhook.graphql',
 ];
 
 // ============================================================================
