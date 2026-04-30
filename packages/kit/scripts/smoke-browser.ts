@@ -28,7 +28,7 @@ function isIgnored(message: string): boolean {
   return IGNORED_ERROR_PATTERNS.some((re) => re.test(message));
 }
 
-async function main(): Promise<void> {
+async function main(): Promise<number> {
   const errors: string[] = [];
 
   const browser = await chromium.launch({ headless: true });
@@ -47,29 +47,44 @@ async function main(): Promise<void> {
       errors.push(`console.error: ${text}`);
     });
 
-    await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+    // Catch goto/locator failures (timeouts etc.) so the errors array
+    // gets reported AND the finally below still runs to close the
+    // browser. Calling process.exit() inside the try block would skip
+    // both — leaving a zombie chromium process and hiding any
+    // pageerror/console.error we already collected.
+    try {
+      await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
 
-    // Verify the SPA actually mounted something non-trivial. An empty
-    // <div id="root"></div> is what every fatal-bundle-crash leaves
-    // behind, and it's what shipped to kit.openiap.dev pre-#120.
-    const rootHtml = await page.locator("#root").innerHTML();
-    if (rootHtml.trim().length === 0) {
-      errors.push("SPA mount target #root is empty — bundle likely crashed");
+      // Verify the SPA actually mounted something non-trivial. An empty
+      // <div id="root"></div> is what every fatal-bundle-crash leaves
+      // behind, and it's what shipped to kit.openiap.dev pre-#120.
+      const rootHtml = await page.locator("#root").innerHTML();
+      if (rootHtml.trim().length === 0) {
+        errors.push("SPA mount target #root is empty — bundle likely crashed");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`navigation failed: ${message}`);
     }
-
-    if (errors.length > 0) {
-      console.error("smoke-browser: FAILED");
-      for (const e of errors) console.error(`  - ${e}`);
-      process.exit(1);
-    }
-
-    console.log(`smoke-browser: ${url} mounted cleanly ✓`);
   } finally {
     await browser.close();
   }
+
+  if (errors.length > 0) {
+    console.error("smoke-browser: FAILED");
+    for (const e of errors) console.error(`  - ${e}`);
+    return 1;
+  }
+
+  console.log(`smoke-browser: ${url} mounted cleanly ✓`);
+  return 0;
 }
 
-main().catch((err) => {
-  console.error("smoke-browser: unexpected error", err);
-  process.exit(1);
-});
+main()
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((err) => {
+    console.error("smoke-browser: unexpected error", err);
+    process.exitCode = 1;
+  });
