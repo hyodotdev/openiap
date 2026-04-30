@@ -473,7 +473,7 @@ await iap.request_purchase(props)`}</CodeBlock>
             >
               <code>packages/kit</code>
             </a>
-            )
+            {`)`}
           </li>
           <li>
             <Link to="/docs/apis">API Reference</Link> — every function with

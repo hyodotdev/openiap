@@ -43,7 +43,7 @@ function VerifyPurchaseWithProviderProps() {
           >
             <code>packages/kit</code>
           </a>
-          ). See{' '}
+          {`).`} See{' '}
           <a
             href="https://www.openiap.dev/docs/features/validation"
             target="_blank"
