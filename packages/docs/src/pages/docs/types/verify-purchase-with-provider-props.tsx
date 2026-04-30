@@ -35,7 +35,15 @@ function VerifyPurchaseWithProviderProps() {
         <p>
           Input to <code>verifyPurchaseWithProvider</code> — pick a managed
           validator. The <code>PurchaseVerificationProvider</code> enum
-          currently exposes only IAPKit. See{' '}
+          currently exposes only IAPKit (open source under MIT — source at{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <code>packages/kit</code>
+          </a>
+          {`).`} See{' '}
           <a
             href="https://www.openiap.dev/docs/features/validation"
             target="_blank"
