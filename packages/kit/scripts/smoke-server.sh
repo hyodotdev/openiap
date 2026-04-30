@@ -31,7 +31,7 @@ if [[ ! -f "$DIST/index.html" ]]; then
 fi
 
 # Run the binary in the background with placeholder env.
-CONVEX_URL="https://placeholder.convex.cloud" \
+CONVEX_URL="https://placeholder-build-1.convex.cloud" \
 STATIC_ROOT="$DIST" \
 PORT="$PORT" \
 "$BINARY" > /tmp/openiap-kit-smoke.log 2>&1 &
@@ -85,6 +85,19 @@ if [[ "$fail" -ne 0 ]]; then
   echo "---- server log ----" >&2
   cat /tmp/openiap-kit-smoke.log >&2 || true
   exit 1
+fi
+
+# HTTP probes pass even when the SPA bundle is broken at runtime
+# (PR #120 shipped a chunk-cycle crash that left a 200 response and a
+# blank page). Run a headless-browser smoke to catch that class of
+# failure. Skipped when SKIP_BROWSER_SMOKE=1 (e.g. dev iteration where
+# Playwright + chromium aren't installed yet).
+if [[ "${SKIP_BROWSER_SMOKE:-0}" != "1" ]]; then
+  if ! SMOKE_URL="http://localhost:${PORT}/" bun run "$ROOT_DIR/scripts/smoke-browser.ts"; then
+    echo "---- server log ----" >&2
+    cat /tmp/openiap-kit-smoke.log >&2 || true
+    exit 1
+  fi
 fi
 
 echo "smoke: all probes passed"
