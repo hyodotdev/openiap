@@ -293,7 +293,7 @@ jobs:
 
       - name: Create Release
         if: ${{ inputs.create_release }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: godot-iap-${{ steps.version.outputs.VERSION }}
           name: godot-iap ${{ steps.version.outputs.VERSION }}
