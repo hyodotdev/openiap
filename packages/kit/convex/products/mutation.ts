@@ -30,6 +30,16 @@ export const upsertProduct = mutation({
     description: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
+    billingPeriod: v.optional(
+      v.union(
+        v.literal("P1W"),
+        v.literal("P1M"),
+        v.literal("P2M"),
+        v.literal("P3M"),
+        v.literal("P6M"),
+        v.literal("P1Y"),
+      ),
+    ),
     state: v.optional(stateValidator),
     storeRef: v.optional(v.string()),
   },
@@ -53,15 +63,18 @@ export const upsertProduct = mutation({
 
     const now = Date.now();
     if (existing) {
+      // State-only flips moved to `setProductState`. This mutation
+      // now treats every supplied field as authoritative — keeping
+      // the prior "blank title preserves existing" hack would still
+      // mask cases where a caller really did mean to clear a field.
       await ctx.db.patch(existing._id, {
         platform: args.platform,
         type: args.type,
-        // upsertProduct is also called by `manage_product` with a blank
-        // title to flip state; preserve the existing title in that case.
-        title: args.title || existing.title,
+        title: args.title,
         description: args.description ?? existing.description,
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
+        billingPeriod: args.billingPeriod ?? existing.billingPeriod,
         state: args.state ?? existing.state,
         storeRef: args.storeRef ?? existing.storeRef,
         updatedAt: now,
@@ -78,11 +91,56 @@ export const upsertProduct = mutation({
       description: args.description,
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
+      billingPeriod: args.billingPeriod,
       state: args.state ?? "Draft",
       storeRef: args.storeRef,
       updatedAt: now,
     });
     return { id, created: true };
+  },
+});
+
+// State-only mutation used by `manage_product` (MCP) and the
+// dashboard's enable/disable affordance. Distinct from `upsertProduct`
+// because the previous reuse pattern (passing a blank title +
+// hardcoded type so only `state` would update) would silently
+// overwrite the existing row's `type` — e.g. flipping a NonConsumable
+// to Subscription. Splitting the mutation prevents that class of
+// drive-by clobber.
+export const setProductState = mutation({
+  args: {
+    apiKey: v.string(),
+    productId: v.string(),
+    platform: platformValidator,
+    state: stateValidator,
+  },
+  returns: v.object({
+    id: v.id("products"),
+    state: stateValidator,
+  }),
+  handler: async (ctx, args) => {
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
+      .unique();
+    if (!project) throw new Error("Invalid API key");
+
+    const existing = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_product", (q) =>
+        q.eq("projectId", project._id).eq("productId", args.productId),
+      )
+      .unique();
+    if (!existing) throw new Error("Product not found");
+    if (existing.platform !== args.platform) {
+      throw new Error("Product platform mismatch");
+    }
+
+    await ctx.db.patch(existing._id, {
+      state: args.state,
+      updatedAt: Date.now(),
+    });
+    return { id: existing._id, state: args.state };
   },
 });
 

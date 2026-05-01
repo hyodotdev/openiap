@@ -399,17 +399,21 @@ server.tool(
   async (args) => {
     try {
       const client = withClient(args);
-      // Until the App Store Connect / Play CRUD lands (Phase 3),
-      // `manage_product` is wired to the local catalog only — it
-      // updates the row's state without touching the upstream store.
-      const next = await client.upsertProduct({
+      // Map the action onto the state-only endpoint. Using
+      // `setProductState` instead of `upsertProduct` here avoids the
+      // prior bug where calling upsertProduct with a hardcoded
+      // `type: "Subscription"` + blank `title` would silently clobber
+      // the existing row's product type and (depending on
+      // upsertProduct's branch) its title.
+      const stateMap = {
+        disable: "Removed" as const,
+        enable: "Active" as const,
+        remove: "Removed" as const,
+      };
+      const next = await client.setProductState({
         productId: args.productId,
         platform: args.platform,
-        // Catalog rows require a title; we pass an empty placeholder
-        // so the upsert succeeds when only state is being changed —
-        // the kit upsert overwrites only the fields it received.
-        title: "",
-        type: "Subscription",
+        state: stateMap[args.action],
       });
       return ok({ ...next, action: args.action });
     } catch (error) {

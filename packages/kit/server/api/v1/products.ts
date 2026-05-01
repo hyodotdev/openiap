@@ -34,6 +34,7 @@ products.post("/:apiKey", async (c) => {
     description?: string;
     priceAmountMicros?: number;
     currency?: string;
+    billingPeriod?: "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";
     state?: "Draft" | "Ready" | "Active" | "Removed";
     storeRef?: string;
   };
@@ -68,6 +69,7 @@ products.post("/:apiKey", async (c) => {
       description: body.description,
       priceAmountMicros: body.priceAmountMicros,
       currency: body.currency,
+      billingPeriod: body.billingPeriod,
       state: body.state,
       storeRef: body.storeRef,
     });
@@ -78,6 +80,64 @@ products.post("/:apiKey", async (c) => {
         errors: [
           {
             code: "PRODUCT_UPSERT_FAILED",
+            message: error instanceof Error ? error.message : String(error),
+          },
+        ],
+      },
+      400,
+    );
+  }
+});
+
+// State-only update for the existing row. MCP `manage_product` uses
+// this so it doesn't have to re-supply `type` / `title` (and thus
+// can't accidentally clobber them, which the prior `upsertProduct`
+// reuse pattern silently did).
+products.post("/:apiKey/state", async (c) => {
+  const apiKey = c.req.param("apiKey");
+  let body: {
+    productId?: string;
+    platform?: "IOS" | "Android";
+    state?: "Draft" | "Ready" | "Active" | "Removed";
+  };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(
+      { errors: [{ code: "INVALID_INPUT", message: "Body is not JSON" }] },
+      400,
+    );
+  }
+  if (!body.productId || !body.platform || !body.state) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "INVALID_INPUT",
+            message: "productId, platform, state are required",
+          },
+        ],
+      },
+      400,
+    );
+  }
+  try {
+    const result = await client.mutation(
+      api.products.mutation.setProductState,
+      {
+        apiKey,
+        productId: body.productId,
+        platform: body.platform,
+        state: body.state,
+      },
+    );
+    return c.json(result);
+  } catch (error) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "PRODUCT_STATE_FAILED",
             message: error instanceof Error ? error.message : String(error),
           },
         ],

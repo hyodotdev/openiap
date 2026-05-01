@@ -42,6 +42,14 @@ coverage/
 .env.local
 .env.*.local
 
+# IAPKit credential files downloaded from prod for local testing.
+# Apple .p8 keys + Google service-account JSONs must never be
+# committed — they'd grant attackers App Store Server API / Play
+# Developer API access on the corresponding project.
+*.p8
+**/service-account*.json
+martie-c0b27-*.json
+
 # Temp
 tmp/
 temp/

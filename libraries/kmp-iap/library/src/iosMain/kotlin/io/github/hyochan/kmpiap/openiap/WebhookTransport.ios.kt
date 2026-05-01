@@ -1,7 +1,10 @@
 package io.github.hyochan.kmpiap.openiap
 
 import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.get
+import kotlinx.cinterop.reinterpret
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -13,9 +16,14 @@ import kotlinx.coroutines.launch
 import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSHTTPURLResponse
+import platform.Foundation.NSMakeRange
+import platform.Foundation.NSMutableData
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSString
 import platform.Foundation.NSURL
+import platform.Foundation.appendData
+import platform.Foundation.replaceBytesInRange
+import platform.Foundation.subdataWithRange
 import platform.Foundation.NSURLSession
 import platform.Foundation.NSURLSessionConfiguration
 import platform.Foundation.NSURLSessionDataDelegateProtocol
@@ -90,8 +98,13 @@ actual class WebhookTransport actual constructor(
             request.setValue(lastEventId, forHTTPHeaderField = "Last-Event-ID")
         }
         val config = NSURLSessionConfiguration.defaultSessionConfiguration()
-        val frameBuffer = StringBuilder()
-        val delegate = SseDelegate(channel, frameBuffer, updateLastEventId)
+        // Buffer raw bytes — not a decoded String — so a multi-byte UTF-8
+        // character split across two NSURLSession chunks doesn't get
+        // dropped. `NSString.create(data:, encoding:)` returns null on
+        // any incomplete UTF-8 sequence at the buffer tail, which would
+        // silently lose the entire chunk including the head bytes.
+        val byteBuffer = NSMutableData()
+        val delegate = SseDelegate(channel, byteBuffer, updateLastEventId)
         val session = NSURLSession.sessionWithConfiguration(config, delegate, null)
         val task = session.dataTaskWithRequest(request)
         activeTask = task
@@ -114,7 +127,7 @@ actual class WebhookTransport actual constructor(
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private class SseDelegate(
     private val channel: Channel<WebhookEvent>,
-    private val frameBuffer: StringBuilder,
+    private val byteBuffer: NSMutableData,
     private val updateLastEventId: (String) -> Unit,
 ) : NSObject(), NSURLSessionDataDelegateProtocol {
     private val finishedSignal = Channel<Unit>(Channel.CONFLATED)
@@ -124,11 +137,41 @@ private class SseDelegate(
         dataTask: NSURLSessionDataTask,
         didReceiveData: NSData,
     ) {
-        val str = NSString.create(data = didReceiveData, encoding = NSUTF8StringEncoding)
-            ?.toString()
-            ?: return
-        frameBuffer.append(str)
-        var content = frameBuffer.toString()
+        // Append the raw chunk to the running byte buffer. SSE frame
+        // separators (`\n\n` / `\r\n\r\n`) are pure ASCII, so we can
+        // safely scan for them at the byte level — even when the
+        // surrounding data contains multi-byte UTF-8 characters.
+        byteBuffer.appendData(didReceiveData)
+        val totalLen = byteBuffer.length.toInt()
+        if (totalLen < 2) return
+        val bytesPtr = byteBuffer.bytes?.reinterpret<ByteVar>() ?: return
+        val byteAt = { idx: Int -> bytesPtr[idx] }
+        // Find the LAST complete frame boundary in the buffer. Anything
+        // after it stays in the buffer for the next chunk — the tail
+        // might end mid-multibyte-character, and we must not attempt
+        // to decode it yet.
+        val consumeUpTo = findLastFrameBoundary(byteAt, totalLen)
+        if (consumeUpTo <= 0) return
+        // Decode only the consumable prefix (bytes through the last
+        // `\n\n` / `\r\n\r\n`) — guaranteed to be a complete UTF-8
+        // sequence because the boundary is ASCII and the prior frame
+        // body must have ended at a clean character boundary for the
+        // server to have emitted the separator.
+        val prefixRange = NSMakeRange(0u.toULong(), consumeUpTo.toULong())
+        val prefixData = byteBuffer.subdataWithRange(prefixRange)
+        val prefixNs =
+            NSString.create(data = prefixData, encoding = NSUTF8StringEncoding)
+        // Drop the consumed bytes from the head of the buffer regardless
+        // of whether decode succeeded — if a server ever emits invalid
+        // UTF-8, dropping the bad frame and keeping the trailing bytes
+        // is preferable to looping on the same broken prefix forever.
+        byteBuffer.replaceBytesInRange(
+            range = prefixRange,
+            withBytes = null,
+            length = 0u.toULong(),
+        )
+        if (prefixNs == null) return
+        var content = prefixNs.toString()
         while (true) {
             val sepIdx = content.indexOf("\n\n")
             val lfIdx = if (sepIdx >= 0) sepIdx else content.indexOf("\r\n\r\n")
@@ -138,8 +181,38 @@ private class SseDelegate(
             content = content.substring(lfIdx + sepLen)
             processFrame(frame)
         }
-        frameBuffer.clear()
-        frameBuffer.append(content)
+    }
+
+    // Scan for the last complete SSE frame separator (`\n\n` or
+    // `\r\n\r\n`) and return the byte offset just past it (i.e. the
+    // number of bytes safe to consume). Returns 0 when no complete
+    // frame has arrived yet. Operates on raw bytes so a multi-byte
+    // UTF-8 character in the tail can never produce a false match —
+    // 0x0A and 0x0D never appear inside the body of a multi-byte
+    // UTF-8 codepoint.
+    private fun findLastFrameBoundary(byteAt: (Int) -> Byte, length: Int): Int {
+        var lastEnd = 0
+        var i = 0
+        while (i < length - 1) {
+            if (byteAt(i) == 0x0A.toByte() && byteAt(i + 1) == 0x0A.toByte()) {
+                lastEnd = i + 2
+                i += 2
+                continue
+            }
+            if (
+                i < length - 3 &&
+                byteAt(i) == 0x0D.toByte() &&
+                byteAt(i + 1) == 0x0A.toByte() &&
+                byteAt(i + 2) == 0x0D.toByte() &&
+                byteAt(i + 3) == 0x0A.toByte()
+            ) {
+                lastEnd = i + 4
+                i += 4
+                continue
+            }
+            i += 1
+        }
+        return lastEnd
     }
 
     override fun URLSession(

@@ -112,6 +112,16 @@ export const listDraftIosProducts = internalQuery({
       platform: platformValidator,
       type: typeValidator,
       title: v.string(),
+      billingPeriod: v.optional(
+        v.union(
+          v.literal("P1W"),
+          v.literal("P1M"),
+          v.literal("P2M"),
+          v.literal("P3M"),
+          v.literal("P6M"),
+          v.literal("P1Y"),
+        ),
+      ),
       storeRef: v.optional(v.string()),
     }),
   ),
@@ -143,6 +153,7 @@ export const listDraftIosProducts = internalQuery({
         platform: row.platform,
         type: row.type,
         title: row.title,
+        billingPeriod: row.billingPeriod,
         storeRef: row.storeRef,
       }));
   },
@@ -160,6 +171,16 @@ export const listDraftAndroidProducts = internalQuery({
       description: v.optional(v.string()),
       priceAmountMicros: v.optional(v.number()),
       currency: v.optional(v.string()),
+      billingPeriod: v.optional(
+        v.union(
+          v.literal("P1W"),
+          v.literal("P1M"),
+          v.literal("P2M"),
+          v.literal("P3M"),
+          v.literal("P6M"),
+          v.literal("P1Y"),
+        ),
+      ),
       storeRef: v.optional(v.string()),
     }),
   ),
@@ -180,6 +201,7 @@ export const listDraftAndroidProducts = internalQuery({
         description: row.description,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
+        billingPeriod: row.billingPeriod,
         storeRef: row.storeRef,
       }));
   },

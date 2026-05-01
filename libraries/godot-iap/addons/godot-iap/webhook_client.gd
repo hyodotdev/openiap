@@ -169,8 +169,11 @@ func _process_frame(frame: String) -> void:
 				event_id = value
 			"data":
 				data_lines.append(value)
-	if not event_id.is_empty():
-		_last_event_id = event_id
+	# Don't advance `_last_event_id` here — wait until we've actually
+	# emitted the parsed event below. If parsing fails (PARSE_ERROR /
+	# MALFORMED_EVENT) we'd otherwise move the reconnect cursor past
+	# an event the listener never received, so the next connection
+	# would skip it permanently.
 	if data_lines.is_empty():
 		return
 	if event_name == "heartbeat" or event_name == "ready":
@@ -190,3 +193,6 @@ func _process_frame(frame: String) -> void:
 		emit_signal("stream_error", "MALFORMED_EVENT", "WebhookEvent missing required fields")
 		return
 	emit_signal("event_received", decoded)
+	# Cursor advances only after a successful emit.
+	if not event_id.is_empty():
+		_last_event_id = event_id

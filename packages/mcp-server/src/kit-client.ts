@@ -24,10 +24,7 @@ export class KitHttpError extends Error {
 export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
   const root = (baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
 
-  async function call<T>(
-    path: string,
-    init: RequestInit = {},
-  ): Promise<T> {
+  async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetch(`${root}${path}`, {
       ...init,
       headers: {
@@ -141,7 +138,15 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         `/v1/products/${encodeURIComponent(apiKey)}`,
         { method: "POST", body: JSON.stringify(product) },
       ),
-    health: () =>
-      call<{ ok: boolean }>("/health"),
+    setProductState: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      state: "Draft" | "Ready" | "Active" | "Removed";
+    }) =>
+      call<{ id: string; state: string }>(
+        `/v1/products/${encodeURIComponent(apiKey)}/state`,
+        { method: "POST", body: JSON.stringify(params) },
+      ),
+    health: () => call<{ ok: boolean }>("/health"),
   };
 }

@@ -614,6 +614,24 @@ const schema = defineSchema({
       v.literal("Active"),
       v.literal("Removed"),
     ),
+    // Subscription billing period. ISO-8601-ish duration the ASC + Play
+    // push paths both accept (`P1W` / `P1M` / `P2M` / `P3M` / `P6M` /
+    // `P1Y`). Optional because non-subscription types don't use it.
+    // The push actions translate this to ASC `subscriptionPeriod` enum
+    // (`ONE_WEEK` / `ONE_MONTH` / `TWO_MONTHS` / …) and Play
+    // `autoRenewingBasePlanType.billingPeriodDuration`. Without this
+    // field, the prior implementation silently created every
+    // subscription as ONE_MONTH / P1M regardless of intent.
+    billingPeriod: v.optional(
+      v.union(
+        v.literal("P1W"),
+        v.literal("P1M"),
+        v.literal("P2M"),
+        v.literal("P3M"),
+        v.literal("P6M"),
+        v.literal("P1Y"),
+      ),
+    ),
     storeRef: v.optional(v.string()),
     syncedAt: v.optional(v.number()),
     updatedAt: v.number(),

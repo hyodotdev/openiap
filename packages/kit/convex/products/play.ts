@@ -183,16 +183,17 @@ export const pushSyncProductsGoogle = action({
                     description: row.description ?? row.title,
                   },
                 ],
-                // Minimal auto-renewing monthly base plan. Operators
-                // can edit pricing and offers in Play Console after
-                // the initial sync — this only ensures the product
-                // is in a purchasable state.
+                // Auto-renewing base plan. Period from the catalog row;
+                // defaults to monthly when the operator hasn't picked
+                // one. The base-plan id mirrors the duration so a row
+                // upgraded later from monthly→yearly doesn't collide
+                // with an existing base plan id in Play Console.
                 basePlans: [
                   {
-                    basePlanId: "monthly",
+                    basePlanId: basePlanIdForPeriod(row.billingPeriod),
                     state: "ACTIVE",
                     autoRenewingBasePlanType: {
-                      billingPeriodDuration: "P1M",
+                      billingPeriodDuration: row.billingPeriod ?? "P1M",
                     },
                     regionalConfigs: [
                       {
@@ -338,4 +339,26 @@ function parseSubBasePlanCurrency(
   return (
     sub.basePlans?.[0]?.regionalConfigs?.[0]?.price?.currencyCode ?? undefined
   );
+}
+
+// Stable basePlanId per billing period — Play's product detail page
+// shows this id, so something descriptive beats "monthly" hardcoded
+// for non-monthly billing.
+function basePlanIdForPeriod(period: string | undefined): string {
+  switch (period) {
+    case "P1W":
+      return "weekly";
+    case "P2M":
+      return "bimonthly";
+    case "P3M":
+      return "quarterly";
+    case "P6M":
+      return "semiannual";
+    case "P1Y":
+      return "yearly";
+    case "P1M":
+    case undefined:
+    default:
+      return "monthly";
+  }
 }

@@ -409,7 +409,12 @@ export const pushSyncProductsApple = action({
               groupId: row.storeRef,
               productId: row.productId,
               name: row.title,
-              subscriptionPeriod: "ONE_MONTH",
+              // Translate the ISO-8601 `billingPeriod` from the catalog
+              // row to ASC's enum. Default to `ONE_MONTH` only when
+              // the operator hasn't picked one — the prior hardcode
+              // silently created weekly / yearly subscriptions as
+              // monthly with no error.
+              subscriptionPeriod: mapBillingPeriodToAsc(row.billingPeriod),
             });
             await ctx.runMutation(internal.products.sync.markPushed, {
               projectId: project._id,
@@ -445,6 +450,33 @@ export const pushSyncProductsApple = action({
     return { pulled, pushed, failures };
   },
 });
+
+function mapBillingPeriodToAsc(
+  period: string | undefined,
+):
+  | "ONE_WEEK"
+  | "ONE_MONTH"
+  | "TWO_MONTHS"
+  | "THREE_MONTHS"
+  | "SIX_MONTHS"
+  | "ONE_YEAR" {
+  switch (period) {
+    case "P1W":
+      return "ONE_WEEK";
+    case "P2M":
+      return "TWO_MONTHS";
+    case "P3M":
+      return "THREE_MONTHS";
+    case "P6M":
+      return "SIX_MONTHS";
+    case "P1Y":
+      return "ONE_YEAR";
+    case "P1M":
+    case undefined:
+    default:
+      return "ONE_MONTH";
+  }
+}
 
 function mapAscIapType(
   raw: string | undefined,
