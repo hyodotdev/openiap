@@ -1095,6 +1095,77 @@ export default function ProjectSettings() {
                         )}
                       </>
                     )}
+
+                    {/* Inline setup guide — sits with the Server API
+                        .p8 upload so the operator doesn't have to
+                        scroll to a separate "How to" block to remember
+                        which Apple page to open. Hidden once the .p8
+                        is uploaded; instructions become noise once
+                        the slot is filled. */}
+                    {!iosFileUploaded && !hasIosFile && (
+                      <div className="mt-4 pt-4 border-t border-border/60">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Info className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">
+                              {"How to get your Server API .p8 file:"}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowIosGuide(true)}
+                            className="p-1 hover:bg-muted rounded-lg transition-colors"
+                            title={"View Guide"}
+                          >
+                            <HelpCircle className="w-4 h-4 text-primary" />
+                          </button>
+                        </div>
+                        <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                          <li>
+                            {
+                              "Go to App Store Connect → Users and Access → Integrations → In-App Purchase"
+                            }
+                          </li>
+                          <li>
+                            {
+                              "Click 'Generate In-App Purchase Key' or '+' button"
+                            }
+                          </li>
+                          <li>
+                            {
+                              "Enter a name and download the .p8 file (can only be downloaded once)"
+                            }
+                          </li>
+                          <li>
+                            {
+                              "Copy the Issuer ID at the top of the page and the Key ID next to your new key"
+                            }
+                          </li>
+                        </ol>
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowIosGuide(true)}
+                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                          >
+                            {"View Screenshots"}
+                            <HelpCircle className="w-3 h-3" />
+                          </button>
+                          <span className="text-sm text-muted-foreground">
+                            •
+                          </span>
+                          <a
+                            href="https://developer.apple.com/documentation/appstoreserverapi/creating_api_keys_to_use_with_the_app_store_server_api"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                          >
+                            {"Apple docs"}
+                            <FileText className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── 2. App Store Connect API Key (.p8) ──────────
@@ -1243,117 +1314,59 @@ export default function ProjectSettings() {
                         </>
                       )}
                     </div>
-                  </div>
 
-                  {/* iOS Setup Guide — Server API key (.p8) */}
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Info className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">
-                          {"How to get your Server API .p8 file:"}
-                        </span>
+                    {/* Inline setup guide — sits with the Connect API
+                        .p8 upload so the operator sees the steps right
+                        next to the slot that uses them. Hidden once
+                        the .p8 is uploaded. */}
+                    {!iosAscFileUploaded && !hasIosAscFile && (
+                      <div className="mt-4 pt-4 border-t border-border/60">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Info className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">
+                            {"How to get your Connect API .p8 file:"}
+                          </span>
+                        </div>
+                        <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                          <li>
+                            {
+                              "Go to App Store Connect → Users and Access → Integrations → App Store Connect API"
+                            }
+                          </li>
+                          <li>
+                            {
+                              "Pick the Team Keys tab (or Individual Keys for a personal key)"
+                            }
+                          </li>
+                          <li>
+                            {
+                              "Click '+' / 'Generate API Key' and assign at least the 'App Manager' role so the key can list and modify in-app purchases"
+                            }
+                          </li>
+                          <li>
+                            {
+                              "Download the .p8 file (can only be downloaded once)"
+                            }
+                          </li>
+                          <li>
+                            {
+                              "Copy the Issuer ID at the top of the page and the Key ID next to your new key — these are different from the Server API ones"
+                            }
+                          </li>
+                        </ol>
+                        <div className="flex items-center gap-2 mt-2">
+                          <a
+                            href="https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                          >
+                            {"Apple docs"}
+                            <FileText className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowIosGuide(true)}
-                        className="p-1 hover:bg-muted rounded-lg transition-colors"
-                        title={"View Guide"}
-                      >
-                        <HelpCircle className="w-4 h-4 text-primary" />
-                      </button>
-                    </div>
-                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>
-                        {
-                          "Go to App Store Connect → Users and Access → Integrations → In-App Purchase"
-                        }
-                      </li>
-                      <li>
-                        {"Click 'Generate In-App Purchase Key' or '+' button"}
-                      </li>
-                      <li>
-                        {
-                          "Enter a name and download the .p8 file (can only be downloaded once)"
-                        }
-                      </li>
-                      <li>
-                        {
-                          "Copy the Issuer ID at the top of the page and the Key ID next to your new key"
-                        }
-                      </li>
-                    </ol>
-                    <div className="flex items-center gap-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowIosGuide(true)}
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                      >
-                        {"View Screenshots"}
-                        <HelpCircle className="w-3 h-3" />
-                      </button>
-                      <span className="text-sm text-muted-foreground">•</span>
-                      <a
-                        href="https://developer.apple.com/documentation/appstoreserverapi/creating_api_keys_to_use_with_the_app_store_server_api"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                      >
-                        {"Apple docs"}
-                        <FileText className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* iOS Setup Guide — Connect API key (.p8) */}
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Info className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">
-                        {"How to get your Connect API .p8 file:"}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {
-                        "Different page from the Server API key above. Required only if you want kit to push-sync your IAP catalog with App Store Connect."
-                      }
-                    </p>
-                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>
-                        {
-                          "Go to App Store Connect → Users and Access → Integrations → App Store Connect API"
-                        }
-                      </li>
-                      <li>
-                        {
-                          "Pick the Team Keys tab (or Individual Keys for a personal key)"
-                        }
-                      </li>
-                      <li>
-                        {
-                          "Click '+' / 'Generate API Key' and assign at least the 'App Manager' role so the key can list and modify in-app purchases"
-                        }
-                      </li>
-                      <li>
-                        {"Download the .p8 file (can only be downloaded once)"}
-                      </li>
-                      <li>
-                        {
-                          "Copy the Issuer ID at the top of the page and the Key ID next to your new key — these are different from the Server API ones"
-                        }
-                      </li>
-                    </ol>
-                    <div className="flex items-center gap-2 mt-2">
-                      <a
-                        href="https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                      >
-                        {"Apple docs"}
-                        <FileText className="w-3 h-3" />
-                      </a>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -167,18 +167,23 @@ export const pushSyncProductsGoogle = action({
                       description?: string;
                     }>;
                     purchaseOptions?: Array<{
-                      buyOption?: {
-                        legacyCompatible?: boolean;
-                        regionalPricingAndAvailabilityConfigs?: Array<{
-                          regionCode?: string;
-                          price?: {
-                            currencyCode?: string;
-                            units?: string;
-                            nanos?: number;
-                          };
-                        }>;
-                      };
+                      state?: string;
+                      purchaseOptionId?: string;
+                      buyOption?: { legacyCompatible?: boolean };
                       rentOption?: unknown;
+                      // Pricing lives DIRECTLY on the purchaseOption,
+                      // NOT nested inside buyOption. The earlier shape
+                      // (buyOption.regionalPricingAndAvailabilityConfigs)
+                      // was wrong — every one-time product surfaced
+                      // with no price because the lookup never matched.
+                      regionalPricingAndAvailabilityConfigs?: Array<{
+                        regionCode?: string;
+                        price?: {
+                          currencyCode?: string;
+                          units?: string;
+                          nanos?: number;
+                        };
+                      }>;
                     }>;
                   }>;
                   nextPageToken?: string;
@@ -200,15 +205,23 @@ export const pushSyncProductsGoogle = action({
               if (seenOneTimeSkus.has(product.productId)) continue;
               seenOneTimeSkus.add(product.productId);
               const listing = product.listings?.[0];
-              const buyOption = product.purchaseOptions?.[0]?.buyOption;
-              const regional =
-                buyOption?.regionalPricingAndAvailabilityConfigs ?? [];
-              const priceCandidates = regional
-                .map((r) => r.price)
-                .filter(
-                  (p): p is NonNullable<typeof p> =>
-                    !!p && typeof p.units === "string",
-                );
+              // Walk every purchaseOption × regionalPricingAndAvailabilityConfig
+              // (pricing lives on the option, not inside buyOption),
+              // prefer USD when any region offers it, otherwise the
+              // first region with a readable price.
+              const priceCandidates: Array<{
+                currencyCode?: string;
+                units?: string;
+                nanos?: number;
+              }> = [];
+              for (const opt of product.purchaseOptions ?? []) {
+                for (const region of opt.regionalPricingAndAvailabilityConfigs ??
+                  []) {
+                  if (region.price && typeof region.price.units === "string") {
+                    priceCandidates.push(region.price);
+                  }
+                }
+              }
               const preferred =
                 priceCandidates.find((p) => p.currencyCode === "USD") ??
                 priceCandidates[0];

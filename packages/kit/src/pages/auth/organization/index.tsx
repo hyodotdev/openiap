@@ -184,7 +184,7 @@ export default function OrganizationLayout() {
             nested scrolls previously caused the inner container to
             scroll past the visible content while the outer still had
             room to move. */}
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 overflow-y-auto overscroll-none bg-background">
           <FreeTransitionNotice
             hadBillingRelationship={Boolean(
               organization.stripeCustomerId ||

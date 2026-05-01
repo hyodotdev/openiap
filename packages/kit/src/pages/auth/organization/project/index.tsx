@@ -166,8 +166,13 @@ export default function ProjectIndex() {
   // content while the outer still had room — the "empty space below
   // the last card" bug. The single scroll lives at the org layout
   // now; this component just flows naturally.
+  //
+  // `min-h-full` ensures the page covers the full main viewport even
+  // when the form is shorter than the viewport — without it the user
+  // saw a wide bg-background gap below the Save button when content
+  // didn't reach the viewport bottom, which read as a layout bug.
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-h-full">
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="container max-w-7xl mx-auto px-4 py-4">
