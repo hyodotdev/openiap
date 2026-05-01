@@ -48,4 +48,16 @@ crons.interval(
   { olderThanMs: 30 * 24 * 60 * 60 * 1000 },
 );
 
+// Meta Horizon Store has no webhook system — Meta only exposes a
+// synchronous `verify_entitlement` Graph API. We poll every 6h to
+// reconcile Active / InGracePeriod / Paused subscriptions against
+// Meta's authoritative answer, feeding the deltas through the same
+// state machine the Apple/Google webhook receivers use.
+crons.interval(
+  "reconcile horizon entitlements",
+  { hours: 6 },
+  internal.subscriptions.horizon.reconcileHorizonEntitlements,
+  {},
+);
+
 export default crons;

@@ -1,16 +1,28 @@
 import { useOutletContext } from "react-router-dom";
 import { useState } from "react";
-import { Webhook, Copy, ExternalLink } from "lucide-react";
+import { useQuery } from "convex/react";
+import {
+  Webhook,
+  Copy,
+  ExternalLink,
+  Check,
+  AlertTriangle,
+} from "lucide-react";
 
 import type { Doc } from "@/convex";
+import { api } from "@/convex";
 
 type ProjectContext = { project: Doc<"projects"> };
 
 export default function ProjectWebhooks() {
   const { project } = useOutletContext<ProjectContext>();
   const baseUrl = window.location.origin;
+  const setup = useQuery(api.projects.setupStatus.getSetupStatus, {
+    apiKey: project.apiKey,
+  });
 
   const urls = {
+    unified: `${baseUrl}/v1/webhooks/${encodeURIComponent(project.apiKey)}`,
     apple: `${baseUrl}/v1/webhooks/apple/${encodeURIComponent(project.apiKey)}`,
     google: `${baseUrl}/v1/webhooks/google/${encodeURIComponent(project.apiKey)}`,
     stream: `${baseUrl}/v1/webhooks/stream/${encodeURIComponent(project.apiKey)}`,
@@ -24,41 +36,63 @@ export default function ProjectWebhooks() {
           Webhooks
         </h2>
         <p className="text-sm text-muted-foreground">
-          Register the URLs below with App Store Connect and Google Pub/Sub so
-          kit can ingest lifecycle notifications. Clients connect to the SSE
-          stream URL to receive normalized{" "}
-          <code className="text-xs">WebhookEvent</code>s in real time.
+          One URL covers Apple ASN v2 and Google Pub/Sub RTDN — kit inspects the
+          payload shape and routes internally. Clients connect to the SSE stream
+          URL to receive normalized{" "}
+          <code className="text-xs">WebhookEvent</code>s in real time. Platforms
+          you haven't configured simply produce no traffic; if a notification
+          arrives for an unconfigured platform, kit returns a precise{" "}
+          <code className="text-xs">IOS_NOT_CONFIGURED</code> /{" "}
+          <code className="text-xs">ANDROID_NOT_CONFIGURED</code> error so you
+          know exactly what's missing.
         </p>
       </div>
 
-      <UrlCard
-        title="Apple App Store Server Notifications v2"
-        description={
-          <>
-            Paste this URL into App Store Connect → Apps → Your App → App
-            Information → App Store Server Notifications. Production + Sandbox
-            URLs are the same — kit reads the environment from the signed
-            payload.
-          </>
-        }
-        url={urls.apple}
-        external="https://developer.apple.com/documentation/appstoreservernotifications"
-      />
+      {setup ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <SetupBadge
+            label="iOS"
+            configured={setup.ios.configured}
+            missing={setup.ios.missing}
+          />
+          <SetupBadge
+            label="Android"
+            configured={setup.android.configured}
+            missing={setup.android.missing}
+          />
+          <SetupBadge
+            label="Horizon (polling)"
+            configured={setup.horizon.configured}
+            missing={setup.horizon.missing}
+          />
+        </div>
+      ) : null}
 
       <UrlCard
-        title="Google Play Real-Time Developer Notifications"
+        title="Lifecycle webhook URL (Apple + Google)"
         description={
           <>
-            Configure a Pub/Sub topic in Google Cloud, attach a push
-            subscription pointing at this URL, and grant the topic publish
-            permission to your Play Console publisher account. kit verifies the
-            OIDC bearer token; set{" "}
-            <code className="text-xs">GOOGLE_PUBSUB_PUSH_AUDIENCE</code> in your
-            kit deployment to enable strict checks.
+            Paste this URL into <strong>both</strong>:
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li>
+                App Store Connect → Apps → Your App → App Information → App
+                Store Server Notifications (Production + Sandbox).
+              </li>
+              <li>
+                Google Cloud Pub/Sub → Subscription → Push endpoint (then point
+                Play Console → Monetization setup → RTDN at the topic).
+              </li>
+            </ul>
+            <span className="block mt-2 text-xs">
+              kit auto-detects the payload shape and dispatches to the right
+              verifier — Apple notifications signed with your{" "}
+              <code className="text-xs">.p8</code> + Google Pub/Sub messages
+              with OIDC bearer.
+            </span>
           </>
         }
-        url={urls.google}
-        external="https://developer.android.com/google/play/billing/rtdn-reference"
+        url={urls.unified}
+        external="https://developer.apple.com/documentation/appstoreservernotifications"
       />
 
       <UrlCard
@@ -75,25 +109,87 @@ export default function ProjectWebhooks() {
         url={urls.stream}
       />
 
+      <details className="border border-border rounded-lg bg-card">
+        <summary className="px-4 py-3 cursor-pointer text-sm font-medium">
+          Advanced — platform-specific URLs (legacy)
+        </summary>
+        <div className="border-t border-border p-4 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            These URLs accept only the matching platform's payload. Use the
+            unified URL above unless an upstream tool insists on a
+            store-prefixed path.
+          </p>
+          <UrlCard
+            title="Apple-only"
+            description="Accepts ASN v2 signedPayload bodies only."
+            url={urls.apple}
+          />
+          <UrlCard
+            title="Google-only"
+            description="Accepts Pub/Sub envelopes only."
+            url={urls.google}
+          />
+        </div>
+      </details>
+
       <div className="border border-border rounded-lg bg-card p-4 text-sm space-y-2">
         <div className="font-medium">Live test</div>
         <p className="text-xs text-muted-foreground">
-          POST a synthetic Pub/Sub test message to the Google receiver to verify
+          POST a synthetic Pub/Sub test message to the unified URL to verify
           wiring without going through the App Store / Play Console. The MCP
           server's <code className="text-xs">openiap_simulate_webhook</code>{" "}
           tool runs this same request.
         </p>
         <pre className="text-xs bg-muted/50 rounded p-3 overflow-x-auto">{`curl -X POST \\
-  ${urls.google} \\
+  ${urls.unified} \\
   -H 'content-type: application/json' \\
   -d '{
     "message": {
-      "data": "${btoa(JSON.stringify({ packageName: project.androidPackageName ?? "com.example.app", eventTimeMillis: Date.now(), testNotification: { version: "1.0" } }))}",
+      "data": "${btoa(
+        JSON.stringify({
+          packageName: project.androidPackageName ?? "com.example.app",
+          eventTimeMillis: Date.now(),
+          testNotification: { version: "1.0" },
+        }),
+      )}",
       "messageId": "manual-test-${Date.now()}",
       "publishTime": "${new Date().toISOString()}"
     }
   }'`}</pre>
       </div>
+    </div>
+  );
+}
+
+function SetupBadge({
+  label,
+  configured,
+  missing,
+}: {
+  label: string;
+  configured: boolean;
+  missing: string[];
+}) {
+  return (
+    <div className="border border-border rounded-lg bg-card p-3">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        {configured ? (
+          <Check className="w-4 h-4 text-green-500" />
+        ) : (
+          <AlertTriangle className="w-4 h-4 text-amber-500" />
+        )}
+        {label}
+        <span
+          className={`ml-auto text-xs ${configured ? "text-green-500" : "text-amber-500"}`}
+        >
+          {configured ? "Ready" : "Not configured"}
+        </span>
+      </div>
+      {!configured && missing.length > 0 && (
+        <div className="mt-2 text-xs text-muted-foreground">
+          Missing: {missing.join(", ")}
+        </div>
+      )}
     </div>
   );
 }

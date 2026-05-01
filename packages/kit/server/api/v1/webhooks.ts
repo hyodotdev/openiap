@@ -28,10 +28,39 @@ import { client, convexUrlForRealtime, handleConvexError } from "../../convex";
 
 const webhooks = new Hono();
 
-webhooks.post("/apple/:apiKey", async (c) => {
+// Unified lifecycle endpoint. The exact same URL works for both Apple
+// App Store Connect and Google Pub/Sub push subscriptions: kit
+// inspects the body shape to detect which store sent the
+// notification, then dispatches to the same Convex action that the
+// platform-specific paths use.
+//
+// Detection rules:
+//   - Apple ASN v2 payload: `{ "signedPayload": "<JWS>" }`
+//   - Google Pub/Sub push: `{ "message": { "data": "<base64>",
+//     "messageId": "..." }, "subscription": "..." }`
+// Anything else returns 400 INVALID_INPUT so misconfigured upstream
+// senders fail loudly rather than silently being dropped.
+//
+// Why one URL: the comparison-table feedback was that exposing two
+// "Apple URL" / "Google URL" copy boxes in the dashboard makes the
+// hosted-backend pitch leakier than it needs to be. With one URL,
+// the operator pastes the same string into App Store Connect AND
+// Google Pub/Sub; whichever platform they haven't configured simply
+// never sends traffic, and kit's per-platform receiver code only
+// runs when its expected payload shape arrives.
+const unifiedHandler = async (c: Context) => {
   const apiKey = c.req.param("apiKey");
-  let body: { signedPayload?: string };
-
+  if (!apiKey) {
+    return c.json(
+      {
+        errors: [
+          { code: "INVALID_INPUT", message: "Missing apiKey path segment" },
+        ],
+      },
+      400,
+    );
+  }
+  let body: unknown;
   try {
     body = await c.req.json();
   } catch {
@@ -41,6 +70,115 @@ webhooks.post("/apple/:apiKey", async (c) => {
     );
   }
 
+  if (looksLikeApple(body)) {
+    const setup = await getSetupStatus(apiKey);
+    if (!setup.found)
+      return platformError(c, "INVALID_API_KEY", "Unknown apiKey");
+    if (!setup.ios.configured) {
+      return platformError(
+        c,
+        "IOS_NOT_CONFIGURED",
+        `Apple ASN v2 received but iOS is not configured for this project. Missing: ${setup.ios.missing.join(", ")}.`,
+      );
+    }
+    return handleAppleNotification(
+      c,
+      apiKey,
+      body as { signedPayload: string },
+    );
+  }
+  if (looksLikeGoogle(body)) {
+    const setup = await getSetupStatus(apiKey);
+    if (!setup.found)
+      return platformError(c, "INVALID_API_KEY", "Unknown apiKey");
+    if (!setup.android.configured) {
+      return platformError(
+        c,
+        "ANDROID_NOT_CONFIGURED",
+        `Google RTDN received but Android is not configured for this project. Missing: ${setup.android.missing.join(", ")}.`,
+      );
+    }
+    return handleGoogleNotification(c, apiKey, body as PubSubPushBody);
+  }
+
+  return c.json(
+    {
+      errors: [
+        {
+          code: "INVALID_INPUT",
+          message:
+            "Unrecognized payload. Expected Apple ASN v2 ({signedPayload}) or Google Pub/Sub ({message:{data,messageId}}).",
+        },
+      ],
+    },
+    400,
+  );
+};
+
+// Public — paste this URL into both App Store Connect and Google
+// Pub/Sub push subscription configuration.
+webhooks.post("/:apiKey", unifiedHandler);
+
+// Backwards-compatible aliases for operators who already configured a
+// platform-specific URL. Both dispatch through the same handlers as
+// the unified endpoint, so the dashboard / docs nudge users toward
+// the one-URL pattern without breaking existing wiring.
+webhooks.post("/apple/:apiKey", unifiedHandler);
+webhooks.post("/google/:apiKey", unifiedHandler);
+
+type PubSubPushBody = {
+  message: {
+    data: string;
+    messageId: string;
+    publishTime?: string;
+    attributes?: Record<string, string>;
+  };
+  subscription?: string;
+};
+
+function looksLikeApple(body: unknown): boolean {
+  return (
+    !!body &&
+    typeof body === "object" &&
+    "signedPayload" in body &&
+    typeof (body as Record<string, unknown>).signedPayload === "string"
+  );
+}
+
+function looksLikeGoogle(body: unknown): boolean {
+  if (!body || typeof body !== "object") return false;
+  const message = (body as { message?: unknown }).message;
+  if (!message || typeof message !== "object") return false;
+  const m = message as Record<string, unknown>;
+  return typeof m.data === "string" && typeof m.messageId === "string";
+}
+
+// Surface a 412 Precondition Failed with a stable `code` so the
+// dashboard / SDK can branch on it without parsing the message.
+function platformError(c: Context, code: string, message: string) {
+  return c.json({ errors: [{ code, message }] }, 412);
+}
+
+async function getSetupStatus(apiKey: string): Promise<{
+  found: boolean;
+  ios: { configured: boolean; missing: string[] };
+  android: { configured: boolean; missing: string[] };
+}> {
+  const status = (await client.query(api.projects.setupStatus.getSetupStatus, {
+    apiKey,
+  })) as {
+    found: boolean;
+    ios: { configured: boolean; missing: string[] };
+    android: { configured: boolean; missing: string[] };
+  };
+  return status;
+}
+
+async function handleAppleNotification(
+  c: Context,
+  apiKey: string,
+  body: { signedPayload: string },
+) {
   if (typeof body.signedPayload !== "string" || body.signedPayload.length < 1) {
     return c.json(
       {
@@ -54,7 +192,6 @@ webhooks.post("/apple/:apiKey", async (c) => {
       400,
     );
   }
-
   try {
     const result = await client.action(api.webhooks.apple.ingestAppleAsn, {
       apiKey,
@@ -68,18 +205,19 @@ webhooks.post("/apple/:apiKey", async (c) => {
   } catch (error) {
     return mapWebhookError(c, error, "apple");
   }
-});
+}
 
-webhooks.post("/google/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
-
-  // Pub/Sub push always sends Authorization: Bearer <jwt>. Apple-style
-  // unauthenticated path access is not appropriate here because Pub/Sub
-  // explicitly supports OIDC and skipping it leaves the endpoint
-  // spoofable.
+async function handleGoogleNotification(
+  c: Context,
+  apiKey: string,
+  body: PubSubPushBody,
+) {
+  // Pub/Sub push always sends `Authorization: Bearer <jwt>` when OIDC
+  // is configured on the subscription. We verify it when the operator
+  // has set GOOGLE_PUBSUB_PUSH_AUDIENCE; otherwise we skip strict
+  // checks (development / sandbox).
   const authHeader = c.req.header("authorization");
   const audience = process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
-
   if (audience) {
     const ok = await verifyPubSubOidcToken(authHeader, audience);
     if (!ok) {
@@ -95,40 +233,6 @@ webhooks.post("/google/:apiKey", async (c) => {
         401,
       );
     }
-  }
-
-  type PubSubPushBody = {
-    message?: {
-      data?: string;
-      messageId?: string;
-      publishTime?: string;
-      attributes?: Record<string, string>;
-    };
-    subscription?: string;
-  };
-
-  let body: PubSubPushBody;
-  try {
-    body = await c.req.json<PubSubPushBody>();
-  } catch {
-    return c.json(
-      { errors: [{ code: "INVALID_INPUT", message: "Body is not JSON" }] },
-      400,
-    );
-  }
-
-  if (!body.message?.data || !body.message?.messageId) {
-    return c.json(
-      {
-        errors: [
-          {
-            code: "INVALID_INPUT",
-            message: "Pub/Sub envelope missing message.data or messageId",
-          },
-        ],
-      },
-      400,
-    );
   }
 
   let decoded: Record<string, unknown>;
@@ -197,7 +301,7 @@ webhooks.post("/google/:apiKey", async (c) => {
   } catch (error) {
     return mapWebhookError(c, error, "google");
   }
-});
+}
 
 // Server-Sent Events stream of normalized webhook events tied to the
 // caller's API key. Per-connection, we open a Convex `onUpdate`
