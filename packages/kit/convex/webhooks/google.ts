@@ -1,5 +1,5 @@
 "use node";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { google } from "googleapis";
 
 import { action } from "../_generated/server";
@@ -76,9 +76,14 @@ export const ingestGoogleRtdn = action({
       args.payload.packageName &&
       args.payload.packageName !== project.androidPackageName
     ) {
-      throw new Error(
-        `Package name mismatch: notification ${args.payload.packageName} vs project ${project.androidPackageName}`,
-      );
+      // Permanent input/config mismatch — Pub/Sub will retry forever
+      // unless we surface this as a 4xx. ConvexError → mapWebhookError
+      // → 400 so Google stops retrying a notification that can never
+      // succeed against this project.
+      throw new ConvexError({
+        code: "PACKAGE_NAME_MISMATCH",
+        message: `Package name mismatch: notification ${args.payload.packageName} vs project ${project.androidPackageName}`,
+      });
     }
 
     const subscriptionInfo = await maybeFetchSubscriptionInfo(

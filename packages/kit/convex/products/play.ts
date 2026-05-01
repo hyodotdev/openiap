@@ -62,7 +62,18 @@ export const pushSyncProductsGoogle = action({
     if (!fileContent?.content) {
       throw new Error("Service account JSON file is unreadable");
     }
-    const credentials = JSON.parse(fileContent.content);
+    // Wrap the parse so a malformed JSON upload yields an actionable
+    // config error ("Service account JSON is invalid") instead of a
+    // raw SyntaxError from JSON.parse, which surfaces as a generic
+    // 500 with no operator-friendly hint.
+    let credentials: Record<string, unknown>;
+    try {
+      credentials = JSON.parse(fileContent.content) as Record<string, unknown>;
+    } catch {
+      throw new Error(
+        "Service account JSON is invalid — re-upload the file from Google Cloud Console",
+      );
+    }
 
     const auth = new google.auth.GoogleAuth({
       credentials,

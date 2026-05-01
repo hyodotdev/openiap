@@ -59,6 +59,68 @@ export type Paywall = {
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
+// Merge caller-supplied headers with kit defaults (`accept`,
+// optionally `content-type`). When the runtime exposes a global
+// `Headers` constructor we use it directly so callers passing a
+// `Headers` instance (a `HeadersInit`) keep that exact instance's
+// values. When `Headers` is missing — older React Native builds where
+// the operator wires up `fetchImpl` without a `Headers` polyfill —
+// we fall back to a case-insensitive merge into a plain record so
+// the request still goes through. Either way, caller-set values take
+// precedence over kit defaults.
+function mergeHeaders(
+  callerHeaders: HeadersInit | undefined,
+  hasBody: boolean,
+): HeadersInit {
+  if (typeof Headers === "function") {
+    const merged = new Headers(callerHeaders);
+    if (!merged.has("accept")) merged.set("accept", "application/json");
+    if (hasBody && !merged.has("content-type")) {
+      merged.set("content-type", "application/json");
+    }
+    return merged;
+  }
+  // Plain-object fallback path. Build a case-insensitive name map
+  // from whatever the caller passed (Headers-shaped, array-of-pairs,
+  // or plain record) and re-emit as a record `fetchImpl` accepts.
+  const lower = new Map<string, { name: string; value: string }>();
+  const setIfAbsent = (name: string, value: string) => {
+    const key = name.toLowerCase();
+    if (!lower.has(key)) lower.set(key, { name, value });
+  };
+  const setForce = (name: string, value: string) => {
+    const key = name.toLowerCase();
+    lower.set(key, { name, value });
+  };
+  if (callerHeaders) {
+    if (Array.isArray(callerHeaders)) {
+      for (const [name, value] of callerHeaders) setForce(name, value);
+    } else if (
+      typeof (callerHeaders as { forEach?: unknown }).forEach === "function"
+    ) {
+      // `Headers`-like (without being our `typeof Headers === "function"`
+      // global). RN polyfills sometimes attach `Headers` only to
+      // request/response instances rather than the global scope.
+      (
+        callerHeaders as {
+          forEach: (cb: (value: string, key: string) => void) => void;
+        }
+      ).forEach((value, name) => setForce(name, value));
+    } else {
+      for (const [name, value] of Object.entries(
+        callerHeaders as Record<string, string>,
+      )) {
+        setForce(name, value);
+      }
+    }
+  }
+  setIfAbsent("accept", "application/json");
+  if (hasBody) setIfAbsent("content-type", "application/json");
+  const out: Record<string, string> = {};
+  for (const { name, value } of lower.values()) out[name] = value;
+  return out;
+}
+
 export class KitApiError extends Error {
   constructor(
     readonly status: number,
@@ -72,34 +134,28 @@ export class KitApiError extends Error {
 
 export function kitApi(options: KitApiOptions) {
   const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
-  const fetchImpl: (
-    input: string,
-    init?: RequestInit,
-  ) => Promise<Response> = (() => {
-    if (options.fetchImpl) return options.fetchImpl;
-    if (typeof fetch === "function") {
-      return (input: string, init?: RequestInit) => fetch(input, init);
-    }
-    throw new Error(
-      "kitApi requires a fetch implementation. Pass `fetchImpl` for runtimes without a global fetch.",
-    );
-  })();
+  const fetchImpl: (input: string, init?: RequestInit) => Promise<Response> =
+    (() => {
+      if (options.fetchImpl) return options.fetchImpl;
+      if (typeof fetch === "function") {
+        return (input: string, init?: RequestInit) => fetch(input, init);
+      }
+      throw new Error(
+        "kitApi requires a fetch implementation. Pass `fetchImpl` for runtimes without a global fetch.",
+      );
+    })();
 
   async function call<T>(path: string, init?: RequestInit): Promise<T> {
-    // Normalize headers via the Headers constructor so caller-supplied
-    // `Headers` instances (which are not plain objects) survive the
-    // merge — the prior object-spread silently dropped any header
-    // passed as a `Headers` instance, including auth headers. Caller
-    // headers win over kit defaults if they explicitly set the same
-    // name; we set defaults via `set` then re-apply caller values
-    // after the fact.
-    const headers = new Headers(init?.headers);
-    if (!headers.has("accept")) {
-      headers.set("accept", "application/json");
-    }
-    if (init?.body && !headers.has("content-type")) {
-      headers.set("content-type", "application/json");
-    }
+    // Normalize headers without depending on a global `Headers`
+    // constructor: older React Native runtimes ship `fetch` (or a
+    // polyfill via `fetchImpl`) without exposing `Headers` globally.
+    // The prior implementation crashed before the first request on
+    // those runtimes. We use `new Headers()` when available (preserves
+    // caller-supplied `Headers` instances exactly), and otherwise fall
+    // back to a small case-insensitive merge into a plain record.
+    // Either way, kit defaults only apply when the caller hasn't set
+    // the same name.
+    const headers = mergeHeaders(init?.headers, init?.body != null);
     const response = await fetchImpl(`${baseUrl}${path}`, {
       ...init,
       headers,

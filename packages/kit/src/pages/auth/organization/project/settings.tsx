@@ -865,6 +865,7 @@ export default function ProjectSettings() {
                           <div className="flex items-center gap-1">
                             {iosFile && (
                               <button
+                                type="button"
                                 onClick={() =>
                                   void handleFileDownload(
                                     iosFile._id,
@@ -878,6 +879,7 @@ export default function ProjectSettings() {
                               </button>
                             )}
                             <button
+                              type="button"
                               onClick={() => void handleIosFileDelete()}
                               className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
                               title={"Delete file"}
@@ -988,6 +990,7 @@ export default function ProjectSettings() {
                         </span>
                       </div>
                       <button
+                        type="button"
                         onClick={() => setShowIosGuide(true)}
                         className="p-1 hover:bg-muted rounded-lg transition-colors"
                         title={"View Guide"}
@@ -1012,6 +1015,7 @@ export default function ProjectSettings() {
                     </ol>
                     <div className="flex items-center gap-2 mt-2">
                       <button
+                        type="button"
                         onClick={() => setShowIosGuide(true)}
                         className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                       >
@@ -1112,6 +1116,7 @@ export default function ProjectSettings() {
                           <div className="flex items-center gap-1">
                             {androidFile && (
                               <button
+                                type="button"
                                 onClick={() =>
                                   void handleFileDownload(
                                     androidFile._id,
@@ -1125,6 +1130,7 @@ export default function ProjectSettings() {
                               </button>
                             )}
                             <button
+                              type="button"
                               onClick={() => void handleAndroidFileDelete()}
                               className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
                               title={"Delete file"}
@@ -1180,6 +1186,7 @@ export default function ProjectSettings() {
                         </span>
                       </div>
                       <button
+                        type="button"
                         onClick={() => setShowAndroidGuide(true)}
                         className="p-1 hover:bg-muted rounded-lg transition-colors"
                         title={"View Guide"}
@@ -1217,6 +1224,7 @@ export default function ProjectSettings() {
                     </ol>
                     <div className="flex items-center gap-2 mt-2">
                       <button
+                        type="button"
                         onClick={() => setShowAndroidGuide(true)}
                         className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                       >

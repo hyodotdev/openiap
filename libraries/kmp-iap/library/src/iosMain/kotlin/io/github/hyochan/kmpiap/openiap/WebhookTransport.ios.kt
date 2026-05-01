@@ -50,10 +50,19 @@ actual class WebhookTransport actual constructor(
         val scope = CoroutineScope(Dispatchers.Default)
         scope.launch {
             var resumeId = lastEventId
+            var firstAttempt = true
             while (!closed) {
-                val ok = runOnce(channel, resumeId) { id -> resumeId = id }
+                // Always pause between attempts (after the first) — even
+                // when `runOnce` returns true. NSURLSession completes the
+                // task on EOF / server-side disconnect; without a pause
+                // we'd reconnect in a tight loop the moment the kit pod
+                // recycles. 2s matches the Flutter listener's cadence.
+                if (!firstAttempt) {
+                    delay(2_000)
+                }
+                firstAttempt = false
+                runOnce(channel, resumeId) { id -> resumeId = id }
                 if (closed) break
-                if (!ok) delay(2_000)
             }
             channel.close()
         }
@@ -167,12 +176,23 @@ private class SseDelegate(
                 }
             }
         }
-        eventId?.let(updateLastEventId)
         if (eventType == "heartbeat" || eventType == "ready" || data.isEmpty()) {
             return
         }
-        WebhookEventParser.parse(data.toString())?.let { event ->
-            channel.trySend(event)
+        // Cursor advances ONLY after a successful enqueue. Advancing
+        // before the parse / trySend (the prior implementation) would
+        // move the reconnect cursor past events that never reached the
+        // consumer — either because the parser returned null on a
+        // malformed frame, or because the buffered channel rejected
+        // the trySend. The reconnect would then skip those ids
+        // forever. If parse fails entirely we still advance so we
+        // don't loop on the same malformed id.
+        val event = WebhookEventParser.parse(data.toString()) ?: run {
+            eventId?.let(updateLastEventId)
+            return
+        }
+        if (channel.trySend(event).isSuccess) {
+            eventId?.let(updateLastEventId)
         }
     }
 }

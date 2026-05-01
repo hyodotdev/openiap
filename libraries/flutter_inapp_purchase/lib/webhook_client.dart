@@ -296,9 +296,11 @@ class _SseWebhookListener implements WebhookListener {
           break;
       }
     }
-    if (eventId != null && eventId.isNotEmpty) {
-      _lastEventId = eventId;
-    }
+    // Don't advance `_lastEventId` here — wait until we actually
+    // accept the event below. If the frame is malformed, advancing
+    // before the parse would move the reconnect cursor past an event
+    // that we never delivered to the consumer, so the next connection
+    // would skip it permanently.
     if (dataLines.isEmpty) return;
     final dataStr = dataLines.join('\n');
     if (dataStr.isEmpty) return;
@@ -334,6 +336,11 @@ class _SseWebhookListener implements WebhookListener {
       return;
     }
     _events.add(event);
+    // Cursor advances only on successful enqueue. The reconnect path
+    // resumes strictly past the last event we actually surfaced.
+    if (eventId != null && eventId.isNotEmpty) {
+      _lastEventId = eventId;
+    }
   }
 }
 

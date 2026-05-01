@@ -37,11 +37,16 @@ export const downloadFile = action({
       throw new ConvexError("Not authenticated");
     }
 
+    // The Convex `files` table stores the MIME type in `fileType` (see
+    // `files/internal.ts`). The prior typing pulled `mimeType` and so
+    // every download fell back to `application/octet-stream` — the
+    // dashboard would then build the Blob with the wrong content type
+    // and the browser would mis-handle the .p8 / .json download.
     const file: {
       _id: Id<"files">;
       fileName: string;
       organizationId: Id<"organizations">;
-      mimeType?: string;
+      fileType?: string;
     } | null = await ctx.runQuery(internal.files.internal.getFileRecord, {
       fileId: args.fileId,
     });
@@ -64,7 +69,7 @@ export const downloadFile = action({
 
     return {
       fileName: result.fileName,
-      mimeType: file.mimeType ?? "application/octet-stream",
+      mimeType: file.fileType ?? "application/octet-stream",
       base64: result.content,
     };
   },

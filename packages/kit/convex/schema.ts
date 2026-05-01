@@ -555,26 +555,40 @@ const schema = defineSchema({
     .index("by_project_and_state", ["projectId", "state"])
     .index("by_project_and_updated", ["projectId", "updatedAt"]),
 
-  // Daily revenue metrics rollup keyed by (projectId, day, productId).
-  // Populated by `recomputeRevenueMetrics` cron (recomputes the trailing
-  // window from `subscriptions` so late-arriving webhook corrections are
-  // reflected). The dashboard reads from here to avoid scanning the full
-  // events log on every page render.
+  // Daily revenue metrics rollup keyed by (projectId, day, productId,
+  // currency). Populated by `recomputeRevenueMetrics` cron (recomputes
+  // the trailing window from `subscriptions` so late-arriving webhook
+  // corrections are reflected). The dashboard reads from here to avoid
+  // scanning the full events log on every page render.
+  //
+  // Currency is part of the row key because the same SKU can sell in
+  // multiple storefront currencies on the same UTC day — keying only
+  // by (projectId, day, productId) would either mix incompatible
+  // `revenueMicros` totals or have one currency overwrite another,
+  // both of which produce wrong dashboard numbers for multi-region
+  // apps. Aggregating across currencies is a presentation-layer
+  // concern (FX conversion happens in the UI, with whatever rates the
+  // operator picks).
   revenueMetricsDaily: defineTable({
     projectId: v.id("projects"),
     day: v.string(), // ISO date (YYYY-MM-DD), UTC
     productId: v.string(),
+    currency: v.string(),
     activeSubs: v.number(),
     newSubs: v.number(),
     renewals: v.number(),
     cancellations: v.number(),
     refunds: v.number(),
     revenueMicros: v.number(),
-    currency: v.string(),
     updatedAt: v.number(),
   })
-    .index("by_project_and_day", ["projectId", "day"])
-    .index("by_project_and_product_and_day", ["projectId", "productId", "day"]),
+    .index("by_project_and_day_and_currency", ["projectId", "day", "currency"])
+    .index("by_project_and_product_and_day_and_currency", [
+      "projectId",
+      "productId",
+      "day",
+      "currency",
+    ]),
 
   // Unified product catalog. Mirrors what onesub holds in @onesub/providers
   // — the subset of App Store Connect / Play Console that kit can read /

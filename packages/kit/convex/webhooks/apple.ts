@@ -211,12 +211,20 @@ export const ingestAppleAsnIOS = action({
 // Decode JWS payload without signature verification. Used pre-verifier
 // to discover the environment so we can instantiate SignedDataVerifier
 // with the correct value.
+//
+// Both failure modes (wrong shape, malformed body) are permanent input
+// errors — Apple should NOT retry them, so we throw structured
+// ConvexErrors that `mapWebhookError` will translate to 400 instead of
+// the generic 500 a plain `Error` would produce.
 function previewDecodeNotification(jws: string): {
   data?: { environment?: string; bundleId?: string };
 } {
   const parts = jws.split(".");
   if (parts.length !== 3) {
-    throw new Error("Apple notification is not a valid JWS");
+    throw new ConvexError({
+      code: "INVALID_SIGNATURE",
+      message: "Apple notification is not a valid JWS",
+    });
   }
   try {
     const decoded = JSON.parse(
@@ -224,7 +232,10 @@ function previewDecodeNotification(jws: string): {
     );
     return decoded as { data?: { environment?: string; bundleId?: string } };
   } catch {
-    throw new Error("Apple notification body is not valid JSON");
+    throw new ConvexError({
+      code: "INVALID_SIGNATURE",
+      message: "Apple notification body is not valid JSON",
+    });
   }
 }
 

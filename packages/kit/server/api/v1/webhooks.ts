@@ -351,6 +351,24 @@ async function handleGoogleNotification(
 //   close the idle connection.
 const HEARTBEAT_MS = 25_000;
 
+// Drop fields the client doesn't need over the wire. `rawSignedPayload`
+// holds the original JWS / Pub/Sub envelope including the upstream
+// signature. Until kit grows per-purchaser SSE auth (tracked as
+// follow-up — see PR #124 review), the SSE feed is gated only by the
+// project API key, so any holder of that key would otherwise see
+// every other customer's signed payload. The client doesn't need it
+// for normal reconciliation flows: `purchaseToken` + `productId` are
+// enough to match against local state. Operators that DO need the
+// raw payload can fetch it through an authenticated server-to-server
+// query rather than a long-lived browser-readable stream.
+function redactWebhookEventForStream(
+  event: Record<string, unknown>,
+): Record<string, unknown> {
+  const { rawSignedPayload: _omit, ...rest } = event;
+  void _omit;
+  return rest;
+}
+
 webhooks.get("/stream/:apiKey", async (c) => {
   const apiKey = c.req.param("apiKey");
   const lastEventId = c.req.header("last-event-id") ?? undefined;
@@ -365,27 +383,113 @@ webhooks.get("/stream/:apiKey", async (c) => {
 
     const reactive = new ConvexClient(convexUrlForRealtime);
     const seen = new Set<string>();
-    let cursor = startCursor.sinceMs;
-    let creationCursor = startCursor.afterCreationTime;
+    // `liveStart` is the boundary between the backlog drain (paginated
+    // HTTP queries) and the live tail (Convex `onUpdate` subscription
+    // pinned to `sinceMs = liveStart`). Convex pins query args at
+    // subscription time and won't refresh them as cursors advance —
+    // attaching `onUpdate` with the original cursor would create a
+    // 500-row result window that never moves forward, so new events
+    // beyond the initial batch would never reach the consumer (PR #124
+    // review fix). Draining first, then pinning the live tail at
+    // "now", sidesteps that limitation.
+    const liveStart = Date.now();
 
     await stream.writeSSE({
       event: "ready",
-      data: JSON.stringify({ cursor }),
+      data: JSON.stringify({ cursor: startCursor.sinceMs }),
     });
 
-    // Convex `onUpdate` re-fires the callback every time the query
-    // result changes. We track previously-emitted ids so a row that
-    // was already emitted earlier in the connection isn't re-sent
-    // when the result set grows. The `cursor` advances whenever we
-    // emit so the next reconnect resumes from the right point.
+    // ── Phase 1: drain backlog ───────────────────────────────────
+    // Pull every event between the reconnect cursor and `liveStart`
+    // through paginated `webhookEventsSince` calls. The cursor pair
+    // (`sinceMs`, `afterCreationTime`) is honored by the query so
+    // same-`receivedAt` cohorts larger than `limit` still advance.
+    let drainCursor = startCursor.sinceMs;
+    let drainCreationCursor = startCursor.afterCreationTime;
+    try {
+      while (!aborted) {
+        const batch = (await client.query(
+          api.webhooks.query.webhookEventsSince,
+          {
+            apiKey,
+            sinceMs: drainCursor,
+            afterCreationTime: drainCreationCursor,
+            limit: 500,
+          },
+        )) as Array<Record<string, unknown>>;
+        if (!batch.length) break;
+
+        let advanced = false;
+        for (const event of batch) {
+          if (aborted) break;
+          const id = typeof event.id === "string" ? event.id : null;
+          if (!id || seen.has(id)) continue;
+          // Stop the drain once we've crossed into "live" territory —
+          // events at or past `liveStart` are owned by the live tail.
+          if (
+            typeof event.receivedAt === "number" &&
+            event.receivedAt >= liveStart
+          ) {
+            break;
+          }
+          seen.add(id);
+          if (
+            typeof event.receivedAt === "number" &&
+            event.receivedAt > drainCursor
+          ) {
+            drainCursor = event.receivedAt;
+            advanced = true;
+          }
+          if (
+            typeof event._creationTime === "number" &&
+            (drainCreationCursor === undefined ||
+              event._creationTime > drainCreationCursor)
+          ) {
+            drainCreationCursor = event._creationTime;
+            advanced = true;
+          }
+          await stream
+            .writeSSE({
+              id,
+              event:
+                typeof event.type === "string" ? event.type : "WebhookEvent",
+              data: JSON.stringify(redactWebhookEventForStream(event)),
+            })
+            .catch((err) => {
+              console.error("[webhooks/stream] drain write failed", err);
+            });
+        }
+        if (!advanced) break;
+        if (batch.length < 500) break;
+      }
+    } catch (error) {
+      console.error("[webhooks/stream] drain failed", error);
+      await stream.writeSSE({
+        event: "stream-error",
+        data: JSON.stringify({
+          message: error instanceof Error ? error.message : "Drain failed",
+        }),
+      });
+      void reactive.close();
+      return;
+    }
+    if (aborted) {
+      void reactive.close();
+      return;
+    }
+
+    // ── Phase 2: attach live tail ────────────────────────────────
+    // Pinned at `liveStart`. New events arriving with `receivedAt >=
+    // liveStart` will appear in the query result and fire onUpdate.
+    // The `seen` set still dedupes across phases in case an event
+    // straddled the boundary.
     let unsubscribe: (() => void) | null = null;
     try {
       unsubscribe = reactive.onUpdate(
         api.webhooks.query.webhookEventsSince,
         {
           apiKey,
-          sinceMs: cursor,
-          afterCreationTime: creationCursor,
+          sinceMs: liveStart,
           limit: 500,
         },
         (events: unknown) => {
@@ -395,29 +499,12 @@ webhooks.get("/stream/:apiKey", async (c) => {
             const id = typeof event.id === "string" ? event.id : null;
             if (!id || seen.has(id)) continue;
             seen.add(id);
-            if (
-              typeof event.receivedAt === "number" &&
-              event.receivedAt > cursor
-            ) {
-              cursor = event.receivedAt;
-            }
-            // Track the highest `_creationTime` we've emitted within
-            // the current `receivedAt` cohort so a reconnect resumes
-            // strictly past the last emitted event even when many
-            // events share the same wall-clock `receivedAt`.
-            if (
-              typeof event._creationTime === "number" &&
-              (creationCursor === undefined ||
-                event._creationTime > creationCursor)
-            ) {
-              creationCursor = event._creationTime;
-            }
             stream
               .writeSSE({
                 id,
                 event:
                   typeof event.type === "string" ? event.type : "WebhookEvent",
-                data: JSON.stringify(event),
+                data: JSON.stringify(redactWebhookEventForStream(event)),
               })
               .catch((err) => {
                 console.error("[webhooks/stream] write failed", err);

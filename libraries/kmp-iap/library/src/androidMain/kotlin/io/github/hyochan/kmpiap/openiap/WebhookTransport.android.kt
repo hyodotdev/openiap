@@ -62,8 +62,18 @@ actual class WebhookTransport actual constructor(
                         val frame = frameLines.toString()
                         frameLines.clear()
                         val parsed = parseSseFrame(frame)
-                        parsed.eventId?.let { resumeId = it }
-                        parsed.event?.let { emit(it) }
+                        // Cursor advances ONLY after a successful emit
+                        // (parsed.event != null AND emit didn't throw).
+                        // Advancing before would move the reconnect
+                        // cursor past events the consumer never saw —
+                        // either control frames (heartbeat/ready) or
+                        // malformed payloads. Heartbeat/ready don't
+                        // carry an id from the server anyway.
+                        val event = parsed.event
+                        if (event != null) {
+                            emit(event)
+                            parsed.eventId?.let { resumeId = it }
+                        }
                         continue
                     }
                     frameLines.append(line).append('\n')
