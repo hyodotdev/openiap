@@ -192,11 +192,6 @@ export default function OrganizationLayout() {
             )}
           />
           <Outlet />
-          {/* Trailing spacer so the last page row doesn't sit flush
-              against the viewport at scroll-end. `pb-*` on the scroll
-              container itself gets trimmed by a Blink/WebKit quirk,
-              so use a real in-flow block here. */}
-          <div aria-hidden style={{ height: "80px" }} />
         </main>
       </div>
     </div>

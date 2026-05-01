@@ -792,46 +792,6 @@ export default function ProjectSettings() {
                   </h3>
                 </div>
 
-                {/* Two-key explainer. Apple ships two distinct .p8 key
-                    kinds and they are NOT interchangeable; uploading
-                    the wrong one returns an opaque 401. This banner
-                    tells the operator up front so they don't spend
-                    hours debugging a working JWT against an API that
-                    silently rejects the key kind. */}
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                    <div className="space-y-2 text-xs text-blue-900 dark:text-blue-200">
-                      <p className="font-medium">
-                        {"iOS needs TWO separate .p8 keys"}
-                      </p>
-                      <p>
-                        {
-                          "Apple scopes its API gateway by key kind — uploading the wrong .p8 for either purpose returns 401. The two keys come from different App Store Connect pages and have different Issuer / Key IDs."
-                        }
-                      </p>
-                      <ul className="ml-3 space-y-1 list-disc">
-                        <li>
-                          <span className="font-medium">
-                            {"Server API Key (.p8)"}
-                          </span>
-                          {
-                            " — required for receipt verification, subscription status, refund history. If you rely entirely on webhooks for state changes you can skip this key, but server-side verification of initial purchases is strongly recommended."
-                          }
-                        </li>
-                        <li>
-                          <span className="font-medium">
-                            {"Connect API Key (.p8)"}
-                          </span>
-                          {
-                            " — required only if you want kit to sync your IAP catalog with App Store Connect (list / create / patch products). Optional otherwise."
-                          }
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="space-y-4">
                   {/* iOS identifiers (App Store bundle ID + Apple ID +
                       ASC Issuer/Key) — submitted via this card's parent
@@ -855,18 +815,18 @@ export default function ProjectSettings() {
                       aria-invalid={!isIosBundleValid}
                       disabled={iosBundleLocked}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {
                         "Use the bundle identifier from Xcode / App Store Connect (e.g., com.example.ios)."
                       }
                     </p>
                     {iosBundleLocked && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {"Bundle IDs can’t be edited once saved."}
                       </p>
                     )}
                     {!isIosBundleValid && (
-                      <p className="text-xs text-destructive mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {"Enter a valid App Store bundle ID."}
                       </p>
                     )}
@@ -886,18 +846,18 @@ export default function ProjectSettings() {
                       aria-invalid={!isIosAppleIdValid}
                       disabled={iosAppleIdLocked}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {
                         "Required for production validations. This is the numeric Apple ID found in App Store Connect under Apps → <Your App> → App Information -> Apple ID."
                       }
                     </p>
                     {iosAppleIdLocked && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {"Apple App IDs can’t be edited once saved."}
                       </p>
                     )}
                     {!isIosAppleIdValid && (
-                      <p className="text-xs text-destructive mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {"App Apple ID must be numeric."}
                       </p>
                     )}
@@ -921,18 +881,18 @@ export default function ProjectSettings() {
                       spellCheck={false}
                       aria-invalid={!isIosIssuerIdValid}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {
                         "App Store Server API issuer. Find it in App Store Connect → Users and Access → Integrations → In-App Purchase (under Keys)."
                       }
                     </p>
                     {iosIssuerLocked && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {"Issuer IDs can’t be cleared once saved."}
                       </p>
                     )}
                     {!isIosIssuerIdValid && (
-                      <p className="text-xs text-destructive mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {
                           "Issuer ID must match the UUID format (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)."
                         }
@@ -958,23 +918,23 @@ export default function ProjectSettings() {
                       spellCheck={false}
                       aria-invalid={!isIosKeyIdValid}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {
                         "Ten-character identifier shown next to the In-App Purchase .p8 key in App Store Connect."
                       }
                     </p>
                     {iosKeyLocked && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {"Key IDs can’t be cleared once saved."}
                       </p>
                     )}
                     {!isIosKeyIdValid && (
-                      <p className="text-xs text-destructive mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {"Key ID must be 10 uppercase letters or numbers."}
                       </p>
                     )}
                     {!isIosCredentialPairValid && (
-                      <p className="text-xs text-destructive mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {
                           "Provide both Issuer ID and Key ID to enable the App Store Server API."
                         }
@@ -982,156 +942,12 @@ export default function ProjectSettings() {
                     )}
                   </div>
 
-                  {/* App Store Connect API credentials — separate slot.
-                      Required to push-sync the IAP catalog. The Server
-                      API key (above) only authenticates receipt
-                      verification; ASC REST endpoints (catalog list /
-                      create / patch) reject it with 401. */}
-                  <div className="pt-4 border-t border-border/60">
-                    <p className="text-sm font-medium mb-1">
-                      {"App Store Connect API (push-sync)"}
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      {
-                        "Optional. Required only if you want kit to sync your IAP catalog with App Store Connect. Generate at App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys (or Individual Keys). NOT the same as the In-App Purchase key above."
-                      }
-                    </p>
-
-                    <label className="block text-sm font-medium mb-2">
-                      {"Connect API Issuer ID"}
-                    </label>
-                    <input
-                      type="text"
-                      value={iosAscIssuerId}
-                      onChange={(event) =>
-                        setIosAscIssuerId(event.target.value)
-                      }
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted/40"
-                      placeholder="12345678-ABCD-1234-ABCD-1234567890AB"
-                      spellCheck={false}
-                      aria-invalid={!isIosAscIssuerIdValid}
-                    />
-                    {!isIosAscIssuerIdValid && (
-                      <p className="text-xs text-destructive mt-1">
-                        {
-                          "Issuer ID must match the UUID format (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)."
-                        }
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {"Connect API Key ID"}
-                    </label>
-                    <input
-                      type="text"
-                      value={iosAscKeyId}
-                      onChange={(event) =>
-                        setIosAscKeyId(event.target.value.toUpperCase())
-                      }
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted/40"
-                      placeholder="ABCDE12345"
-                      spellCheck={false}
-                      aria-invalid={!isIosAscKeyIdValid}
-                    />
-                    {!isIosAscKeyIdValid && (
-                      <p className="text-xs text-destructive mt-1">
-                        {"Key ID must be 10 uppercase letters or numbers."}
-                      </p>
-                    )}
-                    {!isIosAscPairValid && (
-                      <p className="text-xs text-destructive mt-1">
-                        {
-                          "Provide both Connect API Issuer ID and Key ID, or leave both blank to skip push-sync."
-                        }
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      {"App Store Connect API Key (.p8)"}
-                    </label>
-                    {iosAscFileUploaded || hasIosAscFile ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
-                            <div>
-                              <span className="text-sm text-green-700 dark:text-green-400">
-                                {"Connect API key uploaded successfully"}
-                              </span>
-                              {iosAscFile && (
-                                <p className="text-xs text-green-600 dark:text-green-500 mt-1">
-                                  {iosAscFile.fileName} •{" "}
-                                  {(iosAscFile.fileSize / 1024).toFixed(2)} KB
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {iosAscFile && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void handleFileDownload(
-                                    iosAscFile._id,
-                                    "Connect API key",
-                                  )
-                                }
-                                className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                                title={"Download file"}
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => void handleIosAscFileDelete()}
-                              className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
-                              title={"Delete file"}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            accept=".p8"
-                            onChange={(e) => void handleIosAscFileUpload(e)}
-                            className="hidden"
-                            id="ios-asc-file-upload"
-                            disabled={uploadingIosAsc}
-                          />
-                          <label
-                            htmlFor="ios-asc-file-upload"
-                            className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
-                              uploadingIosAsc
-                                ? "border-muted bg-muted/20 cursor-not-allowed"
-                                : "border-border hover:border-primary hover:bg-primary/5"
-                            }`}
-                          >
-                            <Upload className="w-5 h-5" />
-                            <span className="text-sm font-medium">
-                              {uploadingIosAsc
-                                ? "Uploading..."
-                                : "Click to upload Connect API .p8 file"}
-                            </span>
-                          </label>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {
-                            "Upload only after you've generated the Team Key (or Individual Key) under App Store Connect API — uploading the In-App Purchase key here will result in 401 errors during sync."
-                          }
-                        </p>
-                      </>
-                    )}
-                  </div>
-
+                  {/* ── 1. App Store Server API Key (.p8) ─────────────
+                      The In-App Purchase key. Used by kit's receipt
+                      verifier (purchases/ios.ts) for the App Store
+                      Server API gateway. Required for receipt
+                      verification, subscription status, refund
+                      history. */}
                   <div className="pt-4 border-t border-border/60">
                     <label className="block text-sm font-medium mb-2">
                       {"App Store Server API Key (.p8)"}{" "}
@@ -1140,9 +956,9 @@ export default function ProjectSettings() {
                       </span>
                       <span className="sr-only">{"Required"}</span>
                     </label>
-                    <p className="text-xs text-muted-foreground mb-2">
+                    <p className="text-sm text-muted-foreground mb-2">
                       {
-                        "Generate at App Store Connect → Users and Access → Integrations → In-App Purchase. Used for receipt verification, subscription status, refund history."
+                        "Used by kit to talk to Apple's App Store Server API: receipt verification on initial purchase, subscription status queries, transaction lookup, refund history. Generate at App Store Connect → Users and Access → Integrations → In-App Purchase."
                       }
                     </p>
 
@@ -1156,7 +972,7 @@ export default function ProjectSettings() {
                                 {"Authentication file uploaded successfully"}
                               </span>
                               {iosFile && (
-                                <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                                <p className="text-sm text-green-600 dark:text-green-500 mt-1">
                                   {iosFile.fileName} •{" "}
                                   {(iosFile.fileSize / 1024).toFixed(2)} KB
                                 </p>
@@ -1217,13 +1033,13 @@ export default function ProjectSettings() {
                             </span>
                           </label>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">
+                        <p className="text-sm text-muted-foreground mt-2">
                           {
                             "Required for App Store receipt verification. Generate the .p8 key in App Store Connect and upload it here."
                           }
                         </p>
                         {showIosP8Requirement && (
-                          <p className="text-xs text-destructive mt-1">
+                          <p className="text-sm text-destructive mt-1">
                             {
                               "Upload your App Store Connect .p8 key to finish iOS setup."
                             }
@@ -1236,10 +1052,10 @@ export default function ProjectSettings() {
                             <div className="flex items-start gap-2">
                               <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                               <div className="space-y-1">
-                                <p className="text-xs font-medium text-amber-900 dark:text-amber-100">
+                                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
                                   {"App Store Connect key missing"}
                                 </p>
-                                <p className="text-xs text-amber-800 dark:text-amber-200">
+                                <p className="text-sm text-amber-800 dark:text-amber-200">
                                   {
                                     "You must upload the downloaded .p8 key before IAPKit can verify App Store receipts."
                                   }
@@ -1252,12 +1068,12 @@ export default function ProjectSettings() {
                             <div className="flex items-start gap-2">
                               <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                               <div className="space-y-2">
-                                <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
                                   {
                                     "When P8 key is provided, these advanced features become available:"
                                   }
                                 </p>
-                                <ul className="text-xs text-blue-700 dark:text-blue-400 ml-3 space-y-0.5">
+                                <ul className="text-sm text-blue-700 dark:text-blue-400 ml-3 space-y-0.5">
                                   <li>• {"Subscription Status Query"}</li>
                                   <li>
                                     •{" "}
@@ -1281,6 +1097,154 @@ export default function ProjectSettings() {
                     )}
                   </div>
 
+                  {/* ── 2. App Store Connect API Key (.p8) ──────────
+                      Genuinely a different key from the Server API one
+                      above. Used by kit's catalog sync (products/asc.ts)
+                      against the App Store Connect API gateway. Apple
+                      scopes the two gateways separately — a key
+                      generated under "In-App Purchase" returns 401 for
+                      Connect endpoints, and vice versa. Optional. */}
+                  <div className="pt-4 border-t border-border/60">
+                    <label className="block text-sm font-medium mb-2">
+                      {"App Store Connect API Key (.p8)"}
+                    </label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {
+                        "A second .p8 — different from the Server API key above. Apple scopes its two API gateways separately: the In-App Purchase key only authenticates receipt-verification endpoints, while catalog management (list / create / update IAPs) lives on the App Store Connect API gateway and rejects the Server API key with 401. Optional — only needed if you want kit to push-sync your IAP catalog from the dashboard. Generate at App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys (or Individual Keys)."
+                      }
+                    </p>
+
+                    <label className="block text-sm font-medium mb-2">
+                      {"Connect API Issuer ID"}
+                    </label>
+                    <input
+                      type="text"
+                      value={iosAscIssuerId}
+                      onChange={(event) =>
+                        setIosAscIssuerId(event.target.value)
+                      }
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted/40"
+                      placeholder="12345678-ABCD-1234-ABCD-1234567890AB"
+                      spellCheck={false}
+                      aria-invalid={!isIosAscIssuerIdValid}
+                    />
+                    {!isIosAscIssuerIdValid && (
+                      <p className="text-sm text-destructive mt-1">
+                        {
+                          "Issuer ID must match the UUID format (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)."
+                        }
+                      </p>
+                    )}
+
+                    <label className="block text-sm font-medium mb-2 mt-4">
+                      {"Connect API Key ID"}
+                    </label>
+                    <input
+                      type="text"
+                      value={iosAscKeyId}
+                      onChange={(event) =>
+                        setIosAscKeyId(event.target.value.toUpperCase())
+                      }
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted/40"
+                      placeholder="ABCDE12345"
+                      spellCheck={false}
+                      aria-invalid={!isIosAscKeyIdValid}
+                    />
+                    {!isIosAscKeyIdValid && (
+                      <p className="text-sm text-destructive mt-1">
+                        {"Key ID must be 10 uppercase letters or numbers."}
+                      </p>
+                    )}
+                    {!isIosAscPairValid && (
+                      <p className="text-sm text-destructive mt-1">
+                        {
+                          "Provide both Connect API Issuer ID and Key ID, or leave both blank to skip push-sync."
+                        }
+                      </p>
+                    )}
+
+                    <div className="mt-4">
+                      {iosAscFileUploaded || hasIosAscFile ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
+                              <div>
+                                <span className="text-sm text-green-700 dark:text-green-400">
+                                  {"Connect API key uploaded successfully"}
+                                </span>
+                                {iosAscFile && (
+                                  <p className="text-sm text-green-600 dark:text-green-500 mt-1">
+                                    {iosAscFile.fileName} •{" "}
+                                    {(iosAscFile.fileSize / 1024).toFixed(2)} KB
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {iosAscFile && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleFileDownload(
+                                      iosAscFile._id,
+                                      "Connect API key",
+                                    )
+                                  }
+                                  className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                  title={"Download file"}
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => void handleIosAscFileDelete()}
+                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                                title={"Delete file"}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept=".p8"
+                              onChange={(e) => void handleIosAscFileUpload(e)}
+                              className="hidden"
+                              id="ios-asc-file-upload"
+                              disabled={uploadingIosAsc}
+                            />
+                            <label
+                              htmlFor="ios-asc-file-upload"
+                              className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+                                uploadingIosAsc
+                                  ? "border-muted bg-muted/20 cursor-not-allowed"
+                                  : "border-border hover:border-primary hover:bg-primary/5"
+                              }`}
+                            >
+                              <Upload className="w-5 h-5" />
+                              <span className="text-sm font-medium">
+                                {uploadingIosAsc
+                                  ? "Uploading..."
+                                  : "Click to upload Connect API .p8 file"}
+                              </span>
+                            </label>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {
+                              "Upload only after you've generated the Team Key (or Individual Key) under App Store Connect API — uploading the In-App Purchase key here will result in 401 errors during sync."
+                            }
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   {/* iOS Setup Guide — Server API key (.p8) */}
                   <div className="pt-4 border-t">
                     <div className="flex items-center justify-between mb-2">
@@ -1299,7 +1263,7 @@ export default function ProjectSettings() {
                         <HelpCircle className="w-4 h-4 text-primary" />
                       </button>
                     </div>
-                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                       <li>
                         {
                           "Go to App Store Connect → Users and Access → Integrations → In-App Purchase"
@@ -1323,17 +1287,17 @@ export default function ProjectSettings() {
                       <button
                         type="button"
                         onClick={() => setShowIosGuide(true)}
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                       >
                         {"View Screenshots"}
                         <HelpCircle className="w-3 h-3" />
                       </button>
-                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-sm text-muted-foreground">•</span>
                       <a
                         href="https://developer.apple.com/documentation/appstoreserverapi/creating_api_keys_to_use_with_the_app_store_server_api"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                       >
                         {"Apple docs"}
                         <FileText className="w-3 h-3" />
@@ -1349,12 +1313,12 @@ export default function ProjectSettings() {
                         {"How to get your Connect API .p8 file:"}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">
+                    <p className="text-sm text-muted-foreground mb-2">
                       {
                         "Different page from the Server API key above. Required only if you want kit to push-sync your IAP catalog with App Store Connect."
                       }
                     </p>
-                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                       <li>
                         {
                           "Go to App Store Connect → Users and Access → Integrations → App Store Connect API"
@@ -1384,7 +1348,7 @@ export default function ProjectSettings() {
                         href="https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                       >
                         {"Apple docs"}
                         <FileText className="w-3 h-3" />
@@ -1431,18 +1395,18 @@ export default function ProjectSettings() {
                       aria-invalid={!isAndroidPackageValid}
                       disabled={androidPackageLocked}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {
                         "Use the exact package name from the Google Play Console (e.g., com.example.app)."
                       }
                     </p>
                     {androidPackageLocked && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {"Android package names can’t be edited once saved."}
                       </p>
                     )}
                     {!isAndroidPackageValid && (
-                      <p className="text-xs text-destructive mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {"Enter a valid Android package name."}
                       </p>
                     )}
@@ -1463,7 +1427,7 @@ export default function ProjectSettings() {
                                 {"Service account file uploaded successfully"}
                               </span>
                               {androidFile && (
-                                <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                                <p className="text-sm text-green-600 dark:text-green-500 mt-1">
                                   {androidFile.fileName} •{" "}
                                   {(androidFile.fileSize / 1024).toFixed(2)} KB
                                 </p>
@@ -1524,7 +1488,7 @@ export default function ProjectSettings() {
                             </span>
                           </label>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">
+                        <p className="text-sm text-muted-foreground mt-2">
                           {
                             "Required for validating Google Play purchases. Use minimum permissions principle."
                           }
@@ -1551,7 +1515,7 @@ export default function ProjectSettings() {
                         <HelpCircle className="w-4 h-4 text-primary" />
                       </button>
                     </div>
-                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                       <li>
                         {"In the Google Cloud Console go to Service Accounts"}
                       </li>
@@ -1583,17 +1547,17 @@ export default function ProjectSettings() {
                       <button
                         type="button"
                         onClick={() => setShowAndroidGuide(true)}
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                       >
                         {"View Screenshots"}
                         <HelpCircle className="w-3 h-3" />
                       </button>
-                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-sm text-muted-foreground">•</span>
                       <a
                         href="https://developers.google.com/android-publisher/getting_started#using_a_service_account"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                       >
                         {"Learn more"}
                         <FileText className="w-3 h-3" />
@@ -1618,7 +1582,7 @@ export default function ProjectSettings() {
                         <span className="text-sm font-medium block">
                           {"Enable Meta Horizon (Quest / VR)"}
                         </span>
-                        <span className="text-xs text-muted-foreground block mt-1 break-words">
+                        <span className="text-sm text-muted-foreground block mt-1 break-words">
                           {
                             "Meta's billing SDK is Google-Play-compatible, but server verification goes through the Meta Graph API with its own credentials."
                           }
@@ -1645,14 +1609,14 @@ export default function ProjectSettings() {
                             onChange={(e) => setHorizonAppId(e.target.value)}
                             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                           />
-                          <p className="text-xs text-muted-foreground mt-1 break-words">
+                          <p className="text-sm text-muted-foreground mt-1 break-words">
                             {
                               "Numeric ID from the Meta Developer Dashboard (6–20 digits)."
                             }
                           </p>
                           {!horizonAppIdValid &&
                             trimmedHorizonAppId.length > 0 && (
-                              <p className="text-xs text-red-500 mt-1">
+                              <p className="text-sm text-red-500 mt-1">
                                 {
                                   "App ID must be a numeric string (6–20 digits)."
                                 }
@@ -1687,7 +1651,7 @@ export default function ProjectSettings() {
                                   setIsReplacingHorizonAppSecret(true);
                                   setHorizonAppSecret("");
                                 }}
-                                className="px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded transition-colors"
+                                className="px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 rounded transition-colors"
                               >
                                 {"Replace"}
                               </button>
@@ -1706,14 +1670,14 @@ export default function ProjectSettings() {
                               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                           )}
-                          <p className="text-xs text-muted-foreground mt-1 break-words">
+                          <p className="text-sm text-muted-foreground mt-1 break-words">
                             {
                               "App Secret from the Meta Developer Dashboard. The IAPKit server combines it with the App ID as OC|APP_ID|APP_SECRET for each verify call — treat it like a password."
                             }
                           </p>
                           {!horizonAppSecretValid &&
                             trimmedHorizonAppSecret.length > 0 && (
-                              <p className="text-xs text-red-500 mt-1">
+                              <p className="text-sm text-red-500 mt-1">
                                 {
                                   "App Secret looks malformed (expected 16–2048 characters)."
                                 }
@@ -1725,7 +1689,7 @@ export default function ProjectSettings() {
                           href="https://developers.meta.com/horizon/resources/publish-iap-overview/"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                         >
                           {"Meta billing docs"}
                           <FileText className="w-3 h-3" />
