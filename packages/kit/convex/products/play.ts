@@ -88,12 +88,24 @@ export const pushSyncProductsGoogle = action({
 
     // ── PULL: Play → kit ─────────────────────────────────────────
     if (direction === "pull" || direction === "both") {
-      // One-time products. Both `inappproducts.list` and
-      // `monetization.subscriptions.list` paginate via
-      // `tokenPagination.nextPageToken` — without iterating, projects
-      // with > the default page size silently lose every product past
-      // the first batch (which is what the user reported when asking
-      // "in-app 이 없어").
+      // One-time products. Play has TWO catalog APIs and apps live in
+      // different ones depending on when/how they were set up:
+      //
+      //   - `inappproducts.list` — legacy v1 endpoint. Apps created
+      //     before the new monetization framework store products here.
+      //   - `monetization.onetimeproducts.list` — new endpoint. Apps
+      //     onboarded under "Manage products" in the modern Play
+      //     Console store products HERE and `inappproducts.list`
+      //     silently returns empty for them. (This is why "Sync with
+      //     Play Console" was only pulling subscriptions for accounts
+      //     using the new console — the one-time products were
+      //     invisible to the legacy endpoint.)
+      //
+      // We hit both, dedupe by SKU, and keep going on either failing
+      // — that way an account that lives entirely in one or the other
+      // still gets a complete pull instead of failing on the missing
+      // half.
+      const seenOneTimeSkus = new Set<string>();
       try {
         let token: string | undefined;
         let pageCount = 0;
@@ -104,14 +116,8 @@ export const pushSyncProductsGoogle = action({
           });
           for (const product of oneTimes.data.inappproduct ?? []) {
             if (!product.sku) continue;
-            // Defensive filter: `inappproducts.list` is documented to
-            // return one-time products only, but the response schema
-            // still surfaces a `purchaseType` field that includes
-            // "subscription". If a Play instance ever returns a
-            // subscription from this endpoint we must skip it — the
-            // subscription pull loop below handles those, and routing
-            // them through `mapPlayOneTimeType` would mis-classify
-            // them as `NonConsumable`.
+            if (seenOneTimeSkus.has(product.sku)) continue;
+            seenOneTimeSkus.add(product.sku);
             if (product.purchaseType === "subscription") continue;
             await ctx.runMutation(internal.products.sync.upsertFromStore, {
               projectId: project._id,
@@ -129,14 +135,115 @@ export const pushSyncProductsGoogle = action({
           }
           token = oneTimes.data.tokenPagination?.nextPageToken ?? undefined;
           pageCount += 1;
-          // Bound the loop so a buggy server can't keep us paginating
-          // forever — 50 pages × default ~100 rows is way past anyone's
-          // realistic IAP catalog.
           if (pageCount > 50) break;
         } while (token);
       } catch (error) {
         failures.push({
           productId: "(play list inappproducts)",
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      // New monetization API for one-time products. The googleapis
+      // SDK exposes this as `monetization.onetimeproducts.list`. We
+      // probe via dynamic access because older versions of the SDK
+      // don't have the typings yet — falling back gracefully if the
+      // method isn't there keeps kit working with whatever
+      // googleapis version is bundled.
+      try {
+        const onetime = (
+          androidpublisher.monetization as unknown as {
+            onetimeproducts?: {
+              list: (params: {
+                packageName: string;
+                pageToken?: string;
+              }) => Promise<{
+                data: {
+                  oneTimeProducts?: Array<{
+                    productId?: string;
+                    listings?: Array<{
+                      languageCode?: string;
+                      title?: string;
+                      description?: string;
+                    }>;
+                    purchaseOptions?: Array<{
+                      buyOption?: {
+                        legacyCompatible?: boolean;
+                        regionalPricingAndAvailabilityConfigs?: Array<{
+                          regionCode?: string;
+                          price?: {
+                            currencyCode?: string;
+                            units?: string;
+                            nanos?: number;
+                          };
+                        }>;
+                      };
+                      rentOption?: unknown;
+                    }>;
+                  }>;
+                  nextPageToken?: string;
+                };
+              }>;
+            };
+          }
+        ).onetimeproducts;
+        if (onetime?.list) {
+          let token: string | undefined;
+          let pageCount = 0;
+          do {
+            const resp = await onetime.list({
+              packageName,
+              ...(token ? { pageToken: token } : {}),
+            });
+            for (const product of resp.data.oneTimeProducts ?? []) {
+              if (!product.productId) continue;
+              if (seenOneTimeSkus.has(product.productId)) continue;
+              seenOneTimeSkus.add(product.productId);
+              const listing = product.listings?.[0];
+              const buyOption = product.purchaseOptions?.[0]?.buyOption;
+              const regional =
+                buyOption?.regionalPricingAndAvailabilityConfigs ?? [];
+              const priceCandidates = regional
+                .map((r) => r.price)
+                .filter(
+                  (p): p is NonNullable<typeof p> =>
+                    !!p && typeof p.units === "string",
+                );
+              const preferred =
+                priceCandidates.find((p) => p.currencyCode === "USD") ??
+                priceCandidates[0];
+              const priceAmountMicros = preferred
+                ? moneyToMicros({
+                    units: preferred.units,
+                    nanos: preferred.nanos,
+                  })
+                : undefined;
+              await ctx.runMutation(internal.products.sync.upsertFromStore, {
+                projectId: project._id,
+                productId: product.productId,
+                platform: "Android",
+                // The new API doesn't carry a "consumable vs.
+                // non-consumable" distinction the same way — Play
+                // tracks consumption at purchase time. Default to
+                // NonConsumable; operators can edit on the kit side.
+                type: "NonConsumable",
+                title: listing?.title ?? product.productId,
+                description: listing?.description ?? undefined,
+                priceAmountMicros,
+                currency: preferred?.currencyCode ?? undefined,
+                storeRef: product.productId,
+                state: "Active",
+              });
+              pulled += 1;
+            }
+            token = resp.data.nextPageToken ?? undefined;
+            pageCount += 1;
+            if (pageCount > 50) break;
+          } while (token);
+        }
+      } catch (error) {
+        failures.push({
+          productId: "(play list onetimeproducts)",
           reason: error instanceof Error ? error.message : String(error),
         });
       }

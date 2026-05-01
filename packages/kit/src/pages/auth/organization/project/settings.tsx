@@ -792,6 +792,46 @@ export default function ProjectSettings() {
                   </h3>
                 </div>
 
+                {/* Two-key explainer. Apple ships two distinct .p8 key
+                    kinds and they are NOT interchangeable; uploading
+                    the wrong one returns an opaque 401. This banner
+                    tells the operator up front so they don't spend
+                    hours debugging a working JWT against an API that
+                    silently rejects the key kind. */}
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                    <div className="space-y-2 text-xs text-blue-900 dark:text-blue-200">
+                      <p className="font-medium">
+                        {"iOS needs TWO separate .p8 keys"}
+                      </p>
+                      <p>
+                        {
+                          "Apple scopes its API gateway by key kind — uploading the wrong .p8 for either purpose returns 401. The two keys come from different App Store Connect pages and have different Issuer / Key IDs."
+                        }
+                      </p>
+                      <ul className="ml-3 space-y-1 list-disc">
+                        <li>
+                          <span className="font-medium">
+                            {"Server API Key (.p8)"}
+                          </span>
+                          {
+                            " — required for receipt verification, subscription status, refund history. If you rely entirely on webhooks for state changes you can skip this key, but server-side verification of initial purchases is strongly recommended."
+                          }
+                        </li>
+                        <li>
+                          <span className="font-medium">
+                            {"Connect API Key (.p8)"}
+                          </span>
+                          {
+                            " — required only if you want kit to sync your IAP catalog with App Store Connect (list / create / patch products). Optional otherwise."
+                          }
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   {/* iOS identifiers (App Store bundle ID + Apple ID +
                       ASC Issuer/Key) — submitted via this card's parent
@@ -1241,13 +1281,13 @@ export default function ProjectSettings() {
                     )}
                   </div>
 
-                  {/* iOS Setup Guide */}
+                  {/* iOS Setup Guide — Server API key (.p8) */}
                   <div className="pt-4 border-t">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Info className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm font-medium">
-                          {"How to get your .p8 file:"}
+                          {"How to get your Server API .p8 file:"}
                         </span>
                       </div>
                       <button
@@ -1273,6 +1313,11 @@ export default function ProjectSettings() {
                           "Enter a name and download the .p8 file (can only be downloaded once)"
                         }
                       </li>
+                      <li>
+                        {
+                          "Copy the Issuer ID at the top of the page and the Key ID next to your new key"
+                        }
+                      </li>
                     </ol>
                     <div className="flex items-center gap-2 mt-2">
                       <button
@@ -1285,12 +1330,63 @@ export default function ProjectSettings() {
                       </button>
                       <span className="text-xs text-muted-foreground">•</span>
                       <a
+                        href="https://developer.apple.com/documentation/appstoreserverapi/creating_api_keys_to_use_with_the_app_store_server_api"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        {"Apple docs"}
+                        <FileText className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* iOS Setup Guide — Connect API key (.p8) */}
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Info className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        {"How to get your Connect API .p8 file:"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {
+                        "Different page from the Server API key above. Required only if you want kit to push-sync your IAP catalog with App Store Connect."
+                      }
+                    </p>
+                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>
+                        {
+                          "Go to App Store Connect → Users and Access → Integrations → App Store Connect API"
+                        }
+                      </li>
+                      <li>
+                        {
+                          "Pick the Team Keys tab (or Individual Keys for a personal key)"
+                        }
+                      </li>
+                      <li>
+                        {
+                          "Click '+' / 'Generate API Key' and assign at least the 'App Manager' role so the key can list and modify in-app purchases"
+                        }
+                      </li>
+                      <li>
+                        {"Download the .p8 file (can only be downloaded once)"}
+                      </li>
+                      <li>
+                        {
+                          "Copy the Issuer ID at the top of the page and the Key ID next to your new key — these are different from the Server API ones"
+                        }
+                      </li>
+                    </ol>
+                    <div className="flex items-center gap-2 mt-2">
+                      <a
                         href="https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                       >
-                        {"Learn more"}
+                        {"Apple docs"}
                         <FileText className="w-3 h-3" />
                       </a>
                     </div>
