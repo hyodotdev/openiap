@@ -38,6 +38,8 @@ interface ProjectData {
   iosAppAppleId?: number;
   iosAppStoreIssuerId?: string;
   iosAppStoreKeyId?: string;
+  iosAscIssuerId?: string;
+  iosAscKeyId?: string;
   horizonEnabled?: boolean;
   horizonAppId?: string | null;
   // The Meta App Secret is never returned by
@@ -56,8 +58,10 @@ interface OutletContext {
 export default function ProjectSettings() {
   const { project } = useOutletContext<OutletContext>();
   const [iosFileUploaded, setIosFileUploaded] = useState(false);
+  const [iosAscFileUploaded, setIosAscFileUploaded] = useState(false);
   const [androidFileUploaded, setAndroidFileUploaded] = useState(false);
   const [uploadingIos, setUploadingIos] = useState(false);
+  const [uploadingIosAsc, setUploadingIosAsc] = useState(false);
   const [uploadingAndroid, setUploadingAndroid] = useState(false);
   const [showIosGuide, setShowIosGuide] = useState(false);
   const [showAndroidGuide, setShowAndroidGuide] = useState(false);
@@ -85,6 +89,12 @@ export default function ProjectSettings() {
   const [iosAppStoreKeyId, setIosAppStoreKeyId] = useState(
     project?.iosAppStoreKeyId ?? "",
   );
+  // App Store Connect API credentials — separate from the Server API
+  // ones above. See `convex/schema.ts` and `convex/products/asc.ts`.
+  const [iosAscIssuerId, setIosAscIssuerId] = useState(
+    project?.iosAscIssuerId ?? "",
+  );
+  const [iosAscKeyId, setIosAscKeyId] = useState(project?.iosAscKeyId ?? "");
   // Meta Horizon — gated by a checkbox inside the Android card.
   // The enabled flag is the single source of truth: toggling off
   // clears the credential fields on save so stale secrets can't
@@ -147,6 +157,8 @@ export default function ProjectSettings() {
       : "";
   const originalIosIssuerId = project?.iosAppStoreIssuerId ?? "";
   const originalIosKeyId = project?.iosAppStoreKeyId ?? "";
+  const originalIosAscIssuerId = project?.iosAscIssuerId ?? "";
+  const originalIosAscKeyId = project?.iosAscKeyId ?? "";
   const originalHorizonEnabled = Boolean(project?.horizonEnabled);
   const originalHorizonAppId = project?.horizonAppId ?? "";
   const hasHorizonAppSecretConfigured = Boolean(project?.hasHorizonAppSecret);
@@ -160,6 +172,8 @@ export default function ProjectSettings() {
     setIosAppAppleId(originalIosAppleIdString);
     setIosAppStoreIssuerId(originalIosIssuerId);
     setIosAppStoreKeyId(originalIosKeyId);
+    setIosAscIssuerId(originalIosAscIssuerId);
+    setIosAscKeyId(originalIosAscKeyId);
     setHorizonEnabled(originalHorizonEnabled);
     setHorizonAppId(originalHorizonAppId);
     // Secret is write-only; we never receive the existing value, so
@@ -174,6 +188,8 @@ export default function ProjectSettings() {
     originalIosAppleIdString,
     originalIosIssuerId,
     originalIosKeyId,
+    originalIosAscIssuerId,
+    originalIosAscKeyId,
     originalHorizonEnabled,
     originalHorizonAppId,
     hasHorizonAppSecretConfigured,
@@ -184,6 +200,8 @@ export default function ProjectSettings() {
   const trimmedIosAppleId = iosAppAppleId.trim();
   const trimmedIosIssuerId = iosAppStoreIssuerId.trim();
   const trimmedIosKeyId = iosAppStoreKeyId.trim().toUpperCase();
+  const trimmedIosAscIssuerId = iosAscIssuerId.trim();
+  const trimmedIosAscKeyId = iosAscKeyId.trim().toUpperCase();
   const trimmedHorizonAppId = horizonAppId.trim();
   const trimmedHorizonAppSecret = horizonAppSecret.trim();
 
@@ -198,6 +216,11 @@ export default function ProjectSettings() {
     (file) =>
       file.purpose === "apple_p8_key" && file.projectId === project?._id,
   );
+  const iosAscFile = files?.find(
+    (file) =>
+      file.purpose === "apple_p8_asc_api_key" &&
+      file.projectId === project?._id,
+  );
   const androidFile = files?.find(
     (file) =>
       file.purpose === "android_service_account" &&
@@ -205,6 +228,7 @@ export default function ProjectSettings() {
   );
 
   const hasIosFile = !!iosFile;
+  const hasIosAscFile = !!iosAscFile;
   const hasAndroidFile = !!androidFile;
 
   const iosBundleLocked = Boolean(originalIosBundleId);
@@ -278,6 +302,23 @@ export default function ProjectSettings() {
   const iosCredentialsProvided =
     trimmedIosIssuerId.length > 0 && trimmedIosKeyId.length > 0;
   const isIosCredentialPairValid = !showAppleSection || iosCredentialsProvided;
+  // ASC API key Issuer/Key — both optional (only required for push-
+  // sync, not receipt verification). When the user fills one, it must
+  // match the format and the other must be filled too.
+  const iosAscFieldsProvided =
+    trimmedIosAscIssuerId.length > 0 || trimmedIosAscKeyId.length > 0;
+  const isIosAscIssuerIdValid =
+    !showAppleSection ||
+    !iosAscFieldsProvided ||
+    appStoreIssuerPattern.test(trimmedIosAscIssuerId);
+  const isIosAscKeyIdValid =
+    !showAppleSection ||
+    !iosAscFieldsProvided ||
+    appStoreKeyPattern.test(trimmedIosAscKeyId);
+  const isIosAscPairValid =
+    !showAppleSection ||
+    !iosAscFieldsProvided ||
+    (trimmedIosAscIssuerId.length > 0 && trimmedIosAscKeyId.length > 0);
   const androidSectionHasChanges =
     showAndroidSection &&
     trimmedAndroidPackageName !== originalAndroidPackageName;
@@ -286,7 +327,9 @@ export default function ProjectSettings() {
     (trimmedIosBundleId !== originalIosBundleId ||
       trimmedIosAppleId !== originalIosAppleIdString ||
       trimmedIosIssuerId !== originalIosIssuerId ||
-      trimmedIosKeyId !== originalIosKeyId);
+      trimmedIosKeyId !== originalIosKeyId ||
+      trimmedIosAscIssuerId !== originalIosAscIssuerId ||
+      trimmedIosAscKeyId !== originalIosAscKeyId);
   const showIosP8Requirement = showAppleSection && !isIosP8Provided;
   const metadataHasChanges = androidSectionHasChanges || iosSectionHasChanges;
   const disableSaveMetadata =
@@ -297,6 +340,9 @@ export default function ProjectSettings() {
     !isIosIssuerIdValid ||
     !isIosKeyIdValid ||
     !isIosCredentialPairValid ||
+    !isIosAscIssuerIdValid ||
+    !isIosAscKeyIdValid ||
+    !isIosAscPairValid ||
     savingMetadata;
 
   // Horizon (inside the Android card) has its own save flow rather
@@ -345,6 +391,8 @@ export default function ProjectSettings() {
         iosAppAppleId?: number;
         iosAppStoreIssuerId?: string;
         iosAppStoreKeyId?: string;
+        iosAscIssuerId?: string;
+        iosAscKeyId?: string;
       } = {
         projectId: project._id,
       };
@@ -363,6 +411,12 @@ export default function ProjectSettings() {
         }
         if (trimmedIosKeyId) {
           payload.iosAppStoreKeyId = trimmedIosKeyId;
+        }
+        if (trimmedIosAscIssuerId) {
+          payload.iosAscIssuerId = trimmedIosAscIssuerId;
+        }
+        if (trimmedIosAscKeyId) {
+          payload.iosAscKeyId = trimmedIosAscKeyId;
         }
       }
 
@@ -474,6 +528,58 @@ export default function ProjectSettings() {
       toast.error(error.message || "Failed to upload iOS authentication file");
     } finally {
       setUploadingIos(false);
+    }
+  };
+
+  const handleIosAscFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".p8")) {
+      toast.error("Please upload a valid .p8 file");
+      return;
+    }
+    setUploadingIosAsc(true);
+    try {
+      const postUrl = await generateUploadUrl();
+      const result = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!result.ok) throw new Error("Upload failed");
+      const { storageId } = await result.json();
+      await saveFile({
+        organizationId: project.organizationId,
+        projectId: project._id,
+        storageId,
+        fileName: file.name,
+        fileType: file.type || "application/octet-stream",
+        fileSize: file.size,
+        purpose: "apple_p8_asc_api_key",
+        description: `App Store Connect API key for ${project.name}`,
+        isInternal: true,
+      });
+      setIosAscFileUploaded(true);
+      toast.success("App Store Connect API key uploaded successfully");
+    } catch (error: any) {
+      console.error("iOS ASC file upload error:", error);
+      toast.error(error.message || "Failed to upload App Store Connect key");
+    } finally {
+      setUploadingIosAsc(false);
+    }
+  };
+
+  const handleIosAscFileDelete = async () => {
+    if (!iosAscFile?._id) return;
+    try {
+      await removeFile({ fileId: iosAscFile._id });
+      setIosAscFileUploaded(false);
+      toast.success("App Store Connect API key deleted successfully");
+    } catch (error: any) {
+      console.error("iOS ASC file delete error:", error);
+      toast.error(error.message || "Failed to delete App Store Connect key");
     }
   };
 
@@ -758,7 +864,7 @@ export default function ProjectSettings() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      {"App Store Connect Issuer ID"}{" "}
+                      {"Server API Issuer ID"}{" "}
                       <span className="text-destructive" aria-hidden="true">
                         *
                       </span>
@@ -777,7 +883,7 @@ export default function ProjectSettings() {
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       {
-                        "Needed for App Store Server API calls. Find it in App Store Connect → Users and Access → Integrations → In-App Purchase (under Keys)"
+                        "App Store Server API issuer. Find it in App Store Connect → Users and Access → Integrations → In-App Purchase (under Keys)."
                       }
                     </p>
                     {iosIssuerLocked && (
@@ -795,7 +901,7 @@ export default function ProjectSettings() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      {"App Store Connect Key ID"}{" "}
+                      {"Server API Key ID"}{" "}
                       <span className="text-destructive" aria-hidden="true">
                         *
                       </span>
@@ -814,7 +920,7 @@ export default function ProjectSettings() {
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       {
-                        "Ten-character identifier shown next to the .p8 key. Find it in App Store Connect → Users and Access → Integrations → In-App Purchase (under Keys)"
+                        "Ten-character identifier shown next to the In-App Purchase .p8 key in App Store Connect."
                       }
                     </p>
                     {iosKeyLocked && (
@@ -836,14 +942,169 @@ export default function ProjectSettings() {
                     )}
                   </div>
 
+                  {/* App Store Connect API credentials — separate slot.
+                      Required to push-sync the IAP catalog. The Server
+                      API key (above) only authenticates receipt
+                      verification; ASC REST endpoints (catalog list /
+                      create / patch) reject it with 401. */}
+                  <div className="pt-4 border-t border-border/60">
+                    <p className="text-sm font-medium mb-1">
+                      {"App Store Connect API (push-sync)"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      {
+                        "Optional. Required only if you want kit to sync your IAP catalog with App Store Connect. Generate at App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys (or Individual Keys). NOT the same as the In-App Purchase key above."
+                      }
+                    </p>
+
+                    <label className="block text-sm font-medium mb-2">
+                      {"Connect API Issuer ID"}
+                    </label>
+                    <input
+                      type="text"
+                      value={iosAscIssuerId}
+                      onChange={(event) =>
+                        setIosAscIssuerId(event.target.value)
+                      }
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted/40"
+                      placeholder="12345678-ABCD-1234-ABCD-1234567890AB"
+                      spellCheck={false}
+                      aria-invalid={!isIosAscIssuerIdValid}
+                    />
+                    {!isIosAscIssuerIdValid && (
+                      <p className="text-xs text-destructive mt-1">
+                        {
+                          "Issuer ID must match the UUID format (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)."
+                        }
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {"Connect API Key ID"}
+                    </label>
+                    <input
+                      type="text"
+                      value={iosAscKeyId}
+                      onChange={(event) =>
+                        setIosAscKeyId(event.target.value.toUpperCase())
+                      }
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted/40"
+                      placeholder="ABCDE12345"
+                      spellCheck={false}
+                      aria-invalid={!isIosAscKeyIdValid}
+                    />
+                    {!isIosAscKeyIdValid && (
+                      <p className="text-xs text-destructive mt-1">
+                        {"Key ID must be 10 uppercase letters or numbers."}
+                      </p>
+                    )}
+                    {!isIosAscPairValid && (
+                      <p className="text-xs text-destructive mt-1">
+                        {
+                          "Provide both Connect API Issuer ID and Key ID, or leave both blank to skip push-sync."
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {"App Store Connect API Key (.p8)"}
+                    </label>
+                    {iosAscFileUploaded || hasIosAscFile ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
+                            <div>
+                              <span className="text-sm text-green-700 dark:text-green-400">
+                                {"Connect API key uploaded successfully"}
+                              </span>
+                              {iosAscFile && (
+                                <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                                  {iosAscFile.fileName} •{" "}
+                                  {(iosAscFile.fileSize / 1024).toFixed(2)} KB
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {iosAscFile && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleFileDownload(
+                                    iosAscFile._id,
+                                    "Connect API key",
+                                  )
+                                }
+                                className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                title={"Download file"}
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => void handleIosAscFileDelete()}
+                              className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                              title={"Delete file"}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept=".p8"
+                            onChange={(e) => void handleIosAscFileUpload(e)}
+                            className="hidden"
+                            id="ios-asc-file-upload"
+                            disabled={uploadingIosAsc}
+                          />
+                          <label
+                            htmlFor="ios-asc-file-upload"
+                            className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+                              uploadingIosAsc
+                                ? "border-muted bg-muted/20 cursor-not-allowed"
+                                : "border-border hover:border-primary hover:bg-primary/5"
+                            }`}
+                          >
+                            <Upload className="w-5 h-5" />
+                            <span className="text-sm font-medium">
+                              {uploadingIosAsc
+                                ? "Uploading..."
+                                : "Click to upload Connect API .p8 file"}
+                            </span>
+                          </label>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {
+                            "Upload only after you've generated the Team Key (or Individual Key) under App Store Connect API — uploading the In-App Purchase key here will result in 401 errors during sync."
+                          }
+                        </p>
+                      </>
+                    )}
+                  </div>
+
                   <div className="pt-4 border-t border-border/60">
                     <label className="block text-sm font-medium mb-2">
-                      {"App Store Connect API Key (.p8)"}{" "}
+                      {"App Store Server API Key (.p8)"}{" "}
                       <span className="text-destructive" aria-hidden="true">
                         *
                       </span>
                       <span className="sr-only">{"Required"}</span>
                     </label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {
+                        "Generate at App Store Connect → Users and Access → Integrations → In-App Purchase. Used for receipt verification, subscription status, refund history."
+                      }
+                    </p>
 
                     {iosFileUploaded || hasIosFile ? (
                       <div className="space-y-2">
@@ -869,7 +1130,7 @@ export default function ProjectSettings() {
                                 onClick={() =>
                                   void handleFileDownload(
                                     iosFile._id,
-                                    "App Store Connect API key",
+                                    "App Store Server API key",
                                   )
                                 }
                                 className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"

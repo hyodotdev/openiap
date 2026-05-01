@@ -312,12 +312,25 @@ export const pushSyncProductsApple = action({
     if (!project.iosAppAppleId) {
       throw new Error("Project iosAppAppleId is required for ASC push-sync");
     }
-    if (!project.iosAppStoreIssuerId || !project.iosAppStoreKeyId) {
-      throw new Error("ASC issuerId / keyId not configured for this project");
+    // ASC push-sync uses the App Store Connect API key (Team Key /
+    // Individual Key), which is genuinely different from the App Store
+    // Server API key used for receipt verification — Apple scopes them
+    // separately at the gateway. The dashboard surfaces both upload
+    // slots; this action requires the ASC one and fails with a clear
+    // hint if only the IAP key is configured.
+    if (!project.iosAscIssuerId || !project.iosAscKeyId) {
+      throw new Error(
+        "App Store Connect API Issuer ID / Key ID not configured. " +
+          "Generate them at App Store Connect → Users and Access → " +
+          "Integrations → App Store Connect API (NOT under In-App " +
+          "Purchase — those credentials are scoped to receipt " +
+          "verification only). Then save them in Settings → iOS " +
+          "Configuration.",
+      );
     }
 
     const keyResponse = await ctx.runAction(
-      internal.files.internal.getAppleP8Key,
+      internal.files.internal.getAppleAscApiKey,
       {
         organizationId: project.organizationId,
         projectId: project._id,
@@ -325,13 +338,15 @@ export const pushSyncProductsApple = action({
     );
     if (!keyResponse?.keyContent) {
       throw new Error(
-        "Apple .p8 key file not found — upload it before running push-sync",
+        "App Store Connect API key (.p8) not uploaded — generate one " +
+          "at App Store Connect → Users and Access → Integrations → " +
+          "App Store Connect API and upload it in Settings.",
       );
     }
 
     const client = new AscClient(
-      project.iosAppStoreIssuerId,
-      project.iosAppStoreKeyId,
+      project.iosAscIssuerId,
+      project.iosAscKeyId,
       keyResponse.keyContent,
     );
 

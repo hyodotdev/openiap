@@ -185,8 +185,22 @@ const schema = defineSchema({
     androidPackageName: v.optional(v.string()),
     iosBundleId: v.optional(v.string()),
     iosAppAppleId: v.optional(v.number()),
+    // App Store Server API credentials — issued under "Users and
+    // Access → Integrations → In-App Purchase". Used by the receipt
+    // verifier in `purchases/ios.ts`. Pairs with the `.p8` file
+    // stored as `purpose: "apple_p8_key"`.
     iosAppStoreIssuerId: v.optional(v.string()),
     iosAppStoreKeyId: v.optional(v.string()),
+    // App Store Connect API credentials — issued under "Users and
+    // Access → Integrations → App Store Connect API → Team Keys"
+    // (or Individual Keys). Used by `products/asc.ts` push-sync.
+    // Genuinely a different key from the App Store Server API one;
+    // Apple scopes them separately at the gateway. Pairs with the
+    // `.p8` file stored as `purpose: "apple_p8_asc_api_key"`. Both
+    // are optional so existing iOS-only-receipt-verification
+    // projects keep working without push-sync.
+    iosAscIssuerId: v.optional(v.string()),
+    iosAscKeyId: v.optional(v.string()),
 
     // Meta Horizon Billing (Quest / Meta VR). Piggybacks on the Android
     // configuration card in the UI because the client SDK is
@@ -255,10 +269,18 @@ const schema = defineSchema({
     fileType: v.string(), // MIME type
     fileSize: v.number(), // Size in bytes
 
-    // Purpose/category
+    // Purpose/category. Apple distributes two distinct .p8 key kinds
+    // and they're NOT interchangeable:
+    //   - `apple_p8_key`         — App Store Server API (the
+    //     "In-App Purchase Key"). Used for receipt verification.
+    //   - `apple_p8_asc_api_key` — App Store Connect API (the "Team
+    //     Key" / "Individual Key"). Used for ASC REST endpoints
+    //     (catalog list / create / patch). Push-sync calls these.
+    // Uploading the wrong kind for either purpose returns 401.
     purpose: v.union(
-      v.literal("apple_p8_key"), // Apple .p8 private key
-      v.literal("android_service_account"), // Android Service Account
+      v.literal("apple_p8_key"),
+      v.literal("apple_p8_asc_api_key"),
+      v.literal("android_service_account"),
     ),
     description: v.optional(v.string()),
 

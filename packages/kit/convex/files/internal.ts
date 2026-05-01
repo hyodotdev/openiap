@@ -3,7 +3,7 @@ import {
   internalMutation,
   internalAction,
 } from "../_generated/server";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
@@ -208,6 +208,7 @@ export const findFilesByPurpose = internalQuery({
     organizationId: v.id("organizations"),
     purpose: v.union(
       v.literal("apple_p8_key"),
+      v.literal("apple_p8_asc_api_key"),
       v.literal("android_service_account"),
     ),
   },
@@ -298,6 +299,58 @@ export const getAppleP8Key = internalAction({
   },
 });
 
+// Internal action to get the App Store Connect API key (.p8). This is
+// a different key than `getAppleP8Key` returns — see schema.ts for the
+// distinction. Used by `products/asc.ts` push-sync.
+export const getAppleAscApiKey = internalAction({
+  args: {
+    organizationId: v.id("organizations"),
+    projectId: v.optional(v.id("projects")),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    keyContent: string;
+    metadata: unknown;
+    fileId: Id<"files">;
+  }> => {
+    const files = await ctx.runQuery(
+      internal.files.internal.findFilesByPurpose,
+      {
+        organizationId: args.organizationId,
+        purpose: "apple_p8_asc_api_key",
+      },
+    );
+
+    let targetFile = files[0];
+    if (args.projectId) {
+      const projectFiles = files.filter(
+        (f: FilePublicProjection) => f.projectId === args.projectId,
+      );
+      targetFile = projectFiles[0] || files[0];
+    }
+
+    if (!targetFile) {
+      throw new ConvexError(
+        "No App Store Connect API key (.p8) uploaded for this project — generate one at App Store Connect → Users and Access → Integrations → App Store Connect API and upload it in Settings.",
+      );
+    }
+    const content = await ctx.runAction(
+      internal.files.internal.readFileAsText,
+      {
+        fileId: targetFile._id,
+      },
+    );
+
+    return {
+      keyContent: content.content,
+      metadata: content.metadata,
+      fileId: targetFile._id,
+    };
+  },
+});
+
 // Internal mutation to cleanup old files
 export const cleanupOldFiles = internalMutation({
   args: {
@@ -317,8 +370,12 @@ export const cleanupOldFiles = internalMutation({
 
     let deletedCount = 0;
     for (const file of files) {
-      // Don't delete internal files or keys
-      if (file.isInternal || file.purpose === "apple_p8_key") {
+      // Don't delete internal files or keys (both Apple .p8 kinds).
+      if (
+        file.isInternal ||
+        file.purpose === "apple_p8_key" ||
+        file.purpose === "apple_p8_asc_api_key"
+      ) {
         continue;
       }
 
