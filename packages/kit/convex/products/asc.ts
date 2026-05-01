@@ -315,40 +315,62 @@ export const pushSyncProductsApple = action({
     // ASC push-sync uses the App Store Connect API key (Team Key /
     // Individual Key), which is genuinely different from the App Store
     // Server API key used for receipt verification — Apple scopes them
-    // separately at the gateway. The dashboard surfaces both upload
-    // slots; this action requires the ASC one and fails with a clear
-    // hint if only the IAP key is configured.
-    if (!project.iosAscIssuerId || !project.iosAscKeyId) {
+    // separately at the gateway. We prefer the dedicated ASC slot when
+    // the operator has populated it, but fall back to the existing
+    // Server API slot so projects that upload a Team Key into the old
+    // (single-slot) workflow keep working without a re-config dance.
+    // The 401 from Apple's gateway is what catches a wrong-kind key
+    // either way — the helpful message in `call()` points the operator
+    // at the right Apple page.
+    const issuerId = project.iosAscIssuerId ?? project.iosAppStoreIssuerId;
+    const keyId = project.iosAscKeyId ?? project.iosAppStoreKeyId;
+    if (!issuerId || !keyId) {
       throw new Error(
         "App Store Connect API Issuer ID / Key ID not configured. " +
           "Generate them at App Store Connect → Users and Access → " +
           "Integrations → App Store Connect API (NOT under In-App " +
           "Purchase — those credentials are scoped to receipt " +
-          "verification only). Then save them in Settings → iOS " +
-          "Configuration.",
+          "verification only). Save them in Settings → iOS " +
+          "Configuration → 'App Store Connect API (push-sync)'.",
       );
     }
 
-    const keyResponse = await ctx.runAction(
-      internal.files.internal.getAppleAscApiKey,
-      {
-        organizationId: project.organizationId,
-        projectId: project._id,
-      },
-    );
-    if (!keyResponse?.keyContent) {
+    // Prefer the dedicated ASC .p8 file; fall back to the Server API
+    // .p8 when the user has only uploaded one. The wrong-kind hint
+    // from `call()` will tell them to upload a Team Key if Apple
+    // rejects whichever they have.
+    let keyContent: string | undefined;
+    try {
+      const ascKey = await ctx.runAction(
+        internal.files.internal.getAppleAscApiKey,
+        {
+          organizationId: project.organizationId,
+          projectId: project._id,
+        },
+      );
+      keyContent = ascKey?.keyContent;
+    } catch {
+      // No ASC key uploaded — try the Server API slot below.
+    }
+    if (!keyContent) {
+      const legacyKey = await ctx.runAction(
+        internal.files.internal.getAppleP8Key,
+        {
+          organizationId: project.organizationId,
+          projectId: project._id,
+        },
+      );
+      keyContent = legacyKey?.keyContent;
+    }
+    if (!keyContent) {
       throw new Error(
         "App Store Connect API key (.p8) not uploaded — generate one " +
           "at App Store Connect → Users and Access → Integrations → " +
-          "App Store Connect API and upload it in Settings.",
+          "App Store Connect API → Team Keys and upload it in Settings.",
       );
     }
 
-    const client = new AscClient(
-      project.iosAscIssuerId,
-      project.iosAscKeyId,
-      keyResponse.keyContent,
-    );
+    const client = new AscClient(issuerId, keyId, keyContent);
 
     const direction = args.direction ?? "both";
     const failures: Array<{ productId: string; reason: string }> = [];
