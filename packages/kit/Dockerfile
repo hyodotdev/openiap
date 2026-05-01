@@ -16,6 +16,11 @@ COPY packages/gql/package.json ./packages/gql/
 COPY packages/apple/package.json ./packages/apple/
 COPY packages/google/package.json ./packages/google/
 COPY packages/docs/package.json ./packages/docs/
+# `mcp-server` is a workspace member (added in PR #124). Without
+# its package.json bun's workspace resolver disagrees with the
+# root lockfile and `--frozen-lockfile` rejects the install with
+# "lockfile had changes, but lockfile is frozen".
+COPY packages/mcp-server/package.json ./packages/mcp-server/
 RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
 
 # --- Build the unified app (Vite SPA + compiled Bun server) --------------
