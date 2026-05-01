@@ -26,5 +26,5 @@
   "overrides": {
     "csstype": "3.2.3"
   },
-  "packageManager": "bun@1.3.0"
+  "packageManager": "bun@1.3.13"
 }
