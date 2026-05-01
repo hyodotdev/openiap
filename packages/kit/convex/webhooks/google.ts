@@ -227,10 +227,16 @@ async function maybeFetchSubscriptionInfo(
       autoRenewingPlanRenewsTimeMillis: renews ? Date.parse(renews) : undefined,
       currency: recurring?.currencyCode ?? undefined,
       priceAmountMicros: recurring?.units
-        ? // `units` is BigInt-as-string, `nanos` is the fractional part.
-          // Combine to micros: units * 1_000_000 + nanos / 1_000.
-          Number(recurring.units) * 1_000_000 +
-          Math.round((recurring.nanos ?? 0) / 1_000)
+        ? // `units` is BigInt-as-string per Google's `Money` proto; do
+          // the multiplication in BigInt so very-large currency values
+          // don't lose precision through Number's 2^53 ceiling. nanos
+          // is small (always < 1e9) so keeping it in Number is fine.
+          // PR #124 review caught the prior `Number(units) * 1_000_000`
+          // approach.
+          Number(
+            BigInt(recurring.units) * 1_000_000n +
+              BigInt(Math.round((recurring.nanos ?? 0) / 1_000)),
+          )
         : undefined,
     };
   } catch (error) {

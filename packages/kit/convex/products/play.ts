@@ -259,10 +259,17 @@ function parseSubBasePlanPriceMicros(
       ? null
       : sub.basePlans?.[0]?.regionalConfigs?.[0]?.price;
   if (!recurring?.units) return undefined;
-  const units = Number(recurring.units);
-  const nanos = recurring.nanos ?? 0;
-  if (!Number.isFinite(units)) return undefined;
-  return units * 1_000_000 + Math.round(nanos / 1_000);
+  // Google's `Money` proto: `units` is a BigInt-as-string. Do the
+  // micros multiplication in BigInt to avoid precision loss for
+  // large currency values (>2^53). PR #124 review fix.
+  try {
+    const microsBigInt =
+      BigInt(recurring.units) * 1_000_000n +
+      BigInt(Math.round((recurring.nanos ?? 0) / 1_000));
+    return Number(microsBigInt);
+  } catch {
+    return undefined;
+  }
 }
 
 function parseSubBasePlanCurrency(

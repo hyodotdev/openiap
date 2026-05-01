@@ -27,6 +27,15 @@ export const webhookEventsSince = query({
   returns: v.array(
     v.object({
       id: v.string(),
+      // Convex auto-assigned `_creationTime` (epoch ms, monotonic per
+      // doc insert). Surfaced so SDKs can checkpoint reliably even
+      // when two events share the same `receivedAt` — the wall-clock
+      // tie-breaker is not unique under burst writes (PR #124 review
+      // fix). The Convex doc id (`_id`) is also surfaced for the same
+      // reason; `id` (sourceNotificationId) stays the spec-stable
+      // identifier consumers gate on.
+      _creationTime: v.number(),
+      _id: v.id("webhookEvents"),
       type: webhookEventTypeValidator,
       source: webhookEventSourceValidator,
       platform: webhookEventPlatformValidator,
@@ -73,6 +82,8 @@ export const webhookEventsSince = query({
       // the store; ASN v2 notificationUUID and RTDN messageId are both
       // globally unique and survive replay/dedup.
       id: event.sourceNotificationId,
+      _creationTime: event._creationTime,
+      _id: event._id,
       type: event.type,
       source: event.source,
       platform: event.platform,

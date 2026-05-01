@@ -6,7 +6,7 @@ import {
   type JWSTransactionDecodedPayload,
   type JWSRenewalInfoDecodedPayload,
 } from "@apple/app-store-server-library";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -37,7 +37,13 @@ type IngestResult = {
 // Apple retries the same notificationUUID on transient 5xx — that case
 // is collapsed inside `recordWebhookEvent` (returns `deduped: true`)
 // and the route still responds 200 so Apple stops retrying.
-export const ingestAppleAsn = action({
+//
+// Naming: follows the openiap iOS suffix convention
+// (`knowledge/internal/01-naming-conventions.md`) — iOS-specific
+// functions end in `IOS`. Even though "Apple" already implies iOS,
+// the convention is mechanical and applies to every iOS-only entry
+// point.
+export const ingestAppleAsnIOS = action({
   args: {
     apiKey: v.string(),
     signedPayload: v.string(),
@@ -60,9 +66,14 @@ export const ingestAppleAsn = action({
       previewPayload.data?.bundleId &&
       previewPayload.data.bundleId !== project.iosBundleId
     ) {
-      throw new Error(
-        `Bundle ID mismatch: notification ${previewPayload.data.bundleId} vs project ${project.iosBundleId}`,
-      );
+      // ConvexError so the Hono layer's `mapWebhookError` translates
+      // this to a 400, not a 500. A bundle mismatch is a permanent
+      // configuration error — Apple should NOT retry, and 5xx
+      // triggers automatic retries from ASN that we don't want.
+      throw new ConvexError({
+        code: "BUNDLE_ID_MISMATCH",
+        message: `Bundle ID mismatch: notification ${previewPayload.data.bundleId} vs project ${project.iosBundleId}`,
+      });
     }
 
     const environment = mapPreviewEnvironment(previewPayload.data?.environment);

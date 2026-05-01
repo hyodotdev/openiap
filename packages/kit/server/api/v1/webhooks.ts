@@ -193,7 +193,7 @@ async function handleAppleNotification(
     );
   }
   try {
-    const result = await client.action(api.webhooks.apple.ingestAppleAsn, {
+    const result = await client.action(api.webhooks.apple.ingestAppleAsnIOS, {
       apiKey,
       signedPayload: body.signedPayload,
     });
