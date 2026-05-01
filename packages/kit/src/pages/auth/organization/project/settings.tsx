@@ -629,24 +629,43 @@ export default function ProjectSettings() {
         </div>
       </div>
 
-      {/* Guide message if Android file is not uploaded */}
-      {showAndroidSection && !androidFileUploaded && !hasAndroidFile && (
-        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-1">
-                {"Configuration Required"}
-              </h3>
-              <p className="text-sm text-amber-700 dark:text-amber-400">
-                {
-                  "Upload the Android service account JSON and the Apple App Store Connect .p8 key with Issuer ID and Key ID to enable purchase verification."
-                }
-              </p>
+      {/* Configuration Required banner — fires whenever any
+          *enabled* platform is missing its credential file. iOS-only
+          projects need the .p8; Android-only projects need the JSON;
+          dual-platform projects need both. The message is composed
+          from whichever platforms are missing so we don't tell an
+          iOS-only operator they need to upload an Android file. */}
+      {(() => {
+        const missingIos = showAppleSection && !iosFileUploaded && !hasIosFile;
+        const missingAndroid =
+          showAndroidSection && !androidFileUploaded && !hasAndroidFile;
+        if (!missingIos && !missingAndroid) return null;
+        const parts: string[] = [];
+        if (missingIos) {
+          parts.push(
+            "the Apple App Store Connect .p8 key with Issuer ID and Key ID",
+          );
+        }
+        if (missingAndroid) {
+          parts.push("the Android service account JSON");
+        }
+        const message = `Upload ${parts.join(" and ")} to enable purchase verification.`;
+        return (
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-1">
+                  {"Configuration Required"}
+                </h3>
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  {message}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {(showAppleSection || showAndroidSection) && (
         <form
