@@ -17,6 +17,7 @@ import type * as apiKeys_query from "../apiKeys/query.js";
 import type * as auth from "../auth.js";
 import type * as certificates_apple_root_certificates from "../certificates/apple_root_certificates.js";
 import type * as crons from "../crons.js";
+import type * as files_action from "../files/action.js";
 import type * as files_internal from "../files/internal.js";
 import type * as files_mutation from "../files/mutation.js";
 import type * as files_query from "../files/query.js";
@@ -91,6 +92,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   "certificates/apple_root_certificates": typeof certificates_apple_root_certificates;
   crons: typeof crons;
+  "files/action": typeof files_action;
   "files/internal": typeof files_internal;
   "files/mutation": typeof files_mutation;
   "files/query": typeof files_query;

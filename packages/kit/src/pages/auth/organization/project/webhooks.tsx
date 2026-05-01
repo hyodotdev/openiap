@@ -1,4 +1,4 @@
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useParams, Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import {
@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Check,
   AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 
 import type { Doc } from "@/convex";
@@ -16,6 +17,14 @@ type ProjectContext = { project: Doc<"projects"> };
 
 export default function ProjectWebhooks() {
   const { project } = useOutletContext<ProjectContext>();
+  const { orgSlug, projectSlug } = useParams<{
+    orgSlug: string;
+    projectSlug: string;
+  }>();
+  const settingsHref =
+    orgSlug && projectSlug
+      ? `/${orgSlug}/project/${projectSlug}/settings`
+      : null;
   const baseUrl = window.location.origin;
   const setup = useQuery(api.projects.setupStatus.getSetupStatus, {
     apiKey: project.apiKey,
@@ -54,16 +63,19 @@ export default function ProjectWebhooks() {
             label="iOS"
             configured={setup.ios.configured}
             missing={setup.ios.missing}
+            settingsHref={settingsHref}
           />
           <SetupBadge
             label="Android"
             configured={setup.android.configured}
             missing={setup.android.missing}
+            settingsHref={settingsHref}
           />
           <SetupBadge
             label="Horizon (polling)"
             configured={setup.horizon.configured}
             missing={setup.horizon.missing}
+            settingsHref={settingsHref}
           />
         </div>
       ) : null}
@@ -165,13 +177,15 @@ function SetupBadge({
   label,
   configured,
   missing,
+  settingsHref,
 }: {
   label: string;
   configured: boolean;
   missing: string[];
+  settingsHref: string | null;
 }) {
   return (
-    <div className="border border-border rounded-lg bg-card p-3">
+    <div className="border border-border rounded-lg bg-card p-3 flex flex-col gap-2">
       <div className="flex items-center gap-2 text-sm font-medium">
         {configured ? (
           <Check className="w-4 h-4 text-green-500" />
@@ -186,9 +200,17 @@ function SetupBadge({
         </span>
       </div>
       {!configured && missing.length > 0 && (
-        <div className="mt-2 text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           Missing: {missing.join(", ")}
         </div>
+      )}
+      {!configured && settingsHref && (
+        <Link
+          to={settingsHref}
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline self-start"
+        >
+          Configure now <ArrowRight className="w-3 h-3" />
+        </Link>
       )}
     </div>
   );

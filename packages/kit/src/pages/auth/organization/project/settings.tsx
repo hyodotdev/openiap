@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api, Id } from "@/convex";
 import {
   Upload,
@@ -13,6 +13,7 @@ import {
   Info,
   Trash2,
   HelpCircle,
+  Download,
 } from "lucide-react";
 import { GuideModal } from "../../../../components/GuideModal";
 import { PageLoading } from "@/components/LoadingSpinner";
@@ -107,6 +108,35 @@ export default function ProjectSettings() {
   const generateUploadUrl = useMutation(api.files.mutation.generateUploadUrl);
   const saveFile = useMutation(api.files.mutation.saveFile);
   const removeFile = useMutation(api.files.mutation.remove);
+  const downloadFile = useAction(api.files.action.downloadFile);
+
+  // Download a previously-uploaded credential file. Useful when an
+  // admin needs the original .p8 / service-account JSON back —
+  // for rotating across projects, copying to a backup, or just
+  // double-checking what kit holds matches the upstream console.
+  const handleFileDownload = async (fileId: Id<"files">, label: string) => {
+    try {
+      const result = await downloadFile({ fileId });
+      const binary = atob(result.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: result.mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success(`${label} download started`);
+    } catch (error: any) {
+      console.error(`${label} download error:`, error);
+      toast.error(error?.message || `Failed to download ${label}`);
+    }
+  };
   const updateProject = useMutation(api.projects.mutation.updateProject);
 
   const originalAndroidPackageName = project?.androidPackageName ?? "";
@@ -858,13 +888,29 @@ export default function ProjectSettings() {
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => void handleIosFileDelete()}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
-                          title={"Delete file"}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {iosFile && (
+                            <button
+                              onClick={() =>
+                                void handleFileDownload(
+                                  iosFile._id,
+                                  "App Store Connect API key",
+                                )
+                              }
+                              className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                              title={"Download file"}
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => void handleIosFileDelete()}
+                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                            title={"Delete file"}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -1047,13 +1093,29 @@ export default function ProjectSettings() {
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => void handleAndroidFileDelete()}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
-                          title={"Delete file"}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {androidFile && (
+                            <button
+                              onClick={() =>
+                                void handleFileDownload(
+                                  androidFile._id,
+                                  "Service account JSON",
+                                )
+                              }
+                              className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                              title={"Download file"}
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => void handleAndroidFileDelete()}
+                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                            title={"Delete file"}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -1288,20 +1350,30 @@ export default function ProjectSettings() {
                     </div>
                   )}
 
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => void handleHorizonSubmit()}
-                      disabled={disableSaveHorizon}
-                      className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {savingHorizon
-                        ? "Saving…"
-                        : horizonEnabled
-                          ? "Save Horizon config"
-                          : "Disable Horizon"}
-                    </button>
-                  </div>
+                  {/* Save button only renders when there's actually
+                   * something to save: either the user has Horizon
+                   * checked (saving config), or they unchecked a
+                   * previously-enabled toggle (persisting the
+                   * disable). When the project never had Horizon and
+                   * the toggle is off, the button is meaningless and
+                   * hidden — the unchecked toggle alone is the
+                   * "disabled" state, no extra click required. */}
+                  {(horizonEnabled || originalHorizonEnabled) && (
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => void handleHorizonSubmit()}
+                        disabled={disableSaveHorizon}
+                        className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {savingHorizon
+                          ? "Saving…"
+                          : horizonEnabled
+                            ? "Save Horizon config"
+                            : "Save changes"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
