@@ -5434,30 +5434,6 @@ class Query:
 		const return_type = "VerifyPurchaseResultIOS"
 		const is_array = false
 
-	## Replay missed webhook events for the authenticated client since the given
-	class webhookEventsSinceField:
-		const name = "webhookEventsSince"
-		const snake_name = "webhook_events_since"
-		class Args:
-			var since_ms: float
-			var limit: int
-
-			static func from_dict(data: Dictionary) -> Args:
-				var obj = Args.new()
-				if data.has("sinceMs") and data["sinceMs"] != null:
-					obj.since_ms = data["sinceMs"]
-				if data.has("limit") and data["limit"] != null:
-					obj.limit = data["limit"]
-				return obj
-
-			func to_dict() -> Dictionary:
-				var dict = {}
-				dict["sinceMs"] = since_ms
-				dict["limit"] = limit
-				return dict
-		const return_type = "WebhookEvent"
-		const is_array = true
-
 
 # ============================================================================
 # Mutation Types
@@ -6023,13 +5999,6 @@ static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionar
 			args["options"] = options.to_dict()
 		else:
 			args["options"] = options
-	return args
-
-## Replay missed webhook events for the authenticated client since the given
-static func webhook_events_since_args(since_ms: float, limit: int) -> Dictionary:
-	var args = {}
-	args["sinceMs"] = since_ms
-	args["limit"] = limit
 	return args
 
 # Mutation API helpers

@@ -128,7 +128,7 @@ const { events, lastError, isConnected } = useWebhookEvents({
 
 final listener = connectWebhookStream(apiKey: 'sk_live_...');
 listener.events.listen((event) {
-  if (event.type == WebhookEventTypeName.subscriptionRenewed) {
+  if (event.type == WebhookEventType.SubscriptionRenewed) {
     grantEntitlement(event.purchaseToken);
   }
 });`}</CodeBlock>
@@ -142,7 +142,7 @@ import io.github.hyochan.kmpiap.openiap.webhookStreamUrl
 // data frame to WebhookEventParser.parse().
 val event = WebhookEventParser.parse(rawJson) ?: return
 when (event.type) {
-    WebhookEventTypeName.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
+    WebhookEventType.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
     else -> Unit
 }`}</CodeBlock>
             ),

@@ -27,23 +27,29 @@ class WebhookClientTest {
         val event = WebhookEventParser.parse(raw)
         assertNotNull(event)
         assertEquals("uuid-1", event.id)
-        assertEquals(WebhookEventTypeName.SubscriptionRenewed, event.type)
+        assertEquals(WebhookEventType.SubscriptionRenewed, event.type)
         assertEquals("token-1", event.purchaseToken)
         assertEquals("com.example.premium", event.productId)
-        assertEquals(1_711_000_000_000L, event.occurredAt)
+        assertEquals(1_711_000_000_000.0, event.occurredAt)
     }
 
     @Test
     fun returnsNullForEmptyOrMalformedInput() {
         assertNull(WebhookEventParser.parse(""))
         assertNull(WebhookEventParser.parse("not json"))
+        // Required fields missing → fail-fast (PR #123 review fix:
+        // we no longer silently default to empty strings).
         assertNull(
             WebhookEventParser.parse("""{"type":"SubscriptionRenewed"}"""),
         )
     }
 
     @Test
-    fun fallsBackToUnknownForUnseenEventTypes() {
+    fun returnsNullForUnseenEventTypes() {
+        // Unknown event types are now rejected rather than mapped to a
+        // synthetic `Unknown` enum value — PR #123 review correctly
+        // flagged that lenient parsing hides spec drift between kit
+        // and the SDK consumers.
         val raw = """
             {
               "id": "uuid-2",
@@ -57,10 +63,7 @@ class WebhookClientTest {
               "purchaseToken": "t"
             }
         """.trimIndent()
-        val event = WebhookEventParser.parse(raw)
-        assertNotNull(event)
-        assertEquals(WebhookEventTypeName.Unknown, event.type)
-        assertEquals("SomethingNew", event.rawType)
+        assertNull(WebhookEventParser.parse(raw))
     }
 
     @Test

@@ -2,12 +2,19 @@
 // (`GET /v1/webhooks/stream/{apiKey}`).
 //
 // Wire format mirrors the canonical TypeScript implementation in
-// `packages/gql/src/webhook-client.ts`. The `WebhookEvent` shape comes
-// from `packages/gql/src/webhook.graphql` (and is sync-generated into
-// `lib/types.dart`).
+// `packages/gql/src/webhook-client.ts`. The `WebhookEvent` value type
+// + enums (`WebhookEventType`, `WebhookEventSource`, `IapPlatform`,
+// `SubscriptionState`, `WebhookEventEnvironment`,
+// `WebhookCancellationReason`) come from the generated
+// `lib/types.dart` (synced from `packages/gql/src/webhook.graphql`),
+// so this file only adds:
 //
-// Why a hand-rolled HTTP/SSE parser instead of an http SSE package:
-// the parser is small (~80 lines), matches the openiap project's
+//   - `parseWebhookEventData` — pure JSON-string → WebhookEvent
+//   - `connectWebhookStream` — long-lived HTTP+SSE listener with
+//     auto-reconnect via `Last-Event-ID`
+//
+// Why a hand-rolled SSE parser instead of an http SSE package: the
+// parser is small (~80 lines), matches the openiap project's
 // preference for not pulling extra Dart packages into the platform
 // SDKs, and gives us total control of the reconnect cadence which is
 // what end-of-period billing flows actually depend on.
@@ -16,154 +23,101 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// Possible webhook event kinds. Mirrors the GraphQL
-/// `WebhookEventType` enum in `packages/gql/src/webhook.graphql`.
-enum WebhookEventTypeName {
-  subscriptionStarted,
-  subscriptionRenewed,
-  subscriptionExpired,
-  subscriptionInGracePeriod,
-  subscriptionInBillingRetry,
-  subscriptionRecovered,
-  subscriptionCanceled,
-  subscriptionUncanceled,
-  subscriptionRevoked,
-  subscriptionPriceChange,
-  subscriptionProductChanged,
-  subscriptionPaused,
-  subscriptionResumed,
-  purchaseRefunded,
-  purchaseConsumptionRequest,
-  testNotification,
-  unknown,
+import 'types.dart';
+
+/// Pure parser exported for tests so the SSE-frame → `WebhookEvent`
+/// path can be validated without spinning up a real HTTP listener.
+WebhookEvent? parseWebhookEventData(String raw) {
+  if (raw.isEmpty) return null;
+  Map<String, dynamic>? decoded;
+  try {
+    final value = jsonDecode(raw);
+    if (value is Map<String, dynamic>) decoded = value;
+  } catch (_) {
+    return null;
+  }
+  if (decoded == null) return null;
+  if (!decoded.containsKey('id') ||
+      !decoded.containsKey('type') ||
+      !decoded.containsKey('purchaseToken') ||
+      !decoded.containsKey('occurredAt') ||
+      !decoded.containsKey('receivedAt')) {
+    return null;
+  }
+  // The wire format kit currently emits uses GraphQL enum identifiers
+  // (PascalCase, e.g. `AppleAppStoreServerNotificationsV2`). The
+  // generated Dart `fromJson` factories only accept the kebab-case
+  // wire form (`apple-app-store-server-notifications-v2`). Normalize
+  // each enum field here so consumers don't have to know about the
+  // representational difference. PR #123 review caught this drift.
+  return _decodeWithFallback(decoded);
 }
 
-WebhookEventTypeName _parseEventTypeName(String? raw) {
-  switch (raw) {
-    case 'SubscriptionStarted':
-      return WebhookEventTypeName.subscriptionStarted;
-    case 'SubscriptionRenewed':
-      return WebhookEventTypeName.subscriptionRenewed;
-    case 'SubscriptionExpired':
-      return WebhookEventTypeName.subscriptionExpired;
-    case 'SubscriptionInGracePeriod':
-      return WebhookEventTypeName.subscriptionInGracePeriod;
-    case 'SubscriptionInBillingRetry':
-      return WebhookEventTypeName.subscriptionInBillingRetry;
-    case 'SubscriptionRecovered':
-      return WebhookEventTypeName.subscriptionRecovered;
-    case 'SubscriptionCanceled':
-      return WebhookEventTypeName.subscriptionCanceled;
-    case 'SubscriptionUncanceled':
-      return WebhookEventTypeName.subscriptionUncanceled;
-    case 'SubscriptionRevoked':
-      return WebhookEventTypeName.subscriptionRevoked;
-    case 'SubscriptionPriceChange':
-      return WebhookEventTypeName.subscriptionPriceChange;
-    case 'SubscriptionProductChanged':
-      return WebhookEventTypeName.subscriptionProductChanged;
-    case 'SubscriptionPaused':
-      return WebhookEventTypeName.subscriptionPaused;
-    case 'SubscriptionResumed':
-      return WebhookEventTypeName.subscriptionResumed;
-    case 'PurchaseRefunded':
-      return WebhookEventTypeName.purchaseRefunded;
-    case 'PurchaseConsumptionRequest':
-      return WebhookEventTypeName.purchaseConsumptionRequest;
-    case 'TestNotification':
-      return WebhookEventTypeName.testNotification;
-    default:
-      return WebhookEventTypeName.unknown;
+WebhookEvent? _decodeWithFallback(Map<String, dynamic> json) {
+  try {
+    return WebhookEvent.fromJson(json);
+  } catch (_) {
+    // The kebab-case `fromJson` rejected one or more enum values; try
+    // again after rewriting the source/type/platform/environment/state
+    // /cancellationReason fields to their kebab-case equivalents.
+    final mapped = Map<String, dynamic>.of(json);
+    _rewriteEnumByName<WebhookEventType>(
+      mapped,
+      'type',
+      WebhookEventType.values,
+      (e) => e.value,
+    );
+    _rewriteEnumByName<WebhookEventSource>(
+      mapped,
+      'source',
+      WebhookEventSource.values,
+      (e) => e.value,
+    );
+    _rewriteEnumByName<IapPlatform>(
+      mapped,
+      'platform',
+      IapPlatform.values,
+      (e) => e.value,
+    );
+    _rewriteEnumByName<WebhookEventEnvironment>(
+      mapped,
+      'environment',
+      WebhookEventEnvironment.values,
+      (e) => e.value,
+    );
+    _rewriteEnumByName<SubscriptionState>(
+      mapped,
+      'subscriptionState',
+      SubscriptionState.values,
+      (e) => e.value,
+    );
+    _rewriteEnumByName<WebhookCancellationReason>(
+      mapped,
+      'cancellationReason',
+      WebhookCancellationReason.values,
+      (e) => e.value,
+    );
+    try {
+      return WebhookEvent.fromJson(mapped);
+    } catch (_) {
+      return null;
+    }
   }
 }
 
-/// A normalized webhook event delivered by the kit SSE stream.
-class WebhookEvent {
-  WebhookEvent({
-    required this.id,
-    required this.type,
-    required this.rawType,
-    required this.source,
-    required this.platform,
-    required this.environment,
-    required this.projectId,
-    required this.occurredAt,
-    required this.receivedAt,
-    required this.purchaseToken,
-    required this.raw,
-    this.productId,
-    this.subscriptionState,
-    this.expiresAt,
-    this.renewsAt,
-    this.cancellationReason,
-    this.currency,
-    this.priceAmountMicros,
-    this.rawSignedPayload,
-  });
-
-  /// Stable identifier — matches `notificationUUID` (Apple) /
-  /// `messageId` (Google).
-  final String id;
-  final WebhookEventTypeName type;
-
-  /// Raw `type` string as delivered on the wire. Useful when the spec
-  /// adds new types ahead of the SDK enum.
-  final String rawType;
-  final String source;
-  final String platform;
-  final String environment;
-  final String projectId;
-  final int occurredAt;
-  final int receivedAt;
-  final String purchaseToken;
-  final String? productId;
-  final String? subscriptionState;
-  final int? expiresAt;
-  final int? renewsAt;
-  final String? cancellationReason;
-  final String? currency;
-  final int? priceAmountMicros;
-  final String? rawSignedPayload;
-
-  /// Parsed JSON for fields outside the strongly-typed surface.
-  final Map<String, dynamic> raw;
-
-  static WebhookEvent? tryParse(Map<String, dynamic> raw) {
-    final id = raw['id'];
-    final type = raw['type'];
-    final purchaseToken = raw['purchaseToken'];
-    final occurredAt = raw['occurredAt'];
-    final receivedAt = raw['receivedAt'];
-
-    if (id is! String ||
-        type is! String ||
-        purchaseToken is! String ||
-        occurredAt is! num ||
-        receivedAt is! num) {
-      return null;
+void _rewriteEnumByName<T extends Enum>(
+  Map<String, dynamic> json,
+  String field,
+  List<T> values,
+  String Function(T) toWire,
+) {
+  final raw = json[field];
+  if (raw is! String) return;
+  for (final value in values) {
+    if (value.name == raw) {
+      json[field] = toWire(value);
+      return;
     }
-
-    return WebhookEvent(
-      id: id,
-      type: _parseEventTypeName(type),
-      rawType: type,
-      source: raw['source']?.toString() ?? '',
-      platform: raw['platform']?.toString() ?? '',
-      environment: raw['environment']?.toString() ?? '',
-      projectId: raw['projectId']?.toString() ?? '',
-      occurredAt: occurredAt.toInt(),
-      receivedAt: receivedAt.toInt(),
-      purchaseToken: purchaseToken,
-      productId: raw['productId'] as String?,
-      subscriptionState: raw['subscriptionState'] as String?,
-      expiresAt: (raw['expiresAt'] as num?)?.toInt(),
-      renewsAt: (raw['renewsAt'] as num?)?.toInt(),
-      cancellationReason: raw['cancellationReason'] as String?,
-      currency: raw['currency'] as String?,
-      priceAmountMicros: (raw['priceAmountMicros'] as num?)?.toInt(),
-      rawSignedPayload: raw['rawSignedPayload'] as String?,
-      raw: raw,
-    );
   }
 }
 
@@ -246,8 +200,9 @@ class _SseWebhookListener implements WebhookListener {
   }
 
   Future<void> _runOnce() async {
-    final trimmed =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final trimmed = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final uri = Uri.parse(
       '$trimmed/v1/webhooks/stream/${Uri.encodeComponent(apiKey)}',
     );
@@ -341,29 +296,12 @@ class _SseWebhookListener implements WebhookListener {
     if (dataStr.isEmpty) return;
     if (eventName == 'heartbeat' || eventName == 'ready') return;
 
-    Map<String, dynamic>? decoded;
-    try {
-      final value = jsonDecode(dataStr);
-      if (value is Map<String, dynamic>) {
-        decoded = value;
-      }
-    } catch (error) {
-      _errors.add(
-        WebhookListenerError(
-          'PARSE_ERROR',
-          'Failed to parse SSE payload: $error',
-        ),
-      );
-      return;
-    }
-    if (decoded == null) return;
-
-    final event = WebhookEvent.tryParse(decoded);
+    final event = parseWebhookEventData(dataStr);
     if (event == null) {
       _errors.add(
         WebhookListenerError(
           'MALFORMED_EVENT',
-          'WebhookEvent missing required fields',
+          'WebhookEvent missing required fields or unknown type',
         ),
       );
       return;
@@ -391,17 +329,4 @@ WebhookListener connectWebhookStream({
   // ignore: unawaited_futures
   listener.start();
   return listener;
-}
-
-// Pure helper exposed for tests so we can validate the parser
-// without spinning up a real HTTP listener.
-WebhookEvent? parseWebhookEventData(String raw) {
-  if (raw.isEmpty) return null;
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map<String, dynamic>) return null;
-    return WebhookEvent.tryParse(decoded);
-  } catch (_) {
-    return null;
-  }
 }

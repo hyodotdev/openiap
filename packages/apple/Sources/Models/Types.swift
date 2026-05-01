@@ -2668,10 +2668,6 @@ public protocol QueryResolver {
     /// Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
     /// See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
     func validateReceiptIOS(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
-    /// Replay missed webhook events for the authenticated client since the given
-    /// timestamp. SDKs call this on reconnect / foreground entry to backfill events
-    /// that occurred while the WebSocket was closed.
-    func webhookEventsSince(sinceMs: Double, limit: Int?) async throws -> [WebhookEvent]
 }
 
 /// GraphQL root subscription operations.
@@ -2703,14 +2699,6 @@ public protocol SubscriptionResolver {
     /// Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
     /// Only triggered when the user selects alternative billing instead of Google Play billing
     func userChoiceBillingAndroid() async throws -> UserChoiceBillingDetails
-    /// Streams normalized webhook events tied to the authenticated client's purchases.
-    /// Clients only receive events whose `purchaseToken` matches a purchase they own.
-    /// 
-    /// Transport: kit serves this over WebSocket. SDKs auto-connect when the host app
-    /// enters foreground and disconnect when it goes to background. Events that fire
-    /// while the connection is closed are reconciled via `webhookEventsSince` on
-    /// reconnect or the next foreground entry.
-    func webhookEvent() async throws -> WebhookEvent
 }
 
 // MARK: - Root Operation Helpers
@@ -2852,7 +2840,6 @@ public typealias QueryIsTransactionVerifiedIOSHandler = (_ sku: String) async th
 public typealias QueryLatestTransactionIOSHandler = (_ sku: String) async throws -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = (_ sku: String) async throws -> [SubscriptionStatusIOS]
 public typealias QueryValidateReceiptIOSHandler = (_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
-public typealias QueryWebhookEventsSinceHandler = (_ sinceMs: Double, _ limit: Int?) async throws -> [WebhookEvent]
 
 public struct QueryHandlers {
     public var canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler?
@@ -2876,7 +2863,6 @@ public struct QueryHandlers {
     public var latestTransactionIOS: QueryLatestTransactionIOSHandler?
     public var subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler?
     public var validateReceiptIOS: QueryValidateReceiptIOSHandler?
-    public var webhookEventsSince: QueryWebhookEventsSinceHandler?
 
     public init(
         canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = nil,
@@ -2899,8 +2885,7 @@ public struct QueryHandlers {
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = nil,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = nil,
         subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = nil,
-        validateReceiptIOS: QueryValidateReceiptIOSHandler? = nil,
-        webhookEventsSince: QueryWebhookEventsSinceHandler? = nil
+        validateReceiptIOS: QueryValidateReceiptIOSHandler? = nil
     ) {
         self.canPresentExternalPurchaseNoticeIOS = canPresentExternalPurchaseNoticeIOS
         self.currentEntitlementIOS = currentEntitlementIOS
@@ -2923,7 +2908,6 @@ public struct QueryHandlers {
         self.latestTransactionIOS = latestTransactionIOS
         self.subscriptionStatusIOS = subscriptionStatusIOS
         self.validateReceiptIOS = validateReceiptIOS
-        self.webhookEventsSince = webhookEventsSince
     }
 }
 
@@ -2935,7 +2919,6 @@ public typealias SubscriptionPurchaseErrorHandler = () async throws -> PurchaseE
 public typealias SubscriptionPurchaseUpdatedHandler = () async throws -> Purchase
 public typealias SubscriptionSubscriptionBillingIssueHandler = () async throws -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = () async throws -> UserChoiceBillingDetails
-public typealias SubscriptionWebhookEventHandler = () async throws -> WebhookEvent
 
 public struct SubscriptionHandlers {
     public var developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler?
@@ -2944,7 +2927,6 @@ public struct SubscriptionHandlers {
     public var purchaseUpdated: SubscriptionPurchaseUpdatedHandler?
     public var subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler?
     public var userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler?
-    public var webhookEvent: SubscriptionWebhookEventHandler?
 
     public init(
         developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler? = nil,
@@ -2952,8 +2934,7 @@ public struct SubscriptionHandlers {
         purchaseError: SubscriptionPurchaseErrorHandler? = nil,
         purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = nil,
         subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler? = nil,
-        userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = nil,
-        webhookEvent: SubscriptionWebhookEventHandler? = nil
+        userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = nil
     ) {
         self.developerProvidedBillingAndroid = developerProvidedBillingAndroid
         self.promotedProductIOS = promotedProductIOS
@@ -2961,6 +2942,5 @@ public struct SubscriptionHandlers {
         self.purchaseUpdated = purchaseUpdated
         self.subscriptionBillingIssue = subscriptionBillingIssue
         self.userChoiceBillingAndroid = userChoiceBillingAndroid
-        self.webhookEvent = webhookEvent
     }
 }

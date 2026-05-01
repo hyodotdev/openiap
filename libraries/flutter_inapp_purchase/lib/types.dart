@@ -5411,13 +5411,6 @@ abstract class QueryResolver {
     VerifyPurchaseGoogleOptions? google,
     VerifyPurchaseHorizonOptions? horizon,
   });
-  /// Replay missed webhook events for the authenticated client since the given
-  /// timestamp. SDKs call this on reconnect / foreground entry to backfill events
-  /// that occurred while the WebSocket was closed.
-  Future<List<WebhookEvent>> webhookEventsSince({
-    required double sinceMs,
-    int? limit,
-  });
 }
 
 /// GraphQL root subscription operations.
@@ -5449,14 +5442,6 @@ abstract class SubscriptionResolver {
   /// Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
   /// Only triggered when the user selects alternative billing instead of Google Play billing
   Future<UserChoiceBillingDetails> userChoiceBillingAndroid();
-  /// Streams normalized webhook events tied to the authenticated client's purchases.
-  /// Clients only receive events whose `purchaseToken` matches a purchase they own.
-  /// 
-  /// Transport: kit serves this over WebSocket. SDKs auto-connect when the host app
-  /// enters foreground and disconnect when it goes to background. Events that fire
-  /// while the connection is closed are reconciled via `webhookEventsSince` on
-  /// reconnect or the next foreground entry.
-  Future<WebhookEvent> webhookEvent();
 }
 
 // MARK: - Root Operation Helpers
@@ -5607,10 +5592,6 @@ typedef QueryValidateReceiptIOSHandler = Future<VerifyPurchaseResultIOS> Functio
   VerifyPurchaseGoogleOptions? google,
   VerifyPurchaseHorizonOptions? horizon,
 });
-typedef QueryWebhookEventsSinceHandler = Future<List<WebhookEvent>> Function({
-  required double sinceMs,
-  int? limit,
-});
 
 class QueryHandlers {
   const QueryHandlers({
@@ -5635,7 +5616,6 @@ class QueryHandlers {
     this.latestTransactionIOS,
     this.subscriptionStatusIOS,
     this.validateReceiptIOS,
-    this.webhookEventsSince,
   });
 
   final QueryCanPresentExternalPurchaseNoticeIOSHandler? canPresentExternalPurchaseNoticeIOS;
@@ -5659,7 +5639,6 @@ class QueryHandlers {
   final QueryLatestTransactionIOSHandler? latestTransactionIOS;
   final QuerySubscriptionStatusIOSHandler? subscriptionStatusIOS;
   final QueryValidateReceiptIOSHandler? validateReceiptIOS;
-  final QueryWebhookEventsSinceHandler? webhookEventsSince;
 }
 
 // MARK: - Subscription Helpers
@@ -5670,7 +5649,6 @@ typedef SubscriptionPurchaseErrorHandler = Future<PurchaseError> Function();
 typedef SubscriptionPurchaseUpdatedHandler = Future<Purchase> Function();
 typedef SubscriptionSubscriptionBillingIssueHandler = Future<Purchase> Function();
 typedef SubscriptionUserChoiceBillingAndroidHandler = Future<UserChoiceBillingDetails> Function();
-typedef SubscriptionWebhookEventHandler = Future<WebhookEvent> Function();
 
 class SubscriptionHandlers {
   const SubscriptionHandlers({
@@ -5680,7 +5658,6 @@ class SubscriptionHandlers {
     this.purchaseUpdated,
     this.subscriptionBillingIssue,
     this.userChoiceBillingAndroid,
-    this.webhookEvent,
   });
 
   final SubscriptionDeveloperProvidedBillingAndroidHandler? developerProvidedBillingAndroid;
@@ -5689,5 +5666,4 @@ class SubscriptionHandlers {
   final SubscriptionPurchaseUpdatedHandler? purchaseUpdated;
   final SubscriptionSubscriptionBillingIssueHandler? subscriptionBillingIssue;
   final SubscriptionUserChoiceBillingAndroidHandler? userChoiceBillingAndroid;
-  final SubscriptionWebhookEventHandler? webhookEvent;
 }

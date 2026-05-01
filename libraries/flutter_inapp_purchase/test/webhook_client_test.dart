@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_inapp_purchase/types.dart';
 import 'package:flutter_inapp_purchase/webhook_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,7 +22,7 @@ void main() {
       });
       final event = parseWebhookEventData(raw)!;
       expect(event.id, 'uuid-1');
-      expect(event.type, WebhookEventTypeName.subscriptionRenewed);
+      expect(event.type, WebhookEventType.SubscriptionRenewed);
       expect(event.purchaseToken, 'token-1');
       expect(event.productId, 'com.example.premium');
     });
@@ -36,7 +37,12 @@ void main() {
       );
     });
 
-    test('falls back to unknown for event types beyond the spec', () {
+    test('rejects payloads with unknown event types', () {
+      // PR #123 review: lenient mapping to a synthetic `Unknown` enum
+      // hides spec drift between kit and the SDK consumers. Generated
+      // `WebhookEventType.fromJson` throws for unknown values; the
+      // parser catches that and returns null so the SSE listener can
+      // surface MALFORMED_EVENT instead of emitting a synthetic row.
       final raw = jsonEncode({
         'id': 'uuid-2',
         'type': 'SomethingNew',
@@ -48,9 +54,7 @@ void main() {
         'receivedAt': 2,
         'purchaseToken': 't',
       });
-      final event = parseWebhookEventData(raw)!;
-      expect(event.type, WebhookEventTypeName.unknown);
-      expect(event.rawType, 'SomethingNew');
+      expect(parseWebhookEventData(raw), isNull);
     });
   });
 }

@@ -5393,12 +5393,6 @@ public interface QueryResolver {
      * See: https://www.openiap.dev/docs/apis/ios/validate-receipt-ios
      */
     suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
-    /**
-     * Replay missed webhook events for the authenticated client since the given
-     * timestamp. SDKs call this on reconnect / foreground entry to backfill events
-     * that occurred while the WebSocket was closed.
-     */
-    suspend fun webhookEventsSince(sinceMs: Double, limit: Int? = null): List<WebhookEvent>
 }
 
 /**
@@ -5444,16 +5438,6 @@ public interface SubscriptionResolver {
      * Only triggered when the user selects alternative billing instead of Google Play billing
      */
     suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails
-    /**
-     * Streams normalized webhook events tied to the authenticated client's purchases.
-     * Clients only receive events whose `purchaseToken` matches a purchase they own.
-     * 
-     * Transport: kit serves this over WebSocket. SDKs auto-connect when the host app
-     * enters foreground and disconnect when it goes to background. Events that fire
-     * while the connection is closed are reconciled via `webhookEventsSince` on
-     * reconnect or the next foreground entry.
-     */
-    suspend fun webhookEvent(): WebhookEvent
 }
 
 // MARK: - Root Operation Helpers
@@ -5539,7 +5523,6 @@ public typealias QueryIsTransactionVerifiedIOSHandler = suspend (sku: String) ->
 public typealias QueryLatestTransactionIOSHandler = suspend (sku: String) -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = suspend (sku: String) -> List<SubscriptionStatusIOS>
 public typealias QueryValidateReceiptIOSHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResultIOS
-public typealias QueryWebhookEventsSinceHandler = suspend (sinceMs: Double, limit: Int?) -> List<WebhookEvent>
 
 public data class QueryHandlers(
     val canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = null,
@@ -5562,8 +5545,7 @@ public data class QueryHandlers(
     val isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = null,
     val latestTransactionIOS: QueryLatestTransactionIOSHandler? = null,
     val subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = null,
-    val validateReceiptIOS: QueryValidateReceiptIOSHandler? = null,
-    val webhookEventsSince: QueryWebhookEventsSinceHandler? = null
+    val validateReceiptIOS: QueryValidateReceiptIOSHandler? = null
 )
 
 // MARK: - Subscription Helpers
@@ -5574,7 +5556,6 @@ public typealias SubscriptionPurchaseErrorHandler = suspend () -> PurchaseError
 public typealias SubscriptionPurchaseUpdatedHandler = suspend () -> Purchase
 public typealias SubscriptionSubscriptionBillingIssueHandler = suspend () -> Purchase
 public typealias SubscriptionUserChoiceBillingAndroidHandler = suspend () -> UserChoiceBillingDetails
-public typealias SubscriptionWebhookEventHandler = suspend () -> WebhookEvent
 
 public data class SubscriptionHandlers(
     val developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler? = null,
@@ -5582,6 +5563,5 @@ public data class SubscriptionHandlers(
     val purchaseError: SubscriptionPurchaseErrorHandler? = null,
     val purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = null,
     val subscriptionBillingIssue: SubscriptionSubscriptionBillingIssueHandler? = null,
-    val userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = null,
-    val webhookEvent: SubscriptionWebhookEventHandler? = null
+    val userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = null
 )

@@ -1406,12 +1406,6 @@ export interface Query {
    * @deprecated Use verifyPurchase
    */
   validateReceiptIOS: Promise<VerifyPurchaseResultIOS>;
-  /**
-   * Replay missed webhook events for the authenticated client since the given
-   * timestamp. SDKs call this on reconnect / foreground entry to backfill events
-   * that occurred while the WebSocket was closed.
-   */
-  webhookEventsSince: Promise<WebhookEvent[]>;
 }
 
 
@@ -1439,11 +1433,6 @@ export type QueryLatestTransactionIosArgs = string;
 export type QuerySubscriptionStatusIosArgs = string;
 
 export type QueryValidateReceiptIosArgs = VerifyPurchaseProps;
-
-export interface QueryWebhookEventsSinceArgs {
-  limit?: (number | null);
-  sinceMs: number;
-}
 
 export interface RefundResultIOS {
   message?: (string | null);
@@ -1762,16 +1751,6 @@ export interface Subscription {
    * Only triggered when the user selects alternative billing instead of Google Play billing
    */
   userChoiceBillingAndroid: UserChoiceBillingDetails;
-  /**
-   * Streams normalized webhook events tied to the authenticated client's purchases.
-   * Clients only receive events whose `purchaseToken` matches a purchase they own.
-   *
-   * Transport: kit serves this over WebSocket. SDKs auto-connect when the host app
-   * enters foreground and disconnect when it goes to background. Events that fire
-   * while the connection is closed are reconciled via `webhookEventsSince` on
-   * reconnect or the next foreground entry.
-   */
-  webhookEvent: WebhookEvent;
 }
 
 
@@ -2172,7 +2151,6 @@ export type QueryArgsMap = {
   latestTransactionIOS: QueryLatestTransactionIosArgs;
   subscriptionStatusIOS: QuerySubscriptionStatusIosArgs;
   validateReceiptIOS: QueryValidateReceiptIosArgs;
-  webhookEventsSince: QueryWebhookEventsSinceArgs;
 };
 
 export type QueryField<K extends keyof Query> =
@@ -2237,7 +2215,6 @@ export type SubscriptionArgsMap = {
   purchaseUpdated: never;
   subscriptionBillingIssue: never;
   userChoiceBillingAndroid: never;
-  webhookEvent: never;
 };
 
 export type SubscriptionField<K extends keyof Subscription> =
