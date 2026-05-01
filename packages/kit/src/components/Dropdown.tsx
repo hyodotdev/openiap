@@ -6,8 +6,10 @@ interface DropdownOption {
   label: string;
 }
 
-interface DropdownProps
-  extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "className"> {
+interface DropdownProps extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  "className"
+> {
   options: DropdownOption[];
   className?: string;
 }

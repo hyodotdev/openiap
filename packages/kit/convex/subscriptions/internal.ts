@@ -73,9 +73,7 @@ export const applySubscriptionEvent = internalMutation({
           expiresAt: existing.expiresAt,
           renewsAt: existing.renewsAt,
           willRenew: existing.willRenew,
-          cancellationReason: existing.cancellationReason as
-            | NonNullable<CurrentSubscription>["cancellationReason"]
-            | undefined,
+          cancellationReason: existing.cancellationReason,
           currency: existing.currency,
           priceAmountMicros: existing.priceAmountMicros,
         }

@@ -50,9 +50,7 @@ function buildApp(params: {
     validator(verifyPurchaseInputSchema),
     (c) => {
       if (params.handler) {
-        return params.handler(
-          c as unknown as Parameters<NonNullable<typeof params.handler>>[0],
-        );
+        return params.handler(c);
       }
       c.set("verifyOutcome", { isValid: true, state: "ENTITLED" });
       return c.json({ isValid: true, state: "ENTITLED" });

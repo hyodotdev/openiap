@@ -157,7 +157,7 @@ class MemDb {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       ...doc,
-    } as Row);
+    });
     return id;
   }
 
@@ -170,7 +170,7 @@ class MemDb {
       slug: "test-project",
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    } as Row);
+    });
     return id;
   }
 
@@ -253,10 +253,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
   it("re-validation with the same remoteId does NOT re-increment stats.total", async () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
 
-    const afterFirst = await readPurchaseStats(
-      ctx as never,
-      PROJECT_ID as never,
-    );
+    const afterFirst = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(afterFirst.total).toBe(1);
     expect(afterFirst.google).toBe(1);
 
@@ -264,10 +261,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
 
-    const afterRepeat = await readPurchaseStats(
-      ctx as never,
-      PROJECT_ID as never,
-    );
+    const afterRepeat = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(afterRepeat.total).toBe(1);
     expect(afterRepeat.google).toBe(1);
   });
@@ -294,7 +288,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
 
     expect(db.purchaseCount()).toBe(1);
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     // Total stays at 1. Valid moves 1 → 0, invalid moves 0 → 1.
     expect(stats.total).toBe(1);
     expect(stats.valid).toBe(0);
@@ -312,7 +306,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     });
 
     expect(db.purchaseCount()).toBe(2);
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats.total).toBe(2);
     expect(stats.google).toBe(2);
   });
@@ -361,7 +355,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     expect(rows[0]?.remoteId).toBe("token_after_reissue");
     expect(rows[0]?.orderId).toBe("GPA.3328-5001-2345-67890");
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats.total).toBe(1);
     expect(stats.google).toBe(1);
     // Distinct Play Console orders: exactly one, because the two
@@ -392,7 +386,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     });
 
     expect(db.purchaseCount()).toBe(2);
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats.total).toBe(2);
     expect(stats.google).toBe(2);
     expect(stats.googleOrders).toBe(2);
@@ -416,7 +410,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
 
     expect(db.purchaseCount()).toBe(2);
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     // Two rows but no distinct orders yet — googleOrders stays at 0
     // until a later re-verify surfaces an orderId.
     expect(stats.google).toBe(2);
@@ -436,10 +430,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
       }),
     });
 
-    const beforeAck = await readPurchaseStats(
-      ctx as never,
-      PROJECT_ID as never,
-    );
+    const beforeAck = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(beforeAck.googleOrders).toBe(0);
 
     await savePurchaseInternal({
@@ -457,7 +448,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     });
 
     expect(db.purchaseCount()).toBe(1);
-    const afterAck = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const afterAck = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(afterAck.google).toBe(1);
     expect(afterAck.googleOrders).toBe(1);
     expect(afterAck.total).toBe(1);
@@ -514,10 +505,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
       ...buildArgs({ remoteId: TOKEN, remoteResponse: ackResponse }),
     });
 
-    const beforeError = await readPurchaseStats(
-      ctx as never,
-      PROJECT_ID as never,
-    );
+    const beforeError = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(beforeError.googleOrders).toBe(1);
 
     // A later re-verify gets a transient Google failure — we persist
@@ -539,10 +527,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     const rows = await db.query("purchases").collect();
     expect(rows[0]?.orderId).toBe("GPA.order-stable");
 
-    const afterError = await readPurchaseStats(
-      ctx as never,
-      PROJECT_ID as never,
-    );
+    const afterError = await readPurchaseStats(ctx, PROJECT_ID as never);
     // googleOrders must stay at 1: the distinct orderId on this row
     // is still present in the database, just not in the latest
     // response payload.
@@ -593,7 +578,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     expect(rows[0]?.remoteId).toBe("token_initial");
     expect(rows[0]?.orderId).toBe("GPA.only-one-logical-order");
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats.google).toBe(1);
     expect(stats.googleOrders).toBe(1);
     expect(stats.total).toBe(1);
@@ -657,7 +642,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     expect(rows[0]?.state).toBe(HarmonizedPurchaseState.ENTITLED);
     expect(rows[0]?.isValid).toBe(true);
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats.total).toBe(1);
     expect(stats.valid).toBe(1);
     expect(stats.invalid).toBe(0);

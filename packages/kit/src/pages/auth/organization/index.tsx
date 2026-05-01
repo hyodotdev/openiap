@@ -38,7 +38,7 @@ export default function OrganizationLayout() {
     );
 
     return safeOrgs.map((org) => ({
-      _id: org._id as Id<"organizations">,
+      _id: org._id,
       name: org.name,
       slug: org.slug,
     }));
@@ -188,7 +188,7 @@ export default function OrganizationLayout() {
           <FreeTransitionNotice
             hadBillingRelationship={Boolean(
               organization.stripeCustomerId ||
-                organization.stripeSubscriptionId,
+              organization.stripeSubscriptionId,
             )}
           />
           <Outlet />

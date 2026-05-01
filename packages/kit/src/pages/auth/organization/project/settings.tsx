@@ -63,9 +63,9 @@ export default function ProjectSettings() {
   const [applePlatformsSelected, setApplePlatformsSelected] = useState(
     Boolean(
       project?.iosBundleId ||
-        project?.iosAppAppleId ||
-        project?.iosAppStoreIssuerId ||
-        project?.iosAppStoreKeyId,
+      project?.iosAppAppleId ||
+      project?.iosAppStoreIssuerId ||
+      project?.iosAppStoreKeyId,
     ),
   );
   const [androidPlatformsSelected, setAndroidPlatformsSelected] = useState(

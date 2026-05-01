@@ -91,7 +91,7 @@ export const ingestGoogleRtdn = action({
     let normalized;
     try {
       normalized = normalizeGoogleRtdn({
-        payload: args.payload as GoogleRtdnPayload,
+        payload: args.payload,
         subscriptionInfo,
       });
     } catch (error) {

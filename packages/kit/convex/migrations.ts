@@ -69,7 +69,7 @@ export const removeLegacyProfileFields = migrations.define({
 export const replaceIsAuthenticWithIsValid = migrations.define({
   table: "purchases",
   migrateOne: async (_ctx, doc) => {
-    const isValid = isValidState(doc.state as HarmonizedPurchaseState);
+    const isValid = isValidState(doc.state);
 
     return {
       ...doc,

@@ -8,7 +8,6 @@ import {
   WebhookNormalizationError,
   type AppleAsnPayload,
   type AppleDecodedTransaction,
-  type AppleDecodedRenewalInfo,
   type GoogleRtdnPayload,
   type GoogleSubscriptionInfo,
 } from "./shared";
@@ -183,7 +182,7 @@ describe("normalizeAppleAsn", () => {
       const event = normalizeAppleAsn({
         payload: { ...baseApplePayload, notificationType: "EXPIRED" },
         transaction: baseTransaction,
-        renewalInfo: { expirationIntent: intent } as AppleDecodedRenewalInfo,
+        renewalInfo: { expirationIntent: intent },
       });
       expect(event.type).toBe("SubscriptionExpired");
       expect(event.cancellationReason).toBe(reason);
@@ -237,7 +236,7 @@ describe("normalizeAppleAsn", () => {
       normalizeAppleAsn({
         payload: {
           ...baseApplePayload,
-          notificationUUID: "" as string,
+          notificationUUID: "",
         },
         transaction: baseTransaction,
       }),
@@ -473,7 +472,7 @@ describe("normalizeGoogleRtdn", () => {
       normalizeGoogleRtdn({
         payload: {
           ...baseRtdnSubscription,
-          messageId: "" as string,
+          messageId: "",
         },
       }),
     ).toThrow(/messageId/);
