@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useMutation, useQuery, useAction } from "convex/react";
-import { Layers, Plus, RefreshCw } from "lucide-react";
+import { Layers, Plus, RefreshCw, ChevronDown } from "lucide-react";
 
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
@@ -106,38 +106,35 @@ export default function ProjectProducts() {
           />
         </Field>
         <Field label="Platform">
-          <select
+          <SelectWithChevron
             value={draft.platform}
-            onChange={(e) =>
+            onChange={(value) =>
               setDraft({
                 ...draft,
-                platform: e.target.value as "IOS" | "Android",
+                platform: value as "IOS" | "Android",
               })
             }
-            className="w-full px-2 py-1.5 rounded border border-border bg-background"
-          >
-            <option value="IOS">iOS</option>
-            <option value="Android">Android</option>
-          </select>
+            options={[
+              { value: "IOS", label: "iOS" },
+              { value: "Android", label: "Android" },
+            ]}
+          />
         </Field>
         <Field label="Type">
-          <select
+          <SelectWithChevron
             value={draft.type}
-            onChange={(e) =>
+            onChange={(value) =>
               setDraft({
                 ...draft,
-                type: e.target.value as
-                  | "Subscription"
-                  | "NonConsumable"
-                  | "Consumable",
+                type: value as "Subscription" | "NonConsumable" | "Consumable",
               })
             }
-            className="w-full px-2 py-1.5 rounded border border-border bg-background"
-          >
-            <option value="Subscription">Subscription</option>
-            <option value="NonConsumable">Non-consumable</option>
-            <option value="Consumable">Consumable</option>
-          </select>
+            options={[
+              { value: "Subscription", label: "Subscription" },
+              { value: "NonConsumable", label: "Non-consumable" },
+              { value: "Consumable", label: "Consumable" },
+            ]}
+          />
         </Field>
         <button
           onClick={() => {
@@ -276,5 +273,36 @@ function Field({
       <span className="block text-muted-foreground mb-1">{label}</span>
       {children}
     </label>
+  );
+}
+
+// Wrapped <select> so the chevron icon has breathing room and the
+// browser's default chrome doesn't crowd the text. `appearance-none`
+// hides the native arrow; we render our own ChevronDown inside the
+// trailing slot of the wrapper div.
+function SelectWithChevron({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none px-2 pr-8 py-1.5 rounded border border-border bg-background"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+    </div>
   );
 }

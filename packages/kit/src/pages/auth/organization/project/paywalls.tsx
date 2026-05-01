@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { CreditCard, ExternalLink, Plus, Trash2 } from "lucide-react";
+import {
+  CreditCard,
+  ChevronDown,
+  ExternalLink,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
@@ -100,20 +106,23 @@ export default function ProjectPaywalls() {
           />
         </Field>
         <Field label="Layout">
-          <select
-            value={draft.layout}
-            onChange={(e) =>
-              setDraft({
-                ...draft,
-                layout: e.target.value as "Single" | "Compare" | "Carousel",
-              })
-            }
-            className="w-full px-2 py-1.5 rounded border border-border bg-background"
-          >
-            <option value="Single">Single</option>
-            <option value="Compare">Compare</option>
-            <option value="Carousel">Carousel</option>
-          </select>
+          <div className="relative">
+            <select
+              value={draft.layout}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  layout: e.target.value as "Single" | "Compare" | "Carousel",
+                })
+              }
+              className="w-full appearance-none px-2 pr-8 py-1.5 rounded border border-border bg-background"
+            >
+              <option value="Single">Single</option>
+              <option value="Compare">Compare</option>
+              <option value="Carousel">Carousel</option>
+            </select>
+            <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          </div>
         </Field>
         <div className="md:col-span-2">
           <Field label="Product IDs (comma-separated)">
