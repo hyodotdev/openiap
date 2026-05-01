@@ -123,11 +123,21 @@ export const listDraftIosProducts = internalQuery({
       )
       .collect();
     return all
-      .filter(
-        (row) =>
-          row.state === "Draft" && (row.storeRef !== undefined) === false,
-      )
-      .filter((row) => row.state === "Draft")
+      .filter((row) => {
+        if (row.state !== "Draft") return false;
+        // For one-time IAPs, `storeRef` is the resulting App Store
+        // Connect resource id — empty means "not yet pushed", which
+        // is what we want to find. For Subscriptions, `storeRef` is
+        // the *input* subscriptionGroup id — the operator must set
+        // it (via dashboard / MCP) before push, and `pushSyncProductsApple`
+        // requires it to call `createSubscription({ groupId, ... })`.
+        // The previous filter blanket-rejected `storeRef !== undefined`
+        // and so silently hid every push-ready subscription.
+        if (row.type === "Subscription") {
+          return row.storeRef !== undefined && row.storeRef.length > 0;
+        }
+        return row.storeRef === undefined;
+      })
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,
