@@ -240,9 +240,17 @@ async function maybeFetchSubscriptionInfo(
         : undefined,
     };
   } catch (error) {
+    // Sanitized: only the error name/code/message is logged. The full
+    // googleapis error object can include the original request URL with
+    // an OAuth bearer token and the response body — neither belongs in
+    // logs that get shipped to error aggregation.
+    const sanitized =
+      error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : "(unknown error type)";
     console.warn(
       "[webhooks/google] subscriptionsv2 fetch failed; falling back to type-derived state",
-      error,
+      sanitized,
     );
     return null;
   }

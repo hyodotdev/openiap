@@ -23,6 +23,8 @@ import platform.Foundation.NSURLSessionDataTask
 import platform.Foundation.NSURLSessionResponseAllow
 import platform.Foundation.create
 import platform.Foundation.dataUsingEncoding
+import platform.Foundation.setHTTPMethod
+import platform.Foundation.setValue
 import platform.darwin.NSObject
 import platform.Foundation.NSUTF8StringEncoding
 
@@ -64,13 +66,19 @@ actual class WebhookTransport actual constructor(
         updateLastEventId: (String) -> Unit,
     ): Boolean = try {
         val url = NSURL(string = webhookStreamUrl(baseUrl, apiKey))
-        val request = NSMutableURLRequest.requestWithURL(url).apply {
-            setHTTPMethod("GET")
-            setValue("text/event-stream", forHTTPHeaderField = "Accept")
-            setValue("no-cache", forHTTPHeaderField = "Cache-Control")
-            if (lastEventId != null) {
-                setValue(lastEventId, forHTTPHeaderField = "Last-Event-ID")
-            }
+        // `NSURLRequest.requestWithURL` returns the immutable parent
+        // type even when invoked on the mutable subclass companion, so
+        // we cast to NSMutableURLRequest to expose the mutable setters.
+        // Avoid `apply { }` so Kotlin resolves `setValue` to the ObjC
+        // `setValue:forHTTPHeaderField:` selector rather than the
+        // property-delegate operator.
+        val request: NSMutableURLRequest =
+            NSMutableURLRequest.requestWithURL(url) as NSMutableURLRequest
+        request.setHTTPMethod("GET")
+        request.setValue("text/event-stream", forHTTPHeaderField = "Accept")
+        request.setValue("no-cache", forHTTPHeaderField = "Cache-Control")
+        if (lastEventId != null) {
+            request.setValue(lastEventId, forHTTPHeaderField = "Last-Event-ID")
         }
         val config = NSURLSessionConfiguration.defaultSessionConfiguration()
         val frameBuffer = StringBuilder()

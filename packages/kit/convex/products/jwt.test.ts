@@ -98,14 +98,19 @@ describe("derSignatureToJoseSignature", () => {
 });
 
 function bigIntFrom(buf: Buffer): Buffer {
-  // For DER encoding, leading bit set means we need a 0x00 prefix.
-  if ((buf[0] ?? 0) & 0x80) {
-    return Buffer.concat([Buffer.from([0x00]), buf]);
-  }
-  // Strip excess leading zeros so the integer is canonical.
+  // Strip excess leading zeros so the integer is canonical, then add a
+  // 0x00 prefix back if the high bit of the leading nonzero byte is
+  // set (DER says positive integers can't start with 0x80+). The prior
+  // version stripped leading zeros AFTER checking the high bit and
+  // missed the `00 80 ...` case — that pattern occurs ~1/65536 times
+  // per coord, which made the ECDSA round-trip test flake on CI.
   let i = 0;
   while (i < buf.length - 1 && buf[i] === 0) i += 1;
-  return buf.subarray(i);
+  const stripped = buf.subarray(i);
+  if (((stripped[0] ?? 0) & 0x80) !== 0) {
+    return Buffer.concat([Buffer.from([0x00]), stripped]);
+  }
+  return stripped;
 }
 
 function encodeDerSignature(r: Buffer, s: Buffer): Buffer {

@@ -481,7 +481,16 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_purchase_token", ["purchaseToken"])
     .index("by_project_and_received", ["projectId", "receivedAt"])
-    .index("by_received_at", ["receivedAt"]),
+    .index("by_received_at", ["receivedAt"])
+    // Lookup helper used by the SSE stream's `Last-Event-ID` cursor
+    // resolution. The reconnect cursor needs to translate a stable
+    // notification id back to its `receivedAt` regardless of whether
+    // the event is in the first 500 or the 50,000th. A direct index
+    // hit is O(log n) vs O(n/page) for the prior linear scan.
+    .index("by_project_and_notification_id", [
+      "projectId",
+      "sourceNotificationId",
+    ]),
 
   // Dedup table for webhook payloads. Insertion uses
   // `(source, sourceNotificationId)` as the natural key; duplicates

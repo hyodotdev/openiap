@@ -10,6 +10,55 @@ import {
   webhookEventPlatformValidator,
 } from "./validators";
 
+// Stream cursor lookup. Resolves a stable `sourceNotificationId`
+// (ASN v2 notificationUUID or RTDN messageId) into a `receivedAt`
+// timestamp + Convex `_creationTime` so the SSE reconnect path can
+// resume right after the last event the consumer acknowledged.
+//
+// Surfaces both `receivedAt` and `_creationTime` because two events
+// can share `receivedAt` under burst writes — the SSE consumer needs
+// the creationTime tie-break to avoid re-emitting the boundary event.
+//
+// Uses the dedicated `by_project_and_notification_id` index so the
+// lookup is O(log n) regardless of how many webhook events the
+// project has accumulated. The prior implementation scanned the
+// first 500 events via `webhookEventsSince(sinceMs: 0, limit: 500)`
+// and silently fell back to "now" for any project with > 500 events.
+export const findEventCursor = query({
+  args: {
+    apiKey: v.string(),
+    sourceNotificationId: v.string(),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      receivedAt: v.number(),
+      _creationTime: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
+      .unique();
+    if (!project) return null;
+
+    const event = await ctx.db
+      .query("webhookEvents")
+      .withIndex("by_project_and_notification_id", (q) =>
+        q
+          .eq("projectId", project._id)
+          .eq("sourceNotificationId", args.sourceNotificationId),
+      )
+      .first();
+    if (!event) return null;
+    return {
+      receivedAt: event.receivedAt,
+      _creationTime: event._creationTime,
+    };
+  },
+});
+
 // Backfill query used by SDKs on reconnect / app foreground entry.
 // Returns webhook events for the API key's project that occurred since
 // the given timestamp, ordered ascending by `receivedAt` so consumers
@@ -18,10 +67,18 @@ import {
 // We cap results at `limit` (default 100, max 500) and surface
 // `_creationTime` so the SDK can checkpoint reliably even if two
 // events share `receivedAt` (rare but possible under burst writes).
+//
+// Optional `afterCreationTime`: when provided alongside `sinceMs`, we
+// only emit events whose `_creationTime` is strictly greater than
+// the cursor — the tie-break that lets pagination advance past a
+// `receivedAt` cohort larger than `limit`. Without it, a burst of
+// 500+ events sharing one `receivedAt` would stick the cursor at
+// the same value forever (PR #124 review fix).
 export const webhookEventsSince = query({
   args: {
     apiKey: v.string(),
     sinceMs: v.number(),
+    afterCreationTime: v.optional(v.number()),
     limit: v.optional(v.number()),
   },
   returns: v.array(
@@ -69,13 +126,28 @@ export const webhookEventsSince = query({
 
     const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
 
-    const events = await ctx.db
+    // Over-fetch when an `afterCreationTime` cursor is in play so the
+    // post-filter still has `limit` events to return after dropping
+    // the inclusive `>= sinceMs` boundary cohort. We cap the over-fetch
+    // at 2× to bound the worst-case page size — anything beyond that
+    // means the consumer is far behind and another reconnect will
+    // pick up where this page leaves off.
+    const fetchLimit = args.afterCreationTime
+      ? Math.min(limit * 2, 1000)
+      : limit;
+    const raw = await ctx.db
       .query("webhookEvents")
       .withIndex("by_project_and_received", (q) =>
         q.eq("projectId", project._id).gte("receivedAt", args.sinceMs),
       )
       .order("asc")
-      .take(limit);
+      .take(fetchLimit);
+
+    const events = args.afterCreationTime
+      ? raw
+          .filter((e) => e._creationTime > args.afterCreationTime!)
+          .slice(0, limit)
+      : raw;
 
     return events.map((event) => ({
       // GraphQL `id` is the stable per-notification identifier from

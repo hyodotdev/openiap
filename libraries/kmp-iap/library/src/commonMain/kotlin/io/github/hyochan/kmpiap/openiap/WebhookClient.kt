@@ -82,7 +82,8 @@ object WebhookEventParser {
                     element["priceAmountMicros"]?.jsonPrimitive?.numericOrNull(),
                 productId = element["productId"]?.jsonPrimitive?.contentOrNull,
                 projectId =
-                    element["projectId"]?.jsonPrimitive?.contentOrNull ?: "",
+                    element["projectId"]?.jsonPrimitive?.contentOrNull
+                        ?: return null,
                 purchaseToken = purchaseToken,
                 rawSignedPayload =
                     element["rawSignedPayload"]?.jsonPrimitive?.contentOrNull,

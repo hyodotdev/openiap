@@ -146,12 +146,18 @@ class _SseWebhookListener implements WebhookListener {
     required this.baseUrl,
     required this.reconnectDelay,
     HttpClient? httpClient,
-  }) : _httpClient = httpClient ?? HttpClient();
+  }) : _httpClient = httpClient ?? HttpClient(),
+       _ownsHttpClient = httpClient == null;
 
   final String apiKey;
   final String baseUrl;
   final Duration reconnectDelay;
   final HttpClient _httpClient;
+  // Only close the underlying HttpClient if we created it ourselves.
+  // Callers may share a single HttpClient across multiple listeners or
+  // unrelated request flows; force-closing a caller-owned client would
+  // tear down their other in-flight requests.
+  final bool _ownsHttpClient;
 
   final StreamController<WebhookEvent> _events =
       StreamController<WebhookEvent>.broadcast();
@@ -176,7 +182,9 @@ class _SseWebhookListener implements WebhookListener {
     _bodySub = null;
     _pendingRequest?.abort();
     _pendingRequest = null;
-    _httpClient.close(force: true);
+    if (_ownsHttpClient) {
+      _httpClient.close(force: true);
+    }
     await _events.close();
     await _errors.close();
   }
@@ -295,6 +303,25 @@ class _SseWebhookListener implements WebhookListener {
     final dataStr = dataLines.join('\n');
     if (dataStr.isEmpty) return;
     if (eventName == 'heartbeat' || eventName == 'ready') return;
+
+    // The kit server emits `event: stream-error` with a JSON `{message}`
+    // payload when the backend Convex subscription itself fails (e.g. the
+    // project's API key was rotated mid-stream). Surface those as a
+    // distinct error code so callers can react — falling through to
+    // `parseWebhookEventData` would mis-report it as MALFORMED_EVENT.
+    if (eventName == 'stream-error') {
+      String message = dataStr;
+      try {
+        final decoded = jsonDecode(dataStr);
+        if (decoded is Map<String, dynamic> && decoded['message'] is String) {
+          message = decoded['message'] as String;
+        }
+      } catch (_) {
+        // Fall back to raw frame body.
+      }
+      _errors.add(WebhookListenerError('STREAM_ERROR', message));
+      return;
+    }
 
     final event = parseWebhookEventData(dataStr);
     if (event == null) {

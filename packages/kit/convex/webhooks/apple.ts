@@ -95,7 +95,14 @@ export const ingestAppleAsnIOS = action({
       payload = await verifier.verifyAndDecodeNotification(args.signedPayload);
     } catch (error) {
       console.error("[webhooks/apple] notification verification failed", error);
-      throw new Error("Apple ASN v2 signature verification failed");
+      // ConvexError so the Hono `mapWebhookError` translates to 400 —
+      // signature failure is a permanent error and a 5xx would trigger
+      // ASN's automatic retry loop forever. Apple's "do not retry on
+      // permanent failure" guidance maps cleanly to 4xx status codes.
+      throw new ConvexError({
+        code: "INVALID_SIGNATURE",
+        message: "Apple ASN v2 signature verification failed",
+      });
     }
 
     // Decode transaction + renewal JWS if present. Apple sends them
@@ -118,14 +125,27 @@ export const ingestAppleAsnIOS = action({
       });
     } catch (error) {
       if (error instanceof WebhookNormalizationError) {
-        // Unsupported notification types are not a kit failure — Apple
-        // ships new types ahead of openiap spec updates. Log and ACK.
-        console.warn(
-          "[webhooks/apple] dropping unsupported notification",
-          error.code,
-          error.message,
-        );
-        throw new Error(`UNSUPPORTED_EVENT: ${error.message}`);
+        // Selective handling: only `UnknownEventType` is "Apple ships
+        // new types ahead of openiap spec" — those we ACK as 200 so
+        // ASN v2 stops retrying. `MissingNotificationId` and
+        // `MissingPurchaseToken` mean the payload itself is malformed
+        // — those must surface as 400 so the operator notices, and
+        // ACK-ing them silently would lose data.
+        if (error.code === "UnknownEventType") {
+          console.warn(
+            "[webhooks/apple] dropping unsupported notification",
+            error.code,
+            error.message,
+          );
+          throw new ConvexError({
+            code: "UNSUPPORTED_EVENT",
+            message: error.message,
+          });
+        }
+        throw new ConvexError({
+          code: error.code,
+          message: error.message,
+        });
       }
       throw error;
     }

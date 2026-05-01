@@ -213,12 +213,36 @@ async function handleGoogleNotification(
   body: PubSubPushBody,
 ) {
   // Pub/Sub push always sends `Authorization: Bearer <jwt>` when OIDC
-  // is configured on the subscription. We verify it when the operator
-  // has set GOOGLE_PUBSUB_PUSH_AUDIENCE; otherwise we skip strict
-  // checks (development / sandbox).
+  // is configured on the subscription. We require the operator to have
+  // set GOOGLE_PUBSUB_PUSH_AUDIENCE in production so kit fails closed
+  // — a missing env var must not silently let anonymous bodies through
+  // a Google-shaped path. In development / sandbox, the operator can
+  // opt out by setting `KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1`.
   const authHeader = c.req.header("authorization");
   const audience = process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
-  if (audience) {
+  const allowUnauth = process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB === "1";
+  if (!audience) {
+    if (!allowUnauth) {
+      console.error(
+        "[webhooks/google] GOOGLE_PUBSUB_PUSH_AUDIENCE is unset; rejecting request. Set KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1 only for local dev.",
+      );
+      return c.json(
+        {
+          errors: [
+            {
+              code: "MISCONFIGURED",
+              message:
+                "Pub/Sub OIDC audience is not configured on this kit instance",
+            },
+          ],
+        },
+        503,
+      );
+    }
+    console.warn(
+      "[webhooks/google] GOOGLE_PUBSUB_PUSH_AUDIENCE unset and KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1 — accepting unauthenticated Pub/Sub body (dev mode only).",
+    );
+  } else {
     const ok = await verifyPubSubOidcToken(authHeader, audience);
     if (!ok) {
       return c.json(
@@ -331,7 +355,7 @@ webhooks.get("/stream/:apiKey", async (c) => {
   const apiKey = c.req.param("apiKey");
   const lastEventId = c.req.header("last-event-id") ?? undefined;
 
-  let cursor = await resolveStreamStartCursor(apiKey, lastEventId);
+  const startCursor = await resolveStreamStartCursor(apiKey, lastEventId);
 
   return streamSSE(c, async (stream) => {
     let aborted = false;
@@ -341,6 +365,8 @@ webhooks.get("/stream/:apiKey", async (c) => {
 
     const reactive = new ConvexClient(convexUrlForRealtime);
     const seen = new Set<string>();
+    let cursor = startCursor.sinceMs;
+    let creationCursor = startCursor.afterCreationTime;
 
     await stream.writeSSE({
       event: "ready",
@@ -356,7 +382,12 @@ webhooks.get("/stream/:apiKey", async (c) => {
     try {
       unsubscribe = reactive.onUpdate(
         api.webhooks.query.webhookEventsSince,
-        { apiKey, sinceMs: cursor, limit: 500 },
+        {
+          apiKey,
+          sinceMs: cursor,
+          afterCreationTime: creationCursor,
+          limit: 500,
+        },
         (events: unknown) => {
           if (aborted) return;
           if (!Array.isArray(events)) return;
@@ -369,6 +400,17 @@ webhooks.get("/stream/:apiKey", async (c) => {
               event.receivedAt > cursor
             ) {
               cursor = event.receivedAt;
+            }
+            // Track the highest `_creationTime` we've emitted within
+            // the current `receivedAt` cohort so a reconnect resumes
+            // strictly past the last emitted event even when many
+            // events share the same wall-clock `receivedAt`.
+            if (
+              typeof event._creationTime === "number" &&
+              (creationCursor === undefined ||
+                event._creationTime > creationCursor)
+            ) {
+              creationCursor = event._creationTime;
             }
             stream
               .writeSSE({
@@ -414,30 +456,45 @@ webhooks.get("/stream/:apiKey", async (c) => {
 });
 
 // Translate an EventSource `Last-Event-ID` (which is the spec's stable
-// `sourceNotificationId`) into a `sinceMs` cursor by looking up the
-// event's `receivedAt`. Falls back to "now" when the id is unknown so
-// we never replay the entire 30-day window for a confused client.
+// `sourceNotificationId`) into a `sinceMs` + `afterCreationTime` cursor
+// pair. The new `findEventCursor` query hits the dedicated
+// `by_project_and_notification_id` index so the lookup is O(log n)
+// regardless of how many events the project has accumulated. The prior
+// implementation scanned the first 500 events and silently fell back
+// to "now" for anything beyond that — projects with > 500 events
+// would lose every replay-on-reconnect (PR #124 review fix).
+//
+// Returns `{ sinceMs, afterCreationTime }` so the SSE handler can pass
+// both to `webhookEventsSince` and resume strictly past the last
+// emitted event even under same-`receivedAt` bursts.
 async function resolveStreamStartCursor(
   apiKey: string,
   lastEventId: string | undefined,
-): Promise<number> {
+): Promise<{ sinceMs: number; afterCreationTime?: number }> {
   if (!lastEventId) {
-    return 0;
+    return { sinceMs: 0 };
   }
   try {
-    const events = (await client.query(api.webhooks.query.webhookEventsSince, {
+    const match = await client.query(api.webhooks.query.findEventCursor, {
       apiKey,
-      sinceMs: 0,
-      limit: 500,
-    })) as Array<{ id: string; receivedAt: number }>;
-    const match = events.find((event) => event.id === lastEventId);
+      sourceNotificationId: lastEventId,
+    });
     if (match) {
-      return match.receivedAt;
+      return {
+        sinceMs: match.receivedAt,
+        afterCreationTime: match._creationTime,
+      };
     }
-    return Date.now();
+    // Unknown lastEventId — never replay the full 30-day window for a
+    // confused / forged client.
+    return { sinceMs: Date.now() };
   } catch (error) {
-    console.warn("[webhooks/stream] cursor resolution failed", error);
-    return Date.now();
+    const sanitized =
+      error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : "(unknown error type)";
+    console.warn("[webhooks/stream] cursor resolution failed", sanitized);
+    return { sinceMs: Date.now() };
   }
 }
 
@@ -461,15 +518,25 @@ async function verifyPubSubOidcToken(
       return false;
     }
     const email = payload.email;
-    // Pub/Sub push requests are signed by a Google service account
-    // dedicated to the publishing project. Reject any caller that is
-    // not from the gcp-sa-pubsub principal namespace.
-    if (!email || !email.endsWith("@gcp-sa-pubsub.iam.gserviceaccount.com")) {
+    if (!email || payload.email_verified !== true) {
       return false;
     }
-    return payload.email_verified === true;
+    // Bind to a specific service-account principal when configured.
+    // Without GOOGLE_PUBSUB_PUSH_PRINCIPAL set we still enforce the
+    // gcp-sa-pubsub namespace so any project's Pub/Sub push could in
+    // theory hit our endpoint — operators in shared GCP orgs should
+    // pin GOOGLE_PUBSUB_PUSH_PRINCIPAL to their dedicated push SA.
+    const principal = process.env.GOOGLE_PUBSUB_PUSH_PRINCIPAL;
+    if (principal) {
+      return email === principal;
+    }
+    return email.endsWith("@gcp-sa-pubsub.iam.gserviceaccount.com");
   } catch (error) {
-    console.warn("[webhooks/google] OIDC verification error", error);
+    const sanitized =
+      error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : "(unknown error type)";
+    console.warn("[webhooks/google] OIDC verification error", sanitized);
     return false;
   }
 }
@@ -481,16 +548,23 @@ function mapWebhookError(
 ) {
   const convexError = handleConvexError(error);
   if (convexError !== null) {
-    // 400 keeps the upstream from retrying forever on a permanent
-    // input error (bundle mismatch, malformed JWS, etc.).
+    // Apple/Google ship new notification types ahead of the openiap
+    // spec. Acknowledge with 200 so the upstream stops retrying — the
+    // event was deliberately dropped, not lost. Other normalization
+    // errors (MissingNotificationId, MissingPurchaseToken,
+    // BUNDLE_ID_MISMATCH, INVALID_SIGNATURE, …) are permanent
+    // configuration/payload errors that need 4xx so the operator
+    // notices and the upstream stops retrying.
+    if (convexError.code === "UNSUPPORTED_EVENT") {
+      return c.json({ ok: true, dropped: true, reason: convexError.message });
+    }
     return c.json({ errors: [convexError] }, 400);
   }
 
   const errorMessage = error instanceof Error ? error.message : String(error);
   if (errorMessage.startsWith("UNSUPPORTED_EVENT")) {
-    // Apple/Google ship new notification types ahead of the openiap
-    // spec. Acknowledge with 200 so the upstream stops retrying — the
-    // event was deliberately dropped, not lost.
+    // Legacy fallback — kept until all action paths migrate to the
+    // ConvexError shape above.
     return c.json({ ok: true, dropped: true, reason: errorMessage });
   }
 

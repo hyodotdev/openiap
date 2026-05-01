@@ -83,6 +83,15 @@ export const pushSyncProductsGoogle = action({
         });
         for (const product of oneTimes.data.inappproduct ?? []) {
           if (!product.sku) continue;
+          // Defensive filter: `inappproducts.list` is documented to
+          // return one-time products only, but the response schema
+          // still surfaces a `purchaseType` field that includes
+          // "subscription". If a Play instance ever returns a
+          // subscription from this endpoint we must skip it — the
+          // subscription pull loop below handles those, and routing
+          // them through `mapPlayOneTimeType` would mis-classify them
+          // as `NonConsumable`.
+          if (product.purchaseType === "subscription") continue;
           await ctx.runMutation(internal.products.sync.upsertFromStore, {
             projectId: project._id,
             productId: product.sku,
@@ -141,6 +150,17 @@ export const pushSyncProductsGoogle = action({
       for (const row of drafts) {
         try {
           if (row.type === "Subscription") {
+            // Reject subscription creates that would land on Play with
+            // no base plan: such a subscription is created in a draft
+            // state that the Play app cannot purchase, which silently
+            // breaks the SDK's `requestPurchase` flow downstream. The
+            // operator must provide both a price and currency at
+            // minimum so we can synthesize a base plan.
+            if (!row.priceAmountMicros || !row.currency) {
+              throw new Error(
+                "Subscription requires priceAmountMicros + currency to mint a Play base plan; otherwise the product will not be purchasable.",
+              );
+            }
             await androidpublisher.monetization.subscriptions.create({
               packageName,
               requestBody: {
@@ -152,6 +172,31 @@ export const pushSyncProductsGoogle = action({
                     description: row.description ?? row.title,
                   },
                 ],
+                // Minimal auto-renewing monthly base plan. Operators
+                // can edit pricing and offers in Play Console after
+                // the initial sync — this only ensures the product
+                // is in a purchasable state.
+                basePlans: [
+                  {
+                    basePlanId: "monthly",
+                    state: "ACTIVE",
+                    autoRenewingBasePlanType: {
+                      billingPeriodDuration: "P1M",
+                    },
+                    regionalConfigs: [
+                      {
+                        regionCode: "US",
+                        price: {
+                          currencyCode: row.currency,
+                          units: String(
+                            Math.trunc(row.priceAmountMicros / 1_000_000),
+                          ),
+                          nanos: (row.priceAmountMicros % 1_000_000) * 1_000,
+                        },
+                      },
+                    ],
+                  },
+                ],
               },
             });
           } else {
@@ -160,8 +205,12 @@ export const pushSyncProductsGoogle = action({
               requestBody: {
                 packageName,
                 sku: row.productId,
-                purchaseType:
-                  row.type === "Consumable" ? "managedUser" : "managedUser",
+                // Play API uses `managedUser` for both consumable and
+                // non-consumable; the difference is consumed at
+                // purchase time via `consumeAsync`. Subscriptions go
+                // through `monetization.subscriptions.*` (see branch
+                // above), not this endpoint.
+                purchaseType: "managedUser",
                 status: "active",
                 defaultLanguage: "en-US",
                 listings: {
