@@ -88,35 +88,52 @@ export const pushSyncProductsGoogle = action({
 
     // ── PULL: Play → kit ─────────────────────────────────────────
     if (direction === "pull" || direction === "both") {
+      // One-time products. Both `inappproducts.list` and
+      // `monetization.subscriptions.list` paginate via
+      // `tokenPagination.nextPageToken` — without iterating, projects
+      // with > the default page size silently lose every product past
+      // the first batch (which is what the user reported when asking
+      // "in-app 이 없어").
       try {
-        const oneTimes = await androidpublisher.inappproducts.list({
-          packageName,
-        });
-        for (const product of oneTimes.data.inappproduct ?? []) {
-          if (!product.sku) continue;
-          // Defensive filter: `inappproducts.list` is documented to
-          // return one-time products only, but the response schema
-          // still surfaces a `purchaseType` field that includes
-          // "subscription". If a Play instance ever returns a
-          // subscription from this endpoint we must skip it — the
-          // subscription pull loop below handles those, and routing
-          // them through `mapPlayOneTimeType` would mis-classify them
-          // as `NonConsumable`.
-          if (product.purchaseType === "subscription") continue;
-          await ctx.runMutation(internal.products.sync.upsertFromStore, {
-            projectId: project._id,
-            productId: product.sku,
-            platform: "Android",
-            type: mapPlayOneTimeType(product),
-            title: pickPlayTitle(product) ?? product.sku,
-            description: pickPlayDescription(product),
-            priceAmountMicros: parsePlayPriceMicros(product),
-            currency: pickPlayCurrency(product),
-            storeRef: product.sku,
-            state: mapPlayStatus(product.status),
+        let token: string | undefined;
+        let pageCount = 0;
+        do {
+          const oneTimes = await androidpublisher.inappproducts.list({
+            packageName,
+            ...(token ? { token } : {}),
           });
-          pulled += 1;
-        }
+          for (const product of oneTimes.data.inappproduct ?? []) {
+            if (!product.sku) continue;
+            // Defensive filter: `inappproducts.list` is documented to
+            // return one-time products only, but the response schema
+            // still surfaces a `purchaseType` field that includes
+            // "subscription". If a Play instance ever returns a
+            // subscription from this endpoint we must skip it — the
+            // subscription pull loop below handles those, and routing
+            // them through `mapPlayOneTimeType` would mis-classify
+            // them as `NonConsumable`.
+            if (product.purchaseType === "subscription") continue;
+            await ctx.runMutation(internal.products.sync.upsertFromStore, {
+              projectId: project._id,
+              productId: product.sku,
+              platform: "Android",
+              type: mapPlayOneTimeType(product),
+              title: pickPlayTitle(product) ?? product.sku,
+              description: pickPlayDescription(product),
+              priceAmountMicros: parsePlayPriceMicros(product),
+              currency: pickPlayCurrency(product),
+              storeRef: product.sku,
+              state: mapPlayStatus(product.status),
+            });
+            pulled += 1;
+          }
+          token = oneTimes.data.tokenPagination?.nextPageToken ?? undefined;
+          pageCount += 1;
+          // Bound the loop so a buggy server can't keep us paginating
+          // forever — 50 pages × default ~100 rows is way past anyone's
+          // realistic IAP catalog.
+          if (pageCount > 50) break;
+        } while (token);
       } catch (error) {
         failures.push({
           productId: "(play list inappproducts)",
@@ -125,25 +142,34 @@ export const pushSyncProductsGoogle = action({
       }
 
       try {
-        const subs = await androidpublisher.monetization.subscriptions.list({
-          packageName,
-        });
-        for (const sub of subs.data.subscriptions ?? []) {
-          if (!sub.productId) continue;
-          await ctx.runMutation(internal.products.sync.upsertFromStore, {
-            projectId: project._id,
-            productId: sub.productId,
-            platform: "Android",
-            type: "Subscription",
-            title: sub.listings?.[0]?.title ?? sub.productId,
-            description: sub.listings?.[0]?.description ?? undefined,
-            priceAmountMicros: parseSubBasePlanPriceMicros(sub),
-            currency: parseSubBasePlanCurrency(sub),
-            storeRef: sub.productId,
-            state: "Active",
+        let token: string | undefined;
+        let pageCount = 0;
+        do {
+          const subs = await androidpublisher.monetization.subscriptions.list({
+            packageName,
+            ...(token ? { pageToken: token } : {}),
           });
-          pulled += 1;
-        }
+          for (const sub of subs.data.subscriptions ?? []) {
+            if (!sub.productId) continue;
+            const { priceAmountMicros, currency } = pickSubBasePlanPrice(sub);
+            await ctx.runMutation(internal.products.sync.upsertFromStore, {
+              projectId: project._id,
+              productId: sub.productId,
+              platform: "Android",
+              type: "Subscription",
+              title: sub.listings?.[0]?.title ?? sub.productId,
+              description: sub.listings?.[0]?.description ?? undefined,
+              priceAmountMicros,
+              currency,
+              storeRef: sub.productId,
+              state: "Active",
+            });
+            pulled += 1;
+          }
+          token = subs.data.nextPageToken ?? undefined;
+          pageCount += 1;
+          if (pageCount > 50) break;
+        } while (token);
       } catch (error) {
         failures.push({
           productId: "(play list subscriptions)",
@@ -311,34 +337,62 @@ function pickPlayCurrency(
   return product.defaultPrice?.currency ?? undefined;
 }
 
-function parseSubBasePlanPriceMicros(
-  sub: androidpublisher_v3.Schema$Subscription,
+// Pick a representative price + currency for a subscription. The
+// previous implementation had three bugs that combined to produce the
+// "wrong currency" / "missing price" output the dashboard surfaced:
+//
+//   1. It bailed out (returned null price) whenever
+//      `legacyCompatibleSubscriptionOfferId` was set on the base plan.
+//      That field's presence has nothing to do with whether the plan
+//      has pricing — it's a migration shim from the static-pricing era
+//      — so any sub configured with that compat id silently lost its
+//      price. (Hence the second product showing "—" in the screenshot.)
+//   2. It always read `regionalConfigs?.[0]`, which is just whichever
+//      region Google sorted first. That made the UI flip between AED /
+//      USD / KRW depending on the response order.
+//   3. Currency and price were read independently and could disagree.
+//
+// New rule: walk every basePlan, walk every regionalConfig, prefer USD
+// if any region offers it, otherwise return the first region with a
+// readable price. Currency + price come from the SAME regionalConfig
+// so they're always consistent.
+function pickSubBasePlanPrice(sub: androidpublisher_v3.Schema$Subscription): {
+  priceAmountMicros?: number;
+  currency?: string;
+} {
+  const candidates: Array<androidpublisher_v3.Schema$Money> = [];
+  for (const plan of sub.basePlans ?? []) {
+    for (const region of plan.regionalConfigs ?? []) {
+      if (region.price) candidates.push(region.price);
+    }
+  }
+  if (candidates.length === 0) return {};
+  // Prefer USD when any region offers it — it's the most universally
+  // recognizable in a dashboard. The operator can edit per-region
+  // prices in Play Console; this just picks a stable display value.
+  const preferred =
+    candidates.find((p) => p.currencyCode === "USD") ?? candidates[0];
+  return {
+    priceAmountMicros: moneyToMicros(preferred),
+    currency: preferred.currencyCode ?? undefined,
+  };
+}
+
+function moneyToMicros(
+  money: androidpublisher_v3.Schema$Money | undefined,
 ): number | undefined {
-  const recurring =
-    sub.basePlans?.[0]?.autoRenewingBasePlanType
-      ?.legacyCompatibleSubscriptionOfferId !== undefined
-      ? null
-      : sub.basePlans?.[0]?.regionalConfigs?.[0]?.price;
-  if (!recurring?.units) return undefined;
+  if (!money?.units) return undefined;
   // Google's `Money` proto: `units` is a BigInt-as-string. Do the
   // micros multiplication in BigInt to avoid precision loss for
   // large currency values (>2^53). PR #124 review fix.
   try {
     const microsBigInt =
-      BigInt(recurring.units) * 1_000_000n +
-      BigInt(Math.round((recurring.nanos ?? 0) / 1_000));
+      BigInt(money.units) * 1_000_000n +
+      BigInt(Math.round((money.nanos ?? 0) / 1_000));
     return Number(microsBigInt);
   } catch {
     return undefined;
   }
-}
-
-function parseSubBasePlanCurrency(
-  sub: androidpublisher_v3.Schema$Subscription,
-): string | undefined {
-  return (
-    sub.basePlans?.[0]?.regionalConfigs?.[0]?.price?.currencyCode ?? undefined
-  );
 }
 
 // Stable basePlanId per billing period — Play's product detail page

@@ -79,6 +79,29 @@ class AscClient {
     }
     if (!response.ok) {
       const errorMessage = extractAscError(parsed);
+      // Apple's 401 is the same generic "Provide a properly configured
+      // and signed bearer token" for several distinct failure modes,
+      // and the most common one — uploading the In-App Purchase Key
+      // instead of the App Store Connect API (Team / Individual) Key
+      // — looks indistinguishable from "expired token" or "wrong
+      // signature" without context. Surface a targeted hint so the
+      // operator stops debugging the JWT and starts checking the
+      // *kind* of key they uploaded.
+      if (response.status === 401) {
+        throw new Error(
+          `ASC ${path} returned 401: ${errorMessage}\n` +
+            "HINT: ASC REST endpoints (/v1/apps/.../inAppPurchasesV2, " +
+            "subscriptionGroups, …) require the App Store Connect API " +
+            "Team Key (or Individual Key) — found under Users and " +
+            "Access → Integrations → App Store Connect API. The " +
+            "In-App Purchase Key (Users and Access → Integrations → " +
+            "In-App Purchase) is a different key and only works for " +
+            "the App Store Server API (receipt verification). Both " +
+            "are .p8 files but Apple scopes them separately. Re-upload " +
+            "the .p8 generated under 'App Store Connect API' and use " +
+            "ITS Issuer ID + Key ID in the dashboard.",
+        );
+      }
       throw new Error(
         `ASC ${path} returned ${response.status}: ${errorMessage}`,
       );
