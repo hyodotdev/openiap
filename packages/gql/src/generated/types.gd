@@ -337,7 +337,7 @@ enum WebhookEventType {
 	SUBSCRIPTION_IN_GRACE_PERIOD = 3,
 	## Billing failed and the subscription is in account-hold / billing retry, during which entitlement is paused but the subscription is not yet expired. iOS: DID_FAIL_TO_RENEW (no grace period; billing retry). Android: SUBSCRIPTION_ON_HOLD.
 	SUBSCRIPTION_IN_BILLING_RETRY = 4,
-	## Subscription returned to active state after a billing issue or pause. iOS: DID_RECOVER. Android: SUBSCRIPTION_RECOVERED / SUBSCRIPTION_RESTARTED.
+	## Subscription returned to active state after a billing issue or pause. iOS: DID_RECOVER. Android: SUBSCRIPTION_RECOVERED (1) only — RESTARTED (7) is auto- renew re-enabled (Uncanceled), not billing recovery.
 	SUBSCRIPTION_RECOVERED = 5,
 	## User turned off auto-renew. Access continues until the current period ends. iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned off). Android: SUBSCRIPTION_CANCELED.
 	SUBSCRIPTION_CANCELED = 6,
@@ -349,9 +349,9 @@ enum WebhookEventType {
 	SUBSCRIPTION_PRICE_CHANGE = 9,
 	## User upgraded, downgraded, or crossgraded their plan. iOS: DID_CHANGE_RENEWAL_PREF. Android: SUBSCRIPTION_DEFERRED / SUBSCRIPTION_PRODUCT_CHANGED.
 	SUBSCRIPTION_PRODUCT_CHANGED = 10,
-	## Subscription paused (Android only feature). Android: SUBSCRIPTION_PAUSED.
+	## Subscription paused (Android only feature). Also fired when the pause schedule is changed — RTDN does not have a separate signal. Android: SUBSCRIPTION_PAUSED (10), SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED (11).
 	SUBSCRIPTION_PAUSED = 11,
-	## Paused subscription resumed (Android only feature). Android: SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED / SUBSCRIPTION_RECOVERED from pause.
+	## Paused subscription resumed (Android only feature). RTDN signals resume via SUBSCRIPTION_RECOVERED (1) once the next billing cycle starts; PAUSE_SCHEDULE_CHANGED is the schedule update, not the resume. Android: SUBSCRIPTION_RECOVERED (after pause).
 	SUBSCRIPTION_RESUMED = 12,
 	## Refund issued for a one-time purchase or subscription period. iOS: REFUND. Android: ONE_TIME_PRODUCT_REFUNDED / VOIDED_PURCHASE.
 	PURCHASE_REFUNDED = 13,

@@ -221,7 +221,7 @@ describe("conformance: Google lifecycle scenarios", () => {
   it("purchase → renew → on-hold → recovered", () => {
     runGoogleScenario([
       {
-        payload: googleSubPayload("g-1", 1, "tok-1"),
+        payload: googleSubPayload("g-1", 4, "tok-1"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
         expect: { state: "Active", active: true },
       },
@@ -236,7 +236,7 @@ describe("conformance: Google lifecycle scenarios", () => {
         expect: { state: "InBillingRetry", active: false },
       },
       {
-        payload: googleSubPayload("g-4", 4, "tok-1"),
+        payload: googleSubPayload("g-4", 1, "tok-1"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
         expect: { state: "Active", active: true },
       },
@@ -246,7 +246,7 @@ describe("conformance: Google lifecycle scenarios", () => {
   it("voided purchase flips to Refunded", () => {
     runGoogleScenario([
       {
-        payload: googleSubPayload("v-1", 1, "tok-vp"),
+        payload: googleSubPayload("v-1", 4, "tok-vp"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
         expect: { state: "Active", active: true },
       },
@@ -264,7 +264,7 @@ describe("conformance: Google lifecycle scenarios", () => {
   it("paused → resumed", () => {
     runGoogleScenario([
       {
-        payload: googleSubPayload("p-1", 1, "tok-p"),
+        payload: googleSubPayload("p-1", 4, "tok-p"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
         expect: { state: "Active", active: true },
       },
@@ -274,7 +274,11 @@ describe("conformance: Google lifecycle scenarios", () => {
         expect: { state: "Paused", active: false },
       },
       {
-        payload: googleSubPayload("p-3", 4, "tok-p"),
+        // Resume in real RTDN comes back as RECOVERED (1) — pause-
+        // schedule-changed (11) is only the schedule update, not the
+        // actual end-of-pause signal. PR #123 review caught the
+        // earlier draft mapping that treated 11 as Resumed.
+        payload: googleSubPayload("p-3", 1, "tok-p"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
         expect: { state: "Active", active: true },
       },

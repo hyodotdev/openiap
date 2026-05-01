@@ -1070,7 +1070,8 @@ enum WebhookEventType {
   SubscriptionInBillingRetry('subscription-in-billing-retry'),
   /// Subscription returned to active state after a billing issue or pause.
   /// iOS: DID_RECOVER.
-  /// Android: SUBSCRIPTION_RECOVERED / SUBSCRIPTION_RESTARTED.
+  /// Android: SUBSCRIPTION_RECOVERED (1) only — RESTARTED (7) is auto-
+  /// renew re-enabled (Uncanceled), not billing recovery.
   SubscriptionRecovered('subscription-recovered'),
   /// User turned off auto-renew. Access continues until the current period ends.
   /// iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned off).
@@ -1092,11 +1093,15 @@ enum WebhookEventType {
   /// iOS: DID_CHANGE_RENEWAL_PREF.
   /// Android: SUBSCRIPTION_DEFERRED / SUBSCRIPTION_PRODUCT_CHANGED.
   SubscriptionProductChanged('subscription-product-changed'),
-  /// Subscription paused (Android only feature).
-  /// Android: SUBSCRIPTION_PAUSED.
+  /// Subscription paused (Android only feature). Also fired when the
+  /// pause schedule is changed — RTDN does not have a separate signal.
+  /// Android: SUBSCRIPTION_PAUSED (10), SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED (11).
   SubscriptionPaused('subscription-paused'),
-  /// Paused subscription resumed (Android only feature).
-  /// Android: SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED / SUBSCRIPTION_RECOVERED from pause.
+  /// Paused subscription resumed (Android only feature). RTDN signals
+  /// resume via SUBSCRIPTION_RECOVERED (1) once the next billing cycle
+  /// starts; PAUSE_SCHEDULE_CHANGED is the schedule update, not the
+  /// resume.
+  /// Android: SUBSCRIPTION_RECOVERED (after pause).
   SubscriptionResumed('subscription-resumed'),
   /// Refund issued for a one-time purchase or subscription period.
   /// iOS: REFUND.

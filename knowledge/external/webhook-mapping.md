@@ -12,24 +12,25 @@ document in the same PR.
 
 | openiap `WebhookEventType` | Apple ASN v2 `notificationType` (`subtype`) | Google RTDN `subscriptionNotification.notificationType` |
 |---|---|---|
-| `SubscriptionStarted` | `SUBSCRIBED` (`INITIAL_BUY`, `RESUBSCRIBE`) | `SUBSCRIPTION_PURCHASED` (1), `SUBSCRIPTION_RECOVERED` (4)¹ |
+| `SubscriptionStarted` | `SUBSCRIBED` (`INITIAL_BUY`, `RESUBSCRIBE`) | `SUBSCRIPTION_PURCHASED` (4) |
 | `SubscriptionRenewed` | `DID_RENEW` | `SUBSCRIPTION_RENEWED` (2) |
 | `SubscriptionExpired` | `EXPIRED` | `SUBSCRIPTION_EXPIRED` (13) |
 | `SubscriptionInGracePeriod` | `DID_FAIL_TO_RENEW` (`GRACE_PERIOD`) | `SUBSCRIPTION_IN_GRACE_PERIOD` (6) |
 | `SubscriptionInBillingRetry` | `DID_FAIL_TO_RENEW` (no subtype) | `SUBSCRIPTION_ON_HOLD` (5) |
-| `SubscriptionRecovered` | `DID_RENEW` (after a prior failure) | `SUBSCRIPTION_RECOVERED` (4)¹, `SUBSCRIPTION_RESTARTED` (7) |
+| `SubscriptionRecovered` | `DID_RENEW` (after a prior failure) | `SUBSCRIPTION_RECOVERED` (1) |
 | `SubscriptionCanceled` | `DID_CHANGE_RENEWAL_STATUS` (`AUTO_RENEW_DISABLED`) | `SUBSCRIPTION_CANCELED` (3) |
-| `SubscriptionUncanceled` | `DID_CHANGE_RENEWAL_STATUS` (`AUTO_RENEW_ENABLED`) | (no direct equivalent — inferred from `SUBSCRIPTION_RESTARTED` while period still active) |
+| `SubscriptionUncanceled` | `DID_CHANGE_RENEWAL_STATUS` (`AUTO_RENEW_ENABLED`) | `SUBSCRIPTION_RESTARTED` (7) — fired when auto-renew is re-enabled while the period is still active |
 | `SubscriptionRevoked` | `REVOKE` | `SUBSCRIPTION_REVOKED` (12) |
-| `SubscriptionPriceChange` | `PRICE_INCREASE` | `SUBSCRIPTION_PRICE_CHANGE_CONFIRMED` (8) |
-| `SubscriptionProductChanged` | `DID_CHANGE_RENEWAL_PREF` | `SUBSCRIPTION_DEFERRED` (9), `SUBSCRIPTION_PRODUCT_CHANGED` (no fixed code) |
-| `SubscriptionPaused` | (no equivalent — iOS has no pause) | `SUBSCRIPTION_PAUSED` (10), `SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED` (11) |
-| `SubscriptionResumed` | (no equivalent) | `SUBSCRIPTION_RECOVERED` (4) following `SUBSCRIPTION_PAUSED` |
+| `SubscriptionPriceChange` | `PRICE_INCREASE` | `SUBSCRIPTION_PRICE_CHANGE_CONFIRMED` (8), `SUBSCRIPTION_PRICE_CHANGE_UPDATED` (19) |
+| `SubscriptionProductChanged` | `DID_CHANGE_RENEWAL_PREF` | `SUBSCRIPTION_DEFERRED` (9) |
+| `SubscriptionPaused` | (no equivalent — iOS has no pause) | `SUBSCRIPTION_PAUSED` (10), `SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED` (11) — schedule update, not actual resume |
+| `SubscriptionResumed` | (no equivalent) | `SUBSCRIPTION_RECOVERED` (1) when fired after a `SUBSCRIPTION_PAUSED` — kit chooses Resumed vs Recovered based on the prior `subscriptions` row state |
 
-¹ `SUBSCRIPTION_RECOVERED` (RTDN code 4) maps to either `SubscriptionStarted`
-(when no prior active period existed) or `SubscriptionRecovered` (when recovering
-from grace/hold/pause). kit decides based on the prior state in its
-`subscriptions` table.
+PR #123 review caught the earlier draft where codes 1 and 4 were swapped
+(`SUBSCRIPTION_RECOVERED` is code 1, `SUBSCRIPTION_PURCHASED` is code 4)
+and where `SUBSCRIPTION_RESTARTED` (7) was incorrectly mapped to
+`SubscriptionRecovered` instead of `SubscriptionUncanceled`. The mapping
+above reflects the corrected RTDN reference.
 
 ## One-time / common
 
@@ -52,7 +53,7 @@ from grace/hold/pause). kit decides based on the prior state in its
 | `renewsAt` | `data.signedRenewalInfo.renewalDate` | resolved by calling `purchases.subscriptionsv2.get` |
 | `cancellationReason` | `data.signedTransactionInfo.revocationReason` + ASN `subtype` | `purchases.subscriptionsv2.get` → `canceledStateContext.userInitiatedCancellation` / `systemInitiatedCancellation` |
 | `currency` | `data.signedTransactionInfo.currency` | from `purchases.subscriptionsv2.get` linked product price |
-| `priceAmountMicros` | `data.signedTransactionInfo.price` × 1000 (ASN reports in millicents; convert to micros) | `purchases.subscriptionsv2.get` → `lineItems[*].autoRenewingPlan.recurringPrice.units` |
+| `priceAmountMicros` | `data.signedTransactionInfo.price` × 1000 (Apple's `price` field is in **milliunits** = 1/1000 of a currency unit; multiply by 1000 to convert to micros) | `purchases.subscriptionsv2.get` → `lineItems[*].autoRenewingPlan.recurringPrice` — `units * 1_000_000 + Math.round(nanos / 1000)` (Money type combines whole units + nanos = 10⁻⁹ units) |
 | `rawSignedPayload` | The complete `signedPayload` JWS string from the ASN body | The base64-decoded Pub/Sub message `data` (JSON) |
 
 ## Validation requirements (kit Phase 1, PR #2)

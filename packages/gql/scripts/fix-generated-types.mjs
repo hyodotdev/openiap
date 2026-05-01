@@ -10,6 +10,11 @@ const schemaFiles = [
   resolve(__dirname, '../src/api.graphql'),
   resolve(__dirname, '../src/api-ios.graphql'),
   resolve(__dirname, '../src/api-android.graphql'),
+  // webhook.graphql adds `webhookEventsSince` to the Query interface
+  // and marks it `# Future` so it gets the Promise<> wrap that all
+  // async query fields require. Without this entry, the marker would
+  // be silently ignored — caught in PR #123 review.
+  resolve(__dirname, '../src/webhook.graphql'),
 ];
 const schemaDefinitionFiles = [
   '../src/schema.graphql',

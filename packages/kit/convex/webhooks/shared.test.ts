@@ -106,8 +106,10 @@ const baseTransaction: AppleDecodedTransaction = {
   transactionId: "1000000000000099",
   productId: "com.example.premium_monthly",
   expiresDate: 1_713_592_000_000,
-  // ASN reports `price` in millicents (e.g. $9.99 → 999_000)
-  price: 999_000,
+  // ASN reports `price` in milliunits (1/1000 of a currency unit —
+  // $9.99 → 9990). Earlier draft mistakenly called these "millicents"
+  // and applied a 10× multiplier, which #123 review correctly flagged.
+  price: 9_990,
   currency: "USD",
 };
 
@@ -129,7 +131,7 @@ describe("normalizeAppleAsn", () => {
     expect(event.expiresAt).toBe(1_713_592_000_000);
     expect(event.renewsAt).toBe(1_713_592_000_000);
     expect(event.currency).toBe("USD");
-    // 999_000 millicents = 9_990_000 micros ($9.99)
+    // 9_990 milliunits × 1000 = 9_990_000 micros ($9.99)
     expect(event.priceAmountMicros).toBe(9_990_000);
     expect(event.occurredAt).toBe(1_711_000_000_000);
     expect(event.sourceNotificationId).toBe("uuid-renew-1");
@@ -258,8 +260,13 @@ describe("normalizeAppleAsn", () => {
 
 describe("mapGoogleSubscriptionNotificationType", () => {
   it("maps the documented numeric codes to spec event types", () => {
+    // RTDN code reference:
+    // https://developer.android.com/google/play/billing/rtdn-reference#sub
+    // Codes 1 / 4 were swapped in an earlier draft (caught in PR #123
+    // review). 1 = RECOVERED, 4 = PURCHASED. 7 = RESTARTED maps to
+    // Uncanceled (auto-renew re-enabled), not Started.
     expect(mapGoogleSubscriptionNotificationType(1)).toBe(
-      "SubscriptionStarted",
+      "SubscriptionRecovered",
     );
     expect(mapGoogleSubscriptionNotificationType(2)).toBe(
       "SubscriptionRenewed",
@@ -268,7 +275,10 @@ describe("mapGoogleSubscriptionNotificationType", () => {
       "SubscriptionCanceled",
     );
     expect(mapGoogleSubscriptionNotificationType(4)).toBe(
-      "SubscriptionRecovered",
+      "SubscriptionStarted",
+    );
+    expect(mapGoogleSubscriptionNotificationType(7)).toBe(
+      "SubscriptionUncanceled",
     );
     expect(mapGoogleSubscriptionNotificationType(5)).toBe(
       "SubscriptionInBillingRetry",

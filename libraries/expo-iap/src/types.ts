@@ -1411,7 +1411,7 @@ export interface Query {
    * timestamp. SDKs call this on reconnect / foreground entry to backfill events
    * that occurred while the WebSocket was closed.
    */
-  webhookEventsSince: WebhookEvent[];
+  webhookEventsSince: Promise<WebhookEvent[]>;
 }
 
 

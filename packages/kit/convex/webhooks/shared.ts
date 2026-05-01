@@ -115,7 +115,11 @@ export type AppleDecodedTransaction = {
   expiresDate?: number | null;
   revocationReason?: number | null;
   currency?: string | null;
-  // ASN v2 reports `price` in millicents (price × 1000).
+  // ASN v2 reports `price` in **milliunits** — 1/1000 of a currency
+  // unit. Apple's docs use "milliunits" (NOT "millicents"). $9.99 is
+  // 9990 milliunits; convert to micros (1/1_000_000 of a unit) by
+  // multiplying by 1000.
+  // https://developer.apple.com/documentation/appstoreserverapi/jwstransactiondecodedpayload/price
   price?: number | null;
 };
 
@@ -336,11 +340,15 @@ export function normalizeAppleAsn(
     );
   }
 
-  // Apple reports `price` in millicents (1/1000 of cent). openiap exposes
-  // micros to match Google's `priceAmountMicros`. millicents → micros is
-  // a 10× multiplier (1 millicent = 10 micros).
+  // Apple reports `price` in milliunits (1/1000 of a currency unit —
+  // see the note on AppleDecodedTransaction.price above). openiap
+  // exposes micros (1/1_000_000) to match Google's
+  // `priceAmountMicros` convention, so milliunits → micros is a 1000×
+  // multiplier (e.g. $9.99 → 9990 milliunits → 9_990_000 micros).
   const priceAmountMicros =
-    typeof transaction?.price === "number" ? transaction.price * 10 : undefined;
+    typeof transaction?.price === "number"
+      ? transaction.price * 1000
+      : undefined;
 
   return {
     type,
@@ -424,25 +432,33 @@ export type GoogleSubscriptionInfo = {
   priceAmountMicros?: number;
 };
 
+// RTDN numeric codes per
+// https://developer.android.com/google/play/billing/rtdn-reference#sub
+// Codes 1 and 4 were swapped in an earlier draft (caught in PR #123
+// review) — `1 = RECOVERED` and `4 = PURCHASED`. Code 7 = RESTARTED
+// means the user re-enabled auto-renew while the subscription was
+// still in its active period, which matches the
+// `SubscriptionUncanceled` semantics, not `Started`. Code 11 =
+// PAUSE_SCHEDULE_CHANGED fires when a pause is scheduled / changed,
+// not on resume — collapsing it onto `Paused` keeps the event log
+// honest (the actual end-of-pause appears as RENEWED/RECOVERED).
 const GOOGLE_SUB_TYPE_MAP: Record<number, WebhookEventType | null> = {
-  1: "SubscriptionStarted", // SUBSCRIPTION_RECOVERED handled below
-  2: "SubscriptionRenewed",
-  3: "SubscriptionCanceled",
-  4: "SubscriptionRecovered",
-  5: "SubscriptionInBillingRetry",
-  6: "SubscriptionInGracePeriod",
-  7: "SubscriptionStarted", // SUBSCRIPTION_RESTARTED — re-enabled auto-renew with active period
-  8: "SubscriptionPriceChange",
-  9: "SubscriptionProductChanged",
-  10: "SubscriptionPaused",
-  11: "SubscriptionPaused",
-  12: "SubscriptionRevoked",
-  13: "SubscriptionExpired",
-  // 14 = SUBSCRIPTION_PURCHASED maps to Started (newer RTDN code)
-  14: "SubscriptionStarted",
-  // 15 = SUBSCRIPTION_PRODUCT_CHANGED (legacy)
-  15: "SubscriptionProductChanged",
-  // 20 = SUBSCRIPTION_PENDING_PURCHASE_CANCELED — treated as canceled
+  1: "SubscriptionRecovered", // SUBSCRIPTION_RECOVERED
+  2: "SubscriptionRenewed", // SUBSCRIPTION_RENEWED
+  3: "SubscriptionCanceled", // SUBSCRIPTION_CANCELED
+  4: "SubscriptionStarted", // SUBSCRIPTION_PURCHASED
+  5: "SubscriptionInBillingRetry", // SUBSCRIPTION_ON_HOLD
+  6: "SubscriptionInGracePeriod", // SUBSCRIPTION_IN_GRACE_PERIOD
+  7: "SubscriptionUncanceled", // SUBSCRIPTION_RESTARTED — auto-renew re-enabled
+  8: "SubscriptionPriceChange", // SUBSCRIPTION_PRICE_CHANGE_CONFIRMED
+  9: "SubscriptionProductChanged", // SUBSCRIPTION_DEFERRED
+  10: "SubscriptionPaused", // SUBSCRIPTION_PAUSED
+  11: "SubscriptionPaused", // SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED — schedule change, not resume
+  12: "SubscriptionRevoked", // SUBSCRIPTION_REVOKED
+  13: "SubscriptionExpired", // SUBSCRIPTION_EXPIRED
+  // 19 = SUBSCRIPTION_PRICE_CHANGE_UPDATED — alias for code 8
+  19: "SubscriptionPriceChange",
+  // 20 = SUBSCRIPTION_PENDING_PURCHASE_CANCELED
   20: "SubscriptionCanceled",
 };
 
