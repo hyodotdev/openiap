@@ -86,13 +86,23 @@ export function kitApi(options: KitApiOptions) {
   })();
 
   async function call<T>(path: string, init?: RequestInit): Promise<T> {
+    // Normalize headers via the Headers constructor so caller-supplied
+    // `Headers` instances (which are not plain objects) survive the
+    // merge — the prior object-spread silently dropped any header
+    // passed as a `Headers` instance, including auth headers. Caller
+    // headers win over kit defaults if they explicitly set the same
+    // name; we set defaults via `set` then re-apply caller values
+    // after the fact.
+    const headers = new Headers(init?.headers);
+    if (!headers.has("accept")) {
+      headers.set("accept", "application/json");
+    }
+    if (init?.body && !headers.has("content-type")) {
+      headers.set("content-type", "application/json");
+    }
     const response = await fetchImpl(`${baseUrl}${path}`, {
       ...init,
-      headers: {
-        accept: "application/json",
-        ...(init?.body ? { "content-type": "application/json" } : {}),
-        ...(init?.headers as Record<string, string> | undefined),
-      },
+      headers,
     });
     const text = await response.text();
     let parsed: unknown = text;
