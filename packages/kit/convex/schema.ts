@@ -575,7 +575,12 @@ const schema = defineSchema({
     .index("by_project_and_token", ["projectId", "purchaseToken"])
     .index("by_project_and_user", ["projectId", "userId"])
     .index("by_project_and_state", ["projectId", "state"])
-    .index("by_project_and_updated", ["projectId", "updatedAt"]),
+    .index("by_project_and_updated", ["projectId", "updatedAt"])
+    // Direct lookup by productId so the dashboard's
+    // listSubscriptions doesn't have to over-fetch from
+    // by_project_and_state and filter in memory when the operator
+    // pivots on a single SKU.
+    .index("by_project_and_product", ["projectId", "productId"]),
 
   // Daily revenue metrics rollup keyed by (projectId, day, productId,
   // currency). Populated by `recomputeRevenueMetrics` cron (recomputes

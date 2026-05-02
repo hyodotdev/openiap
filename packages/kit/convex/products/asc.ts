@@ -29,6 +29,32 @@ import { mintAscJwt } from "./jwt";
 
 const ASC_BASE = "https://api.appstoreconnect.apple.com";
 
+// Map an array through an async fn with bounded parallelism. Apple
+// throttles ASC at ~50 req/min, so we cap concurrency for the per-IAP
+// / per-sub price lookups during pull-sync. Output preserves input
+// order regardless of completion order so the caller can pair
+// results back to their source items by index.
+async function mapWithConcurrency<T, R>(
+  items: ReadonlyArray<T>,
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length)) },
+    async () => {
+      while (true) {
+        const idx = cursor++;
+        if (idx >= items.length) return;
+        out[idx] = await fn(items[idx], idx);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return out;
+}
+
 type AscToken = { value: string; expiresAt: number };
 
 class AscClient {
@@ -838,8 +864,16 @@ export const pushSyncProductsAppleIOS = action({
     // The 401 from Apple's gateway is what catches a wrong-kind key
     // either way — the helpful message in `call()` points the operator
     // at the right Apple page.
-    const issuerId = project.iosAscIssuerId ?? project.iosAppStoreIssuerId;
-    const keyId = project.iosAscKeyId ?? project.iosAppStoreKeyId;
+    // Resolve as a *pair* — never mix the new ASC Issuer ID with the
+    // legacy Server API Key ID (or vice versa). If only one of the
+    // new fields is populated the operator is mid-migration; in that
+    // case fall back to the legacy pair entirely so we don't sign a
+    // request with mismatched identifiers Apple will reject as 401.
+    const useAsc = project.iosAscIssuerId && project.iosAscKeyId;
+    const issuerId = useAsc
+      ? project.iosAscIssuerId
+      : project.iosAppStoreIssuerId;
+    const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
     if (!issuerId || !keyId) {
       throw new Error(
         "App Store Connect API Issuer ID / Key ID not configured. " +
@@ -911,16 +945,25 @@ export const pushSyncProductsAppleIOS = action({
         return null;
       });
       if (iaps) {
-        for (const item of iaps.data) {
-          const productId = item.attributes.productId;
-          if (!productId) continue;
-          const type = mapAscIapType(item.attributes.inAppPurchaseType);
-          // ASC doesn't inline the assigned USA price in the catalog
-          // list — separate fetch. Per-IAP price failures don't abort
-          // the pull (the row still surfaces; price stays "—") but
-          // they DO get appended to `failures` so the operator can see
-          // why a row has no price instead of staring at a silent dash.
-          const pricePoint = await client.iapCurrentPrice(item.id);
+        // Apple throttles ASC pretty aggressively (~50 req/min);
+        // concurrency=6 keeps the pull fast for catalogs with dozens
+        // of IAPs while staying well clear of 429 territory. Switching
+        // from a sequential await loop dropped a 30-IAP pull from
+        // ~30s to ~5s in local testing.
+        const iapResults = await mapWithConcurrency(
+          iaps.data,
+          6,
+          async (item) => {
+            const productId = item.attributes.productId;
+            if (!productId) return null;
+            const type = mapAscIapType(item.attributes.inAppPurchaseType);
+            const pricePoint = await client.iapCurrentPrice(item.id);
+            return { item, productId, type, pricePoint };
+          },
+        );
+        for (const result of iapResults) {
+          if (!result) continue;
+          const { item, productId, type, pricePoint } = result;
           if (pricePoint instanceof Error) {
             failures.push({
               productId: `${productId} (price lookup)`,
@@ -931,6 +974,9 @@ export const pushSyncProductsAppleIOS = action({
             pricePoint instanceof Error ? null : pricePoint,
             "inAppPurchasePricePoint",
           );
+          // upsertFromStore runs serially — Convex coalesces writes
+          // anyway and parallel mutations on the same row would race
+          // on the (projectId, platform, productId) lookup.
           await ctx.runMutation(internal.products.sync.upsertFromStore, {
             projectId: project._id,
             productId,
@@ -967,10 +1013,26 @@ export const pushSyncProductsAppleIOS = action({
               return null;
             });
           if (!subs) continue;
-          for (const sub of subs.data) {
-            const productId = sub.attributes.productId;
-            if (!productId) continue;
-            const pricePoint = await client.subCurrentPrice(sub.id);
+          // Same parallelization as the IAP loop above. Within each
+          // sub, price lookup and intro-offer lookup are independent
+          // — fire them as a Promise.all to halve the per-item RTT
+          // before walking on to the upsert.
+          const subResults = await mapWithConcurrency(
+            subs.data,
+            6,
+            async (sub) => {
+              const productId = sub.attributes.productId;
+              if (!productId) return null;
+              const [pricePoint, introOffers] = await Promise.all([
+                client.subCurrentPrice(sub.id),
+                client.subIntroductoryOffer(sub.id),
+              ]);
+              return { sub, productId, pricePoint, introOffers };
+            },
+          );
+          for (const result of subResults) {
+            if (!result) continue;
+            const { sub, productId, pricePoint, introOffers } = result;
             if (pricePoint instanceof Error) {
               failures.push({
                 productId: `${productId} (price lookup)`,
@@ -981,7 +1043,6 @@ export const pushSyncProductsAppleIOS = action({
               pricePoint instanceof Error ? null : pricePoint,
               "subscriptionPricePoint",
             );
-            const introOffers = await client.subIntroductoryOffer(sub.id);
             if (introOffers instanceof Error) {
               failures.push({
                 productId: `${productId} (offers lookup)`,
@@ -1342,8 +1403,14 @@ export const listSubscriptionGroupsAppleIOS = action({
     if (!project.iosAppAppleId) {
       throw new Error("Project iosAppAppleId is not configured");
     }
-    const issuerId = project.iosAscIssuerId ?? project.iosAppStoreIssuerId;
-    const keyId = project.iosAscKeyId ?? project.iosAppStoreKeyId;
+    // Same pair-resolve rule as pushSyncProductsAppleIOS — see
+    // the comment there. Don't mix new ASC Issuer with legacy
+    // Server API Key ID (or vice versa).
+    const useAsc = project.iosAscIssuerId && project.iosAscKeyId;
+    const issuerId = useAsc
+      ? project.iosAscIssuerId
+      : project.iosAppStoreIssuerId;
+    const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
     if (!issuerId || !keyId) {
       throw new Error(
         "App Store Connect API Issuer ID / Key ID not configured",

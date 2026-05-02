@@ -148,14 +148,13 @@ export const listSubscriptions = query({
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
-    // Over-fetch enough to honor an in-memory `productId` filter
-    // without scanning the entire table, but cap so a project with
-    // millions of expired subs can't blow Convex's read budget.
-    // Indexes don't cover (state, productId) so we still do an
-    // in-memory filter for productId — over-fetching by 4× keeps the
-    // dashboard's filter UX reactive in the common case while the
-    // bound prevents a runaway query.
-    const fetchLimit = args.productId ? Math.min(limit * 4, 500) : limit;
+    // Pick the most-selective index for the supplied filters. Schema
+    // covers (projectId, state), (projectId, userId), (projectId,
+    // productId), and (projectId, updatedAt) — so any single filter
+    // hits an index directly. State + productId combinations
+    // over-fetch from by_project_and_state and post-filter on
+    // productId in memory (no composite index covers both).
+    const stateAndProductOverfetch = args.state && args.productId ? 4 : 1;
 
     let rows: Array<Doc<"subscriptions">>;
     if (args.state) {
@@ -165,7 +164,15 @@ export const listSubscriptions = query({
           q.eq("projectId", project._id).eq("state", args.state!),
         )
         .order("desc")
-        .take(fetchLimit);
+        .take(limit * stateAndProductOverfetch);
+    } else if (args.productId) {
+      rows = await ctx.db
+        .query("subscriptions")
+        .withIndex("by_project_and_product", (q) =>
+          q.eq("projectId", project._id).eq("productId", args.productId!),
+        )
+        .order("desc")
+        .take(limit);
     } else if (args.userId) {
       rows = await ctx.db
         .query("subscriptions")
@@ -173,7 +180,7 @@ export const listSubscriptions = query({
           q.eq("projectId", project._id).eq("userId", args.userId),
         )
         .order("desc")
-        .take(fetchLimit);
+        .take(limit);
     } else {
       rows = await ctx.db
         .query("subscriptions")
@@ -181,10 +188,13 @@ export const listSubscriptions = query({
           q.eq("projectId", project._id),
         )
         .order("desc")
-        .take(fetchLimit);
+        .take(limit);
     }
 
-    if (args.productId) {
+    // Only the (state, productId) combination needs an in-memory
+    // post-filter; all other branches already hit a single-column
+    // index that covers the supplied filter.
+    if (args.state && args.productId) {
       rows = rows.filter((row) => row.productId === args.productId);
     }
 
@@ -272,45 +282,48 @@ export const metricsSummary = query({
       };
     }
 
+    // Bound the scan so a project with 100k+ historical subs can't
+    // blow Convex's read budget on a dashboard render. The proper
+    // fix here is an incrementally-maintained `subscriptionStats`
+    // table (see purchaseStats for the existing pattern) — scheduled
+    // as a follow-up since it's a separate cron + write-path
+    // refactor. SUBS_SCAN_CAP captures up to 100x the typical
+    // active-subs count for a paid app, which is enough for the
+    // headline metrics card to be accurate; the badge degrades
+    // gracefully at higher volumes (the dashboard already labels
+    // counts as "approx" for projects above this threshold).
+    const SUBS_SCAN_CAP = 10_000;
     const all = await ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_updated", (q) =>
         q.eq("projectId", project._id),
       )
-      .collect();
+      .order("desc")
+      .take(SUBS_SCAN_CAP);
 
-    // Look up each productId's billingPeriod from the products table
-    // so we can normalize yearly / quarterly / weekly subs to monthly.
-    // Cached per-productId because a project can have thousands of
-    // active subs but typically <50 products.
-    const productIds = new Set(all.map((sub) => sub.productId));
+    // Single-pass scan over the project's products instead of N+1
+    // per-productId queries. Subscriptions reference productIds that
+    // exist on either iOS or Android (or both); we walk both
+    // platform indexes and key the resulting period map by
+    // productId, preferring whichever platform shipped a billing
+    // period when there's a duplicate.
     const periodByProductId = new Map<string, string | undefined>();
-    for (const productId of productIds) {
-      // Same productId can exist for both iOS + Android with the same
-      // billing period; either row's period works.
+    for (const platform of ["IOS", "Android"] as const) {
       const productRows = await ctx.db
         .query("products")
-        .withIndex("by_project_and_platform_and_product", (q) =>
-          q
-            .eq("projectId", project._id)
-            .eq("platform", "IOS")
-            .eq("productId", productId),
+        .withIndex("by_project_and_platform", (q) =>
+          q.eq("projectId", project._id).eq("platform", platform),
         )
-        .take(1);
-      const fallback = productRows[0]
-        ? productRows[0].billingPeriod
-        : (
-            await ctx.db
-              .query("products")
-              .withIndex("by_project_and_platform_and_product", (q) =>
-                q
-                  .eq("projectId", project._id)
-                  .eq("platform", "Android")
-                  .eq("productId", productId),
-              )
-              .take(1)
-          )[0]?.billingPeriod;
-      periodByProductId.set(productId, fallback);
+        .collect();
+      for (const product of productRows) {
+        if (
+          !periodByProductId.has(product.productId) ||
+          (periodByProductId.get(product.productId) === undefined &&
+            product.billingPeriod !== undefined)
+        ) {
+          periodByProductId.set(product.productId, product.billingPeriod);
+        }
+      }
     }
 
     const now = Date.now();
