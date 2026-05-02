@@ -112,6 +112,41 @@ export const upsertFromStore = internalMutation({
   },
 });
 
+// Persist the upstream resource id immediately after the create call
+// succeeds, *without* advancing state past Draft. The follow-up steps
+// (localization, price schedule) may still fail, and a hard failure
+// there shouldn't strand the upstream resource — the next sync needs
+// to find this row, see the populated storeRef, and resume from
+// step 2 instead of trying to create a duplicate. `markPushed`
+// remains the success path that flips state to Ready.
+export const markStoreRef = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    productId: v.string(),
+    platform: platformValidator,
+    storeRef: v.string(),
+  },
+  returns: v.union(v.id("products"), v.null()),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (!existing) return null;
+    await ctx.db.patch(existing._id, {
+      storeRef: args.storeRef,
+      syncedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return existing._id;
+  },
+});
+
 // After a successful push, write the upstream resource id back so the
 // next pull doesn't double-create.
 export const markPushed = internalMutation({
@@ -143,13 +178,14 @@ export const markPushed = internalMutation({
   },
 });
 
-// Pull every Draft iOS row that hasn't been pushed yet. Used by the
-// ASC push action. Subscriptions used to require `storeRef` to be
-// pre-populated with an ASC subscriptionGroup id (via dashboard /
-// MCP) — that contract is gone now: kit resolves a group via the
-// `subscriptionGroupName` operator-typed field at push time
-// (find-or-create against ASC), so `storeRef === undefined` means
-// "not yet pushed" for both subs and one-time IAPs uniformly.
+// Pull every Draft iOS row that the push pass should attempt. We do
+// NOT gate on `storeRef === undefined` here: a previous sync may have
+// successfully created the upstream resource (storeRef now populated)
+// but failed on a subsequent step (localization / price schedule).
+// Such rows stay in state=Draft and the push branch needs to revisit
+// them — using their existing storeRef to skip the create call and
+// retry only the failed steps. The push branch handles the
+// "skip create when storeRef already set" decision.
 export const listDraftIosProducts = internalQuery({
   args: { projectId: v.id("projects") },
   returns: v.array(
@@ -184,7 +220,7 @@ export const listDraftIosProducts = internalQuery({
       )
       .collect();
     return all
-      .filter((row) => row.state === "Draft" && row.storeRef === undefined)
+      .filter((row) => row.state === "Draft")
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,
@@ -233,8 +269,12 @@ export const listDraftAndroidProducts = internalQuery({
         q.eq("projectId", args.projectId).eq("platform", "Android"),
       )
       .collect();
+    // Mirror the iOS filter: state === Draft AND not already linked
+    // upstream. Without the storeRef guard, a Draft row that came in
+    // via Pull (already exists in Play Console) would be re-pushed on
+    // every sync, colliding on the SKU's create call.
     return all
-      .filter((row) => row.state === "Draft")
+      .filter((row) => row.state === "Draft" && row.storeRef === undefined)
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,

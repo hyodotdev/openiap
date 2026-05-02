@@ -44,9 +44,16 @@ export const getSetupStatus = query({
       };
     }
 
-    // We don't run an action from a query, so file-presence checks are
-    // a separate `internal.files.internal.*` lookup the dashboard can
-    // call. From here we report only field-level configuration.
+    // Pull the project's uploaded files once so we can both report
+    // field-level config AND surface .p8 / service-account presence
+    // in the same response — the dashboard's setup card was always
+    // rendering "missing" because the previous shape hardcoded both
+    // flags to false.
+    const projectFiles = await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", project._id))
+      .collect();
+
     const iosMissing: string[] = [];
     if (!project.iosBundleId) iosMissing.push("iosBundleId");
     if (!project.iosAppAppleId) iosMissing.push("iosAppAppleId");
@@ -77,11 +84,16 @@ export const getSetupStatus = query({
         missing: horizonMissing,
       },
       // The webhook receivers ALSO need the .p8 / service-account JSON
-      // file uploaded to the project; that's stored separately. The
-      // dashboard's setup card surfaces the file-upload state from a
-      // companion `files` query.
-      appleP8Uploaded: false,
-      googleServiceAccountUploaded: false,
+      // file uploaded to the project; check the `files` table directly
+      // so the setup card reflects what the operator has actually
+      // uploaded instead of always reporting "missing".
+      appleP8Uploaded: projectFiles.some(
+        (f) =>
+          f.purpose === "apple_p8_key" || f.purpose === "apple_p8_asc_api_key",
+      ),
+      googleServiceAccountUploaded: projectFiles.some(
+        (f) => f.purpose === "android_service_account",
+      ),
     };
   },
 });

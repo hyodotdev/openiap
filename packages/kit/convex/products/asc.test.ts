@@ -177,7 +177,7 @@ describe("pickActivePriceRow", () => {
     expect(pickActivePriceRow(rows)?.id).toBe("future-a");
   });
 
-  it("rejects future rows whose startDate matches today’s ISO string only when strictly greater", () => {
+  it("accepts a row whose startDate equals today (only strictly-future startDates are rejected)", () => {
     const rows = [
       { id: "starts-today", attributes: { startDate: today, endDate: null } },
     ];

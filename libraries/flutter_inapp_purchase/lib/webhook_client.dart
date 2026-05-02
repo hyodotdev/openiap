@@ -167,7 +167,12 @@ class _SseWebhookListener implements WebhookListener {
   bool _closed = false;
   String? _lastEventId;
   HttpClientRequest? _pendingRequest;
-  StreamSubscription<List<int>>? _bodySub;
+  // Subscribe to the *decoded* string stream so utf8.decoder.bind keeps
+  // its buffered ByteConversionSink across HTTP chunks. Decoding each
+  // chunk independently with utf8.decode(allowMalformed: true) silently
+  // dropped partial multi-byte sequences at chunk boundaries — the
+  // streaming decoder defers them until the next chunk arrives.
+  StreamSubscription<String>? _bodySub;
 
   @override
   Stream<WebhookEvent> get events => _events.stream;
@@ -244,9 +249,9 @@ class _SseWebhookListener implements WebhookListener {
     final completer = Completer<void>();
     final buffer = StringBuffer();
 
-    _bodySub = response.listen(
+    _bodySub = utf8.decoder.bind(response).listen(
       (chunk) {
-        buffer.write(utf8.decode(chunk, allowMalformed: true));
+        buffer.write(chunk);
         _drainSseFrames(buffer);
       },
       onError: (Object error, StackTrace stack) {

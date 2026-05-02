@@ -124,9 +124,16 @@ export default function ProjectPaywalls() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
   useEffect(() => {
+    // Hold the controller in a closure so the effect's cleanup can
+    // abort whichever fetch is in flight when the next edit lands —
+    // the previous code returned the cleanup *to setTimeout* instead
+    // of useEffect, so a slow stale response could resolve after a
+    // newer edit and overwrite previewHtml. The same cleanup also
+    // aborts on unmount.
+    let controller: AbortController | null = null;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
-      const controller = new AbortController();
+      controller = new AbortController();
       void fetch(`/v1/paywalls/preview/${encodeURIComponent(project.apiKey)}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -140,10 +147,10 @@ export default function ProjectPaywalls() {
         .catch(() => {
           /* ignore — preview is best-effort, last good HTML stays */
         });
-      return () => controller.abort();
     }, 250);
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      controller?.abort();
     };
   }, [previewPayload, project.apiKey]);
 

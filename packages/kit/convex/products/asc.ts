@@ -1027,6 +1027,12 @@ export const pushSyncProductsAppleIOS = action({
         { projectId: project._id },
       );
       for (const row of drafts) {
+        // Track failures pushed *for this row* so we can decide
+        // whether to flip state to Ready at the end. A partial setup
+        // (create succeeded, localization failed) leaves the row in
+        // Draft with a populated storeRef so the next sync can resume
+        // step 2 instead of re-creating the upstream resource.
+        const failuresAtStart = failures.length;
         try {
           if (row.type === "Subscription") {
             // Resolve the ASC subscriptionGroup from the operator-typed
@@ -1036,44 +1042,66 @@ export const pushSyncProductsAppleIOS = action({
             // there's *some* group rather than a hard failure. In
             // dry-run, list groups (read-only) and report which path
             // the real run would take instead of creating anything.
+            //
+            // Skip both group-resolve and create when this row already
+            // has a storeRef from a prior partially-successful sync —
+            // re-creating would either duplicate or 409 against ASC.
             const groupName = row.subscriptionGroupName ?? row.productId;
-            let groupId: string;
-            if (dryRun) {
-              const groups = await client.listSubscriptionGroups(appIdStr);
-              const existing = groups.data.find(
-                (g) => g.attributes.referenceName === groupName,
-              );
-              groupId = existing?.id ?? "(would-create)";
-              plannedWrites.push({
-                productId: row.productId,
-                step: existing
-                  ? "use existing subscription group"
-                  : "create subscription group",
-                detail: groupName,
-              });
-            } else {
-              groupId = await client.findOrCreateSubscriptionGroup({
-                appId: appIdStr,
-                referenceName: groupName,
-              });
-            }
             let storeRef: string;
-            if (dryRun) {
-              storeRef = "(would-create)";
-              plannedWrites.push({
-                productId: row.productId,
-                step: "create subscription",
-                detail: `${row.title} · ${mapBillingPeriodToAsc(row.billingPeriod)} · group=${groupName}`,
-              });
+            if (row.storeRef) {
+              storeRef = row.storeRef;
+              if (dryRun) {
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: "skip create (resuming partial sync)",
+                  detail: `existing storeRef=${storeRef}`,
+                });
+              }
             } else {
-              const result = await client.createSubscription({
-                groupId,
-                productId: row.productId,
-                name: row.title,
-                subscriptionPeriod: mapBillingPeriodToAsc(row.billingPeriod),
-                reviewNote: row.reviewNote,
-              });
-              storeRef = result.data.id;
+              let groupId: string;
+              if (dryRun) {
+                const groups = await client.listSubscriptionGroups(appIdStr);
+                const existing = groups.data.find(
+                  (g) => g.attributes.referenceName === groupName,
+                );
+                groupId = existing?.id ?? "(would-create)";
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: existing
+                    ? "use existing subscription group"
+                    : "create subscription group",
+                  detail: groupName,
+                });
+                storeRef = "(would-create)";
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: "create subscription",
+                  detail: `${row.title} · ${mapBillingPeriodToAsc(row.billingPeriod)} · group=${groupName}`,
+                });
+              } else {
+                groupId = await client.findOrCreateSubscriptionGroup({
+                  appId: appIdStr,
+                  referenceName: groupName,
+                });
+                const result = await client.createSubscription({
+                  groupId,
+                  productId: row.productId,
+                  name: row.title,
+                  subscriptionPeriod: mapBillingPeriodToAsc(row.billingPeriod),
+                  reviewNote: row.reviewNote,
+                });
+                storeRef = result.data.id;
+                // Persist the upstream id immediately so a subsequent
+                // step's failure doesn't lose the binding (and the
+                // next sync sees this row's storeRef populated and
+                // skips the create call above).
+                await ctx.runMutation(internal.products.sync.markStoreRef, {
+                  projectId: project._id,
+                  productId: row.productId,
+                  platform: "IOS",
+                  storeRef,
+                });
+              }
             }
             // Localize so reviewers see the human-readable name +
             // description instead of just the productId. ASC requires
@@ -1148,7 +1176,10 @@ export const pushSyncProductsAppleIOS = action({
                 reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
               });
             }
-            if (!dryRun) {
+            // Only flip state to Ready when every follow-up step
+            // succeeded. Partial setups stay in Draft (with storeRef
+            // populated) so the next sync resumes the missing pieces.
+            if (!dryRun && failures.length === failuresAtStart) {
               await ctx.runMutation(internal.products.sync.markPushed, {
                 projectId: project._id,
                 productId: row.productId,
@@ -1159,7 +1190,16 @@ export const pushSyncProductsAppleIOS = action({
             pushed += 1;
           } else {
             let storeRef: string;
-            if (dryRun) {
+            if (row.storeRef) {
+              storeRef = row.storeRef;
+              if (dryRun) {
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: "skip create (resuming partial sync)",
+                  detail: `existing storeRef=${storeRef}`,
+                });
+              }
+            } else if (dryRun) {
               storeRef = "(would-create)";
               plannedWrites.push({
                 productId: row.productId,
@@ -1176,6 +1216,15 @@ export const pushSyncProductsAppleIOS = action({
                 reviewNote: row.reviewNote,
               });
               storeRef = result.data.id;
+              // Same partial-sync resilience as the Subscription
+              // branch — persist the upstream id before the
+              // localization / price steps that may fail.
+              await ctx.runMutation(internal.products.sync.markStoreRef, {
+                projectId: project._id,
+                productId: row.productId,
+                platform: "IOS",
+                storeRef,
+              });
             }
             if (dryRun) {
               plannedWrites.push({
@@ -1236,7 +1285,9 @@ export const pushSyncProductsAppleIOS = action({
                 reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
               });
             }
-            if (!dryRun) {
+            // Same gate as the Subscription branch — only flip Ready
+            // when no follow-up step recorded a failure for this row.
+            if (!dryRun && failures.length === failuresAtStart) {
               await ctx.runMutation(internal.products.sync.markPushed, {
                 projectId: project._id,
                 productId: row.productId,

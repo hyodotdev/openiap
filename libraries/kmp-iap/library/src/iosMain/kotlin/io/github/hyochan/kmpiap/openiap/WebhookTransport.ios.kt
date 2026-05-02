@@ -80,7 +80,13 @@ actual class WebhookTransport actual constructor(
             channel.close()
         }
         awaitClose {
-            closed = true
+            // Only cancel collector-scoped work here. The previous
+            // `closed = true` flipped the instance-wide flag, so once
+            // any collector cancelled, every subsequent events()
+            // subscription on the same WebhookTransport returned
+            // immediately (the launch{} body's `while (!closed)`
+            // guard short-circuited). Explicit close() remains the
+            // sole entry point for permanent shutdown.
             activeTask?.cancel()
             activeTask = null
             job.cancel()

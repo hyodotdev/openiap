@@ -62,16 +62,26 @@ actual class WebhookTransport actual constructor(
                         val frame = frameLines.toString()
                         frameLines.clear()
                         val parsed = parseSseFrame(frame)
-                        // Cursor advances ONLY after a successful emit
-                        // (parsed.event != null AND emit didn't throw).
-                        // Advancing before would move the reconnect
-                        // cursor past events the consumer never saw —
-                        // either control frames (heartbeat/ready) or
-                        // malformed payloads. Heartbeat/ready don't
-                        // carry an id from the server anyway.
+                        // Cursor advancement rules:
+                        //   - Successful parse + emit → advance, so a
+                        //     reconnect doesn't redeliver an event the
+                        //     consumer already saw.
+                        //   - Parse failed AND the frame carried an
+                        //     eventId → still advance. Otherwise the
+                        //     reconnect re-fetches the same poison-pill
+                        //     forever and newer events are blocked
+                        //     behind it. iOS already does this; the
+                        //     Android branch was missing the cursor
+                        //     bump on parse-null and could stall.
+                        //   - Heartbeat / ready / parse-null without
+                        //     an eventId → don't touch resumeId
+                        //     (those frames never carry an id from the
+                        //     server anyway).
                         val event = parsed.event
                         if (event != null) {
                             emit(event)
+                            parsed.eventId?.let { resumeId = it }
+                        } else if (parsed.shouldAdvanceCursorOnDrop) {
                             parsed.eventId?.let { resumeId = it }
                         }
                         continue
@@ -101,6 +111,11 @@ private data class ParsedSseFrame(
     val eventId: String?,
     val eventType: String?,
     val event: WebhookEvent?,
+    // True when the frame carried an eventId AND parsing failed,
+    // signaling the caller to advance the reconnect cursor anyway so
+    // the malformed payload doesn't block all future events behind a
+    // poison-pill replay.
+    val shouldAdvanceCursorOnDrop: Boolean = false,
 )
 
 private fun parseSseFrame(frame: String): ParsedSseFrame {
@@ -129,5 +144,10 @@ private fun parseSseFrame(frame: String): ParsedSseFrame {
         return ParsedSseFrame(eventId, eventType, null)
     }
     val event = WebhookEventParser.parse(data.toString())
-    return ParsedSseFrame(eventId, eventType, event)
+    return ParsedSseFrame(
+        eventId = eventId,
+        eventType = eventType,
+        event = event,
+        shouldAdvanceCursorOnDrop = event == null && eventId != null,
+    )
 }

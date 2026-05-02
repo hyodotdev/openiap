@@ -1,5 +1,4 @@
 import { query } from "../_generated/server";
-import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 
 import {
@@ -127,56 +126,35 @@ export const webhookEventsSince = query({
 
     const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
 
-    // Walking pagination so a saturated `receivedAt` cohort can't
-    // strand the SSE consumer. Previously we did a single take(2x) and
-    // post-filtered by `_creationTime > afterCreationTime`. If a single
-    // millisecond contained ≥ fetchLimit events that all landed at or
-    // before `afterCreationTime`, the filter returned [] and the SSE
-    // loop in webhooks.ts treated it as "no more events" — permanently
-    // skipping the rest of that cohort.
-    //
-    // Now: advance a `cursor` past the last receivedAt we observed
-    // each iteration. Bounded by `maxAttempts` so a pathological
-    // collation can't loop forever, but enough to drain any realistic
-    // burst (Apple/Google fire well under 1000 events/ms in practice).
+    // Single-batch fetch: take up to 2× when an `afterCreationTime`
+    // cursor is in play so the in-memory filter still has `limit`
+    // events to return after dropping any rows that landed at the
+    // boundary millisecond but at-or-before the prior tip. The
+    // saturated-cohort case is handled at the SSE layer in
+    // webhooks.ts (which loops with the tuple cursor
+    // `(receivedAt, _creationTime)` until merged.length === limit) —
+    // an inner loop here would either also have to advance by `+1ms`
+    // (skipping events still in the boundary millisecond) or
+    // duplicate the SSE loop's logic, so keep the query primitive.
     const fetchLimit = args.afterCreationTime
       ? Math.min(limit * 2, 1000)
       : limit;
-    const merged: Array<Doc<"webhookEvents">> = [];
-    let cursor = args.sinceMs;
-    let attempts = 0;
-    const maxAttempts = 10;
-    while (merged.length < limit && attempts < maxAttempts) {
-      const raw = await ctx.db
-        .query("webhookEvents")
-        .withIndex("by_project_and_received", (q) =>
-          q.eq("projectId", project._id).gte("receivedAt", cursor),
-        )
-        .order("asc")
-        .take(fetchLimit);
-      if (raw.length === 0) break;
-      // Apply tuple-cursor filter (`receivedAt`, `_creationTime`).
-      // Any event past the original `sinceMs` boundary passes; events
-      // *at* the boundary need to also exceed `afterCreationTime`.
-      const filtered = args.afterCreationTime
+    const raw = await ctx.db
+      .query("webhookEvents")
+      .withIndex("by_project_and_received", (q) =>
+        q.eq("projectId", project._id).gte("receivedAt", args.sinceMs),
+      )
+      .order("asc")
+      .take(fetchLimit);
+    const events = (
+      args.afterCreationTime
         ? raw.filter(
             (e) =>
               e.receivedAt > args.sinceMs ||
               e._creationTime > args.afterCreationTime!,
           )
-        : raw;
-      merged.push(...filtered);
-      // Bail out if Convex returned a partial page (= no more rows
-      // match the index range; further fetches would just re-scan).
-      if (raw.length < fetchLimit) break;
-      // Otherwise advance the receivedAt cursor past the last row
-      // observed so we don't re-fetch the same window. +1ms because
-      // the index range is `gte`. The within-millisecond filter above
-      // still de-dupes if the next page somehow re-overlaps.
-      cursor = raw[raw.length - 1].receivedAt + 1;
-      attempts += 1;
-    }
-    const events = merged.slice(0, limit);
+        : raw
+    ).slice(0, limit);
 
     return events.map((event) => ({
       // GraphQL `id` is the stable per-notification identifier from
