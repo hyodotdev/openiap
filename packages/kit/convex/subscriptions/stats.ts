@@ -227,21 +227,27 @@ export const recomputeAllSubscriptionStats = internalMutation({
   returns: v.object({ recomputed: v.number() }),
   handler: async (ctx, args) => {
     const limit = args.batchSize ?? 100;
-    // Pick projects whose stats rows are oldest first so the recompute
-    // catches the most-drifted projects on each tick. Falls back to
-    // collecting projects from the active-subs side for projects that
-    // have never had stats computed (pre-rollout state).
-    const oldestStats = await ctx.db.query("subscriptionStats").collect();
+    // Walk the `by_updated_at` index ascending so the most-stale rows
+    // surface first. Take ~3× the project budget to dedupe by
+    // projectId (a project has one row per currency and we recompute
+    // the whole project once per batch slot) without walking past
+    // `limit` distinct projects' worth of stale data. Capped at
+    // SCAN_CAP so a corrupted clock skew can't make us scan the
+    // entire table.
+    const SCAN_CAP = Math.max(limit * 3, 300);
+    const stale = await ctx.db
+      .query("subscriptionStats")
+      .withIndex("by_updated_at")
+      .order("asc")
+      .take(SCAN_CAP);
     const seenProjects = new Set<string>();
-    const ordered = oldestStats
-      .sort((a, b) => a.updatedAt - b.updatedAt)
-      .map((row) => row.projectId)
-      .filter((id) => {
-        if (seenProjects.has(id)) return false;
-        seenProjects.add(id);
-        return true;
-      })
-      .slice(0, limit);
+    const ordered: Id<"projects">[] = [];
+    for (const row of stale) {
+      if (seenProjects.has(row.projectId)) continue;
+      seenProjects.add(row.projectId);
+      ordered.push(row.projectId);
+      if (ordered.length >= limit) break;
+    }
     let recomputed = 0;
     for (const projectId of ordered) {
       // Inline call — avoids an extra mutation hop per project.
@@ -252,6 +258,16 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
 });
 
+// Hard upper bound on how many subscription rows the recompute walks
+// per project. A project with more than this many rows will have its
+// counters slightly truncated (newer rows toward the head are
+// preferred via .order("desc")), and the next cron tick will pick the
+// project up again — incremental drift correction stays correct
+// because applySubscriptionEvent handles steady-state writes. The
+// cap exists to prevent a runaway project from busting Convex's
+// per-mutation document budget and stalling the entire cron.
+const RECOMPUTE_PER_PROJECT_CAP = 50_000;
+
 async function runRecompute(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -259,10 +275,16 @@ async function runRecompute(
   // Mirror of recomputeSubscriptionStats body; kept inline so the
   // cron loop doesn't pay an extra `runMutation` round-trip per
   // project. The exported handler delegates here too.
+  //
+  // Bounded by RECOMPUTE_PER_PROJECT_CAP so a single oversized
+  // project can't blow the cron's document-read budget. Walks newest
+  // first via .order("desc") so the cap (when it bites) keeps the
+  // most-recently-active subs which dominate the live counters.
   const rows = await ctx.db
     .query("subscriptions")
     .withIndex("by_project_and_updated", (q) => q.eq("projectId", projectId))
-    .collect();
+    .order("desc")
+    .take(RECOMPUTE_PER_PROJECT_CAP);
   const periodByProductId = new Map<string, string | undefined>();
   for (const platform of ["IOS", "Android"] as const) {
     const productRows = await ctx.db

@@ -312,13 +312,22 @@ export const metricsSummary = query({
       // backfill mutation does; for projects past the prior 10k cap
       // this is a one-time cost until `recomputeSubscriptionStats`
       // populates the table.
+      //
+      // Bounded by FALLBACK_SCAN_CAP so a project that's hugely past
+      // the prior 10k scan limit can't crash the dashboard render.
+      // The cap matches the previous implementation's bound; the
+      // first read after deploy schedules an async backfill via the
+      // drift-correction cron, after which subsequent reads come
+      // out of subscriptionStats and have no scan at all.
+      const FALLBACK_SCAN_CAP = 10_000;
       const periodByProductId = await loadPeriodByProductId(ctx, project._id);
       const allSubs = await ctx.db
         .query("subscriptions")
         .withIndex("by_project_and_updated", (q) =>
           q.eq("projectId", project._id),
         )
-        .collect();
+        .order("desc")
+        .take(FALLBACK_SCAN_CAP);
       for (const sub of allSubs) {
         if (sub.state === "Active" && isActive(sub, now)) {
           activeSubs += 1;

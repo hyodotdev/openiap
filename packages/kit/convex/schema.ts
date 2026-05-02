@@ -661,7 +661,11 @@ const schema = defineSchema({
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
-    .index("by_project_and_currency", ["projectId", "currency"]),
+    .index("by_project_and_currency", ["projectId", "currency"])
+    // Ordered scan for `recomputeAllSubscriptionStats` cron picker —
+    // walks the most-stale rows first via .order("asc").take(limit)
+    // so we never collect the whole table to sort it client-side.
+    .index("by_updated_at", ["updatedAt"]),
 
   // Daily revenue metrics rollup keyed by (projectId, day, productId,
   // currency). Populated by `recomputeRevenueMetrics` cron (recomputes
