@@ -148,6 +148,15 @@ export const listSubscriptions = query({
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
+    // Over-fetch enough to honor an in-memory `productId` filter
+    // without scanning the entire table, but cap so a project with
+    // millions of expired subs can't blow Convex's read budget.
+    // Indexes don't cover (state, productId) so we still do an
+    // in-memory filter for productId — over-fetching by 4× keeps the
+    // dashboard's filter UX reactive in the common case while the
+    // bound prevents a runaway query.
+    const fetchLimit = args.productId ? Math.min(limit * 4, 500) : limit;
+
     let rows: Array<Doc<"subscriptions">>;
     if (args.state) {
       rows = await ctx.db
@@ -156,7 +165,7 @@ export const listSubscriptions = query({
           q.eq("projectId", project._id).eq("state", args.state!),
         )
         .order("desc")
-        .collect();
+        .take(fetchLimit);
     } else if (args.userId) {
       rows = await ctx.db
         .query("subscriptions")
@@ -164,7 +173,7 @@ export const listSubscriptions = query({
           q.eq("projectId", project._id).eq("userId", args.userId),
         )
         .order("desc")
-        .collect();
+        .take(fetchLimit);
     } else {
       rows = await ctx.db
         .query("subscriptions")
@@ -172,16 +181,57 @@ export const listSubscriptions = query({
           q.eq("projectId", project._id),
         )
         .order("desc")
-        .take(500);
+        .take(fetchLimit);
     }
 
     if (args.productId) {
       rows = rows.filter((row) => row.productId === args.productId);
     }
 
+    // `total` reflects the filtered window we actually materialized,
+    // not the full server-side count. Computing a true total would
+    // require a separate aggregate scan that defeats the take() bound
+    // we just put in. The dashboard treats `total` as "rows shown
+    // matching the current filter" and surfaces "+ more" affordances
+    // via the next page request.
     return { items: rows.slice(0, limit).map(shapeRow), total: rows.length };
   },
 });
+
+// Normalize a single subscription's recurring charge to a *monthly*
+// micros figure so MRR can sum across products with different billing
+// periods. Formula uses calendar averages — yearly /12, weekly *4.345
+// (= 52.14/12), bi-weekly *2.17, daily *30.44 — chosen to land in the
+// same order of magnitude as the standard SaaS MRR convention. The
+// previous implementation summed `priceAmountMicros` raw, so a $120/yr
+// plan inflated MRR by 12×.
+function monthlyMicrosForSub(
+  sub: Doc<"subscriptions">,
+  productPeriod: string | undefined,
+): number {
+  if (typeof sub.priceAmountMicros !== "number") return 0;
+  const amount = sub.priceAmountMicros;
+  switch (productPeriod) {
+    case "P1Y":
+      return Math.round(amount / 12);
+    case "P6M":
+      return Math.round(amount / 6);
+    case "P3M":
+      return Math.round(amount / 3);
+    case "P2M":
+      return Math.round(amount / 2);
+    case "P1W":
+      return Math.round(amount * 4.345);
+    case "P3D":
+      return Math.round(amount * (30.44 / 3));
+    case "P2W":
+      return Math.round(amount * (30.44 / 14));
+    case "P1M":
+    case undefined:
+    default:
+      return amount;
+  }
+}
 
 // Lightweight metrics aggregation. For high-volume projects this should
 // move to the daily rollup table; for v0 we compute live from
@@ -194,8 +244,18 @@ export const metricsSummary = query({
     inBillingRetry: v.number(),
     refunded30d: v.number(),
     canceled30d: v.number(),
+    // Headline MRR in the project's most-popular currency, normalized
+    // to monthly. Historical field name kept for backward compat with
+    // dashboard / MCP consumers.
     mrrMicros: v.number(),
     currency: v.optional(v.string()),
+    // Full per-currency breakdown so consumers that care about
+    // multi-currency aren't left guessing. Each entry's `mrrMicros`
+    // is summed only over subscriptions in that currency, normalized
+    // to monthly via the product's billingPeriod.
+    mrrByCurrency: v.array(
+      v.object({ currency: v.string(), mrrMicros: v.number() }),
+    ),
   }),
   handler: async (ctx, args) => {
     const project = await projectByApiKey(ctx, args.apiKey);
@@ -208,6 +268,7 @@ export const metricsSummary = query({
         canceled30d: 0,
         mrrMicros: 0,
         currency: undefined,
+        mrrByCurrency: [],
       };
     }
 
@@ -218,6 +279,40 @@ export const metricsSummary = query({
       )
       .collect();
 
+    // Look up each productId's billingPeriod from the products table
+    // so we can normalize yearly / quarterly / weekly subs to monthly.
+    // Cached per-productId because a project can have thousands of
+    // active subs but typically <50 products.
+    const productIds = new Set(all.map((sub) => sub.productId));
+    const periodByProductId = new Map<string, string | undefined>();
+    for (const productId of productIds) {
+      // Same productId can exist for both iOS + Android with the same
+      // billing period; either row's period works.
+      const productRows = await ctx.db
+        .query("products")
+        .withIndex("by_project_and_platform_and_product", (q) =>
+          q
+            .eq("projectId", project._id)
+            .eq("platform", "IOS")
+            .eq("productId", productId),
+        )
+        .take(1);
+      const fallback = productRows[0]
+        ? productRows[0].billingPeriod
+        : (
+            await ctx.db
+              .query("products")
+              .withIndex("by_project_and_platform_and_product", (q) =>
+                q
+                  .eq("projectId", project._id)
+                  .eq("platform", "Android")
+                  .eq("productId", productId),
+              )
+              .take(1)
+          )[0]?.billingPeriod;
+      periodByProductId.set(productId, fallback);
+    }
+
     const now = Date.now();
     const cutoff = now - 30 * 24 * 60 * 60 * 1000;
 
@@ -226,15 +321,20 @@ export const metricsSummary = query({
     let inBillingRetry = 0;
     let refunded30d = 0;
     let canceled30d = 0;
-    let mrrMicros = 0;
-    let currency: string | undefined;
+    const mrrAccumulators = new Map<string, number>();
 
     for (const sub of all) {
       if (sub.state === "Active" && isActive(sub, now)) {
         activeSubs += 1;
-        if (typeof sub.priceAmountMicros === "number") {
-          mrrMicros += sub.priceAmountMicros;
-          if (!currency && sub.currency) currency = sub.currency;
+        if (typeof sub.priceAmountMicros === "number" && sub.currency) {
+          const monthly = monthlyMicrosForSub(
+            sub,
+            periodByProductId.get(sub.productId),
+          );
+          mrrAccumulators.set(
+            sub.currency,
+            (mrrAccumulators.get(sub.currency) ?? 0) + monthly,
+          );
         }
       } else if (sub.state === "InGracePeriod") {
         inGracePeriod += 1;
@@ -254,14 +354,27 @@ export const metricsSummary = query({
       }
     }
 
+    // Pick the most-popular currency (largest accumulator) as the
+    // headline `currency` + `mrrMicros` so dashboards / MCP consumers
+    // that don't yet read the multi-currency breakdown still show a
+    // sensible single value. Stable tie-break via alphabetical sort.
+    const sorted = Array.from(mrrAccumulators.entries()).sort(
+      ([a, av], [b, bv]) => (bv !== av ? bv - av : a.localeCompare(b)),
+    );
+    const headline = sorted[0];
+
     return {
       activeSubs,
       inGracePeriod,
       inBillingRetry,
       refunded30d,
       canceled30d,
-      mrrMicros,
-      currency,
+      mrrMicros: headline ? headline[1] : 0,
+      currency: headline ? headline[0] : undefined,
+      mrrByCurrency: sorted.map(([currency, mrrMicros]) => ({
+        currency,
+        mrrMicros,
+      })),
     };
   },
 });

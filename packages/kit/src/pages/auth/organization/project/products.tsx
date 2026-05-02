@@ -17,9 +17,11 @@ export default function ProjectProducts() {
     apiKey: project.apiKey,
   });
   const upsert = useMutation(api.products.mutation.upsertProduct);
-  const syncApple = useAction(api.products.asc.pushSyncProductsApple);
+  const syncApple = useAction(api.products.asc.pushSyncProductsAppleIOS);
   const syncGoogle = useAction(api.products.play.pushSyncProductsGoogle);
-  const listAscGroups = useAction(api.products.asc.listSubscriptionGroupsApple);
+  const listAscGroups = useAction(
+    api.products.asc.listSubscriptionGroupsAppleIOS,
+  );
   // Cached ASC subscription group reference names for the
   // autocomplete. Populated lazily — on first focus of the group
   // input — so projects without ASC credentials configured don't

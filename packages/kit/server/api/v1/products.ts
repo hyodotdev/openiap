@@ -166,7 +166,7 @@ products.post("/:apiKey/sync/:platform", async (c) => {
   try {
     const result =
       platform === "ios"
-        ? await client.action(api.products.asc.pushSyncProductsApple, {
+        ? await client.action(api.products.asc.pushSyncProductsAppleIOS, {
             apiKey,
             direction,
           })

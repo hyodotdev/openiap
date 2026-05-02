@@ -780,7 +780,7 @@ function extractAscError(parsed: unknown): string {
 // = "Draft" / "Ready" upstream.
 // ---------------------------------------------------------------------------
 
-export const pushSyncProductsApple = action({
+export const pushSyncProductsAppleIOS = action({
   args: {
     apiKey: v.string(),
     direction: v.optional(
@@ -1280,7 +1280,7 @@ export const pushSyncProductsApple = action({
 // fetch only happens during full pull-sync. Failures bubble back as a
 // thrown Error so the dashboard can show a toast and degrade
 // gracefully (the field stays a free-text input).
-export const listSubscriptionGroupsApple = action({
+export const listSubscriptionGroupsAppleIOS = action({
   args: { apiKey: v.string() },
   returns: v.array(v.object({ id: v.string(), referenceName: v.string() })),
   handler: async (
