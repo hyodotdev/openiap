@@ -20,7 +20,13 @@ import { getProjectByApiKey } from "../purchases/shared";
 //   - inappproducts.patch  → kit → Play (update existing)
 //   - monetization.subscriptions.list/insert → subscription products
 // The `pushSyncProductsGoogle` action drives both directions.
-
+//
+// NOTE on action duration: same caveat as pushSyncProductsAppleIOS
+// — this handler walks the project's catalog sequentially with
+// per-page Promise.all fan-out. Convex actions have a 10-minute
+// hard ceiling. Typical commercial apps (<100 SKUs) finish well
+// inside that bound; catalogs >500 SKUs may need a batched +
+// scheduler-chained variant. Tracked as a follow-up.
 export const pushSyncProductsGoogle = action({
   args: {
     apiKey: v.string(),

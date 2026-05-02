@@ -806,6 +806,16 @@ function extractAscError(parsed: unknown): string {
 // = "Draft" / "Ready" upstream.
 // ---------------------------------------------------------------------------
 
+// NOTE on action duration: this handler runs sequentially across the
+// project's catalog (with mapWithConcurrency=6 fan-out per pull
+// step). Convex actions have a 10-minute hard ceiling. For typical
+// commercial apps with <100 SKUs the round trips finish in ~10-30s
+// even with throttled ASC. Catalogs north of ~500 SKUs may need
+// batching — splitting drafts into chunks and chaining
+// internal.scheduler runs from the kit dashboard. Tracked as a
+// follow-up; not addressed here because v0 SaaS targets the
+// long-tail-of-commercial-apps profile, not multi-thousand-SKU
+// enterprise catalogs.
 export const pushSyncProductsAppleIOS = action({
   args: {
     apiKey: v.string(),

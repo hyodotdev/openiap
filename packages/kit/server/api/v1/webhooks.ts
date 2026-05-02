@@ -382,7 +382,32 @@ webhooks.get("/stream/:apiKey", async (c) => {
     });
 
     const reactive = new ConvexClient(convexUrlForRealtime);
-    const seen = new Set<string>();
+    // Bounded dedup tracker: caps at SEEN_MAX entries with FIFO
+    // eviction so a long-lived SSE connection (days/weeks) can't
+    // grow the Set unbounded under high event volume. The window
+    // only needs to span "long enough that the live tail can't
+    // double-deliver an event we already drained from the backlog,"
+    // and Convex's reactive subscription only ever overlaps with
+    // the most recent few seconds of backlog — 5000 entries is
+    // ~5 minutes of high-volume webhook traffic, comfortably
+    // beyond the overlap window.
+    const SEEN_MAX = 5000;
+    const seenOrder: string[] = [];
+    const seenSet = new Set<string>();
+    const seen = {
+      has(id: string): boolean {
+        return seenSet.has(id);
+      },
+      add(id: string): void {
+        if (seenSet.has(id)) return;
+        seenSet.add(id);
+        seenOrder.push(id);
+        if (seenOrder.length > SEEN_MAX) {
+          const evicted = seenOrder.shift();
+          if (evicted !== undefined) seenSet.delete(evicted);
+        }
+      },
+    };
     // `liveStart` is the boundary between the backlog drain (paginated
     // HTTP queries) and the live tail (Convex `onUpdate` subscription
     // pinned to `sinceMs = liveStart`). Convex pins query args at

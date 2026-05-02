@@ -489,6 +489,17 @@ function renderPaywallHtml(
   // The `customHtml` feature is the explicit hatch for full
   // interactivity (with `window.openiap` injection + a documented
   // contract); customCss is meant for styling overrides only.
+  //
+  // Trade-off: regex sanitization is structurally incomplete — a
+  // motivated attacker could craft a CSS comment / Unicode escape
+  // chain to slip past these patterns. The realistic threat model
+  // here is bounded: customCss is only writable by callers holding
+  // the project apiKey (see paywalls/mutation.ts security note),
+  // so an exploit requires a leaked credential. A robust CSS-AST
+  // sanitizer (e.g. postcss-safe-parser + a strict allowlist of
+  // properties + url() schemes) would be the proper fix; deferred
+  // to the same publishable/secret-key follow-up since both
+  // hinge on a coherent multi-tenant security boundary.
   const safeCss = (paywall.customCss ?? "")
     .replace(
       /<\/?\s*(?:style|script|html|body|head|iframe|object|embed|link|meta|svg)[^>]*>/gi,

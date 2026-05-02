@@ -161,7 +161,12 @@ export function kitApi(options: KitApiOptions) {
       headers,
     });
     const text = await response.text();
-    let parsed: unknown = text;
+    // Empty body is normalized to `null` rather than the empty string
+    // — callers expecting JSON (status / entitlements / list*) would
+    // otherwise get a truthy "" and crash on property access. Errors
+    // still keep the raw text for the throw path so the operator
+    // sees whatever the server returned verbatim.
+    let parsed: unknown = text === "" ? null : text;
     if (text) {
       try {
         parsed = JSON.parse(text);

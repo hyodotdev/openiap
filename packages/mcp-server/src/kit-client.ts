@@ -34,7 +34,9 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       },
     });
     const text = await response.text();
-    let parsed: unknown = text;
+    // Empty body normalizes to null so callers expecting JSON don't
+    // get a truthy "" and crash on property access.
+    let parsed: unknown = text === "" ? null : text;
     if (text && response.headers.get("content-type")?.includes("json")) {
       try {
         parsed = JSON.parse(text);
