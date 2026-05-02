@@ -226,7 +226,14 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
   returns: v.object({ recomputed: v.number() }),
   handler: async (ctx, args) => {
-    const limit = args.batchSize ?? 100;
+    // Conservative default to stay well under Convex's 40k document-
+    // read-per-mutation limit. With each project's recompute potentially
+    // touching up to RECOMPUTE_PER_PROJECT_CAP=30k subs, even ~5-10
+    // projects per tick can flirt with the budget. The cron runs daily
+    // so 10 projects/tick still cycles through every project in a few
+    // weeks for any realistic deployment, and the incremental path
+    // keeps the live counters correct between cron runs anyway.
+    const limit = args.batchSize ?? 10;
     // Walk the `by_updated_at` index ascending so the most-stale rows
     // surface first. Take ~3× the project budget to dedupe by
     // projectId (a project has one row per currency and we recompute
@@ -259,14 +266,18 @@ export const recomputeAllSubscriptionStats = internalMutation({
 });
 
 // Hard upper bound on how many subscription rows the recompute walks
-// per project. A project with more than this many rows will have its
-// counters slightly truncated (newer rows toward the head are
-// preferred via .order("desc")), and the next cron tick will pick the
-// project up again — incremental drift correction stays correct
-// because applySubscriptionEvent handles steady-state writes. The
-// cap exists to prevent a runaway project from busting Convex's
-// per-mutation document budget and stalling the entire cron.
-const RECOMPUTE_PER_PROJECT_CAP = 50_000;
+// per project. Set conservatively below Convex's hard 40k document-
+// read limit per mutation transaction so a single project's
+// recompute can never blow the budget — the cron processes multiple
+// projects per tick and shares the read pool with the
+// `subscriptionStats` reads + writes below.
+//
+// A project with more than this many rows has its counters slightly
+// truncated (newer rows toward the head are preferred via
+// .order("desc")), and the next cron tick picks it up again —
+// incremental drift correction stays correct because
+// applySubscriptionEvent handles steady-state writes.
+const RECOMPUTE_PER_PROJECT_CAP = 30_000;
 
 async function runRecompute(
   ctx: MutationCtx,

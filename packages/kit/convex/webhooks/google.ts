@@ -268,10 +268,21 @@ async function maybeFetchSubscriptionInfo(
     });
     const androidpublisher = google.androidpublisher({ version: "v3", auth });
 
-    const response = await androidpublisher.purchases.subscriptionsv2.get({
-      packageName,
-      token: payload.subscriptionNotification.purchaseToken,
-    });
+    // Per-request timeout — googleapis defaults to no timeout, and a
+    // hung Play Developer API call would otherwise stall this Pub/Sub
+    // ack until Convex's 10-min action ceiling kills the whole
+    // pipeline. 10s is generous for what's usually a sub-second
+    // request; missed enrichment is benign (the webhook still
+    // dedups + flows through applySubscriptionEvent on the raw
+    // payload — we just lose the v2 expiry/cancel context for this
+    // notification, and the next event will have it).
+    const response = await androidpublisher.purchases.subscriptionsv2.get(
+      {
+        packageName,
+        token: payload.subscriptionNotification.purchaseToken,
+      },
+      { timeout: 10_000 },
+    );
 
     const data = response.data;
     const expiry =

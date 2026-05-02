@@ -71,7 +71,11 @@ crons.interval(
   "recompute subscription stats (drift correction)",
   { hours: 24 },
   internal.subscriptions.stats.recomputeAllSubscriptionStats,
-  { batchSize: 100 },
+  // batchSize=10 keeps the per-tick read budget well below Convex's
+  // 40k per-mutation cap (10 projects × up to 30k subs per project
+  // is the worst case, and that's already a deliberate truncation —
+  // the average is 1-2 orders of magnitude smaller).
+  { batchSize: 10 },
 );
 
 export default crons;

@@ -167,6 +167,11 @@ actual class WebhookTransport actual constructor(
 }
 
 private val SSE_LINE_SEPARATOR_IOS = Regex("\\r\\n|\\r|\\n")
+// Frame separator per WHATWG SSE spec: any two consecutive line
+// terminators (CR, LF, or CRLF). Used by the string-level frame loop
+// in SseDelegate.flushFrames so it stays in lockstep with the
+// byte-level findLastFrameBoundary scanner.
+private val SSE_FRAME_SEPARATOR_IOS = Regex("(\\r\\n|\\r|\\n){2}")
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private class SseDelegate(
@@ -247,14 +252,20 @@ private class SseDelegate(
             length = 0u.toULong(),
         )
         if (prefixNs == null) return
+        // Per WHATWG SSE, a frame separator is two consecutive line
+        // terminators where each is CR, LF, or CRLF. The byte-level
+        // findLastFrameBoundary above already honors that, but the
+        // string-level loop here previously only matched "\n\n" and
+        // "\r\n\r\n" — for mixed-terminator servers (e.g. "\r\r" or
+        // "\n\r\n") the byte scanner would consume the bytes but
+        // this loop would fail to find a separator and stall the
+        // stream. The regex matches any 2-terminator combination so
+        // the two scanners stay in lockstep.
         var content = prefixNs.toString()
         while (true) {
-            val sepIdx = content.indexOf("\n\n")
-            val lfIdx = if (sepIdx >= 0) sepIdx else content.indexOf("\r\n\r\n")
-            if (lfIdx < 0) break
-            val sepLen = if (sepIdx >= 0) 2 else 4
-            val frame = content.substring(0, lfIdx)
-            content = content.substring(lfIdx + sepLen)
+            val match = SSE_FRAME_SEPARATOR_IOS.find(content) ?: break
+            val frame = content.substring(0, match.range.first)
+            content = content.substring(match.range.last + 1)
             processFrame(frame)
         }
     }

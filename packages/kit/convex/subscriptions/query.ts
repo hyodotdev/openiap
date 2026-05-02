@@ -349,52 +349,40 @@ export const metricsSummary = query({
       }
     }
 
-    // 30-day rolling counters — these stay scan-based but use the
-    // `by_project_and_state` index so the candidate set is bounded
-    // by churn (typically thousands per project per month, not by
-    // total historical subs). The loop short-circuits on the first
-    // updatedAt below cutoff because the index returns rows in
-    // _creationTime order; that's a coarse correlation with
-    // updatedAt but not a strict ordering, so we keep walking until
-    // the index is exhausted to avoid missing late-arriving updates.
-    const refundedRows = await ctx.db
+    // 30-day rolling counters — bounded by churn rather than by
+    // historical state archive. The previous implementation walked
+    // every `Refunded` row + every (Active|InGracePeriod|InBillingRetry
+    // |Expired) row for the project and filtered in memory, which
+    // grew unbounded as the historical archive accumulated. We now
+    // do a single time-windowed scan via `by_project_and_updated`
+    // with `gte(cutoff)`, then derive both refunded + canceled
+    // counters in one pass. The candidate set is bounded by the
+    // last 30 days of state changes (typically thousands per
+    // project, never the full lifetime).
+    const recentlyChanged = await ctx.db
       .query("subscriptions")
-      .withIndex("by_project_and_state", (q) =>
-        q.eq("projectId", project._id).eq("state", "Refunded"),
+      .withIndex("by_project_and_updated", (q) =>
+        q.eq("projectId", project._id).gte("updatedAt", cutoff),
       )
       .collect();
     let refunded30d = 0;
-    for (const sub of refundedRows) {
-      if (sub.updatedAt >= cutoff) refunded30d += 1;
-    }
-
-    // Canceled = `willRenew === false` + UserCanceled within 30 days.
-    // The state can be Active / InGracePeriod / InBillingRetry /
-    // Expired depending on where in the lifecycle the cancel happened,
-    // so we scan all four indexes and union the results. This is
-    // bounded by the 30-day churn cohort + active-subs total, which
-    // for any realistic project is well under any practical cap.
     let canceled30d = 0;
-    for (const state of [
+    const CANCELED_STATES = new Set([
       "Active",
       "InGracePeriod",
       "InBillingRetry",
       "Expired",
-    ] as const) {
-      const rows = await ctx.db
-        .query("subscriptions")
-        .withIndex("by_project_and_state", (q) =>
-          q.eq("projectId", project._id).eq("state", state),
-        )
-        .collect();
-      for (const sub of rows) {
-        if (
-          sub.willRenew === false &&
-          sub.cancellationReason === "UserCanceled" &&
-          sub.updatedAt >= cutoff
-        ) {
-          canceled30d += 1;
-        }
+    ]);
+    for (const sub of recentlyChanged) {
+      if (sub.state === "Refunded") {
+        refunded30d += 1;
+      }
+      if (
+        sub.willRenew === false &&
+        sub.cancellationReason === "UserCanceled" &&
+        CANCELED_STATES.has(sub.state)
+      ) {
+        canceled30d += 1;
       }
     }
 

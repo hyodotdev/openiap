@@ -108,6 +108,7 @@ async function resolveAscCredentials(
 // "fetch failed".
 
 const ASC_BASE = "https://api.appstoreconnect.apple.com";
+const ASC_FETCH_TIMEOUT_MS = 30_000;
 
 type AscToken = { value: string; expiresAt: number };
 
@@ -139,15 +140,29 @@ class AscClient {
     path: string,
     init: RequestInit & { body?: string } = {},
   ): Promise<T> {
-    const response = await fetch(`${ASC_BASE}${path}`, {
-      ...init,
-      headers: {
-        authorization: `Bearer ${await this.token()}`,
-        ...(init.body ? { "content-type": "application/json" } : {}),
-        accept: "application/json",
-        ...(init.headers as Record<string, string> | undefined),
-      },
-    });
+    // Per-request timeout. ASC's REST surface is generally responsive
+    // (<1s for reads, 1-3s for writes), so 30s is a generous bound
+    // that catches a hung upstream long before the surrounding
+    // Convex action's 10-min ceiling. Without this, a single hung
+    // request can stall the entire push-sync pass — ASC has no
+    // server-sent keepalive on the REST endpoints.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ASC_FETCH_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch(`${ASC_BASE}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          authorization: `Bearer ${await this.token()}`,
+          ...(init.body ? { "content-type": "application/json" } : {}),
+          accept: "application/json",
+          ...(init.headers as Record<string, string> | undefined),
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     const text = await response.text();
     let parsed: unknown = text;
     if (text) {
