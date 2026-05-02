@@ -259,11 +259,17 @@ async function handleGoogleNotification(
     }
   }
 
+  // Decode the Pub/Sub `message.data` once and keep both the parsed
+  // form (used to build the typed payload) and the original UTF-8 text
+  // (passed through as `rawMessage` so consumers / auditors / future
+  // signature verifiers see exactly what Google sent — JSON.stringify
+  // would normalize spacing + key order and break any byte-level
+  // verification).
+  let decodedRaw: string;
   let decoded: Record<string, unknown>;
   try {
-    decoded = JSON.parse(
-      Buffer.from(body.message.data, "base64").toString("utf-8"),
-    );
+    decodedRaw = Buffer.from(body.message.data, "base64").toString("utf-8");
+    decoded = JSON.parse(decodedRaw);
   } catch {
     return c.json(
       {
@@ -314,7 +320,7 @@ async function handleGoogleNotification(
   try {
     const result = await client.action(api.webhooks.google.ingestGoogleRtdn, {
       apiKey,
-      rawMessage: JSON.stringify(decoded),
+      rawMessage: decodedRaw,
       payload,
     });
     return c.json({

@@ -278,7 +278,11 @@ class _SseWebhookListener implements WebhookListener {
 
   void _drainSseFrames(StringBuffer buffer) {
     var content = buffer.toString();
-    final frameSeparator = RegExp(r'\r?\n\r?\n');
+    // Per WHATWG SSE spec, a frame separator is two consecutive line
+    // terminators where each terminator is CR, LF, or CRLF. The prior
+    // `\r?\n\r?\n` only covered LF / CRLF and silently dropped frames
+    // from CR-only servers (rare but spec-allowed).
+    final frameSeparator = RegExp(r'(\r\n|\r|\n){2}');
     while (true) {
       final match = frameSeparator.firstMatch(content);
       if (match == null) break;
@@ -296,11 +300,16 @@ class _SseWebhookListener implements WebhookListener {
     String? eventName;
     String? eventId;
     final dataLines = <String>[];
-    for (final rawLine in frame.split(RegExp(r'\r?\n'))) {
+    // Split on any of CR / LF / CRLF (matches the spec's line terminator).
+    for (final rawLine in frame.split(RegExp(r'\r\n|\r|\n'))) {
       if (rawLine.startsWith(':')) continue; // SSE comment
       final colonIdx = rawLine.indexOf(':');
       if (colonIdx < 0) continue;
-      final field = rawLine.substring(0, colonIdx).trim();
+      // Per SSE spec the field name is everything before the first
+      // colon (verbatim, no trim) and only a single leading space is
+      // stripped from the value. Trimming the field name would
+      // mis-key fields if a server emitted accidental whitespace.
+      final field = rawLine.substring(0, colonIdx);
       var value = rawLine.substring(colonIdx + 1);
       if (value.startsWith(' ')) value = value.substring(1);
       switch (field) {

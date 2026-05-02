@@ -1,4 +1,5 @@
 "use node";
+import { createHash } from "node:crypto";
 import { v } from "convex/values";
 
 import { action, internalAction } from "../_generated/server";
@@ -103,11 +104,15 @@ export const reconcileHorizonEntitlements = internalAction({
         const { probe, granted, error } = result;
         if (error) {
           failures += 1;
+          // Don't log the raw probe.userId / probe.sku — those are
+          // user-linked identifiers and end up in stdout / log
+          // aggregators long-term. The purchaseToken hash is enough
+          // to correlate this entry to the row in `subscriptions`
+          // when an operator needs to investigate.
           console.warn(
             "[horizon-reconciler] check failed",
             project._id,
-            probe.userId,
-            probe.sku,
+            { tokenHash: hashForLog(probe.purchaseToken) },
             error instanceof Error ? error.message : error,
           );
           continue;
@@ -116,8 +121,14 @@ export const reconcileHorizonEntitlements = internalAction({
         // currently holds the entitlement. Map to the same event
         // types Apple/Google emit so the state machine / entitlements
         // query don't need a Horizon-specific branch.
+        //
+        // Increment `transitioned` only when recordHorizonStatus
+        // returns a non-null subscription id — it returns null when
+        // there's no matching subscription row to transition (e.g.
+        // the kit-side row was never created), in which case we
+        // didn't actually mutate anything.
         if (granted && probe.state !== "Active") {
-          await ctx.runMutation(
+          const updated = await ctx.runMutation(
             internal.subscriptions.horizonInternal.recordHorizonStatus,
             {
               projectId: project._id,
@@ -127,9 +138,9 @@ export const reconcileHorizonEntitlements = internalAction({
               eventType: "SubscriptionRenewed",
             },
           );
-          transitioned += 1;
+          if (updated) transitioned += 1;
         } else if (!granted && probe.state === "Active") {
-          await ctx.runMutation(
+          const updated = await ctx.runMutation(
             internal.subscriptions.horizonInternal.recordHorizonStatus,
             {
               projectId: project._id,
@@ -139,7 +150,7 @@ export const reconcileHorizonEntitlements = internalAction({
               eventType: "SubscriptionExpired",
             },
           );
-          transitioned += 1;
+          if (updated) transitioned += 1;
         }
       }
     }
@@ -198,8 +209,11 @@ export const reconcileHorizonNow = action({
           userId: probe.userId,
           sku: probe.sku,
         });
+        // See the matching note in reconcileHorizonEntitlements: only
+        // increment when recordHorizonStatus actually returned a
+        // subscription id (null = no matching row, no transition).
         if (granted && probe.state !== "Active") {
-          await ctx.runMutation(
+          const updated = await ctx.runMutation(
             internal.subscriptions.horizonInternal.recordHorizonStatus,
             {
               projectId: project._id,
@@ -209,9 +223,9 @@ export const reconcileHorizonNow = action({
               eventType: "SubscriptionRenewed",
             },
           );
-          transitioned += 1;
+          if (updated) transitioned += 1;
         } else if (!granted && probe.state === "Active") {
-          await ctx.runMutation(
+          const updated = await ctx.runMutation(
             internal.subscriptions.horizonInternal.recordHorizonStatus,
             {
               projectId: project._id,
@@ -221,7 +235,7 @@ export const reconcileHorizonNow = action({
               eventType: "SubscriptionExpired",
             },
           );
-          transitioned += 1;
+          if (updated) transitioned += 1;
         }
       } catch (error) {
         failures += 1;
@@ -232,6 +246,14 @@ export const reconcileHorizonNow = action({
   },
 });
 
+// Per-request timeout for the Meta Graph call. Without this, a hung
+// upstream stalls the cron action indefinitely; the action's outer
+// 10-min ceiling would still fire, but the tick would burn most of
+// that budget on a single dead probe instead of moving on. 10s is
+// generous for a single Graph endpoint while still letting a stalled
+// project's cron tick complete in a reasonable wall time.
+const HORIZON_FETCH_TIMEOUT_MS = 10_000;
+
 async function checkHorizonEntitlement(args: {
   appId: string;
   appAccessToken: string;
@@ -239,21 +261,41 @@ async function checkHorizonEntitlement(args: {
   sku: string;
 }): Promise<boolean> {
   const url = `${META_GRAPH_BASE}/${encodeURIComponent(args.appId)}/verify_entitlement`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      access_token: args.appAccessToken,
-      user_id: args.userId,
-      sku: args.sku,
-    }).toString(),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    HORIZON_FETCH_TIMEOUT_MS,
+  );
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      signal: controller.signal,
+      body: new URLSearchParams({
+        access_token: args.appAccessToken,
+        user_id: args.userId,
+        sku: args.sku,
+      }).toString(),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Meta Graph API ${res.status}: ${text.slice(0, 256)}`);
   }
   const body = (await res.json()) as { success?: boolean };
   return body.success === true;
+}
+
+// Privacy-safe one-way fingerprint of a purchase token for log lines.
+// We only need enough entropy to disambiguate "the same row keeps
+// failing" vs "every probe is failing"; truncating SHA-1 to 12 hex
+// chars (~48 bits) is collision-resistant enough to identify a row
+// without surfacing the original identifier in stdout.
+function hashForLog(input: string): string {
+  return createHash("sha1").update(input).digest("hex").slice(0, 12);
 }
 
 // Re-export with proper Id type usage so consumers in the same module
