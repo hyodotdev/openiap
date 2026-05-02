@@ -175,30 +175,32 @@ export const ingestAppleAsnIOS = action({
       },
     );
 
-    // Skip subscription state update on dedup-replay so transitions stay
-    // single-shot. The state mutation is itself idempotent against
-    // `lastEventId` but bypassing here keeps the action telemetry honest.
-    if (!result.deduped) {
-      await ctx.runMutation(
-        internal.subscriptions.internal.applySubscriptionEvent,
-        {
-          projectId: project._id,
-          eventId: result.eventId,
-          event: {
-            type: normalized.type,
-            productId: normalized.productId,
-            subscriptionState: normalized.subscriptionState,
-            expiresAt: normalized.expiresAt,
-            renewsAt: normalized.renewsAt,
-            cancellationReason: normalized.cancellationReason,
-            currency: normalized.currency,
-            priceAmountMicros: normalized.priceAmountMicros,
-            platform: normalized.platform,
-            purchaseToken: normalized.purchaseToken,
-          },
+    // Always run applySubscriptionEvent — the mutation is idempotent
+    // against `lastEventId`, so a no-op when the row is already at
+    // this eventId is cheap. Skipping on dedup looked tidy in
+    // telemetry but left the subscription stranded if the previous
+    // attempt recorded the event then crashed before patching the
+    // subscription row, since every Apple retry would dedup before
+    // ever reaching the state mutation.
+    await ctx.runMutation(
+      internal.subscriptions.internal.applySubscriptionEvent,
+      {
+        projectId: project._id,
+        eventId: result.eventId,
+        event: {
+          type: normalized.type,
+          productId: normalized.productId,
+          subscriptionState: normalized.subscriptionState,
+          expiresAt: normalized.expiresAt,
+          renewsAt: normalized.renewsAt,
+          cancellationReason: normalized.cancellationReason,
+          currency: normalized.currency,
+          priceAmountMicros: normalized.priceAmountMicros,
+          platform: normalized.platform,
+          purchaseToken: normalized.purchaseToken,
         },
-      );
-    }
+      },
+    );
 
     return {
       eventId: result.eventId,

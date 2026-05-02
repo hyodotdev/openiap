@@ -83,11 +83,15 @@ export function useWebhookEvents({
 
   // Stash callbacks in refs so reconnects don't fire on every render.
   // The underlying SSE connection should only restart when `apiKey` /
-  // `baseUrl` / `eventSourceFactory` change.
+  // `baseUrl` / `eventSourceFactory` change. `bufferSize` is also a
+  // ref so adjusting the buffer cap from the host component doesn't
+  // tear down the stream and lose in-flight events.
   const onEventRef = useRef(onEvent);
   const onErrorRef = useRef(onError);
+  const bufferSizeRef = useRef(bufferSize);
   onEventRef.current = onEvent;
   onErrorRef.current = onError;
+  bufferSizeRef.current = bufferSize;
 
   useEffect(() => {
     if (!apiKey) {
@@ -107,8 +111,9 @@ export function useWebhookEvents({
             return;
           }
           setIsConnected(true);
-          if (bufferSize > 0) {
-            setEvents((prev) => [event, ...prev].slice(0, bufferSize));
+          const cap = bufferSizeRef.current;
+          if (cap > 0) {
+            setEvents((prev) => [event, ...prev].slice(0, cap));
           }
           onEventRef.current?.(event);
         },
@@ -138,7 +143,11 @@ export function useWebhookEvents({
       listener?.close();
       setIsConnected(false);
     };
-  }, [apiKey, baseUrl, bufferSize, eventSourceFactory]);
+    // NOTE: pass `eventSourceFactory` from a useMemo / useCallback /
+    // module-level constant on the caller's side. An anonymous
+    // function literal will change identity every render and tear
+    // down the SSE connection on each re-render.
+  }, [apiKey, baseUrl, eventSourceFactory]);
 
   return {events, lastError, isConnected};
 }

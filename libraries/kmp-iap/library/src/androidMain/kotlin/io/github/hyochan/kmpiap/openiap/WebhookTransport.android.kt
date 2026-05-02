@@ -41,7 +41,15 @@ actual class WebhookTransport actual constructor(
                     setRequestProperty("Last-Event-ID", resumeId)
                 }
                 connectTimeout = 30_000
-                readTimeout = 0 // SSE is long-lived; no read timeout
+                // 60s read timeout — long enough for the kit's 25s
+                // heartbeat to keep the connection alive under
+                // healthy conditions, but tight enough that a half-
+                // open TCP state (NAT timeout, dropped Wi-Fi) trips a
+                // SocketTimeoutException quickly so the reconnect
+                // back-off can kick in. The previous value of 0
+                // disabled the timeout entirely, which left dead
+                // connections wedged until the OS cleared them.
+                readTimeout = 60_000
                 doInput = true
             }
             activeConnection = connection

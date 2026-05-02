@@ -459,13 +459,32 @@ function renderPaywallHtml(
   const imageMap = new Map(
     (paywall.productImages ?? []).map((p) => [p.productId, p.imageUrl]),
   );
-  // Strip </style>, <script…>, and HTML tags from operator-supplied
-  // CSS so it can't break out of the <style> block or inject script.
-  // Plain CSS ({}@:#-… and the like) passes through unchanged.
-  const safeCss = (paywall.customCss ?? "").replace(
-    /<\/?\s*(?:style|script|html|body|head|iframe|object|embed)[^>]*>/gi,
-    "",
-  );
+  // Defense-in-depth sanitization for operator-supplied CSS:
+  //   1) Strip HTML / script tags so the value can't break out of
+  //      the <style> block.
+  //   2) Strip CSS-specific script vectors that some browsers used
+  //      to evaluate as JS — `expression()` (legacy IE/Edge),
+  //      `-moz-binding` (Firefox XBL bindings), `behavior:` (IE),
+  //      and `url(...)` payloads pointing at `javascript:` /
+  //      `vbscript:` / `data:text/...` schemes.
+  //   3) Strip @import — operators can host fonts via direct CSS
+  //      properties without pulling third-party stylesheets in.
+  // The `customHtml` feature is the explicit hatch for full
+  // interactivity (with `window.openiap` injection + a documented
+  // contract); customCss is meant for styling overrides only.
+  const safeCss = (paywall.customCss ?? "")
+    .replace(
+      /<\/?\s*(?:style|script|html|body|head|iframe|object|embed|link|meta|svg)[^>]*>/gi,
+      "",
+    )
+    .replace(/expression\s*\([^)]*\)/gi, "")
+    .replace(/-moz-binding\s*:[^;]*;?/gi, "")
+    .replace(/behavior\s*:[^;]*;?/gi, "")
+    .replace(
+      /url\s*\(\s*(['"]?)\s*(?:javascript|vbscript|data:text\/(?:html|javascript))[^)]*\)/gi,
+      "url()",
+    )
+    .replace(/@import\b[^;]*;?/gi, "");
   // Defaults match the OpenIAP brand chrome (warm tan primary,
   // terracotta accent, zinc dark background) so an unconfigured
   // paywall feels like part of the kit rather than the iOS-blue

@@ -148,27 +148,31 @@ export const ingestGoogleRtdn = action({
       },
     );
 
-    if (!result.deduped) {
-      await ctx.runMutation(
-        internal.subscriptions.internal.applySubscriptionEvent,
-        {
-          projectId: project._id,
-          eventId: result.eventId,
-          event: {
-            type: normalized.type,
-            productId: normalized.productId,
-            subscriptionState: normalized.subscriptionState,
-            expiresAt: normalized.expiresAt,
-            renewsAt: normalized.renewsAt,
-            cancellationReason: normalized.cancellationReason,
-            currency: normalized.currency,
-            priceAmountMicros: normalized.priceAmountMicros,
-            platform: normalized.platform,
-            purchaseToken: normalized.purchaseToken,
-          },
+    // Always run applySubscriptionEvent — see the matching note in
+    // webhooks/apple.ts. The mutation is idempotent on lastEventId so
+    // a no-op replay is cheap, but skipping on dedup left the
+    // subscription stranded if a previous attempt persisted the event
+    // then crashed before patching the subscription row (every Google
+    // RTDN retry would dedup before reaching the state mutation).
+    await ctx.runMutation(
+      internal.subscriptions.internal.applySubscriptionEvent,
+      {
+        projectId: project._id,
+        eventId: result.eventId,
+        event: {
+          type: normalized.type,
+          productId: normalized.productId,
+          subscriptionState: normalized.subscriptionState,
+          expiresAt: normalized.expiresAt,
+          renewsAt: normalized.renewsAt,
+          cancellationReason: normalized.cancellationReason,
+          currency: normalized.currency,
+          priceAmountMicros: normalized.priceAmountMicros,
+          platform: normalized.platform,
+          purchaseToken: normalized.purchaseToken,
         },
-      );
-    }
+      },
+    );
 
     return {
       eventId: result.eventId,
