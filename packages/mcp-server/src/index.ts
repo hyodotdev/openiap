@@ -180,10 +180,20 @@ server.tool(
         client.health().catch((e) => ({ error: stringifyError(e) })),
         client.metrics().catch((e) => ({ error: stringifyError(e) })),
       ]);
+      // The tool description promises status + entitlement checks. Run
+      // both in parallel when a sampleUserId is supplied so diagnostics
+      // surface entitlement-specific failures (e.g. webhook-state drift)
+      // alongside the basic status probe — running just `status` left
+      // those blind.
       const userProbe = args.sampleUserId
-        ? await client
-            .status(args.sampleUserId)
-            .catch((e) => ({ error: stringifyError(e) }))
+        ? await Promise.all([
+            client
+              .status(args.sampleUserId)
+              .catch((e) => ({ error: stringifyError(e) })),
+            client
+              .entitlements(args.sampleUserId)
+              .catch((e) => ({ error: stringifyError(e) })),
+          ]).then(([status, entitlements]) => ({ status, entitlements }))
         : null;
       return ok({ health, metrics, userProbe });
     } catch (error) {

@@ -31,7 +31,12 @@ signal connected_to_stream()
 var _client: HTTPClient = HTTPClient.new()
 var _running: bool = false
 var _last_event_id: String = ""
-var _buffer: String = ""
+# Byte-oriented buffer so a multi-byte UTF-8 character split across two
+# HTTP chunks doesn't corrupt the decode. We only call
+# `get_string_from_utf8()` after the SSE frame separator is found —
+# `\n` / `\r` are pure ASCII so scanning for the boundary at the byte
+# level can't false-match inside a multi-byte codepoint.
+var _buffer: PackedByteArray = PackedByteArray()
 
 func _ready() -> void:
 	if auto_start:
@@ -74,15 +79,16 @@ func _open_and_drain() -> bool:
 	else:
 		host = parsed_uri
 		path_root = ""
-	var port := 443
-	var use_ssl := true
-	if trimmed.begins_with("http://"):
-		port = 80
-		use_ssl = false
-		var colon := host.find(":")
-		if colon >= 0:
-			port = int(host.substr(colon + 1))
-			host = host.substr(0, colon)
+	var use_ssl := not trimmed.begins_with("http://")
+	var port := 443 if use_ssl else 80
+	# Honor an explicit `host:port` override regardless of scheme.
+	# Prior behaviour only parsed the port for non-TLS URLs, so a
+	# custom HTTPS endpoint like `https://kit.example.com:8443` was
+	# silently dialled on 443 and the stream never opened.
+	var colon := host.find(":")
+	if colon >= 0:
+		port = int(host.substr(colon + 1))
+		host = host.substr(0, colon)
 
 	var connect_err := _client.connect_to_host(host, port, TLSOptions.client() if use_ssl else null)
 	if connect_err != OK:
@@ -116,12 +122,12 @@ func _open_and_drain() -> bool:
 	if _client.get_status() != HTTPClient.STATUS_BODY:
 		return false
 
-	_buffer = ""
+	_buffer = PackedByteArray()
 	while _client.get_status() == HTTPClient.STATUS_BODY and _running:
 		_client.poll()
 		var chunk: PackedByteArray = _client.read_response_body_chunk()
 		if chunk.size() > 0:
-			_buffer += chunk.get_string_from_utf8()
+			_buffer.append_array(chunk)
 			_drain_frames()
 		else:
 			await get_tree().process_frame
@@ -130,18 +136,40 @@ func _open_and_drain() -> bool:
 
 func _drain_frames() -> void:
 	# SSE frames are terminated by a blank line ("\n\n" or "\r\n\r\n").
+	# Operate on the byte buffer so that a UTF-8 codepoint split across
+	# two chunks is preserved until its trailing bytes arrive — the
+	# previous String-based buffer would have lost the head bytes when
+	# `get_string_from_utf8()` returned empty on an incomplete tail.
 	while true:
-		var idx := _buffer.find("\n\n")
-		var sep_len := 2
-		if idx < 0:
-			var idx_crlf := _buffer.find("\r\n\r\n")
-			if idx_crlf < 0:
-				return
-			idx = idx_crlf
-			sep_len = 4
-		var frame := _buffer.substr(0, idx)
-		_buffer = _buffer.substr(idx + sep_len)
+		var boundary := _find_frame_boundary(_buffer)
+		if boundary.idx < 0:
+			return
+		var frame_bytes := _buffer.slice(0, boundary.idx)
+		_buffer = _buffer.slice(boundary.idx + boundary.sep_len)
+		var frame := frame_bytes.get_string_from_utf8()
 		_process_frame(frame)
+
+# Returns {idx, sep_len} where idx is the byte offset of the first
+# CRLF-CRLF or LF-LF in the buffer, and sep_len is the byte length of
+# that separator. Returns idx = -1 when no complete frame has arrived.
+func _find_frame_boundary(buf: PackedByteArray) -> Dictionary:
+	var n := buf.size()
+	var i := 0
+	while i < n - 1:
+		# `\n\n`
+		if buf[i] == 0x0A and buf[i + 1] == 0x0A:
+			return { "idx": i, "sep_len": 2 }
+		# `\r\n\r\n`
+		if (
+			i < n - 3
+			and buf[i] == 0x0D
+			and buf[i + 1] == 0x0A
+			and buf[i + 2] == 0x0D
+			and buf[i + 3] == 0x0A
+		):
+			return { "idx": i, "sep_len": 4 }
+		i += 1
+	return { "idx": -1, "sep_len": 0 }
 
 func _process_frame(frame: String) -> void:
 	if frame.is_empty():
@@ -189,9 +217,14 @@ func _process_frame(frame: String) -> void:
 	var decoded = json.data
 	if typeof(decoded) != TYPE_DICTIONARY:
 		return
-	if not decoded.has("id") or not decoded.has("type") or not decoded.has("purchaseToken"):
-		emit_signal("stream_error", "MALFORMED_EVENT", "WebhookEvent missing required fields")
-		return
+	# `has(...)` returns true even for explicit-null fields, so an
+	# upstream payload like `{"id": null, ...}` would slip through and
+	# downstream listeners would see a partial event. Reject any
+	# required field that is missing OR null.
+	for required in ["id", "type", "purchaseToken"]:
+		if not decoded.has(required) or decoded[required] == null:
+			emit_signal("stream_error", "MALFORMED_EVENT", "WebhookEvent missing required fields")
+			return
 	emit_signal("event_received", decoded)
 	# Cursor advances only after a successful emit.
 	if not event_id.is_empty():

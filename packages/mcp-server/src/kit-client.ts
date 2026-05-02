@@ -75,7 +75,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       if (params.userId) usp.set("userId", params.userId);
       if (params.limit) usp.set("limit", String(params.limit));
       const qs = usp.toString();
-      return call<{ items: unknown[]; total: number }>(
+      return call<{ items: unknown[]; total?: number }>(
         `/v1/subscriptions/list/${encodeURIComponent(apiKey)}${qs ? `?${qs}` : ""}`,
       );
     },

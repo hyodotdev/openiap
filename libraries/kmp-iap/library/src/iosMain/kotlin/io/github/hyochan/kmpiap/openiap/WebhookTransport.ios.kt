@@ -5,12 +5,13 @@ import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.get
 import kotlinx.cinterop.reinterpret
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import platform.Foundation.NSData
@@ -53,10 +54,14 @@ actual class WebhookTransport actual constructor(
     private var closed: Boolean = false
     private var activeTask: NSURLSessionDataTask? = null
 
-    actual fun events(lastEventId: String?): Flow<WebhookEvent> {
-        val channel = Channel<WebhookEvent>(Channel.BUFFERED)
-        val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
+    // Reconnect lifecycle is tied to the collector via callbackFlow:
+    // when the collector cancels (or close() flips `closed`), awaitClose
+    // cancels the in-flight NSURLSession task and the launch{} body
+    // exits via the cancellation exception. The previous detached
+    // CoroutineScope kept reconnecting in the background even after
+    // every collector unsubscribed.
+    actual fun events(lastEventId: String?): Flow<WebhookEvent> = callbackFlow {
+        val job = launch {
             var resumeId = lastEventId
             var firstAttempt = true
             while (!closed) {
@@ -74,11 +79,16 @@ actual class WebhookTransport actual constructor(
             }
             channel.close()
         }
-        return channel.consumeAsFlow().flowOn(Dispatchers.Default)
-    }
+        awaitClose {
+            closed = true
+            activeTask?.cancel()
+            activeTask = null
+            job.cancel()
+        }
+    }.flowOn(Dispatchers.Default)
 
     private suspend fun runOnce(
-        channel: Channel<WebhookEvent>,
+        channel: SendChannel<WebhookEvent>,
         lastEventId: String?,
         updateLastEventId: (String) -> Unit,
     ): Boolean = try {
@@ -106,11 +116,19 @@ actual class WebhookTransport actual constructor(
         val byteBuffer = NSMutableData()
         val delegate = SseDelegate(channel, byteBuffer, updateLastEventId)
         val session = NSURLSession.sessionWithConfiguration(config, delegate, null)
-        val task = session.dataTaskWithRequest(request)
-        activeTask = task
-        task.resume()
-        delegate.awaitFinished()
-        true
+        try {
+            val task = session.dataTaskWithRequest(request)
+            activeTask = task
+            task.resume()
+            delegate.awaitFinished()
+            true
+        } finally {
+            // NSURLSession holds a strong reference to its delegate
+            // (the SseDelegate above) until the session is invalidated.
+            // Without this, every reconnect pass leaks the session +
+            // delegate + buffered NSMutableData chain.
+            session.finishTasksAndInvalidate()
+        }
     } catch (error: Throwable) {
         false
     } finally {
@@ -126,7 +144,7 @@ actual class WebhookTransport actual constructor(
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private class SseDelegate(
-    private val channel: Channel<WebhookEvent>,
+    private val channel: SendChannel<WebhookEvent>,
     private val byteBuffer: NSMutableData,
     private val updateLastEventId: (String) -> Unit,
 ) : NSObject(), NSURLSessionDataDelegateProtocol {

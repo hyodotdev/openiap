@@ -146,8 +146,8 @@ class _SseWebhookListener implements WebhookListener {
     required this.baseUrl,
     required this.reconnectDelay,
     HttpClient? httpClient,
-  }) : _httpClient = httpClient ?? HttpClient(),
-       _ownsHttpClient = httpClient == null;
+  })  : _httpClient = httpClient ?? HttpClient(),
+        _ownsHttpClient = httpClient == null;
 
   final String apiKey;
   final String baseUrl;
@@ -189,12 +189,26 @@ class _SseWebhookListener implements WebhookListener {
     await _errors.close();
   }
 
+  // Stream-controller adds during shutdown throw "StreamSink is closed".
+  // Wrap every emit so a transport error / final SSE frame that races
+  // close() doesn't crash the listener — the consumer has already
+  // unsubscribed by then anyway.
+  void _emitError(WebhookListenerError error) {
+    if (_closed || _errors.isClosed) return;
+    _errors.add(error);
+  }
+
+  void _emitEvent(WebhookEvent event) {
+    if (_closed || _events.isClosed) return;
+    _events.add(event);
+  }
+
   Future<void> start() async {
     while (!_closed) {
       try {
         await _runOnce();
       } catch (error, stack) {
-        _errors.add(
+        _emitError(
           WebhookListenerError(
             'TRANSPORT_ERROR',
             'SSE stream error: $error',
@@ -321,13 +335,13 @@ class _SseWebhookListener implements WebhookListener {
       } catch (_) {
         // Fall back to raw frame body.
       }
-      _errors.add(WebhookListenerError('STREAM_ERROR', message));
+      _emitError(WebhookListenerError('STREAM_ERROR', message));
       return;
     }
 
     final event = parseWebhookEventData(dataStr);
     if (event == null) {
-      _errors.add(
+      _emitError(
         WebhookListenerError(
           'MALFORMED_EVENT',
           'WebhookEvent missing required fields or unknown type',
@@ -335,7 +349,7 @@ class _SseWebhookListener implements WebhookListener {
       );
       return;
     }
-    _events.add(event);
+    _emitEvent(event);
     // Cursor advances only on successful enqueue. The reconnect path
     // resumes strictly past the last event we actually surfaced.
     if (eventId != null && eventId.isNotEmpty) {
