@@ -58,6 +58,14 @@ export function useWebhookEvents({
 
   const onEventRef = useRef(onEvent);
   const onErrorRef = useRef(onError);
+  // Hold `eventSourceFactory` in a ref too so a caller passing an
+  // anonymous function literal (the common React pitfall) doesn't
+  // tear down the SSE connection on every render. We still capture
+  // the latest factory so a runtime-config swap (e.g. apiKey changes
+  // and a new EventSource constructor is needed) is honored on the
+  // next connect, but the *identity* of the factory no longer drives
+  // useEffect.
+  const eventSourceFactoryRef = useRef(eventSourceFactory);
   // Holding bufferSize in a ref so adjusting it from the host
   // component doesn't tear down the SSE connection. Same reasoning
   // as onEvent / onError: a re-render with a new bufferSize would
@@ -66,6 +74,7 @@ export function useWebhookEvents({
   const bufferSizeRef = useRef(bufferSize);
   onEventRef.current = onEvent;
   onErrorRef.current = onError;
+  eventSourceFactoryRef.current = eventSourceFactory;
   bufferSizeRef.current = bufferSize;
 
   // Trim the existing buffer when the host lowers `bufferSize`
@@ -74,9 +83,7 @@ export function useWebhookEvents({
   // cap until traffic resumes — this effect enforces the cap
   // immediately on the change instead.
   useEffect(() => {
-    setEvents((prev) =>
-      bufferSize > 0 ? prev.slice(0, bufferSize) : [],
-    );
+    setEvents((prev) => (bufferSize > 0 ? prev.slice(0, bufferSize) : []));
   }, [bufferSize]);
 
   useEffect(() => {
@@ -98,7 +105,7 @@ export function useWebhookEvents({
       listener = connectWebhookStream({
         apiKey,
         baseUrl,
-        eventSourceFactory,
+        eventSourceFactory: eventSourceFactoryRef.current,
         onEvent: (event) => {
           if (!mounted) {
             return;
@@ -136,11 +143,13 @@ export function useWebhookEvents({
       listener?.close();
       setIsConnected(false);
     };
-    // NOTE: pass `eventSourceFactory` from a useMemo / useCallback /
-    // module-level constant on the caller's side. An anonymous
-    // function literal will change identity every render and tear
-    // down the SSE connection on each re-render.
-  }, [apiKey, baseUrl, eventSourceFactory]);
+    // `eventSourceFactory` deliberately omitted from deps — held in a
+    // ref above so anonymous-function callers don't trigger reconnects
+    // on every render. The connection is only re-opened when apiKey or
+    // baseUrl changes; a runtime factory swap is picked up on that
+    // next reconnect via the ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, baseUrl]);
 
   return {events, lastError, isConnected};
 }

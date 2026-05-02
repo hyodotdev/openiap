@@ -3318,7 +3318,7 @@ class WebhookEvent:
 	var received_at: float = 0.0
 	var environment: WebhookEventEnvironment
 	## Cross-platform purchase identity used to correlate this event with an existing
-	var purchase_token: String = ""
+	var purchase_token: Variant = null
 	## Product the event pertains to. May be null for account-level events.
 	var product_id: Variant = null
 	## Normalized subscription state at the time of event, when the event refers to
@@ -3420,7 +3420,8 @@ class WebhookEvent:
 			dict["environment"] = WEBHOOK_EVENT_ENVIRONMENT_VALUES[environment]
 		else:
 			dict["environment"] = environment
-		dict["purchaseToken"] = purchase_token
+		if purchase_token != null:
+			dict["purchaseToken"] = purchase_token
 		if product_id != null:
 			dict["productId"] = product_id
 		if SUBSCRIPTION_STATE_VALUES.has(subscription_state):

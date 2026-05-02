@@ -3995,8 +3995,10 @@ public data class WebhookEvent(
     /**
      * Cross-platform purchase identity used to correlate this event with an existing
      * purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+     * Null for `TestNotification` events (Apple ASN v2 / Google RTDN test
+     * payloads carry no transaction); always present for every other event type.
      */
-    val purchaseToken: String,
+    val purchaseToken: String? = null,
     /**
      * Original signed payload from the store. ASN v2 events expose the JWS string;
      * RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that
@@ -4034,7 +4036,7 @@ public data class WebhookEvent(
                 priceAmountMicros = (json["priceAmountMicros"] as? Number)?.toDouble(),
                 productId = json["productId"] as? String,
                 projectId = json["projectId"] as? String ?: "",
-                purchaseToken = json["purchaseToken"] as? String ?: "",
+                purchaseToken = json["purchaseToken"] as? String,
                 rawSignedPayload = json["rawSignedPayload"] as? String,
                 receivedAt = (json["receivedAt"] as? Number)?.toDouble() ?: 0.0,
                 renewsAt = (json["renewsAt"] as? Number)?.toDouble(),

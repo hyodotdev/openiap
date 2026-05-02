@@ -1,6 +1,40 @@
-import { internalMutation } from "../_generated/server";
+import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
+
+// Cheap pre-flight dedup probe used by webhooks/google.ts to avoid
+// burning Play Developer API quota on Pub/Sub retries. Returns the
+// existing eventId if the (projectId, source, sourceNotificationId)
+// triple has already been ingested; null otherwise. Distinct from
+// `recordWebhookEvent` because it's a query (no DB writes) and runs
+// inside the Pub/Sub action's pre-Play-API path so a retry of an
+// already-processed messageId can short-circuit before
+// `purchases.subscriptionsv2.get` ever fires.
+//
+// Note: this only checks the new project-keyed index. Legacy rows
+// (projectId == null) aren't checked here — they can still slip a
+// duplicate Play API call through, but the legacy fallback is rare
+// and `recordWebhookEvent` will still dedup the actual event row.
+export const lookupExistingEvent = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    source: v.union(v.literal("apple"), v.literal("google")),
+    sourceNotificationId: v.string(),
+  },
+  returns: v.union(v.null(), v.id("webhookEvents")),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("webhookIdempotencyKeys")
+      .withIndex("by_project_and_source_and_id", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("source", args.source)
+          .eq("sourceNotificationId", args.sourceNotificationId),
+      )
+      .unique();
+    return existing?.eventId ?? null;
+  },
+});
 
 // Insert a normalized webhook event with idempotency on
 // `(source, sourceNotificationId)`. Returns the existing event id
@@ -243,30 +277,63 @@ export const pruneWebhookEvents = internalMutation({
     // Promise.all here issues them in a single flight — Convex
     // serializes them internally on the storage layer but the
     // round-trip cost collapses.
+    //
+    // Two flavors per event:
+    //   1. project-keyed lookup via the `by_project_and_source_and_id`
+    //      index — covers every row written after the projectId rollout.
+    //   2. legacy fallback via `by_source_and_id` — pre-rollout rows
+    //      that point at this event but have `projectId == null`. We
+    //      can't query them through index 1, and the orphan sweep
+    //      below skips rows with a non-null `eventId`, so without
+    //      this they survive past the advertised retention window.
     const keysToDelete = await Promise.all(
-      oldEvents.map(async (event) =>
-        ctx.db
-          .query("webhookIdempotencyKeys")
-          .withIndex("by_project_and_source_and_id", (q) =>
-            q
-              .eq("projectId", event.projectId)
-              .eq(
-                "source",
-                event.source === "AppleAppStoreServerNotificationsV2"
-                  ? "apple"
-                  : "google",
-              )
-              .eq("sourceNotificationId", event.sourceNotificationId),
-          )
-          .unique(),
-      ),
+      oldEvents.map(async (event) => {
+        const source: "apple" | "google" =
+          event.source === "AppleAppStoreServerNotificationsV2"
+            ? "apple"
+            : "google";
+        const [keyed, legacyCandidates] = await Promise.all([
+          ctx.db
+            .query("webhookIdempotencyKeys")
+            .withIndex("by_project_and_source_and_id", (q) =>
+              q
+                .eq("projectId", event.projectId)
+                .eq("source", source)
+                .eq("sourceNotificationId", event.sourceNotificationId),
+            )
+            .unique(),
+          ctx.db
+            .query("webhookIdempotencyKeys")
+            .withIndex("by_source_and_id", (q) =>
+              q
+                .eq("source", source)
+                .eq("sourceNotificationId", event.sourceNotificationId),
+            )
+            .collect(),
+        ]);
+        // Filter legacy candidates to only the rows that (a) lack a
+        // projectId (otherwise they'd already be the indexed match)
+        // and (b) point at *this* event id — preventing accidental
+        // collateral damage from cross-project messageId collisions
+        // in the legacy table.
+        const legacy = legacyCandidates.filter(
+          (row) => !row.projectId && row.eventId === event._id,
+        );
+        return [keyed, ...legacy].filter(
+          (row): row is NonNullable<typeof row> => row != null,
+        );
+      }),
     );
 
     let deletedEvents = 0;
     let deletedKeys = 0;
+    const seenKeyIds = new Set<string>();
     for (let i = 0; i < oldEvents.length; i++) {
-      const key = keysToDelete[i];
-      if (key) {
+      for (const key of keysToDelete[i]) {
+        // Dedup across the project-keyed + legacy paths in case both
+        // returned the same row (defense — they shouldn't overlap).
+        if (seenKeyIds.has(key._id)) continue;
+        seenKeyIds.add(key._id);
         // Drop the matching idempotency row. Without this, a stale
         // dedup record could outlive its event and silently swallow
         // a future (legitimately new) notification that reuses the

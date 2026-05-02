@@ -237,9 +237,17 @@ func _process_frame(frame: String) -> void:
 	# upstream payload like `{"id": null, ...}` would slip through and
 	# downstream listeners would see a partial event. Reject any
 	# required field that is missing OR null.
-	for required in ["id", "type", "purchaseToken"]:
+	for required in ["id", "type"]:
 		if not decoded.has(required) or decoded[required] == null:
 			emit_signal("stream_error", "MALFORMED_EVENT", "WebhookEvent missing required fields")
+			return
+	# purchaseToken is required for every event type *except*
+	# TestNotification — Apple ASN v2 / Google RTDN test payloads
+	# carry no transaction. Hard-rejecting here would surface valid
+	# test webhooks as MALFORMED_EVENT and never reach listeners.
+	if decoded["type"] != "TestNotification":
+		if not decoded.has("purchaseToken") or decoded["purchaseToken"] == null:
+			emit_signal("stream_error", "MALFORMED_EVENT", "WebhookEvent missing required field purchaseToken")
 			return
 	emit_signal("event_received", decoded)
 	# Cursor advances only after a successful emit.

@@ -2090,8 +2090,10 @@ export interface WebhookEvent {
   /**
    * Cross-platform purchase identity used to correlate this event with an existing
    * purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+   * Null for `TestNotification` events (Apple ASN v2 / Google RTDN test
+   * payloads carry no transaction); always present for every other event type.
    */
-  purchaseToken: string;
+  purchaseToken?: (string | null);
   /**
    * Original signed payload from the store. ASN v2 events expose the JWS string;
    * RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that

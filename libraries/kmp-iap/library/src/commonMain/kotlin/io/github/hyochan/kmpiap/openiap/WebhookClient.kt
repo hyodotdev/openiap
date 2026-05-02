@@ -48,7 +48,14 @@ object WebhookEventParser {
                 ?: return null
             val purchaseToken =
                 element["purchaseToken"]?.jsonPrimitive?.contentOrNull
-                    ?: return null
+            // purchaseToken is required for every event type *except*
+            // TestNotification — Apple ASN v2 / Google RTDN test
+            // payloads carry no transaction. Hard-rejecting here would
+            // surface valid test webhooks as null events and the SSE
+            // listener would never deliver them.
+            if (purchaseToken == null && typeRaw != "TestNotification") {
+                return null
+            }
             val occurredAt =
                 element["occurredAt"]?.jsonPrimitive?.numericOrNull()
                     ?: return null

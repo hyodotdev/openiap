@@ -379,6 +379,31 @@ webhooks.get("/stream/:apiKey", async (c) => {
   const apiKey = c.req.param("apiKey");
   const lastEventId = c.req.header("last-event-id") ?? undefined;
 
+  // Validate the API key BEFORE entering streamSSE. If the key is
+  // wrong / rotated, every downstream `webhookEventsSince(apiKey, …)`
+  // call returns `[]`, which in the absence of this guard makes the
+  // SSE handler emit `ready` plus heartbeats forever — clients silently
+  // never receive lifecycle updates after a key rotation. Returning a
+  // 401 surfaces the misconfiguration immediately instead of looking
+  // like a healthy idle stream.
+  const project = await client.query(api.projects.query.getProjectByApiKey, {
+    apiKey,
+  });
+  if (!project) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "INVALID_API_KEY",
+            message:
+              "Project API key not recognized. Generate a fresh key in the kit dashboard or check that the key was not rotated.",
+          },
+        ],
+      },
+      401,
+    );
+  }
+
   const startCursor = await resolveStreamStartCursor(apiKey, lastEventId);
 
   return streamSSE(c, async (stream) => {
@@ -464,8 +489,33 @@ webhooks.get("/stream/:apiKey", async (c) => {
     // guarantees forward progress — and the threshold is a hard upper
     // bound that no real-world store webhook ever approaches.
     let lastDeliveredReceivedAt: number | null = null;
+    // Hard safety bounds on the drain loop. Without these, a project
+    // with a very large 30-day backlog could keep one connection
+    // running for an unbounded amount of time, holding the kit pod's
+    // SSE budget. Hitting either bound stops drain phase and lets
+    // Phase 2 take over from the live cursor — clients can reconnect
+    // with their last received id to continue.
+    const DRAIN_MAX_ITERATIONS = 200; // 200 * 500-row pages = 100k events
+    const DRAIN_MAX_MS = 60_000; // wall-clock cap (1 min)
+    const drainStartedAt = Date.now();
+    let drainIterations = 0;
     try {
       while (!aborted) {
+        if (drainIterations >= DRAIN_MAX_ITERATIONS) {
+          console.warn(
+            "[webhooks/stream] drain hit DRAIN_MAX_ITERATIONS — handing off to live tail",
+            { drainIterations, drainCursor },
+          );
+          break;
+        }
+        if (Date.now() - drainStartedAt > DRAIN_MAX_MS) {
+          console.warn(
+            "[webhooks/stream] drain hit DRAIN_MAX_MS — handing off to live tail",
+            { elapsedMs: Date.now() - drainStartedAt, drainCursor },
+          );
+          break;
+        }
+        drainIterations += 1;
         const batch = (await client.query(
           api.webhooks.query.webhookEventsSince,
           {

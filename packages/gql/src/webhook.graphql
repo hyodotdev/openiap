@@ -177,8 +177,10 @@ type WebhookEvent {
   """
   Cross-platform purchase identity used to correlate this event with an existing
   purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+  Null for `TestNotification` events (Apple ASN v2 / Google RTDN test
+  payloads carry no transaction); always present for every other event type.
   """
-  purchaseToken: String!
+  purchaseToken: String
   """
   Product the event pertains to. May be null for account-level events.
   """

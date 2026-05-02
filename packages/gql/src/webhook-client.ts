@@ -37,7 +37,9 @@ export type WebhookEventPayload = {
   projectId: string;
   occurredAt: number;
   receivedAt: number;
-  purchaseToken: string;
+  // Optional because TestNotification frames carry no transaction;
+  // every other event type populates this.
+  purchaseToken?: string;
   productId?: string;
   subscriptionState?: string;
   expiresAt?: number;
@@ -81,9 +83,7 @@ export type WebhookListenerOptions = {
 
 export interface WebhookEventStream {
   close(): void;
-  onmessage:
-    | ((event: { data: string; lastEventId?: string }) => void)
-    | null;
+  onmessage: ((event: { data: string; lastEventId?: string }) => void) | null;
   onerror: ((error: unknown) => void) | null;
   addEventListener?: (
     type: string,
@@ -220,13 +220,25 @@ export function parseWebhookEventData(raw: string): ParsedEventResult {
 
   if (
     typeof event.id !== "string" ||
-    typeof event.purchaseToken !== "string" ||
     typeof event.occurredAt !== "number" ||
     typeof event.receivedAt !== "number"
   ) {
     return {
       kind: "error",
-      message: `WebhookEvent missing required fields (id/purchaseToken/occurredAt/receivedAt)`,
+      message: `WebhookEvent missing required fields (id/occurredAt/receivedAt)`,
+    };
+  }
+  // purchaseToken is required for every event type *except*
+  // TestNotification — Apple ASN v2 / Google RTDN test payloads
+  // carry no transaction. Hard-rejecting here would surface valid
+  // test webhooks as MALFORMED_EVENT and never reach listeners.
+  if (
+    event.type !== "TestNotification" &&
+    typeof event.purchaseToken !== "string"
+  ) {
+    return {
+      kind: "error",
+      message: `WebhookEvent missing required field purchaseToken`,
     };
   }
 

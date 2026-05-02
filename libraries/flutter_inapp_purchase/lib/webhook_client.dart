@@ -39,9 +39,17 @@ WebhookEvent? parseWebhookEventData(String raw) {
   if (decoded == null) return null;
   if (!decoded.containsKey('id') ||
       !decoded.containsKey('type') ||
-      !decoded.containsKey('purchaseToken') ||
       !decoded.containsKey('occurredAt') ||
       !decoded.containsKey('receivedAt')) {
+    return null;
+  }
+  // `purchaseToken` is required for every event type *except*
+  // TestNotification — Apple ASN v2 / Google RTDN test payloads carry
+  // no transaction, so kit emits the event with `purchaseToken` unset.
+  // Hard-requiring the field surfaced valid test webhooks as
+  // MALFORMED_EVENT in Flutter and never reached listeners.
+  if (decoded['type'] != 'TestNotification' &&
+      !decoded.containsKey('purchaseToken')) {
     return null;
   }
   // The wire format kit currently emits uses GraphQL enum identifiers

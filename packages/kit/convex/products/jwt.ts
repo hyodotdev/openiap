@@ -80,11 +80,27 @@ function base64UrlEncode(buf: Buffer | Uint8Array): string {
 // JWS expects fixed-length r||s (each `coordSize` bytes). Strip the
 // leading 0x00 padding nodes adds for unsigned-positive encoding, then
 // left-pad each integer back out to coordSize.
+//
+// Bounds checks on every read: `node:crypto` always emits well-formed
+// DER, but a future caller passing an arbitrary buffer (e.g. user-
+// supplied signature blob from a webhook) without validation could
+// otherwise trigger out-of-range subarrays / silent NaN-style reads.
+// Each guard throws with a consistent shape so the caller can wrap a
+// single try/catch instead of branching on byte-level corruption.
 export function derSignatureToJoseSignature(
   der: Buffer | Uint8Array,
   coordSize: number,
 ): Buffer {
   const buf = Buffer.from(der);
+  // Minimum legal DER ECDSA signature is SEQUENCE + len + INTEGER + len
+  // + 1-byte r + INTEGER + len + 1-byte s = 8 bytes. Anything shorter
+  // can't possibly be valid; bailing here also makes the indexing
+  // below safe to do.
+  if (buf.length < 8) {
+    throw new Error(
+      `Invalid DER signature: buffer too short (${buf.length} bytes, need >= 8)`,
+    );
+  }
   if (buf[0] !== 0x30) {
     throw new Error("Invalid DER signature: missing SEQUENCE tag");
   }
@@ -93,18 +109,45 @@ export function derSignatureToJoseSignature(
     // long-form length — uncommon at this size but legal.
     const lenBytes = (buf[1] ?? 0) & 0x7f;
     offset = 2 + lenBytes;
+    if (offset > buf.length) {
+      throw new Error(
+        "Invalid DER signature: long-form length declares more bytes than the buffer holds",
+      );
+    }
+  }
+  if (offset + 1 >= buf.length) {
+    throw new Error(
+      "Invalid DER signature: truncated before first INTEGER tag",
+    );
   }
   if (buf[offset] !== 0x02) {
     throw new Error("Invalid DER signature: missing first INTEGER tag");
   }
   const rLen = buf[offset + 1] ?? 0;
-  const r = buf.subarray(offset + 2, offset + 2 + rLen);
-  offset = offset + 2 + rLen;
+  const rEnd = offset + 2 + rLen;
+  if (rEnd > buf.length) {
+    throw new Error(
+      `Invalid DER signature: r INTEGER (${rLen} bytes) extends past buffer end`,
+    );
+  }
+  const r = buf.subarray(offset + 2, rEnd);
+  offset = rEnd;
+  if (offset + 1 >= buf.length) {
+    throw new Error(
+      "Invalid DER signature: truncated before second INTEGER tag",
+    );
+  }
   if (buf[offset] !== 0x02) {
     throw new Error("Invalid DER signature: missing second INTEGER tag");
   }
   const sLen = buf[offset + 1] ?? 0;
-  const s = buf.subarray(offset + 2, offset + 2 + sLen);
+  const sEnd = offset + 2 + sLen;
+  if (sEnd > buf.length) {
+    throw new Error(
+      `Invalid DER signature: s INTEGER (${sLen} bytes) extends past buffer end`,
+    );
+  }
+  const s = buf.subarray(offset + 2, sEnd);
 
   return Buffer.concat([
     leftPad(stripLeadingZeros(r), coordSize),

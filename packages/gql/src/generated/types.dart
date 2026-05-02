@@ -3932,7 +3932,7 @@ class WebhookEvent {
     this.priceAmountMicros,
     this.productId,
     required this.projectId,
-    required this.purchaseToken,
+    this.purchaseToken,
     this.rawSignedPayload,
     required this.receivedAt,
     this.renewsAt,
@@ -3964,7 +3964,9 @@ class WebhookEvent {
   final String projectId;
   /// Cross-platform purchase identity used to correlate this event with an existing
   /// purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
-  final String purchaseToken;
+  /// Null for `TestNotification` events (Apple ASN v2 / Google RTDN test
+  /// payloads carry no transaction); always present for every other event type.
+  final String? purchaseToken;
   /// Original signed payload from the store. ASN v2 events expose the JWS string;
   /// RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that
   /// consumers can independently verify or extract platform-specific fields. kit
@@ -3992,7 +3994,7 @@ class WebhookEvent {
       priceAmountMicros: (json['priceAmountMicros'] as num?)?.toDouble(),
       productId: json['productId'] as String?,
       projectId: json['projectId'] as String,
-      purchaseToken: json['purchaseToken'] as String,
+      purchaseToken: json['purchaseToken'] as String?,
       rawSignedPayload: json['rawSignedPayload'] as String?,
       receivedAt: (json['receivedAt'] as num).toDouble(),
       renewsAt: (json['renewsAt'] as num?)?.toDouble(),
