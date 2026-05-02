@@ -14,12 +14,20 @@ cd "$REPO_ROOT"
 # The guard must be fail-closed: if `node` isn't on PATH or the
 # package.json read fails, do not silently bypass — the whole point of
 # the gate is preventing lockfile drift, and a stealth bypass defeats it.
-if ! command -v node >/dev/null 2>&1; then
-  echo "❌ pre-commit gate: \`node\` not on PATH — required to read packageManager pin from package.json."
-  echo "   install Node (it ships with most bun toolchains) and re-commit."
+#
+# Use `bun -e` instead of `node -p`. Bun is the project's required
+# runtime (the gate's whole purpose is to enforce a pinned bun
+# version), so requiring node here just to parse the JSON would add a
+# second mandatory toolchain. `bun -e` reads JSON via the same
+# require() shim Node does and exits with the parse error if the file
+# is malformed, matching the previous failure mode without the extra
+# dep.
+if ! command -v bun >/dev/null 2>&1; then
+  echo "❌ pre-commit gate: \`bun\` not on PATH — required to read packageManager pin from package.json."
+  echo "   install bun (https://bun.sh) and re-commit."
   exit 1
 fi
-EXPECTED_BUN="$(node -p "require('./package.json').packageManager.split('@')[1]")"
+EXPECTED_BUN="$(bun -e "console.log(require('./package.json').packageManager.split('@')[1])")"
 if [ -z "$EXPECTED_BUN" ]; then
   echo "❌ pre-commit gate: could not read \`packageManager\` from package.json."
   echo "   the bun version pin is missing or malformed — fix package.json before committing."

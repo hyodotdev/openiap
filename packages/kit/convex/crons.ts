@@ -1,5 +1,6 @@
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
+import { WEBHOOK_RETENTION_MS } from "./webhooks/internal";
 
 const crons = cronJobs();
 
@@ -45,7 +46,7 @@ crons.interval(
   "prune webhook events past retention",
   { hours: 1 },
   internal.webhooks.internal.pruneWebhookEvents,
-  { olderThanMs: 30 * 24 * 60 * 60 * 1000 },
+  { olderThanMs: WEBHOOK_RETENTION_MS },
 );
 
 // Meta Horizon Store has no webhook system — Meta only exposes a

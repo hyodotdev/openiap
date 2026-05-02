@@ -2,6 +2,15 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 
+// Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
+// The same value is referenced by `crons.ts` (which schedules the
+// pruner) and by the `webhookEventsSince` SDK reconnect contract
+// documented at packages/gql/src/webhook.graphql — clients can
+// safely resume from a Last-Event-ID up to this far back, but no
+// further. Keep the units literal (ms) so the cron scheduler call
+// reads naturally.
+export const WEBHOOK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
 // Cheap pre-flight dedup probe used by webhooks/google.ts to avoid
 // burning Play Developer API quota on Pub/Sub retries. Returns the
 // existing eventId if the (projectId, source, sourceNotificationId)

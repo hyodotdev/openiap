@@ -48,7 +48,11 @@ coverage/
 # Developer API access on the corresponding project.
 *.p8
 **/service-account*.json
-martie-c0b27-*.json
+# Catch-all for Google Cloud project keys downloaded as
+# `<project-id>-<hash>.json` (the default name from the GCP console).
+# Replaces the per-project `martie-c0b27-*.json` pattern that only
+# helped one developer's local setup.
+**/*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.json
 
 # Temp
 tmp/
