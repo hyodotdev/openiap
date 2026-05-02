@@ -1,6 +1,6 @@
 "use node";
 import { ConvexError, v } from "convex/values";
-import { google } from "googleapis";
+import { google, type androidpublisher_v3 } from "googleapis";
 
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -13,6 +13,28 @@ import {
   type GoogleRtdnPayload,
   type GoogleSubscriptionInfo,
 } from "./shared";
+
+// Module-level cache for the Play Developer API client per project.
+// Convex "use node" actions reuse the underlying process for warm
+// starts — a fresh service-account fetch + JSON parse + GoogleAuth
+// initialization on every webhook adds 50-200ms latency per
+// notification and burns Convex storage I/O proportional to traffic.
+// Caching the authenticated client survives across consecutive
+// webhook invocations on the same machine; cold starts re-build it.
+//
+// TTL keeps the cache fresh enough that an operator-initiated
+// service-account rotation reaches us within an hour without manual
+// intervention — credentials don't change often, and a hung-on-old-
+// key state would surface as Play API 401s on the affected webhooks
+// (which then expire the cache via the catch path below).
+const PLAY_CLIENT_TTL_MS = 60 * 60 * 1000;
+const playClientCache = new Map<
+  string,
+  {
+    client: androidpublisher_v3.Androidpublisher;
+    expiresAt: number;
+  }
+>();
 
 type IngestResult = {
   eventId: Id<"webhookEvents">;
@@ -247,26 +269,37 @@ async function maybeFetchSubscriptionInfo(
   }
 
   try {
-    const serviceAccountFile = await ctx.runQuery(
-      internal.files.internal.getGooglePlayFileByProjectInternal,
-      { projectId },
-    );
-    if (!serviceAccountFile) {
-      return null;
+    const cacheKey = String(projectId);
+    let androidpublisher: androidpublisher_v3.Androidpublisher;
+    const cached = playClientCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      androidpublisher = cached.client;
+    } else {
+      const serviceAccountFile = await ctx.runQuery(
+        internal.files.internal.getGooglePlayFileByProjectInternal,
+        { projectId },
+      );
+      if (!serviceAccountFile) {
+        return null;
+      }
+      const fileContent = await ctx.runAction(
+        internal.files.internal.readFileAsText,
+        { fileId: serviceAccountFile._id },
+      );
+      if (!fileContent?.content) {
+        return null;
+      }
+      const credentials = JSON.parse(fileContent.content);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+      });
+      androidpublisher = google.androidpublisher({ version: "v3", auth });
+      playClientCache.set(cacheKey, {
+        client: androidpublisher,
+        expiresAt: Date.now() + PLAY_CLIENT_TTL_MS,
+      });
     }
-    const fileContent = await ctx.runAction(
-      internal.files.internal.readFileAsText,
-      { fileId: serviceAccountFile._id },
-    );
-    if (!fileContent?.content) {
-      return null;
-    }
-    const credentials = JSON.parse(fileContent.content);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/androidpublisher"],
-    });
-    const androidpublisher = google.androidpublisher({ version: "v3", auth });
 
     // Per-request timeout — googleapis defaults to no timeout, and a
     // hung Play Developer API call would otherwise stall this Pub/Sub
@@ -321,6 +354,19 @@ async function maybeFetchSubscriptionInfo(
       error instanceof Error
         ? `${error.name}: ${error.message}`
         : "(unknown error type)";
+    // Auth-shaped failures (401/403, "invalid_grant", "Invalid JWT")
+    // typically mean the operator rotated the service account. Drop
+    // the cached client so the next webhook re-reads the file and
+    // picks up the new credentials immediately instead of waiting
+    // out the full TTL on a known-bad key.
+    if (
+      sanitized.includes("invalid_grant") ||
+      sanitized.includes("Invalid JWT") ||
+      sanitized.includes("401") ||
+      sanitized.includes("403")
+    ) {
+      playClientCache.delete(String(projectId));
+    }
     console.warn(
       "[webhooks/google] subscriptionsv2 fetch failed; falling back to type-derived state",
       sanitized,

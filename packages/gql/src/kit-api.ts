@@ -149,21 +149,37 @@ export function kitApi(options: KitApiOptions) {
     const text = await response.text();
     // Empty body normalizes to null so callers expecting JSON
     // (status / entitlements / list*) don't get a truthy ""
-    // and crash on property access. Errors still keep the raw
-    // text on the throw path.
-    let parsed: unknown = text === "" ? null : text;
+    // and crash on property access.
+    let parsed: unknown = null;
+    let parseError: unknown = null;
     if (text) {
       try {
         parsed = JSON.parse(text);
-      } catch {
-        // leave as text — surfaces verbatim on error
+      } catch (error) {
+        // Non-JSON body (a misconfigured proxy returning HTML, a
+        // CDN-injected error page, etc.) on a 2xx response would
+        // otherwise reach the caller as `parsed = text` and crash
+        // on property access via `parsed as T`. Throw a structured
+        // KitApiError instead so callers see a typed failure.
+        parseError = error;
       }
     }
     if (!response.ok) {
+      // Surface the raw body (text or parsed) on the error path so
+      // operators can read the upstream error message verbatim.
       throw new KitApiError(
         response.status,
-        parsed,
+        parsed ?? text,
         `kit ${path} returned ${response.status}`,
+      );
+    }
+    if (parseError) {
+      throw new KitApiError(
+        response.status,
+        text,
+        `kit ${path} returned a non-JSON ${response.status} body (${
+          parseError instanceof Error ? parseError.message : String(parseError)
+        })`,
       );
     }
     return parsed as T;
