@@ -155,25 +155,31 @@ export const ingestGoogleRtdn = action({
     // subscription stranded if a previous attempt persisted the event
     // then crashed before patching the subscription row (every Google
     // RTDN retry would dedup before reaching the state mutation).
-    await ctx.runMutation(
-      internal.subscriptions.internal.applySubscriptionEvent,
-      {
-        projectId: project._id,
-        eventId: result.eventId,
-        event: {
-          type: normalized.type,
-          productId: normalized.productId,
-          subscriptionState: normalized.subscriptionState,
-          expiresAt: normalized.expiresAt,
-          renewsAt: normalized.renewsAt,
-          cancellationReason: normalized.cancellationReason,
-          currency: normalized.currency,
-          priceAmountMicros: normalized.priceAmountMicros,
-          platform: normalized.platform,
-          purchaseToken: normalized.purchaseToken,
+    //
+    // TestNotification is the one exception: it has no transaction
+    // and therefore no purchaseToken. Skip the subscription mutation
+    // for those — webhookEvents row alone confirms wiring.
+    if (normalized.purchaseToken) {
+      await ctx.runMutation(
+        internal.subscriptions.internal.applySubscriptionEvent,
+        {
+          projectId: project._id,
+          eventId: result.eventId,
+          event: {
+            type: normalized.type,
+            productId: normalized.productId,
+            subscriptionState: normalized.subscriptionState,
+            expiresAt: normalized.expiresAt,
+            renewsAt: normalized.renewsAt,
+            cancellationReason: normalized.cancellationReason,
+            currency: normalized.currency,
+            priceAmountMicros: normalized.priceAmountMicros,
+            platform: normalized.platform,
+            purchaseToken: normalized.purchaseToken,
+          },
         },
-      },
-    );
+      );
+    }
 
     return {
       eventId: result.eventId,

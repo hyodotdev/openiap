@@ -30,6 +30,13 @@ type TabId = (typeof TAB_IDS)[number];
 type VisibleTabId = Exclude<TabId, "dashboard">;
 const DEFAULT_TAB: VisibleTabId = "purchases";
 
+interface Tab {
+  id: VisibleTabId;
+  label: string;
+  icon: LucideIcon;
+  badge?: string;
+}
+
 export default function ProjectIndex() {
   const { orgSlug, projectSlug } = useParams<{
     orgSlug: string;
@@ -48,12 +55,7 @@ export default function ProjectIndex() {
       : "skip",
   );
 
-  const tabs: Array<{
-    id: VisibleTabId;
-    label: string;
-    icon: LucideIcon;
-    badge?: string;
-  }> = [
+  const tabs: Tab[] = [
     {
       id: "purchases",
       label: "Purchases",

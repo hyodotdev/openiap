@@ -675,10 +675,16 @@ export function moneyToMicros(
   // Google's `Money` proto: `units` is a BigInt-as-string. Do the
   // micros multiplication in BigInt to avoid precision loss for
   // large currency values (>2^53). PR #124 review fix.
+  //
+  // The nanos → micros conversion is BigInt division which truncates
+  // (not Math.round, which would push 999_999_999 nanos up to a full
+  // 1_000_000 micros and silently add 1 micro to sub-unit prices).
+  // Truncation matches how Google Play Console actually stores price
+  // points internally (Play uses micros as the canonical unit), so any
+  // rounding here would only re-introduce drift we just cleaned up.
   try {
     const microsBigInt =
-      BigInt(money.units) * 1_000_000n +
-      BigInt(Math.round((money.nanos ?? 0) / 1_000));
+      BigInt(money.units) * 1_000_000n + BigInt(money.nanos ?? 0) / 1_000n;
     // Drop values that exceed Number.MAX_SAFE_INTEGER. The schema
     // stores `priceAmountMicros` as a JS `number` (IEEE 754 double),
     // so anything above 2^53 - 1 would silently lose precision on

@@ -44,7 +44,9 @@ export const recordWebhookEvent = internalMutation({
         v.literal("Sandbox"),
         v.literal("Xcode"),
       ),
-      purchaseToken: v.string(),
+      // Optional because TestNotification payloads carry no transaction.
+      // Real lifecycle event types always populate this.
+      purchaseToken: v.optional(v.string()),
       productId: v.optional(v.string()),
       subscriptionState: v.optional(
         v.union(
@@ -121,25 +123,55 @@ export const recordWebhookEvent = internalMutation({
     // project, and rehydrate projectId on the row so the next
     // lookup hits the new index directly.
     if (!existing) {
-      const legacy = await ctx.db
+      // Use `.collect()` (not `.unique()`) here. The legacy index is
+      // `(source, sourceNotificationId)` only, and Google Pub/Sub
+      // `messageId`s are only unique *within a topic* — so the same
+      // messageId can appear in legacy rows belonging to different
+      // projects. `.unique()` would throw on those collisions instead
+      // of letting us pick the row that matches this project.
+      const legacyCandidates = await ctx.db
         .query("webhookIdempotencyKeys")
         .withIndex("by_source_and_id", (q) =>
           q
             .eq("source", args.source)
             .eq("sourceNotificationId", args.sourceNotificationId),
         )
-        .unique();
-      if (legacy && legacy.eventId) {
-        const linkedEvent = await ctx.db.get(legacy.eventId);
-        if (linkedEvent && linkedEvent.projectId === args.projectId) {
-          await ctx.db.patch(legacy._id, { projectId: args.projectId });
-          existing = { ...legacy, projectId: args.projectId };
+        .collect();
+      // Skip rows already migrated (projectId set) — those would have
+      // been caught by the `by_project_and_source_and_id` index above.
+      const legacyOnly = legacyCandidates.filter((row) => !row.projectId);
+      // Find a legacy row whose linked event belongs to *this* project.
+      // Walk events in parallel; whichever links to args.projectId is
+      // ours. Half-written rows (no eventId) are kept as a fallback to
+      // adopt below if no project-matched row exists.
+      const linkedChecks = await Promise.all(
+        legacyOnly.map(async (row) =>
+          row.eventId
+            ? {
+                row,
+                linked: await ctx.db.get(row.eventId),
+              }
+            : { row, linked: null },
+        ),
+      );
+      const projectMatch = linkedChecks.find(
+        (c) => c.linked && c.linked.projectId === args.projectId,
+      );
+      if (projectMatch) {
+        await ctx.db.patch(projectMatch.row._id, {
+          projectId: args.projectId,
+        });
+        existing = { ...projectMatch.row, projectId: args.projectId };
+      } else {
+        const halfWritten = linkedChecks.find(
+          (c) => !c.row.eventId && !c.linked,
+        );
+        if (halfWritten) {
+          // Half-written legacy row (insert succeeded, event insert
+          // crashed): can't tie it to a project, but adopting it lets
+          // the path below patch in our new eventId.
+          existing = halfWritten.row;
         }
-      } else if (legacy && !legacy.eventId) {
-        // Half-written legacy row (insert succeeded, event insert
-        // crashed): can't tie it to a project, but adopting it lets
-        // the path below patch in our new eventId.
-        existing = legacy;
       }
     }
 
@@ -245,6 +277,22 @@ export const pruneWebhookEvents = internalMutation({
       }
       await ctx.db.delete(oldEvents[i]._id);
       deletedEvents += 1;
+    }
+
+    // Also sweep orphan idempotency keys older than the cutoff —
+    // half-written rows from prior crashes (key insert succeeded,
+    // event insert failed) where eventId stayed null and the
+    // by-event lookup above can never reach them. Uses the
+    // `by_first_seen_at` range index so the scan stays bounded by
+    // `limit` instead of full-scanning the table as it grows.
+    const orphanKeys = await ctx.db
+      .query("webhookIdempotencyKeys")
+      .withIndex("by_first_seen_at", (q) => q.lt("firstSeenAt", cutoff))
+      .take(limit);
+    for (const key of orphanKeys) {
+      if (key.eventId) continue; // event-linked keys are handled above
+      await ctx.db.delete(key._id);
+      deletedKeys += 1;
     }
 
     return { deletedEvents, deletedKeys };

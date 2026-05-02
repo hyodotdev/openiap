@@ -216,7 +216,8 @@ describe("normalizeAppleAsn", () => {
       },
     });
     expect(event.type).toBe("TestNotification");
-    expect(event.purchaseToken).toBe("apple-test-test-uuid-1");
+    // TestNotification carries no transaction → no purchaseToken.
+    expect(event.purchaseToken).toBeUndefined();
     expect(event.environment).toBe("Sandbox");
     // Test notifications have no subscription state in the spec
     expect(event.subscriptionState).toBeUndefined();
@@ -464,7 +465,8 @@ describe("normalizeGoogleRtdn", () => {
     });
     expect(event.type).toBe("TestNotification");
     expect(event.environment).toBe("Sandbox");
-    expect(event.purchaseToken).toBe("google-test-rtdn-test-1");
+    // RTDN test payloads carry no transaction → no purchaseToken.
+    expect(event.purchaseToken).toBeUndefined();
   });
 
   it("rejects RTDN payloads missing messageId", () => {

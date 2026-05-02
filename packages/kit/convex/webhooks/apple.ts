@@ -182,25 +182,32 @@ export const ingestAppleAsnIOS = action({
     // attempt recorded the event then crashed before patching the
     // subscription row, since every Apple retry would dedup before
     // ever reaching the state mutation.
-    await ctx.runMutation(
-      internal.subscriptions.internal.applySubscriptionEvent,
-      {
-        projectId: project._id,
-        eventId: result.eventId,
-        event: {
-          type: normalized.type,
-          productId: normalized.productId,
-          subscriptionState: normalized.subscriptionState,
-          expiresAt: normalized.expiresAt,
-          renewsAt: normalized.renewsAt,
-          cancellationReason: normalized.cancellationReason,
-          currency: normalized.currency,
-          priceAmountMicros: normalized.priceAmountMicros,
-          platform: normalized.platform,
-          purchaseToken: normalized.purchaseToken,
+    //
+    // TestNotification is the one exception: it has no transaction
+    // and therefore no purchaseToken to key a subscription row off
+    // of. The webhookEvents row above is enough to confirm wiring;
+    // there's nothing to apply on the subscriptions side.
+    if (normalized.purchaseToken) {
+      await ctx.runMutation(
+        internal.subscriptions.internal.applySubscriptionEvent,
+        {
+          projectId: project._id,
+          eventId: result.eventId,
+          event: {
+            type: normalized.type,
+            productId: normalized.productId,
+            subscriptionState: normalized.subscriptionState,
+            expiresAt: normalized.expiresAt,
+            renewsAt: normalized.renewsAt,
+            cancellationReason: normalized.cancellationReason,
+            currency: normalized.currency,
+            priceAmountMicros: normalized.priceAmountMicros,
+            platform: normalized.platform,
+            purchaseToken: normalized.purchaseToken,
+          },
         },
-      },
-    );
+      );
+    }
 
     return {
       eventId: result.eventId,

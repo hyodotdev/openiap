@@ -100,7 +100,8 @@ export const webhookEventsSince = query({
       projectId: v.id("projects"),
       occurredAt: v.number(),
       receivedAt: v.number(),
-      purchaseToken: v.string(),
+      // Optional because TestNotification rows carry no transaction.
+      purchaseToken: v.optional(v.string()),
       productId: v.optional(v.string()),
       subscriptionState: v.optional(subscriptionStateValidator),
       expiresAt: v.optional(v.number()),

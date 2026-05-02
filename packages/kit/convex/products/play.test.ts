@@ -21,12 +21,16 @@ describe("moneyToMicros", () => {
     ).toBe(9_990_000);
   });
 
-  it("rounds nanos / 1000 conversion (Google's nanos resolution → kit micros)", () => {
-    // 999_999_999 nanos / 1000 = 999_999.999 → rounds to 1_000_000 micros from nanos,
-    // plus 0 units = 1_000_000 micros total. Verifies we don't truncate.
+  it("truncates nanos / 1000 conversion (sub-micro fraction is dropped, not rounded up)", () => {
+    // 999_999_999 nanos / 1000 = 999_999.999 → truncates to 999_999
+    // micros. We deliberately don't round up to 1_000_000; rounding
+    // would silently push prices across the unit boundary (PR #124
+    // review — "999_999_999 nanos rounding up to a full unit"), and
+    // Play stores prices in micros internally so truncation matches
+    // the canonical representation.
     expect(
       moneyToMicros({ currencyCode: "USD", units: "0", nanos: 999_999_999 }),
-    ).toBe(1_000_000);
+    ).toBe(999_999);
   });
 
   it("uses BigInt math to preserve precision up to Number.MAX_SAFE_INTEGER", () => {

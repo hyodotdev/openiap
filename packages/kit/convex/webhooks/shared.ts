@@ -68,7 +68,11 @@ export type NormalizedWebhookEvent = {
   source: WebhookEventSource;
   platform: IapPlatform;
   environment: WebhookEventEnvironment;
-  purchaseToken: string;
+  // TestNotification carries no transaction; all other event types
+  // populate this. The purchaseToken-or-throw guard lives in the
+  // platform-specific normalizers (normalizeAppleEvent /
+  // normalizeGoogleEvent).
+  purchaseToken: string | undefined;
   productId?: string;
   subscriptionState?: SubscriptionState;
   expiresAt?: number;
@@ -322,18 +326,18 @@ export function normalizeAppleAsn(
     );
   }
 
-  // For TEST notifications Apple omits transaction/renewal data, so we
-  // fall back to the notificationUUID as a placeholder token. This lets
-  // the event still flow through dedup + storage without coupling it to
-  // any real subscription.
+  // TestNotification has no transaction/renewal data and therefore no
+  // purchaseToken — the schema's purchaseToken column is optional so
+  // we leave it undefined for those rows instead of synthesizing a
+  // placeholder (which would pollute by-token lookups). Dedup uses
+  // (projectId, source, sourceNotificationId) and doesn't depend on
+  // purchaseToken either, so the test event still flows end-to-end.
   const purchaseToken =
     transaction?.originalTransactionId ??
     transaction?.transactionId ??
-    (type === "TestNotification"
-      ? `apple-test-${payload.notificationUUID}`
-      : null);
+    undefined;
 
-  if (!purchaseToken) {
+  if (!purchaseToken && type !== "TestNotification") {
     throw new WebhookNormalizationError(
       "Apple ASN v2 payload missing originalTransactionId for non-test notification",
       "MissingPurchaseToken",
@@ -591,7 +595,9 @@ export function normalizeGoogleRtdn(
 
   if (payload.testNotification) {
     type = "TestNotification";
-    purchaseToken = `google-test-${payload.messageId}`;
+    // RTDN test payloads carry no purchaseToken — leave it null so the
+    // optional schema column stays empty, matching the Apple side.
+    purchaseToken = null;
   } else if (payload.subscriptionNotification) {
     type = mapGoogleSubscriptionNotificationType(
       payload.subscriptionNotification.notificationType,
@@ -617,7 +623,7 @@ export function normalizeGoogleRtdn(
       "UnknownEventType",
     );
   }
-  if (!purchaseToken) {
+  if (!purchaseToken && type !== "TestNotification") {
     throw new WebhookNormalizationError(
       "Google RTDN payload missing purchaseToken",
       "MissingPurchaseToken",
@@ -635,7 +641,7 @@ export function normalizeGoogleRtdn(
     source: "GooglePlayRealTimeDeveloperNotifications",
     platform: "Android",
     environment,
-    purchaseToken,
+    purchaseToken: purchaseToken ?? undefined,
     productId,
     subscriptionState: deriveGoogleSubscriptionState(
       type,

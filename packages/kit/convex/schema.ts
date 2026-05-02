@@ -468,7 +468,12 @@ const schema = defineSchema({
       v.literal("Sandbox"),
       v.literal("Xcode"),
     ),
-    purchaseToken: v.string(),
+    // Optional because TestNotification payloads (App Store Connect
+    // "Send Test Notification" / RTDN setup test) carry no transaction
+    // and therefore no purchaseToken. All real lifecycle event types
+    // populate this; the receiver guards apply the same nullability
+    // (see webhooks/internal.ts).
+    purchaseToken: v.optional(v.string()),
     // Original notification id from the store (ASN v2 `notificationUUID`
     // or RTDN Pub/Sub `messageId`). Surfaced as the GraphQL `id` field
     // for clients and used to correlate events during pruning.
@@ -544,7 +549,12 @@ const schema = defineSchema({
       "projectId",
       "source",
       "sourceNotificationId",
-    ]),
+    ])
+    // Cheap range scan for the `pruneWebhookEvents` cron — without it,
+    // ageing out dedup rows means a full-table scan per tick, which
+    // gets expensive on a hosted multi-tenant deployment where the
+    // table grows ~1 row per webhook per project per day.
+    .index("by_first_seen_at", ["firstSeenAt"]),
 
   // Authoritative per-(project, originalTransactionId) subscription record.
   // Mirrors the spec from `packages/gql/src/webhook.graphql` and the role
@@ -556,6 +566,21 @@ const schema = defineSchema({
   // entitlements (resub after expiry, cross-grade, family-shared); the
   // store-issued purchase id is the only stable handle that survives all
   // transitions. Entitlement evaluation aggregates by user as needed.
+  //
+  // Known limitation (Google `linkedPurchaseToken` chain): Google reissues
+  // `purchaseToken` across upgrade/downgrade/replace flows. The new token
+  // arrives via RTDN with no `linkedPurchaseToken` field in the webhook
+  // payload itself — that field is only available via a follow-up
+  // `purchases.subscriptionsv2.get` Play Developer API call. The webhook
+  // receiver intentionally does NOT make that synchronous call (it would
+  // violate Pub/Sub's fast-ACK contract and burn Play API quota per
+  // webhook). The result is one logical Google subscription can split
+  // into multiple rows after a token reissue, fragmenting the per-token
+  // state until a background reconciliation pass resolves the chain
+  // via the Play API and merges the rows.
+  //
+  // Apple does not have this problem — `originalTransactionId` is stable
+  // across the entire entitlement lifetime.
   subscriptions: defineTable({
     projectId: v.id("projects"),
     purchaseToken: v.string(),
