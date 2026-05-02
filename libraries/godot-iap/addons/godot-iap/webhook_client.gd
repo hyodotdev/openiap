@@ -58,6 +58,15 @@ func close_stream() -> void:
 	_running = false
 	_client.close()
 
+# Stop the SSE coroutine when the node leaves the scene tree. Without
+# this, callers that queue_free()/remove_child() this node without
+# explicitly calling close_stream() leak the awaited
+# SceneTreeTimer (the timer outlives the node) and the resume path
+# crashes when the awaiting object is gone. Mirrors close_stream()
+# so the cleanup logic stays in one place.
+func _exit_tree() -> void:
+	close_stream()
+
 func _run_loop() -> void:
 	while _running:
 		var ok := await _open_and_drain()
@@ -120,6 +129,24 @@ func _open_and_drain() -> bool:
 		await get_tree().process_frame
 
 	if _client.get_status() != HTTPClient.STATUS_BODY:
+		return false
+
+	# kit's SSE handler returns 401 on bad/rotated apiKey, 412 on
+	# unconfigured platform, 5xx on transient backend issues. Without
+	# inspecting the response code, the body-reader loop below would
+	# consume the error JSON, _drain_frames would find no SSE frame,
+	# and _open_and_drain would return true — _run_loop would then
+	# silently reconnect forever with zero user-visible feedback. Bail
+	# loudly with HTTP_ERROR so the caller can surface a real error.
+	var response_code := _client.get_response_code()
+	if response_code != 200:
+		emit_signal("stream_error", "HTTP_ERROR", "Unexpected HTTP response: %d" % response_code)
+		# 4xx responses (401 INVALID_API_KEY, 412 *_NOT_CONFIGURED) will
+		# never succeed on retry — stop the loop so the operator sees
+		# the error instead of an infinite log spam. 5xx is transient
+		# and should reconnect on the normal back-off.
+		if response_code >= 400 and response_code < 500:
+			_running = false
 		return false
 
 	_buffer = PackedByteArray()

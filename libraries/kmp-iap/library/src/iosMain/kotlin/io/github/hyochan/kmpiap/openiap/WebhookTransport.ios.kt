@@ -180,6 +180,14 @@ private class SseDelegate(
     private val updateLastEventId: (String) -> Unit,
 ) : NSObject(), NSURLSessionDataDelegateProtocol {
     private val finishedSignal = Channel<Unit>(Channel.CONFLATED)
+    // Captured during didReceiveResponse so processFrame can cancel
+    // the in-flight task on a trySend failure (channel buffer full).
+    // Without the cancel, the delegate would keep consuming bytes,
+    // silently dropping events that the collector never saw — and
+    // the cursor (eventId) would never advance, so a reconnect
+    // would replay from a stale Last-Event-ID and lose any events
+    // that the server has already aged past that point.
+    @Volatile private var currentTask: NSURLSessionDataTask? = null
 
     // Validate the HTTP status before letting any body bytes flow.
     // Without this, a 4xx (bad apiKey, bundle mismatch) or 5xx
@@ -200,6 +208,9 @@ private class SseDelegate(
         val httpResponse = didReceiveResponse as? NSHTTPURLResponse
         val status = httpResponse?.statusCode?.toInt() ?: 0
         if (status in 200..299) {
+            // Capture so the body callbacks below can cancel this
+            // task themselves on a trySend backpressure failure.
+            currentTask = dataTask
             completionHandler(NSURLSessionResponseAllow)
         } else {
             // Cancel the task; awaitFinished will then unblock and
@@ -370,6 +381,15 @@ private class SseDelegate(
         }
         if (channel.trySend(event).isSuccess) {
             eventId?.let(updateLastEventId)
+        } else {
+            // Channel buffer full → the collector is too slow / has
+            // stalled. Cancel the task instead of silently dropping
+            // the event. Reconnect picks up from the last committed
+            // eventId; if the server has aged events past that point
+            // the consumer will at least get a transport-level
+            // signal (the run loop returns false → reconnect) rather
+            // than a quiet data-loss bug. Don't advance eventId.
+            currentTask?.cancel()
         }
     }
 }

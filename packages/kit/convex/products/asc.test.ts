@@ -83,14 +83,14 @@ describe("mapBillingPeriodToAsc", () => {
 
   it("defaults undefined / unknown periods to ONE_MONTH so push doesn't silently drop the picker", () => {
     expect(mapBillingPeriodToAsc(undefined)).toBe("ONE_MONTH");
-    // The function's union arg type rejects unknown strings at the
-    // type level, but the runtime switch has a `default` arm that
-    // catches Apple ever shipping a new period — we exercise that
-    // default branch by widening through `unknown`.
+    // Unknown periods throw — silently coercing to ONE_MONTH used
+    // to provision the wrong subscription duration in ASC, which is
+    // much harder to unwind than a failed sync. The throw is caught
+    // inside processOneDraft and recorded as a per-row failure.
     const wider = mapBillingPeriodToAsc as (
       period: string | undefined,
     ) => string;
-    expect(wider("P9X")).toBe("ONE_MONTH");
+    expect(() => wider("P9X")).toThrow(/Invalid billing period/);
   });
 });
 

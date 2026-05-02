@@ -43,17 +43,28 @@ object WebhookEventParser {
 
     fun fromJson(element: JsonObject): WebhookEvent? {
         return try {
-            val id = element["id"]?.jsonPrimitive?.contentOrNull ?: return null
-            val typeRaw = element["type"]?.jsonPrimitive?.contentOrNull
+            // `contentOrNull` returns the raw JSON string value; it
+            // doesn't reject empty strings. Required string fields
+            // (id, type, environment, platform, source, projectId,
+            // and non-test purchaseToken) must additionally be
+            // non-blank, otherwise a malformed frame with `"id": ""`
+            // would deserialize into a partial WebhookEvent that
+            // crashes downstream consumers expecting non-empty ids.
+            val id = element["id"]?.jsonPrimitive?.nonBlankContentOrNull()
                 ?: return null
+            val typeRaw =
+                element["type"]?.jsonPrimitive?.nonBlankContentOrNull()
+                    ?: return null
             val purchaseToken =
                 element["purchaseToken"]?.jsonPrimitive?.contentOrNull
             // purchaseToken is required for every event type *except*
             // TestNotification — Apple ASN v2 / Google RTDN test
             // payloads carry no transaction. Hard-rejecting here would
             // surface valid test webhooks as null events and the SSE
-            // listener would never deliver them.
-            if (purchaseToken == null && typeRaw != "TestNotification") {
+            // listener would never deliver them. Empty strings count
+            // as missing for the same reason as the other required
+            // fields above.
+            if (purchaseToken.isNullOrBlank() && typeRaw != "TestNotification") {
                 return null
             }
             val occurredAt =
@@ -63,12 +74,14 @@ object WebhookEventParser {
                 element["receivedAt"]?.jsonPrimitive?.numericOrNull()
                     ?: return null
             val environmentRaw =
-                element["environment"]?.jsonPrimitive?.contentOrNull
+                element["environment"]?.jsonPrimitive?.nonBlankContentOrNull()
                     ?: return null
             val platformRaw =
-                element["platform"]?.jsonPrimitive?.contentOrNull ?: return null
+                element["platform"]?.jsonPrimitive?.nonBlankContentOrNull()
+                    ?: return null
             val sourceRaw =
-                element["source"]?.jsonPrimitive?.contentOrNull ?: return null
+                element["source"]?.jsonPrimitive?.nonBlankContentOrNull()
+                    ?: return null
 
             // The generated `fromJson` companion factories throw on
             // unknown enum values. We catch the throw at the outer
@@ -89,7 +102,7 @@ object WebhookEventParser {
                     element["priceAmountMicros"]?.jsonPrimitive?.numericOrNull(),
                 productId = element["productId"]?.jsonPrimitive?.contentOrNull,
                 projectId =
-                    element["projectId"]?.jsonPrimitive?.contentOrNull
+                    element["projectId"]?.jsonPrimitive?.nonBlankContentOrNull()
                         ?: return null,
                 purchaseToken = purchaseToken,
                 rawSignedPayload =
@@ -147,4 +160,14 @@ private fun encodePathSegment(value: String): String {
         }
     }
     return sb.toString()
+}
+
+// `JsonPrimitive.contentOrNull` returns the raw string value (or null
+// for explicit JSON `null`). For required string fields we additionally
+// want to reject empty / whitespace-only values that semantically count
+// as missing. Returns null in that case so the parser's `?: return null`
+// pattern naturally fails the frame as MALFORMED.
+private fun JsonPrimitive.nonBlankContentOrNull(): String? {
+    val raw = contentOrNull ?: return null
+    return raw.takeIf { it.isNotBlank() }
 }

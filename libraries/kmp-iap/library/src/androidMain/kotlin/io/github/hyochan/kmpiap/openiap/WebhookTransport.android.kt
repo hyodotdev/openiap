@@ -103,7 +103,20 @@ actual class WebhookTransport actual constructor(
                         //     an eventId → don't touch resumeId.
                         val event = parsed.event
                         if (event != null) {
-                            emit(event)
+                            // Wrap emit so a downstream collector
+                            // exception isn't accidentally caught by
+                            // the outer transport-error handler — a
+                            // consumer that throws should propagate
+                            // upstream as-is, not silently trigger a
+                            // reconnect that risks redelivering the
+                            // same event to a now-broken collector.
+                            try {
+                                emit(event)
+                            } catch (cancellation: CancellationException) {
+                                throw cancellation
+                            } catch (consumerError: Throwable) {
+                                throw EmitError(consumerError)
+                            }
                             parsed.eventId?.let { resumeId = it }
                         } else if (parsed.shouldAdvanceCursorOnDrop) {
                             parsed.eventId?.let { resumeId = it }
@@ -118,6 +131,11 @@ actual class WebhookTransport actual constructor(
                 // re-enter the retry loop. Re-throw before any
                 // back-off / reconnect logic runs.
                 throw cancellation
+            } catch (emitError: EmitError) {
+                // Downstream collector failed — surface the original
+                // exception to the caller instead of treating it as a
+                // transient transport error and reconnecting.
+                throw emitError.cause ?: emitError
             } catch (error: Throwable) {
                 if (closed) break
                 // fall through to the back-off + reconnect.
@@ -149,6 +167,12 @@ private data class ParsedSseFrame(
 )
 
 private val SSE_LINE_SEPARATOR = Regex("\\r\\n|\\r|\\n")
+
+// Sentinel wrapper for exceptions thrown by the downstream collector
+// (`emit(event)`). The transport-error catch clause treats network
+// I/O failures as transient and reconnects, but a consumer-side
+// exception should propagate to the caller as-is.
+private class EmitError(cause: Throwable) : Throwable(cause)
 
 private fun parseSseFrame(frame: String): ParsedSseFrame {
     if (frame.isEmpty()) return ParsedSseFrame(null, null, null)

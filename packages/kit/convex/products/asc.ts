@@ -61,8 +61,20 @@ async function resolveAscCredentials(
       },
     );
     keyContent = ascKey?.keyContent;
-  } catch {
-    // No ASC key uploaded — fall through to the legacy slot below.
+  } catch (error) {
+    // Only swallow the documented "no ASC key uploaded" case so we
+    // can fall through to the legacy slot. Storage / permission /
+    // transient errors must surface — masking them as "use legacy
+    // key" hides the real failure and ends up signing requests with
+    // the wrong key, producing confusing 401s downstream.
+    //
+    // The action throws a ConvexError whose message starts with
+    // "No App Store Connect API key (.p8) uploaded" when the file is
+    // missing. Anything else rethrows.
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("No App Store Connect API key (.p8) uploaded")) {
+      throw error;
+    }
   }
   if (!keyContent) {
     const legacyKey = await ctx.runAction(
@@ -349,13 +361,20 @@ class AscClient {
   // (eyJ...) — to set a price you can't just send "9.99", you must
   // pass the price-point resource id corresponding to that tier in
   // USA. We fetch the catalog once per (resource, amount) lookup.
+  //
+  // Errors propagate verbatim so the call site can distinguish
+  // "no tier matches USD 9.99" (returns null after a successful
+  // list) from "ASC returned 401 / 429 / timeout" (throws). The
+  // prior `.catch(() => null)` collapsed both into the same null
+  // result and surfaced a real upstream failure as a bogus catalog
+  // validation error.
   async findIapUsaPricePointId(
     iapId: string,
     targetMicros: number,
   ): Promise<string | null> {
     const list = await this.call<AscPricePointListResponse>(
       `/v1/inAppPurchases/${encodeURIComponent(iapId)}/pricePoints?filter[territory]=USA&limit=200`,
-    ).catch(() => null);
+    );
     return pickPricePointIdMatching(list, targetMicros);
   }
   async findSubUsaPricePointId(
@@ -364,7 +383,7 @@ class AscClient {
   ): Promise<string | null> {
     const list = await this.call<AscPricePointListResponse>(
       `/v1/subscriptions/${encodeURIComponent(subId)}/pricePoints?filter[territory]=USA&limit=200`,
-    ).catch(() => null);
+    );
     return pickPricePointIdMatching(list, targetMicros);
   }
 
@@ -1173,12 +1192,29 @@ export const pushSyncProductsAppleIOS = action({
       const processOneDraft = async (
         row: (typeof drafts)[number],
       ): Promise<void> => {
-        // Track failures pushed *for this row* so we can decide
-        // whether to flip state to Ready at the end. A partial setup
-        // (create succeeded, localization failed) leaves the row in
-        // Draft with a populated storeRef so the next sync can resume
-        // step 2 instead of re-creating the upstream resource.
-        const failuresAtStart = failures.length;
+        // Track failures pushed *for this row* via a row-local flag.
+        // The previous `failuresAtStart = failures.length` snapshot
+        // worked when this loop was sequential, but with
+        // mapWithConcurrency (PUSH_CONCURRENCY=4) the shared
+        // `failures` array can grow because of OTHER concurrent
+        // drafts between the snapshot and the success-gate check —
+        // which would block this draft from calling markPushed even
+        // though every step for THIS row succeeded.
+        //
+        // Use a row-local boolean + a recordFailure helper so each
+        // draft's success gate is independent of cross-draft noise.
+        // A partial setup (create succeeded, localization failed)
+        // still leaves the row in Draft with a populated storeRef
+        // so the next sync resumes step 2 instead of re-creating
+        // the upstream resource.
+        let rowHadFailure = false;
+        const recordFailure = (failure: {
+          productId: string;
+          reason: string;
+        }) => {
+          rowHadFailure = true;
+          failures.push(failure);
+        };
         try {
           if (row.type === "Subscription") {
             // Resolve the ASC subscriptionGroup from the operator-typed
@@ -1300,7 +1336,7 @@ export const pushSyncProductsAppleIOS = action({
                   description: row.description ?? row.title,
                 });
               } catch (error) {
-                failures.push({
+                recordFailure({
                   productId: `${row.productId} (localization)`,
                   reason:
                     error instanceof Error ? error.message : String(error),
@@ -1329,7 +1365,7 @@ export const pushSyncProductsAppleIOS = action({
                     row.priceAmountMicros,
                   );
                   if (!pricePointId) {
-                    failures.push({
+                    recordFailure({
                       productId: `${row.productId} (price)`,
                       reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
                     });
@@ -1340,7 +1376,7 @@ export const pushSyncProductsAppleIOS = action({
                     });
                   }
                 } catch (error) {
-                  failures.push({
+                  recordFailure({
                     productId: `${row.productId} (price)`,
                     reason:
                       error instanceof Error ? error.message : String(error),
@@ -1348,7 +1384,7 @@ export const pushSyncProductsAppleIOS = action({
                 }
               }
             } else if (row.currency && row.currency !== "USD") {
-              failures.push({
+              recordFailure({
                 productId: `${row.productId} (price)`,
                 reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
               });
@@ -1356,7 +1392,7 @@ export const pushSyncProductsAppleIOS = action({
             // Only flip state to Ready when every follow-up step
             // succeeded. Partial setups stay in Draft (with storeRef
             // populated) so the next sync resumes the missing pieces.
-            if (!dryRun && failures.length === failuresAtStart) {
+            if (!dryRun && !rowHadFailure) {
               await ctx.runMutation(internal.products.sync.markPushed, {
                 projectId: project._id,
                 productId: row.productId,
@@ -1417,7 +1453,7 @@ export const pushSyncProductsAppleIOS = action({
                   description: row.description ?? row.title,
                 });
               } catch (error) {
-                failures.push({
+                recordFailure({
                   productId: `${row.productId} (localization)`,
                   reason:
                     error instanceof Error ? error.message : String(error),
@@ -1438,7 +1474,7 @@ export const pushSyncProductsAppleIOS = action({
                     row.priceAmountMicros,
                   );
                   if (!pricePointId) {
-                    failures.push({
+                    recordFailure({
                       productId: `${row.productId} (price)`,
                       reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
                     });
@@ -1449,7 +1485,7 @@ export const pushSyncProductsAppleIOS = action({
                     });
                   }
                 } catch (error) {
-                  failures.push({
+                  recordFailure({
                     productId: `${row.productId} (price)`,
                     reason:
                       error instanceof Error ? error.message : String(error),
@@ -1457,14 +1493,14 @@ export const pushSyncProductsAppleIOS = action({
                 }
               }
             } else if (row.currency && row.currency !== "USD") {
-              failures.push({
+              recordFailure({
                 productId: `${row.productId} (price)`,
                 reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
               });
             }
             // Same gate as the Subscription branch — only flip Ready
             // when no follow-up step recorded a failure for this row.
-            if (!dryRun && failures.length === failuresAtStart) {
+            if (!dryRun && !rowHadFailure) {
               await ctx.runMutation(internal.products.sync.markPushed, {
                 projectId: project._id,
                 productId: row.productId,
@@ -1484,7 +1520,7 @@ export const pushSyncProductsAppleIOS = action({
           // Until then, the row stops at "Ready to Submit" in ASC and
           // the operator hits Submit manually (or via next app version).
         } catch (error) {
-          failures.push({
+          recordFailure({
             productId: row.productId,
             reason: error instanceof Error ? error.message : String(error),
           });
@@ -1549,6 +1585,14 @@ export function mapBillingPeriodToAsc(
   switch (period) {
     case "P1W":
       return "ONE_WEEK";
+    case "P1M":
+    case undefined:
+      // Treat missing billingPeriod as monthly. The catalog form
+      // makes billingPeriod optional and a missing value commonly
+      // means "I forgot to fill this in"; defaulting to monthly is
+      // the least destructive interpretation (the operator can fix
+      // the row and re-sync).
+      return "ONE_MONTH";
     case "P2M":
       return "TWO_MONTHS";
     case "P3M":
@@ -1557,10 +1601,17 @@ export function mapBillingPeriodToAsc(
       return "SIX_MONTHS";
     case "P1Y":
       return "ONE_YEAR";
-    case "P1M":
-    case undefined:
     default:
-      return "ONE_MONTH";
+      // Unknown period values used to silently coerce to ONE_MONTH,
+      // which provisioned the wrong subscription duration in ASC —
+      // a much harder-to-unwind mistake than a failed sync. Throw
+      // so the operator sees the typo immediately and the partial-
+      // failure tracking in processOneDraft records it as an
+      // actionable failure for that row.
+      throw new Error(
+        `Invalid billing period for ASC subscription: "${period}". ` +
+          `Expected one of P1W, P1M, P2M, P3M, P6M, P1Y (or omit for monthly).`,
+      );
   }
 }
 
