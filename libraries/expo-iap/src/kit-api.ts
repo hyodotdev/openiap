@@ -161,11 +161,10 @@ export function kitApi(options: KitApiOptions) {
       headers,
     });
     const text = await response.text();
-    // Empty body is normalized to `null` rather than the empty string
-    // — callers expecting JSON (status / entitlements / list*) would
-    // otherwise get a truthy "" and crash on property access. Errors
-    // still keep the raw text for the throw path so the operator
-    // sees whatever the server returned verbatim.
+    // Empty body normalizes to null so callers expecting JSON
+    // (status / entitlements / list*) don't get a truthy ""
+    // and crash on property access. Errors still keep the raw
+    // text on the throw path.
     let parsed: unknown = text === "" ? null : text;
     if (text) {
       try {

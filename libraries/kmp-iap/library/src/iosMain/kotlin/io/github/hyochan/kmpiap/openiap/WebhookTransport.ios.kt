@@ -1,5 +1,6 @@
 package io.github.hyochan.kmpiap.openiap
 
+import kotlin.concurrent.Volatile
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -51,8 +52,17 @@ actual class WebhookTransport actual constructor(
     private val apiKey: String,
     private val baseUrl: String,
 ) {
-    private var closed: Boolean = false
-    private var activeTask: NSURLSessionDataTask? = null
+    // Mark both shared-state fields volatile (multiplatform-aware
+    // `kotlin.concurrent.Volatile`, not the JVM-only annotation) so
+    // a write from `close()` on the host thread is visible to the
+    // background `events()` reconnect loop on `Dispatchers.Default`.
+    // Without this, Kotlin/Native's compiler + memory model allow
+    // the loop to cache a stale `closed = false` and spin extra
+    // iterations before noticing the close. Same concern for
+    // `activeTask`, which `awaitClose` reads to cancel the in-
+    // flight request.
+    @Volatile private var closed: Boolean = false
+    @Volatile private var activeTask: NSURLSessionDataTask? = null
 
     // Reconnect lifecycle is tied to the collector via callbackFlow:
     // when the collector cancels (or close() flips `closed`), awaitClose

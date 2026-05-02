@@ -146,6 +146,18 @@ export const listSubscriptions = query({
     const project = await projectByApiKey(ctx, args.apiKey);
     if (!project) return { items: [], total: 0 };
 
+    // userId is only indexed on its own (by_project_and_user). The
+    // composite indexes for state / productId don't cover userId,
+    // and silently ignoring it would return matches across all
+    // users — a misleading dashboard result. Reject the combo
+    // explicitly so the caller knows to either narrow on userId
+    // alone or fan out their filtering on the client.
+    if (args.userId && (args.state || args.productId)) {
+      throw new Error(
+        "listSubscriptions: userId cannot be combined with state or productId — no index covers all three. Pick userId alone or filter the result client-side.",
+      );
+    }
+
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
     // Pick the most-selective index for the supplied filters. Schema

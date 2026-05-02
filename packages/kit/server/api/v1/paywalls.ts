@@ -138,7 +138,13 @@ paywalls.post("/preview/:apiKey", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.text("Invalid JSON body", 400);
+    // Match the structured error shape used elsewhere in this file
+    // (POST /:apiKey, GET /:apiKey/:slug NOT_FOUND) so SDK consumers
+    // parsing responses don't need a special case for this endpoint.
+    return c.json(
+      { errors: [{ code: "INVALID_INPUT", message: "Body is not JSON" }] },
+      400,
+    );
   }
   const allProducts = await client.query(api.products.query.listProducts, {
     apiKey,
@@ -342,6 +348,42 @@ function basePeriod(product: PaywallProduct): string | undefined {
   );
 }
 
+// Defense-in-depth CSS sanitizer shared by both render paths.
+// Extracted out of renderPaywallHtml so the custom-HTML override
+// route can apply the same protections instead of dropping
+// customCss in raw — the prior renderCustomHtmlPaywall used
+// `raw(paywall.customCss)` directly, which let
+// `expression()` / `-moz-binding` / `javascript:` URL vectors
+// through. See the original sanitization rationale in
+// renderPaywallHtml.
+function sanitizeCustomCss(css: string | undefined): string {
+  return (css ?? "")
+    .replace(
+      /<\/?\s*(?:style|script|html|body|head|iframe|object|embed|link|meta|svg)[^>]*>/gi,
+      "",
+    )
+    .replace(/expression\s*\([^)]*\)/gi, "")
+    .replace(/-moz-binding\s*:[^;]*;?/gi, "")
+    .replace(/behavior\s*:[^;]*;?/gi, "")
+    .replace(
+      /url\s*\(\s*(['"]?)\s*(?:javascript|vbscript|data:text\/(?:html|javascript))[^)]*\)/gi,
+      "url()",
+    )
+    .replace(/@import\b[^;]*;?/gi, "");
+}
+
+// JSON.stringify doesn't escape `</`, so a product title or paywall
+// field containing the literal string `</script>` would close the
+// surrounding inline script tag and let the rest of the JSON body be
+// reinterpreted as HTML. Rewrite `<` to its valid JSON/JS Unicode
+// escape — round-trips correctly through JSON.parse, and the
+// browser HTML tokenizer never sees the closing-tag sequence. Apply
+// at every <script> body interpolation site; product titles
+// originate from Apple/Google sync so this is reachable input.
+function jsSafeJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
 // Render the full-HTML-override variant: operator owns <body>, kit
 // only contributes <head> chrome + a `window.openiap` helper that
 // (a) exposes paywall + product metadata as JSON and (b) ships the
@@ -391,12 +433,12 @@ function renderCustomHtmlPaywall(
         <title>${paywall.title}</title>
         ${paywall.customCss
           ? html`<style>
-              ${raw(paywall.customCss)}
+              ${raw(sanitizeCustomCss(paywall.customCss))}
             </style>`
           : ""}
         <script>
           (function () {
-            var data = ${raw(JSON.stringify(bridgePayload))};
+            var data = ${raw(jsSafeJson(bridgePayload))};
             window.openiap = {
               paywall: data.paywall,
               products: data.products,
@@ -500,19 +542,7 @@ function renderPaywallHtml(
   // properties + url() schemes) would be the proper fix; deferred
   // to the same publishable/secret-key follow-up since both
   // hinge on a coherent multi-tenant security boundary.
-  const safeCss = (paywall.customCss ?? "")
-    .replace(
-      /<\/?\s*(?:style|script|html|body|head|iframe|object|embed|link|meta|svg)[^>]*>/gi,
-      "",
-    )
-    .replace(/expression\s*\([^)]*\)/gi, "")
-    .replace(/-moz-binding\s*:[^;]*;?/gi, "")
-    .replace(/behavior\s*:[^;]*;?/gi, "")
-    .replace(
-      /url\s*\(\s*(['"]?)\s*(?:javascript|vbscript|data:text\/(?:html|javascript))[^)]*\)/gi,
-      "url()",
-    )
-    .replace(/@import\b[^;]*;?/gi, "");
+  const safeCss = sanitizeCustomCss(paywall.customCss);
   // Defaults match the OpenIAP brand chrome (warm tan primary,
   // terracotta accent, zinc dark background) so an unconfigured
   // paywall feels like part of the kit rather than the iOS-blue
@@ -525,7 +555,12 @@ function renderPaywallHtml(
   // Compare/Carousel → all products. Carousel scrolls horizontally;
   // Compare stacks (or grids on wider screens).
   const visible = paywall.layout === "Single" ? products.slice(0, 1) : products;
-  const productsJson = JSON.stringify(
+  // Use jsSafeJson so a product title containing `</script>` (or
+  // any `<` for that matter) can't close the inline script tag /
+  // get HTML-escaped by hono's `html` template (which would corrupt
+  // the title to literal `&lt;`). The Unicode escape round-trips
+  // through JSON.parse cleanly.
+  const productsJson = jsSafeJson(
     visible.map((p) => ({ productId: p.productId, title: p.title })),
   );
   return html`<!DOCTYPE html>
@@ -909,7 +944,7 @@ function renderPaywallHtml(
 
         <script>
           (function () {
-            var products = ${html`${productsJson}`};
+            var products = ${raw(productsJson)};
             var cta = document.getElementById("cta");
             var toast = document.getElementById("preview-toast");
             var cards = Array.prototype.slice.call(

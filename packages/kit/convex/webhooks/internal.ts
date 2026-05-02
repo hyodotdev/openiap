@@ -94,10 +94,18 @@ export const recordWebhookEvent = internalMutation({
     // amplification. Deferred to a separate PR because removing
     // the table requires a migration step + careful coordination
     // with the existing prune cron.
+    // Scope dedup by projectId because Google Pub/Sub's messageId is
+    // only guaranteed unique *within a topic* — different kit
+    // projects can receive notifications with the same messageId
+    // and the legacy (source, sourceNotificationId) key would
+    // cross-pollute them. Apple's notificationUUID is globally
+    // unique so this is belt-and-braces for ASN, but matching one
+    // key shape keeps the lookup path simple.
     const existing = await ctx.db
       .query("webhookIdempotencyKeys")
-      .withIndex("by_source_and_id", (q) =>
+      .withIndex("by_project_and_source_and_id", (q) =>
         q
+          .eq("projectId", args.projectId)
           .eq("source", args.source)
           .eq("sourceNotificationId", args.sourceNotificationId),
       )
@@ -136,6 +144,7 @@ export const recordWebhookEvent = internalMutation({
       await ctx.db.patch(existing._id, { eventId });
     } else {
       await ctx.db.insert("webhookIdempotencyKeys", {
+        projectId: args.projectId,
         source: args.source,
         sourceNotificationId: args.sourceNotificationId,
         eventId,
@@ -174,8 +183,9 @@ export const pruneWebhookEvents = internalMutation({
       oldEvents.map(async (event) =>
         ctx.db
           .query("webhookIdempotencyKeys")
-          .withIndex("by_source_and_id", (q) =>
+          .withIndex("by_project_and_source_and_id", (q) =>
             q
+              .eq("projectId", event.projectId)
               .eq(
                 "source",
                 event.source === "AppleAppStoreServerNotificationsV2"

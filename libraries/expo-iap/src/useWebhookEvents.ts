@@ -21,8 +21,18 @@ export type UseWebhookEventsOptions = {
 };
 
 export type UseWebhookEventsResult = {
+  /** Most recent N events (most-recent-first). Capped at bufferSize. */
   events: WebhookEventPayload[];
+  /** Last error reported by the underlying stream. Null when healthy. */
   lastError: WebhookListenerError | null;
+  /**
+   * True once the first webhook event has been received from the
+   * stream. Remains false if the connection is open but idle (the
+   * underlying SSE bridge doesn't surface a "stream opened"
+   * lifecycle event we can hook into; isConnected is therefore an
+   * activity indicator, not a raw socket-state flag). Reset to
+   * false on cleanup / apiKey change.
+   */
   isConnected: boolean;
 };
 

@@ -519,17 +519,32 @@ const schema = defineSchema({
     ]),
 
   // Dedup table for webhook payloads. Insertion uses
-  // `(source, sourceNotificationId)` as the natural key; duplicates
-  // detected here cause kit to silently ACK the upstream request with
-  // 200 without re-emitting the event, matching Apple's documented
-  // expectation that ASN may retry the same notification on transient
-  // 5xx and Google's at-least-once Pub/Sub delivery contract.
+  // `(projectId, source, sourceNotificationId)` as the natural key.
+  // projectId is part of the key because Google Cloud Pub/Sub's
+  // messageId is only guaranteed unique *within a topic* — different
+  // kit projects can legitimately publish notifications with the
+  // same messageId, and a project-less key would cross-pollute their
+  // dedup state. (Apple's notificationUUID is globally unique so the
+  // projectId scope is redundant for ASN, but matching one shape
+  // keeps the lookup path simple.) Duplicates detected here cause
+  // kit to silently ACK the upstream request with 200 without
+  // re-emitting the event, matching Apple's documented retry
+  // expectation and Google's at-least-once Pub/Sub contract.
+  // `projectId` is optional during the rollout so already-written
+  // rows still validate; new inserts always populate it.
   webhookIdempotencyKeys: defineTable({
+    projectId: v.optional(v.id("projects")),
     source: v.union(v.literal("apple"), v.literal("google")),
     sourceNotificationId: v.string(),
     eventId: v.optional(v.id("webhookEvents")),
     firstSeenAt: v.number(),
-  }).index("by_source_and_id", ["source", "sourceNotificationId"]),
+  })
+    .index("by_source_and_id", ["source", "sourceNotificationId"])
+    .index("by_project_and_source_and_id", [
+      "projectId",
+      "source",
+      "sourceNotificationId",
+    ]),
 
   // Authoritative per-(project, originalTransactionId) subscription record.
   // Mirrors the spec from `packages/gql/src/webhook.graphql` and the role
