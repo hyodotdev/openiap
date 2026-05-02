@@ -22,15 +22,19 @@ export const listHorizonProjects = internalQuery({
     }),
   ),
   handler: async (ctx) => {
-    const all = await ctx.db.query("projects").collect();
-    return all
-      .filter((project) => project.horizonEnabled === true)
-      .map((project) => ({
-        _id: project._id,
-        horizonEnabled: project.horizonEnabled,
-        horizonAppId: project.horizonAppId,
-        horizonAppSecret: project.horizonAppSecret,
-      }));
+    // Use the by_horizon_enabled index instead of a full-table scan.
+    // Most projects don't opt into Meta Horizon, so this skips the
+    // bulk of the table on every cron tick.
+    const enabled = await ctx.db
+      .query("projects")
+      .withIndex("by_horizon_enabled", (q) => q.eq("horizonEnabled", true))
+      .collect();
+    return enabled.map((project) => ({
+      _id: project._id,
+      horizonEnabled: project.horizonEnabled,
+      horizonAppId: project.horizonAppId,
+      horizonAppSecret: project.horizonAppSecret,
+    }));
   },
 });
 

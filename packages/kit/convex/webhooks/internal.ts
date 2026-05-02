@@ -154,31 +154,44 @@ export const pruneWebhookEvents = internalMutation({
       .withIndex("by_received_at", (q) => q.lt("receivedAt", cutoff))
       .take(limit);
 
+    // Resolve every matching idempotency key in parallel before
+    // touching the DB writer. The previous loop did one .unique()
+    // per event sequentially, so a 500-row prune required 500 RTTs.
+    // Promise.all here issues them in a single flight — Convex
+    // serializes them internally on the storage layer but the
+    // round-trip cost collapses.
+    const keysToDelete = await Promise.all(
+      oldEvents.map(async (event) =>
+        ctx.db
+          .query("webhookIdempotencyKeys")
+          .withIndex("by_source_and_id", (q) =>
+            q
+              .eq(
+                "source",
+                event.source === "AppleAppStoreServerNotificationsV2"
+                  ? "apple"
+                  : "google",
+              )
+              .eq("sourceNotificationId", event.sourceNotificationId),
+          )
+          .unique(),
+      ),
+    );
+
     let deletedEvents = 0;
     let deletedKeys = 0;
-    for (const event of oldEvents) {
-      // Drop the matching idempotency row. Without this, a stale dedup
-      // record could outlive its event and silently swallow a future
-      // (legitimately new) notification that reuses the UUID — very
-      // unlikely in practice, but the invariant is cheap to keep.
-      const key = await ctx.db
-        .query("webhookIdempotencyKeys")
-        .withIndex("by_source_and_id", (q) =>
-          q
-            .eq(
-              "source",
-              event.source === "AppleAppStoreServerNotificationsV2"
-                ? "apple"
-                : "google",
-            )
-            .eq("sourceNotificationId", event.sourceNotificationId),
-        )
-        .unique();
+    for (let i = 0; i < oldEvents.length; i++) {
+      const key = keysToDelete[i];
       if (key) {
+        // Drop the matching idempotency row. Without this, a stale
+        // dedup record could outlive its event and silently swallow
+        // a future (legitimately new) notification that reuses the
+        // UUID — very unlikely in practice, but the invariant is
+        // cheap to keep.
         await ctx.db.delete(key._id);
         deletedKeys += 1;
       }
-      await ctx.db.delete(event._id);
+      await ctx.db.delete(oldEvents[i]._id);
       deletedEvents += 1;
     }
 

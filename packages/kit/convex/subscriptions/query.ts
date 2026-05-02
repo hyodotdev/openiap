@@ -149,22 +149,31 @@ export const listSubscriptions = query({
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
     // Pick the most-selective index for the supplied filters. Schema
-    // covers (projectId, state), (projectId, userId), (projectId,
-    // productId), and (projectId, updatedAt) — so any single filter
-    // hits an index directly. State + productId combinations
-    // over-fetch from by_project_and_state and post-filter on
-    // productId in memory (no composite index covers both).
-    const stateAndProductOverfetch = args.state && args.productId ? 4 : 1;
-
+    // covers single-filter combinations directly; the composite
+    // (projectId, state, productId) index handles the dashboard's
+    // common "filter by state and SKU" combination so we don't need
+    // an over-fetch + in-memory post-filter that could miss rows
+    // past the take() boundary.
     let rows: Array<Doc<"subscriptions">>;
-    if (args.state) {
+    if (args.state && args.productId) {
+      rows = await ctx.db
+        .query("subscriptions")
+        .withIndex("by_project_and_state_and_product", (q) =>
+          q
+            .eq("projectId", project._id)
+            .eq("state", args.state!)
+            .eq("productId", args.productId!),
+        )
+        .order("desc")
+        .take(limit);
+    } else if (args.state) {
       rows = await ctx.db
         .query("subscriptions")
         .withIndex("by_project_and_state", (q) =>
           q.eq("projectId", project._id).eq("state", args.state!),
         )
         .order("desc")
-        .take(limit * stateAndProductOverfetch);
+        .take(limit);
     } else if (args.productId) {
       rows = await ctx.db
         .query("subscriptions")
@@ -191,12 +200,9 @@ export const listSubscriptions = query({
         .take(limit);
     }
 
-    // Only the (state, productId) combination needs an in-memory
-    // post-filter; all other branches already hit a single-column
-    // index that covers the supplied filter.
-    if (args.state && args.productId) {
-      rows = rows.filter((row) => row.productId === args.productId);
-    }
+    // All filter combinations hit an index that covers the supplied
+    // columns now (the (state + productId) composite was added in
+    // schema.ts), so no in-memory post-filter is needed here.
 
     // `total` reflects the filtered window we actually materialized,
     // not the full server-side count. Computing a true total would

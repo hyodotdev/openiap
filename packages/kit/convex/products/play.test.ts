@@ -29,12 +29,25 @@ describe("moneyToMicros", () => {
     ).toBe(1_000_000);
   });
 
-  it("uses BigInt math so very large currency values keep precision", () => {
-    // 9_999_999_999 KRW = unit only, far past safe Number range when multiplied
-    // by 1_000_000. BigInt path preserves the exact value.
+  it("uses BigInt math to preserve precision up to Number.MAX_SAFE_INTEGER", () => {
+    // 9_007_199_254 KRW is the largest unit value that, multiplied by
+    // 1_000_000 (micros), stays at or below Number.MAX_SAFE_INTEGER
+    // (9_007_199_254_740_992). Beyond this the new guard correctly
+    // returns undefined to avoid silent IEEE 754 truncation.
     expect(
-      moneyToMicros({ currencyCode: "KRW", units: "9999999999", nanos: 0 }),
-    ).toBe(9_999_999_999_000_000);
+      moneyToMicros({ currencyCode: "KRW", units: "9007199254", nanos: 0 }),
+    ).toBe(9_007_199_254_000_000);
+  });
+
+  it("returns undefined when the converted micros exceed Number.MAX_SAFE_INTEGER", () => {
+    // 1e10 KRW * 1_000_000 micros > 2^53 — the schema stores
+    // priceAmountMicros as a JS number (double), so anything past
+    // the safe range would silently round-trip to a corrupted value.
+    // The guard surfaces "price unknown" so the dashboard can show
+    // an affordance instead of a wrong number.
+    expect(
+      moneyToMicros({ currencyCode: "KRW", units: "10000000000", nanos: 0 }),
+    ).toBeUndefined();
   });
 
   it("returns undefined when units is not a parseable BigInt string", () => {

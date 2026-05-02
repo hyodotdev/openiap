@@ -1100,14 +1100,32 @@ export const pushSyncProductsAppleIOS = action({
             // `subscriptionGroupName`. Find-or-create so the operator
             // doesn't have to pre-create the group in ASC's web UI; if
             // they don't pick a name we default to the productId so
-            // there's *some* group rather than a hard failure. In
-            // dry-run, list groups (read-only) and report which path
-            // the real run would take instead of creating anything.
+            // there's *some* group rather than a hard failure — but
+            // surface a non-fatal warning since per-product groups
+            // fragment the catalog and break StoreKit 2's
+            // upgrade/downgrade flow between Monthly and Yearly tiers
+            // (those need to share a group). In dry-run, list groups
+            // (read-only) and report which path the real run would
+            // take instead of creating anything.
             //
             // Skip both group-resolve and create when this row already
             // has a storeRef from a prior partially-successful sync —
             // re-creating would either duplicate or 409 against ASC.
             const groupName = row.subscriptionGroupName ?? row.productId;
+            if (!row.subscriptionGroupName && !row.storeRef && dryRun) {
+              // Surface the per-product-group warning in dry-run only
+              // so operators see the recommendation while previewing
+              // (the most common time to fix the catalog), but a
+              // production sync isn't blocked or noisy. Pushing into
+              // `failures` would also trip the markPushed gate added
+              // for partial-failure resilience.
+              plannedWrites.push({
+                productId: row.productId,
+                step: "warning: no subscription group name set",
+                detail:
+                  "Falling back to productId so this sub lands in its own group. Pick a shared name (e.g. 'Premium') for related tiers so StoreKit 2 upgrade/downgrade works.",
+              });
+            }
             let storeRef: string;
             if (row.storeRef) {
               storeRef = row.storeRef;

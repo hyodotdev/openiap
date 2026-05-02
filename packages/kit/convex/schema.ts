@@ -224,7 +224,11 @@ const schema = defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_api_key", ["apiKey"])
-    .index("by_org_and_slug", ["organizationId", "slug"]),
+    .index("by_org_and_slug", ["organizationId", "slug"])
+    // Horizon polling reconciler iterates only the projects that
+    // opted into Meta Horizon billing — without this index the cron
+    // would full-scan every project on each tick.
+    .index("by_horizon_enabled", ["horizonEnabled"]),
 
   // API Keys table - Multiple API keys per project
   apiKeys: defineTable({
@@ -576,11 +580,16 @@ const schema = defineSchema({
     .index("by_project_and_user", ["projectId", "userId"])
     .index("by_project_and_state", ["projectId", "state"])
     .index("by_project_and_updated", ["projectId", "updatedAt"])
-    // Direct lookup by productId so the dashboard's
-    // listSubscriptions doesn't have to over-fetch from
-    // by_project_and_state and filter in memory when the operator
-    // pivots on a single SKU.
-    .index("by_project_and_product", ["projectId", "productId"]),
+    .index("by_project_and_product", ["projectId", "productId"])
+    // Composite index for the (state + productId) filter combination
+    // in listSubscriptions. Without it, the prior over-fetch heuristic
+    // could miss matching rows past the take() boundary on projects
+    // with thousands of subs in the same state.
+    .index("by_project_and_state_and_product", [
+      "projectId",
+      "state",
+      "productId",
+    ]),
 
   // Daily revenue metrics rollup keyed by (projectId, day, productId,
   // currency). Populated by `recomputeRevenueMetrics` cron (recomputes

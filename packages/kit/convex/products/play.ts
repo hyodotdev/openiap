@@ -673,6 +673,20 @@ export function moneyToMicros(
     const microsBigInt =
       BigInt(money.units) * 1_000_000n +
       BigInt(Math.round((money.nanos ?? 0) / 1_000));
+    // Drop values that exceed Number.MAX_SAFE_INTEGER. The schema
+    // stores `priceAmountMicros` as a JS `number` (IEEE 754 double),
+    // so anything above 2^53 - 1 would silently lose precision on
+    // round-trip. In practice no realistic IAP price hits that bound
+    // (it's ~9.0e15 micros = USD 9 billion), but for currencies with
+    // very high unit values like IDR / KRW it's worth the explicit
+    // guard rather than a silent corruption — kit treats the row as
+    // "price unknown" and the dashboard surfaces that affordance.
+    if (
+      microsBigInt > BigInt(Number.MAX_SAFE_INTEGER) ||
+      microsBigInt < BigInt(Number.MIN_SAFE_INTEGER)
+    ) {
+      return undefined;
+    }
     return Number(microsBigInt);
   } catch {
     return undefined;
