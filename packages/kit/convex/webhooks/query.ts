@@ -126,18 +126,20 @@ export const webhookEventsSince = query({
 
     const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
 
-    // Single-batch fetch: take up to 2× when an `afterCreationTime`
-    // cursor is in play so the in-memory filter still has `limit`
-    // events to return after dropping any rows that landed at the
-    // boundary millisecond but at-or-before the prior tip. The
-    // saturated-cohort case is handled at the SSE layer in
-    // webhooks.ts (which loops with the tuple cursor
-    // `(receivedAt, _creationTime)` until merged.length === limit) —
-    // an inner loop here would either also have to advance by `+1ms`
-    // (skipping events still in the boundary millisecond) or
-    // duplicate the SSE loop's logic, so keep the query primitive.
+    // Take up to 5000 when `afterCreationTime` is in play so the
+    // in-memory filter still has `limit` events to return after
+    // dropping rows at the boundary millisecond. 5000 covers the
+    // realistic worst-case cohort (Apple/Google never fire that
+    // many events in a single ms in production); the saturated-
+    // cohort case beyond that bound is handled at the SSE layer in
+    // webhooks.ts which loops with the tuple cursor
+    // `(receivedAt, _creationTime)`. An inner loop here would
+    // either skip events still in the boundary millisecond
+    // (`cursor = lastReceivedAt + 1`) or duplicate the SSE loop's
+    // logic, so we keep the query primitive and let the next layer
+    // handle pathological collations.
     const fetchLimit = args.afterCreationTime
-      ? Math.min(limit * 2, 1000)
+      ? Math.min(limit * 10, 5000)
       : limit;
     const raw = await ctx.db
       .query("webhookEvents")

@@ -84,6 +84,16 @@ export const recordWebhookEvent = internalMutation({
     // Dedup check first. Apple ASN may retry the same notificationUUID
     // on transient 5xx, and Google Pub/Sub guarantees at-least-once
     // delivery — both are normal, both must result in HTTP 200 here.
+    //
+    // TODO(schema-cleanup): the `webhookIdempotencyKeys` table is
+    // arguably redundant with `webhookEvents.by_project_and_notification_id`
+    // — that index already enforces uniqueness on
+    // `(projectId, sourceNotificationId)`. We could fold the dedup
+    // check into a direct lookup against webhookEvents and drop
+    // this table entirely, halving the per-webhook write
+    // amplification. Deferred to a separate PR because removing
+    // the table requires a migration step + careful coordination
+    // with the existing prune cron.
     const existing = await ctx.db
       .query("webhookIdempotencyKeys")
       .withIndex("by_source_and_id", (q) =>

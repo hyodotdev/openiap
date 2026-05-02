@@ -1,5 +1,6 @@
 package io.github.hyochan.kmpiap.openiap
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -96,6 +97,14 @@ actual class WebhookTransport actual constructor(
                     }
                     frameLines.append(line).append('\n')
                 }
+            } catch (cancellation: CancellationException) {
+                // Coroutine cancellation must propagate so the
+                // collector can tear down — wrapping it in the
+                // generic Throwable catch below would treat the
+                // cancellation as a transient transport error and
+                // re-enter the retry loop. Re-throw before any
+                // back-off / reconnect logic runs.
+                throw cancellation
             } catch (error: Throwable) {
                 if (closed) break
                 // fall through to the back-off + reconnect.

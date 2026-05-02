@@ -20,6 +20,22 @@ const themeValidator = v.optional(
 // project apiKey — same model as the rest of the v1 surface so the MCP
 // server / dashboard / SDK can all drive it without a separate admin
 // session.
+//
+// ⚠️ SECURITY: the apiKey is intentionally shared between
+// "read-only" SDK callers (paywall fetch, webhook stream, status
+// probes) and "write" admin callers (this mutation, upsertProduct,
+// the push-sync actions). That conflation is a known limitation —
+// `customHtml` here can carry arbitrary script that the kit-hosted
+// paywall serves into a WebView, so anyone with the apiKey can
+// inject content into the operator's app surface.
+//
+// Mitigation today: treat the project apiKey as a secret. Don't
+// commit it to repos, scope CI access tightly, and rotate
+// immediately on suspected leak. The follow-up plan is a split
+// publishable/secret-key model (see GitHub discussion) where SDKs
+// only ever ship the publishable key (read-only) and write
+// mutations require the secret key. That refactor is intentionally
+// out of scope for the kit-webhook-receivers PR.
 export const upsertPaywall = mutation({
   args: {
     apiKey: v.string(),

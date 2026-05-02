@@ -58,7 +58,25 @@ export function useWebhookEvents({
   onErrorRef.current = onError;
   bufferSizeRef.current = bufferSize;
 
+  // Trim the existing buffer when the host lowers `bufferSize`
+  // mid-stream. The ref-based update only takes effect on the next
+  // event arrival, which can leave the visible buffer above the new
+  // cap until traffic resumes — this effect enforces the cap
+  // immediately on the change instead.
   useEffect(() => {
+    setEvents((prev) =>
+      bufferSize > 0 ? prev.slice(0, bufferSize) : [],
+    );
+  }, [bufferSize]);
+
+  useEffect(() => {
+    // Reset surfaced state on every (re)connect target so a stale
+    // event from the prior stream can't briefly leak into a new
+    // apiKey/baseUrl context. Matches the SSE convention of
+    // "fresh stream → fresh history."
+    setEvents([]);
+    setLastError(null);
+
     if (!apiKey) {
       return;
     }

@@ -156,6 +156,38 @@ private class SseDelegate(
 ) : NSObject(), NSURLSessionDataDelegateProtocol {
     private val finishedSignal = Channel<Unit>(Channel.CONFLATED)
 
+    // Validate the HTTP status before letting any body bytes flow.
+    // Without this, a 4xx (bad apiKey, bundle mismatch) or 5xx
+    // (kit pod restarting) just emits an empty body and the runOnce
+    // loop silently retries — masking misconfiguration as a
+    // transient transport blip. Mirrors the Android `responseCode
+    // !in 200..299` guard. Allowing the response cancels the task
+    // when status is non-2xx; the awaitFinished signal then
+    // resolves and runOnce returns false → back-off + reconnect
+    // applies the same way as a network drop.
+    @Suppress("UNUSED_PARAMETER")
+    override fun URLSession(
+        session: NSURLSession,
+        dataTask: NSURLSessionDataTask,
+        didReceiveResponse: platform.Foundation.NSURLResponse,
+        completionHandler: (platform.Foundation.NSURLSessionResponseDisposition) -> Unit,
+    ) {
+        val httpResponse = didReceiveResponse as? NSHTTPURLResponse
+        val status = httpResponse?.statusCode?.toInt() ?: 0
+        if (status in 200..299) {
+            completionHandler(NSURLSessionResponseAllow)
+        } else {
+            // Cancel the task; awaitFinished will then unblock and
+            // runOnce returns false, triggering the same back-off
+            // reconnect path we use for network errors.
+            dataTask.cancel()
+            completionHandler(
+                platform.Foundation.NSURLSessionResponseCancel,
+            )
+            finishedSignal.trySend(Unit)
+        }
+    }
+
     override fun URLSession(
         session: NSURLSession,
         dataTask: NSURLSessionDataTask,

@@ -93,7 +93,22 @@ export function useWebhookEvents({
   onErrorRef.current = onError;
   bufferSizeRef.current = bufferSize;
 
+  // Trim the visible buffer immediately when bufferSize is lowered
+  // mid-stream. The ref-based update would otherwise only take
+  // effect on the next event.
   useEffect(() => {
+    setEvents((prev) =>
+      bufferSize > 0 ? prev.slice(0, bufferSize) : [],
+    );
+  }, [bufferSize]);
+
+  useEffect(() => {
+    // Fresh stream → fresh state. Resetting events + lastError on
+    // (re)connect prevents a stale payload from the previous
+    // apiKey/baseUrl from briefly leaking into the new context.
+    setEvents([]);
+    setLastError(null);
+
     if (!apiKey) {
       return;
     }

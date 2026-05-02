@@ -150,26 +150,42 @@ func _drain_frames() -> void:
 		_process_frame(frame)
 
 # Returns {idx, sep_len} where idx is the byte offset of the first
-# CRLF-CRLF or LF-LF in the buffer, and sep_len is the byte length of
-# that separator. Returns idx = -1 when no complete frame has arrived.
+# blank-line separator in the buffer, and sep_len is the byte length
+# of that separator. Returns idx = -1 when no complete frame has
+# arrived. Per the SSE spec (whatwg, section "Interpreting an event
+# stream"), a line terminator is *any* of CRLF, LF, or CR — and a
+# blank line is two consecutive terminators in any combination. The
+# byte scan below accepts every combination so we don't miss frames
+# emitted by servers using CR-only or mixed terminators.
 func _find_frame_boundary(buf: PackedByteArray) -> Dictionary:
 	var n := buf.size()
 	var i := 0
-	while i < n - 1:
-		# `\n\n`
-		if buf[i] == 0x0A and buf[i + 1] == 0x0A:
-			return { "idx": i, "sep_len": 2 }
-		# `\r\n\r\n`
-		if (
-			i < n - 3
-			and buf[i] == 0x0D
-			and buf[i + 1] == 0x0A
-			and buf[i + 2] == 0x0D
-			and buf[i + 3] == 0x0A
-		):
-			return { "idx": i, "sep_len": 4 }
-		i += 1
+	while i < n:
+		# Length of the line terminator starting at index i (0 if not
+		# a terminator). Accept CRLF (2), LF (1), CR (1).
+		var first_len := _terminator_length(buf, i, n)
+		if first_len == 0:
+			i += 1
+			continue
+		var second_len := _terminator_length(buf, i + first_len, n)
+		if second_len == 0:
+			i += first_len
+			continue
+		return { "idx": i, "sep_len": first_len + second_len }
 	return { "idx": -1, "sep_len": 0 }
+
+# Length (1 or 2) of the line terminator starting at `idx`, or 0 if
+# the byte at `idx` isn't a terminator. CRLF takes precedence so
+# `\r\n` is reported as 2, not as 1+1.
+func _terminator_length(buf: PackedByteArray, idx: int, n: int) -> int:
+	if idx >= n:
+		return 0
+	var b := buf[idx]
+	if b == 0x0D and idx + 1 < n and buf[idx + 1] == 0x0A:
+		return 2
+	if b == 0x0A or b == 0x0D:
+		return 1
+	return 0
 
 func _process_frame(frame: String) -> void:
 	if frame.is_empty():

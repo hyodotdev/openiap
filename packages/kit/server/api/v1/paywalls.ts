@@ -25,6 +25,12 @@ paywalls.post("/:apiKey", async (c) => {
     subheadline?: string;
     cta?: string;
     legalCopy?: string;
+    features?: string[];
+    logoUrl?: string;
+    backgroundImageUrl?: string;
+    productImages?: Array<{ productId: string; imageUrl: string }>;
+    customCss?: string;
+    customHtml?: string;
     theme?: {
       primaryColor?: string;
       accentColor?: string;
@@ -71,6 +77,17 @@ paywalls.post("/:apiKey", async (c) => {
       subheadline: body.subheadline,
       cta: body.cta,
       legalCopy: body.legalCopy,
+      // Forward every extended paywall field — without this, an
+      // upsert from MCP / SDK was silently clearing
+      // features / logoUrl / backgroundImageUrl / productImages /
+      // customCss / customHtml on the existing row because the
+      // mutation patches optional args directly.
+      features: body.features,
+      logoUrl: body.logoUrl,
+      backgroundImageUrl: body.backgroundImageUrl,
+      productImages: body.productImages,
+      customCss: body.customCss,
+      customHtml: body.customHtml,
       theme: body.theme,
     });
     return c.json(result);
@@ -672,7 +689,7 @@ function renderPaywallHtml(
               color-mix(in oklab, var(--accent) 30%, var(--bg))
             );
           }
-          .product[aria-selected="true"] {
+          .product[aria-checked="true"] {
             border-color: var(--primary);
             background: color-mix(in oklab, var(--primary) 10%, transparent);
             box-shadow: 0 0 0 4px
@@ -831,7 +848,7 @@ function renderPaywallHtml(
                 role="radio"
                 tabindex="0"
                 data-product-id="${product.productId}"
-                aria-selected="${i === 0 ? "true" : "false"}"
+                aria-checked="${i === 0 ? "true" : "false"}"
               >
                 ${showBest ? html`<div class="ribbon">Best value</div>` : ""}
                 ${imageUrl
@@ -894,7 +911,7 @@ function renderPaywallHtml(
               function pick() {
                 selected = el.getAttribute("data-product-id");
                 cards.forEach(function (c) {
-                  c.setAttribute("aria-selected", c === el ? "true" : "false");
+                  c.setAttribute("aria-checked", c === el ? "true" : "false");
                 });
               }
               el.addEventListener("click", pick);
