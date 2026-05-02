@@ -5,6 +5,7 @@ import { google } from "googleapis";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { moneyToMicros } from "../products/play";
 import { getProjectByApiKey } from "../purchases/shared";
 import {
   normalizeGoogleRtdn,
@@ -247,18 +248,13 @@ async function maybeFetchSubscriptionInfo(
       expiryTimeMillis: expiry ? Date.parse(expiry) : undefined,
       autoRenewingPlanRenewsTimeMillis: renews ? Date.parse(renews) : undefined,
       currency: recurring?.currencyCode ?? undefined,
-      priceAmountMicros: recurring?.units
-        ? // `units` is BigInt-as-string per Google's `Money` proto; do
-          // the multiplication in BigInt so very-large currency values
-          // don't lose precision through Number's 2^53 ceiling. nanos
-          // is small (always < 1e9) so keeping it in Number is fine.
-          // PR #124 review caught the prior `Number(units) * 1_000_000`
-          // approach.
-          Number(
-            BigInt(recurring.units) * 1_000_000n +
-              BigInt(Math.round((recurring.nanos ?? 0) / 1_000)),
-          )
-        : undefined,
+      // Use the shared moneyToMicros helper from products/play.ts —
+      // same Google `Money` proto, same BigInt overflow concerns.
+      // The shared version also guards against
+      // `Number.MAX_SAFE_INTEGER` overflow and wraps the BigInt
+      // parse in try/catch (handles malformed `units` instead of
+      // throwing into the surrounding subscriptionsv2-get path).
+      priceAmountMicros: moneyToMicros(recurring),
     };
   } catch (error) {
     // Sanitized: only the error name/code/message is logged. The full
