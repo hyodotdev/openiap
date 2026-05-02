@@ -6,8 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -61,31 +60,47 @@ actual class WebhookTransport actual constructor(
                         "SSE connect returned ${connection.responseCode}",
                     )
                 }
-                val reader = BufferedReader(
-                    InputStreamReader(connection.inputStream, Charsets.UTF_8),
-                )
-                val frameLines = StringBuilder()
+                // Byte-level frame buffer. WHATWG SSE accepts CR, LF,
+                // or CRLF as a line terminator, and a frame separator
+                // is any two consecutive terminators (including mixed
+                // forms like \r\n\r, \r\r, \n\r\n). The previous
+                // BufferedReader.readLine() approach was platform-line-
+                // ending dependent and silently dropped frames from
+                // CR-only servers. Operating on raw bytes here matches
+                // the iOS / Flutter / Godot transports.
+                val input: InputStream = connection.inputStream
+                val buf = ByteArray(8 * 1024)
+                val pending = ByteArrayBuilder()
                 while (!closed) {
-                    val line = reader.readLine() ?: break
-                    if (line.isEmpty()) {
-                        val frame = frameLines.toString()
-                        frameLines.clear()
-                        val parsed = parseSseFrame(frame)
+                    val n = input.read(buf)
+                    if (n == -1) break
+                    if (n == 0) continue
+                    pending.append(buf, 0, n)
+                    while (true) {
+                        val boundary =
+                            findFirstFrameBoundary(pending.bytes, pending.size)
+                        if (boundary == null) break
+                        // boundary.end = byte offset just past the
+                        // trailing terminator pair; bodyLen = bytes
+                        // before that pair (the parseable body).
+                        val bodyLen = boundary.end - boundary.pairLength
+                        val body = String(
+                            pending.bytes,
+                            0,
+                            bodyLen,
+                            Charsets.UTF_8,
+                        )
+                        pending.dropFirst(boundary.end)
+                        val parsed = parseSseFrame(body)
                         // Cursor advancement rules:
                         //   - Successful parse + emit → advance, so a
                         //     reconnect doesn't redeliver an event the
                         //     consumer already saw.
                         //   - Parse failed AND the frame carried an
-                        //     eventId → still advance. Otherwise the
-                        //     reconnect re-fetches the same poison-pill
-                        //     forever and newer events are blocked
-                        //     behind it. iOS already does this; the
-                        //     Android branch was missing the cursor
-                        //     bump on parse-null and could stall.
+                        //     eventId → still advance (poison-pill
+                        //     prevention).
                         //   - Heartbeat / ready / parse-null without
-                        //     an eventId → don't touch resumeId
-                        //     (those frames never carry an id from the
-                        //     server anyway).
+                        //     an eventId → don't touch resumeId.
                         val event = parsed.event
                         if (event != null) {
                             emit(event)
@@ -93,9 +108,7 @@ actual class WebhookTransport actual constructor(
                         } else if (parsed.shouldAdvanceCursorOnDrop) {
                             parsed.eventId?.let { resumeId = it }
                         }
-                        continue
                     }
-                    frameLines.append(line).append('\n')
                 }
             } catch (cancellation: CancellationException) {
                 // Coroutine cancellation must propagate so the
@@ -167,4 +180,82 @@ private fun parseSseFrame(frame: String): ParsedSseFrame {
         event = event,
         shouldAdvanceCursorOnDrop = event == null && eventId != null,
     )
+}
+
+// Minimal growable byte buffer. Avoids the per-byte boxing of
+// ArrayDeque<Byte> for SSE traffic that can run hundreds of KB/s
+// during backlog drains.
+private class ByteArrayBuilder(initialCapacity: Int = 16 * 1024) {
+    var bytes: ByteArray = ByteArray(initialCapacity)
+        private set
+    var size: Int = 0
+        private set
+
+    fun append(src: ByteArray, offset: Int, len: Int) {
+        ensureCapacity(size + len)
+        System.arraycopy(src, offset, bytes, size, len)
+        size += len
+    }
+
+    /**
+     * Drops the first [count] bytes; the remaining tail shifts down
+     * to offset 0. No allocation.
+     */
+    fun dropFirst(count: Int) {
+        if (count >= size) {
+            size = 0
+            return
+        }
+        System.arraycopy(bytes, count, bytes, 0, size - count)
+        size -= count
+    }
+
+    private fun ensureCapacity(min: Int) {
+        if (bytes.size >= min) return
+        var next = bytes.size * 2
+        while (next < min) next *= 2
+        bytes = bytes.copyOf(next)
+    }
+}
+
+// Length (1 or 2) of the line terminator starting at [idx], or 0 if
+// the byte at [idx] isn't a terminator. CRLF takes precedence so
+// `\r\n` is reported as 2, not 1+1. Per WHATWG SSE spec.
+private fun terminatorLength(buf: ByteArray, idx: Int, end: Int): Int {
+    if (idx >= end) return 0
+    val b = buf[idx]
+    if (b == 0x0D.toByte() && idx + 1 < end && buf[idx + 1] == 0x0A.toByte()) {
+        return 2
+    }
+    if (b == 0x0A.toByte() || b == 0x0D.toByte()) return 1
+    return 0
+}
+
+// Result of a successful frame-boundary scan. `end` is the byte
+// offset just past the trailing terminator pair; `pairLength` is the
+// total length of that pair (sum of both terminator lengths) so the
+// caller can subtract it to get the parseable body length.
+private data class FrameBoundary(val end: Int, val pairLength: Int)
+
+// Returns the FIRST complete frame separator (two consecutive line
+// terminators) within [0, length), or null when no complete frame
+// has arrived yet. Operates on raw bytes so a multi-byte UTF-8
+// character in the tail can never produce a false match — 0x0A and
+// 0x0D never appear inside the body of a multi-byte UTF-8 codepoint.
+private fun findFirstFrameBoundary(buf: ByteArray, length: Int): FrameBoundary? {
+    var i = 0
+    while (i < length) {
+        val firstLen = terminatorLength(buf, i, length)
+        if (firstLen == 0) {
+            i += 1
+            continue
+        }
+        val secondLen = terminatorLength(buf, i + firstLen, length)
+        if (secondLen == 0) {
+            i += firstLen
+            continue
+        }
+        return FrameBoundary(end = i + firstLen + secondLen, pairLength = firstLen + secondLen)
+    }
+    return null
 }

@@ -7,6 +7,26 @@ import { ConvexClient } from "convex/browser";
 import { api } from "@/convex";
 import { client, convexUrlForRealtime, handleConvexError } from "../../convex";
 
+// Shared reactive client for the SSE webhook stream. We keep a
+// SINGLE WebSocket open to Convex regardless of how many SDK clients
+// are subscribed — the previous per-connection `new ConvexClient(...)`
+// inside streamSSE fanned out to one WebSocket per subscriber, which
+// scaled poorly under typical traffic where every dashboard tab + every
+// mobile SDK opens its own SSE connection. Each per-connection
+// `onUpdate(...)` returns its own unsubscribe handle so isolating
+// the *subscription lifecycle* per request still works correctly.
+//
+// Initialized lazily on first SSE connection — module-level
+// instantiation would open the WebSocket at boot time, which (a)
+// breaks the smoke build (placeholder CONVEX_URL → infinite reconnect
+// loop blocks `server.stop()` shutdown) and (b) wastes a connection
+// on processes that never serve a stream request.
+let sharedReactiveClient: ConvexClient | null = null;
+function getSharedReactiveClient(): ConvexClient {
+  sharedReactiveClient ??= new ConvexClient(convexUrlForRealtime);
+  return sharedReactiveClient;
+}
+
 // Inbound webhook receivers for Apple ASN v2 and Google Pub/Sub RTDN.
 //
 // Auth model:
@@ -70,17 +90,14 @@ const unifiedHandler = async (c: Context) => {
     );
   }
 
+  // Setup-status gating now lives INSIDE the ingest actions
+  // (`ingestAppleAsnIOS` / `ingestGoogleRtdn`) — they already query
+  // the project once and throw structured ConvexError codes
+  // (`INVALID_API_KEY` / `IOS_NOT_CONFIGURED` / `ANDROID_NOT_CONFIGURED`)
+  // that `mapWebhookError` translates to the right HTTP status.
+  // Doing the check here as a separate Convex query was adding an
+  // extra round-trip per webhook.
   if (looksLikeApple(body)) {
-    const setup = await getSetupStatus(apiKey);
-    if (!setup.found)
-      return platformError(c, "INVALID_API_KEY", "Unknown apiKey");
-    if (!setup.ios.configured) {
-      return platformError(
-        c,
-        "IOS_NOT_CONFIGURED",
-        `Apple ASN v2 received but iOS is not configured for this project. Missing: ${setup.ios.missing.join(", ")}.`,
-      );
-    }
     return handleAppleNotification(
       c,
       apiKey,
@@ -88,16 +105,6 @@ const unifiedHandler = async (c: Context) => {
     );
   }
   if (looksLikeGoogle(body)) {
-    const setup = await getSetupStatus(apiKey);
-    if (!setup.found)
-      return platformError(c, "INVALID_API_KEY", "Unknown apiKey");
-    if (!setup.android.configured) {
-      return platformError(
-        c,
-        "ANDROID_NOT_CONFIGURED",
-        `Google RTDN received but Android is not configured for this project. Missing: ${setup.android.missing.join(", ")}.`,
-      );
-    }
     return handleGoogleNotification(c, apiKey, body as PubSubPushBody);
   }
 
@@ -151,27 +158,6 @@ function looksLikeGoogle(body: unknown): boolean {
   if (!message || typeof message !== "object") return false;
   const m = message as Record<string, unknown>;
   return typeof m.data === "string" && typeof m.messageId === "string";
-}
-
-// Surface a 412 Precondition Failed with a stable `code` so the
-// dashboard / SDK can branch on it without parsing the message.
-function platformError(c: Context, code: string, message: string) {
-  return c.json({ errors: [{ code, message }] }, 412);
-}
-
-async function getSetupStatus(apiKey: string): Promise<{
-  found: boolean;
-  ios: { configured: boolean; missing: string[] };
-  android: { configured: boolean; missing: string[] };
-}> {
-  const status = (await client.query(api.projects.setupStatus.getSetupStatus, {
-    apiKey,
-  })) as {
-    found: boolean;
-    ios: { configured: boolean; missing: string[] };
-    android: { configured: boolean; missing: string[] };
-  };
-  return status;
 }
 
 async function handleAppleNotification(
@@ -412,7 +398,12 @@ webhooks.get("/stream/:apiKey", async (c) => {
       aborted = true;
     });
 
-    const reactive = new ConvexClient(convexUrlForRealtime);
+    // Use the lazy module-level shared client so we don't open a new
+    // WebSocket per SSE subscriber. Each subscription's lifecycle is
+    // bound to its own `unsubscribe` handle returned by
+    // `reactive.onUpdate(...)`, so isolation between connections is
+    // preserved without paying the per-connection WebSocket cost.
+    const reactive = getSharedReactiveClient();
     // Bounded dedup tracker: caps at SEEN_MAX entries with FIFO
     // eviction so a long-lived SSE connection (days/weeks) can't
     // grow the Set unbounded under high event volume. The window
@@ -597,11 +588,13 @@ webhooks.get("/stream/:apiKey", async (c) => {
           message: error instanceof Error ? error.message : "Drain failed",
         }),
       });
-      void reactive.close();
+      // No reactive.close() — the client is shared across SSE
+      // subscribers. We never registered an `onUpdate` here (still
+      // in the drain phase), so there's nothing per-connection to
+      // tear down.
       return;
     }
     if (aborted) {
-      void reactive.close();
       return;
     }
 
@@ -653,7 +646,8 @@ webhooks.get("/stream/:apiKey", async (c) => {
           message: error instanceof Error ? error.message : "Subscribe failed",
         }),
       });
-      void reactive.close();
+      // unsubscribe() not needed — onUpdate threw before returning a
+      // handle. Don't close the shared client.
       return;
     }
 
@@ -671,13 +665,15 @@ webhooks.get("/stream/:apiKey", async (c) => {
         await stream.writeSSE({ event: "heartbeat", data: "" });
       }
     } finally {
+      // Unsubscribe from this connection's onUpdate but DO NOT close
+      // the shared reactive client — other live SSE subscribers and
+      // future connections share the same WebSocket.
       try {
         unsubscribe?.();
       } catch {
-        // closing twice (close() + unsubscribe) is benign in some
-        // hot-reload paths.
+        // Some Convex client versions throw on double-unsubscribe
+        // during hot-reload paths; benign.
       }
-      void reactive.close();
     }
   });
 });
@@ -791,6 +787,22 @@ function mapWebhookError(
     // notices and the upstream stops retrying.
     if (convexError.code === "UNSUPPORTED_EVENT") {
       return c.json({ ok: true, dropped: true, reason: convexError.message });
+    }
+    // Bad / unrecognized API key: 401 with a stable code the dashboard
+    // and SDK can branch on without parsing the message.
+    if (convexError.code === "INVALID_API_KEY") {
+      return c.json({ errors: [convexError] }, 401);
+    }
+    // Per-platform setup-status gates (the action throws these when
+    // the project hasn't configured the matching platform). 412
+    // Precondition Failed is the same status the previous HTTP-layer
+    // pre-check returned, so SDKs / dashboards branching on these
+    // codes don't have to change.
+    if (
+      convexError.code === "IOS_NOT_CONFIGURED" ||
+      convexError.code === "ANDROID_NOT_CONFIGURED"
+    ) {
+      return c.json({ errors: [convexError] }, 412);
     }
     return c.json({ errors: [convexError] }, 400);
   }

@@ -123,8 +123,21 @@ export const pushSyncProductsGoogle = action({
       // first; legacy only fills in skus the new endpoint missed.
       const seenOneTimeSkus = new Set<string>();
       try {
+        // Defensive guard: the new monetization API isn't surfaced in
+        // any typed shape by `googleapis` yet, so we cast through
+        // `unknown` and read the (possibly-missing) `onetimeproducts`
+        // property. `androidpublisher.monetization` is documented but
+        // could change shape in a future SDK release; failing soft
+        // (treating it as "no monetization endpoint here") lets the
+        // legacy `inappproducts.list` path below still pull what it
+        // can instead of bailing the entire pull half-done. The
+        // outer try/catch records the failure in the per-product
+        // `failures` array so the operator sees something happened.
+        const monetizationApi = androidpublisher.monetization as
+          | { onetimeproducts?: unknown }
+          | undefined;
         const onetime = (
-          androidpublisher.monetization as unknown as {
+          monetizationApi as unknown as {
             onetimeproducts?: {
               list: (params: {
                 packageName: string;

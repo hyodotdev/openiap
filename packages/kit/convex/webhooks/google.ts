@@ -72,6 +72,20 @@ export const ingestGoogleRtdn = action({
   handler: async (ctx, args): Promise<IngestResult> => {
     const project = await getProjectByApiKey(ctx, args.apiKey);
 
+    // Setup-status gate. Previously the HTTP layer ran a separate
+    // `getSetupStatus` query before invoking this action; inlining the
+    // check here cuts the second Convex round-trip per webhook.
+    // `mapWebhookError` translates "ANDROID_NOT_CONFIGURED" → 412 so
+    // the operator sees the same structured error the prior pre-check
+    // produced.
+    if (!project.androidPackageName) {
+      throw new ConvexError({
+        code: "ANDROID_NOT_CONFIGURED",
+        message:
+          "Google RTDN received but Android is not configured for this project. Missing: androidPackageName.",
+      });
+    }
+
     if (
       project.androidPackageName &&
       args.payload.packageName &&

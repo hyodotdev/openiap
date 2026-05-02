@@ -56,6 +56,24 @@ export const ingestAppleAsnIOS = action({
   handler: async (ctx, args): Promise<IngestResult> => {
     const project = await getProjectByApiKey(ctx, args.apiKey);
 
+    // Setup-status gate. Previously the HTTP layer ran a separate
+    // `getSetupStatus` query before invoking this action — that meant
+    // every Apple ASN webhook hit Convex twice. Inlining the check
+    // here cuts the round-trip; the `mapWebhookError` translator
+    // recognizes "IOS_NOT_CONFIGURED" and returns 412 with the same
+    // structured error body the prior pre-check produced.
+    const iosMissing: string[] = [];
+    if (!project.iosBundleId) iosMissing.push("iosBundleId");
+    if (!project.iosAppAppleId) iosMissing.push("iosAppAppleId");
+    if (!project.iosAppStoreIssuerId) iosMissing.push("iosAppStoreIssuerId");
+    if (!project.iosAppStoreKeyId) iosMissing.push("iosAppStoreKeyId");
+    if (iosMissing.length > 0) {
+      throw new ConvexError({
+        code: "IOS_NOT_CONFIGURED",
+        message: `Apple ASN v2 received but iOS is not configured for this project. Missing: ${iosMissing.join(", ")}.`,
+      });
+    }
+
     // Decode without verification to inspect environment + bundleId
     // before instantiating the verifier — the verifier requires the
     // environment up front.
