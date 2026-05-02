@@ -448,6 +448,16 @@ webhooks.get("/stream/:apiKey", async (c) => {
     // same-`receivedAt` cohorts larger than `limit` still advance.
     let drainCursor = startCursor.sinceMs;
     let drainCreationCursor = startCursor.afterCreationTime;
+    // Tracks the receivedAt of the last event we *delivered* (not the
+    // last cursor position) so we can detect a saturated-cohort
+    // stall: if a follow-up query returns empty while we just
+    // delivered events at drainCursor's millisecond, the
+    // receivedAt-keyed query bound (limit=5000) fell short of the
+    // full cohort. Bumping drainCursor by 1ms in that case sacrifices
+    // any remaining events past the 5000-event-per-ms threshold but
+    // guarantees forward progress — and the threshold is a hard upper
+    // bound that no real-world store webhook ever approaches.
+    let lastDeliveredReceivedAt: number | null = null;
     try {
       while (!aborted) {
         const batch = (await client.query(
@@ -459,7 +469,23 @@ webhooks.get("/stream/:apiKey", async (c) => {
             limit: 500,
           },
         )) as Array<Record<string, unknown>>;
-        if (!batch.length) break;
+        if (!batch.length) {
+          // Saturated-cohort fallback: if the previous iteration
+          // delivered events stuck at drainCursor's millisecond and
+          // this query came back empty, the query's fetchLimit cap
+          // hid the rest of that cohort. Advance past the millisecond
+          // and try once more before declaring drain complete.
+          if (
+            lastDeliveredReceivedAt !== null &&
+            lastDeliveredReceivedAt === drainCursor
+          ) {
+            drainCursor += 1;
+            drainCreationCursor = undefined;
+            lastDeliveredReceivedAt = null;
+            continue;
+          }
+          break;
+        }
 
         let advanced = false;
         for (const event of batch) {
@@ -500,6 +526,9 @@ webhooks.get("/stream/:apiKey", async (c) => {
             .catch((err) => {
               console.error("[webhooks/stream] drain write failed", err);
             });
+          if (typeof event.receivedAt === "number") {
+            lastDeliveredReceivedAt = event.receivedAt;
+          }
         }
         if (!advanced) break;
         if (batch.length < 500) break;

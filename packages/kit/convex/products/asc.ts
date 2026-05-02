@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getProjectByApiKey } from "../purchases/shared";
+import { mapWithConcurrency } from "../utils/concurrency";
 import { mintAscJwt } from "./jwt";
 
 // App Store Connect REST client + push-sync action.
@@ -28,32 +29,6 @@ import { mintAscJwt } from "./jwt";
 // "fetch failed".
 
 const ASC_BASE = "https://api.appstoreconnect.apple.com";
-
-// Map an array through an async fn with bounded parallelism. Apple
-// throttles ASC at ~50 req/min, so we cap concurrency for the per-IAP
-// / per-sub price lookups during pull-sync. Output preserves input
-// order regardless of completion order so the caller can pair
-// results back to their source items by index.
-async function mapWithConcurrency<T, R>(
-  items: ReadonlyArray<T>,
-  concurrency: number,
-  fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let cursor = 0;
-  const workers = Array.from(
-    { length: Math.max(1, Math.min(concurrency, items.length)) },
-    async () => {
-      while (true) {
-        const idx = cursor++;
-        if (idx >= items.length) return;
-        out[idx] = await fn(items[idx], idx);
-      }
-    },
-  );
-  await Promise.all(workers);
-  return out;
-}
 
 type AscToken = { value: string; expiresAt: number };
 
@@ -1105,6 +1080,21 @@ export const pushSyncProductsAppleIOS = action({
       // concurrent create calls racing for the same name. Cleared
       // per push action invocation.
       const groupIdCache = new Map<string, string>();
+      // Dry-run uses a single up-front listSubscriptionGroups fetch
+      // (read-only) so the per-draft preview rendering doesn't
+      // re-list the groups for each Subscription row in drafts.
+      // Lazy: only fetched on the first Subscription draft we hit
+      // in dry-run, so projects without Sub drafts don't pay the
+      // call at all.
+      let dryRunGroupsCache: Awaited<
+        ReturnType<typeof client.listSubscriptionGroups>
+      > | null = null;
+      const ensureDryRunGroups = async () => {
+        if (!dryRunGroupsCache) {
+          dryRunGroupsCache = await client.listSubscriptionGroups(appIdStr);
+        }
+        return dryRunGroupsCache;
+      };
       for (const row of drafts) {
         // Track failures pushed *for this row* so we can decide
         // whether to flip state to Ready at the end. A partial setup
@@ -1157,7 +1147,7 @@ export const pushSyncProductsAppleIOS = action({
             } else {
               let groupId: string;
               if (dryRun) {
-                const groups = await client.listSubscriptionGroups(appIdStr);
+                const groups = await ensureDryRunGroups();
                 const existing = groups.data.find(
                   (g) => g.attributes.referenceName === groupName,
                 );

@@ -78,22 +78,26 @@ export const listHorizonSubscriptions = internalQuery({
     }),
   ),
   handler: async (ctx, args) => {
-    const all = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_project_and_updated", (q) =>
-        q.eq("projectId", args.projectId),
-      )
-      .collect();
-    return all
+    // Hit by_project_and_state for each mutable state in parallel
+    // instead of full-scanning the project via by_project_and_updated
+    // and filtering in memory. The Refunded / Revoked / Expired
+    // historical archive is the bulk of any long-lived project — the
+    // index path skips it entirely.
+    const STATES = ["Active", "InGracePeriod", "Paused", "Unknown"] as const;
+    const perState = await Promise.all(
+      STATES.map((state) =>
+        ctx.db
+          .query("subscriptions")
+          .withIndex("by_project_and_state", (q) =>
+            q.eq("projectId", args.projectId).eq("state", state),
+          )
+          .collect(),
+      ),
+    );
+    return perState
+      .flat()
       .filter((sub) => sub.platform === "Android")
       .filter((sub) => !!sub.userId)
-      .filter(
-        (sub) =>
-          sub.state === "Active" ||
-          sub.state === "InGracePeriod" ||
-          sub.state === "Paused" ||
-          sub.state === "Unknown",
-      )
       .map((sub) => ({
         userId: sub.userId!,
         sku: sub.productId,

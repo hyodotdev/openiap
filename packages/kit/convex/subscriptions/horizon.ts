@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { mapWithConcurrency } from "../utils/concurrency";
 
 // Horizon polling reconciler.
 //
@@ -71,45 +72,36 @@ export const reconcileHorizonEntitlements = internalAction({
       );
       const appAccessToken = `OC|${project.horizonAppId}|${project.horizonAppSecret}`;
 
-      for (const probe of probes) {
-        checked += 1;
-        try {
-          const granted = await checkHorizonEntitlement({
-            appId: project.horizonAppId,
-            appAccessToken,
-            userId: probe.userId,
-            sku: probe.sku,
-          });
-          // Meta's response is binary: `success: true` means the user
-          // currently holds the entitlement. We map that to the same
-          // event types Apple/Google emit so the state machine /
-          // entitlements query don't need a Horizon-specific branch.
-          if (granted && probe.state !== "Active") {
-            await ctx.runMutation(
-              internal.subscriptions.horizonInternal.recordHorizonStatus,
-              {
-                projectId: project._id,
-                purchaseToken: probe.purchaseToken,
-                userId: probe.userId,
-                productId: probe.sku,
-                eventType: "SubscriptionRenewed",
-              },
-            );
-            transitioned += 1;
-          } else if (!granted && probe.state === "Active") {
-            await ctx.runMutation(
-              internal.subscriptions.horizonInternal.recordHorizonStatus,
-              {
-                projectId: project._id,
-                purchaseToken: probe.purchaseToken,
-                userId: probe.userId,
-                productId: probe.sku,
-                eventType: "SubscriptionExpired",
-              },
-            );
-            transitioned += 1;
+      // Parallelize Meta Graph API checks per project. Meta's
+      // verify_entitlement endpoint isn't tightly throttled — App
+      // Access Tokens get the standard Graph rate limit (~200 calls
+      // per app per hour per user, but our user is the App ID
+      // itself), so concurrency=8 keeps the cron tick fast for
+      // projects with many subs without tripping 429s. The runMutation
+      // calls inside still serialize per probe to keep the
+      // recordHorizonStatus state-transitions atomic.
+      const HORIZON_PROBE_CONCURRENCY = 8;
+      checked += probes.length;
+      const probeResults = await mapWithConcurrency(
+        probes,
+        HORIZON_PROBE_CONCURRENCY,
+        async (probe) => {
+          try {
+            const granted = await checkHorizonEntitlement({
+              appId: project.horizonAppId!,
+              appAccessToken,
+              userId: probe.userId,
+              sku: probe.sku,
+            });
+            return { probe, granted, error: null as unknown };
+          } catch (error) {
+            return { probe, granted: null as boolean | null, error };
           }
-        } catch (error) {
+        },
+      );
+      for (const result of probeResults) {
+        const { probe, granted, error } = result;
+        if (error) {
           failures += 1;
           console.warn(
             "[horizon-reconciler] check failed",
@@ -118,6 +110,36 @@ export const reconcileHorizonEntitlements = internalAction({
             probe.sku,
             error instanceof Error ? error.message : error,
           );
+          continue;
+        }
+        // Meta's response is binary: `granted: true` means the user
+        // currently holds the entitlement. Map to the same event
+        // types Apple/Google emit so the state machine / entitlements
+        // query don't need a Horizon-specific branch.
+        if (granted && probe.state !== "Active") {
+          await ctx.runMutation(
+            internal.subscriptions.horizonInternal.recordHorizonStatus,
+            {
+              projectId: project._id,
+              purchaseToken: probe.purchaseToken,
+              userId: probe.userId,
+              productId: probe.sku,
+              eventType: "SubscriptionRenewed",
+            },
+          );
+          transitioned += 1;
+        } else if (!granted && probe.state === "Active") {
+          await ctx.runMutation(
+            internal.subscriptions.horizonInternal.recordHorizonStatus,
+            {
+              projectId: project._id,
+              purchaseToken: probe.purchaseToken,
+              userId: probe.userId,
+              productId: probe.sku,
+              eventType: "SubscriptionExpired",
+            },
+          );
+          transitioned += 1;
         }
       }
     }
