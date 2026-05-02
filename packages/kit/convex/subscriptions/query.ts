@@ -1,6 +1,8 @@
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
 import { v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
+
+import { monthlyMicrosForSub } from "./monthlyMicros";
 
 const subscriptionStateValidator = v.union(
   v.literal("Active"),
@@ -226,44 +228,20 @@ export const listSubscriptions = query({
   },
 });
 
-// Normalize a single subscription's recurring charge to a *monthly*
-// micros figure so MRR can sum across products with different billing
-// periods. Formula uses calendar averages — yearly /12, weekly *4.345
-// (= 52.14/12), bi-weekly *2.17, daily *30.44 — chosen to land in the
-// same order of magnitude as the standard SaaS MRR convention. The
-// previous implementation summed `priceAmountMicros` raw, so a $120/yr
-// plan inflated MRR by 12×.
-function monthlyMicrosForSub(
-  sub: Doc<"subscriptions">,
-  productPeriod: string | undefined,
-): number {
-  if (typeof sub.priceAmountMicros !== "number") return 0;
-  const amount = sub.priceAmountMicros;
-  switch (productPeriod) {
-    case "P1Y":
-      return Math.round(amount / 12);
-    case "P6M":
-      return Math.round(amount / 6);
-    case "P3M":
-      return Math.round(amount / 3);
-    case "P2M":
-      return Math.round(amount / 2);
-    case "P1W":
-      return Math.round(amount * 4.345);
-    case "P3D":
-      return Math.round(amount * (30.44 / 3));
-    case "P2W":
-      return Math.round(amount * (30.44 / 14));
-    case "P1M":
-    case undefined:
-    default:
-      return amount;
-  }
-}
-
-// Lightweight metrics aggregation. For high-volume projects this should
-// move to the daily rollup table; for v0 we compute live from
-// `subscriptions` so the UX doesn't depend on a cron having run.
+// Metrics aggregation. Reads incrementally-maintained per-currency
+// counters out of `subscriptionStats` for the live state buckets +
+// MRR (O(currencies-per-project) — typically 1-3 rows), and bounded
+// indexed scans over `by_project_and_state` for the 30-day rolling
+// counters. The prior implementation took up to 10,000 subscriptions
+// off the by_project_and_updated index and aggregated in memory,
+// which silently undercounted projects above that cap.
+//
+// Migration safety: when the stats table is empty for a project
+// (pre-rollout state) we fall through to a one-shot recompute via
+// the same statsContributionFor logic so the dashboard stays
+// correct on first read after deploy. The
+// `recomputeSubscriptionStats` internal mutation populates rows for
+// future reads.
 export const metricsSummary = query({
   args: { apiKey: v.string() },
   returns: v.object({
@@ -300,88 +278,114 @@ export const metricsSummary = query({
       };
     }
 
-    // Bound the scan so a project with 100k+ historical subs can't
-    // blow Convex's read budget on a dashboard render. The proper
-    // fix here is an incrementally-maintained `subscriptionStats`
-    // table (see purchaseStats for the existing pattern) — scheduled
-    // as a follow-up since it's a separate cron + write-path
-    // refactor. SUBS_SCAN_CAP captures up to 100x the typical
-    // active-subs count for a paid app, which is enough for the
-    // headline metrics card to be accurate; the badge degrades
-    // gracefully at higher volumes (the dashboard already labels
-    // counts as "approx" for projects above this threshold).
-    const SUBS_SCAN_CAP = 10_000;
-    const all = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_project_and_updated", (q) =>
-        q.eq("projectId", project._id),
-      )
-      .order("desc")
-      .take(SUBS_SCAN_CAP);
-
-    // Single-pass scan over the project's products instead of N+1
-    // per-productId queries. Subscriptions reference productIds that
-    // exist on either iOS or Android (or both); we walk both
-    // platform indexes and key the resulting period map by
-    // productId, preferring whichever platform shipped a billing
-    // period when there's a duplicate.
-    const periodByProductId = new Map<string, string | undefined>();
-    for (const platform of ["IOS", "Android"] as const) {
-      const productRows = await ctx.db
-        .query("products")
-        .withIndex("by_project_and_platform", (q) =>
-          q.eq("projectId", project._id).eq("platform", platform),
-        )
-        .collect();
-      for (const product of productRows) {
-        if (
-          !periodByProductId.has(product.productId) ||
-          (periodByProductId.get(product.productId) === undefined &&
-            product.billingPeriod !== undefined)
-        ) {
-          periodByProductId.set(product.productId, product.billingPeriod);
-        }
-      }
-    }
-
     const now = Date.now();
     const cutoff = now - 30 * 24 * 60 * 60 * 1000;
+
+    // Live state counters + MRR — read out of the incrementally
+    // maintained `subscriptionStats` table.
+    const statsRows = await ctx.db
+      .query("subscriptionStats")
+      .withIndex("by_project", (q) => q.eq("projectId", project._id))
+      .collect();
 
     let activeSubs = 0;
     let inGracePeriod = 0;
     let inBillingRetry = 0;
-    let refunded30d = 0;
-    let canceled30d = 0;
     const mrrAccumulators = new Map<string, number>();
 
-    for (const sub of all) {
-      if (sub.state === "Active" && isActive(sub, now)) {
-        activeSubs += 1;
-        if (typeof sub.priceAmountMicros === "number" && sub.currency) {
-          const monthly = monthlyMicrosForSub(
-            sub,
-            periodByProductId.get(sub.productId),
-          );
+    if (statsRows.length > 0) {
+      for (const row of statsRows) {
+        activeSubs += row.activeSubs;
+        inGracePeriod += row.inGracePeriod;
+        inBillingRetry += row.inBillingRetry;
+        if (row.currency && row.mrrMicros > 0) {
           mrrAccumulators.set(
-            sub.currency,
-            (mrrAccumulators.get(sub.currency) ?? 0) + monthly,
+            row.currency,
+            (mrrAccumulators.get(row.currency) ?? 0) + row.mrrMicros,
           );
         }
-      } else if (sub.state === "InGracePeriod") {
-        inGracePeriod += 1;
-      } else if (sub.state === "InBillingRetry") {
-        inBillingRetry += 1;
       }
+    } else {
+      // No stats rows yet — pre-rollout state for this project.
+      // Compute on the fly so the dashboard isn't blank on first
+      // read after deploy. Bounded by the same per-project scan the
+      // backfill mutation does; for projects past the prior 10k cap
+      // this is a one-time cost until `recomputeSubscriptionStats`
+      // populates the table.
+      const periodByProductId = await loadPeriodByProductId(ctx, project._id);
+      const allSubs = await ctx.db
+        .query("subscriptions")
+        .withIndex("by_project_and_updated", (q) =>
+          q.eq("projectId", project._id),
+        )
+        .collect();
+      for (const sub of allSubs) {
+        if (sub.state === "Active" && isActive(sub, now)) {
+          activeSubs += 1;
+          if (typeof sub.priceAmountMicros === "number" && sub.currency) {
+            const monthly = monthlyMicrosForSub(
+              sub,
+              periodByProductId.get(sub.productId),
+            );
+            mrrAccumulators.set(
+              sub.currency,
+              (mrrAccumulators.get(sub.currency) ?? 0) + monthly,
+            );
+          }
+        } else if (sub.state === "InGracePeriod") {
+          inGracePeriod += 1;
+        } else if (sub.state === "InBillingRetry") {
+          inBillingRetry += 1;
+        }
+      }
+    }
 
-      if (sub.state === "Refunded" && sub.updatedAt >= cutoff) {
-        refunded30d += 1;
-      }
-      if (
-        sub.willRenew === false &&
-        sub.cancellationReason === "UserCanceled" &&
-        sub.updatedAt >= cutoff
-      ) {
-        canceled30d += 1;
+    // 30-day rolling counters — these stay scan-based but use the
+    // `by_project_and_state` index so the candidate set is bounded
+    // by churn (typically thousands per project per month, not by
+    // total historical subs). The loop short-circuits on the first
+    // updatedAt below cutoff because the index returns rows in
+    // _creationTime order; that's a coarse correlation with
+    // updatedAt but not a strict ordering, so we keep walking until
+    // the index is exhausted to avoid missing late-arriving updates.
+    const refundedRows = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_project_and_state", (q) =>
+        q.eq("projectId", project._id).eq("state", "Refunded"),
+      )
+      .collect();
+    let refunded30d = 0;
+    for (const sub of refundedRows) {
+      if (sub.updatedAt >= cutoff) refunded30d += 1;
+    }
+
+    // Canceled = `willRenew === false` + UserCanceled within 30 days.
+    // The state can be Active / InGracePeriod / InBillingRetry /
+    // Expired depending on where in the lifecycle the cancel happened,
+    // so we scan all four indexes and union the results. This is
+    // bounded by the 30-day churn cohort + active-subs total, which
+    // for any realistic project is well under any practical cap.
+    let canceled30d = 0;
+    for (const state of [
+      "Active",
+      "InGracePeriod",
+      "InBillingRetry",
+      "Expired",
+    ] as const) {
+      const rows = await ctx.db
+        .query("subscriptions")
+        .withIndex("by_project_and_state", (q) =>
+          q.eq("projectId", project._id).eq("state", state),
+        )
+        .collect();
+      for (const sub of rows) {
+        if (
+          sub.willRenew === false &&
+          sub.cancellationReason === "UserCanceled" &&
+          sub.updatedAt >= cutoff
+        ) {
+          canceled30d += 1;
+        }
       }
     }
 
@@ -409,3 +413,28 @@ export const metricsSummary = query({
     };
   },
 });
+
+async function loadPeriodByProductId(
+  ctx: QueryCtx,
+  projectId: Id<"projects">,
+): Promise<Map<string, string | undefined>> {
+  const periodByProductId = new Map<string, string | undefined>();
+  for (const platform of ["IOS", "Android"] as const) {
+    const productRows = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", projectId).eq("platform", platform),
+      )
+      .collect();
+    for (const product of productRows) {
+      if (
+        !periodByProductId.has(product.productId) ||
+        (periodByProductId.get(product.productId) === undefined &&
+          product.billingPeriod !== undefined)
+      ) {
+        periodByProductId.set(product.productId, product.billingPeriod);
+      }
+    }
+  }
+  return periodByProductId;
+}

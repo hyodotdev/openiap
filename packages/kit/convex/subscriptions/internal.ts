@@ -1,4 +1,4 @@
-import { internalMutation } from "../_generated/server";
+import { internalMutation, type MutationCtx } from "../_generated/server";
 import { v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
@@ -7,6 +7,7 @@ import {
   type CurrentSubscription,
   type SubscriptionEventInput,
 } from "./stateMachine";
+import { applyStatsTransition, statsContributionFor } from "./stats";
 
 const subscriptionStateValidator = v.union(
   v.literal("Active"),
@@ -95,7 +96,24 @@ export const applySubscriptionEvent = internalMutation({
     const now = Date.now();
     const next = transition.next;
 
+    // Pull billing period for MRR calculation. Skipped if state isn't
+    // counted (Active / InGracePeriod / InBillingRetry) since
+    // statsContributionFor returns null in that case anyway.
+    const billingPeriod = await fetchBillingPeriod(
+      ctx,
+      args.projectId,
+      next.productId,
+    );
+
+    // Capture the BEFORE contribution against the still-existing row
+    // so the stats delta below subtracts what the row used to count
+    // for, then adds what it counts for after the patch.
+    const beforeContribution = existing
+      ? statsContributionFor(existing, billingPeriod, now)
+      : null;
+
     let subscriptionId: Id<"subscriptions">;
+    let updatedRow: Doc<"subscriptions">;
     if (existing) {
       await ctx.db.patch(existing._id, {
         productId: next.productId,
@@ -110,6 +128,7 @@ export const applySubscriptionEvent = internalMutation({
         lastEventId: args.eventId,
       });
       subscriptionId = existing._id;
+      updatedRow = (await ctx.db.get(existing._id))!;
     } else {
       subscriptionId = await ctx.db.insert("subscriptions", {
         projectId: args.projectId,
@@ -127,7 +146,20 @@ export const applySubscriptionEvent = internalMutation({
         updatedAt: now,
         lastEventId: args.eventId,
       });
+      updatedRow = (await ctx.db.get(subscriptionId))!;
     }
+
+    const afterContribution = statsContributionFor(
+      updatedRow,
+      billingPeriod,
+      now,
+    );
+    await applyStatsTransition(
+      ctx,
+      args.projectId,
+      beforeContribution,
+      afterContribution,
+    );
 
     return {
       transition: transition.transition ?? null,
@@ -136,6 +168,31 @@ export const applySubscriptionEvent = internalMutation({
     };
   },
 });
+
+// Look up a product's billing period from the kit-side catalog. We
+// prefer iOS over Android when both platforms ship the same productId
+// (matches what `metricsSummary` does for its read-path scan). Returns
+// undefined when the product isn't tracked or has no billingPeriod —
+// monthlyMicrosForSub treats that as a P1M fallback.
+async function fetchBillingPeriod(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  productId: string,
+): Promise<string | undefined> {
+  for (const platform of ["IOS", "Android"] as const) {
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", projectId)
+          .eq("platform", platform)
+          .eq("productId", productId),
+      )
+      .unique();
+    if (product?.billingPeriod !== undefined) return product.billingPeriod;
+  }
+  return undefined;
+}
 
 function coerceEventInput(raw: RawEventInput): SubscriptionEventInput {
   return {

@@ -635,6 +635,34 @@ const schema = defineSchema({
       "productId",
     ]),
 
+  // Incrementally-maintained per-(project, currency) subscription
+  // counters + MRR. Updated by `applySubscriptionEvent` so the
+  // dashboard's `metricsSummary` query reads O(currencies) rows
+  // instead of scanning the whole `subscriptions` table — the prior
+  // implementation capped at 10,000 subs to bound Convex's read
+  // budget, which silently undercounted projects above that
+  // threshold.
+  //
+  // Keyed by currency because MRR can't be summed across
+  // currencies without a presentation-layer FX conversion (matches
+  // the same reasoning on `revenueMetricsDaily`).
+  //
+  // 30-day rolling counters (refunded, canceled) are NOT stored
+  // here — those are bounded-size by definition (limited by 30 days
+  // of churn, not by total subs) so the read path scans them via
+  // `by_project_and_state` filtered on `updatedAt >= cutoff`.
+  subscriptionStats: defineTable({
+    projectId: v.id("projects"),
+    currency: v.string(),
+    activeSubs: v.number(),
+    inGracePeriod: v.number(),
+    inBillingRetry: v.number(),
+    mrrMicros: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_currency", ["projectId", "currency"]),
+
   // Daily revenue metrics rollup keyed by (projectId, day, productId,
   // currency). Populated by `recomputeRevenueMetrics` cron (recomputes
   // the trailing window from `subscriptions` so late-arriving webhook

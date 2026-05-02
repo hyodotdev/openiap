@@ -60,4 +60,18 @@ crons.interval(
   {},
 );
 
+// Daily drift correction for the incrementally-maintained
+// `subscriptionStats` table. The incremental path in
+// applySubscriptionEvent / recordHorizonStatus is correct in steady
+// state, but a missed invocation (action timeout, manual db.patch,
+// schema drift during rollout) can drift the counters. Recomputing
+// the most-stale 100 projects per tick keeps the dashboard self-
+// healing without operator intervention.
+crons.interval(
+  "recompute subscription stats (drift correction)",
+  { hours: 24 },
+  internal.subscriptions.stats.recomputeAllSubscriptionStats,
+  { batchSize: 100 },
+);
+
 export default crons;

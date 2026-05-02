@@ -6,6 +6,7 @@ import {
   applySubscriptionTransition,
   type CurrentSubscription,
 } from "./stateMachine";
+import { applyStatsTransition, statsContributionFor } from "./stats";
 
 // Convex-runtime helpers used by the Horizon polling reconciler in
 // `horizon.ts`. Kept separate so the action's "use node" boundary
@@ -176,6 +177,13 @@ export const recordHorizonStatus = internalMutation({
       receivedAt: now,
     });
 
+    // Capture stats contribution before patching so the delta below
+    // subtracts what the row used to count for and adds the new state.
+    // Horizon doesn't track billingPeriod (Meta doesn't expose one in
+    // verify_entitlement), so MRR contribution is 0 — matches the
+    // existing read-path semantics for Horizon-backed subs.
+    const beforeContribution = statsContributionFor(existing, undefined, now);
+
     await ctx.db.patch(existing._id, {
       state: transition.next.state,
       willRenew: transition.next.willRenew,
@@ -183,6 +191,16 @@ export const recordHorizonStatus = internalMutation({
       updatedAt: now,
       lastEventId: eventId,
     });
+
+    const updatedRow = (await ctx.db.get(existing._id))!;
+    const afterContribution = statsContributionFor(updatedRow, undefined, now);
+    await applyStatsTransition(
+      ctx,
+      args.projectId,
+      beforeContribution,
+      afterContribution,
+    );
+
     return existing._id;
   },
 });

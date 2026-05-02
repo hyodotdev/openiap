@@ -1107,9 +1107,14 @@ export const pushSyncProductsAppleIOS = action({
       // same group (Premium Monthly + Premium Yearly + Premium
       // Weekly all referencing groupName="Premium") only triggers
       // one ASC listSubscriptionGroups round-trip — and never two
-      // concurrent create calls racing for the same name. Cleared
-      // per push action invocation.
-      const groupIdCache = new Map<string, string>();
+      // concurrent create calls racing for the same name.
+      //
+      // Stores the in-flight promise (not the resolved id) so two
+      // drafts that hit the same name concurrently share one ASC
+      // round-trip. Without this the parallel push fan-out below
+      // could race two find-or-create calls for the same group,
+      // ending up with one of them returning a 409.
+      const groupIdCache = new Map<string, Promise<string>>();
       // Dry-run uses a single up-front listSubscriptionGroups fetch
       // (read-only) so the per-draft preview rendering doesn't
       // re-list the groups for each Subscription row in drafts.
@@ -1125,7 +1130,34 @@ export const pushSyncProductsAppleIOS = action({
         }
         return dryRunGroupsCache;
       };
-      for (const row of drafts) {
+      // Bounded-parallel push. ASC throttles aggressively on the
+      // mutation endpoints (createSubscription / createInAppPurchase /
+      // setPriceSchedule) so the previous sequential `for (const row
+      // of drafts)` loop was the safe-but-slow path; a project with
+      // 20 draft products waited 20× the per-draft round-trip. Run
+      // PUSH_CONCURRENCY drafts in parallel and trade some risk of a
+      // 429 (where ASC returns Retry-After we'd surface to the
+      // failures array) for an N× speedup.
+      //
+      // Each draft's create → localize → setPrice steps stay strictly
+      // sequential within `processOneDraft` — ASC rejects ordering
+      // races on a single resource (a localize call landing before
+      // the create propagates returns 409). Cross-draft parallelism
+      // is safe because each upstream resource is independent. The
+      // groupIdCache holds in-flight promises so concurrent drafts in
+      // the same subscription group still issue exactly one
+      // findOrCreate call.
+      //
+      // Concurrency=4 keeps us well under ASC's per-app rate limit
+      // (anecdotally ~10 writes/sec before 429s start) while
+      // delivering ~4× wall-clock improvement on typical catalogs.
+      // mapWithConcurrency preserves input order for the result
+      // array (we don't actually use it; failures + pushed are
+      // accumulated by mutation).
+      const PUSH_CONCURRENCY = 4;
+      const processOneDraft = async (
+        row: (typeof drafts)[number],
+      ): Promise<void> => {
         // Track failures pushed *for this row* so we can decide
         // whether to flip state to Ready at the end. A partial setup
         // (create succeeded, localization failed) leaves the row in
@@ -1196,16 +1228,23 @@ export const pushSyncProductsAppleIOS = action({
                   detail: `${row.title} · ${mapBillingPeriodToAsc(row.billingPeriod)} · group=${groupName}`,
                 });
               } else {
-                const cached = groupIdCache.get(groupName);
-                if (cached) {
-                  groupId = cached;
-                } else {
-                  groupId = await client.findOrCreateSubscriptionGroup({
+                let cached = groupIdCache.get(groupName);
+                if (!cached) {
+                  cached = client.findOrCreateSubscriptionGroup({
                     appId: appIdStr,
                     referenceName: groupName,
                   });
-                  groupIdCache.set(groupName, groupId);
+                  groupIdCache.set(groupName, cached);
+                  // If the in-flight call rejects, evict the cached
+                  // promise so a follow-up draft can retry instead of
+                  // permanently inheriting the failure.
+                  cached.catch(() => {
+                    if (groupIdCache.get(groupName) === cached) {
+                      groupIdCache.delete(groupName);
+                    }
+                  });
                 }
+                groupId = await cached;
                 const result = await client.createSubscription({
                   groupId,
                   productId: row.productId,
@@ -1435,7 +1474,8 @@ export const pushSyncProductsAppleIOS = action({
             reason: error instanceof Error ? error.message : String(error),
           });
         }
-      }
+      };
+      await mapWithConcurrency(drafts, PUSH_CONCURRENCY, processOneDraft);
     }
 
     return {
