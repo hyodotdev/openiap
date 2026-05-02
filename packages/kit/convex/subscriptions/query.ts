@@ -359,12 +359,21 @@ export const metricsSummary = query({
     // counters in one pass. The candidate set is bounded by the
     // last 30 days of state changes (typically thousands per
     // project, never the full lifetime).
+    // Cap the windowed scan so a project with > 10k state changes
+    // in 30 days can't exceed Convex's 40k document-read limit. The
+    // rolling counters degrade gracefully — if a project genuinely
+    // hits this bound the dashboard shows an approximate count that
+    // still tracks the cohort closely (this is the same trade-off
+    // the previous SUBS_SCAN_CAP made for active counts, before the
+    // incremental subscriptionStats path replaced it). Real-world
+    // monthly churn is well under 10k for any realistic deployment.
+    const ROLLING_SCAN_CAP = 10_000;
     const recentlyChanged = await ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_updated", (q) =>
         q.eq("projectId", project._id).gte("updatedAt", cutoff),
       )
-      .collect();
+      .take(ROLLING_SCAN_CAP);
     let refunded30d = 0;
     let canceled30d = 0;
     const CANCELED_STATES = new Set([

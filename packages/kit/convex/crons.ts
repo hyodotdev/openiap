@@ -71,11 +71,13 @@ crons.interval(
   "recompute subscription stats (drift correction)",
   { hours: 24 },
   internal.subscriptions.stats.recomputeAllSubscriptionStats,
-  // batchSize=10 keeps the per-tick read budget well below Convex's
-  // 40k per-mutation cap (10 projects × up to 30k subs per project
-  // is the worst case, and that's already a deliberate truncation —
-  // the average is 1-2 orders of magnitude smaller).
-  { batchSize: 10 },
+  // batchSize=50 projects per daily tick. Each project recompute
+  // runs as its own scheduled mutation (independent 40k document-
+  // read budget), so the picker mutation only does a tiny index
+  // scan + 50 schedule calls. With daily cadence + batchSize=50,
+  // a deployment with up to 1500 projects cycles through every
+  // project at least monthly.
+  { batchSize: 50 },
 );
 
 export default crons;

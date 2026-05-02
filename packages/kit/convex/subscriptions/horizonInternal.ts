@@ -85,6 +85,14 @@ export const listHorizonSubscriptions = internalQuery({
     // historical archive is the bulk of any long-lived project — the
     // index path skips it entirely.
     const STATES = ["Active", "InGracePeriod", "Paused", "Unknown"] as const;
+    // Per-state cap. Horizon polling is a small-population case in
+    // practice (most projects ship < 1k Horizon subs total), but
+    // bounding here protects against Convex's 40k document-read
+    // limit. The `Promise.all` runs the four state queries in
+    // parallel under one Convex query budget; without `.take()`,
+    // a single project with > ~10k Active subs could exceed the
+    // limit and stall every Horizon cron tick.
+    const PER_STATE_CAP = 5_000;
     const perState = await Promise.all(
       STATES.map((state) =>
         ctx.db
@@ -92,7 +100,7 @@ export const listHorizonSubscriptions = internalQuery({
           .withIndex("by_project_and_state", (q) =>
             q.eq("projectId", args.projectId).eq("state", state),
           )
-          .collect(),
+          .take(PER_STATE_CAP),
       ),
     );
     return perState

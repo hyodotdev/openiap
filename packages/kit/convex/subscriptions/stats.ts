@@ -6,6 +6,7 @@
 
 import type { MutationCtx } from "../_generated/server";
 import { internalMutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
@@ -206,34 +207,36 @@ async function touchStatsRow(
   }
 }
 
-// Daily drift-correction cron entry point. Walks every project that
-// currently has a `subscriptionStats` row OR has any subscriptions
-// AND recomputes its stats from scratch. Bounded per tick so a single
-// runaway project doesn't time out the cron.
+// Daily drift-correction cron entry point. Picks the most-stale
+// projects (one mutation, tiny index scan) and SCHEDULES each
+// project's recompute as a separate mutation via the Convex
+// scheduler. Per-project mutations get their own 40k document-read
+// budget — running them inline would force the picker mutation to
+// share its budget with N project recomputes, which exceeds the
+// 40k cap once batchSize × per-project-reads > 40k.
 //
 // Why: the incremental path in `applySubscriptionEvent` /
 // `recordHorizonStatus` is correct in steady state, but a missed
 // invocation (action timeout, schema drift during rollout, manual
 // db.patch) can drift the counters. Running a full recompute daily
 // keeps the dashboard self-healing without needing operator
-// intervention. The recompute uses indexed reads only so it's safe
-// to run alongside live traffic.
+// intervention.
 export const recomputeAllSubscriptionStats = internalMutation({
   args: {
-    // Per-tick cap so a deployment with thousands of projects doesn't
-    // try to recompute everything in one Convex transaction.
+    // Per-tick cap on how many projects to schedule. Each project
+    // runs in its own mutation (independent 40k budget), so a higher
+    // batchSize is safe — but we still default conservatively so a
+    // deployment with thousands of projects doesn't queue them all
+    // at once.
     batchSize: v.optional(v.number()),
   },
-  returns: v.object({ recomputed: v.number() }),
+  returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args) => {
-    // Conservative default to stay well under Convex's 40k document-
-    // read-per-mutation limit. With each project's recompute potentially
-    // touching up to RECOMPUTE_PER_PROJECT_CAP=30k subs, even ~5-10
-    // projects per tick can flirt with the budget. The cron runs daily
-    // so 10 projects/tick still cycles through every project in a few
-    // weeks for any realistic deployment, and the incremental path
-    // keeps the live counters correct between cron runs anyway.
-    const limit = args.batchSize ?? 10;
+    // Default to 50 projects per daily tick: each runs as its own
+    // mutation so the picker's budget isn't shared. With cron daily
+    // cadence + batchSize=50, a deployment with up to 1500 projects
+    // cycles through every project at least monthly.
+    const limit = args.batchSize ?? 50;
     // Walk the `by_updated_at` index ascending so the most-stale rows
     // surface first. Take ~3× the project budget to dedupe by
     // projectId (a project has one row per currency and we recompute
@@ -255,13 +258,20 @@ export const recomputeAllSubscriptionStats = internalMutation({
       ordered.push(row.projectId);
       if (ordered.length >= limit) break;
     }
-    let recomputed = 0;
+    let scheduled = 0;
     for (const projectId of ordered) {
-      // Inline call — avoids an extra mutation hop per project.
-      await runRecompute(ctx, projectId);
-      recomputed += 1;
+      // Schedule each per-project recompute as its own mutation so
+      // the 40k document-read limit is per-project, not summed
+      // across the batch. `runAfter(0, ...)` queues immediately;
+      // Convex serializes them on its scheduler.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.subscriptions.stats.recomputeSubscriptionStats,
+        { projectId },
+      );
+      scheduled += 1;
     }
-    return { recomputed };
+    return { scheduled };
   },
 });
 
