@@ -15,6 +15,22 @@ const stateValidator = v.union(
   v.literal("Removed"),
 );
 
+const offerKindValidator = v.union(
+  v.literal("FreeTrial"),
+  v.literal("IntroPayUpFront"),
+  v.literal("IntroPayAsYouGo"),
+  v.literal("PromotionalOffer"),
+  v.literal("BasePlan"),
+);
+const offerValidator = v.object({
+  id: v.string(),
+  kind: offerKindValidator,
+  duration: v.optional(v.string()),
+  numberOfPeriods: v.optional(v.number()),
+  priceAmountMicros: v.optional(v.number()),
+  currency: v.optional(v.string()),
+});
+
 // Internal mutation called by the ASC / Play push-sync actions when a
 // row is mirrored from the upstream store. Distinct from the public
 // `upsertProduct` mutation in mutation.ts so server-driven sync can't
@@ -31,19 +47,30 @@ export const upsertFromStore = internalMutation({
     currency: v.optional(v.string()),
     storeRef: v.string(),
     state: stateValidator,
+    subscriptionGroupId: v.optional(v.string()),
+    subscriptionGroupName: v.optional(v.string()),
+    offers: v.optional(v.array(offerValidator)),
   },
   returns: v.id("products"),
   handler: async (ctx, args) => {
+    // Match by (projectId, platform, productId) — apps commonly use
+    // the same productId on both stores, and the older
+    // (projectId, productId)-only lookup would collide and silently
+    // flip an existing Android row's platform to IOS (or vice versa)
+    // mid-sync, deleting one platform's catalog from the dashboard's
+    // perspective.
     const existing: Doc<"products"> | null = await ctx.db
       .query("products")
-      .withIndex("by_project_and_product", (q) =>
-        q.eq("projectId", args.projectId).eq("productId", args.productId),
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
       )
       .unique();
     const now = Date.now();
     if (existing) {
       await ctx.db.patch(existing._id, {
-        platform: args.platform,
         type: args.type,
         title: args.title || existing.title,
         description: args.description ?? existing.description,
@@ -51,6 +78,14 @@ export const upsertFromStore = internalMutation({
         currency: args.currency ?? existing.currency,
         storeRef: args.storeRef,
         state: args.state,
+        // Subscription metadata is sourced from the store on every
+        // pull, so we overwrite (not coalesce) — a sub that was
+        // moved between groups in ASC, or that lost a free trial in
+        // Play Console, should reflect that on the next sync rather
+        // than stick to whatever kit cached previously.
+        subscriptionGroupId: args.subscriptionGroupId,
+        subscriptionGroupName: args.subscriptionGroupName,
+        offers: args.offers,
         syncedAt: now,
         updatedAt: now,
       });
@@ -67,6 +102,9 @@ export const upsertFromStore = internalMutation({
       currency: args.currency,
       storeRef: args.storeRef,
       state: args.state,
+      subscriptionGroupId: args.subscriptionGroupId,
+      subscriptionGroupName: args.subscriptionGroupName,
+      offers: args.offers,
       syncedAt: now,
       updatedAt: now,
     });
@@ -87,8 +125,11 @@ export const markPushed = internalMutation({
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("products")
-      .withIndex("by_project_and_product", (q) =>
-        q.eq("projectId", args.projectId).eq("productId", args.productId),
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
       )
       .unique();
     if (!existing) return null;
@@ -102,8 +143,13 @@ export const markPushed = internalMutation({
   },
 });
 
-// Pull every Draft / Ready iOS row that hasn't been pushed yet.
-// Used by the ASC push action.
+// Pull every Draft iOS row that hasn't been pushed yet. Used by the
+// ASC push action. Subscriptions used to require `storeRef` to be
+// pre-populated with an ASC subscriptionGroup id (via dashboard /
+// MCP) — that contract is gone now: kit resolves a group via the
+// `subscriptionGroupName` operator-typed field at push time
+// (find-or-create against ASC), so `storeRef === undefined` means
+// "not yet pushed" for both subs and one-time IAPs uniformly.
 export const listDraftIosProducts = internalQuery({
   args: { projectId: v.id("projects") },
   returns: v.array(
@@ -112,6 +158,9 @@ export const listDraftIosProducts = internalQuery({
       platform: platformValidator,
       type: typeValidator,
       title: v.string(),
+      description: v.optional(v.string()),
+      priceAmountMicros: v.optional(v.number()),
+      currency: v.optional(v.string()),
       billingPeriod: v.optional(
         v.union(
           v.literal("P1W"),
@@ -122,6 +171,8 @@ export const listDraftIosProducts = internalQuery({
           v.literal("P1Y"),
         ),
       ),
+      subscriptionGroupName: v.optional(v.string()),
+      reviewNote: v.optional(v.string()),
       storeRef: v.optional(v.string()),
     }),
   ),
@@ -133,27 +184,18 @@ export const listDraftIosProducts = internalQuery({
       )
       .collect();
     return all
-      .filter((row) => {
-        if (row.state !== "Draft") return false;
-        // For one-time IAPs, `storeRef` is the resulting App Store
-        // Connect resource id — empty means "not yet pushed", which
-        // is what we want to find. For Subscriptions, `storeRef` is
-        // the *input* subscriptionGroup id — the operator must set
-        // it (via dashboard / MCP) before push, and `pushSyncProductsApple`
-        // requires it to call `createSubscription({ groupId, ... })`.
-        // The previous filter blanket-rejected `storeRef !== undefined`
-        // and so silently hid every push-ready subscription.
-        if (row.type === "Subscription") {
-          return row.storeRef !== undefined && row.storeRef.length > 0;
-        }
-        return row.storeRef === undefined;
-      })
+      .filter((row) => row.state === "Draft" && row.storeRef === undefined)
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,
         type: row.type,
         title: row.title,
+        description: row.description,
+        priceAmountMicros: row.priceAmountMicros,
+        currency: row.currency,
         billingPeriod: row.billingPeriod,
+        subscriptionGroupName: row.subscriptionGroupName,
+        reviewNote: row.reviewNote,
         storeRef: row.storeRef,
       }));
   },

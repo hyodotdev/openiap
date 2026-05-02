@@ -101,12 +101,24 @@ export const ingestGoogleRtdn = action({
       });
     } catch (error) {
       if (error instanceof WebhookNormalizationError) {
-        console.warn(
-          "[webhooks/google] dropping unsupported notification",
-          error.code,
-          error.message,
-        );
-        throw new Error(`UNSUPPORTED_EVENT: ${error.message}`);
+        // Only `UnknownEventType` is "unsupported but well-formed" —
+        // ACK with a 200-class so Pub/Sub stops re-delivering it (the
+        // SDK gateway has no use for one-off Google notification kinds
+        // we don't model). The other two codes
+        // (`MissingNotificationId`, `MissingPurchaseToken`) indicate a
+        // malformed payload we genuinely cannot route — surface them
+        // as ConvexError so `mapWebhookError` translates to 4xx and
+        // the operator sees the rejection in their pubsub metrics
+        // instead of having broken events silently swallowed.
+        if (error.code === "UnknownEventType") {
+          console.warn(
+            "[webhooks/google] dropping unsupported notification",
+            error.code,
+            error.message,
+          );
+          throw new Error(`UNSUPPORTED_EVENT: ${error.message}`);
+        }
+        throw new ConvexError({ code: error.code, message: error.message });
       }
       throw error;
     }

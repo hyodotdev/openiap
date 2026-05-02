@@ -105,51 +105,17 @@ export const pushSyncProductsGoogle = action({
       // — that way an account that lives entirely in one or the other
       // still gets a complete pull instead of failing on the missing
       // half.
+      //
+      // ORDER MATTERS: hit the new monetization API first so its
+      // USD-preferred regional price wins. The legacy
+      // `inappproducts.list` only exposes a single `defaultPrice`
+      // (whatever currency the merchant set in Play Console — often
+      // their home currency) which made products like
+      // `dev.hyo.martie.10bulbs` show up as "AED 3.89" on the
+      // dashboard for an operator using a Korean Play Console where
+      // AED happens to be a regional override. New endpoint runs
+      // first; legacy only fills in skus the new endpoint missed.
       const seenOneTimeSkus = new Set<string>();
-      try {
-        let token: string | undefined;
-        let pageCount = 0;
-        do {
-          const oneTimes = await androidpublisher.inappproducts.list({
-            packageName,
-            ...(token ? { token } : {}),
-          });
-          for (const product of oneTimes.data.inappproduct ?? []) {
-            if (!product.sku) continue;
-            if (seenOneTimeSkus.has(product.sku)) continue;
-            seenOneTimeSkus.add(product.sku);
-            if (product.purchaseType === "subscription") continue;
-            await ctx.runMutation(internal.products.sync.upsertFromStore, {
-              projectId: project._id,
-              productId: product.sku,
-              platform: "Android",
-              type: mapPlayOneTimeType(product),
-              title: pickPlayTitle(product) ?? product.sku,
-              description: pickPlayDescription(product),
-              priceAmountMicros: parsePlayPriceMicros(product),
-              currency: pickPlayCurrency(product),
-              storeRef: product.sku,
-              state: mapPlayStatus(product.status),
-            });
-            pulled += 1;
-          }
-          token = oneTimes.data.tokenPagination?.nextPageToken ?? undefined;
-          pageCount += 1;
-          if (pageCount > 50) break;
-        } while (token);
-      } catch (error) {
-        failures.push({
-          productId: "(play list inappproducts)",
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      // New monetization API for one-time products. The googleapis
-      // SDK exposes this as `monetization.onetimeproducts.list`. We
-      // probe via dynamic access because older versions of the SDK
-      // don't have the typings yet — falling back gracefully if the
-      // method isn't there keeps kit working with whatever
-      // googleapis version is bundled.
       try {
         const onetime = (
           androidpublisher.monetization as unknown as {
@@ -178,6 +144,13 @@ export const pushSyncProductsGoogle = action({
                       // with no price because the lookup never matched.
                       regionalPricingAndAvailabilityConfigs?: Array<{
                         regionCode?: string;
+                        // Google's enum: "AVAILABLE",
+                        // "NO_LONGER_AVAILABLE", "AVAILABLE_IF_RELEASED".
+                        // Stale rows from removed regions still ship
+                        // back with a price attached, so without this
+                        // field we'd happily display a price the
+                        // operator turned off years ago.
+                        availability?: string;
                         price?: {
                           currencyCode?: string;
                           units?: string;
@@ -206,10 +179,21 @@ export const pushSyncProductsGoogle = action({
               seenOneTimeSkus.add(product.productId);
               const listing = product.listings?.[0];
               // Walk every purchaseOption × regionalPricingAndAvailabilityConfig
-              // (pricing lives on the option, not inside buyOption),
-              // prefer USD when any region offers it, otherwise the
-              // first region with a readable price.
+              // (pricing lives on the option, not inside buyOption).
+              // Two filters before ranking:
+              //   - drop regions explicitly NO_LONGER_AVAILABLE so we
+              //     don't surface stale pricing the operator removed.
+              //   - require the price to have a `units` field — Google
+              //     ships zero-priced placeholder rows for some regions
+              //     and they'd outrank real prices alphabetically.
+              // Ranking: regionCode === "US" first (canonical kit
+              // display currency, deterministically maps to USD),
+              // then any USD-currency region (covers operators who
+              // override the US region price into a non-USD currency
+              // — rare but possible), then the first remaining region
+              // alphabetically by currency for a stable result.
               const priceCandidates: Array<{
+                regionCode?: string;
                 currencyCode?: string;
                 units?: string;
                 nanos?: number;
@@ -217,12 +201,22 @@ export const pushSyncProductsGoogle = action({
               for (const opt of product.purchaseOptions ?? []) {
                 for (const region of opt.regionalPricingAndAvailabilityConfigs ??
                   []) {
+                  if (region.availability === "NO_LONGER_AVAILABLE") continue;
                   if (region.price && typeof region.price.units === "string") {
-                    priceCandidates.push(region.price);
+                    priceCandidates.push({
+                      regionCode: region.regionCode,
+                      currencyCode: region.price.currencyCode,
+                      units: region.price.units,
+                      nanos: region.price.nanos,
+                    });
                   }
                 }
               }
+              priceCandidates.sort((a, b) =>
+                (a.currencyCode ?? "").localeCompare(b.currencyCode ?? ""),
+              );
               const preferred =
+                priceCandidates.find((p) => p.regionCode === "US") ??
                 priceCandidates.find((p) => p.currencyCode === "USD") ??
                 priceCandidates[0];
               const priceAmountMicros = preferred
@@ -261,6 +255,59 @@ export const pushSyncProductsGoogle = action({
         });
       }
 
+      // Legacy `inappproducts.list` runs SECOND so any sku already
+      // surfaced by the new endpoint (with USD-preferred pricing) wins
+      // via the dedupe set. Only skus invisible to the new endpoint
+      // get filled in here with whatever `defaultPrice` the merchant
+      // set in Play Console.
+      try {
+        let token: string | undefined;
+        let pageCount = 0;
+        do {
+          const oneTimes = await androidpublisher.inappproducts.list({
+            packageName,
+            ...(token ? { token } : {}),
+          });
+          for (const product of oneTimes.data.inappproduct ?? []) {
+            if (!product.sku) continue;
+            if (seenOneTimeSkus.has(product.sku)) continue;
+            seenOneTimeSkus.add(product.sku);
+            if (product.purchaseType === "subscription") continue;
+            await ctx.runMutation(internal.products.sync.upsertFromStore, {
+              projectId: project._id,
+              productId: product.sku,
+              platform: "Android",
+              type: mapPlayOneTimeType(product),
+              title: pickPlayTitle(product) ?? product.sku,
+              description: pickPlayDescription(product),
+              priceAmountMicros: parsePlayPriceMicros(product),
+              currency: pickPlayCurrency(product),
+              storeRef: product.sku,
+              state: mapPlayStatus(product.status),
+            });
+            pulled += 1;
+          }
+          token = oneTimes.data.tokenPagination?.nextPageToken ?? undefined;
+          pageCount += 1;
+          if (pageCount > 50) break;
+        } while (token);
+      } catch (error) {
+        // The legacy `inappproducts.list` endpoint is deprecated for
+        // newer Play Console accounts and Google now responds with
+        // "Please migrate to the new publishing API". That message is
+        // expected — the new `monetization.onetimeproducts.list` call
+        // above already covers this account — and surfacing it as a
+        // failure produces a noisy red toast every Sync. Suppress it
+        // when seen; surface anything else.
+        const reason = error instanceof Error ? error.message : String(error);
+        if (!/migrate to the new publishing API/i.test(reason)) {
+          failures.push({
+            productId: "(play list inappproducts)",
+            reason,
+          });
+        }
+      }
+
       try {
         let token: string | undefined;
         let pageCount = 0;
@@ -272,6 +319,7 @@ export const pushSyncProductsGoogle = action({
           for (const sub of subs.data.subscriptions ?? []) {
             if (!sub.productId) continue;
             const { priceAmountMicros, currency } = pickSubBasePlanPrice(sub);
+            const offers = collectPlaySubscriptionOffers(sub);
             await ctx.runMutation(internal.products.sync.upsertFromStore, {
               projectId: project._id,
               productId: sub.productId,
@@ -283,6 +331,11 @@ export const pushSyncProductsGoogle = action({
               currency,
               storeRef: sub.productId,
               state: "Active",
+              // Play has no first-class subscription "group" — base
+              // plans on a single subscription product play that role,
+              // and we surface them as `offers[].kind === "BasePlan"`
+              // rows. Leave the ASC-only group fields unset.
+              offers: offers.length ? offers : undefined,
             });
             pulled += 1;
           }
@@ -498,7 +551,118 @@ function pickSubBasePlanPrice(sub: androidpublisher_v3.Schema$Subscription): {
   };
 }
 
-function moneyToMicros(
+// Flatten a Play subscription's basePlans + (per base plan) offers
+// into kit's uniform `offers[]` shape. Each base plan becomes a
+// `kind: "BasePlan"` row carrying its billing period + USD price; each
+// associated subscription offer (free trial / intro discount, set up
+// in Play Console) becomes a Free-Trial / IntroPay* row. Prefers USD
+// regional price when present (mirrors `pickSubBasePlanPrice`'s
+// rationale) so the dashboard shows a stable currency.
+function collectPlaySubscriptionOffers(
+  sub: androidpublisher_v3.Schema$Subscription,
+): Array<{
+  id: string;
+  kind:
+    | "BasePlan"
+    | "FreeTrial"
+    | "IntroPayUpFront"
+    | "IntroPayAsYouGo"
+    | "PromotionalOffer";
+  duration?: string;
+  numberOfPeriods?: number;
+  priceAmountMicros?: number;
+  currency?: string;
+}> {
+  const out: Array<{
+    id: string;
+    kind:
+      | "BasePlan"
+      | "FreeTrial"
+      | "IntroPayUpFront"
+      | "IntroPayAsYouGo"
+      | "PromotionalOffer";
+    duration?: string;
+    numberOfPeriods?: number;
+    priceAmountMicros?: number;
+    currency?: string;
+  }> = [];
+  // Local shape for `basePlans[].offers[]` — googleapis' generated
+  // `Schema$BasePlan` doesn't expose offers despite the underlying
+  // REST resource carrying them, and we don't want to depend on the
+  // SDK regenerating to surface this. Mirrors the relevant fields
+  // from Play's `SubscriptionOffer` proto.
+  type PlanOfferShape = {
+    offerId?: string;
+    phases?: Array<{
+      duration?: string;
+      recurrenceCount?: number;
+      regionalConfigs?: Array<{
+        regionCode?: string;
+        price?: androidpublisher_v3.Schema$Money;
+      }>;
+    }>;
+  };
+  type PlanWithOffers = androidpublisher_v3.Schema$BasePlan & {
+    offers?: PlanOfferShape[];
+  };
+  for (const plan of (sub.basePlans ?? []) as PlanWithOffers[]) {
+    if (!plan.basePlanId) continue;
+    const planRegions = plan.regionalConfigs ?? [];
+    const planPrice =
+      planRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
+      planRegions[0]?.price;
+    out.push({
+      id: plan.basePlanId,
+      kind: "BasePlan",
+      duration:
+        plan.autoRenewingBasePlanType?.billingPeriodDuration ?? undefined,
+      priceAmountMicros: moneyToMicros(planPrice ?? undefined),
+      currency: planPrice?.currencyCode ?? undefined,
+    });
+    for (const offer of plan.offers ?? []) {
+      if (!offer.offerId) continue;
+      // Walk the offer's phases. A FREE phase becomes FreeTrial; a
+      // DISCOUNTED phase with a single occurrence becomes
+      // IntroPayUpFront; multi-occurrence becomes IntroPayAsYouGo.
+      // Most offers only have one of these; if multiple, we emit
+      // multiple rows tagged with the same composite id so the
+      // dashboard can dedupe by basePlanId+offerId+phaseIndex.
+      const phases = offer.phases ?? [];
+      phases.forEach((phase, i) => {
+        const phaseRegions = phase.regionalConfigs ?? [];
+        const phasePrice =
+          phaseRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
+          phaseRegions[0]?.price;
+        // Phase with no price = free trial; with `recurrenceCount > 1`
+        // = pay-as-you-go intro; otherwise = pay-up-front intro.
+        let kind: "FreeTrial" | "IntroPayUpFront" | "IntroPayAsYouGo" =
+          "FreeTrial";
+        const isFree =
+          !phasePrice ||
+          (phasePrice.units === "0" && (phasePrice.nanos ?? 0) === 0);
+        if (!isFree) {
+          kind =
+            (phase.recurrenceCount ?? 1) > 1
+              ? "IntroPayAsYouGo"
+              : "IntroPayUpFront";
+        }
+        out.push({
+          id: `${plan.basePlanId}/${offer.offerId}#${i}`,
+          kind,
+          duration: phase.duration ?? undefined,
+          numberOfPeriods: phase.recurrenceCount ?? undefined,
+          priceAmountMicros: isFree ? undefined : moneyToMicros(phasePrice),
+          currency: isFree
+            ? undefined
+            : (phasePrice?.currencyCode ?? undefined),
+        });
+      });
+    }
+  }
+  return out;
+}
+
+export function moneyToMicros(
   money: androidpublisher_v3.Schema$Money | undefined,
 ): number | undefined {
   if (!money?.units) return undefined;
@@ -518,7 +682,7 @@ function moneyToMicros(
 // Stable basePlanId per billing period — Play's product detail page
 // shows this id, so something descriptive beats "monthly" hardcoded
 // for non-monthly billing.
-function basePlanIdForPeriod(period: string | undefined): string {
+export function basePlanIdForPeriod(period: string | undefined): string {
   switch (period) {
     case "P1W":
       return "weekly";

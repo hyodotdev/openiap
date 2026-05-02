@@ -40,6 +40,8 @@ export const upsertProduct = mutation({
         v.literal("P1Y"),
       ),
     ),
+    subscriptionGroupName: v.optional(v.string()),
+    reviewNote: v.optional(v.string()),
     state: v.optional(stateValidator),
     storeRef: v.optional(v.string()),
   },
@@ -56,8 +58,11 @@ export const upsertProduct = mutation({
 
     const existing: Doc<"products"> | null = await ctx.db
       .query("products")
-      .withIndex("by_project_and_product", (q) =>
-        q.eq("projectId", project._id).eq("productId", args.productId),
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
       )
       .unique();
 
@@ -68,13 +73,15 @@ export const upsertProduct = mutation({
       // the prior "blank title preserves existing" hack would still
       // mask cases where a caller really did mean to clear a field.
       await ctx.db.patch(existing._id, {
-        platform: args.platform,
         type: args.type,
         title: args.title,
         description: args.description ?? existing.description,
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         billingPeriod: args.billingPeriod ?? existing.billingPeriod,
+        subscriptionGroupName:
+          args.subscriptionGroupName ?? existing.subscriptionGroupName,
+        reviewNote: args.reviewNote ?? existing.reviewNote,
         state: args.state ?? existing.state,
         storeRef: args.storeRef ?? existing.storeRef,
         updatedAt: now,
@@ -92,6 +99,8 @@ export const upsertProduct = mutation({
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
       billingPeriod: args.billingPeriod,
+      subscriptionGroupName: args.subscriptionGroupName,
+      reviewNote: args.reviewNote,
       state: args.state ?? "Draft",
       storeRef: args.storeRef,
       updatedAt: now,
@@ -127,14 +136,14 @@ export const setProductState = mutation({
 
     const existing = await ctx.db
       .query("products")
-      .withIndex("by_project_and_product", (q) =>
-        q.eq("projectId", project._id).eq("productId", args.productId),
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
       )
       .unique();
     if (!existing) throw new Error("Product not found");
-    if (existing.platform !== args.platform) {
-      throw new Error("Product platform mismatch");
-    }
 
     await ctx.db.patch(existing._id, {
       state: args.state,
@@ -160,12 +169,14 @@ export const removeProduct = mutation({
 
     const existing = await ctx.db
       .query("products")
-      .withIndex("by_project_and_product", (q) =>
-        q.eq("projectId", project._id).eq("productId", args.productId),
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
       )
       .unique();
     if (!existing) return { ok: false };
-    if (existing.platform !== args.platform) return { ok: false };
 
     // Soft-remove via state flag — keeps audit history for the
     // dashboard and does not break paywalls referencing this productId.

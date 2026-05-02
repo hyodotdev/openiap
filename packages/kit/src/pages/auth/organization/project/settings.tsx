@@ -38,7 +38,6 @@ interface ProjectData {
   iosAppAppleId?: number;
   iosAppStoreIssuerId?: string;
   iosAppStoreKeyId?: string;
-  iosAscIssuerId?: string;
   iosAscKeyId?: string;
   horizonEnabled?: boolean;
   horizonAppId?: string | null;
@@ -89,11 +88,11 @@ export default function ProjectSettings() {
   const [iosAppStoreKeyId, setIosAppStoreKeyId] = useState(
     project?.iosAppStoreKeyId ?? "",
   );
-  // App Store Connect API credentials — separate from the Server API
-  // ones above. See `convex/schema.ts` and `convex/products/asc.ts`.
-  const [iosAscIssuerId, setIosAscIssuerId] = useState(
-    project?.iosAscIssuerId ?? "",
-  );
+  // App Store Connect API credentials — Issuer ID is shared with the
+  // Server API one above (Apple uses one Issuer per team across both
+  // tabs); only Key ID + .p8 differ. See `convex/schema.ts` and
+  // `convex/products/asc.ts` (asc.ts falls back to
+  // `iosAppStoreIssuerId` when `iosAscIssuerId` is unset).
   const [iosAscKeyId, setIosAscKeyId] = useState(project?.iosAscKeyId ?? "");
   // Meta Horizon — gated by a checkbox inside the Android card.
   // The enabled flag is the single source of truth: toggling off
@@ -157,7 +156,6 @@ export default function ProjectSettings() {
       : "";
   const originalIosIssuerId = project?.iosAppStoreIssuerId ?? "";
   const originalIosKeyId = project?.iosAppStoreKeyId ?? "";
-  const originalIosAscIssuerId = project?.iosAscIssuerId ?? "";
   const originalIosAscKeyId = project?.iosAscKeyId ?? "";
   const originalHorizonEnabled = Boolean(project?.horizonEnabled);
   const originalHorizonAppId = project?.horizonAppId ?? "";
@@ -172,7 +170,6 @@ export default function ProjectSettings() {
     setIosAppAppleId(originalIosAppleIdString);
     setIosAppStoreIssuerId(originalIosIssuerId);
     setIosAppStoreKeyId(originalIosKeyId);
-    setIosAscIssuerId(originalIosAscIssuerId);
     setIosAscKeyId(originalIosAscKeyId);
     setHorizonEnabled(originalHorizonEnabled);
     setHorizonAppId(originalHorizonAppId);
@@ -188,7 +185,6 @@ export default function ProjectSettings() {
     originalIosAppleIdString,
     originalIosIssuerId,
     originalIosKeyId,
-    originalIosAscIssuerId,
     originalIosAscKeyId,
     originalHorizonEnabled,
     originalHorizonAppId,
@@ -200,7 +196,6 @@ export default function ProjectSettings() {
   const trimmedIosAppleId = iosAppAppleId.trim();
   const trimmedIosIssuerId = iosAppStoreIssuerId.trim();
   const trimmedIosKeyId = iosAppStoreKeyId.trim().toUpperCase();
-  const trimmedIosAscIssuerId = iosAscIssuerId.trim();
   const trimmedIosAscKeyId = iosAscKeyId.trim().toUpperCase();
   const trimmedHorizonAppId = horizonAppId.trim();
   const trimmedHorizonAppSecret = horizonAppSecret.trim();
@@ -302,23 +297,12 @@ export default function ProjectSettings() {
   const iosCredentialsProvided =
     trimmedIosIssuerId.length > 0 && trimmedIosKeyId.length > 0;
   const isIosCredentialPairValid = !showAppleSection || iosCredentialsProvided;
-  // ASC API key Issuer/Key — both optional (only required for push-
-  // sync, not receipt verification). When the user fills one, it must
-  // match the format and the other must be filled too.
-  const iosAscFieldsProvided =
-    trimmedIosAscIssuerId.length > 0 || trimmedIosAscKeyId.length > 0;
-  const isIosAscIssuerIdValid =
-    !showAppleSection ||
-    !iosAscFieldsProvided ||
-    appStoreIssuerPattern.test(trimmedIosAscIssuerId);
+  // ASC API Key ID — optional (only required for push-sync). The
+  // matching Issuer ID is shared with the Server API one above.
   const isIosAscKeyIdValid =
     !showAppleSection ||
-    !iosAscFieldsProvided ||
+    trimmedIosAscKeyId.length === 0 ||
     appStoreKeyPattern.test(trimmedIosAscKeyId);
-  const isIosAscPairValid =
-    !showAppleSection ||
-    !iosAscFieldsProvided ||
-    (trimmedIosAscIssuerId.length > 0 && trimmedIosAscKeyId.length > 0);
   const androidSectionHasChanges =
     showAndroidSection &&
     trimmedAndroidPackageName !== originalAndroidPackageName;
@@ -328,7 +312,6 @@ export default function ProjectSettings() {
       trimmedIosAppleId !== originalIosAppleIdString ||
       trimmedIosIssuerId !== originalIosIssuerId ||
       trimmedIosKeyId !== originalIosKeyId ||
-      trimmedIosAscIssuerId !== originalIosAscIssuerId ||
       trimmedIosAscKeyId !== originalIosAscKeyId);
   const showIosP8Requirement = showAppleSection && !isIosP8Provided;
   const metadataHasChanges = androidSectionHasChanges || iosSectionHasChanges;
@@ -340,9 +323,7 @@ export default function ProjectSettings() {
     !isIosIssuerIdValid ||
     !isIosKeyIdValid ||
     !isIosCredentialPairValid ||
-    !isIosAscIssuerIdValid ||
     !isIosAscKeyIdValid ||
-    !isIosAscPairValid ||
     savingMetadata;
 
   // Horizon (inside the Android card) has its own save flow rather
@@ -391,7 +372,6 @@ export default function ProjectSettings() {
         iosAppAppleId?: number;
         iosAppStoreIssuerId?: string;
         iosAppStoreKeyId?: string;
-        iosAscIssuerId?: string;
         iosAscKeyId?: string;
       } = {
         projectId: project._id,
@@ -411,9 +391,6 @@ export default function ProjectSettings() {
         }
         if (trimmedIosKeyId) {
           payload.iosAppStoreKeyId = trimmedIosKeyId;
-        }
-        if (trimmedIosAscIssuerId) {
-          payload.iosAscIssuerId = trimmedIosAscIssuerId;
         }
         if (trimmedIosAscKeyId) {
           payload.iosAscKeyId = trimmedIosAscKeyId;
@@ -1185,29 +1162,13 @@ export default function ProjectSettings() {
                       }
                     </p>
 
-                    <label className="block text-sm font-medium mb-2">
-                      {"Connect API Issuer ID"}
-                    </label>
-                    <input
-                      type="text"
-                      value={iosAscIssuerId}
-                      onChange={(event) =>
-                        setIosAscIssuerId(event.target.value)
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {
+                        "Issuer ID is shared with the Server API above (Apple uses one Issuer per team across both pages); only the Key ID + .p8 file differ between the two."
                       }
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted/40"
-                      placeholder="12345678-ABCD-1234-ABCD-1234567890AB"
-                      spellCheck={false}
-                      aria-invalid={!isIosAscIssuerIdValid}
-                    />
-                    {!isIosAscIssuerIdValid && (
-                      <p className="text-sm text-destructive mt-1">
-                        {
-                          "Issuer ID must match the UUID format (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)."
-                        }
-                      </p>
-                    )}
+                    </p>
 
-                    <label className="block text-sm font-medium mb-2 mt-4">
+                    <label className="block text-sm font-medium mb-2">
                       {"Connect API Key ID"}
                     </label>
                     <input
@@ -1224,13 +1185,6 @@ export default function ProjectSettings() {
                     {!isIosAscKeyIdValid && (
                       <p className="text-sm text-destructive mt-1">
                         {"Key ID must be 10 uppercase letters or numbers."}
-                      </p>
-                    )}
-                    {!isIosAscPairValid && (
-                      <p className="text-sm text-destructive mt-1">
-                        {
-                          "Provide both Connect API Issuer ID and Key ID, or leave both blank to skip push-sync."
-                        }
                       </p>
                     )}
 

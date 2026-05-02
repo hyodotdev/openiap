@@ -654,11 +654,74 @@ const schema = defineSchema({
         v.literal("P1Y"),
       ),
     ),
+    // Subscription Group (ASC concept; Play has no first-class
+    // equivalent so these stay null for Android rows). All
+    // subscriptions in the same group are mutually exclusive on
+    // Apple's side — the user can switch between Premium / Premium
+    // Year via in-app upgrade/downgrade, but cannot hold both. Kit
+    // surfaces this in the dashboard so the operator can see at a
+    // glance which subs share a group, and downstream paywalls can
+    // pick a default selection within a group. `subscriptionGroupId`
+    // is Apple's internal resource id; `subscriptionGroupName` is the
+    // human-readable referenceName the operator sees in ASC.
+    subscriptionGroupId: v.optional(v.string()),
+    subscriptionGroupName: v.optional(v.string()),
+    // Captures the *non-base* monetization variants attached to a
+    // subscription: Apple introductory offers (free trial / pay as
+    // you go / pay up front) and Play base plan offers (same kinds,
+    // different shape). Stored as a generic shape so both stores can
+    // upsert without branching, and the dashboard can render badges
+    // ("7-day free trial", "$4.99 intro for 3 months") without
+    // re-deriving from raw store responses.
+    offers: v.optional(
+      v.array(
+        v.object({
+          // Identifier from the store: ASC offer id (eyJ...) for
+          // introductoryOffer / promotionalOffer, or Play's
+          // basePlanId+offerId composite for offers.
+          id: v.string(),
+          kind: v.union(
+            v.literal("FreeTrial"),
+            v.literal("IntroPayUpFront"),
+            v.literal("IntroPayAsYouGo"),
+            v.literal("PromotionalOffer"),
+            v.literal("BasePlan"),
+          ),
+          // ISO-8601 duration the offer covers (e.g. "P7D", "P3M").
+          // For BasePlan rows this is the recurring billing period.
+          duration: v.optional(v.string()),
+          // Number of billing periods the discounted/free price
+          // applies for (Apple's `numberOfPeriods`). Free trials and
+          // pay-up-front intros use 1; pay-as-you-go uses N.
+          numberOfPeriods: v.optional(v.number()),
+          priceAmountMicros: v.optional(v.number()),
+          currency: v.optional(v.string()),
+        }),
+      ),
+    ),
+    // Free-form note for App Store review. Maps to ASC's `reviewNote`
+    // attribute on inAppPurchases / subscriptions and is the field
+    // Apple's reviewer reads alongside the screenshot to understand
+    // how to trigger / verify the IAP. Length cap is 4000 chars on
+    // ASC's side; we don't enforce here so the operator gets Apple's
+    // own validation message if they exceed it.
+    reviewNote: v.optional(v.string()),
     storeRef: v.optional(v.string()),
     syncedAt: v.optional(v.number()),
     updatedAt: v.number(),
   })
-    .index("by_project_and_product", ["projectId", "productId"])
+    // Lookup row by (projectId, platform, productId). Apps commonly
+    // ship the SAME productId on both iOS and Android (e.g.
+    // `dev.hyo.martie.premium` exists in both stores), so the
+    // (projectId, productId)-only index would have collisions and
+    // silently flip an existing row's platform on sync. Including
+    // platform in the natural key keeps each store's catalog row
+    // separate.
+    .index("by_project_and_platform_and_product", [
+      "projectId",
+      "platform",
+      "productId",
+    ])
     .index("by_project_and_platform", ["projectId", "platform"]),
 
   // Paywall configurations served by `/v1/paywalls/{id}` for in-app
@@ -677,6 +740,50 @@ const schema = defineSchema({
     subheadline: v.optional(v.string()),
     cta: v.string(),
     legalCopy: v.optional(v.string()),
+    // What-you-get bullet list rendered above the product cards.
+    // Operator types one per line in the dashboard. Kept on the
+    // paywall (not the product) because feature copy is usually a
+    // value-prop pitch tied to the paywall variant, not to a specific
+    // SKU — the same product can sit behind multiple paywalls with
+    // different feature framing for A/B tests.
+    features: v.optional(v.array(v.string())),
+    // Optional brand chrome. URLs are rendered as <img> tags with no
+    // proxying — the operator hosts the asset wherever (CDN, public
+    // S3, App Store screenshot URL). `logoUrl` shows above the
+    // headline; `backgroundImageUrl` becomes a cover layer behind
+    // the gradient.
+    logoUrl: v.optional(v.string()),
+    backgroundImageUrl: v.optional(v.string()),
+    // Per-product hero images shown at the top of each plan card —
+    // the visual element RevenueCat / Apphud paywalls lean on. Kept
+    // on the paywall row (not the product) so the same product can
+    // carry different art per paywall variant (A/B test, seasonal
+    // creative, etc.). Sparse map: only the productIds the operator
+    // has explicitly attached an image to appear here.
+    productImages: v.optional(
+      v.array(v.object({ productId: v.string(), imageUrl: v.string() })),
+    ),
+    // Operator-authored CSS appended after the default stylesheet so
+    // any rule it carries wins by source order. Lets power users
+    // restyle anything (typography, layout, gradients) without us
+    // having to ship a knob per design choice. Body / script tags
+    // get stripped at render time as a basic guard against script
+    // injection — the WebView bridge contract stays kit-controlled.
+    customCss: v.optional(v.string()),
+    // Full HTML override. When set, the kit's default body markup is
+    // discarded entirely — the operator's HTML is rendered inside a
+    // minimal shell that injects two helpers:
+    //   window.openiap.purchase(productId)  // dispatches the bridge message
+    //   window.openiap.products             // [{productId, title, price, ...}]
+    //   window.openiap.paywall              // {headline, cta, theme, ...}
+    // So the operator can write any HTML/CSS/JS — React via UMD, Vue,
+    // vanilla — and only needs to call openiap.purchase() to trigger
+    // the SDK side. `<script>` tags are allowed here (unlike customCss)
+    // because the whole point is operator-authored interactivity. The
+    // tradeoff is that it's the operator's responsibility to wire CTA
+    // clicks to openiap.purchase(); kit no longer guarantees the
+    // bridge fires automatically.
+    customHtml: v.optional(v.string()),
     theme: v.optional(
       v.object({
         primaryColor: v.optional(v.string()),

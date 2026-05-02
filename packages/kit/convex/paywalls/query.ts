@@ -15,6 +15,14 @@ const paywallShape = v.object({
   subheadline: v.optional(v.string()),
   cta: v.string(),
   legalCopy: v.optional(v.string()),
+  features: v.optional(v.array(v.string())),
+  logoUrl: v.optional(v.string()),
+  backgroundImageUrl: v.optional(v.string()),
+  productImages: v.optional(
+    v.array(v.object({ productId: v.string(), imageUrl: v.string() })),
+  ),
+  customCss: v.optional(v.string()),
+  customHtml: v.optional(v.string()),
   theme: v.optional(
     v.object({
       primaryColor: v.optional(v.string()),
@@ -35,6 +43,12 @@ function shape(paywall: Doc<"paywalls">) {
     subheadline: paywall.subheadline,
     cta: paywall.cta,
     legalCopy: paywall.legalCopy,
+    features: paywall.features,
+    logoUrl: paywall.logoUrl,
+    backgroundImageUrl: paywall.backgroundImageUrl,
+    productImages: paywall.productImages,
+    customCss: paywall.customCss,
+    customHtml: paywall.customHtml,
     theme: paywall.theme,
     updatedAt: paywall.updatedAt,
   };

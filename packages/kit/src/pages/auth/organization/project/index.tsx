@@ -70,16 +70,19 @@ export default function ProjectIndex() {
       id: "products",
       label: "Products",
       icon: Layers,
+      badge: "Beta",
     },
     {
       id: "paywalls",
       label: "Paywalls",
       icon: CreditCard,
+      badge: "Beta",
     },
     {
       id: "webhooks",
       label: "Webhooks",
       icon: Webhook,
+      badge: "Beta",
     },
     {
       id: "apikeys",
