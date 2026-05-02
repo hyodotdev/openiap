@@ -40,23 +40,6 @@ export type StatusResponse = {
   subscription: KitSubscription | null;
 };
 
-export type Paywall = {
-  slug: string;
-  title: string;
-  layout: "Single" | "Compare" | "Carousel";
-  productIds: string[];
-  headline: string;
-  subheadline?: string;
-  cta: string;
-  legalCopy?: string;
-  theme?: {
-    primaryColor?: string;
-    accentColor?: string;
-    backgroundColor?: string;
-  };
-  updatedAt: number;
-};
-
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
 // Merge caller-supplied headers with kit defaults (`accept`,
@@ -186,10 +169,6 @@ export function kitApi(options: KitApiOptions) {
     return parsed as T;
   }
 
-  function paywallUrl(slug: string): string {
-    return `${baseUrl}/v1/paywalls/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(slug)}`;
-  }
-
   return {
     apiKey: options.apiKey,
     baseUrl,
@@ -220,18 +199,5 @@ export function kitApi(options: KitApiOptions) {
           body: JSON.stringify({ purchaseToken, userId }),
         },
       ),
-
-    /** GET /v1/paywalls/:apiKey/:slug as JSON. */
-    getPaywall: (slug: string) =>
-      call<Paywall>(
-        `/v1/paywalls/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(slug)}`,
-        { headers: { accept: "application/json" } },
-      ),
-
-    /** Build the URL the host app should load in its WebView /
-     * browser to render the hosted paywall. The HTML page emits a
-     * `{ openiap: 'purchase', productId }` message via the platform's
-     * WebView bridge. */
-    paywallUrl,
   };
 }

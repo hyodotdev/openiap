@@ -27,8 +27,6 @@ import type * as migrations from "../migrations.js";
 import type * as organizations_internal from "../organizations/internal.js";
 import type * as organizations_mutation from "../organizations/mutation.js";
 import type * as organizations_query from "../organizations/query.js";
-import type * as paywalls_mutation from "../paywalls/mutation.js";
-import type * as paywalls_query from "../paywalls/query.js";
 import type * as plans from "../plans.js";
 import type * as products_asc from "../products/asc.js";
 import type * as products_jwt from "../products/jwt.js";
@@ -103,8 +101,6 @@ declare const fullApi: ApiFromModules<{
   "organizations/internal": typeof organizations_internal;
   "organizations/mutation": typeof organizations_mutation;
   "organizations/query": typeof organizations_query;
-  "paywalls/mutation": typeof paywalls_mutation;
-  "paywalls/query": typeof paywalls_query;
   plans: typeof plans;
   "products/asc": typeof products_asc;
   "products/jwt": typeof products_jwt;

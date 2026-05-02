@@ -1065,7 +1065,6 @@ export type {
   KitSubscription,
   EntitlementsResponse,
   StatusResponse,
-  Paywall,
 } from './kit-api';
 export {
   ErrorCodeUtils,

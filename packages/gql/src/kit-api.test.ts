@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { kitApi, KitApiError } from "./kit-api";
 
 function fakeFetch(
-  recipe: (path: string, init?: RequestInit) => {
+  recipe: (
+    path: string,
+    init?: RequestInit,
+  ) => {
     status: number;
     body: unknown;
   },
@@ -68,17 +71,6 @@ describe("kitApi", () => {
       fetchImpl: fetchImpl as never,
     });
     await expect(api.status("u")).rejects.toBeInstanceOf(KitApiError);
-  });
-
-  it("paywallUrl encodes slug + apiKey", () => {
-    const api = kitApi({
-      apiKey: "live key",
-      baseUrl: "https://kit.openiap.dev/",
-      fetchImpl: (() => Promise.resolve({} as Response)) as never,
-    });
-    expect(api.paywallUrl("intro/2026")).toBe(
-      "https://kit.openiap.dev/v1/paywalls/live%20key/intro%2F2026",
-    );
   });
 
   it("bindUser POSTs JSON", async () => {

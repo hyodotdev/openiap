@@ -11,18 +11,18 @@ function KitBackend() {
     <div className="doc-page">
       <SEO
         title="kit backend"
-        description="OpenIAP kit is the hosted backend that handles Apple StoreKit 2 and Google Play receipt validation, lifecycle webhooks, subscription state, revenue metrics, App Store Connect / Play Console product sync, and hosted paywalls — without the host app needing to operate its own server."
+        description="OpenIAP kit is the hosted backend that handles Apple StoreKit 2 and Google Play receipt validation, lifecycle webhooks, subscription state, revenue metrics, and App Store Connect / Play Console product sync — without the host app needing to operate its own server."
         path="/docs/kit-backend"
-        keywords="OpenIAP kit, hosted backend, receipt validation, subscription state, paywall, App Store Connect, Play Console, MCP server"
+        keywords="OpenIAP kit, hosted backend, receipt validation, subscription state, App Store Connect, Play Console, MCP server"
       />
       <h1>kit backend</h1>
       <p>
         kit (<code>kit.openiap.dev</code>) is the hosted backend you can drop in
         instead of running your own server. It handles every step that comes
         after a user taps "buy" — receipt validation, lifecycle webhooks,
-        subscription state, revenue metrics, App Store Connect / Play Console
-        product sync, and hosted paywalls — and exposes everything through one
-        URL surface that all five SDKs and an MCP server speak.
+        subscription state, revenue metrics, and App Store Connect / Play
+        Console product sync — and exposes everything through one URL surface
+        that all five SDKs and an MCP server speak.
       </p>
 
       <section>
@@ -84,11 +84,6 @@ function KitBackend() {
             </code>{' '}
             — push-sync with App Store Connect / Play Console.
           </li>
-          <li>
-            <code>GET/POST/DELETE /v1/paywalls/&#123;apiKey&#125;</code> +{' '}
-            <code>/v1/paywalls/&#123;apiKey&#125;/&#123;slug&#125;</code> —
-            paywall CRUD and hosted HTML.
-          </li>
         </ul>
       </section>
 
@@ -111,10 +106,6 @@ function KitBackend() {
             <strong>Products</strong> — kit-side catalog with one-click sync to
             App Store Connect (via the project's uploaded <code>.p8</code> key)
             or Play Console (via the service-account JSON).
-          </li>
-          <li>
-            <strong>Paywalls</strong> — create, preview, delete paywalls and
-            copy hosted URLs that work directly in any of the 5 SDK WebViews.
           </li>
           <li>
             <strong>Webhooks</strong> — copyable Apple ASN v2 / Google RTDN
@@ -167,25 +158,6 @@ if status.active:
       </section>
 
       <section>
-        <AnchorLink id="paywalls" level="h2">
-          Hosted paywalls
-        </AnchorLink>
-        <p>
-          Paywalls live at{' '}
-          <code>/v1/paywalls/&#123;apiKey&#125;/&#123;slug&#125;</code> and
-          render as a self-contained HTML page meant for a WebView. When the
-          user taps the CTA the page emits a{' '}
-          <code>&#123; openiap: 'purchase', productId &#125;</code> message via
-          the host platform's WebView bridge — RN's{' '}
-          <code>ReactNativeWebView.postMessage</code>, flutter_inappwebview's
-          handler, or <code>window.parent.postMessage</code> — and the host SDK
-          dispatches the actual <code>requestPurchase</code> call. The same
-          hosted URL works for every SDK, so a paywall edit in the dashboard
-          ships immediately without rebuilding the app.
-        </p>
-      </section>
-
-      <section>
         <AnchorLink id="product-sync" level="h2">
           Product sync
         </AnchorLink>
@@ -228,7 +200,7 @@ if status.active:
         </AnchorLink>
         <p>
           <code>@hyodotdev/openiap-mcp-server</code> is a stdio Model Context
-          Protocol server with 11 tools covering setup, paywalls, status checks,
+          Protocol server with 10 tools covering setup, status checks,
           troubleshooting, product CRUD, subscription listing, sandbox
           simulation, and full-state inspection. Plug it into Claude Desktop /
           Cursor / Codex via:
@@ -247,9 +219,8 @@ if status.active:
 }`}</CodeBlock>
         <p>
           Every tool funnels through the same kit HTTP surface as the dashboard
-          and the SDKs, so an LLM action ("create a paywall comparing the
-          monthly and yearly tiers") and a manual edit produce identical state
-          changes.
+          and the SDKs, so an LLM action ("disable this product on Android") and
+          a manual edit produce identical state changes.
         </p>
       </section>
     </div>

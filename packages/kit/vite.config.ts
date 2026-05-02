@@ -66,13 +66,12 @@ export default defineConfig({
     },
   },
   // Forward `/v1/*` to the local Hono server (`bun run dev:server`,
-  // listens on :3000). Without this proxy, hitting
-  // `localhost:5173/v1/paywalls/{apiKey}/{slug}` falls through to the
-  // SPA's React Router which has no matching route and renders the
-  // 404 page — making it look like the paywall doesn't exist when it
-  // actually does. The proxy lets the dashboard host (5173) and the
-  // paywall preview share one origin so operators don't have to
-  // remember which port serves which surface.
+  // listens on :3000). Without this proxy, hitting `/v1/...` from the
+  // Vite dev host falls through to the SPA's React Router which has no
+  // matching route and renders the 404 page — making it look like the
+  // API endpoint doesn't exist when it actually does. The proxy lets
+  // the dashboard host (5173) and the public API share one origin so
+  // operators don't have to remember which port serves which surface.
   server: {
     proxy: {
       "/v1": {

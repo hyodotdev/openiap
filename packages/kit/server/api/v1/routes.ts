@@ -21,7 +21,6 @@ import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
 import { webhooksRoutes } from "./webhooks";
 import { subscriptionsRoutes } from "./subscriptions";
-import { paywallsRoutes } from "./paywalls";
 import { productsRoutes } from "./products";
 
 // Variables that the request middleware chain attaches to the Hono
@@ -477,13 +476,6 @@ app.route("/webhooks", webhooksRoutes);
 // plus the multi-product entitlements view that onesub gates feature
 // access on, and the metrics summary used by the kit dashboard.
 app.route("/subscriptions", subscriptionsRoutes);
-
-// Paywall CRUD + hosted HTML renderer for in-app WebView. The HTML
-// posts a `{ openiap: "purchase", productId }` message via the host
-// platform's WebView bridge (RN `ReactNativeWebView.postMessage`,
-// flutter_inappwebview's handler, or `window.parent.postMessage` for
-// other WebViews / browsers) when the user taps the CTA.
-app.route("/paywalls", paywallsRoutes);
 
 // Product catalog (kit-side cache shared by the dashboard, MCP server,
 // and SDK helpers). Phase 3 will extend this with App Store Connect /

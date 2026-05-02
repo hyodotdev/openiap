@@ -15,7 +15,6 @@ import ProjectPurchases from "./organization/project/purchases";
 import ProjectApiKeys from "./organization/project/apikeys";
 import ProjectSubscriptions from "./organization/project/subscriptions";
 import ProjectProducts from "./organization/project/products";
-import ProjectPaywalls from "./organization/project/paywalls";
 import ProjectWebhooks from "./organization/project/webhooks";
 import ProjectSettings from "./organization/project/settings";
 import ProjectPurchaseDetail from "./organization/project/purchase-detail";
@@ -277,14 +276,6 @@ export default function AuthenticatedPages() {
             element={
               <PageWithTitle title="Project products">
                 <ProjectProducts />
-              </PageWithTitle>
-            }
-          />
-          <Route
-            path="paywalls"
-            element={
-              <PageWithTitle title="Project paywalls">
-                <ProjectPaywalls />
               </PageWithTitle>
             }
           />

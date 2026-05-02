@@ -5,11 +5,10 @@ import { z } from "zod";
 
 import { kitClient, KitHttpError } from "./kit-client.js";
 
-// 11-tool MCP server for openiap, modeled after the surface area of
-// `@onesub/mcp-server` so consumers migrating from onesub get parity.
-// Every tool funnels through `withClient` so `OPENIAP_API_KEY` /
-// `OPENIAP_BASE_URL` env config is consistent and errors surface in a
-// uniform `{ ok: false, error }` shape that LLMs handle predictably.
+// 10-tool MCP server for openiap. Every tool funnels through
+// `withClient` so `OPENIAP_API_KEY` / `OPENIAP_BASE_URL` env config is
+// consistent and errors surface in a uniform `{ ok: false, error }`
+// shape that LLMs handle predictably.
 
 const server = new McpServer({
   name: "openiap-mcp",
@@ -91,56 +90,7 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 2. add_paywall — upsert a paywall.
-// ---------------------------------------------------------------------------
-server.tool(
-  "openiap_add_paywall",
-  "Create or update a hosted paywall. The paywall is rendered server-side at /v1/paywalls/{apiKey}/{slug} and can be opened in a WebView from any of the 5 SDKs.",
-  {
-    slug: z.string().describe("URL-safe identifier."),
-    title: z.string(),
-    layout: z.enum(["Single", "Compare", "Carousel"]).default("Single"),
-    productIds: z.array(z.string()).min(1),
-    headline: z.string(),
-    subheadline: z.string().optional(),
-    cta: z.string().default("Continue"),
-    legalCopy: z.string().optional(),
-    theme: z
-      .object({
-        primaryColor: z.string().optional(),
-        accentColor: z.string().optional(),
-        backgroundColor: z.string().optional(),
-      })
-      .optional(),
-    apiKey: OPTIONAL_API_KEY,
-    baseUrl: OPTIONAL_BASE_URL,
-  },
-  async (args) => {
-    try {
-      const client = withClient(args);
-      const result = await client.upsertPaywall({
-        slug: args.slug,
-        title: args.title,
-        layout: args.layout,
-        productIds: args.productIds,
-        headline: args.headline,
-        subheadline: args.subheadline,
-        cta: args.cta,
-        legalCopy: args.legalCopy,
-        theme: args.theme,
-      });
-      return ok({
-        ...result,
-        previewUrl: `${client.baseUrl}/v1/paywalls/${encodeURIComponent(client.apiKey)}/${encodeURIComponent(args.slug)}`,
-      });
-    } catch (error) {
-      return err(error);
-    }
-  },
-);
-
-// ---------------------------------------------------------------------------
-// 3. check_status — entitlement check for one user.
+// 2. check_status — entitlement check for one user.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_check_status",
@@ -160,7 +110,7 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 4. troubleshoot — quick diagnostics.
+// 3. troubleshoot — quick diagnostics.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_troubleshoot",
@@ -203,7 +153,7 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 5. create_product — upsert a product in kit's catalog.
+// 4. create_product — upsert a product in kit's catalog.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_create_product",
@@ -229,7 +179,7 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 6. list_products — read kit's product catalog.
+// 5. list_products — read kit's product catalog.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_list_products",
@@ -251,7 +201,7 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 7. view_subscribers — paginated subscription list for the dashboard.
+// 6. view_subscribers — paginated subscription list for the dashboard.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_view_subscribers",
@@ -292,7 +242,7 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 8. simulate_purchase — print sandbox-purchase guidance per platform.
+// 7. simulate_purchase — print sandbox-purchase guidance per platform.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_simulate_purchase",
@@ -305,7 +255,7 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 9. simulate_webhook — POST a synthetic webhook payload to kit.
+// 8. simulate_webhook — POST a synthetic webhook payload to kit.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_simulate_webhook",
@@ -360,11 +310,11 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 10. inspect_state — high-level dashboard summary in one tool call.
+// 9. inspect_state — high-level dashboard summary in one tool call.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_inspect_state",
-  "Return a dashboard-style summary: metrics, recent paywalls, product catalog, configured webhooks endpoint URLs.",
+  "Return a dashboard-style summary: metrics, product catalog, configured webhooks endpoint URLs.",
   {
     apiKey: OPTIONAL_API_KEY,
     baseUrl: OPTIONAL_BASE_URL,
@@ -372,14 +322,12 @@ server.tool(
   async (args) => {
     try {
       const client = withClient(args);
-      const [metrics, paywalls, products] = await Promise.all([
+      const [metrics, products] = await Promise.all([
         client.metrics().catch((e) => ({ error: stringifyError(e) })),
-        client.listPaywalls().catch((e) => ({ error: stringifyError(e) })),
         client.listProducts().catch((e) => ({ error: stringifyError(e) })),
       ]);
       return ok({
         metrics,
-        paywalls,
         products,
         webhookUrls: {
           apple: `${client.baseUrl}/v1/webhooks/apple/${encodeURIComponent(client.apiKey)}`,
@@ -394,11 +342,11 @@ server.tool(
 );
 
 // ---------------------------------------------------------------------------
-// 11. manage_product — disable / refresh a product entry.
+// 10. manage_product — disable / refresh a product entry.
 // ---------------------------------------------------------------------------
 server.tool(
   "openiap_manage_product",
-  "Update or remove a product in kit's catalog. For now `action: 'remove'` deletes via paywall delete API (catalog removal lives behind the same project apiKey).",
+  "Update or remove a product in kit's catalog. `action: 'remove'` soft-removes via the product state endpoint.",
   {
     productId: z.string(),
     platform: z.enum(["IOS", "Android"]),

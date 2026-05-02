@@ -91,34 +91,6 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         mrrMicros: number;
         currency?: string;
       }>(`/v1/subscriptions/metrics/${encodeURIComponent(apiKey)}`),
-    listPaywalls: () =>
-      call<{ paywalls: unknown[] }>(
-        `/v1/paywalls/${encodeURIComponent(apiKey)}`,
-      ),
-    upsertPaywall: (paywall: {
-      slug: string;
-      title: string;
-      layout: "Single" | "Compare" | "Carousel";
-      productIds: string[];
-      headline: string;
-      subheadline?: string;
-      cta: string;
-      legalCopy?: string;
-      theme?: {
-        primaryColor?: string;
-        accentColor?: string;
-        backgroundColor?: string;
-      };
-    }) =>
-      call<{ id: string; created: boolean }>(
-        `/v1/paywalls/${encodeURIComponent(apiKey)}`,
-        { method: "POST", body: JSON.stringify(paywall) },
-      ),
-    deletePaywall: (slug: string) =>
-      call<{ ok: boolean }>(
-        `/v1/paywalls/${encodeURIComponent(apiKey)}/${encodeURIComponent(slug)}`,
-        { method: "DELETE" },
-      ),
     listProducts: (params: { platform?: "IOS" | "Android" } = {}) => {
       const usp = new URLSearchParams();
       if (params.platform) usp.set("platform", params.platform);

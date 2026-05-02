@@ -179,7 +179,7 @@ export const removeProduct = mutation({
     if (!existing) return { ok: false };
 
     // Soft-remove via state flag — keeps audit history for the
-    // dashboard and does not break paywalls referencing this productId.
+    // dashboard and preserves any webhook events that reference this productId.
     await ctx.db.patch(existing._id, {
       state: "Removed",
       updatedAt: Date.now(),

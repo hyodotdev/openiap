@@ -147,7 +147,6 @@ export type {
   KitSubscription,
   EntitlementsResponse,
   StatusResponse,
-  Paywall,
 } from './kit-api';
 
 // Restore completed transactions (cross-platform)

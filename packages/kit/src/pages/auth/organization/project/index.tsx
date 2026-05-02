@@ -10,7 +10,6 @@ import {
   Key,
   ShoppingBag,
   Activity,
-  CreditCard,
   Layers,
   Webhook,
 } from "lucide-react";
@@ -23,7 +22,6 @@ const TAB_IDS = [
   "purchases",
   "subscriptions",
   "products",
-  "paywalls",
   "webhooks",
   "apikeys",
   "settings",
@@ -70,12 +68,6 @@ export default function ProjectIndex() {
       id: "products",
       label: "Products",
       icon: Layers,
-      badge: "Beta",
-    },
-    {
-      id: "paywalls",
-      label: "Paywalls",
-      icon: CreditCard,
       badge: "Beta",
     },
     {

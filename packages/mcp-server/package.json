@@ -1,7 +1,7 @@
 {
   "name": "@hyodotdev/openiap-mcp-server",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for OpenIAP — wires Claude / Cursor / Codex into kit's product, paywall, subscription, and webhook surfaces.",
+  "description": "Model Context Protocol server for OpenIAP — wires Claude / Cursor / Codex into kit's product, subscription, and webhook surfaces.",
   "type": "module",
   "private": true,
   "bin": {
