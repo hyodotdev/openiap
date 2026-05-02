@@ -1156,7 +1156,15 @@ public enum class WebhookEventEnvironment(val rawValue: String) {
 
 public enum class WebhookEventSource(val rawValue: String) {
     AppleAppStoreServerNotificationsV2("apple-app-store-server-notifications-v2"),
-    GooglePlayRealTimeDeveloperNotifications("google-play-real-time-developer-notifications");
+    GooglePlayRealTimeDeveloperNotifications("google-play-real-time-developer-notifications"),
+    /**
+     * Synthetic source for Meta Horizon Store. Meta has no webhook /
+     * push notification system so kit polls `verify_entitlement` on a
+     * cron and emits these synthetic events when an entitlement
+     * transitions. SDK consumers see them on the SSE stream alongside
+     * real Apple / Google webhooks.
+     */
+    MetaHorizonReconciler("meta-horizon-reconciler");
 
     companion object {
         fun fromJson(value: String): WebhookEventSource = when (value) {
@@ -1166,6 +1174,9 @@ public enum class WebhookEventSource(val rawValue: String) {
             "google-play-real-time-developer-notifications" -> WebhookEventSource.GooglePlayRealTimeDeveloperNotifications
             "GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS" -> WebhookEventSource.GooglePlayRealTimeDeveloperNotifications
             "GooglePlayRealTimeDeveloperNotifications" -> WebhookEventSource.GooglePlayRealTimeDeveloperNotifications
+            "meta-horizon-reconciler" -> WebhookEventSource.MetaHorizonReconciler
+            "META_HORIZON_RECONCILER" -> WebhookEventSource.MetaHorizonReconciler
+            "MetaHorizonReconciler" -> WebhookEventSource.MetaHorizonReconciler
             else -> throw IllegalArgumentException("Unknown WebhookEventSource value: $value")
         }
     }

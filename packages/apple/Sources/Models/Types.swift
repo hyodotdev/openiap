@@ -453,6 +453,12 @@ public enum WebhookEventEnvironment: String, Codable, CaseIterable {
 public enum WebhookEventSource: String, Codable, CaseIterable {
     case appleAppStoreServerNotificationsV2 = "apple-app-store-server-notifications-v2"
     case googlePlayRealTimeDeveloperNotifications = "google-play-real-time-developer-notifications"
+    /// Synthetic source for Meta Horizon Store. Meta has no webhook /
+    /// push notification system so kit polls `verify_entitlement` on a
+    /// cron and emits these synthetic events when an entitlement
+    /// transitions. SDK consumers see them on the SSE stream alongside
+    /// real Apple / Google webhooks.
+    case metaHorizonReconciler = "meta-horizon-reconciler"
 }
 
 public enum WebhookEventType: String, Codable, CaseIterable {

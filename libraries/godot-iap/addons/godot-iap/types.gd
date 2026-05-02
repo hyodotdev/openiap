@@ -324,6 +324,8 @@ enum WebhookEventEnvironment {
 enum WebhookEventSource {
 	APPLE_APP_STORE_SERVER_NOTIFICATIONS_V2 = 0,
 	GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS = 1,
+	## Synthetic source for Meta Horizon Store. Meta has no webhook / push notification system so kit polls `verify_entitlement` on a cron and emits these synthetic events when an entitlement transitions. SDK consumers see them on the SSE stream alongside real Apple / Google webhooks.
+	META_HORIZON_RECONCILER = 2,
 }
 
 enum WebhookEventType {
@@ -4803,7 +4805,8 @@ const WEBHOOK_EVENT_ENVIRONMENT_VALUES = {
 
 const WEBHOOK_EVENT_SOURCE_VALUES = {
 	WebhookEventSource.APPLE_APP_STORE_SERVER_NOTIFICATIONS_V2: "apple-app-store-server-notifications-v2",
-	WebhookEventSource.GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS: "google-play-real-time-developer-notifications"
+	WebhookEventSource.GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS: "google-play-real-time-developer-notifications",
+	WebhookEventSource.META_HORIZON_RECONCILER: "meta-horizon-reconciler"
 }
 
 const WEBHOOK_EVENT_TYPE_VALUES = {
@@ -5071,7 +5074,8 @@ const WEBHOOK_EVENT_ENVIRONMENT_FROM_STRING = {
 
 const WEBHOOK_EVENT_SOURCE_FROM_STRING = {
 	"apple-app-store-server-notifications-v2": WebhookEventSource.APPLE_APP_STORE_SERVER_NOTIFICATIONS_V2,
-	"google-play-real-time-developer-notifications": WebhookEventSource.GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS
+	"google-play-real-time-developer-notifications": WebhookEventSource.GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS,
+	"meta-horizon-reconciler": WebhookEventSource.META_HORIZON_RECONCILER
 }
 
 const WEBHOOK_EVENT_TYPE_FROM_STRING = {

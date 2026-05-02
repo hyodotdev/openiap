@@ -2116,7 +2116,7 @@ export interface WebhookEvent {
 
 export type WebhookEventEnvironment = 'production' | 'sandbox' | 'xcode';
 
-export type WebhookEventSource = 'apple-app-store-server-notifications-v2' | 'google-play-real-time-developer-notifications';
+export type WebhookEventSource = 'apple-app-store-server-notifications-v2' | 'google-play-real-time-developer-notifications' | 'meta-horizon-reconciler';
 
 export type WebhookEventType = 'purchase-consumption-request' | 'purchase-refunded' | 'subscription-canceled' | 'subscription-expired' | 'subscription-in-billing-retry' | 'subscription-in-grace-period' | 'subscription-paused' | 'subscription-price-change' | 'subscription-product-changed' | 'subscription-recovered' | 'subscription-renewed' | 'subscription-resumed' | 'subscription-revoked' | 'subscription-started' | 'subscription-uncanceled' | 'test-notification';
 

@@ -120,5 +120,31 @@ private fun JsonPrimitive.numericOrNull(): Double? =
  */
 fun webhookStreamUrl(baseUrl: String = "https://kit.openiap.dev", apiKey: String): String {
     val trimmed = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
-    return "$trimmed/v1/webhooks/stream/$apiKey"
+    // URL-encode the apiKey path segment. kit's apiKey format
+    // (`openiap-kit_<hex>`) doesn't currently include reserved
+    // characters, but a future format change or a misconfigured
+    // operator-supplied key could break routing without this guard.
+    // Matches the JS / Dart / GDScript clients which all
+    // encodeURIComponent the same segment.
+    return "$trimmed/v1/webhooks/stream/${encodePathSegment(apiKey)}"
+}
+
+private fun encodePathSegment(value: String): String {
+    val sb = StringBuilder(value.length)
+    for (ch in value) {
+        if (ch.isLetterOrDigit() || ch == '-' || ch == '.' || ch == '_' || ch == '~') {
+            sb.append(ch)
+        } else {
+            // RFC 3986 percent-encoding for the unreserved set —
+            // matches Java's URLEncoder for path segments minus the
+            // legacy `+` substitution for spaces (we want %20 for
+            // path-segment use, not form-encoded space).
+            for (b in ch.toString().encodeToByteArray()) {
+                sb.append('%')
+                sb.append(((b.toInt() shr 4) and 0xF).toString(16).uppercase())
+                sb.append((b.toInt() and 0xF).toString(16).uppercase())
+            }
+        }
+    }
+    return sb.toString()
 }

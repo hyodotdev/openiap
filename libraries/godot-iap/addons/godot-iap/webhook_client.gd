@@ -193,10 +193,12 @@ func _process_frame(frame: String) -> void:
 	var event_name := ""
 	var event_id := ""
 	var data_lines: Array[String] = []
-	for line in frame.split("\n", false):
+	# WHATWG SSE spec accepts CR, LF, or CRLF as a line terminator.
+	# Normalize to "\n" first so split + ends_with(":") downstream
+	# behave correctly even on CR-only servers (rare but spec-allowed).
+	var normalized := frame.replace("\r\n", "\n").replace("\r", "\n")
+	for line in normalized.split("\n", false):
 		var stripped := line
-		if stripped.ends_with("\r"):
-			stripped = stripped.substr(0, stripped.length() - 1)
 		if stripped.begins_with(":"):
 			continue # SSE comment
 		var colon := stripped.find(":")
@@ -238,7 +240,7 @@ func _process_frame(frame: String) -> void:
 	# downstream listeners would see a partial event. Reject any
 	# required field that is missing OR null.
 	for required in ["id", "type"]:
-		if not decoded.has(required) or decoded[required] == null:
+		if not _is_non_empty_string(decoded.get(required)):
 			emit_signal("stream_error", "MALFORMED_EVENT", "WebhookEvent missing required fields")
 			return
 	# purchaseToken is required for every event type *except*
@@ -246,10 +248,23 @@ func _process_frame(frame: String) -> void:
 	# carry no transaction. Hard-rejecting here would surface valid
 	# test webhooks as MALFORMED_EVENT and never reach listeners.
 	if decoded["type"] != "TestNotification":
-		if not decoded.has("purchaseToken") or decoded["purchaseToken"] == null:
+		if not _is_non_empty_string(decoded.get("purchaseToken")):
 			emit_signal("stream_error", "MALFORMED_EVENT", "WebhookEvent missing required field purchaseToken")
 			return
 	emit_signal("event_received", decoded)
 	# Cursor advances only after a successful emit.
 	if not event_id.is_empty():
 		_last_event_id = event_id
+
+
+# True when value is a non-empty string. Used to reject upstream
+# payloads where required fields (id, type, purchaseToken) come back
+# as numeric / null / empty — without this, a malformed event with
+# `{"id": 0, "type": "..."}` would silently flow through to listeners
+# and crash on `String(event.id)`-shaped consumers.
+func _is_non_empty_string(value) -> bool:
+	if value == null:
+		return false
+	if typeof(value) != TYPE_STRING:
+		return false
+	return not String(value).is_empty()

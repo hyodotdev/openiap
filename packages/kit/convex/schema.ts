@@ -461,6 +461,10 @@ const schema = defineSchema({
     source: v.union(
       v.literal("AppleAppStoreServerNotificationsV2"),
       v.literal("GooglePlayRealTimeDeveloperNotifications"),
+      // Synthetic source for Meta Horizon Store entitlement
+      // transitions discovered by the polling reconciler. Mirrors
+      // the GraphQL `WebhookEventSource.MetaHorizonReconciler` enum.
+      v.literal("MetaHorizonReconciler"),
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     environment: v.union(

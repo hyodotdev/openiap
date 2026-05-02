@@ -166,6 +166,8 @@ actual class WebhookTransport actual constructor(
     }
 }
 
+private val SSE_LINE_SEPARATOR_IOS = Regex("\\r\\n|\\r|\\n")
+
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private class SseDelegate(
     private val channel: SendChannel<WebhookEvent>,
@@ -320,8 +322,11 @@ private class SseDelegate(
         var eventId: String? = null
         var eventType: String? = null
         val data = StringBuilder()
-        for (rawLine in frame.split('\n')) {
-            val stripped = rawLine.trimEnd('\r')
+        // Per WHATWG SSE, a line within a frame can be terminated by
+        // CR, LF, or CRLF. Splitting only on '\n' would mis-parse
+        // CR-only servers (rare but spec-allowed).
+        for (rawLine in frame.split(SSE_LINE_SEPARATOR_IOS)) {
+            val stripped = rawLine
             if (stripped.startsWith(":")) continue
             val colon = stripped.indexOf(':')
             if (colon < 0) continue

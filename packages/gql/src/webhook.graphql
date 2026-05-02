@@ -119,6 +119,14 @@ enum WebhookEventType {
 enum WebhookEventSource {
   AppleAppStoreServerNotificationsV2
   GooglePlayRealTimeDeveloperNotifications
+  """
+  Synthetic source for Meta Horizon Store. Meta has no webhook /
+  push notification system so kit polls `verify_entitlement` on a
+  cron and emits these synthetic events when an entitlement
+  transitions. SDK consumers see them on the SSE stream alongside
+  real Apple / Google webhooks.
+  """
+  MetaHorizonReconciler
 }
 
 # Environment of the source notification, as reported by the store.

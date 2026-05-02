@@ -148,13 +148,19 @@ private data class ParsedSseFrame(
     val shouldAdvanceCursorOnDrop: Boolean = false,
 )
 
+private val SSE_LINE_SEPARATOR = Regex("\\r\\n|\\r|\\n")
+
 private fun parseSseFrame(frame: String): ParsedSseFrame {
     if (frame.isEmpty()) return ParsedSseFrame(null, null, null)
     var eventId: String? = null
     var eventType: String? = null
     val data = StringBuilder()
-    for (rawLine in frame.split('\n')) {
-        val stripped = rawLine.trimEnd('\r')
+    // Per WHATWG SSE spec, a line within a frame can be terminated
+    // by CR, LF, or CRLF. Splitting only on '\n' would mis-parse
+    // CR-only servers (rare but spec-allowed) — fields like `id` and
+    // `event` would silently merge into one giant `id` value.
+    for (rawLine in frame.split(SSE_LINE_SEPARATOR)) {
+        val stripped = rawLine
         if (stripped.startsWith(":")) continue // comment
         val colon = stripped.indexOf(':')
         if (colon < 0) continue

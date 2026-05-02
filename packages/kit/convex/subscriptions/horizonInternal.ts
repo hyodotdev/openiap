@@ -149,11 +149,39 @@ export const recordHorizonStatus = internalMutation({
     });
     if (!transition.next) return existing._id;
     const now = Date.now();
+
+    // Synthesize a webhookEvents row so the SSE stream re-broadcasts
+    // this Horizon transition to connected SDK clients. Without this
+    // the polling reconciler updated the subscription row but never
+    // surfaced the change on `/v1/webhooks/stream/{apiKey}` — Horizon
+    // listeners would silently miss every renewal / expiry until the
+    // next state-driven HTTP query.
+    //
+    // Source is `MetaHorizonReconciler` (synthetic; Horizon has no
+    // upstream webhook) and `sourceNotificationId` is a deterministic
+    // hash of (purchaseToken, eventType, productId) so re-running the
+    // cron with the same Meta Graph response doesn't double-emit.
+    const sourceNotificationId = `meta-horizon-${args.eventType}-${args.purchaseToken}-${args.productId}`;
+    const eventId = await ctx.db.insert("webhookEvents", {
+      projectId: args.projectId,
+      type: args.eventType,
+      source: "MetaHorizonReconciler",
+      platform: "Android",
+      environment: "Production",
+      purchaseToken: args.purchaseToken,
+      sourceNotificationId,
+      productId: args.productId,
+      subscriptionState: transition.next.state,
+      occurredAt: now,
+      receivedAt: now,
+    });
+
     await ctx.db.patch(existing._id, {
       state: transition.next.state,
       willRenew: transition.next.willRenew,
       cancellationReason: transition.next.cancellationReason,
       updatedAt: now,
+      lastEventId: eventId,
     });
     return existing._id;
   },
