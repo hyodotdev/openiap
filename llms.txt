@@ -132,3 +132,4 @@ All errors use kebab-case `ErrorCode` enum:
 - APIs: https://openiap.dev/docs/apis
 - Types: https://openiap.dev/docs/types
 - Errors: https://openiap.dev/docs/errors
+- Webhooks (lifecycle URL setup + SSE consumption): https://openiap.dev/docs/webhooks

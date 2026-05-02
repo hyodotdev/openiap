@@ -101,6 +101,20 @@ export default function ProjectWebhooks() {
               <code className="text-xs">.p8</code> + Google Pub/Sub messages
               with OIDC bearer.
             </span>
+            <span className="block mt-2 text-xs text-amber-500">
+              POST-only — opening this URL in a browser returns 404 (that's
+              expected). Verify wiring with the curl recipe below or with App
+              Store Connect's "Send Test Notification" button.{" "}
+              <a
+                href="https://www.openiap.dev/docs/webhooks#setup"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-foreground"
+              >
+                Full setup guide
+              </a>
+              .
+            </span>
           </>
         }
         url={urls.unified}
@@ -116,6 +130,22 @@ export default function ProjectWebhooks() {
             using <code className="text-xs">Last-Event-ID</code> so events fired
             during a closed connection are delivered in order on the next
             connect.
+            <span className="block mt-2 text-xs text-amber-500">
+              Long-lived <code className="text-xs">text/event-stream</code>{" "}
+              response — opening it in a browser shows a blank tab (expected).
+              Test it with{" "}
+              <code className="text-xs">curl -N {urls.stream}</code> or wire one
+              of the per-SDK hooks at{" "}
+              <a
+                href="https://www.openiap.dev/docs/webhooks#consume-stream"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-foreground"
+              >
+                openiap.dev/docs/webhooks
+              </a>
+              .
+            </span>
           </>
         }
         url={urls.stream}

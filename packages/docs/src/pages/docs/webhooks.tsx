@@ -56,6 +56,115 @@ function Webhooks() {
       </section>
 
       <section>
+        <AnchorLink id="setup" level="h2">
+          Setup — wiring the lifecycle webhook URL
+        </AnchorLink>
+        <p>
+          Open the kit dashboard's <strong>Webhooks</strong> tab and copy the
+          single <code>POST /v1/webhooks/&#123;apiKey&#125;</code> URL. Paste it
+          into both store consoles below — kit auto-detects the payload shape
+          (Apple ASN v2 vs Google Pub/Sub) and dispatches to the right verifier,
+          so one URL covers both stores.
+        </p>
+        <h3>Apple — App Store Server Notifications v2</h3>
+        <ol>
+          <li>
+            Sign in to{' '}
+            <a
+              href="https://appstoreconnect.apple.com"
+              target="_blank"
+              rel="noreferrer"
+            >
+              App Store Connect
+            </a>{' '}
+            → <strong>My Apps</strong> → your app.
+          </li>
+          <li>
+            Sidebar → <strong>App Information</strong>. Scroll to{' '}
+            <strong>App Store Server Notifications</strong>.
+          </li>
+          <li>
+            Set <strong>Version</strong> to <code>Version 2</code>. Paste the
+            kit URL into both <strong>Production Server URL</strong> and{' '}
+            <strong>Sandbox Server URL</strong>.
+          </li>
+          <li>
+            Save, then click <strong>Send Test Notification</strong>. A{' '}
+            <code>TestNotification</code> event should appear in the Webhooks
+            tab within seconds.
+          </li>
+        </ol>
+        <h3>Google — Real-Time Developer Notifications</h3>
+        <ol>
+          <li>
+            <a
+              href="https://console.cloud.google.com"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Google Cloud Console
+            </a>{' '}
+            → select the project linked to your Play Console app →{' '}
+            <strong>Pub/Sub → Topics → Create topic</strong> (e.g.{' '}
+            <code>play-rtdn</code>).
+          </li>
+          <li>
+            On that topic → <strong>Subscriptions → Create subscription</strong>
+            . Delivery type <strong>Push</strong>; <strong>Endpoint URL</strong>{' '}
+            = the kit URL. Enable <strong>Authentication</strong> with a service
+            account that has the{' '}
+            <code>roles/iam.serviceAccountTokenCreator</code> role on itself,
+            and set the OIDC <strong>Audience</strong> to your kit deployment
+            origin.
+          </li>
+          <li>
+            Grant <code>roles/pubsub.publisher</code> on the topic to{' '}
+            <code>
+              google-play-developer-notifications@system.gserviceaccount.com
+            </code>
+            .
+          </li>
+          <li>
+            <a
+              href="https://play.google.com/console"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Play Console
+            </a>{' '}
+            → your app → <strong>Monetization setup</strong> →{' '}
+            <strong>Real-time developer notifications</strong>. Paste the topic
+            name (<code>projects/&lt;gcp-project&gt;/topics/play-rtdn</code>) →{' '}
+            <strong>Send test notification</strong>.
+          </li>
+        </ol>
+        <p className="text-sm text-muted-foreground" style={{ marginTop: 12 }}>
+          <strong>Tip:</strong> the lifecycle webhook URL is{' '}
+          <strong>POST-only</strong>. Opening it in a browser shows a blank /
+          404 page — that's expected. Use the dashboard's <em>Live test</em>{' '}
+          curl recipe (or App Store Connect / Pub/Sub's "Send test notification"
+          buttons) to verify wiring.
+        </p>
+      </section>
+
+      <section>
+        <AnchorLink id="consume-stream" level="h2">
+          Consuming the SSE stream
+        </AnchorLink>
+        <p>
+          The second URL —{' '}
+          <code>GET /v1/webhooks/stream/&#123;apiKey&#125;</code> — is a
+          long-lived <code>text/event-stream</code> response, not an HTML page.
+          Open it in a browser and you'll see a blank tab; that's correct
+          behavior because the response never closes and only emits
+          comment-style keepalive frames (<code>:keepalive\n\n</code>) until a
+          real <code>WebhookEvent</code> arrives. To actually consume it use one
+          of the SDK helpers below or call it directly with{' '}
+          <code>EventSource</code> / <code>curl -N</code>.
+        </p>
+      </section>
+
+      <section>
         <AnchorLink id="event-shape" level="h2">
           Event shape
         </AnchorLink>
