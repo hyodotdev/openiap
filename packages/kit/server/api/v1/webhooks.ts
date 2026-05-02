@@ -504,17 +504,23 @@ webhooks.get("/stream/:apiKey", async (c) => {
     }
 
     // ── Phase 2: attach live tail ────────────────────────────────
-    // Pinned at `liveStart`. New events arriving with `receivedAt >=
-    // liveStart` will appear in the query result and fire onUpdate.
-    // The `seen` set still dedupes across phases in case an event
-    // straddled the boundary.
+    // Pinned at `liveStart - PHASE_OVERLAP_MS`. The overlap closes a
+    // small race window: an event committed with `receivedAt`
+    // marginally before `liveStart` (clock skew between the API
+    // server and the Convex backend, or just plain execution delay
+    // between the Phase-1 last-page scan and the Phase-2 onUpdate
+    // registration) would otherwise be missed by both phases. The
+    // `seen` set dedupes anything the overlap re-surfaces from the
+    // backlog, so the cost of the overlap is bounded to a few
+    // already-emitted ids — never a duplicate delivery.
+    const PHASE_OVERLAP_MS = 5_000;
     let unsubscribe: (() => void) | null = null;
     try {
       unsubscribe = reactive.onUpdate(
         api.webhooks.query.webhookEventsSince,
         {
           apiKey,
-          sinceMs: liveStart,
+          sinceMs: liveStart - PHASE_OVERLAP_MS,
           limit: 500,
         },
         (events: unknown) => {
@@ -584,7 +590,14 @@ async function resolveStreamStartCursor(
   lastEventId: string | undefined,
 ): Promise<{ sinceMs: number; afterCreationTime?: number }> {
   if (!lastEventId) {
-    return { sinceMs: 0 };
+    // New client (no Last-Event-ID) starts from the live tail. The
+    // prior `sinceMs: 0` made every fresh connection drain the
+    // entire 30-day retention window, which on busy projects melted
+    // the kit pod and saturated the SDK with already-known history.
+    // Long-offline reconciliation is the explicit job of the
+    // `webhookEventsSince` query — clients that need historical
+    // events query it directly with whatever cursor they tracked.
+    return { sinceMs: Date.now() };
   }
   try {
     const match = await client.query(api.webhooks.query.findEventCursor, {

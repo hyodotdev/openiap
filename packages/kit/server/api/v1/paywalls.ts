@@ -965,7 +965,28 @@ function renderPaywallHtml(
                 if (e.key === " " || e.key === "Enter") {
                   e.preventDefault();
                   pick();
+                  return;
                 }
+                // WAI-ARIA Radio Group pattern: arrow keys move
+                // *both* focus and selection within the group, with
+                // wrap-around. Without this the SSE-rendered
+                // paywall fails accessible-keyboard navigation
+                // checks for screen-reader / TV-remote / keyboard
+                // users on the desktop / WebView surface.
+                var isForward = e.key === "ArrowDown" || e.key === "ArrowRight";
+                var isBackward = e.key === "ArrowUp" || e.key === "ArrowLeft";
+                if (!isForward && !isBackward) return;
+                e.preventDefault();
+                var idx = cards.indexOf(el);
+                if (idx < 0) return;
+                var dir = isForward ? 1 : -1;
+                var next = cards[(idx + dir + cards.length) % cards.length];
+                if (!next) return;
+                next.focus();
+                selected = next.getAttribute("data-product-id");
+                cards.forEach(function (c) {
+                  c.setAttribute("aria-checked", c === next ? "true" : "false");
+                });
               });
             });
 

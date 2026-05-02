@@ -101,7 +101,7 @@ export const recordWebhookEvent = internalMutation({
     // cross-pollute them. Apple's notificationUUID is globally
     // unique so this is belt-and-braces for ASN, but matching one
     // key shape keeps the lookup path simple.
-    const existing = await ctx.db
+    let existing = await ctx.db
       .query("webhookIdempotencyKeys")
       .withIndex("by_project_and_source_and_id", (q) =>
         q
@@ -110,6 +110,38 @@ export const recordWebhookEvent = internalMutation({
           .eq("sourceNotificationId", args.sourceNotificationId),
       )
       .unique();
+    // Legacy-row fallback: rows written before the projectId rollout
+    // don't carry a projectId, so the indexed lookup above misses
+    // them. Without this fallback, a webhook retry that arrives
+    // *after* the rollout for an event recorded *before* it would
+    // bypass dedup and create a fresh webhookEvents row + return a
+    // new eventId — applySubscriptionEvent would then re-apply a
+    // transition that's already been committed. We re-query the
+    // legacy index, confirm the linked event belongs to this
+    // project, and rehydrate projectId on the row so the next
+    // lookup hits the new index directly.
+    if (!existing) {
+      const legacy = await ctx.db
+        .query("webhookIdempotencyKeys")
+        .withIndex("by_source_and_id", (q) =>
+          q
+            .eq("source", args.source)
+            .eq("sourceNotificationId", args.sourceNotificationId),
+        )
+        .unique();
+      if (legacy && legacy.eventId) {
+        const linkedEvent = await ctx.db.get(legacy.eventId);
+        if (linkedEvent && linkedEvent.projectId === args.projectId) {
+          await ctx.db.patch(legacy._id, { projectId: args.projectId });
+          existing = { ...legacy, projectId: args.projectId };
+        }
+      } else if (legacy && !legacy.eventId) {
+        // Half-written legacy row (insert succeeded, event insert
+        // crashed): can't tie it to a project, but adopting it lets
+        // the path below patch in our new eventId.
+        existing = legacy;
+      }
+    }
 
     if (existing?.eventId) {
       return { eventId: existing.eventId, deduped: true };

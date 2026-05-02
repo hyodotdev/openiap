@@ -145,6 +145,14 @@ actual class WebhookTransport actual constructor(
             // delegate + buffered NSMutableData chain.
             session.finishTasksAndInvalidate()
         }
+    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        // Re-throw cancellation so awaitClose / job.cancel() in
+        // events() propagates correctly. Falling through to the
+        // generic Throwable branch would convert the cancellation
+        // to `false`, run one extra reconnect iteration through
+        // the while-loop, and only terminate on the next delay()
+        // — violating the cooperative-cancellation contract.
+        throw cancellation
     } catch (error: Throwable) {
         false
     } finally {
@@ -256,29 +264,43 @@ private class SseDelegate(
     // UTF-8 character in the tail can never produce a false match —
     // 0x0A and 0x0D never appear inside the body of a multi-byte
     // UTF-8 codepoint.
+    // WHATWG SSE spec accepts CR, LF, or CRLF as a line terminator,
+    // and a blank line (frame separator) is *any two consecutive*
+    // terminators. Mixed-terminator servers (`\r\r`, `\n\r\n`, etc.)
+    // are spec-compliant and would have been silently dropped by
+    // the prior \n\n / \r\n\r\n-only check. Same behaviour as the
+    // Godot client's _terminator_length helper.
     private fun findLastFrameBoundary(byteAt: (Int) -> Byte, length: Int): Int {
         var lastEnd = 0
         var i = 0
-        while (i < length - 1) {
-            if (byteAt(i) == 0x0A.toByte() && byteAt(i + 1) == 0x0A.toByte()) {
-                lastEnd = i + 2
-                i += 2
+        while (i < length) {
+            val firstLen = terminatorLength(byteAt, i, length)
+            if (firstLen == 0) {
+                i += 1
                 continue
             }
-            if (
-                i < length - 3 &&
-                byteAt(i) == 0x0D.toByte() &&
-                byteAt(i + 1) == 0x0A.toByte() &&
-                byteAt(i + 2) == 0x0D.toByte() &&
-                byteAt(i + 3) == 0x0A.toByte()
-            ) {
-                lastEnd = i + 4
-                i += 4
+            val secondLen = terminatorLength(byteAt, i + firstLen, length)
+            if (secondLen == 0) {
+                i += firstLen
                 continue
             }
-            i += 1
+            lastEnd = i + firstLen + secondLen
+            i = lastEnd
         }
         return lastEnd
+    }
+
+    // Length (1 or 2) of the line terminator starting at `idx`, or 0
+    // if the byte at `idx` isn't a terminator. CRLF takes precedence
+    // so `\r\n` is reported as 2, not 1+1.
+    private fun terminatorLength(byteAt: (Int) -> Byte, idx: Int, length: Int): Int {
+        if (idx >= length) return 0
+        val b = byteAt(idx)
+        if (b == 0x0D.toByte() && idx + 1 < length && byteAt(idx + 1) == 0x0A.toByte()) {
+            return 2
+        }
+        if (b == 0x0A.toByte() || b == 0x0D.toByte()) return 1
+        return 0
     }
 
     override fun URLSession(
