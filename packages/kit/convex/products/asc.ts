@@ -1097,6 +1097,14 @@ export const pushSyncProductsAppleIOS = action({
         internal.products.sync.listDraftIosProducts,
         { projectId: project._id },
       );
+      // Cache subscriptionGroup find-or-create results across the
+      // entire push pass so a project with multiple drafts in the
+      // same group (Premium Monthly + Premium Yearly + Premium
+      // Weekly all referencing groupName="Premium") only triggers
+      // one ASC listSubscriptionGroups round-trip — and never two
+      // concurrent create calls racing for the same name. Cleared
+      // per push action invocation.
+      const groupIdCache = new Map<string, string>();
       for (const row of drafts) {
         // Track failures pushed *for this row* so we can decide
         // whether to flip state to Ready at the end. A partial setup
@@ -1168,10 +1176,16 @@ export const pushSyncProductsAppleIOS = action({
                   detail: `${row.title} · ${mapBillingPeriodToAsc(row.billingPeriod)} · group=${groupName}`,
                 });
               } else {
-                groupId = await client.findOrCreateSubscriptionGroup({
-                  appId: appIdStr,
-                  referenceName: groupName,
-                });
+                const cached = groupIdCache.get(groupName);
+                if (cached) {
+                  groupId = cached;
+                } else {
+                  groupId = await client.findOrCreateSubscriptionGroup({
+                    appId: appIdStr,
+                    referenceName: groupName,
+                  });
+                  groupIdCache.set(groupName, groupId);
+                }
                 const result = await client.createSubscription({
                   groupId,
                   productId: row.productId,

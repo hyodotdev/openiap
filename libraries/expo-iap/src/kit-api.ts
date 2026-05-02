@@ -101,11 +101,14 @@ function mergeHeaders(
       // `Headers`-like (without being our `typeof Headers === "function"`
       // global). RN polyfills sometimes attach `Headers` only to
       // request/response instances rather than the global scope.
+      // Standard signature is `forEach((value, key, parent))`; we
+      // bind the first two positionally so a polyfill that omits
+      // the third argument still works. `key` is the header name.
       (
         callerHeaders as {
           forEach: (cb: (value: string, key: string) => void) => void;
         }
-      ).forEach((value, name) => setForce(name, value));
+      ).forEach((value, key) => setForce(key, value));
     } else {
       for (const [name, value] of Object.entries(
         callerHeaders as Record<string, string>,

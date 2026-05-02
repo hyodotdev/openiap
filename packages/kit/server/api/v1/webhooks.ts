@@ -385,13 +385,17 @@ webhooks.get("/stream/:apiKey", async (c) => {
     // Bounded dedup tracker: caps at SEEN_MAX entries with FIFO
     // eviction so a long-lived SSE connection (days/weeks) can't
     // grow the Set unbounded under high event volume. The window
-    // only needs to span "long enough that the live tail can't
-    // double-deliver an event we already drained from the backlog,"
-    // and Convex's reactive subscription only ever overlaps with
-    // the most recent few seconds of backlog — 5000 entries is
-    // ~5 minutes of high-volume webhook traffic, comfortably
-    // beyond the overlap window.
-    const SEEN_MAX = 5000;
+    // The cap kicks in only after the backlog drain (Phase 1)
+    // completes and we've armed the live tail (Phase 2). During
+    // Phase 1 we hold every drained id so the Phase 2 onUpdate
+    // can't double-deliver an event Phase 1 already emitted —
+    // even if the backlog runs to tens of thousands of rows.
+    // After Phase 2 is armed we only need a window long enough to
+    // cover the ~5s overlap between phases plus normal-traffic
+    // jitter; 5000 entries (~5 min of high-volume webhook traffic)
+    // comfortably bounds that.
+    const SEEN_MAX_AFTER_DRAIN = 5000;
+    let drainComplete = false;
     const seenOrder: string[] = [];
     const seenSet = new Set<string>();
     const seen = {
@@ -402,7 +406,20 @@ webhooks.get("/stream/:apiKey", async (c) => {
         if (seenSet.has(id)) return;
         seenSet.add(id);
         seenOrder.push(id);
-        if (seenOrder.length > SEEN_MAX) {
+        if (drainComplete && seenOrder.length > SEEN_MAX_AFTER_DRAIN) {
+          const evicted = seenOrder.shift();
+          if (evicted !== undefined) seenSet.delete(evicted);
+        }
+      },
+      // Called by the SSE handler when Phase 1 finishes draining
+      // and Phase 2 has been registered. The pre-drain ids are now
+      // safe to age out under the SEEN_MAX_AFTER_DRAIN bound — the
+      // overlap-window guarantee only needs the tail.
+      markDrainComplete(): void {
+        drainComplete = true;
+        // Trim immediately so we don't carry a multi-minute backlog
+        // forever just because the drain ran long.
+        while (seenOrder.length > SEEN_MAX_AFTER_DRAIN) {
           const evicted = seenOrder.shift();
           if (evicted !== undefined) seenSet.delete(evicted);
         }
@@ -554,6 +571,13 @@ webhooks.get("/stream/:apiKey", async (c) => {
       void reactive.close();
       return;
     }
+
+    // Phase 2 onUpdate is now armed — switch the dedup tracker
+    // from "hold every drained id" to "bounded sliding window."
+    // The pre-drain ids that are older than the overlap window
+    // (5s back from liveStart) can no longer be re-surfaced by
+    // the live tail, so they're safe to age out.
+    seen.markDrainComplete();
 
     try {
       while (!aborted) {
