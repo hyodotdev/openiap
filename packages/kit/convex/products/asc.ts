@@ -1,11 +1,90 @@
 "use node";
 import { v } from "convex/values";
 
-import { action } from "../_generated/server";
+import { action, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
 import { mintAscJwt } from "./jwt";
+
+// Resolve App Store Connect API credentials (issuer ID + key ID + .p8
+// key content) for a project. Centralized so the two action handlers
+// (pushSyncProductsAppleIOS and listSubscriptionGroupsAppleIOS) share
+// one source of truth — both have to honor the same pair-resolution
+// rule (never mix new ASC slot with legacy Server API slot) and the
+// same .p8 fallback (dedicated ASC slot first, then legacy single
+// slot for projects mid-migration). Throws on missing config or
+// missing .p8 with the operator-actionable message we want surfaced.
+type AscCredentials = {
+  issuerId: string;
+  keyId: string;
+  keyContent: string;
+};
+async function resolveAscCredentials(
+  ctx: ActionCtx,
+  project: Awaited<ReturnType<typeof getProjectByApiKey>>,
+  options: { detailedErrors?: boolean } = {},
+): Promise<AscCredentials> {
+  // Resolve as a *pair* — never mix the new ASC Issuer ID with the
+  // legacy Server API Key ID (or vice versa). If only one of the
+  // new fields is populated the operator is mid-migration; in that
+  // case fall back to the legacy pair entirely so we don't sign a
+  // request with mismatched identifiers Apple will reject as 401.
+  const useAsc = project.iosAscIssuerId && project.iosAscKeyId;
+  const issuerId = useAsc
+    ? project.iosAscIssuerId
+    : project.iosAppStoreIssuerId;
+  const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
+  if (!issuerId || !keyId) {
+    throw new Error(
+      options.detailedErrors
+        ? "App Store Connect API Issuer ID / Key ID not configured. " +
+            "Generate them at App Store Connect → Users and Access → " +
+            "Integrations → App Store Connect API (NOT under In-App " +
+            "Purchase — those credentials are scoped to receipt " +
+            "verification only). Save them in Settings → iOS " +
+            "Configuration → 'App Store Connect API (push-sync)'."
+        : "App Store Connect API Issuer ID / Key ID not configured",
+    );
+  }
+  // Prefer the dedicated ASC .p8 file; fall back to the Server API
+  // .p8 when the user has only uploaded one. The wrong-kind hint
+  // from `call()` will tell them to upload a Team Key if Apple
+  // rejects whichever they have.
+  let keyContent: string | undefined;
+  try {
+    const ascKey = await ctx.runAction(
+      internal.files.internal.getAppleAscApiKey,
+      {
+        organizationId: project.organizationId,
+        projectId: project._id,
+      },
+    );
+    keyContent = ascKey?.keyContent;
+  } catch {
+    // No ASC key uploaded — fall through to the legacy slot below.
+  }
+  if (!keyContent) {
+    const legacyKey = await ctx.runAction(
+      internal.files.internal.getAppleP8Key,
+      {
+        organizationId: project.organizationId,
+        projectId: project._id,
+      },
+    );
+    keyContent = legacyKey?.keyContent;
+  }
+  if (!keyContent) {
+    throw new Error(
+      options.detailedErrors
+        ? "App Store Connect API key (.p8) not uploaded — generate one " +
+            "at App Store Connect → Users and Access → Integrations → " +
+            "App Store Connect API → Team Keys and upload it in Settings."
+        : "App Store Connect API key (.p8) not uploaded",
+    );
+  }
+  return { issuerId, keyId, keyContent };
+}
 
 // App Store Connect REST client + push-sync action.
 //
@@ -848,63 +927,14 @@ export const pushSyncProductsAppleIOS = action({
     // (single-slot) workflow keep working without a re-config dance.
     // The 401 from Apple's gateway is what catches a wrong-kind key
     // either way — the helpful message in `call()` points the operator
-    // at the right Apple page.
-    // Resolve as a *pair* — never mix the new ASC Issuer ID with the
-    // legacy Server API Key ID (or vice versa). If only one of the
-    // new fields is populated the operator is mid-migration; in that
-    // case fall back to the legacy pair entirely so we don't sign a
-    // request with mismatched identifiers Apple will reject as 401.
-    const useAsc = project.iosAscIssuerId && project.iosAscKeyId;
-    const issuerId = useAsc
-      ? project.iosAscIssuerId
-      : project.iosAppStoreIssuerId;
-    const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
-    if (!issuerId || !keyId) {
-      throw new Error(
-        "App Store Connect API Issuer ID / Key ID not configured. " +
-          "Generate them at App Store Connect → Users and Access → " +
-          "Integrations → App Store Connect API (NOT under In-App " +
-          "Purchase — those credentials are scoped to receipt " +
-          "verification only). Save them in Settings → iOS " +
-          "Configuration → 'App Store Connect API (push-sync)'.",
-      );
-    }
-
-    // Prefer the dedicated ASC .p8 file; fall back to the Server API
-    // .p8 when the user has only uploaded one. The wrong-kind hint
-    // from `call()` will tell them to upload a Team Key if Apple
-    // rejects whichever they have.
-    let keyContent: string | undefined;
-    try {
-      const ascKey = await ctx.runAction(
-        internal.files.internal.getAppleAscApiKey,
-        {
-          organizationId: project.organizationId,
-          projectId: project._id,
-        },
-      );
-      keyContent = ascKey?.keyContent;
-    } catch {
-      // No ASC key uploaded — try the Server API slot below.
-    }
-    if (!keyContent) {
-      const legacyKey = await ctx.runAction(
-        internal.files.internal.getAppleP8Key,
-        {
-          organizationId: project.organizationId,
-          projectId: project._id,
-        },
-      );
-      keyContent = legacyKey?.keyContent;
-    }
-    if (!keyContent) {
-      throw new Error(
-        "App Store Connect API key (.p8) not uploaded — generate one " +
-          "at App Store Connect → Users and Access → Integrations → " +
-          "App Store Connect API → Team Keys and upload it in Settings.",
-      );
-    }
-
+    // at the right Apple page. The full pair-resolve + .p8-fallback
+    // logic lives in `resolveAscCredentials` so the matching
+    // listSubscriptionGroupsAppleIOS handler stays in lockstep.
+    const { issuerId, keyId, keyContent } = await resolveAscCredentials(
+      ctx,
+      project,
+      { detailedErrors: true },
+    );
     const client = new AscClient(issuerId, keyId, keyContent);
 
     const direction = args.direction ?? "both";
@@ -1435,39 +1465,10 @@ export const listSubscriptionGroupsAppleIOS = action({
     if (!project.iosAppAppleId) {
       throw new Error("Project iosAppAppleId is not configured");
     }
-    // Same pair-resolve rule as pushSyncProductsAppleIOS — see
-    // the comment there. Don't mix new ASC Issuer with legacy
-    // Server API Key ID (or vice versa).
-    const useAsc = project.iosAscIssuerId && project.iosAscKeyId;
-    const issuerId = useAsc
-      ? project.iosAscIssuerId
-      : project.iosAppStoreIssuerId;
-    const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
-    if (!issuerId || !keyId) {
-      throw new Error(
-        "App Store Connect API Issuer ID / Key ID not configured",
-      );
-    }
-    let keyContent: string | undefined;
-    try {
-      const ascKey = await ctx.runAction(
-        internal.files.internal.getAppleAscApiKey,
-        { organizationId: project.organizationId, projectId: project._id },
-      );
-      keyContent = ascKey?.keyContent;
-    } catch {
-      // ignore, fall through to legacy slot
-    }
-    if (!keyContent) {
-      const legacyKey = await ctx.runAction(
-        internal.files.internal.getAppleP8Key,
-        { organizationId: project.organizationId, projectId: project._id },
-      );
-      keyContent = legacyKey?.keyContent;
-    }
-    if (!keyContent) {
-      throw new Error("App Store Connect API key (.p8) not uploaded");
-    }
+    const { issuerId, keyId, keyContent } = await resolveAscCredentials(
+      ctx,
+      project,
+    );
     const client = new AscClient(issuerId, keyId, keyContent);
     const resp = await client.listSubscriptionGroups(
       String(project.iosAppAppleId),
