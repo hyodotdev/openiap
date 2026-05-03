@@ -59,7 +59,6 @@ export default function WebhookStreamScreen() {
       apiKey,
       baseUrl,
       onEvent: (event) => {
-        setStatus('connected');
         setStatusMessage(null);
         // Newest first; cap at 50 to keep the list bounded.
         setEvents((prev) => [event, ...prev].slice(0, 50));
@@ -71,6 +70,12 @@ export default function WebhookStreamScreen() {
         setStatusMessage(`${error.code}: ${error.message}`);
       },
     });
+    // Mark connected as soon as `connectWebhookStream` returns —
+    // the listener is live even if no event has arrived yet.
+    // Waiting for the first onEvent left a healthy idle stream
+    // stuck in `connecting` indefinitely (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    setStatus('connected');
   }, [apiKey, baseUrl]);
 
   const stopStream = useCallback(() => {
@@ -198,7 +203,7 @@ export default function WebhookStreamScreen() {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         data={events}
-        keyExtractor={(item, index) => `${item.id ?? 'event'}-${index}`}
+        keyExtractor={(item) => item.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={() => (
           <View style={styles.empty}>

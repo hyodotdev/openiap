@@ -452,6 +452,18 @@ async function maybeFetchSubscriptionInfo(
       priceAmountMicros: moneyToMicros(recurring),
     };
   } catch (error) {
+    // Re-throw structured ConvexErrors (e.g. INVALID_SERVICE_ACCOUNT_JSON)
+    // before the generic "transient API failure" fallback below. The
+    // outer catch is meant to swallow Play Developer API hiccups so
+    // ingest still completes with type-derived state, but a permanent
+    // config error shouldn't be silently downgraded to "no
+    // enrichment" — it needs to surface to the route layer as a 4xx
+    // so Pub/Sub stops retrying and the operator sees the actionable
+    // code (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
+    // review).
+    if (error instanceof ConvexError) {
+      throw error;
+    }
     // Sanitized: only the error name/code/message is logged. The full
     // googleapis error object can include the original request URL with
     // an OAuth bearer token and the response body — neither belongs in

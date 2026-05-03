@@ -454,6 +454,15 @@ export const pushSyncProductsGoogle = action({
                   packageName,
                   productId: row.storeRef,
                   updateMask: "listings",
+                  // `regionsVersion` is required by the Play API on
+                  // every patch/create — it pins the regional-pricing
+                  // schema version (Google added the `2022/01` revision
+                  // when they switched the regional config shape) and
+                  // the request 400s without it. PR #124
+                  // (https://github.com/hyodotdev/openiap/pull/124)
+                  // review. The googleapis SDK exposes this as a flat
+                  // querystring param (`regionsVersion.version`).
+                  "regionsVersion.version": "2022/01",
                   requestBody: {
                     productId: row.storeRef,
                     listings: [
@@ -536,8 +545,17 @@ export const pushSyncProductsGoogle = action({
                 "Subscription requires priceAmountMicros + currency to mint a Play base plan; otherwise the product will not be purchasable.",
               );
             }
+            const basePlanId = basePlanIdForPeriod(row.billingPeriod);
             await androidpublisher.monetization.subscriptions.create({
               packageName,
+              productId: row.productId,
+              // `regionsVersion` is required by the v3 API on every
+              // create — pins the regional-pricing schema revision
+              // (Google introduced `2022/01` when the regional-config
+              // shape changed). The request 400s without it. The
+              // googleapis SDK exposes this as a flat querystring
+              // param (`regionsVersion.version`).
+              "regionsVersion.version": "2022/01",
               requestBody: {
                 productId: row.productId,
                 listings: [
@@ -554,8 +572,7 @@ export const pushSyncProductsGoogle = action({
                 // with an existing base plan id in Play Console.
                 basePlans: [
                   {
-                    basePlanId: basePlanIdForPeriod(row.billingPeriod),
-                    state: "ACTIVE",
+                    basePlanId,
                     autoRenewingBasePlanType: {
                       billingPeriodDuration: row.billingPeriod ?? "P1M",
                     },
@@ -575,6 +592,25 @@ export const pushSyncProductsGoogle = action({
                 ],
               },
             });
+            // Activate the just-created base plan. Play's v3 API
+            // creates new base plans in DRAFT regardless of the
+            // `state` field on the create payload — the SKU isn't
+            // purchasable until `basePlans.activate` flips it to
+            // ACTIVE. Without this call we'd mark the row Ready while
+            // the upstream subscription is still non-purchasable
+            // (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
+            // review).
+            await androidpublisher.monetization.subscriptions.basePlans.activate(
+              {
+                packageName,
+                productId: row.productId,
+                basePlanId,
+                requestBody: {
+                  latencyTolerance:
+                    "PRODUCT_UPDATE_LATENCY_TOLERANCE_LATENCY_TOLERANT",
+                },
+              },
+            );
           } else {
             await androidpublisher.inappproducts.insert({
               packageName,

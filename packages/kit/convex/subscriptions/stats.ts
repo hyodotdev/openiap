@@ -336,11 +336,16 @@ async function runRecomputePageInline(
     runStartedAt: number;
   },
 ): Promise<void> {
-  // Build periodByProductId from the per-platform product index.
+  // Build periodByPlatformProduct from the per-platform product
+  // index, keyed by `${platform}:${productId}`. The same SKU can
+  // exist on both stores with different billing periods, so a
+  // single-key map would have one platform's period overwrite the
+  // other's and skew MRR (PR #124
+  // (https://github.com/hyodotdev/openiap/pull/124) review).
   // We re-fetch on every page because product catalogs are small
   // (typically 10-100 rows per platform per project) and re-reading
   // is much cheaper than serializing the map through scheduler args.
-  const periodByProductId = new Map<string, string | undefined>();
+  const periodByPlatformProduct = new Map<string, string | undefined>();
   for (const platform of ["IOS", "Android"] as const) {
     const productRows = await ctx.db
       .query("products")
@@ -349,13 +354,10 @@ async function runRecomputePageInline(
       )
       .collect();
     for (const product of productRows) {
-      if (
-        !periodByProductId.has(product.productId) ||
-        (periodByProductId.get(product.productId) === undefined &&
-          product.billingPeriod !== undefined)
-      ) {
-        periodByProductId.set(product.productId, product.billingPeriod);
-      }
+      periodByPlatformProduct.set(
+        `${platform}:${product.productId}`,
+        product.billingPeriod,
+      );
     }
   }
 
@@ -384,7 +386,7 @@ async function runRecomputePageInline(
   for (const sub of result.page) {
     const contribution = statsContributionFor(
       sub,
-      periodByProductId.get(sub.productId),
+      periodByPlatformProduct.get(`${sub.platform}:${sub.productId}`),
       now,
     );
     if (!contribution || contribution.state === null) continue;

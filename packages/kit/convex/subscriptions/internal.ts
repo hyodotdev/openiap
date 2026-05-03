@@ -103,6 +103,7 @@ export const applySubscriptionEvent = internalMutation({
     const billingPeriod = await fetchBillingPeriod(
       ctx,
       args.projectId,
+      args.event.platform,
       next.productId,
     );
 
@@ -115,7 +116,12 @@ export const applySubscriptionEvent = internalMutation({
     // Reuse `billingPeriod` only when the productId didn't change.
     const beforeBillingPeriod =
       existing && existing.productId !== next.productId
-        ? await fetchBillingPeriod(ctx, args.projectId, existing.productId)
+        ? await fetchBillingPeriod(
+            ctx,
+            args.projectId,
+            args.event.platform,
+            existing.productId,
+          )
         : billingPeriod;
 
     // Capture the BEFORE contribution against the still-existing row
@@ -183,28 +189,32 @@ export const applySubscriptionEvent = internalMutation({
 });
 
 // Look up a product's billing period from the kit-side catalog. We
-// prefer iOS over Android when both platforms ship the same productId
-// (matches what `metricsSummary` does for its read-path scan). Returns
+// Look up the row for the EXACT (platform, productId) — `products` is
+// keyed by (projectId, platform, productId) precisely because the
+// same SKU can exist on both stores with different billing periods.
+// Earlier behaviour preferred iOS over Android by walking both
+// platforms, which made an Android subscription inherit the iOS
+// period when those rows diverged and skewed `mrrMicros` on both the
+// incremental delta and the next recompute (PR #124
+// (https://github.com/hyodotdev/openiap/pull/124) review). Returns
 // undefined when the product isn't tracked or has no billingPeriod —
 // monthlyMicrosForSub treats that as a P1M fallback.
 async function fetchBillingPeriod(
   ctx: MutationCtx,
   projectId: Id<"projects">,
+  platform: "IOS" | "Android",
   productId: string,
 ): Promise<string | undefined> {
-  for (const platform of ["IOS", "Android"] as const) {
-    const product = await ctx.db
-      .query("products")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", projectId)
-          .eq("platform", platform)
-          .eq("productId", productId),
-      )
-      .unique();
-    if (product?.billingPeriod !== undefined) return product.billingPeriod;
-  }
-  return undefined;
+  const product = await ctx.db
+    .query("products")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", projectId)
+        .eq("platform", platform)
+        .eq("productId", productId),
+    )
+    .unique();
+  return product?.billingPeriod ?? undefined;
 }
 
 function coerceEventInput(raw: RawEventInput): SubscriptionEventInput {

@@ -70,7 +70,13 @@ func _exit_tree() -> void:
 func _run_loop() -> void:
 	while _running:
 		var ok := await _open_and_drain()
-		if not ok:
+		# Skip the reconnect-error signal if shutdown was intentional —
+		# `close_stream()` / `_exit_tree()` set `_running = false`
+		# before _open_and_drain returns, and emitting TRANSPORT_ERROR
+		# in that path made normal teardown look like a failure
+		# (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
+		# review).
+		if not ok and _running:
 			emit_signal("stream_error", "TRANSPORT_ERROR", "stream disconnected; reconnecting")
 		if not _running:
 			break
@@ -108,6 +114,20 @@ func _open_and_drain() -> bool:
 		await get_tree().process_frame
 
 	if _client.get_status() != HTTPClient.STATUS_CONNECTED:
+		# Detect terminal HTTPClient statuses (DNS resolution failure,
+		# unreachable host, broken TLS) so a misconfigured endpoint
+		# doesn't trigger an infinite reconnect loop. Surface the
+		# specific failure so the operator can fix the config instead
+		# of seeing a generic "stream disconnected" log spam every 2s
+		# (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
+		# review).
+		var status := _client.get_status()
+		if status == HTTPClient.STATUS_CANT_RESOLVE \
+				or status == HTTPClient.STATUS_CANT_CONNECT \
+				or status == HTTPClient.STATUS_TLS_HANDSHAKE_ERROR:
+			emit_signal("stream_error", "HTTP_CLIENT_FATAL", "HTTPClient terminal status: %d" % status)
+			_running = false
+			_client.close()
 		return false
 
 	emit_signal("connected_to_stream")

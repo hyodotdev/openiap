@@ -90,11 +90,28 @@ actual class WebhookTransport actual constructor(
                 connection.connect()
                 if (connection.responseCode !in 200..299) {
                     val code = connection.responseCode
-                    // 4xx (401 INVALID_API_KEY / 412 *_NOT_CONFIGURED)
-                    // will never succeed on retry — flip closed so
-                    // the outer reconnect loop exits cleanly. 5xx
-                    // falls through to the normal back-off.
-                    if (code in 400..499) {
+                    // Treat only the *permanent* 4xx codes as terminal:
+                    // - 401 INVALID_API_KEY
+                    // - 403 FORBIDDEN
+                    // - 404 NOT_FOUND
+                    // - 410 GONE
+                    // - 412 *_NOT_CONFIGURED
+                    // - 422 UNPROCESSABLE_ENTITY
+                    //
+                    // 408 Request Timeout, 425 Too Early, and 429 Too
+                    // Many Requests are *transient* and will succeed on
+                    // a back-off retry; the previous "any 4xx is
+                    // terminal" check permanently disabled reconnects
+                    // for them (PR #124
+                    // (https://github.com/hyodotdev/openiap/pull/124)
+                    // review). 5xx falls through to the normal back-off.
+                    val isTerminal = code == HttpURLConnection.HTTP_UNAUTHORIZED ||
+                        code == HttpURLConnection.HTTP_FORBIDDEN ||
+                        code == HttpURLConnection.HTTP_NOT_FOUND ||
+                        code == HttpURLConnection.HTTP_GONE ||
+                        code == HttpURLConnection.HTTP_PRECON_FAILED ||
+                        code == 422
+                    if (isTerminal) {
                         closed = true
                     }
                     throw IllegalStateException(
