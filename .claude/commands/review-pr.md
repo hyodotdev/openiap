@@ -35,6 +35,10 @@ See [CLAUDE.md](../../CLAUDE.md) and [knowledge/internal/](../../knowledge/inter
 
 **NEVER respond with "will address in a follow-up" or "will fix later".** Fix ALL review comments NOW in the current PR. Every comment must be addressed with a code fix and committed before replying. No exceptions.
 
+**This rule applies to architectural / refactor / "out of scope" findings too.** Phrases like "tracked as a follow-up", "is its own refactor", "belongs in a dedicated PR", "real architectural change", "future enhancement", or "tracking as follow-up rather than landing in this PR" are NOT acceptable replies — they are deferrals dressed up. If the reviewer flagged a real correctness or operational gap, implement the fix in this PR, however much code it takes. Pagination, schema additions, new validators, API rewrites, scheduler-chained mutations — all in scope. Push back ONLY when the finding is wrong on the merits (e.g. a stylistic preference contradicting an existing schema convention), and back the pushback with concrete repo evidence.
+
+If you are tempted to write "tracking as follow-up", stop and implement the fix instead.
+
 For each comment:
 1. **Read the code** mentioned in the comment
 2. **Fix it** immediately

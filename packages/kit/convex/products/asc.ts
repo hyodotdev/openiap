@@ -1407,11 +1407,20 @@ export const pushSyncProductsAppleIOS = action({
                     });
                   }
                 } catch (error) {
-                  recordFailure({
-                    productId: `${row.productId} (price)`,
-                    reason:
-                      error instanceof Error ? error.message : String(error),
-                  });
+                  // 409 Conflict means a price schedule already exists
+                  // for the (subscription, startDate=today) pair from a
+                  // prior partial sync — Apple keys schedules by date,
+                  // not by id. Treat as benign retry so the subsequent
+                  // markPushed step still runs (PR #124
+                  // (https://github.com/hyodotdev/openiap/pull/124)
+                  // review).
+                  if (!(error instanceof AscApiError && error.status === 409)) {
+                    recordFailure({
+                      productId: `${row.productId} (price)`,
+                      reason:
+                        error instanceof Error ? error.message : String(error),
+                    });
+                  }
                 }
               }
             } else if (row.currency && row.currency !== "USD") {
@@ -1521,11 +1530,18 @@ export const pushSyncProductsAppleIOS = action({
                     });
                   }
                 } catch (error) {
-                  recordFailure({
-                    productId: `${row.productId} (price)`,
-                    reason:
-                      error instanceof Error ? error.message : String(error),
-                  });
+                  // Same 409-is-benign rationale as the subscription
+                  // price schedule path above — Apple keys IAP price
+                  // schedules by (iapId, startDate) so a same-day
+                  // retry hits Conflict. Allow the row to proceed to
+                  // markPushed instead of stalling in Draft.
+                  if (!(error instanceof AscApiError && error.status === 409)) {
+                    recordFailure({
+                      productId: `${row.productId} (price)`,
+                      reason:
+                        error instanceof Error ? error.message : String(error),
+                    });
+                  }
                 }
               }
             } else if (row.currency && row.currency !== "USD") {

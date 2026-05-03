@@ -341,8 +341,14 @@ async function maybeFetchSubscriptionInfo(
     // caller already treats missing expiry as "use the wall-clock
     // dedup path".
     const expiry = data.lineItems?.[0]?.expiryTime ?? undefined;
-    const renews = data.lineItems?.[0]?.autoRenewingPlan?.recurringPrice
-      ? data.lineItems?.[0]?.expiryTime
+    // `autoRenewingPlan` presence is the authoritative v2 indicator
+    // that auto-renewal is scheduled. Gating `renews` on
+    // `recurringPrice` (the previous check) misses subscriptions in a
+    // free-trial phase where the current price is 0 but renewal is
+    // still on the calendar (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    const renews = data.lineItems?.[0]?.autoRenewingPlan
+      ? (data.lineItems?.[0]?.expiryTime ?? undefined)
       : undefined;
     const recurring = data.lineItems?.[0]?.autoRenewingPlan?.recurringPrice;
 
