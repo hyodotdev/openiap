@@ -1382,7 +1382,10 @@ export const pushSyncProductsAppleIOS = action({
             // mis-priced. In dry-run, skip the lookup (the just-created
             // subscription resource doesn't exist for read-back) and
             // just record intent.
-            if (row.priceAmountMicros && (row.currency ?? "USD") === "USD") {
+            if (
+              row.priceAmountMicros !== undefined &&
+              (row.currency ?? "USD") === "USD"
+            ) {
               if (dryRun) {
                 plannedWrites.push({
                   productId: row.productId,
@@ -1505,7 +1508,10 @@ export const pushSyncProductsAppleIOS = action({
                 }
               }
             }
-            if (row.priceAmountMicros && (row.currency ?? "USD") === "USD") {
+            if (
+              row.priceAmountMicros !== undefined &&
+              (row.currency ?? "USD") === "USD"
+            ) {
               if (dryRun) {
                 plannedWrites.push({
                   productId: row.productId,

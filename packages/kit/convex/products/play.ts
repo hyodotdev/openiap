@@ -494,7 +494,7 @@ export const pushSyncProductsGoogle = action({
                         description: row.description ?? row.title,
                       },
                     },
-                    ...(row.priceAmountMicros && row.currency
+                    ...(row.priceAmountMicros !== undefined && row.currency
                       ? {
                           defaultPrice: {
                             priceMicros: String(row.priceAmountMicros),
@@ -595,7 +595,7 @@ export const pushSyncProductsGoogle = action({
                     description: row.description ?? row.title,
                   },
                 },
-                ...(row.priceAmountMicros && row.currency
+                ...(row.priceAmountMicros !== undefined && row.currency
                   ? {
                       defaultPrice: {
                         priceMicros: String(row.priceAmountMicros),
