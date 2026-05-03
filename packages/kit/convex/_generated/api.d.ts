@@ -58,6 +58,7 @@ import type * as subscriptions_internal from "../subscriptions/internal.js";
 import type * as subscriptions_monthlyMicros from "../subscriptions/monthlyMicros.js";
 import type * as subscriptions_mutation from "../subscriptions/mutation.js";
 import type * as subscriptions_query from "../subscriptions/query.js";
+import type * as subscriptions_selectLatest from "../subscriptions/selectLatest.js";
 import type * as subscriptions_stateMachine from "../subscriptions/stateMachine.js";
 import type * as subscriptions_stats from "../subscriptions/stats.js";
 import type * as userProfiles_action from "../userProfiles/action.js";
@@ -134,6 +135,7 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/monthlyMicros": typeof subscriptions_monthlyMicros;
   "subscriptions/mutation": typeof subscriptions_mutation;
   "subscriptions/query": typeof subscriptions_query;
+  "subscriptions/selectLatest": typeof subscriptions_selectLatest;
   "subscriptions/stateMachine": typeof subscriptions_stateMachine;
   "subscriptions/stats": typeof subscriptions_stats;
   "userProfiles/action": typeof userProfiles_action;
