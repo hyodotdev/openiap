@@ -130,7 +130,17 @@ actual class WebhookTransport actual constructor(
         // any incomplete UTF-8 sequence at the buffer tail, which would
         // silently lose the entire chunk including the head bytes.
         val byteBuffer = NSMutableData()
-        val delegate = SseDelegate(channel, byteBuffer, updateLastEventId)
+        val delegate = SseDelegate(
+            channel = channel,
+            byteBuffer = byteBuffer,
+            updateLastEventId = updateLastEventId,
+            // Permanent close hook — invoked by the delegate on any
+            // 4xx response so the outer events() loop exits instead
+            // of reconnecting forever against a known-bad apiKey /
+            // unconfigured platform. Mirrors the behaviour of the
+            // androidMain transport + Flutter / Godot clients.
+            requestPermanentClose = { closed = true },
+        )
         val session = NSURLSession.sessionWithConfiguration(config, delegate, null)
         try {
             val task = session.dataTaskWithRequest(request)
@@ -178,6 +188,11 @@ private class SseDelegate(
     private val channel: SendChannel<WebhookEvent>,
     private val byteBuffer: NSMutableData,
     private val updateLastEventId: (String) -> Unit,
+    // Invoked by didReceiveResponse when the server returns a 4xx
+    // status. The outer transport sets `closed = true` so the
+    // events() loop exits instead of looping back into runOnce
+    // against a permanently-failing endpoint.
+    private val requestPermanentClose: () -> Unit,
 ) : NSObject(), NSURLSessionDataDelegateProtocol {
     private val finishedSignal = Channel<Unit>(Channel.CONFLATED)
     // Captured during didReceiveResponse so processFrame can cancel
@@ -213,9 +228,19 @@ private class SseDelegate(
             currentTask = dataTask
             completionHandler(NSURLSessionResponseAllow)
         } else {
+            // 4xx (401 INVALID_API_KEY, 412 *_NOT_CONFIGURED) will
+            // never succeed on retry. Signal the transport to stop
+            // reconnecting so the consumer sees a clean stream end
+            // instead of an infinite log spam. 5xx falls through to
+            // the normal back-off + reconnect because those are
+            // transient.
+            if (status in 400..499) {
+                requestPermanentClose()
+            }
             // Cancel the task; awaitFinished will then unblock and
             // runOnce returns false, triggering the same back-off
-            // reconnect path we use for network errors.
+            // reconnect path we use for network errors (or exiting
+            // the loop entirely if 4xx flipped `closed` above).
             dataTask.cancel()
             completionHandler(
                 platform.Foundation.NSURLSessionResponseCancel,

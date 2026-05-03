@@ -279,33 +279,50 @@ export const recomputeAllSubscriptionStats = internalMutation({
 // per project. Set conservatively below Convex's hard 40k document-
 // read limit per mutation transaction so a single project's
 // recompute can never blow the budget — the cron processes multiple
-// projects per tick and shares the read pool with the
-// `subscriptionStats` reads + writes below.
-//
-// A project with more than this many rows has its counters slightly
-// truncated (newer rows toward the head are preferred via
-// .order("desc")), and the next cron tick picks it up again —
-// incremental drift correction stays correct because
-// applySubscriptionEvent handles steady-state writes.
+// projects per tick (well, schedules them — each runs in its own
+// mutation, but each still has its own 40k ceiling).
 const RECOMPUTE_PER_PROJECT_CAP = 30_000;
 
 async function runRecompute(
   ctx: MutationCtx,
   projectId: Id<"projects">,
 ): Promise<void> {
-  // Mirror of recomputeSubscriptionStats body; kept inline so the
-  // cron loop doesn't pay an extra `runMutation` round-trip per
-  // project. The exported handler delegates here too.
-  //
-  // Bounded by RECOMPUTE_PER_PROJECT_CAP so a single oversized
-  // project can't blow the cron's document-read budget. Walks newest
-  // first via .order("desc") so the cap (when it bites) keeps the
-  // most-recently-active subs which dominate the live counters.
+  // Per-project recompute. Take RECOMPUTE_PER_PROJECT_CAP + 1 so we
+  // can detect "project has more rows than we're allowed to scan in
+  // one mutation" and SKIP the recompute entirely. Truncating to
+  // newest-N would overwrite the (correct, incrementally-maintained)
+  // stats with a partial snapshot — the older Active/InGracePeriod
+  // /InBillingRetry rows that didn't fit in the newest-N window
+  // would silently disappear from the counter, which is worse than
+  // not running the recompute at all. The incremental path
+  // (applySubscriptionEvent / recordHorizonStatus) is the source of
+  // truth at that scale; recompute is a steady-state drift-correction
+  // tool that genuinely doesn't apply once a project outgrows the
+  // single-mutation budget.
   const rows = await ctx.db
     .query("subscriptions")
     .withIndex("by_project_and_updated", (q) => q.eq("projectId", projectId))
     .order("desc")
-    .take(RECOMPUTE_PER_PROJECT_CAP);
+    .take(RECOMPUTE_PER_PROJECT_CAP + 1);
+  if (rows.length > RECOMPUTE_PER_PROJECT_CAP) {
+    console.warn(
+      "[subscriptionStats] skipping recompute — project exceeds RECOMPUTE_PER_PROJECT_CAP",
+      { projectId, cap: RECOMPUTE_PER_PROJECT_CAP },
+    );
+    // Touch the existing stats rows' updatedAt so the picker doesn't
+    // immediately re-pick this project on the next cron tick. Without
+    // this nudge the project would dominate every batch and starve
+    // smaller projects of their drift-correction slot.
+    const stale = await ctx.db
+      .query("subscriptionStats")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+    const nudge = Date.now();
+    for (const row of stale) {
+      await ctx.db.patch(row._id, { updatedAt: nudge });
+    }
+    return;
+  }
   const periodByProductId = new Map<string, string | undefined>();
   for (const platform of ["IOS", "Android"] as const) {
     const productRows = await ctx.db
@@ -366,13 +383,34 @@ async function runRecompute(
   for (const row of existing) {
     await ctx.db.delete(row._id);
   }
-  for (const [currency, bucket] of buckets) {
+  if (buckets.size === 0) {
+    // Sentinel zero-row so the project still surfaces in the
+    // `by_updated_at` index for the next cron pick. Without this, a
+    // project whose subs are all in non-counted states (Expired /
+    // Refunded / etc.) would have ZERO rows after the delete loop
+    // above — the picker only discovers projects via
+    // subscriptionStats, so the project would fall out of drift
+    // correction permanently. The empty `""` currency bucket is
+    // ignored by metricsSummary's mrrAccumulators (it only sums
+    // currencies that have non-zero MRR + non-empty currency code).
     await ctx.db.insert("subscriptionStats", {
       projectId,
-      currency,
-      ...bucket,
+      currency: "",
+      activeSubs: 0,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 0,
       updatedAt: now,
     });
+  } else {
+    for (const [currency, bucket] of buckets) {
+      await ctx.db.insert("subscriptionStats", {
+        projectId,
+        currency,
+        ...bucket,
+        updatedAt: now,
+      });
+    }
   }
 }
 

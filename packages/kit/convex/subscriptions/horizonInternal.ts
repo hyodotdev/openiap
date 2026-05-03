@@ -84,7 +84,19 @@ export const listHorizonSubscriptions = internalQuery({
     // and filtering in memory. The Refunded / Revoked / Expired
     // historical archive is the bulk of any long-lived project — the
     // index path skips it entirely.
-    const STATES = ["Active", "InGracePeriod", "Paused", "Unknown"] as const;
+    // All states that can still mutate via Meta's verify_entitlement
+    // result. The historical archive (Refunded / Revoked / Expired
+    // with no auto-renew) is excluded so the cron stays cheap as the
+    // archive grows, but every live + transient state is included
+    // so a recovery (InBillingRetry → Active) or a Paused → expiry
+    // doesn't get stuck.
+    const STATES = [
+      "Active",
+      "InGracePeriod",
+      "InBillingRetry",
+      "Paused",
+      "Unknown",
+    ] as const;
     // Per-state cap. Horizon polling is a small-population case in
     // practice (most projects ship < 1k Horizon subs total), but
     // bounding here protects against Convex's 40k document-read
@@ -171,19 +183,42 @@ export const recordHorizonStatus = internalMutation({
     // hash of (purchaseToken, eventType, productId) so re-running the
     // cron with the same Meta Graph response doesn't double-emit.
     const sourceNotificationId = `meta-horizon-${args.eventType}-${args.purchaseToken}-${args.productId}`;
-    const eventId = await ctx.db.insert("webhookEvents", {
-      projectId: args.projectId,
-      type: args.eventType,
-      source: "MetaHorizonReconciler",
-      platform: "Android",
-      environment: "Production",
-      purchaseToken: args.purchaseToken,
-      sourceNotificationId,
-      productId: args.productId,
-      subscriptionState: transition.next.state,
-      occurredAt: now,
-      receivedAt: now,
-    });
+
+    // Dedup by (projectId, source, sourceNotificationId) — re-running
+    // the same Horizon poll result (cron retries, manual reconcile)
+    // would otherwise insert another webhookEvents row and re-broadcast
+    // the same SSE event, bypassing the first-seen-wins contract the
+    // Apple/Google webhook receivers honor. Reuse the existing event
+    // when one is already on file.
+    const existingEvent = await ctx.db
+      .query("webhookEvents")
+      .withIndex("by_project_and_notification_id", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("sourceNotificationId", sourceNotificationId),
+      )
+      .unique();
+    const eventId = existingEvent
+      ? existingEvent._id
+      : await ctx.db.insert("webhookEvents", {
+          projectId: args.projectId,
+          type: args.eventType,
+          source: "MetaHorizonReconciler",
+          platform: "Android",
+          environment: "Production",
+          purchaseToken: args.purchaseToken,
+          sourceNotificationId,
+          productId: args.productId,
+          subscriptionState: transition.next.state,
+          occurredAt: now,
+          receivedAt: now,
+        });
+    // If we found an existing event AND the existing subscription row
+    // already references it, the rest of this mutation is a no-op —
+    // the prior cron tick already applied this transition.
+    if (existing.lastEventId === eventId) {
+      return existing._id;
+    }
 
     // Capture stats contribution before patching so the delta below
     // subtracts what the row used to count for and adds the new state.
@@ -192,10 +227,33 @@ export const recordHorizonStatus = internalMutation({
     // existing read-path semantics for Horizon-backed subs.
     const beforeContribution = statsContributionFor(existing, undefined, now);
 
+    // Horizon-specific expiresAt handling. Meta's verify_entitlement
+    // is binary (granted / not granted) — there's no upstream expiry
+    // we can copy onto the row. The state machine's CurrentSubscription
+    // path carries the OLD expiresAt forward, which means a renewed-
+    // upstream sub whose previous expiresAt is now in the past would
+    // be patched back to "Active" with a stale (already-expired)
+    // timestamp; the entitlement read path's `isActive` check then
+    // immediately treats it as inactive again. Set a forward-looking
+    // expiry that comfortably outlasts the next poll cycle (cron runs
+    // every 6h) so an `Active` Horizon row stays entitled until either
+    // the next reconcile flips it or the operator pauses the cron for
+    // an extended outage.
+    //
+    // For SubscriptionExpired we let the state-machine's transition
+    // handle the timestamp; the row is moving to a non-active state
+    // so the stale expiresAt is irrelevant.
+    const HORIZON_RENEWAL_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
+    const horizonExpiresAt =
+      args.eventType === "SubscriptionRenewed"
+        ? now + HORIZON_RENEWAL_VALIDITY_MS
+        : transition.next.expiresAt;
+
     await ctx.db.patch(existing._id, {
       state: transition.next.state,
       willRenew: transition.next.willRenew,
       cancellationReason: transition.next.cancellationReason,
+      expiresAt: horizonExpiresAt,
       updatedAt: now,
       lastEventId: eventId,
     });

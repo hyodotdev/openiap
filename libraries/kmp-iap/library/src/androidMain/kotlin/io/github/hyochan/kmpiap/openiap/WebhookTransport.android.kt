@@ -2,13 +2,17 @@ package io.github.hyochan.kmpiap.openiap
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.job
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * androidMain SSE transport. Built on `HttpURLConnection` rather than
@@ -27,10 +31,37 @@ actual class WebhookTransport actual constructor(
     private val baseUrl: String,
 ) {
     @Volatile private var closed: Boolean = false
-    @Volatile private var activeConnection: HttpURLConnection? = null
+    // Track every in-flight connection so close() can disconnect ALL
+    // of them — the prior single-slot `activeConnection` was overwritten
+    // when a second collector subscribed, and close() then leaked the
+    // first collector's socket. Synchronized via the connections set's
+    // own monitor.
+    private val activeConnections = mutableSetOf<HttpURLConnection>()
+    // Single-collector enforcement guard. The transport contract
+    // (commonMain WebhookTransport.kt) is one-collector-per-instance,
+    // and concurrent collectors would step on each other's
+    // Last-Event-ID cursor + double-process the same backlog.
+    // AtomicBoolean so the check + set is race-free under concurrent
+    // events() calls.
+    private val collecting = AtomicBoolean(false)
 
     actual fun events(lastEventId: String?): Flow<WebhookEvent> = flow {
+        if (!collecting.compareAndSet(false, true)) {
+            throw IllegalStateException(
+                "WebhookTransport.events() is single-collector — close the existing collection first.",
+            )
+        }
+        // Per-collector connection-cleanup hook. When the collector's
+        // coroutine cancels (job.cancel()), invoke disconnect() on
+        // whatever connection is currently active so the blocking
+        // input.read() unblocks via SocketException instead of waiting
+        // out the 60s read timeout.
+        var localConnection: HttpURLConnection? = null
+        val cancelHandle = currentCoroutineContext().job.invokeOnCompletion {
+            runCatching { localConnection?.disconnect() }
+        }
         var resumeId: String? = lastEventId
+        try {
         while (!closed) {
             val url = URL(webhookStreamUrl(baseUrl, apiKey))
             val connection = (url.openConnection() as HttpURLConnection).apply {
@@ -52,12 +83,21 @@ actual class WebhookTransport actual constructor(
                 readTimeout = 60_000
                 doInput = true
             }
-            activeConnection = connection
+            localConnection = connection
+            synchronized(activeConnections) { activeConnections.add(connection) }
             try {
                 connection.connect()
                 if (connection.responseCode !in 200..299) {
+                    val code = connection.responseCode
+                    // 4xx (401 INVALID_API_KEY / 412 *_NOT_CONFIGURED)
+                    // will never succeed on retry — flip closed so
+                    // the outer reconnect loop exits cleanly. 5xx
+                    // falls through to the normal back-off.
+                    if (code in 400..499) {
+                        closed = true
+                    }
                     throw IllegalStateException(
-                        "SSE connect returned ${connection.responseCode}",
+                        "SSE connect returned $code",
                     )
                 }
                 // Byte-level frame buffer. WHATWG SSE accepts CR, LF,
@@ -72,11 +112,23 @@ actual class WebhookTransport actual constructor(
                 val buf = ByteArray(8 * 1024)
                 val pending = ByteArrayBuilder()
                 while (!closed) {
+                    // Coop-cancellation check before each blocking
+                    // read. Without this the loop only notices
+                    // cancellation at emit() / delay() — a heartbeat-
+                    // only stream could sit inside input.read() for
+                    // up to readTimeout (60s) after the collector
+                    // cancelled. The invokeOnCompletion above also
+                    // disconnects the underlying socket, which forces
+                    // the read to throw, but ensureActive() makes the
+                    // coroutine cooperate as soon as it has a
+                    // suspension opportunity.
+                    currentCoroutineContext().ensureActive()
                     val n = input.read(buf)
                     if (n == -1) break
                     if (n == 0) continue
                     pending.append(buf, 0, n)
                     while (true) {
+                        currentCoroutineContext().ensureActive()
                         val boundary =
                             findFirstFrameBoundary(pending.bytes, pending.size)
                         if (boundary == null) break
@@ -141,17 +193,41 @@ actual class WebhookTransport actual constructor(
                 // fall through to the back-off + reconnect.
             } finally {
                 runCatching { connection.disconnect() }
-                activeConnection = null
+                synchronized(activeConnections) {
+                    activeConnections.remove(connection)
+                }
+                if (localConnection === connection) {
+                    localConnection = null
+                }
             }
             if (closed) break
             delay(2_000)
+        }
+        } finally {
+            // Always release the cancel handle + collector slot, even
+            // if the loop exits via an unexpected throw. Without
+            // releasing collecting, a follow-up events() call on the
+            // same transport would never get past the AtomicBoolean
+            // guard.
+            cancelHandle.dispose()
+            collecting.set(false)
         }
     }.flowOn(Dispatchers.IO)
 
     actual fun close() {
         closed = true
-        runCatching { activeConnection?.disconnect() }
-        activeConnection = null
+        // Disconnect every in-flight connection. Multiple collectors
+        // can share the same transport instance during transient
+        // teardown windows (old collector still draining, new one
+        // booting), and the prior single-slot field overwrote the
+        // first connection on the second collector's create — leaking
+        // the first socket until OS GC. Snapshot under the monitor so
+        // a concurrent insert in events() can't race with the iterate.
+        val snapshot: List<HttpURLConnection> =
+            synchronized(activeConnections) { activeConnections.toList() }
+        for (conn in snapshot) {
+            runCatching { conn.disconnect() }
+        }
     }
 }
 

@@ -34,8 +34,16 @@ export function monthlyMicrosForSub(
     case "P2W":
       return Math.round(amount * (30.44 / 14));
     case "P1M":
+      return amount;
     case undefined:
     default:
-      return amount;
+      // One-time products (NonConsumable / Consumable) and rows
+      // with missing billing metadata don't contribute to recurring
+      // revenue. The previous fall-through to `amount` inflated MRR
+      // by the full sticker price every time a one-time purchase
+      // landed in `subscriptions` — which only happens when a
+      // catalog row was mis-classified, but a mis-classification
+      // shouldn't quietly skew the dashboard headline.
+      return 0;
   }
 }
