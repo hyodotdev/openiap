@@ -16,6 +16,17 @@ import {
 } from 'expo-iap';
 
 /**
+ * UTF-8 safe base64 — `Buffer` is a Node global that Hermes / JSC
+ * don't ship, so we wrap btoa with the standard
+ * unescape(encodeURIComponent(...)) trick. Extracted into a helper
+ * because the pattern is opaque at the call site (PR #124
+ * (https://github.com/hyodotdev/openiap/pull/124) review).
+ */
+function base64EncodeUtf8(input: string): string {
+  return btoa(unescape(encodeURIComponent(input)));
+}
+
+/**
  * Webhook Stream Demo
  *
  * Subscribes to `GET /v1/webhooks/stream/{apiKey}` (the SSE endpoint added in
@@ -101,9 +112,6 @@ export default function WebhookStreamScreen() {
     try {
       // Mirror the Pub/Sub envelope the dashboard's "Live test" button uses.
       // See packages/kit/src/pages/auth/organization/project/webhooks.tsx.
-      // `Buffer` is not a global in RN / Expo (it's a Node API); use the
-      // browser-style btoa(unescape(encodeURIComponent(...))) wrapper so
-      // unicode-safe base64 works under Hermes / JSC without polyfills.
       const dataJson = JSON.stringify({
         version: '1.0',
         packageName: 'com.example.app',
@@ -112,7 +120,7 @@ export default function WebhookStreamScreen() {
       });
       const payload = {
         message: {
-          data: btoa(unescape(encodeURIComponent(dataJson))),
+          data: base64EncodeUtf8(dataJson),
           messageId: `expo-test-${Date.now()}`,
           publishTime: new Date().toISOString(),
         },
