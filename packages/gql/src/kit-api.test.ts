@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { kitApi, KitApiError } from "./kit-api";
+import { iapKitApi, IAPKitApiError } from "./kit-api";
 
 function fakeFetch(
   recipe: (
@@ -24,13 +24,13 @@ function fakeFetch(
   });
 }
 
-describe("kitApi", () => {
+describe("iapKitApi", () => {
   it("calls /v1/subscriptions/status with the apiKey + userId", async () => {
     const fetchImpl = fakeFetch(() => ({
       status: 200,
       body: { active: true, subscription: null },
     }));
-    const api = kitApi({
+    const api = iapKitApi({
       apiKey: "k",
       baseUrl: "http://localhost",
       fetchImpl: fetchImpl as never,
@@ -48,7 +48,7 @@ describe("kitApi", () => {
       status: 200,
       body: { userId: "u 1", productIds: [], subscriptions: [] },
     }));
-    const api = kitApi({
+    const api = iapKitApi({
       apiKey: "k 1",
       baseUrl: "http://localhost",
       fetchImpl: fetchImpl as never,
@@ -60,17 +60,17 @@ describe("kitApi", () => {
     );
   });
 
-  it("throws KitApiError on non-2xx", async () => {
+  it("throws IAPKitApiError on non-2xx", async () => {
     const fetchImpl = fakeFetch(() => ({
       status: 401,
       body: { errors: [{ code: "INVALID_API_KEY", message: "nope" }] },
     }));
-    const api = kitApi({
+    const api = iapKitApi({
       apiKey: "bad",
       baseUrl: "http://localhost",
       fetchImpl: fetchImpl as never,
     });
-    await expect(api.status("u")).rejects.toBeInstanceOf(KitApiError);
+    await expect(api.status("u")).rejects.toBeInstanceOf(IAPKitApiError);
   });
 
   it("bindUser POSTs JSON", async () => {
@@ -80,7 +80,7 @@ describe("kitApi", () => {
       expect(body).toEqual({ purchaseToken: "tok", userId: "user" });
       return { status: 200, body: { ok: true, bound: true } };
     });
-    const api = kitApi({
+    const api = iapKitApi({
       apiKey: "k",
       baseUrl: "http://localhost",
       fetchImpl: fetchImpl as never,

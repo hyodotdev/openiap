@@ -127,9 +127,9 @@ function KitBackend() {
         <LanguageTabs>
           {{
             typescript: (
-              <CodeBlock language="typescript">{`import { kitApi } from 'react-native-iap';
+              <CodeBlock language="typescript">{`import { iapKitApi } from 'react-native-iap';
 
-const api = kitApi({ apiKey: process.env.OPENIAP_API_KEY! });
+const api = iapKitApi({ apiKey: process.env.OPENIAP_API_KEY! });
 const { active, subscription } = await api.status('user-1');
 if (active) {
   unlockPremium(subscription?.productId);

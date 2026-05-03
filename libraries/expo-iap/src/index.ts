@@ -1059,12 +1059,12 @@ export type {
   WebhookListenerError,
   WebhookListenerOptions,
 } from './webhook-client';
-export {kitApi, KitApiError} from './kit-api';
+export {iapKitApi, IAPKitApiError} from './kit-api';
 export type {
-  KitApiOptions,
-  KitSubscription,
-  EntitlementsResponse,
-  StatusResponse,
+  IAPKitApiOptions,
+  IAPKitSubscription,
+  IAPKitEntitlementsResponse,
+  IAPKitStatusResponse,
 } from './kit-api';
 export {
   ErrorCodeUtils,
