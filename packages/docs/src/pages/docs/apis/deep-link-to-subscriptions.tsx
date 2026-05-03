@@ -198,6 +198,41 @@ await iap.deep_link_to_subscriptions(options)`}</CodeBlock>
       </LanguageTabs>
 
       <p className="type-link">
+        Live example:{' '}
+        <a
+          href="https://github.com/hyodotdev/openiap/blob/main/libraries/expo-iap/example/app/subscription-flow.tsx"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          expo-iap
+        </a>{' '}
+        ·{' '}
+        <a
+          href="https://github.com/hyodotdev/openiap/blob/main/libraries/react-native-iap/example/screens/SubscriptionFlow.tsx"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          react-native-iap
+        </a>{' '}
+        ·{' '}
+        <a
+          href="https://github.com/hyodotdev/openiap/blob/main/libraries/flutter_inapp_purchase/example/lib/src/screens/subscription_flow_screen.dart"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          flutter_inapp_purchase
+        </a>{' '}
+        ·{' '}
+        <a
+          href="https://github.com/hyodotdev/openiap/blob/main/libraries/kmp-iap/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/SubscriptionFlowScreen.kt"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          kmp-iap
+        </a>
+      </p>
+
+      <p className="type-link">
         See:{' '}
         <Link to="/docs/apis/ios/show-manage-subscriptions-ios">
           showManageSubscriptionsIOS
