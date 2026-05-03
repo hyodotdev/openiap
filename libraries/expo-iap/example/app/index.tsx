@@ -61,6 +61,14 @@ const MENU_ITEMS: MenuItem[] = [
     subtitle: 'External payment links',
     buttonStyle: 'alternativeBillingButton',
   },
+  {
+    id: 'webhook-stream',
+    href: '/webhook-stream',
+    icon: '📡',
+    title: 'Webhook Stream',
+    subtitle: 'IAPKit SSE + test notification',
+    buttonStyle: 'webhookStreamButton',
+  },
 ];
 
 /**
@@ -111,6 +119,7 @@ export default function Home() {
       tertiaryButton: styles.tertiaryButton,
       quaternaryButton: styles.quaternaryButton,
       alternativeBillingButton: styles.alternativeBillingButton,
+      webhookStreamButton: styles.webhookStreamButton,
     };
 
     return (
@@ -205,6 +214,9 @@ const styles = StyleSheet.create({
   },
   alternativeBillingButton: {
     backgroundColor: '#FF9800',
+  },
+  webhookStreamButton: {
+    backgroundColor: '#0EA5E9',
   },
   buttonText: {
     color: '#ffffff',
