@@ -321,12 +321,18 @@ export const listDraftAndroidProducts = internalQuery({
         q.eq("projectId", args.projectId).eq("platform", "Android"),
       )
       .collect();
-    // Mirror the iOS filter: state === Draft AND not already linked
-    // upstream. Without the storeRef guard, a Draft row that came in
-    // via Pull (already exists in Play Console) would be re-pushed on
-    // every sync, colliding on the SKU's create call.
+    // Mirror the iOS filter: state === Draft only. The earlier
+    // `storeRef === undefined` guard was added to avoid re-pushing
+    // Pull-imported rows that already existed upstream, but it also
+    // blocked partial-sync resumption — a Draft row whose create
+    // succeeded but whose listing/price step failed never got
+    // retried. play.ts now branches on `row.storeRef` at the top of
+    // the push loop and PATCHes existing storeRefs instead of
+    // creating, so both the partial-sync and pull-then-push cases
+    // are correct without the extra filter (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
     return all
-      .filter((row) => row.state === "Draft" && row.storeRef === undefined)
+      .filter((row) => row.state === "Draft")
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,

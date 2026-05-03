@@ -198,7 +198,17 @@ export const ingestGoogleRtdn = action({
             error.code,
             error.message,
           );
-          throw new Error(`UNSUPPORTED_EVENT: ${error.message}`);
+          // Throw a ConvexError so the route layer's `mapWebhookError`
+          // translates `UNSUPPORTED_EVENT` to a 200 ACK
+          // (webhooks.ts:788) instead of letting a plain Error 500 the
+          // Pub/Sub push and trigger Google's exponential retry loop
+          // on a payload kit will never accept. Matches the Apple
+          // path's ConvexError shape (PR #124
+          // (https://github.com/hyodotdev/openiap/pull/124) review).
+          throw new ConvexError({
+            code: "UNSUPPORTED_EVENT",
+            message: error.message,
+          });
         }
         throw new ConvexError({ code: error.code, message: error.message });
       }

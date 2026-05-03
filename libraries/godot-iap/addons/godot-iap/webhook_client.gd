@@ -138,8 +138,12 @@ func _open_and_drain() -> bool:
 	# and _open_and_drain would return true — _run_loop would then
 	# silently reconnect forever with zero user-visible feedback. Bail
 	# loudly with HTTP_ERROR so the caller can surface a real error.
+	# Accept any 2xx (200-299) — kit returns 200 today but the SSE spec
+	# and common proxy paths permit 201/202/204 success codes too. The
+	# 4xx-vs-5xx terminal split below is what we actually care about
+	# (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review).
 	var response_code := _client.get_response_code()
-	if response_code != 200:
+	if response_code < 200 or response_code >= 300:
 		emit_signal("stream_error", "HTTP_ERROR", "Unexpected HTTP response: %d" % response_code)
 		# 4xx responses (401 INVALID_API_KEY, 412 *_NOT_CONFIGURED) will
 		# never succeed on retry — stop the loop so the operator sees
