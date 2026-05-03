@@ -6,6 +6,7 @@ import type { androidpublisher_v3 } from "googleapis";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getProjectByApiKey } from "../purchases/shared";
+import { coerceBillingPeriod } from "./sync";
 
 // Google Play Developer API client + push-sync action.
 //
@@ -339,6 +340,17 @@ export const pushSyncProductsGoogle = action({
             if (!sub.productId) continue;
             const { priceAmountMicros, currency } = pickSubBasePlanPrice(sub);
             const offers = collectPlaySubscriptionOffers(sub);
+            // Pick the active base plan's billingPeriod so MRR
+            // normalization in metricsSummary has a recurring period
+            // to divide / multiply against. A subscription product
+            // can have multiple base plans (monthly + yearly + …);
+            // prefer the one matched by pickSubBasePlanPrice (the
+            // USD / first-active plan). Without this billingPeriod
+            // stays undefined on the synced row and the dashboard
+            // headline shows 0 MRR for every Play subscription.
+            const billingPeriod = offers.find(
+              (o) => o.kind === "BasePlan",
+            )?.duration;
             await ctx.runMutation(internal.products.sync.upsertFromStore, {
               projectId: project._id,
               productId: sub.productId,
@@ -350,6 +362,7 @@ export const pushSyncProductsGoogle = action({
               currency,
               storeRef: sub.productId,
               state: "Active",
+              billingPeriod: coerceBillingPeriod(billingPeriod),
               // Play has no first-class subscription "group" — base
               // plans on a single subscription product play that role,
               // and we surface them as `offers[].kind === "BasePlan"`
@@ -378,6 +391,22 @@ export const pushSyncProductsGoogle = action({
       );
       for (const row of drafts) {
         try {
+          // Skip the create call when this row already has a storeRef
+          // from a prior partial sync — Play would otherwise return
+          // 409 Conflict on the duplicate productId. The next sync's
+          // pull pass should have refreshed everything else, so this
+          // path just promotes the existing upstream resource to
+          // Ready via markPushed below.
+          if (row.storeRef) {
+            await ctx.runMutation(internal.products.sync.markPushed, {
+              projectId: project._id,
+              productId: row.productId,
+              platform: "Android",
+              storeRef: row.storeRef,
+            });
+            pushed += 1;
+            continue;
+          }
           if (row.type === "Subscription") {
             // Reject subscription creates that would land on Play with
             // no base plan: such a subscription is created in a draft
@@ -460,6 +489,20 @@ export const pushSyncProductsGoogle = action({
               },
             });
           }
+          // Persist storeRef immediately after the create returns,
+          // BEFORE flipping state to Ready via markPushed. If the
+          // action times out / crashes between create and markPushed,
+          // the next sync still sees this row's storeRef populated
+          // and will skip the create call (avoiding 409 Conflict
+          // from re-creating the same productId in Play). Mirrors the
+          // partial-sync resilience pattern in pushSyncProductsAppleIOS.
+          // Play's productId IS the storeRef (no separate opaque id).
+          await ctx.runMutation(internal.products.sync.markStoreRef, {
+            projectId: project._id,
+            productId: row.productId,
+            platform: "Android",
+            storeRef: row.productId,
+          });
           await ctx.runMutation(internal.products.sync.markPushed, {
             projectId: project._id,
             productId: row.productId,

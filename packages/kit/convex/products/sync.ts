@@ -31,6 +31,37 @@ const offerValidator = v.object({
   currency: v.optional(v.string()),
 });
 
+// Coerce a free-form billingPeriod string into the schema's literal
+// union, returning undefined for unknown values. ASC and Play both
+// hand us ISO-8601 strings ("P1M" / "P1Y" / etc.) but a future Apple
+// enum or Play SDK quirk could leak something we don't model — in
+// that case we'd rather drop the field (so MRR shows 0 with a clear
+// "unknown period" log line) than persist garbage that breaks the
+// schema validator.
+export type BillingPeriodLiteral =
+  | "P1W"
+  | "P1M"
+  | "P2M"
+  | "P3M"
+  | "P6M"
+  | "P1Y";
+const KNOWN_BILLING_PERIODS = new Set<BillingPeriodLiteral>([
+  "P1W",
+  "P1M",
+  "P2M",
+  "P3M",
+  "P6M",
+  "P1Y",
+]);
+export function coerceBillingPeriod(
+  raw: string | undefined,
+): BillingPeriodLiteral | undefined {
+  if (!raw) return undefined;
+  return KNOWN_BILLING_PERIODS.has(raw as BillingPeriodLiteral)
+    ? (raw as BillingPeriodLiteral)
+    : undefined;
+}
+
 // Internal mutation called by the ASC / Play push-sync actions when a
 // row is mirrored from the upstream store. Distinct from the public
 // `upsertProduct` mutation in mutation.ts so server-driven sync can't
@@ -47,6 +78,24 @@ export const upsertFromStore = internalMutation({
     currency: v.optional(v.string()),
     storeRef: v.string(),
     state: stateValidator,
+    // ISO-8601 billing period. Required for correct MRR
+    // normalization in metricsSummary — without this field synced
+    // subscriptions defaulted to undefined and monthlyMicrosForSub
+    // returned 0, silently zeroing every synced sub's contribution
+    // to the dashboard headline. Union mirrors the schema's
+    // `billingPeriod` literal — non-matching upstream values (a
+    // future Apple/Play enum) get coerced via mapBillingPeriodLiteral
+    // at the call site so this validator can stay strict.
+    billingPeriod: v.optional(
+      v.union(
+        v.literal("P1W"),
+        v.literal("P1M"),
+        v.literal("P2M"),
+        v.literal("P3M"),
+        v.literal("P6M"),
+        v.literal("P1Y"),
+      ),
+    ),
     subscriptionGroupId: v.optional(v.string()),
     subscriptionGroupName: v.optional(v.string()),
     offers: v.optional(v.array(offerValidator)),
@@ -82,7 +131,9 @@ export const upsertFromStore = internalMutation({
         // pull, so we overwrite (not coalesce) — a sub that was
         // moved between groups in ASC, or that lost a free trial in
         // Play Console, should reflect that on the next sync rather
-        // than stick to whatever kit cached previously.
+        // than stick to whatever kit cached previously. Same applies
+        // to billingPeriod: the upstream is the source of truth.
+        billingPeriod: args.billingPeriod,
         subscriptionGroupId: args.subscriptionGroupId,
         subscriptionGroupName: args.subscriptionGroupName,
         offers: args.offers,
@@ -102,6 +153,7 @@ export const upsertFromStore = internalMutation({
       currency: args.currency,
       storeRef: args.storeRef,
       state: args.state,
+      billingPeriod: args.billingPeriod,
       subscriptionGroupId: args.subscriptionGroupId,
       subscriptionGroupName: args.subscriptionGroupName,
       offers: args.offers,

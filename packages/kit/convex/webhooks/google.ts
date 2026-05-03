@@ -358,12 +358,26 @@ async function maybeFetchSubscriptionInfo(
     // typically mean the operator rotated the service account. Drop
     // the cached client so the next webhook re-reads the file and
     // picks up the new credentials immediately instead of waiting
-    // out the full TTL on a known-bad key.
+    // out the full TTL on a known-bad key. Prefer the structured
+    // error properties (`code` / `status`) the googleapis library
+    // ships on its GaxiosError shape — substring matching the
+    // serialized message also catches the case but is brittle
+    // (Google has changed wording across SDK versions). The string
+    // checks stay as a fallback for unwrapped errors.
+    const errorCode =
+      typeof error === "object" && error !== null
+        ? ((error as { code?: unknown }).code ??
+          (error as { status?: unknown }).status)
+        : undefined;
+    const numericAuthFailure =
+      errorCode === 401 ||
+      errorCode === 403 ||
+      errorCode === "401" ||
+      errorCode === "403";
     if (
+      numericAuthFailure ||
       sanitized.includes("invalid_grant") ||
-      sanitized.includes("Invalid JWT") ||
-      sanitized.includes("401") ||
-      sanitized.includes("403")
+      sanitized.includes("Invalid JWT")
     ) {
       playClientCache.delete(String(projectId));
     }

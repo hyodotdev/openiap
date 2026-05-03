@@ -100,10 +100,10 @@ export const listHorizonSubscriptions = internalQuery({
     // Per-state cap. Horizon polling is a small-population case in
     // practice (most projects ship < 1k Horizon subs total), but
     // bounding here protects against Convex's 40k document-read
-    // limit. The `Promise.all` runs the four state queries in
-    // parallel under one Convex query budget; without `.take()`,
-    // a single project with > ~10k Active subs could exceed the
-    // limit and stall every Horizon cron tick.
+    // limit. The `Promise.all` runs every state query in parallel
+    // under one Convex query budget; without `.take()`, a single
+    // project with > ~10k Active subs could exceed the limit and
+    // stall every Horizon cron tick.
     const PER_STATE_CAP = 5_000;
     const perState = await Promise.all(
       STATES.map((state) =>

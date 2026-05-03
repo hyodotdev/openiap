@@ -6,6 +6,7 @@ import { internal } from "../_generated/api";
 import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
 import { mintAscJwt } from "./jwt";
+import { coerceBillingPeriod } from "./sync";
 
 // Resolve App Store Connect API credentials (issuer ID + key ID + .p8
 // key content) for a project. Centralized so the two action handlers
@@ -1111,6 +1112,11 @@ export const pushSyncProductsAppleIOS = action({
               currency,
               storeRef: sub.id,
               state: mapAscState(sub.attributes.state),
+              billingPeriod: coerceBillingPeriod(
+                mapAscOfferDurationToIso(
+                  sub.attributes.subscriptionPeriod ?? undefined,
+                ),
+              ),
               subscriptionGroupId: group.id,
               subscriptionGroupName: group.attributes.referenceName,
               offers: offers.length ? offers : undefined,
