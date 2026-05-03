@@ -41,6 +41,7 @@
     "antd": "^6.1.0",
     "clsx": "^2.1.1",
     "convex": "^1.29.2",
+    "google-auth-library": "^10.6.2",
     "googleapis": "^157.0.0",
     "hono": "^4.9.9",
     "hono-openapi": "^1.1.0",

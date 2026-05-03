@@ -15,6 +15,8 @@ Base URL: https://kit.openiap.dev
 Auth: `Authorization: Bearer openiap-kit_<project-key>`
 
 - [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
+- [POST /v1/webhooks/{apiKey}](https://www.openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
+- [GET /v1/webhooks/stream/{apiKey}](https://www.openiap.dev/docs/webhooks#consume-stream) — long-lived SSE stream of normalized `WebhookEvent`s. Connect with `EventSource` (or the per-SDK helper); reconnects honor `Last-Event-ID`. Opening in a browser shows a blank page (text/event-stream that never closes) — use the SDK helpers or `curl -N`.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
 - [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
@@ -65,5 +67,6 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
+- [openiap.dev/docs/webhooks](https://www.openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Claude / Cursor / etc. at this file
 - [/docs/release-notes](https://kit.openiap.dev/docs/release-notes) — changelog

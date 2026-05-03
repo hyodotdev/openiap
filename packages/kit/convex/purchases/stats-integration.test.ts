@@ -138,7 +138,7 @@ describe("stats helpers — round-trip integration", () => {
   });
 
   it("readPurchaseStats returns zeros when no row exists yet", async () => {
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats).toEqual({
       total: 0,
       apple: 0,
@@ -151,12 +151,12 @@ describe("stats helpers — round-trip integration", () => {
 
   it("applyPurchaseStatsDelta creates a row on first insert-delta", async () => {
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForInsert("apple", true),
     );
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats).toEqual({
       total: 1,
       apple: 1,
@@ -169,29 +169,29 @@ describe("stats helpers — round-trip integration", () => {
 
   it("accumulates correctly across multiple insert-deltas for mixed stores/validity", async () => {
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForInsert("apple", true),
     );
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       // pending-ack google insert — row count but no order yet
       deltaForInsert("google", true),
     );
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       // invalid google with orderId — order but marked invalid
       deltaForInsert("google", false, true),
     );
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForInsert("apple", false),
     );
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats).toEqual({
       total: 4,
       apple: 2,
@@ -206,7 +206,7 @@ describe("stats helpers — round-trip integration", () => {
   it("markReceiptInvalid-style flip preserves total and moves valid -> invalid", async () => {
     // Seed: one apple valid receipt.
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForInsert("apple", true),
     );
@@ -215,12 +215,12 @@ describe("stats helpers — round-trip integration", () => {
     // Apple receipts don't carry a Google orderId, so the last two
     // args are false/false.
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForUpdate("apple", true, "apple", false, false, false),
     );
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats).toEqual({
       total: 1,
       apple: 1,
@@ -234,7 +234,7 @@ describe("stats helpers — round-trip integration", () => {
   describe("wasFirstValidTransition", () => {
     it("is true on the insert that bumps valid from 0 to 1", async () => {
       const result = await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForInsert("apple", true),
       );
@@ -243,12 +243,12 @@ describe("stats helpers — round-trip integration", () => {
 
     it("is false on a second valid insert (valid was already 1)", async () => {
       await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForInsert("apple", true),
       );
       const second = await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForInsert("apple", true),
       );
@@ -257,7 +257,7 @@ describe("stats helpers — round-trip integration", () => {
 
     it("is false on an invalid insert (valid stayed at 0)", async () => {
       const result = await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForInsert("apple", false),
       );
@@ -267,13 +267,13 @@ describe("stats helpers — round-trip integration", () => {
     it("is true when a retry flips an existing row from invalid to valid (0 → 1)", async () => {
       // Seed: invalid row → valid:0, invalid:1
       await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForInsert("google", false),
       );
       // Retry succeeds — deltaForUpdate moves valid 0 → 1
       const flip = await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForUpdate("google", false, "google", true),
       );
@@ -282,12 +282,12 @@ describe("stats helpers — round-trip integration", () => {
 
     it("is false when a valid row is flipped to invalid (1 → 0, not an activation)", async () => {
       await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForInsert("apple", true),
       );
       const flip = await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         deltaForUpdate("apple", true, "apple", false),
       );
@@ -296,7 +296,7 @@ describe("stats helpers — round-trip integration", () => {
 
     it("is false on a no-op delta (early-return branch)", async () => {
       const result = await applyPurchaseStatsDelta(
-        ctx as never,
+        ctx,
         PROJECT_ID as never,
         {},
       );
@@ -306,20 +306,20 @@ describe("stats helpers — round-trip integration", () => {
 
   it("remoteId upsert with unchanged (store, isValid) emits no counter movement", async () => {
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForInsert("google", true),
     );
 
-    const before = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const before = await readPurchaseStats(ctx, PROJECT_ID as never);
 
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForUpdate("google", true, "google", true),
     );
 
-    const after = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const after = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(after).toEqual(before);
   });
 
@@ -327,12 +327,12 @@ describe("stats helpers — round-trip integration", () => {
     // No insert — now simulate a rogue 'valid -> invalid' flip on nothing.
     // Counters should not dip below zero.
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForUpdate("apple", true, "apple", false),
     );
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats.valid).toBe(0);
     expect(stats.invalid).toBe(1);
     expect(stats.total).toBeGreaterThanOrEqual(0);
@@ -340,14 +340,14 @@ describe("stats helpers — round-trip integration", () => {
 
   it("deletePurchaseStatsForProject removes the stats row", async () => {
     await applyPurchaseStatsDelta(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
       deltaForInsert("apple", true),
     );
 
-    await deletePurchaseStatsForProject(ctx as never, PROJECT_ID as never);
+    await deletePurchaseStatsForProject(ctx, PROJECT_ID as never);
 
-    const stats = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats).toEqual({
       total: 0,
       apple: 0,
@@ -415,7 +415,7 @@ describe("stats helpers — round-trip integration", () => {
     });
 
     const totals = await recomputePurchaseStatsForProject(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
     );
     expect(totals).toEqual({
@@ -430,7 +430,7 @@ describe("stats helpers — round-trip integration", () => {
     });
 
     // Persisted to the stats table so subsequent reads are O(1).
-    const read = await readPurchaseStats(ctx as never, PROJECT_ID as never);
+    const read = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(read).toEqual(totals);
   });
 
@@ -450,11 +450,11 @@ describe("stats helpers — round-trip integration", () => {
     });
 
     const first = await recomputePurchaseStatsForProject(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
     );
     const second = await recomputePurchaseStatsForProject(
-      ctx as never,
+      ctx,
       PROJECT_ID as never,
     );
     expect(second).toEqual(first);

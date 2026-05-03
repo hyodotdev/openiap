@@ -13,6 +13,7 @@ export const saveFile = mutation({
     fileSize: v.number(),
     purpose: v.union(
       v.literal("apple_p8_key"),
+      v.literal("apple_p8_asc_api_key"),
       v.literal("android_service_account"),
     ),
     description: v.optional(v.string()),

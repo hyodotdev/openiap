@@ -5,6 +5,7 @@
   "main": "src/generated/types.ts",
   "exports": {
     ".": "./src/generated/types.ts",
+    "./webhook-client": "./src/webhook-client.ts",
     "./swift": "./src/generated/Types.swift",
     "./kotlin": "./src/generated/Types.kt",
     "./dart": "./src/generated/types.dart",

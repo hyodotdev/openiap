@@ -225,7 +225,7 @@ async function drainAccountDeletionBatch(
     const remaining = await ctx.db
       .query("organizationMembers")
       .withIndex("by_organization", (q) =>
-        q.eq("organizationId", membership.organizationId as string),
+        q.eq("organizationId", membership.organizationId),
       )
       .take(ACCOUNT_DELETION_PAGE);
     if (remaining.length === 0) {

@@ -153,7 +153,7 @@ export function MobileSidebar({
 
       {/* Mobile Sidebar */}
       <aside
-        className={`md:hidden fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 z-50 transform transition-transform shadow-lg ${
+        className={`md:hidden fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 z-50 transform transition-transform shadow-lg overflow-y-auto overscroll-contain no-scrollbar ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -179,7 +179,7 @@ export function MobileSidebar({
           </Dropdown>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto overscroll-contain">
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;

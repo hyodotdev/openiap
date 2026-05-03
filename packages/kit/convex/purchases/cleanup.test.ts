@@ -132,7 +132,7 @@ class MemDb {
       slug: "test-project",
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    } as Row);
+    });
     return id;
   }
 
@@ -154,7 +154,7 @@ class MemDb {
       orderId: attrs.orderId,
       isValid: attrs.isValid ?? true,
       state: "ENTITLED",
-    } as Row);
+    });
   }
 
   allPurchases(): Row[] {

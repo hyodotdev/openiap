@@ -11,30 +11,30 @@ import {
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 
+const ROTATING_TEXTS = [
+  "fitness app 🏋️‍♀️",
+  "mobile game 🕹️",
+  "health tracker 🫀",
+  "dating app 💖",
+];
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
-
-  const rotatingTexts = [
-    "fitness app 🏋️‍♀️",
-    "mobile game 🕹️",
-    "health tracker 🫀",
-    "dating app 💖",
-  ];
 
   useEffect(() => {
     const interval = setInterval(() => {
       setIsExiting(true);
       // Wait for exit animation to complete before changing text
       setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % rotatingTexts.length);
+        setCurrentIndex((prev) => (prev + 1) % ROTATING_TEXTS.length);
         setIsExiting(false);
       }, 500); // Match animation duration
     }, 3000); // Change every 3 seconds
 
     return () => clearInterval(interval);
-  }, [rotatingTexts]);
+  }, []);
 
   return (
     <>
@@ -61,7 +61,7 @@ export default function LandingPage() {
                         : "animate-slide-in-from-bottom-opacity"
                     }`}
                   >
-                    {rotatingTexts[currentIndex]}
+                    {ROTATING_TEXTS[currentIndex]}
                   </span>
                 </span>
               </span>

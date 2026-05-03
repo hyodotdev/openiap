@@ -116,6 +116,17 @@ group = "io.github.hyochan"
 version = project.findProperty("libraryVersion")?.toString() ?: "1.0.0-alpha02"
 
 kotlin {
+    // openiap WebhookTransport is shipped as `expect class` in
+    // commonMain with platform-specific actual implementations in
+    // androidMain / iosMain. Kotlin 2.x emits a warning for this
+    // pattern unless the `-Xexpect-actual-classes` flag is set;
+    // applying it here keeps the build clean for the kmp-iap
+    // consumers without surfacing warnings.
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     androidTarget {
         publishLibraryVariants("release")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)

@@ -1,5 +1,6 @@
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
+import { WEBHOOK_RETENTION_MS } from "./webhooks/internal";
 
 const crons = cronJobs();
 
@@ -33,6 +34,51 @@ crons.interval(
   "drain pending-deletion organizations",
   { minutes: 5 },
   internal.userProfiles.internal.drainPendingDeletionOrganizations,
+);
+
+// Prune webhook events older than the 30-day retention window so the
+// `webhookEventsSince` backfill query stays bounded. Runs hourly with
+// a small per-tick batch size — webhook traffic is low-volume per
+// project so even a tight batch keeps the table from growing
+// unbounded. Matches the retention promise documented in
+// `packages/gql/src/webhook.graphql`.
+crons.interval(
+  "prune webhook events past retention",
+  { hours: 1 },
+  internal.webhooks.internal.pruneWebhookEvents,
+  { olderThanMs: WEBHOOK_RETENTION_MS },
+);
+
+// Meta Horizon Store has no webhook system — Meta only exposes a
+// synchronous `verify_entitlement` Graph API. We poll every 6h to
+// reconcile Active / InGracePeriod / Paused subscriptions against
+// Meta's authoritative answer, feeding the deltas through the same
+// state machine the Apple/Google webhook receivers use.
+crons.interval(
+  "reconcile horizon entitlements",
+  { hours: 6 },
+  internal.subscriptions.horizon.reconcileHorizonEntitlements,
+  {},
+);
+
+// Daily drift correction for the incrementally-maintained
+// `subscriptionStats` table. The incremental path in
+// applySubscriptionEvent / recordHorizonStatus is correct in steady
+// state, but a missed invocation (action timeout, manual db.patch,
+// schema drift during rollout) can drift the counters. Recomputing
+// the most-stale 100 projects per tick keeps the dashboard self-
+// healing without operator intervention.
+crons.interval(
+  "recompute subscription stats (drift correction)",
+  { hours: 24 },
+  internal.subscriptions.stats.recomputeAllSubscriptionStats,
+  // batchSize=50 projects per daily tick. Each project recompute
+  // runs as its own scheduled mutation (independent 40k document-
+  // read budget), so the picker mutation only does a tiny index
+  // scan + 50 schedule calls. With daily cadence + batchSize=50,
+  // a deployment with up to 1500 projects cycles through every
+  // project at least monthly.
+  { batchSize: 50 },
 );
 
 export default crons;

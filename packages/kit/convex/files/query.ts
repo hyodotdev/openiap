@@ -9,7 +9,11 @@ export const list = query({
     organizationId: v.id("organizations"),
     projectId: v.optional(v.id("projects")),
     purpose: v.optional(
-      v.union(v.literal("apple_p8_key"), v.literal("android_service_account")),
+      v.union(
+        v.literal("apple_p8_key"),
+        v.literal("apple_p8_asc_api_key"),
+        v.literal("android_service_account"),
+      ),
     ),
   },
   handler: async (ctx, args) => {
@@ -151,7 +155,11 @@ export const count = query({
   args: {
     organizationId: v.id("organizations"),
     purpose: v.optional(
-      v.union(v.literal("apple_p8_key"), v.literal("android_service_account")),
+      v.union(
+        v.literal("apple_p8_key"),
+        v.literal("apple_p8_asc_api_key"),
+        v.literal("android_service_account"),
+      ),
     ),
   },
   handler: async (ctx, args) => {
@@ -237,6 +245,50 @@ export const getAppStoreFileByProject = query({
       fileName: appStoreFile.fileName,
       fileSize: appStoreFile.fileSize,
       uploadedAt: appStoreFile.createdAt,
+    };
+  },
+});
+
+// Get the App Store Connect API key (.p8) by project. Genuinely a
+// different file from `getAppStoreFileByProject` — see schema.ts.
+// Used by `products/asc.ts` for push-sync.
+export const getAscApiKeyFileByProject = query({
+  args: {
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return null;
+    }
+    const project = await ctx.db.get(args.projectId);
+    if (!project) {
+      return null;
+    }
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("organizationId", project.organizationId).eq("userId", userId),
+      )
+      .first();
+    if (!membership) {
+      return null;
+    }
+    const projectFiles = await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const ascFile = projectFiles.find(
+      (f) => f.purpose === "apple_p8_asc_api_key",
+    );
+    if (!ascFile) {
+      return null;
+    }
+    return {
+      _id: ascFile._id,
+      fileName: ascFile.fileName,
+      fileSize: ascFile.fileSize,
+      uploadedAt: ascFile.createdAt,
     };
   },
 });

@@ -1896,6 +1896,8 @@ export interface SubscriptionProductReplacementParamsAndroid {
  */
 export type SubscriptionReplacementModeAndroid = 'unknown-replacement-mode' | 'with-time-proration' | 'charge-prorated-price' | 'charge-full-price' | 'without-proration' | 'deferred' | 'keep-existing';
 
+export type SubscriptionState = 'active' | 'expired' | 'in-billing-retry' | 'in-grace-period' | 'paused' | 'refunded' | 'revoked' | 'unknown';
+
 export interface SubscriptionStatusIOS {
   renewalInfo?: (RenewalInfoIOS | null);
   state: string;
@@ -2056,6 +2058,67 @@ export interface VerifyPurchaseWithProviderResult {
 }
 
 export type VoidResult = void;
+
+export type WebhookCancellationReason = 'billing-error' | 'other' | 'price-increase-declined' | 'product-unavailable' | 'refunded' | 'user-canceled';
+
+export interface WebhookEvent {
+  /** Reason for cancellation, when applicable. */
+  cancellationReason?: (WebhookCancellationReason | null);
+  /** Localized currency code (ISO 4217) at event time, when available. */
+  currency?: (string | null);
+  environment: WebhookEventEnvironment;
+  /** When the current subscription period ends. Epoch milliseconds. */
+  expiresAt?: (number | null);
+  /**
+   * Stable identifier suitable for idempotency. Derived from the source notification
+   * UUID where the store provides one (ASN v2 `notificationUUID`, RTDN message id);
+   * otherwise hashed from the canonicalized payload.
+   */
+  id: string;
+  /** Time the underlying event occurred at the store. Epoch milliseconds. */
+  occurredAt: number;
+  platform: IapPlatform;
+  /**
+   * Price in micros (1/1,000,000 of the currency unit) at event time, when available.
+   * Matches Google Play's `priceAmountMicros` convention; iOS values are converted.
+   */
+  priceAmountMicros?: (number | null);
+  /** Product the event pertains to. May be null for account-level events. */
+  productId?: (string | null);
+  /** kit project that owns the subscription / purchase this event refers to. */
+  projectId: string;
+  /**
+   * Cross-platform purchase identity used to correlate this event with an existing
+   * purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+   * Null for `TestNotification` events (Apple ASN v2 / Google RTDN test
+   * payloads carry no transaction); always present for every other event type.
+   */
+  purchaseToken?: (string | null);
+  /**
+   * Original signed payload from the store. ASN v2 events expose the JWS string;
+   * RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that
+   * consumers can independently verify or extract platform-specific fields. kit
+   * always validates this payload before emitting the event.
+   */
+  rawSignedPayload?: (string | null);
+  /** Time kit ingested and normalized this event. Epoch milliseconds. */
+  receivedAt: number;
+  /** When auto-renewal will charge again. Epoch milliseconds. */
+  renewsAt?: (number | null);
+  source: WebhookEventSource;
+  /**
+   * Normalized subscription state at the time of event, when the event refers to
+   * a subscription. Null for one-time purchase events.
+   */
+  subscriptionState?: (SubscriptionState | null);
+  type: WebhookEventType;
+}
+
+export type WebhookEventEnvironment = 'production' | 'sandbox' | 'xcode';
+
+export type WebhookEventSource = 'apple-app-store-server-notifications-v2' | 'google-play-real-time-developer-notifications' | 'meta-horizon-reconciler';
+
+export type WebhookEventType = 'purchase-consumption-request' | 'purchase-refunded' | 'subscription-canceled' | 'subscription-expired' | 'subscription-in-billing-retry' | 'subscription-in-grace-period' | 'subscription-paused' | 'subscription-price-change' | 'subscription-product-changed' | 'subscription-recovered' | 'subscription-renewed' | 'subscription-resumed' | 'subscription-revoked' | 'subscription-started' | 'subscription-uncanceled' | 'test-notification';
 
 /**
  * Win-back offer input for iOS 18+ (StoreKit 2)

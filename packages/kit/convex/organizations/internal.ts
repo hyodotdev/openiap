@@ -104,6 +104,37 @@ export const organizationExists = internalQuery({
   },
 });
 
+// Lookup helper used by Convex actions that need to gate on
+// organization membership without dragging the full org schema into
+// the public mutation surface. Returns just the role so the caller
+// can do `role === "member"` checks.
+export const getMembership = internalQuery({
+  args: {
+    userId: v.id("users"),
+    organizationId: v.id("organizations"),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      role: v.union(
+        v.literal("owner"),
+        v.literal("admin"),
+        v.literal("member"),
+      ),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("organizationId", args.organizationId).eq("userId", args.userId),
+      )
+      .first();
+    if (!membership) return null;
+    return { role: membership.role };
+  },
+});
+
 export async function recordVerificationUsageForOrganization(
   ctx: MutationCtx,
   organization: Doc<"organizations">,

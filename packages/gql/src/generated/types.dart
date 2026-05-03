@@ -928,6 +928,245 @@ enum SubscriptionReplacementModeAndroid {
   String toJson() => value;
 }
 
+enum SubscriptionState {
+  Active('active'),
+  InGracePeriod('in-grace-period'),
+  InBillingRetry('in-billing-retry'),
+  Expired('expired'),
+  Revoked('revoked'),
+  Refunded('refunded'),
+  Paused('paused'),
+  Unknown('unknown');
+
+  const SubscriptionState(this.value);
+  final String value;
+
+  factory SubscriptionState.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'active':
+        return SubscriptionState.Active;
+      case 'in-grace-period':
+        return SubscriptionState.InGracePeriod;
+      case 'in-billing-retry':
+        return SubscriptionState.InBillingRetry;
+      case 'expired':
+        return SubscriptionState.Expired;
+      case 'revoked':
+        return SubscriptionState.Revoked;
+      case 'refunded':
+        return SubscriptionState.Refunded;
+      case 'paused':
+        return SubscriptionState.Paused;
+      case 'unknown':
+        return SubscriptionState.Unknown;
+    }
+    throw ArgumentError('Unknown SubscriptionState value: $value');
+  }
+
+  String toJson() => value;
+}
+
+enum WebhookCancellationReason {
+  UserCanceled('user-canceled'),
+  BillingError('billing-error'),
+  PriceIncreaseDeclined('price-increase-declined'),
+  ProductUnavailable('product-unavailable'),
+  Refunded('refunded'),
+  Other('other');
+
+  const WebhookCancellationReason(this.value);
+  final String value;
+
+  factory WebhookCancellationReason.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'user-canceled':
+        return WebhookCancellationReason.UserCanceled;
+      case 'billing-error':
+        return WebhookCancellationReason.BillingError;
+      case 'price-increase-declined':
+        return WebhookCancellationReason.PriceIncreaseDeclined;
+      case 'product-unavailable':
+        return WebhookCancellationReason.ProductUnavailable;
+      case 'refunded':
+        return WebhookCancellationReason.Refunded;
+      case 'other':
+        return WebhookCancellationReason.Other;
+    }
+    throw ArgumentError('Unknown WebhookCancellationReason value: $value');
+  }
+
+  String toJson() => value;
+}
+
+enum WebhookEventEnvironment {
+  Production('production'),
+  Sandbox('sandbox'),
+  Xcode('xcode');
+
+  const WebhookEventEnvironment(this.value);
+  final String value;
+
+  factory WebhookEventEnvironment.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'production':
+        return WebhookEventEnvironment.Production;
+      case 'sandbox':
+        return WebhookEventEnvironment.Sandbox;
+      case 'xcode':
+        return WebhookEventEnvironment.Xcode;
+    }
+    throw ArgumentError('Unknown WebhookEventEnvironment value: $value');
+  }
+
+  String toJson() => value;
+}
+
+enum WebhookEventSource {
+  AppleAppStoreServerNotificationsV2('apple-app-store-server-notifications-v2'),
+  GooglePlayRealTimeDeveloperNotifications('google-play-real-time-developer-notifications'),
+  /// Synthetic source for Meta Horizon Store. Meta has no webhook /
+  /// push notification system so kit polls `verify_entitlement` on a
+  /// cron and emits these synthetic events when an entitlement
+  /// transitions. SDK consumers see them on the SSE stream alongside
+  /// real Apple / Google webhooks.
+  MetaHorizonReconciler('meta-horizon-reconciler');
+
+  const WebhookEventSource(this.value);
+  final String value;
+
+  factory WebhookEventSource.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'apple-app-store-server-notifications-v2':
+        return WebhookEventSource.AppleAppStoreServerNotificationsV2;
+      case 'google-play-real-time-developer-notifications':
+        return WebhookEventSource.GooglePlayRealTimeDeveloperNotifications;
+      case 'meta-horizon-reconciler':
+        return WebhookEventSource.MetaHorizonReconciler;
+    }
+    throw ArgumentError('Unknown WebhookEventSource value: $value');
+  }
+
+  String toJson() => value;
+}
+
+enum WebhookEventType {
+  /// Initial purchase or first conversion from a free trial / intro offer.
+  /// iOS: SUBSCRIBED (initialBuy / resubscribe).
+  /// Android: SUBSCRIPTION_PURCHASED.
+  SubscriptionStarted('subscription-started'),
+  /// Auto-renewal succeeded for an existing subscription.
+  /// iOS: DID_RENEW.
+  /// Android: SUBSCRIPTION_RENEWED.
+  SubscriptionRenewed('subscription-renewed'),
+  /// Subscription reached its expiration without a successful renewal.
+  /// iOS: EXPIRED.
+  /// Android: SUBSCRIPTION_EXPIRED.
+  SubscriptionExpired('subscription-expired'),
+  /// Billing failed; the subscription is in a grace period during which the user
+  /// retains entitlement while payment is retried.
+  /// iOS: DID_FAIL_TO_RENEW (with grace period active).
+  /// Android: SUBSCRIPTION_IN_GRACE_PERIOD.
+  SubscriptionInGracePeriod('subscription-in-grace-period'),
+  /// Billing failed and the subscription is in account-hold / billing retry,
+  /// during which entitlement is paused but the subscription is not yet expired.
+  /// iOS: DID_FAIL_TO_RENEW (no grace period; billing retry).
+  /// Android: SUBSCRIPTION_ON_HOLD.
+  SubscriptionInBillingRetry('subscription-in-billing-retry'),
+  /// Subscription returned to active state after a billing issue or pause.
+  /// iOS: DID_RECOVER.
+  /// Android: SUBSCRIPTION_RECOVERED (1) only — RESTARTED (7) is auto-
+  /// renew re-enabled (Uncanceled), not billing recovery.
+  SubscriptionRecovered('subscription-recovered'),
+  /// User turned off auto-renew. Access continues until the current period ends.
+  /// iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned off).
+  /// Android: SUBSCRIPTION_CANCELED.
+  SubscriptionCanceled('subscription-canceled'),
+  /// User reactivated auto-renew before the subscription expired.
+  /// iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned on).
+  /// Android: SUBSCRIPTION_RESTARTED (when re-enabled, not after billing recovery).
+  SubscriptionUncanceled('subscription-uncanceled'),
+  /// Access immediately revoked (family sharing removal, admin action, fraud).
+  /// iOS: REVOKE.
+  /// Android: SUBSCRIPTION_REVOKED.
+  SubscriptionRevoked('subscription-revoked'),
+  /// A price change is pending or has been confirmed by the user.
+  /// iOS: PRICE_INCREASE.
+  /// Android: SUBSCRIPTION_PRICE_CHANGE_CONFIRMED.
+  SubscriptionPriceChange('subscription-price-change'),
+  /// User upgraded, downgraded, or crossgraded their plan.
+  /// iOS: DID_CHANGE_RENEWAL_PREF.
+  /// Android: SUBSCRIPTION_DEFERRED / SUBSCRIPTION_PRODUCT_CHANGED.
+  SubscriptionProductChanged('subscription-product-changed'),
+  /// Subscription paused (Android only feature). Also fired when the
+  /// pause schedule is changed — RTDN does not have a separate signal.
+  /// Android: SUBSCRIPTION_PAUSED (10), SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED (11).
+  SubscriptionPaused('subscription-paused'),
+  /// Paused subscription resumed (Android only feature). RTDN signals
+  /// resume via SUBSCRIPTION_RECOVERED (1) once the next billing cycle
+  /// starts; PAUSE_SCHEDULE_CHANGED is the schedule update, not the
+  /// resume.
+  /// Android: SUBSCRIPTION_RECOVERED (after pause).
+  SubscriptionResumed('subscription-resumed'),
+  /// Refund issued for a one-time purchase or subscription period.
+  /// iOS: REFUND.
+  /// Android: ONE_TIME_PRODUCT_REFUNDED / VOIDED_PURCHASE.
+  PurchaseRefunded('purchase-refunded'),
+  /// iOS-only: App Store requests a consumption status report for a refund decision.
+  /// Servers should respond via the StoreKit consumption API.
+  PurchaseConsumptionRequest('purchase-consumption-request'),
+  /// Sandbox or test notification fired by the store for diagnostic purposes.
+  /// Useful for verifying webhook plumbing without a live transaction.
+  TestNotification('test-notification');
+
+  const WebhookEventType(this.value);
+  final String value;
+
+  factory WebhookEventType.fromJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'subscription-started':
+        return WebhookEventType.SubscriptionStarted;
+      case 'subscription-renewed':
+        return WebhookEventType.SubscriptionRenewed;
+      case 'subscription-expired':
+        return WebhookEventType.SubscriptionExpired;
+      case 'subscription-in-grace-period':
+        return WebhookEventType.SubscriptionInGracePeriod;
+      case 'subscription-in-billing-retry':
+        return WebhookEventType.SubscriptionInBillingRetry;
+      case 'subscription-recovered':
+        return WebhookEventType.SubscriptionRecovered;
+      case 'subscription-canceled':
+        return WebhookEventType.SubscriptionCanceled;
+      case 'subscription-uncanceled':
+        return WebhookEventType.SubscriptionUncanceled;
+      case 'subscription-revoked':
+        return WebhookEventType.SubscriptionRevoked;
+      case 'subscription-price-change':
+        return WebhookEventType.SubscriptionPriceChange;
+      case 'subscription-product-changed':
+        return WebhookEventType.SubscriptionProductChanged;
+      case 'subscription-paused':
+        return WebhookEventType.SubscriptionPaused;
+      case 'subscription-resumed':
+        return WebhookEventType.SubscriptionResumed;
+      case 'purchase-refunded':
+        return WebhookEventType.PurchaseRefunded;
+      case 'purchase-consumption-request':
+        return WebhookEventType.PurchaseConsumptionRequest;
+      case 'test-notification':
+        return WebhookEventType.TestNotification;
+    }
+    throw ArgumentError('Unknown WebhookEventType value: $value');
+  }
+
+  String toJson() => value;
+}
+
 // MARK: - Interfaces
 
 abstract class ProductCommon {
@@ -3688,6 +3927,114 @@ class VerifyPurchaseWithProviderResult {
 }
 
 typedef VoidResult = void;
+
+class WebhookEvent {
+  const WebhookEvent({
+    this.cancellationReason,
+    this.currency,
+    required this.environment,
+    this.expiresAt,
+    required this.id,
+    required this.occurredAt,
+    required this.platform,
+    this.priceAmountMicros,
+    this.productId,
+    required this.projectId,
+    this.purchaseToken,
+    this.rawSignedPayload,
+    required this.receivedAt,
+    this.renewsAt,
+    required this.source,
+    this.subscriptionState,
+    required this.type,
+  });
+
+  /// Reason for cancellation, when applicable.
+  final WebhookCancellationReason? cancellationReason;
+  /// Localized currency code (ISO 4217) at event time, when available.
+  final String? currency;
+  final WebhookEventEnvironment environment;
+  /// When the current subscription period ends. Epoch milliseconds.
+  final double? expiresAt;
+  /// Stable identifier suitable for idempotency. Derived from the source notification
+  /// UUID where the store provides one (ASN v2 `notificationUUID`, RTDN message id);
+  /// otherwise hashed from the canonicalized payload.
+  final String id;
+  /// Time the underlying event occurred at the store. Epoch milliseconds.
+  final double occurredAt;
+  final IapPlatform platform;
+  /// Price in micros (1/1,000,000 of the currency unit) at event time, when available.
+  /// Matches Google Play's `priceAmountMicros` convention; iOS values are converted.
+  final double? priceAmountMicros;
+  /// Product the event pertains to. May be null for account-level events.
+  final String? productId;
+  /// kit project that owns the subscription / purchase this event refers to.
+  final String projectId;
+  /// Cross-platform purchase identity used to correlate this event with an existing
+  /// purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+  /// Null for `TestNotification` events (Apple ASN v2 / Google RTDN test
+  /// payloads carry no transaction); always present for every other event type.
+  final String? purchaseToken;
+  /// Original signed payload from the store. ASN v2 events expose the JWS string;
+  /// RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that
+  /// consumers can independently verify or extract platform-specific fields. kit
+  /// always validates this payload before emitting the event.
+  final String? rawSignedPayload;
+  /// Time kit ingested and normalized this event. Epoch milliseconds.
+  final double receivedAt;
+  /// When auto-renewal will charge again. Epoch milliseconds.
+  final double? renewsAt;
+  final WebhookEventSource source;
+  /// Normalized subscription state at the time of event, when the event refers to
+  /// a subscription. Null for one-time purchase events.
+  final SubscriptionState? subscriptionState;
+  final WebhookEventType type;
+
+  factory WebhookEvent.fromJson(Map<String, dynamic> json) {
+    return WebhookEvent(
+      cancellationReason: json['cancellationReason'] != null ? WebhookCancellationReason.fromJson(json['cancellationReason'] as String) : null,
+      currency: json['currency'] as String?,
+      environment: WebhookEventEnvironment.fromJson(json['environment'] as String),
+      expiresAt: (json['expiresAt'] as num?)?.toDouble(),
+      id: json['id'] as String,
+      occurredAt: (json['occurredAt'] as num).toDouble(),
+      platform: IapPlatform.fromJson(json['platform'] as String),
+      priceAmountMicros: (json['priceAmountMicros'] as num?)?.toDouble(),
+      productId: json['productId'] as String?,
+      projectId: json['projectId'] as String,
+      purchaseToken: json['purchaseToken'] as String?,
+      rawSignedPayload: json['rawSignedPayload'] as String?,
+      receivedAt: (json['receivedAt'] as num).toDouble(),
+      renewsAt: (json['renewsAt'] as num?)?.toDouble(),
+      source: WebhookEventSource.fromJson(json['source'] as String),
+      subscriptionState: json['subscriptionState'] != null ? SubscriptionState.fromJson(json['subscriptionState'] as String) : null,
+      type: WebhookEventType.fromJson(json['type'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'WebhookEvent',
+      'cancellationReason': cancellationReason?.toJson(),
+      'currency': currency,
+      'environment': environment.toJson(),
+      'expiresAt': expiresAt,
+      'id': id,
+      'occurredAt': occurredAt,
+      'platform': platform.toJson(),
+      'priceAmountMicros': priceAmountMicros,
+      'productId': productId,
+      'projectId': projectId,
+      'purchaseToken': purchaseToken,
+      'rawSignedPayload': rawSignedPayload,
+      'receivedAt': receivedAt,
+      'renewsAt': renewsAt,
+      'source': source.toJson(),
+      'subscriptionState': subscriptionState?.toJson(),
+      'type': type.toJson(),
+    };
+  }
+}
 
 // MARK: - Input Objects
 

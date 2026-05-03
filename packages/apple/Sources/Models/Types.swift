@@ -424,6 +424,113 @@ public enum SubscriptionReplacementModeAndroid: String, Codable, CaseIterable {
     case keepExisting = "keep-existing"
 }
 
+public enum SubscriptionState: String, Codable, CaseIterable {
+    case active = "active"
+    case inGracePeriod = "in-grace-period"
+    case inBillingRetry = "in-billing-retry"
+    case expired = "expired"
+    case revoked = "revoked"
+    case refunded = "refunded"
+    case paused = "paused"
+    case unknown = "unknown"
+}
+
+public enum WebhookCancellationReason: String, Codable, CaseIterable {
+    case userCanceled = "user-canceled"
+    case billingError = "billing-error"
+    case priceIncreaseDeclined = "price-increase-declined"
+    case productUnavailable = "product-unavailable"
+    case refunded = "refunded"
+    case other = "other"
+}
+
+public enum WebhookEventEnvironment: String, Codable, CaseIterable {
+    case production = "production"
+    case sandbox = "sandbox"
+    case xcode = "xcode"
+}
+
+public enum WebhookEventSource: String, Codable, CaseIterable {
+    case appleAppStoreServerNotificationsV2 = "apple-app-store-server-notifications-v2"
+    case googlePlayRealTimeDeveloperNotifications = "google-play-real-time-developer-notifications"
+    /// Synthetic source for Meta Horizon Store. Meta has no webhook /
+    /// push notification system so kit polls `verify_entitlement` on a
+    /// cron and emits these synthetic events when an entitlement
+    /// transitions. SDK consumers see them on the SSE stream alongside
+    /// real Apple / Google webhooks.
+    case metaHorizonReconciler = "meta-horizon-reconciler"
+}
+
+public enum WebhookEventType: String, Codable, CaseIterable {
+    /// Initial purchase or first conversion from a free trial / intro offer.
+    /// iOS: SUBSCRIBED (initialBuy / resubscribe).
+    /// Android: SUBSCRIPTION_PURCHASED.
+    case subscriptionStarted = "subscription-started"
+    /// Auto-renewal succeeded for an existing subscription.
+    /// iOS: DID_RENEW.
+    /// Android: SUBSCRIPTION_RENEWED.
+    case subscriptionRenewed = "subscription-renewed"
+    /// Subscription reached its expiration without a successful renewal.
+    /// iOS: EXPIRED.
+    /// Android: SUBSCRIPTION_EXPIRED.
+    case subscriptionExpired = "subscription-expired"
+    /// Billing failed; the subscription is in a grace period during which the user
+    /// retains entitlement while payment is retried.
+    /// iOS: DID_FAIL_TO_RENEW (with grace period active).
+    /// Android: SUBSCRIPTION_IN_GRACE_PERIOD.
+    case subscriptionInGracePeriod = "subscription-in-grace-period"
+    /// Billing failed and the subscription is in account-hold / billing retry,
+    /// during which entitlement is paused but the subscription is not yet expired.
+    /// iOS: DID_FAIL_TO_RENEW (no grace period; billing retry).
+    /// Android: SUBSCRIPTION_ON_HOLD.
+    case subscriptionInBillingRetry = "subscription-in-billing-retry"
+    /// Subscription returned to active state after a billing issue or pause.
+    /// iOS: DID_RECOVER.
+    /// Android: SUBSCRIPTION_RECOVERED (1) only — RESTARTED (7) is auto-
+    /// renew re-enabled (Uncanceled), not billing recovery.
+    case subscriptionRecovered = "subscription-recovered"
+    /// User turned off auto-renew. Access continues until the current period ends.
+    /// iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned off).
+    /// Android: SUBSCRIPTION_CANCELED.
+    case subscriptionCanceled = "subscription-canceled"
+    /// User reactivated auto-renew before the subscription expired.
+    /// iOS: DID_CHANGE_RENEWAL_STATUS (autoRenew turned on).
+    /// Android: SUBSCRIPTION_RESTARTED (when re-enabled, not after billing recovery).
+    case subscriptionUncanceled = "subscription-uncanceled"
+    /// Access immediately revoked (family sharing removal, admin action, fraud).
+    /// iOS: REVOKE.
+    /// Android: SUBSCRIPTION_REVOKED.
+    case subscriptionRevoked = "subscription-revoked"
+    /// A price change is pending or has been confirmed by the user.
+    /// iOS: PRICE_INCREASE.
+    /// Android: SUBSCRIPTION_PRICE_CHANGE_CONFIRMED.
+    case subscriptionPriceChange = "subscription-price-change"
+    /// User upgraded, downgraded, or crossgraded their plan.
+    /// iOS: DID_CHANGE_RENEWAL_PREF.
+    /// Android: SUBSCRIPTION_DEFERRED / SUBSCRIPTION_PRODUCT_CHANGED.
+    case subscriptionProductChanged = "subscription-product-changed"
+    /// Subscription paused (Android only feature). Also fired when the
+    /// pause schedule is changed — RTDN does not have a separate signal.
+    /// Android: SUBSCRIPTION_PAUSED (10), SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED (11).
+    case subscriptionPaused = "subscription-paused"
+    /// Paused subscription resumed (Android only feature). RTDN signals
+    /// resume via SUBSCRIPTION_RECOVERED (1) once the next billing cycle
+    /// starts; PAUSE_SCHEDULE_CHANGED is the schedule update, not the
+    /// resume.
+    /// Android: SUBSCRIPTION_RECOVERED (after pause).
+    case subscriptionResumed = "subscription-resumed"
+    /// Refund issued for a one-time purchase or subscription period.
+    /// iOS: REFUND.
+    /// Android: ONE_TIME_PRODUCT_REFUNDED / VOIDED_PURCHASE.
+    case purchaseRefunded = "purchase-refunded"
+    /// iOS-only: App Store requests a consumption status report for a refund decision.
+    /// Servers should respond via the StoreKit consumption API.
+    case purchaseConsumptionRequest = "purchase-consumption-request"
+    /// Sandbox or test notification fired by the store for diagnostic purposes.
+    /// Useful for verifying webhook plumbing without a live transaction.
+    case testNotification = "test-notification"
+}
+
 // MARK: - Interfaces
 
 public protocol ProductCommon: Codable {
@@ -1319,6 +1426,49 @@ public struct VerifyPurchaseWithProviderResult: Codable {
 }
 
 public typealias VoidResult = Void
+
+public struct WebhookEvent: Codable {
+    /// Reason for cancellation, when applicable.
+    public var cancellationReason: WebhookCancellationReason? = nil
+    /// Localized currency code (ISO 4217) at event time, when available.
+    public var currency: String? = nil
+    public var environment: WebhookEventEnvironment
+    /// When the current subscription period ends. Epoch milliseconds.
+    public var expiresAt: Double? = nil
+    /// Stable identifier suitable for idempotency. Derived from the source notification
+    /// UUID where the store provides one (ASN v2 `notificationUUID`, RTDN message id);
+    /// otherwise hashed from the canonicalized payload.
+    public var id: String
+    /// Time the underlying event occurred at the store. Epoch milliseconds.
+    public var occurredAt: Double
+    public var platform: IapPlatform
+    /// Price in micros (1/1,000,000 of the currency unit) at event time, when available.
+    /// Matches Google Play's `priceAmountMicros` convention; iOS values are converted.
+    public var priceAmountMicros: Double? = nil
+    /// Product the event pertains to. May be null for account-level events.
+    public var productId: String? = nil
+    /// kit project that owns the subscription / purchase this event refers to.
+    public var projectId: String
+    /// Cross-platform purchase identity used to correlate this event with an existing
+    /// purchase record. iOS: `originalTransactionId`. Android: `purchaseToken`.
+    /// Null for `TestNotification` events (Apple ASN v2 / Google RTDN test
+    /// payloads carry no transaction); always present for every other event type.
+    public var purchaseToken: String? = nil
+    /// Original signed payload from the store. ASN v2 events expose the JWS string;
+    /// RTDN events expose the base64-decoded Pub/Sub message JSON. Provided so that
+    /// consumers can independently verify or extract platform-specific fields. kit
+    /// always validates this payload before emitting the event.
+    public var rawSignedPayload: String? = nil
+    /// Time kit ingested and normalized this event. Epoch milliseconds.
+    public var receivedAt: Double
+    /// When auto-renewal will charge again. Epoch milliseconds.
+    public var renewsAt: Double? = nil
+    public var source: WebhookEventSource
+    /// Normalized subscription state at the time of event, when the event refers to
+    /// a subscription. Null for one-time purchase events.
+    public var subscriptionState: SubscriptionState? = nil
+    public var type: WebhookEventType
+}
 
 // MARK: - Input Objects
 

@@ -13,6 +13,12 @@ if (!convexUrl) {
 }
 export const client = new ConvexHttpClient(convexUrl);
 
+// Used by the SSE webhook stream to subscribe to live query updates
+// instead of polling. The reactive client is exported lazily so unit
+// tests that only need `client` (the HTTP client) don't pay for a
+// WebSocket dial when no subscription is opened.
+export const convexUrlForRealtime = convexUrl;
+
 interface ApiError {
   code: string;
   message: string;
@@ -27,12 +33,46 @@ export function handleConvexError(error: unknown): ApiError | null {
 }
 
 function getConvexError(error: ConvexError<string>): ApiError | null {
+  // Structured object-shaped error — the mutation/action threw
+  // `new ConvexError({ code, message })`. Convex preserves the object
+  // shape across the wire (data isn't always a string).
+  if (typeof error.data === "object" && error.data !== null) {
+    const objectResult = v.safeParse(
+      v.object({
+        code: v.string(),
+        message: v.string(),
+      }),
+      error.data,
+    );
+    if (objectResult.success) {
+      return {
+        code: objectResult.output.code,
+        message: objectResult.output.message,
+      };
+    }
+    // Fall through to legacy `{ error, message }` shape for backward
+    // compat with any callers that didn't migrate to `{ code, message }`.
+    const legacyResult = v.safeParse(
+      v.object({
+        error: v.string(),
+        message: v.string(),
+      }),
+      error.data,
+    );
+    if (legacyResult.success) {
+      return {
+        code: legacyResult.output.error,
+        message: legacyResult.output.message,
+      };
+    }
+    return null;
+  }
+
   if (typeof error.data !== "string") {
     return null;
   }
 
-  // Structured error — the mutation/action threw
-  // `new ConvexError(JSON.stringify({ error, message }))`.
+  // Legacy structured error — `new ConvexError(JSON.stringify({ error, message }))`.
   try {
     const data = JSON.parse(error.data);
 

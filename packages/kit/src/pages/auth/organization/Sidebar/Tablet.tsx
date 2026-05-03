@@ -148,7 +148,16 @@ export function TabletSidebar({
 
   return (
     <aside
-      className={`hidden md:flex flex-col bg-card border-r-thin transition-all duration-300 ${
+      // Wheel events landing on the sidebar's bottom sections (Docs /
+      // Support / Profile) sit outside the scrollable `<nav>`, so a
+      // trackpad scroll there bubbles up to the document and scrolls
+      // the adjacent main content. Making the aside itself a scroll
+      // container (`overflow-y-auto`) + pinning `overscroll-contain`
+      // absorbs those wheel events at the sidebar — the aside has
+      // exactly viewport height, so no actual scroll happens, but the
+      // browser stops propagating to main. `no-scrollbar` keeps the
+      // visual unchanged.
+      className={`hidden md:flex flex-col bg-card border-r-thin transition-all duration-300 overflow-y-auto overscroll-contain no-scrollbar ${
         isSidebarOpen ? "w-64" : "w-16"
       }`}
     >
@@ -213,7 +222,7 @@ export function TabletSidebar({
         </div>
       )}
 
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto overscroll-contain">
         {navigation.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;

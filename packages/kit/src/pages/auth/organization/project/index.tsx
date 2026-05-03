@@ -3,15 +3,39 @@ import { useParams, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
 import type { LucideIcon } from "lucide-react";
-import { Settings, ChevronLeft, Package, Key, ShoppingBag } from "lucide-react";
+import {
+  Settings,
+  ChevronLeft,
+  Package,
+  Key,
+  ShoppingBag,
+  Activity,
+  Layers,
+  Webhook,
+} from "lucide-react";
 import { PageLoading } from "@/components/LoadingSpinner";
 
 import { api } from "@/convex";
 
-const TAB_IDS = ["dashboard", "purchases", "apikeys", "settings"] as const;
+const TAB_IDS = [
+  "dashboard",
+  "purchases",
+  "subscriptions",
+  "products",
+  "webhooks",
+  "apikeys",
+  "settings",
+] as const;
 type TabId = (typeof TAB_IDS)[number];
 type VisibleTabId = Exclude<TabId, "dashboard">;
 const DEFAULT_TAB: VisibleTabId = "purchases";
+
+interface Tab {
+  id: VisibleTabId;
+  label: string;
+  icon: LucideIcon;
+  badge?: string;
+}
 
 export default function ProjectIndex() {
   const { orgSlug, projectSlug } = useParams<{
@@ -31,16 +55,28 @@ export default function ProjectIndex() {
       : "skip",
   );
 
-  const tabs: Array<{
-    id: VisibleTabId;
-    label: string;
-    icon: LucideIcon;
-    badge?: string;
-  }> = [
+  const tabs: Tab[] = [
     {
       id: "purchases",
       label: "Purchases",
       icon: ShoppingBag,
+    },
+    {
+      id: "subscriptions",
+      label: "Subscriptions",
+      icon: Activity,
+    },
+    {
+      id: "products",
+      label: "Products",
+      icon: Layers,
+      badge: "Beta",
+    },
+    {
+      id: "webhooks",
+      label: "Webhooks",
+      icon: Webhook,
+      badge: "Beta",
     },
     {
       id: "apikeys",
@@ -127,8 +163,13 @@ export default function ProjectIndex() {
   // content while the outer still had room — the "empty space below
   // the last card" bug. The single scroll lives at the org layout
   // now; this component just flows naturally.
+  //
+  // `min-h-full` ensures the page covers the full main viewport even
+  // when the form is shorter than the viewport — without it the user
+  // saw a wide bg-background gap below the Save button when content
+  // didn't reach the viewport bottom, which read as a layout bug.
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-h-full">
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="container max-w-7xl mx-auto px-4 py-4">

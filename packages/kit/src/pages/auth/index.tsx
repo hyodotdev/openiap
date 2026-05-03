@@ -13,6 +13,9 @@ import OrganizationSettings from "./organization/settings";
 import ProjectIndex from "./organization/project";
 import ProjectPurchases from "./organization/project/purchases";
 import ProjectApiKeys from "./organization/project/apikeys";
+import ProjectSubscriptions from "./organization/project/subscriptions";
+import ProjectProducts from "./organization/project/products";
+import ProjectWebhooks from "./organization/project/webhooks";
 import ProjectSettings from "./organization/project/settings";
 import ProjectPurchaseDetail from "./organization/project/purchase-detail";
 import OrganizationUsagePage from "./organization/usage";
@@ -257,6 +260,30 @@ export default function AuthenticatedPages() {
             element={
               <PageWithTitle title={"Purchase details"}>
                 <ProjectPurchaseDetail />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="subscriptions"
+            element={
+              <PageWithTitle title="Project subscriptions">
+                <ProjectSubscriptions />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="products"
+            element={
+              <PageWithTitle title="Project products">
+                <ProjectProducts />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="webhooks"
+            element={
+              <PageWithTitle title="Project webhooks">
+                <ProjectWebhooks />
               </PageWithTitle>
             }
           />

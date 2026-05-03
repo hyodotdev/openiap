@@ -23,6 +23,10 @@ export default function RootLayout() {
           name="offer-code"
           options={{title: 'Offer Code Redemption'}}
         />
+        <Stack.Screen
+          name="webhook-stream"
+          options={{title: 'Webhook Stream'}}
+        />
       </Stack>
     </ActionSheetProvider>
   );

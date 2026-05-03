@@ -7,14 +7,12 @@ enum Store { none, playStore, amazon, appStore }
 /// Platform detection enum
 enum IapPlatform { ios, android }
 
-/// Subscription states
-enum SubscriptionState {
-  active,
-  expired,
-  inBillingRetry,
-  inGracePeriod,
-  revoked,
-}
+// `SubscriptionState` was previously hand-defined here. It now comes
+// from the generated `lib/types.dart` (synced from
+// `packages/gql/src/webhook.graphql`) so the values stay in lock-
+// step with the openiap webhook spec — `Active / InGracePeriod /
+// InBillingRetry / Expired / Revoked / Refunded / Paused / Unknown`.
+// Importing both copies caused an `ambiguous_export` analyzer error.
 
 /// Transaction states
 enum TransactionState { purchasing, purchased, failed, restored, deferred }

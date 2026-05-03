@@ -260,6 +260,11 @@ export const updateProject = mutation({
     iosAppAppleId: v.optional(v.number()),
     iosAppStoreIssuerId: v.optional(v.string()),
     iosAppStoreKeyId: v.optional(v.string()),
+    // App Store Connect API credentials — separate from the Server API
+    // (In-App Purchase) credentials above. See schema.ts for the
+    // distinction. Used by `products/asc.ts` push-sync.
+    iosAscIssuerId: v.optional(v.string()),
+    iosAscKeyId: v.optional(v.string()),
     // Meta Horizon (Quest / VR) — piggybacks on the Android section
     // in the dashboard since the client SDK is Google-Play-Billing-
     // compatible. Validation only runs when horizonEnabled === true.
@@ -318,6 +323,12 @@ export const updateProject = mutation({
     }
     if (args.iosAppStoreKeyId !== undefined) {
       updates.iosAppStoreKeyId = normalizeAppStoreKeyId(args.iosAppStoreKeyId);
+    }
+    if (args.iosAscIssuerId !== undefined) {
+      updates.iosAscIssuerId = normalizeAppStoreIssuerId(args.iosAscIssuerId);
+    }
+    if (args.iosAscKeyId !== undefined) {
+      updates.iosAscKeyId = normalizeAppStoreKeyId(args.iosAscKeyId);
     }
 
     // Horizon fields: validated only when the feature is being

@@ -17,8 +17,15 @@ class SubscriptionFlowScreen extends StatefulWidget {
   State<SubscriptionFlowScreen> createState() => _SubscriptionFlowScreenState();
 }
 
+/// Verification method options. Mirrors the same enum on
+/// `purchase_flow_screen.dart` so the subscription flow can demonstrate the
+/// same Ignore / Local / IAPKit choices for renewals and upgrades.
+enum VerificationMethod { ignore, local, iapkit }
+
 class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
   final FlutterInappPurchase _iap = FlutterInappPurchase.instance;
+
+  VerificationMethod _verificationMethod = VerificationMethod.ignore;
 
   // Use subscription IDs from constants
   final List<String> subscriptionIds = IapConstants.subscriptionProductIds;
@@ -170,11 +177,6 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
           debugPrint('✅ Purchase detected as successful, updating UI...');
           debugPrint('  _isProcessing before setState: $_isProcessing');
 
-          // Mark as processed
-          if (transactionKey.isNotEmpty) {
-            _processedTransactionIds.add(transactionKey);
-          }
-
           // Update UI immediately
           if (mounted) {
             setState(() {
@@ -187,15 +189,46 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
             debugPrint('  ⚠️ Widget not mounted, cannot update UI');
           }
 
+          // Run server / local receipt verification if the user selected one.
+          // Subscriptions especially benefit from IAPKit because Google Play
+          // does not expose `expiryTime` / grace-period / billing-retry state
+          // client-side — IAPKit calls `purchases.subscriptionsv2.get` server
+          // side and reflects the canonical state back here. We do this before
+          // `finishTransaction` so a failed verification doesn't quietly
+          // acknowledge a non-validated purchase.
+          var verificationOk = true;
+          if (_verificationMethod == VerificationMethod.iapkit) {
+            verificationOk = await _verifyPurchaseWithIAPKit(purchase);
+          }
+
+          if (!verificationOk) {
+            debugPrint(
+                '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true');
+            // Leave the transaction unfinished so the platform retries on the
+            // next foreground (and don't mark `transactionKey` processed —
+            // the next listener emit gets a fresh chance).
+            return;
+          }
+
           // Acknowledge/finish the transaction
+          var finishedOk = false;
           try {
             debugPrint('Calling finishTransaction...');
             await _iap.finishTransaction(
               purchase: purchase,
             );
             debugPrint('Transaction finished successfully');
+            finishedOk = true;
           } catch (e) {
             debugPrint('Error finishing transaction: $e');
+          }
+
+          // Only mark this transactionKey processed once verification AND
+          // finishTransaction have both succeeded; otherwise a transient
+          // failure would permanently short-circuit retries for the rest
+          // of the session.
+          if (finishedOk && transactionKey.isNotEmpty) {
+            _processedTransactionIds.add(transactionKey);
           }
 
           // Refresh subscriptions after a short delay to ensure transaction is processed
@@ -265,6 +298,137 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
         debugPrint('Error stream error: $error');
       },
     );
+  }
+
+  /// Verify an active subscription purchase with IAPKit. The body mirrors
+  /// `_verifyPurchaseWithIAPKit` in `purchase_flow_screen.dart`; subscriptions
+  /// reuse the same `verifyPurchaseWithProvider` API but the canonical state
+  /// IAPKit returns (`Active` / `InGracePeriod` / `InBillingRetry` / `Expired`)
+  /// is the value-add for renewals.
+  ///
+  /// Returns `true` only on a positive `isValid` from the kit response. The
+  /// caller is expected to skip `finishTransaction` on `false` so an unverified
+  /// or refunded purchase is never silently acknowledged.
+  Future<bool> _verifyPurchaseWithIAPKit(Purchase purchase) async {
+    final apiKey = IapConstants.iapkitApiKey;
+    debugPrint('IAPKit API key configured: ${apiKey.isNotEmpty}');
+
+    try {
+      debugPrint('Verifying subscription with IAPKit...');
+      final jwsOrToken = purchase.purchaseToken ?? '';
+      // Avoid logging the token itself (or a token-derived prefix) —
+      // ASN v2 JWS payloads and Play purchase tokens are sensitive
+      // and would land in adb / Xcode console + any centralized log
+      // collector. Log presence + length only (PR #124
+      // (https://github.com/hyodotdev/openiap/pull/124) review).
+      debugPrint(
+          'Token for verification: present=${jwsOrToken.isNotEmpty}, length=${jwsOrToken.length}');
+
+      final result = await _iap.verifyPurchaseWithProvider(
+        provider: PurchaseVerificationProvider.Iapkit,
+        iapkit: RequestVerifyPurchaseWithIapkitProps(
+          apiKey: apiKey.isNotEmpty ? apiKey : null,
+          apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken),
+          google: RequestVerifyPurchaseWithIapkitGoogleProps(
+              purchaseToken: jwsOrToken),
+        ),
+      );
+
+      // Don't log the full result object — it contains the upstream
+      // verification payload which can include the token, productId,
+      // and the kit project context. Log only the high-level outcome.
+      debugPrint(
+          'IAPKit verification completed: hasIapkit=${result.iapkit != null}');
+
+      if (result.iapkit != null) {
+        final iapkitResult = result.iapkit!;
+        final statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
+        final stateText = iapkitResult.state.value;
+
+        if (mounted) {
+          setState(() {
+            _purchaseResult = '''
+$_purchaseResult
+
+$statusEmoji IAPKit Verification
+Valid: ${iapkitResult.isValid}
+State: $stateText
+Store: ${iapkitResult.store.value}
+            '''
+                .trim();
+          });
+        }
+        return iapkitResult.isValid;
+      }
+      // No iapkit payload returned — treat as unverified rather than as
+      // a silent pass.
+      return false;
+    } catch (e) {
+      debugPrint('IAPKit verification failed: $e');
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              '$_purchaseResult\n\n❌ IAPKit verification failed: $e';
+        });
+      }
+      return false;
+    }
+  }
+
+  void _showVerificationMethodPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  _verificationMethod == VerificationMethod.ignore
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
+                title: const Text('Ignore'),
+                subtitle: const Text('Skip verification'),
+                onTap: () {
+                  setState(() {
+                    _verificationMethod = VerificationMethod.ignore;
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  _verificationMethod == VerificationMethod.iapkit
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
+                title: const Text('IAPKit'),
+                subtitle: const Text('Server-side verification via IAPKit'),
+                onTap: () {
+                  setState(() {
+                    _verificationMethod = VerificationMethod.iapkit;
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _getVerificationMethodLabel() {
+    switch (_verificationMethod) {
+      case VerificationMethod.ignore:
+        return 'Ignore';
+      case VerificationMethod.local:
+        return 'Local';
+      case VerificationMethod.iapkit:
+        return 'IAPKit';
+    }
   }
 
   Future<void> _initConnection() async {
@@ -1336,6 +1500,33 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Verification Method Selector
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Subscription Verification:',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              OutlinedButton(
+                                onPressed: _showVerificationMethodPicker,
+                                child: Text(_getVerificationMethodLabel()),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
                         // Active Subscription Status Card
                         Card(
                           color: _hasActiveSubscription

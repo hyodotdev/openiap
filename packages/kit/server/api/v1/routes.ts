@@ -19,6 +19,9 @@ import { rateLimitMiddleware } from "./rate-limit";
 import { replayGuardMiddleware } from "./replay-guard";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
+import { webhooksRoutes } from "./webhooks";
+import { subscriptionsRoutes } from "./subscriptions";
+import { productsRoutes } from "./products";
 
 // Variables that the request middleware chain attaches to the Hono
 // context. Declaring them here (and passing the generic to `new Hono()`)
@@ -455,5 +458,28 @@ app.post(
 // separately in the OpenAPI output — both paths dispatch to the exact
 // same handler with the same middleware stack.
 app.post("/verify-purchase", ...verifyMiddleware);
+
+// Lifecycle webhook receivers — Apple App Store Server Notifications v2
+// and Google Pub/Sub RTDN. These bypass the apiKeyMiddleware /
+// rate-limit / replay-guard chain because Apple cannot send custom
+// auth headers and Google's Pub/Sub push has its own delivery
+// guarantees. Auth is enforced inside the receiver:
+//   - Apple: project apiKey is in the path; the action verifies the
+//     signedPayload against Apple's root certificates so a leaked URL
+//     can't be used to inject forged events.
+//   - Google: OIDC bearer JWT (when GOOGLE_PUBSUB_PUSH_AUDIENCE is
+//     configured) plus the path apiKey.
+app.route("/webhooks", webhooksRoutes);
+
+// Subscription state, entitlements, metrics, and SDK user-binding.
+// Provides the `/onesub/status` analog (`/v1/subscriptions/status/{apiKey}`)
+// plus the multi-product entitlements view that onesub gates feature
+// access on, and the metrics summary used by the kit dashboard.
+app.route("/subscriptions", subscriptionsRoutes);
+
+// Product catalog (kit-side cache shared by the dashboard, MCP server,
+// and SDK helpers). Phase 3 will extend this with App Store Connect /
+// Play Developer push-sync; the surface stays the same.
+app.route("/products", productsRoutes);
 
 export { app as apiRoutes };

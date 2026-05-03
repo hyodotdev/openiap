@@ -42,6 +42,27 @@ coverage/
 .env.local
 .env.*.local
 
+# IAPKit credential files downloaded from prod for local testing.
+# Apple .p8 keys + Google service-account JSONs must never be
+# committed — they'd grant attackers App Store Server API / Play
+# Developer API access on the corresponding project.
+*.p8
+**/service-account*.json
+# Catch-all for Google Cloud project keys downloaded as
+# `<project-id>-<hash>.json` (the default name from the GCP console).
+# Replaces the per-project `martie-c0b27-*.json` pattern that only
+# helped one developer's local setup. We cover the two real formats
+# the IAM console produces:
+#   1. `<project-id>-<5-hex suffix>-<12-hex key id>.json`
+#      (project IDs with the GCP-auto-generated 5-char uniqueness suffix)
+#   2. `<project-id>-<12-hex key id>.json`
+#      (project IDs the operator named themselves, no GCP suffix)
+# Pinning the trailing key-id to exactly 12 hex chars keeps legitimate
+# config files (`tsconfig-base.json`, `eslint-config.json`, etc.) out
+# of the match while still catching every key the console emits.
+**/*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
+**/*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
+
 # Temp
 tmp/
 temp/

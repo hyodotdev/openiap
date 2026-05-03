@@ -6,7 +6,6 @@ import {
   extractProductIdFromRemoteResponse,
   isValidState,
 } from "./purchases/shared.js";
-import { HarmonizedPurchaseState } from "./purchases/purchaseState.js";
 import {
   applyPurchaseStatsDelta,
   deltaForInsert,
@@ -69,7 +68,7 @@ export const removeLegacyProfileFields = migrations.define({
 export const replaceIsAuthenticWithIsValid = migrations.define({
   table: "purchases",
   migrateOne: async (_ctx, doc) => {
-    const isValid = isValidState(doc.state as HarmonizedPurchaseState);
+    const isValid = isValidState(doc.state);
 
     return {
       ...doc,
@@ -226,7 +225,7 @@ export const backfillPurchaseProductIds = migrations.define({
  * destructive step deliberately kept out of the migration runner. See
  * `collapseDuplicatePurchasesByOrderId` in
  * [convex/purchases/cleanup.ts](convex/purchases/cleanup.ts) and the
- * deploy sequence in PR #10 for the recommended order of operations.
+ * deploy sequence in PR #10 (https://github.com/hyodotdev/openiap/pull/10) for the recommended order of operations.
  */
 export const backfillPurchaseOrderIds = migrations.define({
   table: "purchases",

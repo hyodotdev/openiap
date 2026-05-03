@@ -185,8 +185,22 @@ const schema = defineSchema({
     androidPackageName: v.optional(v.string()),
     iosBundleId: v.optional(v.string()),
     iosAppAppleId: v.optional(v.number()),
+    // App Store Server API credentials — issued under "Users and
+    // Access → Integrations → In-App Purchase". Used by the receipt
+    // verifier in `purchases/ios.ts`. Pairs with the `.p8` file
+    // stored as `purpose: "apple_p8_key"`.
     iosAppStoreIssuerId: v.optional(v.string()),
     iosAppStoreKeyId: v.optional(v.string()),
+    // App Store Connect API credentials — issued under "Users and
+    // Access → Integrations → App Store Connect API → Team Keys"
+    // (or Individual Keys). Used by `products/asc.ts` push-sync.
+    // Genuinely a different key from the App Store Server API one;
+    // Apple scopes them separately at the gateway. Pairs with the
+    // `.p8` file stored as `purpose: "apple_p8_asc_api_key"`. Both
+    // are optional so existing iOS-only-receipt-verification
+    // projects keep working without push-sync.
+    iosAscIssuerId: v.optional(v.string()),
+    iosAscKeyId: v.optional(v.string()),
 
     // Meta Horizon Billing (Quest / Meta VR). Piggybacks on the Android
     // configuration card in the UI because the client SDK is
@@ -210,7 +224,11 @@ const schema = defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_api_key", ["apiKey"])
-    .index("by_org_and_slug", ["organizationId", "slug"]),
+    .index("by_org_and_slug", ["organizationId", "slug"])
+    // Horizon polling reconciler iterates only the projects that
+    // opted into Meta Horizon billing — without this index the cron
+    // would full-scan every project on each tick.
+    .index("by_horizon_enabled", ["horizonEnabled"]),
 
   // API Keys table - Multiple API keys per project
   apiKeys: defineTable({
@@ -255,10 +273,18 @@ const schema = defineSchema({
     fileType: v.string(), // MIME type
     fileSize: v.number(), // Size in bytes
 
-    // Purpose/category
+    // Purpose/category. Apple distributes two distinct .p8 key kinds
+    // and they're NOT interchangeable:
+    //   - `apple_p8_key`         — App Store Server API (the
+    //     "In-App Purchase Key"). Used for receipt verification.
+    //   - `apple_p8_asc_api_key` — App Store Connect API (the "Team
+    //     Key" / "Individual Key"). Used for ASC REST endpoints
+    //     (catalog list / create / patch). Push-sync calls these.
+    // Uploading the wrong kind for either purpose returns 401.
     purpose: v.union(
-      v.literal("apple_p8_key"), // Apple .p8 private key
-      v.literal("android_service_account"), // Android Service Account
+      v.literal("apple_p8_key"),
+      v.literal("apple_p8_asc_api_key"),
+      v.literal("android_service_account"),
     ),
     description: v.optional(v.string()),
 
@@ -401,6 +427,417 @@ const schema = defineSchema({
     cursor: v.number(),
     updatedAt: v.number(),
   }).index("by_jobName", ["jobName"]),
+
+  // Normalized lifecycle webhook events ingested from Apple ASN v2 and
+  // Google RTDN. Mirrors the GraphQL `WebhookEvent` shape defined in
+  // `packages/gql/src/webhook.graphql` — kit's Subscription endpoint
+  // streams rows from this table to authenticated clients, and the
+  // `webhookEventsSince` query backfills events that occurred while a
+  // client's WebSocket was closed.
+  //
+  // Retention: rows are pruned by the `pruneWebhookEvents` cron after
+  // 30 days. The replay window matches `webhookEventsSince` so clients
+  // returning from a long offline period can still reconcile.
+  webhookEvents: defineTable({
+    projectId: v.id("projects"),
+    type: v.union(
+      v.literal("SubscriptionStarted"),
+      v.literal("SubscriptionRenewed"),
+      v.literal("SubscriptionExpired"),
+      v.literal("SubscriptionInGracePeriod"),
+      v.literal("SubscriptionInBillingRetry"),
+      v.literal("SubscriptionRecovered"),
+      v.literal("SubscriptionCanceled"),
+      v.literal("SubscriptionUncanceled"),
+      v.literal("SubscriptionRevoked"),
+      v.literal("SubscriptionPriceChange"),
+      v.literal("SubscriptionProductChanged"),
+      v.literal("SubscriptionPaused"),
+      v.literal("SubscriptionResumed"),
+      v.literal("PurchaseRefunded"),
+      v.literal("PurchaseConsumptionRequest"),
+      v.literal("TestNotification"),
+    ),
+    source: v.union(
+      v.literal("AppleAppStoreServerNotificationsV2"),
+      v.literal("GooglePlayRealTimeDeveloperNotifications"),
+      // Synthetic source for Meta Horizon Store entitlement
+      // transitions discovered by the polling reconciler. Mirrors
+      // the GraphQL `WebhookEventSource.MetaHorizonReconciler` enum.
+      v.literal("MetaHorizonReconciler"),
+    ),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    environment: v.union(
+      v.literal("Production"),
+      v.literal("Sandbox"),
+      v.literal("Xcode"),
+    ),
+    // Optional because TestNotification payloads (App Store Connect
+    // "Send Test Notification" / RTDN setup test) carry no transaction
+    // and therefore no purchaseToken. All real lifecycle event types
+    // populate this; the receiver guards apply the same nullability
+    // (see webhooks/internal.ts).
+    purchaseToken: v.optional(v.string()),
+    // Original notification id from the store (ASN v2 `notificationUUID`
+    // or RTDN Pub/Sub `messageId`). Surfaced as the GraphQL `id` field
+    // for clients and used to correlate events during pruning.
+    sourceNotificationId: v.string(),
+    productId: v.optional(v.string()),
+    subscriptionState: v.optional(
+      v.union(
+        v.literal("Active"),
+        v.literal("InGracePeriod"),
+        v.literal("InBillingRetry"),
+        v.literal("Expired"),
+        v.literal("Revoked"),
+        v.literal("Refunded"),
+        v.literal("Paused"),
+        v.literal("Unknown"),
+      ),
+    ),
+    expiresAt: v.optional(v.number()),
+    renewsAt: v.optional(v.number()),
+    cancellationReason: v.optional(
+      v.union(
+        v.literal("UserCanceled"),
+        v.literal("BillingError"),
+        v.literal("PriceIncreaseDeclined"),
+        v.literal("ProductUnavailable"),
+        v.literal("Refunded"),
+        v.literal("Other"),
+      ),
+    ),
+    currency: v.optional(v.string()),
+    priceAmountMicros: v.optional(v.number()),
+    rawSignedPayload: v.optional(v.string()),
+    occurredAt: v.number(),
+    receivedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_purchase_token", ["purchaseToken"])
+    .index("by_project_and_received", ["projectId", "receivedAt"])
+    .index("by_received_at", ["receivedAt"])
+    // Lookup helper used by the SSE stream's `Last-Event-ID` cursor
+    // resolution. The reconnect cursor needs to translate a stable
+    // notification id back to its `receivedAt` regardless of whether
+    // the event is in the first 500 or the 50,000th. A direct index
+    // hit is O(log n) vs O(n/page) for the prior linear scan.
+    .index("by_project_and_notification_id", [
+      "projectId",
+      "sourceNotificationId",
+    ])
+    // Composite (projectId, receivedAt, _creationTime) for the SSE
+    // backfill `webhookEventsSince` query — lets the boundary-cohort
+    // tail past the millisecond cursor be walked directly via the
+    // index (`gt("_creationTime", afterCreationTime)`) instead of an
+    // in-memory filter that would silently drop pages when a single
+    // millisecond's burst exceeds the take() cap (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    .index("by_project_and_received_and_creation", [
+      "projectId",
+      "receivedAt",
+      "_creationTime",
+    ]),
+
+  // Dedup table for webhook payloads. Insertion uses
+  // `(projectId, source, sourceNotificationId)` as the natural key.
+  // projectId is part of the key because Google Cloud Pub/Sub's
+  // messageId is only guaranteed unique *within a topic* — different
+  // kit projects can legitimately publish notifications with the
+  // same messageId, and a project-less key would cross-pollute their
+  // dedup state. (Apple's notificationUUID is globally unique so the
+  // projectId scope is redundant for ASN, but matching one shape
+  // keeps the lookup path simple.) Duplicates detected here cause
+  // kit to silently ACK the upstream request with 200 without
+  // re-emitting the event, matching Apple's documented retry
+  // expectation and Google's at-least-once Pub/Sub contract.
+  // `projectId` is optional during the rollout so already-written
+  // rows still validate; new inserts always populate it.
+  webhookIdempotencyKeys: defineTable({
+    projectId: v.optional(v.id("projects")),
+    source: v.union(v.literal("apple"), v.literal("google")),
+    sourceNotificationId: v.string(),
+    eventId: v.optional(v.id("webhookEvents")),
+    firstSeenAt: v.number(),
+  })
+    .index("by_source_and_id", ["source", "sourceNotificationId"])
+    .index("by_project_and_source_and_id", [
+      "projectId",
+      "source",
+      "sourceNotificationId",
+    ])
+    // Cheap range scan for the `pruneWebhookEvents` cron — without it,
+    // ageing out dedup rows means a full-table scan per tick, which
+    // gets expensive on a hosted multi-tenant deployment where the
+    // table grows ~1 row per webhook per project per day.
+    .index("by_first_seen_at", ["firstSeenAt"]),
+
+  // Authoritative per-(project, originalTransactionId) subscription record.
+  // Mirrors the spec from `packages/gql/src/webhook.graphql` and the role
+  // played by onesub's `onesub_subscriptions` table. State transitions are
+  // driven by webhook events through `applySubscriptionEvent`.
+  //
+  // Why per-`originalTransactionId` (Apple) / `purchaseToken` (Google) and
+  // not per-`(userId, productId)`: a single user can hold multiple historical
+  // entitlements (resub after expiry, cross-grade, family-shared); the
+  // store-issued purchase id is the only stable handle that survives all
+  // transitions. Entitlement evaluation aggregates by user as needed.
+  //
+  // Known limitation (Google `linkedPurchaseToken` chain): Google reissues
+  // `purchaseToken` across upgrade/downgrade/replace flows. The new token
+  // arrives via RTDN with no `linkedPurchaseToken` field in the webhook
+  // payload itself — that field is only available via a follow-up
+  // `purchases.subscriptionsv2.get` Play Developer API call. The webhook
+  // receiver intentionally does NOT make that synchronous call (it would
+  // violate Pub/Sub's fast-ACK contract and burn Play API quota per
+  // webhook). The result is one logical Google subscription can split
+  // into multiple rows after a token reissue, fragmenting the per-token
+  // state until a background reconciliation pass resolves the chain
+  // via the Play API and merges the rows.
+  //
+  // Apple does not have this problem — `originalTransactionId` is stable
+  // across the entire entitlement lifetime.
+  subscriptions: defineTable({
+    projectId: v.id("projects"),
+    purchaseToken: v.string(),
+    userId: v.optional(v.string()),
+    productId: v.string(),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    state: v.union(
+      v.literal("Active"),
+      v.literal("InGracePeriod"),
+      v.literal("InBillingRetry"),
+      v.literal("Expired"),
+      v.literal("Revoked"),
+      v.literal("Refunded"),
+      v.literal("Paused"),
+      v.literal("Unknown"),
+    ),
+    expiresAt: v.optional(v.number()),
+    renewsAt: v.optional(v.number()),
+    willRenew: v.optional(v.boolean()),
+    cancellationReason: v.optional(
+      v.union(
+        v.literal("UserCanceled"),
+        v.literal("BillingError"),
+        v.literal("PriceIncreaseDeclined"),
+        v.literal("ProductUnavailable"),
+        v.literal("Refunded"),
+        v.literal("Other"),
+      ),
+    ),
+    currency: v.optional(v.string()),
+    priceAmountMicros: v.optional(v.number()),
+    startedAt: v.number(),
+    updatedAt: v.number(),
+    lastEventId: v.optional(v.id("webhookEvents")),
+  })
+    .index("by_project_and_token", ["projectId", "purchaseToken"])
+    .index("by_project_and_user", ["projectId", "userId"])
+    .index("by_project_and_state", ["projectId", "state"])
+    .index("by_project_and_updated", ["projectId", "updatedAt"])
+    .index("by_project_and_product", ["projectId", "productId"])
+    // Composite index for the (state + productId) filter combination
+    // in listSubscriptions. Without it, the prior over-fetch heuristic
+    // could miss matching rows past the take() boundary on projects
+    // with thousands of subs in the same state.
+    .index("by_project_and_state_and_product", [
+      "projectId",
+      "state",
+      "productId",
+    ])
+    // Composite (projectId, state, updatedAt) for the Horizon
+    // reconciler's per-state, oldest-first pagination. With this index
+    // we walk the staleest subs in each mutable state per cron tick;
+    // after Meta verify_entitlement writes the fresh `updatedAt`, the
+    // row moves to the back of the queue automatically. That makes
+    // the reconciler self-paginating across ticks — no separate
+    // continuation cursor needed (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    .index("by_project_and_state_and_updated", [
+      "projectId",
+      "state",
+      "updatedAt",
+    ]),
+
+  // Incrementally-maintained per-(project, currency) subscription
+  // counters + MRR. Updated by `applySubscriptionEvent` so the
+  // dashboard's `metricsSummary` query reads O(currencies) rows
+  // instead of scanning the whole `subscriptions` table — the prior
+  // implementation capped at 10,000 subs to bound Convex's read
+  // budget, which silently undercounted projects above that
+  // threshold.
+  //
+  // Keyed by currency because MRR can't be summed across
+  // currencies without a presentation-layer FX conversion (matches
+  // the same reasoning on `revenueMetricsDaily`).
+  //
+  // 30-day rolling counters (refunded, canceled) are NOT stored
+  // here — those are bounded-size by definition (limited by 30 days
+  // of churn, not by total subs) so the read path scans them via
+  // `by_project_and_state` filtered on `updatedAt >= cutoff`.
+  subscriptionStats: defineTable({
+    projectId: v.id("projects"),
+    currency: v.string(),
+    activeSubs: v.number(),
+    inGracePeriod: v.number(),
+    inBillingRetry: v.number(),
+    mrrMicros: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_currency", ["projectId", "currency"])
+    // Ordered scan for `recomputeAllSubscriptionStats` cron picker —
+    // walks the most-stale rows first via .order("asc").take(limit)
+    // so we never collect the whole table to sort it client-side.
+    .index("by_updated_at", ["updatedAt"]),
+
+  // Daily revenue metrics rollup keyed by (projectId, day, productId,
+  // currency). Populated by `recomputeRevenueMetrics` cron (recomputes
+  // the trailing window from `subscriptions` so late-arriving webhook
+  // corrections are reflected). The dashboard reads from here to avoid
+  // scanning the full events log on every page render.
+  //
+  // Currency is part of the row key because the same SKU can sell in
+  // multiple storefront currencies on the same UTC day — keying only
+  // by (projectId, day, productId) would either mix incompatible
+  // `revenueMicros` totals or have one currency overwrite another,
+  // both of which produce wrong dashboard numbers for multi-region
+  // apps. Aggregating across currencies is a presentation-layer
+  // concern (FX conversion happens in the UI, with whatever rates the
+  // operator picks).
+  revenueMetricsDaily: defineTable({
+    projectId: v.id("projects"),
+    day: v.string(), // ISO date (YYYY-MM-DD), UTC
+    productId: v.string(),
+    currency: v.string(),
+    activeSubs: v.number(),
+    newSubs: v.number(),
+    renewals: v.number(),
+    cancellations: v.number(),
+    refunds: v.number(),
+    revenueMicros: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project_and_day_and_currency", ["projectId", "day", "currency"])
+    .index("by_project_and_product_and_day_and_currency", [
+      "projectId",
+      "productId",
+      "day",
+      "currency",
+    ]),
+
+  // Unified product catalog. Mirrors what onesub holds in @onesub/providers
+  // — the subset of App Store Connect / Play Console that kit can read /
+  // create / update on the project owner's behalf. The auth-credential
+  // payloads themselves stay in `files` (existing kit pattern); this row is
+  // just the cached product metadata.
+  products: defineTable({
+    projectId: v.id("projects"),
+    productId: v.string(),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    type: v.union(
+      v.literal("Subscription"),
+      v.literal("NonConsumable"),
+      v.literal("Consumable"),
+    ),
+    title: v.string(),
+    description: v.optional(v.string()),
+    priceAmountMicros: v.optional(v.number()),
+    currency: v.optional(v.string()),
+    state: v.union(
+      v.literal("Draft"),
+      v.literal("Ready"),
+      v.literal("Active"),
+      v.literal("Removed"),
+    ),
+    // Subscription billing period. ISO-8601-ish duration the ASC + Play
+    // push paths both accept (`P1W` / `P1M` / `P2M` / `P3M` / `P6M` /
+    // `P1Y`). Optional because non-subscription types don't use it.
+    // The push actions translate this to ASC `subscriptionPeriod` enum
+    // (`ONE_WEEK` / `ONE_MONTH` / `TWO_MONTHS` / …) and Play
+    // `autoRenewingBasePlanType.billingPeriodDuration`. Without this
+    // field, the prior implementation silently created every
+    // subscription as ONE_MONTH / P1M regardless of intent.
+    billingPeriod: v.optional(
+      v.union(
+        v.literal("P1W"),
+        v.literal("P1M"),
+        v.literal("P2M"),
+        v.literal("P3M"),
+        v.literal("P6M"),
+        v.literal("P1Y"),
+      ),
+    ),
+    // Subscription Group (ASC concept; Play has no first-class
+    // equivalent so these stay null for Android rows). All
+    // subscriptions in the same group are mutually exclusive on
+    // Apple's side — the user can switch between Premium / Premium
+    // Year via in-app upgrade/downgrade, but cannot hold both. Kit
+    // surfaces this in the dashboard so the operator can see at a
+    // glance which subs share a group, and downstream surfaces can
+    // pick a default selection within a group. `subscriptionGroupId`
+    // is Apple's internal resource id; `subscriptionGroupName` is the
+    // human-readable referenceName the operator sees in ASC.
+    subscriptionGroupId: v.optional(v.string()),
+    subscriptionGroupName: v.optional(v.string()),
+    // Captures the *non-base* monetization variants attached to a
+    // subscription: Apple introductory offers (free trial / pay as
+    // you go / pay up front) and Play base plan offers (same kinds,
+    // different shape). Stored as a generic shape so both stores can
+    // upsert without branching, and the dashboard can render badges
+    // ("7-day free trial", "$4.99 intro for 3 months") without
+    // re-deriving from raw store responses.
+    offers: v.optional(
+      v.array(
+        v.object({
+          // Identifier from the store: ASC offer id (eyJ...) for
+          // introductoryOffer / promotionalOffer, or Play's
+          // basePlanId+offerId composite for offers.
+          id: v.string(),
+          kind: v.union(
+            v.literal("FreeTrial"),
+            v.literal("IntroPayUpFront"),
+            v.literal("IntroPayAsYouGo"),
+            v.literal("PromotionalOffer"),
+            v.literal("BasePlan"),
+          ),
+          // ISO-8601 duration the offer covers (e.g. "P7D", "P3M").
+          // For BasePlan rows this is the recurring billing period.
+          duration: v.optional(v.string()),
+          // Number of billing periods the discounted/free price
+          // applies for (Apple's `numberOfPeriods`). Free trials and
+          // pay-up-front intros use 1; pay-as-you-go uses N.
+          numberOfPeriods: v.optional(v.number()),
+          priceAmountMicros: v.optional(v.number()),
+          currency: v.optional(v.string()),
+        }),
+      ),
+    ),
+    // Free-form note for App Store review. Maps to ASC's `reviewNote`
+    // attribute on inAppPurchases / subscriptions and is the field
+    // Apple's reviewer reads alongside the screenshot to understand
+    // how to trigger / verify the IAP. Length cap is 4000 chars on
+    // ASC's side; we don't enforce here so the operator gets Apple's
+    // own validation message if they exceed it.
+    reviewNote: v.optional(v.string()),
+    storeRef: v.optional(v.string()),
+    syncedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    // Lookup row by (projectId, platform, productId). Apps commonly
+    // ship the SAME productId on both iOS and Android (e.g.
+    // `dev.hyo.martie.premium` exists in both stores), so the
+    // (projectId, productId)-only index would have collisions and
+    // silently flip an existing row's platform on sync. Including
+    // platform in the natural key keeps each store's catalog row
+    // separate.
+    .index("by_project_and_platform_and_product", [
+      "projectId",
+      "platform",
+      "productId",
+    ])
+    .index("by_project_and_platform", ["projectId", "platform"]),
 });
 
 export default schema;

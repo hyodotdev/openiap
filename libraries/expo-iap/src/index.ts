@@ -1042,6 +1042,30 @@ export const verifyPurchaseWithProvider: MutationField<
 };
 
 export * from './useIAP';
+export {useWebhookEvents} from './useWebhookEvents';
+export type {
+  UseWebhookEventsOptions,
+  UseWebhookEventsResult,
+} from './useWebhookEvents';
+export {
+  connectWebhookStream,
+  parseWebhookEventData,
+} from './webhook-client';
+export type {
+  WebhookEventPayload,
+  WebhookEventStream,
+  WebhookEventType as WebhookEventTypeName,
+  WebhookListener,
+  WebhookListenerError,
+  WebhookListenerOptions,
+} from './webhook-client';
+export {kitApi, KitApiError} from './kit-api';
+export type {
+  KitApiOptions,
+  KitSubscription,
+  EntitlementsResponse,
+  StatusResponse,
+} from './kit-api';
 export {
   ErrorCodeUtils,
   ErrorCodeMapping,

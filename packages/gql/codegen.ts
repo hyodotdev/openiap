@@ -11,6 +11,7 @@ const config: CodegenConfig = {
     'src/api-android.graphql',
     'src/error.graphql',
     'src/event.graphql',
+    'src/webhook.graphql',
   ],
   generates: {
     'src/generated/types.ts': {
