@@ -56,6 +56,26 @@ export const upsertProduct = mutation({
       .unique();
     if (!project) throw new Error("Invalid API key");
 
+    // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
+    // related tiers must share a group for StoreKit 2's native
+    // upgrade/downgrade UI to work. The Apple push-sync (asc.ts)
+    // falls back to using the productId as the group name when this
+    // is missing, which results in each subscription landing in its
+    // own fragmented group and silently breaks the upgrade flow.
+    // Reject the upsert before that drift can happen so the operator
+    // gets a loud, actionable error instead of a broken store
+    // experience two sync passes later (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    if (
+      args.platform === "IOS" &&
+      args.type === "Subscription" &&
+      (!args.subscriptionGroupName || !args.subscriptionGroupName.trim())
+    ) {
+      throw new Error(
+        "subscriptionGroupName is required for iOS Subscription products — related tiers must share a group for StoreKit 2 upgrade/downgrade to work. Pick a group name (e.g. 'premium_tiers') and reuse it for every related subscription.",
+      );
+    }
+
     const existing: Doc<"products"> | null = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform_and_product", (q) =>

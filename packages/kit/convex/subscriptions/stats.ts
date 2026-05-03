@@ -277,58 +277,66 @@ export const recomputeAllSubscriptionStats = internalMutation({
 
 // Hard upper bound on how many subscription rows the recompute walks
 // per project. Set conservatively below Convex's hard 40k document-
-// read limit per mutation transaction so a single project's
-// recompute can never blow the budget — the cron processes multiple
-// projects per tick (well, schedules them — each runs in its own
-// mutation, but each still has its own 40k ceiling).
-const RECOMPUTE_PER_PROJECT_CAP = 30_000;
+// Per-page subscription read budget. 5_000 keeps a single page well
+// under Convex's 40k document-read mutation budget (with headroom for
+// the per-page product + existing-stats reads). Pages chain via
+// `ctx.scheduler.runAfter(0, ...)` so a project of ANY size completes
+// without ever blowing the per-mutation ceiling — the prior
+// "skip-when-exceeds 30k" path is gone (PR #124
+// (https://github.com/hyodotdev/openiap/pull/124) review).
+const RECOMPUTE_PAGE_SIZE = 5_000;
+
+type RecomputeBucket = {
+  activeSubs: number;
+  inGracePeriod: number;
+  inBillingRetry: number;
+  mrrMicros: number;
+};
+
+// Convex value form of `Map<currency, RecomputeBucket>` so it survives
+// scheduler-arg serialization between pages.
+const recomputeAccumulator = v.array(
+  v.object({
+    currency: v.string(),
+    activeSubs: v.number(),
+    inGracePeriod: v.number(),
+    inBillingRetry: v.number(),
+    mrrMicros: v.number(),
+  }),
+);
 
 async function runRecompute(
   ctx: MutationCtx,
   projectId: Id<"projects">,
 ): Promise<void> {
-  // Per-project recompute. Take RECOMPUTE_PER_PROJECT_CAP + 1 so we
-  // can detect "project has more rows than we're allowed to scan in
-  // one mutation" and SKIP the recompute entirely. Truncating to
-  // newest-N would overwrite the (correct, incrementally-maintained)
-  // stats with a partial snapshot — the older Active/InGracePeriod
-  // /InBillingRetry rows that didn't fit in the newest-N window
-  // would silently disappear from the counter, which is worse than
-  // not running the recompute at all. The incremental path
-  // (applySubscriptionEvent / recordHorizonStatus) is the source of
-  // truth at that scale; recompute is a steady-state drift-correction
-  // tool that genuinely doesn't apply once a project outgrows the
-  // single-mutation budget.
-  const rows = await ctx.db
-    .query("subscriptions")
-    .withIndex("by_project_and_updated", (q) => q.eq("projectId", projectId))
-    .order("desc")
-    .take(RECOMPUTE_PER_PROJECT_CAP + 1);
-  if (rows.length > RECOMPUTE_PER_PROJECT_CAP) {
-    console.warn(
-      "[subscriptionStats] skipping recompute — project exceeds RECOMPUTE_PER_PROJECT_CAP",
-      { projectId, cap: RECOMPUTE_PER_PROJECT_CAP },
-    );
-    // Touch the existing stats rows' updatedAt so the picker doesn't
-    // immediately re-pick this project on the next cron tick. Without
-    // this nudge the project would dominate every batch and starve
-    // smaller projects of their drift-correction slot.
-    const stale = await ctx.db
-      .query("subscriptionStats")
-      .withIndex("by_project", (q) => q.eq("projectId", projectId))
-      .collect();
-    const nudge = Date.now();
-    for (const row of stale) {
-      await ctx.db.patch(row._id, { updatedAt: nudge });
-    }
-    return;
-  }
+  // Kicks off the paginated recompute. The first page processes
+  // RECOMPUTE_PAGE_SIZE rows and either schedules itself for the
+  // next page or commits to subscriptionStats when isDone.
+  await runRecomputePageInline(ctx, {
+    projectId,
+    cursor: null,
+    accumulator: [],
+  });
+}
+
+async function runRecomputePageInline(
+  ctx: MutationCtx,
+  args: {
+    projectId: Id<"projects">;
+    cursor: string | null;
+    accumulator: Array<RecomputeBucket & { currency: string }>;
+  },
+): Promise<void> {
+  // Build periodByProductId from the per-platform product index.
+  // We re-fetch on every page because product catalogs are small
+  // (typically 10-100 rows per platform per project) and re-reading
+  // is much cheaper than serializing the map through scheduler args.
   const periodByProductId = new Map<string, string | undefined>();
   for (const platform of ["IOS", "Android"] as const) {
     const productRows = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform", (q) =>
-        q.eq("projectId", projectId).eq("platform", platform),
+        q.eq("projectId", args.projectId).eq("platform", platform),
       )
       .collect();
     for (const product of productRows) {
@@ -341,15 +349,30 @@ async function runRecompute(
       }
     }
   }
-  type Bucket = {
-    activeSubs: number;
-    inGracePeriod: number;
-    inBillingRetry: number;
-    mrrMicros: number;
-  };
-  const buckets = new Map<string, Bucket>();
+
+  // Read one page of subscriptions oldest-first via the
+  // by_project_and_updated index. Order is deterministic so the
+  // continuation cursor stays valid across mutations.
+  const result = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_project_and_updated", (q) =>
+      q.eq("projectId", args.projectId),
+    )
+    .order("asc")
+    .paginate({ numItems: RECOMPUTE_PAGE_SIZE, cursor: args.cursor });
+
+  // Hydrate the carry-in accumulator into a Map for fast lookup.
+  const buckets = new Map<string, RecomputeBucket>();
+  for (const row of args.accumulator) {
+    buckets.set(row.currency, {
+      activeSubs: row.activeSubs,
+      inGracePeriod: row.inGracePeriod,
+      inBillingRetry: row.inBillingRetry,
+      mrrMicros: row.mrrMicros,
+    });
+  }
   const now = Date.now();
-  for (const sub of rows) {
+  for (const sub of result.page) {
     const contribution = statsContributionFor(
       sub,
       periodByProductId.get(sub.productId),
@@ -376,9 +399,30 @@ async function runRecompute(
     }
     buckets.set(contribution.currency, bucket);
   }
+
+  if (!result.isDone) {
+    // Re-serialize buckets and chain the next page in a fresh
+    // mutation so each page gets its own 40k document-read budget.
+    const nextAccumulator: Array<RecomputeBucket & { currency: string }> = [];
+    for (const [currency, bucket] of buckets) {
+      nextAccumulator.push({ currency, ...bucket });
+    }
+    await ctx.scheduler.runAfter(
+      0,
+      internal.subscriptions.stats.runRecomputePage,
+      {
+        projectId: args.projectId,
+        cursor: result.continueCursor,
+        accumulator: nextAccumulator,
+      },
+    );
+    return;
+  }
+
+  // Last page — commit the totals to subscriptionStats.
   const existing = await ctx.db
     .query("subscriptionStats")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
     .collect();
   for (const row of existing) {
     await ctx.db.delete(row._id);
@@ -394,7 +438,7 @@ async function runRecompute(
     // ignored by metricsSummary's mrrAccumulators (it only sums
     // currencies that have non-zero MRR + non-empty currency code).
     await ctx.db.insert("subscriptionStats", {
-      projectId,
+      projectId: args.projectId,
       currency: "",
       activeSubs: 0,
       inGracePeriod: 0,
@@ -405,7 +449,7 @@ async function runRecompute(
   } else {
     for (const [currency, bucket] of buckets) {
       await ctx.db.insert("subscriptionStats", {
-        projectId,
+        projectId: args.projectId,
         currency,
         ...bucket,
         updatedAt: now,
@@ -413,6 +457,22 @@ async function runRecompute(
     }
   }
 }
+
+// Public mutation entry point for chained pages. Internal cron + the
+// kick-off `runRecompute` call into `runRecomputePageInline` directly;
+// only the scheduler dispatches into this exported handler.
+export const runRecomputePage = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    cursor: v.union(v.string(), v.null()),
+    accumulator: recomputeAccumulator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await runRecomputePageInline(ctx, args);
+    return null;
+  },
+});
 
 // Full rebuild of `subscriptionStats` for one project. Walks every
 // subscription row and computes the canonical counts from scratch.
@@ -427,19 +487,17 @@ export const recomputeSubscriptionStats = internalMutation({
   args: {
     projectId: v.id("projects"),
   },
-  returns: v.object({
-    currencies: v.number(),
-    activeSubs: v.number(),
-  }),
+  // null because the recompute is now async-paged: the kick-off
+  // mutation processes the first page and chains the rest via
+  // `ctx.scheduler.runAfter` so each page gets its own 40k
+  // document-read budget. Reading subscriptionStats here would only
+  // see the first page's contribution for any project > PAGE_SIZE
+  // (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review).
+  // Callers that want post-recompute telemetry should query
+  // subscriptionStats directly after a few seconds.
+  returns: v.null(),
   handler: async (ctx, args) => {
     await runRecompute(ctx, args.projectId);
-    const rows = await ctx.db
-      .query("subscriptionStats")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
-    return {
-      currencies: rows.length,
-      activeSubs: rows.reduce((sum, r) => sum + r.activeSubs, 0),
-    };
+    return null;
   },
 });

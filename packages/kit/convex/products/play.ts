@@ -421,13 +421,90 @@ export const pushSyncProductsGoogle = action({
       );
       for (const row of drafts) {
         try {
-          // Skip the create call when this row already has a storeRef
-          // from a prior partial sync — Play would otherwise return
-          // 409 Conflict on the duplicate productId. The next sync's
-          // pull pass should have refreshed everything else, so this
-          // path just promotes the existing upstream resource to
-          // Ready via markPushed below.
+          // When this row already has a storeRef from a prior partial
+          // sync, run the appropriate update endpoint instead of the
+          // create endpoint — Play returns 409 Conflict on
+          // create-with-existing-productId and ASC's parity step
+          // (asc.ts) does the same patch flow. Listings + price are
+          // both safe to re-push idempotently. Without this, kit-side
+          // edits made after the initial push would silently never
+          // reach Play (PR #124
+          // (https://github.com/hyodotdev/openiap/pull/124) review).
           if (row.storeRef) {
+            if (row.type === "Subscription") {
+              // Subscriptions: patch the listing via
+              // monetization.subscriptions.patch (en-US listing only —
+              // multi-language sync is a future feature). Base-plan
+              // price changes have to go through a separate
+              // monetization.subscriptions.basePlans endpoint, so we
+              // intentionally don't try to mutate price here; that
+              // requires a deactivate+recreate flow Play doesn't allow
+              // in a single call. The dashboard surfaces a hint when
+              // the kit-side row has a different price than the
+              // pulled row so the operator knows to do that step
+              // manually.
+              try {
+                await androidpublisher.monetization.subscriptions.patch({
+                  packageName,
+                  productId: row.storeRef,
+                  updateMask: "listings",
+                  requestBody: {
+                    productId: row.storeRef,
+                    listings: [
+                      {
+                        languageCode: "en-US",
+                        title: row.title,
+                        description: row.description ?? row.title,
+                      },
+                    ],
+                  },
+                });
+              } catch (error) {
+                // 404 = subscription was deleted upstream after our
+                // last pull; surface as a failure so the operator
+                // re-creates it. Anything else also surfaces.
+                failures.push({
+                  productId: `${row.productId} (subscription patch)`,
+                  reason:
+                    error instanceof Error ? error.message : String(error),
+                });
+              }
+            } else {
+              // One-time product: patch listings + price via the
+              // legacy inappproducts.patch endpoint, which accepts a
+              // partial body and merges it.
+              try {
+                await androidpublisher.inappproducts.patch({
+                  packageName,
+                  sku: row.storeRef,
+                  requestBody: {
+                    packageName,
+                    sku: row.storeRef,
+                    purchaseType: "managedUser",
+                    listings: {
+                      "en-US": {
+                        title: row.title,
+                        description: row.description ?? row.title,
+                      },
+                    },
+                    ...(row.priceAmountMicros && row.currency
+                      ? {
+                          defaultPrice: {
+                            priceMicros: String(row.priceAmountMicros),
+                            currency: row.currency,
+                          },
+                        }
+                      : {}),
+                  },
+                });
+              } catch (error) {
+                failures.push({
+                  productId: `${row.productId} (inapp patch)`,
+                  reason:
+                    error instanceof Error ? error.message : String(error),
+                });
+              }
+            }
             await ctx.runMutation(internal.products.sync.markPushed, {
               projectId: project._id,
               productId: row.productId,
