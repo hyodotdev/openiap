@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  WEBHOOK_EVENT_TYPES,
   connectWebhookStream,
   parseWebhookEventData,
   type WebhookEventPayload,
@@ -40,9 +41,7 @@ describe("parseWebhookEventData", () => {
   });
 
   it("skips stream-control envelopes that have no `type`", () => {
-    const result = parseWebhookEventData(
-      JSON.stringify({ cursor: 12345 }),
-    );
+    const result = parseWebhookEventData(JSON.stringify({ cursor: 12345 }));
     expect(result.kind).toBe("skip");
   });
 
@@ -69,21 +68,20 @@ describe("parseWebhookEventData", () => {
 });
 
 describe("connectWebhookStream", () => {
-  it("subscribes via the injected EventSource factory and forwards events", () => {
+  it("subscribes to typed SSE events and forwards events", () => {
     const onEvent = vi.fn();
     const onError = vi.fn();
 
-    let messageHandler:
-      | ((event: { data: string; lastEventId?: string }) => void)
-      | null = null;
+    const handlers = new Map<
+      string,
+      (event: { data: string; lastEventId?: string }) => void
+    >();
 
     const fakeStream: WebhookEventStream = {
       onmessage: null,
       onerror: null,
       addEventListener: (type, listener) => {
-        if (type === "message") {
-          messageHandler = listener;
-        }
+        handlers.set(type, listener);
       },
       close: vi.fn(),
     };
@@ -103,8 +101,13 @@ describe("connectWebhookStream", () => {
       {},
     );
 
-    expect(messageHandler).not.toBeNull();
-    messageHandler!({ data: JSON.stringify(validEvent) });
+    expect(handlers.get("message")).toBeDefined();
+    for (const eventType of WEBHOOK_EVENT_TYPES) {
+      expect(handlers.get(eventType)).toBeDefined();
+    }
+    handlers.get("SubscriptionRenewed")!({
+      data: JSON.stringify(validEvent),
+    });
 
     expect(onEvent).toHaveBeenCalledTimes(1);
     expect(onEvent.mock.calls[0][0].id).toBe("uuid-1");
@@ -112,6 +115,34 @@ describe("connectWebhookStream", () => {
 
     listener.close();
     expect(fakeStream.close).toHaveBeenCalled();
+  });
+
+  it("dedupes when a polyfill dispatches the same frame twice", () => {
+    const onEvent = vi.fn();
+    const handlers = new Map<
+      string,
+      (event: { data: string; lastEventId?: string }) => void
+    >();
+
+    connectWebhookStream({
+      apiKey: "test-key",
+      baseUrl: "http://localhost:3100",
+      onEvent,
+      eventSourceFactory: () => ({
+        onmessage: null,
+        onerror: null,
+        addEventListener: (type, listener) => {
+          handlers.set(type, listener);
+        },
+        close: () => {},
+      }),
+    });
+
+    const data = JSON.stringify(validEvent);
+    handlers.get("SubscriptionRenewed")!({ data });
+    handlers.get("message")!({ data });
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to onmessage when addEventListener is not provided", () => {

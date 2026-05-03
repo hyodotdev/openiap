@@ -28,6 +28,25 @@ export type WebhookEventType =
   | "PurchaseConsumptionRequest"
   | "TestNotification";
 
+export const WEBHOOK_EVENT_TYPES = [
+  "SubscriptionStarted",
+  "SubscriptionRenewed",
+  "SubscriptionExpired",
+  "SubscriptionInGracePeriod",
+  "SubscriptionInBillingRetry",
+  "SubscriptionRecovered",
+  "SubscriptionCanceled",
+  "SubscriptionUncanceled",
+  "SubscriptionRevoked",
+  "SubscriptionPriceChange",
+  "SubscriptionProductChanged",
+  "SubscriptionPaused",
+  "SubscriptionResumed",
+  "PurchaseRefunded",
+  "PurchaseConsumptionRequest",
+  "TestNotification",
+] as const satisfies readonly WebhookEventType[];
+
 export type WebhookEventPayload = {
   id: string;
   type: WebhookEventType;
@@ -130,6 +149,23 @@ export function connectWebhookStream(
     return { close: () => {} };
   }
 
+  const seenIds = new Set<string>();
+  const seenOrder: string[] = [];
+  const markSeen = (id: string): boolean => {
+    if (seenIds.has(id)) {
+      return true;
+    }
+    seenIds.add(id);
+    seenOrder.push(id);
+    if (seenOrder.length > 1024) {
+      const evicted = seenOrder.shift();
+      if (evicted !== undefined) {
+        seenIds.delete(evicted);
+      }
+    }
+    return false;
+  };
+
   const handleData = (raw: string) => {
     const parsed = parseWebhookEventData(raw);
     if (parsed.kind === "error") {
@@ -142,17 +178,22 @@ export function connectWebhookStream(
     if (parsed.kind === "skip") {
       return;
     }
+    if (markSeen(parsed.event.id)) {
+      return;
+    }
     options.onEvent(parsed.event);
   };
 
   if (typeof stream.addEventListener === "function") {
     stream.addEventListener("message", (event) => handleData(event.data));
-    // The kit server emits each webhook with `event: <WebhookEventType>`;
-    // listeners that want type-filtered subscriptions can hook the
-    // EventSource directly. Here we register a default handler against
-    // the generic message channel via addEventListener so EventSource
-    // implementations that route typed events through `onmessage`
-    // don't double-fire.
+    // WHATWG EventSource dispatches frames with `event: Foo` only to
+    // listeners registered for `Foo`, not to `message` / `onmessage`.
+    // Kit emits webhook frames as typed SSE events, so subscribe to
+    // every known webhook type and keep `message` for older servers or
+    // polyfills that collapse typed frames into the generic channel.
+    for (const eventType of WEBHOOK_EVENT_TYPES) {
+      stream.addEventListener(eventType, (event) => handleData(event.data));
+    }
   } else {
     stream.onmessage = (event) => handleData(event.data);
   }

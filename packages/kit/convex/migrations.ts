@@ -6,7 +6,6 @@ import {
   extractProductIdFromRemoteResponse,
   isValidState,
 } from "./purchases/shared.js";
-import { HarmonizedPurchaseState } from "./purchases/purchaseState.js";
 import {
   applyPurchaseStatsDelta,
   deltaForInsert,

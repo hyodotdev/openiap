@@ -12,10 +12,7 @@ import * as React from 'react';
 import * as ReactTestRenderer from 'react-test-renderer';
 
 import {useWebhookEvents} from '../useWebhookEvents';
-import type {
-  WebhookEventPayload,
-  WebhookEventStream,
-} from '../webhook-client';
+import type {WebhookEventPayload, WebhookEventStream} from '../webhook-client';
 
 const validEvent: WebhookEventPayload = {
   id: 'uuid-1',
@@ -46,7 +43,7 @@ function makeFakeStream() {
   };
   return {
     stream,
-    fire: (data: string) => listeners.message?.({data}),
+    fire: (type: string, data: string) => listeners[type]?.({data}),
   };
 }
 
@@ -84,7 +81,7 @@ describe('useWebhookEvents (expo)', () => {
     );
 
     ReactTestRenderer.act(() => {
-      fire(JSON.stringify(validEvent));
+      fire('SubscriptionRenewed', JSON.stringify(validEvent));
     });
 
     expect(onEvent).toHaveBeenCalledWith(

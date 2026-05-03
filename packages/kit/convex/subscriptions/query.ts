@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import { monthlyMicrosForSub } from "./monthlyMicros";
+import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
 
 const subscriptionStateValidator = v.union(
   v.literal("Active"),
@@ -69,7 +70,8 @@ async function projectByApiKey(
 }
 
 // Match onesub's `/onesub/status?userId=` — returns the most-recently-
-// updated subscription for the user along with a single `active` boolean
+// updated active subscription when the user is entitled, otherwise the
+// most-recently-updated subscription overall, plus one `active` boolean
 // for simple gating.
 export const subscriptionStatus = query({
   args: { apiKey: v.string(), userId: v.string() },
@@ -86,13 +88,19 @@ export const subscriptionStatus = query({
       .withIndex("by_project_and_user", (q) =>
         q.eq("projectId", project._id).eq("userId", args.userId),
       )
-      .order("desc")
-      .take(1);
+      .collect();
 
-    const sub = subs[0] ?? null;
+    const now = Date.now();
+    const activeSubs = subs.filter((candidate) => isActive(candidate, now));
+    const sub = selectMostRecentlyUpdatedSubscription(
+      activeSubs.length > 0 ? activeSubs : subs,
+    );
     if (!sub) return { active: false, subscription: null };
 
-    return { active: isActive(sub, Date.now()), subscription: shapeRow(sub) };
+    return {
+      active: activeSubs.length > 0,
+      subscription: shapeRow(sub),
+    };
   },
 });
 

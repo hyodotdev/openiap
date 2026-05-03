@@ -406,19 +406,20 @@ import 'package:flutter_inapp_purchase/webhook_client.dart';
 
 final listener = connectWebhookStream(apiKey: '${apiKey}');
 listener.events.listen((event) {
-  if (event.type == WebhookEventTypeName.subscriptionRenewed) {
+  if (event.type == WebhookEventType.SubscriptionRenewed) {
     grantEntitlement(event.purchaseToken);
   }
 });
 await FlutterInappPurchase.instance.requestPurchase(productId: '${productId}');`;
     case "kmp":
       return `import io.github.hyochan.kmpiap.openiap.WebhookEventParser
+import io.github.hyochan.kmpiap.openiap.WebhookEventType
 
 // Parse SSE frames from \`webhookStreamUrl(apiKey = "${apiKey}")\`
 // in your platform's HTTP client and feed each data frame to:
 val event = WebhookEventParser.parse(rawJson) ?: return
 when (event.type) {
-    WebhookEventTypeName.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
+    WebhookEventType.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
     else -> Unit
 }`;
     case "godot":

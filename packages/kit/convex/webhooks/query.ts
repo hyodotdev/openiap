@@ -60,6 +60,63 @@ export const findEventCursor = query({
   },
 });
 
+const webhookEventStreamShape = v.object({
+  id: v.string(),
+  // Convex auto-assigned `_creationTime` (epoch ms, monotonic per
+  // doc insert). Surfaced so SDKs can checkpoint reliably even
+  // when two events share the same `receivedAt` — the wall-clock
+  // tie-breaker is not unique under burst writes (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review
+  // fix). The Convex doc id (`_id`) is also surfaced for the same
+  // reason; `id` (sourceNotificationId) stays the spec-stable
+  // identifier consumers gate on.
+  _creationTime: v.number(),
+  _id: v.id("webhookEvents"),
+  type: webhookEventTypeValidator,
+  source: webhookEventSourceValidator,
+  platform: webhookEventPlatformValidator,
+  environment: webhookEventEnvironmentValidator,
+  projectId: v.id("projects"),
+  occurredAt: v.number(),
+  receivedAt: v.number(),
+  // Optional because TestNotification rows carry no transaction.
+  purchaseToken: v.optional(v.string()),
+  productId: v.optional(v.string()),
+  subscriptionState: v.optional(subscriptionStateValidator),
+  expiresAt: v.optional(v.number()),
+  renewsAt: v.optional(v.number()),
+  cancellationReason: v.optional(webhookCancellationReasonValidator),
+  currency: v.optional(v.string()),
+  priceAmountMicros: v.optional(v.number()),
+  rawSignedPayload: v.optional(v.string()),
+});
+
+function shapeWebhookEvent(event: Doc<"webhookEvents">) {
+  return {
+    // GraphQL `id` is the stable per-notification identifier from
+    // the store; ASN v2 notificationUUID and RTDN messageId are both
+    // globally unique and survive replay/dedup.
+    id: event.sourceNotificationId,
+    _creationTime: event._creationTime,
+    _id: event._id,
+    type: event.type,
+    source: event.source,
+    platform: event.platform,
+    environment: event.environment,
+    projectId: event.projectId,
+    occurredAt: event.occurredAt,
+    receivedAt: event.receivedAt,
+    purchaseToken: event.purchaseToken,
+    productId: event.productId,
+    subscriptionState: event.subscriptionState,
+    expiresAt: event.expiresAt,
+    renewsAt: event.renewsAt,
+    cancellationReason: event.cancellationReason,
+    currency: event.currency,
+    priceAmountMicros: event.priceAmountMicros,
+    rawSignedPayload: event.rawSignedPayload,
+  };
+}
+
 // Backfill query used by SDKs on reconnect / app foreground entry.
 // Returns webhook events for the API key's project that occurred since
 // the given timestamp, ordered ascending by `receivedAt` so consumers
@@ -82,37 +139,7 @@ export const webhookEventsSince = query({
     afterCreationTime: v.optional(v.number()),
     limit: v.optional(v.number()),
   },
-  returns: v.array(
-    v.object({
-      id: v.string(),
-      // Convex auto-assigned `_creationTime` (epoch ms, monotonic per
-      // doc insert). Surfaced so SDKs can checkpoint reliably even
-      // when two events share the same `receivedAt` — the wall-clock
-      // tie-breaker is not unique under burst writes (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review
-      // fix). The Convex doc id (`_id`) is also surfaced for the same
-      // reason; `id` (sourceNotificationId) stays the spec-stable
-      // identifier consumers gate on.
-      _creationTime: v.number(),
-      _id: v.id("webhookEvents"),
-      type: webhookEventTypeValidator,
-      source: webhookEventSourceValidator,
-      platform: webhookEventPlatformValidator,
-      environment: webhookEventEnvironmentValidator,
-      projectId: v.id("projects"),
-      occurredAt: v.number(),
-      receivedAt: v.number(),
-      // Optional because TestNotification rows carry no transaction.
-      purchaseToken: v.optional(v.string()),
-      productId: v.optional(v.string()),
-      subscriptionState: v.optional(subscriptionStateValidator),
-      expiresAt: v.optional(v.number()),
-      renewsAt: v.optional(v.number()),
-      cancellationReason: v.optional(webhookCancellationReasonValidator),
-      currency: v.optional(v.string()),
-      priceAmountMicros: v.optional(v.number()),
-      rawSignedPayload: v.optional(v.string()),
-    }),
-  ),
+  returns: v.array(webhookEventStreamShape),
   handler: async (ctx, args) => {
     const project = await ctx.db
       .query("projects")
@@ -178,29 +205,41 @@ export const webhookEventsSince = query({
       events = [...boundary, ...events].slice(0, limit);
     }
 
-    return events.map((event) => ({
-      // GraphQL `id` is the stable per-notification identifier from
-      // the store; ASN v2 notificationUUID and RTDN messageId are both
-      // globally unique and survive replay/dedup.
-      id: event.sourceNotificationId,
-      _creationTime: event._creationTime,
-      _id: event._id,
-      type: event.type,
-      source: event.source,
-      platform: event.platform,
-      environment: event.environment,
-      projectId: event.projectId,
-      occurredAt: event.occurredAt,
-      receivedAt: event.receivedAt,
-      purchaseToken: event.purchaseToken,
-      productId: event.productId,
-      subscriptionState: event.subscriptionState,
-      expiresAt: event.expiresAt,
-      renewsAt: event.renewsAt,
-      cancellationReason: event.cancellationReason,
-      currency: event.currency,
-      priceAmountMicros: event.priceAmountMicros,
-      rawSignedPayload: event.rawSignedPayload,
-    }));
+    return events.map(shapeWebhookEvent);
+  },
+});
+
+// Reactive wake-up query for the SSE live tail. Unlike
+// `webhookEventsSince`, this returns the latest matching window so the
+// Convex subscription result keeps changing as new rows arrive. The
+// route still drains through `webhookEventsSince` with its own moving
+// cursor; this query only tells the route that there is fresh work.
+export const latestWebhookEventsSince = query({
+  args: {
+    apiKey: v.string(),
+    sinceMs: v.number(),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(webhookEventStreamShape),
+  handler: async (ctx, args) => {
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
+      .unique();
+
+    if (!project) {
+      return [];
+    }
+
+    const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
+    const latest = await ctx.db
+      .query("webhookEvents")
+      .withIndex("by_project_and_received_and_creation", (q) =>
+        q.eq("projectId", project._id).gte("receivedAt", args.sinceMs),
+      )
+      .order("desc")
+      .take(limit);
+
+    return latest.reverse().map(shapeWebhookEvent);
   },
 });

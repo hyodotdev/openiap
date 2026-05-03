@@ -599,20 +599,116 @@ webhooks.get("/stream/:apiKey", async (c) => {
     }
 
     // ── Phase 2: attach live tail ────────────────────────────────
-    // Pinned at `liveStart - PHASE_OVERLAP_MS`. The overlap closes a
-    // small race window: an event committed with `receivedAt`
-    // marginally before `liveStart` (clock skew between the API
-    // server and the Convex backend, or just plain execution delay
-    // between the Phase-1 last-page scan and the Phase-2 onUpdate
-    // registration) would otherwise be missed by both phases. The
-    // `seen` set dedupes anything the overlap re-surfaces from the
-    // backlog, so the cost of the overlap is bounded to a few
-    // already-emitted ids — never a duplicate delivery.
+    // Convex reactive query args are immutable for the life of an
+    // `onUpdate` subscription, so the subscription itself cannot be
+    // the delivery cursor. Use it only as a wake-up signal, then drain
+    // through `webhookEventsSince` with a per-connection moving cursor.
+    // That keeps long-lived streams moving past every 500-row page.
+    //
+    // The overlap closes a small race window: an event committed with
+    // `receivedAt` marginally before `liveStart` would otherwise be
+    // missed by both phases. `seen` dedupes the overlap.
     const PHASE_OVERLAP_MS = 5_000;
+    let liveCursor = liveStart - PHASE_OVERLAP_MS;
+    let liveCreationCursor: number | undefined;
+    let liveDraining = false;
+    let liveDrainRequested = false;
+    const drainLiveTail = async (): Promise<void> => {
+      if (liveDraining) {
+        liveDrainRequested = true;
+        return;
+      }
+      liveDraining = true;
+      try {
+        do {
+          liveDrainRequested = false;
+          let iterations = 0;
+          while (!aborted) {
+            if (iterations >= DRAIN_MAX_ITERATIONS) {
+              console.warn(
+                "[webhooks/stream] live drain hit DRAIN_MAX_ITERATIONS",
+                { iterations, liveCursor },
+              );
+              break;
+            }
+            iterations += 1;
+            const batch = (await client.query(
+              api.webhooks.query.webhookEventsSince,
+              {
+                apiKey,
+                sinceMs: liveCursor,
+                afterCreationTime: liveCreationCursor,
+                limit: 500,
+              },
+            )) as Array<Record<string, unknown>>;
+            if (!batch.length) {
+              break;
+            }
+
+            let advanced = false;
+            for (const event of batch) {
+              if (aborted) break;
+              const receivedAt =
+                typeof event.receivedAt === "number" ? event.receivedAt : null;
+              const creationTime =
+                typeof event._creationTime === "number"
+                  ? event._creationTime
+                  : undefined;
+              if (
+                receivedAt !== null &&
+                (receivedAt > liveCursor ||
+                  (receivedAt === liveCursor &&
+                    creationTime !== undefined &&
+                    (liveCreationCursor === undefined ||
+                      creationTime > liveCreationCursor)))
+              ) {
+                liveCursor = receivedAt;
+                liveCreationCursor = creationTime;
+                advanced = true;
+              }
+
+              const id = typeof event.id === "string" ? event.id : null;
+              if (!id || seen.has(id)) continue;
+              seen.add(id);
+              await stream
+                .writeSSE({
+                  id,
+                  event:
+                    typeof event.type === "string"
+                      ? event.type
+                      : "WebhookEvent",
+                  data: JSON.stringify(redactWebhookEventForStream(event)),
+                })
+                .catch((err) => {
+                  console.error("[webhooks/stream] live write failed", err);
+                });
+            }
+            if (!advanced || batch.length < 500) {
+              break;
+            }
+          }
+        } while (liveDrainRequested && !aborted);
+      } catch (error) {
+        console.error("[webhooks/stream] live drain failed", error);
+        await stream.writeSSE({
+          event: "stream-error",
+          data: JSON.stringify({
+            message:
+              error instanceof Error ? error.message : "Live drain failed",
+          }),
+        });
+      } finally {
+        liveDraining = false;
+        if (liveDrainRequested && !aborted) {
+          void drainLiveTail();
+        }
+      }
+    };
+
     let unsubscribe: (() => void) | null = null;
     try {
       unsubscribe = reactive.onUpdate(
-        api.webhooks.query.webhookEventsSince,
+        api.webhooks.query.latestWebhookEventsSince,
         {
           apiKey,
           sinceMs: liveStart - PHASE_OVERLAP_MS,
@@ -621,21 +717,7 @@ webhooks.get("/stream/:apiKey", async (c) => {
         (events: unknown) => {
           if (aborted) return;
           if (!Array.isArray(events)) return;
-          for (const event of events as Array<Record<string, unknown>>) {
-            const id = typeof event.id === "string" ? event.id : null;
-            if (!id || seen.has(id)) continue;
-            seen.add(id);
-            stream
-              .writeSSE({
-                id,
-                event:
-                  typeof event.type === "string" ? event.type : "WebhookEvent",
-                data: JSON.stringify(redactWebhookEventForStream(event)),
-              })
-              .catch((err) => {
-                console.error("[webhooks/stream] write failed", err);
-              });
-          }
+          void drainLiveTail();
         },
       );
     } catch (error) {
@@ -651,6 +733,8 @@ webhooks.get("/stream/:apiKey", async (c) => {
       return;
     }
 
+    await drainLiveTail();
+
     // Phase 2 onUpdate is now armed — switch the dedup tracker
     // from "hold every drained id" to "bounded sliding window."
     // The pre-drain ids that are older than the overlap window
@@ -661,6 +745,8 @@ webhooks.get("/stream/:apiKey", async (c) => {
     try {
       while (!aborted) {
         await stream.sleep(HEARTBEAT_MS);
+        if (aborted) break;
+        await drainLiveTail();
         if (aborted) break;
         await stream.writeSSE({ event: "heartbeat", data: "" });
       }

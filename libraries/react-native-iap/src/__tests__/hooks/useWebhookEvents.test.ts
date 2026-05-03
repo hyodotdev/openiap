@@ -45,7 +45,7 @@ function makeFakeStream() {
   };
   return {
     stream,
-    fire: (data: string) => listeners.message?.({data}),
+    fire: (type: string, data: string) => listeners[type]?.({data}),
   };
 }
 
@@ -102,7 +102,7 @@ describe('useWebhookEvents', () => {
     );
 
     act(() => {
-      fire(JSON.stringify(validEvent));
+      fire('SubscriptionRenewed', JSON.stringify(validEvent));
     });
 
     expect(onEvent).toHaveBeenCalledWith(
@@ -140,9 +140,9 @@ describe('useWebhookEvents', () => {
     });
 
     act(() => {
-      fire(JSON.stringify({...validEvent, id: 'a'}));
-      fire(JSON.stringify({...validEvent, id: 'b'}));
-      fire(JSON.stringify({...validEvent, id: 'c'}));
+      fire('SubscriptionRenewed', JSON.stringify({...validEvent, id: 'a'}));
+      fire('SubscriptionRenewed', JSON.stringify({...validEvent, id: 'b'}));
+      fire('SubscriptionRenewed', JSON.stringify({...validEvent, id: 'c'}));
     });
 
     const result = (HookProbe as any).last as {
