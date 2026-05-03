@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM oven/bun:1.3.13-slim AS base
 
 # Build context is the monorepo root (see deploy-kit.yml + scripts/deploy-prod.sh).
@@ -44,11 +46,11 @@ ENV VITE_KIT_CONVEX_URL=${VITE_KIT_CONVEX_URL}
 # a build arg instead of committing to the repo so it rotates cleanly.
 ARG VITE_KIT_SENTRY_DSN
 ENV VITE_KIT_SENTRY_DSN=${VITE_KIT_SENTRY_DSN}
-# Mixpanel project token — also public by design (exposed in the SPA
-# bundle to identify users client-side). Empty value disables init.
-ARG VITE_KIT_MIXPANEL_TOKEN
-ENV VITE_KIT_MIXPANEL_TOKEN=${VITE_KIT_MIXPANEL_TOKEN}
-RUN bun run build:all
+# Mixpanel project token is public by design and baked into the SPA when set,
+# but pass it via BuildKit secret so Docker does not flag TOKEN-named ARG/ENV.
+RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
+    VITE_KIT_MIXPANEL_TOKEN="$(cat /run/secrets/VITE_KIT_MIXPANEL_TOKEN 2>/dev/null || true)" \
+    bun run build:all
 
 # --- Runtime image (single binary + static assets) -----------------------
 FROM debian:bookworm-slim AS runtime

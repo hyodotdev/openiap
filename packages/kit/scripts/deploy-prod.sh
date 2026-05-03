@@ -56,16 +56,18 @@ esac
 
 echo "Deploying to Fly with VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL"
 
-BUILD_ARGS=(--build-arg "VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL")
+BUILD_FLAGS=(--build-arg "VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL")
 if [ -n "${VITE_KIT_SENTRY_DSN:-}" ]; then
-  BUILD_ARGS+=(--build-arg "VITE_KIT_SENTRY_DSN=$VITE_KIT_SENTRY_DSN")
+  BUILD_FLAGS+=(--build-arg "VITE_KIT_SENTRY_DSN=$VITE_KIT_SENTRY_DSN")
 fi
 if [ -n "${VITE_KIT_MIXPANEL_TOKEN:-}" ]; then
-  BUILD_ARGS+=(--build-arg "VITE_KIT_MIXPANEL_TOKEN=$VITE_KIT_MIXPANEL_TOKEN")
+  # Public SPA config, passed as a BuildKit secret to avoid Docker's
+  # TOKEN-named ARG/ENV warning while still baking it into the bundle.
+  BUILD_FLAGS+=(--build-secret "VITE_KIT_MIXPANEL_TOKEN=$VITE_KIT_MIXPANEL_TOKEN")
 fi
 
 cd "$REPO_ROOT"
 exec flyctl deploy --app openiap-kit \
   --config packages/kit/fly.toml \
   --dockerfile packages/kit/Dockerfile \
-  "${BUILD_ARGS[@]}" "$@"
+  "${BUILD_FLAGS[@]}" "$@"
