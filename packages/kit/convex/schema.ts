@@ -633,6 +633,19 @@ const schema = defineSchema({
       "projectId",
       "state",
       "productId",
+    ])
+    // Composite (projectId, state, updatedAt) for the Horizon
+    // reconciler's per-state, oldest-first pagination. With this index
+    // we walk the staleest subs in each mutable state per cron tick;
+    // after Meta verify_entitlement writes the fresh `updatedAt`, the
+    // row moves to the back of the queue automatically. That makes
+    // the reconciler self-paginating across ticks — no separate
+    // continuation cursor needed (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    .index("by_project_and_state_and_updated", [
+      "projectId",
+      "state",
+      "updatedAt",
     ]),
 
   // Incrementally-maintained per-(project, currency) subscription

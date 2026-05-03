@@ -97,35 +97,47 @@ export const listHorizonSubscriptions = internalQuery({
       "Paused",
       "Unknown",
     ] as const;
-    // Per-state cap. Horizon polling is a small-population case in
-    // practice (most projects ship < 1k Horizon subs total), but
-    // bounding here protects against Convex's 40k document-read
-    // limit. The `Promise.all` runs every state query in parallel
-    // under one Convex query budget; without `.take()`, a single
-    // project with > ~10k Active subs could exceed the limit and
-    // stall every Horizon cron tick. 5 states × 6_000 = 30k reads,
-    // leaving ~10k of the 40k budget for downstream filtering.
+    // Per-state cap with self-paginating, oldest-first ordering.
+    //
+    // Bounded for two reasons: (1) Convex's 40k document-read limit
+    // per query — 5 states × 6_000 = 30k reads, leaving ~10k for
+    // downstream filtering; (2) the action that consumes this list
+    // calls Meta `verify_entitlement` once per row, which has its
+    // own per-cron-tick budget.
+    //
+    // Pagination strategy: order by `updatedAt` ASC via the
+    // `by_project_and_state_and_updated` composite index. The
+    // staleest subs per state surface first; once
+    // `recordHorizonStatus` runs and writes a fresh `updatedAt`,
+    // those rows move to the back of the queue so the next tick
+    // picks up the never-reconciled tail. Time-to-fully-reconcile
+    // for population N is ~ceil(N / PER_STATE_CAP) ticks. A
+    // pathological 100k-sub project converges in ~17 ticks instead
+    // of "tail forever stale" (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    //
+    // No external continuation cursor is needed because the cursor is
+    // implicit in `updatedAt` itself.
     const PER_STATE_CAP = 6_000;
     const perState = await Promise.all(
       STATES.map((state) =>
         ctx.db
           .query("subscriptions")
-          .withIndex("by_project_and_state", (q) =>
+          .withIndex("by_project_and_state_and_updated", (q) =>
             q.eq("projectId", args.projectId).eq("state", state),
           )
+          .order("asc")
           .take(PER_STATE_CAP),
       ),
     );
-    // Surface cap-hits in logs so the operator can see when a project
-    // outgrows the per-tick reconciliation budget — at that point the
-    // tail end of the bucket goes unreconciled until the population
-    // drops back below the cap (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
-    // review). A future change can paginate this across cron ticks; for
-    // now visibility is the priority so the truncation isn't silent.
+    // Operator visibility: log when a state bucket fully fills the
+    // per-tick cap. The reconciler still completes correctly because
+    // the tail surfaces next tick, but a sustained cap-hit signals
+    // that the cron interval may be too sparse for the population.
     STATES.forEach((state, i) => {
       if (perState[i].length === PER_STATE_CAP) {
-        console.warn(
-          `[horizon-reconciler] project=${args.projectId} state=${state} hit PER_STATE_CAP=${PER_STATE_CAP}; tail subscriptions are not reconciled this tick.`,
+        console.info(
+          `[horizon-reconciler] project=${args.projectId} state=${state} filled PER_STATE_CAP=${PER_STATE_CAP}; remaining tail will reconcile on subsequent ticks via updatedAt cursor.`,
         );
       }
     });
