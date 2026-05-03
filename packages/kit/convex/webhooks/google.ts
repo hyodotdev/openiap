@@ -337,27 +337,20 @@ async function maybeFetchSubscriptionInfo(
     // had a root-level `expiryTimeMillis`, but we never call that
     // endpoint here.
     //
-    // Pick the line item whose `expiryTime` matches the notification's
-    // purchaseToken — Subscriptions V2 supports multi-line-item bundles
-    // (base plan + add-ons), and just taking `lineItems[0]` would
-    // mis-attribute the expiry / autoRenew of one entitlement to
-    // another. When we can't resolve a specific match we fall back to
-    // the longest-dated line item so the dashboard at least shows the
-    // user-relevant "subscription is good through" date (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // Pick the line item with the longest-dated `expiryTime`.
+    // Subscriptions V2 supports multi-line-item bundles (base plan +
+    // add-ons), and just taking `lineItems[0]` would mis-attribute one
+    // entitlement's expiry / autoRenew to the entire subscription.
+    //
+    // We deliberately do NOT match by `latestSuccessfulOrderId`: that
+    // field carries a GPA Order ID, while the notification carries a
+    // `purchaseToken` (different identifier — PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review). The
+    // longest-dated line item is the user-relevant "subscription is
+    // good through" date and matches what the dashboard surfaces.
     const lineItems = data.lineItems ?? [];
-    // Capture into a local so the closure inside `.find` keeps the
-    // narrowed non-null type (TS loses narrowing across the lambda
-    // boundary even though the early-return above already proved
-    // `subscriptionNotification` is set).
-    const notificationToken = payload.subscriptionNotification.purchaseToken;
+    // `expiryTime` is an ISO string; max-by sorts by Date.parse order.
     const matched =
-      lineItems.find(
-        (li) =>
-          (li as { latestSuccessfulOrderId?: string })
-            .latestSuccessfulOrderId === notificationToken,
-      ) ??
-      // `expiryTime` is an ISO string; max-by sorts by Date.parse order.
       lineItems.reduce<(typeof lineItems)[number] | undefined>((acc, li) => {
         if (!li.expiryTime) return acc;
         const score = Date.parse(li.expiryTime);
@@ -366,8 +359,7 @@ async function maybeFetchSubscriptionInfo(
           ? Date.parse(acc.expiryTime)
           : -Infinity;
         return score > accScore ? li : acc;
-      }, undefined) ??
-      lineItems[0];
+      }, undefined) ?? lineItems[0];
     const expiry = matched?.expiryTime ?? undefined;
     // `autoRenewingPlan` presence is the authoritative v2 indicator
     // that auto-renewal is scheduled. Gating `renews` on

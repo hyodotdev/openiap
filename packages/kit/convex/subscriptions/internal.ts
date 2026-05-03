@@ -98,18 +98,31 @@ export const applySubscriptionEvent = internalMutation({
 
     // Pull billing period for MRR calculation. Skipped if state isn't
     // counted (Active / InGracePeriod / InBillingRetry) since
-    // statsContributionFor returns null in that case anyway.
+    // statsContributionFor returns null in that case anyway. The
+    // AFTER side always uses the new product's period.
     const billingPeriod = await fetchBillingPeriod(
       ctx,
       args.projectId,
       next.productId,
     );
 
+    // BEFORE side has to use the OLD product's billing period — when
+    // an upgrade or downgrade event flips `productId`, using the new
+    // product's period to compute the BEFORE delta would subtract
+    // the wrong monthly-normalized amount from MRR and corrupt the
+    // incremental counter (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // Reuse `billingPeriod` only when the productId didn't change.
+    const beforeBillingPeriod =
+      existing && existing.productId !== next.productId
+        ? await fetchBillingPeriod(ctx, args.projectId, existing.productId)
+        : billingPeriod;
+
     // Capture the BEFORE contribution against the still-existing row
     // so the stats delta below subtracts what the row used to count
     // for, then adds what it counts for after the patch.
     const beforeContribution = existing
-      ? statsContributionFor(existing, billingPeriod, now)
+      ? statsContributionFor(existing, beforeBillingPeriod, now)
       : null;
 
     let subscriptionId: Id<"subscriptions">;

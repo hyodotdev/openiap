@@ -3,6 +3,7 @@ package io.github.hyochan.kmpiap.openiap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -190,6 +191,16 @@ actual class WebhookTransport actual constructor(
                 throw emitError.cause ?: emitError
             } catch (error: Throwable) {
                 if (closed) break
+                // Check coroutine cancellation explicitly. When the
+                // collector's job is cancelled, the disconnect() in
+                // invokeOnCompletion fires SocketException through
+                // input.read(), which lands here as a generic
+                // Throwable. Without this check we'd fall through to
+                // delay(2_000) and keep the transport alive an extra
+                // 2s after cancellation (PR #124
+                // (https://github.com/hyodotdev/openiap/pull/124)
+                // review).
+                if (!currentCoroutineContext().isActive) break
                 // fall through to the back-off + reconnect.
             } finally {
                 runCatching { connection.disconnect() }
