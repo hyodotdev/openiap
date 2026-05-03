@@ -28,6 +28,15 @@ import {
 // key state would surface as Play API 401s on the affected webhooks
 // (which then expire the cache via the catch path below).
 const PLAY_CLIENT_TTL_MS = 60 * 60 * 1000;
+// Bounded LRU cache. Convex action containers are reused across
+// projects, and an unbounded `Map<projectId, client>` would grow
+// without limit on a multi-tenant deployment — eventually leaking
+// memory in the long-running Node process. The cap keeps the cache
+// hot for the working set (most webhook traffic concentrates on a
+// small subset of high-volume projects) while stopping the long
+// tail of one-off projects from accumulating forever (PR #124
+// (https://github.com/hyodotdev/openiap/pull/124) review).
+const PLAY_CLIENT_CACHE_MAX_ENTRIES = 100;
 const playClientCache = new Map<
   string,
   {
@@ -35,6 +44,17 @@ const playClientCache = new Map<
     expiresAt: number;
   }
 >();
+
+// `Map` preserves insertion order, so the first key in iteration is
+// the least-recently-set. We re-set on every cache hit (see below)
+// to bump the entry to the end, turning the Map into an LRU.
+function trimPlayClientCacheLru(): void {
+  while (playClientCache.size > PLAY_CLIENT_CACHE_MAX_ENTRIES) {
+    const oldestKey = playClientCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    playClientCache.delete(oldestKey);
+  }
+}
 
 type IngestResult = {
   eventId: Id<"webhookEvents">;
@@ -288,6 +308,11 @@ async function maybeFetchSubscriptionInfo(
     const cached = playClientCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       androidpublisher = cached.client;
+      // LRU bump: re-set the entry so it moves to the end of the
+      // Map's insertion order. Combined with `trimPlayClientCacheLru`
+      // below, hot keys stay resident while cold ones get evicted.
+      playClientCache.delete(cacheKey);
+      playClientCache.set(cacheKey, cached);
     } else {
       const serviceAccountFile = await ctx.runQuery(
         internal.files.internal.getGooglePlayFileByProjectInternal,
@@ -333,6 +358,7 @@ async function maybeFetchSubscriptionInfo(
         client: androidpublisher,
         expiresAt: Date.now() + PLAY_CLIENT_TTL_MS,
       });
+      trimPlayClientCacheLru();
     }
 
     // Per-request timeout — googleapis defaults to no timeout, and a

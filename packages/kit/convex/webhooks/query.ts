@@ -1,4 +1,5 @@
 import { query } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 
 import {
@@ -127,37 +128,55 @@ export const webhookEventsSince = query({
 
     const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
 
-    // Take up to 5000 when `afterCreationTime` is in play so the
-    // in-memory filter still has `limit` events to return after
-    // dropping rows at the boundary millisecond. 5000 covers the
-    // realistic worst-case cohort (Apple/Google never fire that
-    // many events in a single ms in production); the saturated-
-    // cohort case beyond that bound is handled at the SSE layer in
-    // webhooks.ts which loops with the tuple cursor
-    // `(receivedAt, _creationTime)`. An inner loop here would
-    // either skip events still in the boundary millisecond
-    // (`cursor = lastReceivedAt + 1`) or duplicate the SSE loop's
-    // logic, so we keep the query primitive and let the next layer
-    // handle pathological collations.
-    const fetchLimit = args.afterCreationTime
-      ? Math.min(limit * 10, 5000)
-      : limit;
-    const raw = await ctx.db
-      .query("webhookEvents")
-      .withIndex("by_project_and_received", (q) =>
-        q.eq("projectId", project._id).gte("receivedAt", args.sinceMs),
-      )
-      .order("asc")
-      .take(fetchLimit);
-    const events = (
-      args.afterCreationTime
-        ? raw.filter(
-            (e) =>
-              e.receivedAt > args.sinceMs ||
-              e._creationTime > args.afterCreationTime!,
-          )
-        : raw
-    ).slice(0, limit);
+    // Two-phase walk on the `(projectId, receivedAt, _creationTime)`
+    // composite index so we never need an in-memory boundary filter
+    // — which would silently drop pages when a single-millisecond
+    // burst exceeded the in-memory cap. Phase 1 (only when
+    // `afterCreationTime` is set) exhausts the boundary-millisecond
+    // tail past the cursor via `gt("_creationTime", ...)`; Phase 2
+    // walks the post-boundary range via `gt("receivedAt", ...)`. The
+    // SSE layer in webhooks.ts handles the inverse case (consumer
+    // catching up across many millisecond cohorts) by looping with
+    // the tuple cursor (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    let events: Array<Doc<"webhookEvents">> = [];
+    if (args.afterCreationTime !== undefined) {
+      const boundaryTail = await ctx.db
+        .query("webhookEvents")
+        .withIndex("by_project_and_received_and_creation", (q) =>
+          q
+            .eq("projectId", project._id)
+            .eq("receivedAt", args.sinceMs)
+            .gt("_creationTime", args.afterCreationTime!),
+        )
+        .order("asc")
+        .take(limit);
+      events.push(...boundaryTail);
+    }
+    if (events.length < limit) {
+      const postBoundary = await ctx.db
+        .query("webhookEvents")
+        .withIndex("by_project_and_received_and_creation", (q) =>
+          q.eq("projectId", project._id).gt("receivedAt", args.sinceMs),
+        )
+        .order("asc")
+        .take(limit - events.length);
+      events.push(...postBoundary);
+    }
+    if (args.afterCreationTime === undefined) {
+      // `afterCreationTime` not in play: include the boundary cohort.
+      // The post-boundary scan above used `gt(receivedAt, sinceMs)`
+      // which excludes it, so prepend the `eq(receivedAt, sinceMs)`
+      // matches up to the limit.
+      const boundary = await ctx.db
+        .query("webhookEvents")
+        .withIndex("by_project_and_received_and_creation", (q) =>
+          q.eq("projectId", project._id).eq("receivedAt", args.sinceMs),
+        )
+        .order("asc")
+        .take(limit);
+      events = [...boundary, ...events].slice(0, limit);
+    }
 
     return events.map((event) => ({
       // GraphQL `id` is the stable per-notification identifier from
