@@ -431,6 +431,12 @@ export const pushSyncProductsGoogle = action({
           // reach Play (PR #124
           // (https://github.com/hyodotdev/openiap/pull/124) review).
           if (row.storeRef) {
+            // Track whether the patch step succeeded — only flip to
+            // Ready when the upstream actually accepted our changes,
+            // otherwise the row stays Draft and surfaces in the next
+            // sync's drafts list for retry (PR #124
+            // (https://github.com/hyodotdev/openiap/pull/124) review).
+            let patchOk = true;
             if (row.type === "Subscription") {
               // Subscriptions: patch the listing via
               // monetization.subscriptions.patch (en-US listing only —
@@ -463,6 +469,7 @@ export const pushSyncProductsGoogle = action({
                 // 404 = subscription was deleted upstream after our
                 // last pull; surface as a failure so the operator
                 // re-creates it. Anything else also surfaces.
+                patchOk = false;
                 failures.push({
                   productId: `${row.productId} (subscription patch)`,
                   reason:
@@ -498,6 +505,7 @@ export const pushSyncProductsGoogle = action({
                   },
                 });
               } catch (error) {
+                patchOk = false;
                 failures.push({
                   productId: `${row.productId} (inapp patch)`,
                   reason:
@@ -505,13 +513,15 @@ export const pushSyncProductsGoogle = action({
                 });
               }
             }
-            await ctx.runMutation(internal.products.sync.markPushed, {
-              projectId: project._id,
-              productId: row.productId,
-              platform: "Android",
-              storeRef: row.storeRef,
-            });
-            pushed += 1;
+            if (patchOk) {
+              await ctx.runMutation(internal.products.sync.markPushed, {
+                projectId: project._id,
+                productId: row.productId,
+                platform: "Android",
+                storeRef: row.storeRef,
+              });
+              pushed += 1;
+            }
             continue;
           }
           if (row.type === "Subscription") {

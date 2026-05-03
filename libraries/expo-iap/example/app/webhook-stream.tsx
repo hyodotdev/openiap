@@ -47,6 +47,12 @@ export default function WebhookStreamScreen() {
       );
       return;
     }
+    // Defensive close-before-open: a transient transport error keeps
+    // the underlying SSE auto-reconnecting in the background, so a
+    // user tapping Connect again in the error state would otherwise
+    // create a second live listener and double-emit events.
+    listenerRef.current?.close();
+    listenerRef.current = null;
     setStatus('connecting');
     setStatusMessage(null);
     listenerRef.current = connectWebhookStream({

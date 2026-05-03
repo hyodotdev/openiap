@@ -56,6 +56,16 @@ export const upsertProduct = mutation({
       .unique();
     if (!project) throw new Error("Invalid API key");
 
+    // Reject negative prices. The catalog row would otherwise round-
+    // trip into push-sync (asc.ts / play.ts) and either crash on
+    // Apple's price-tier lookup or land a negative `priceMicros` on
+    // Play, neither of which the operator can correct from the
+    // dashboard later (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    if (args.priceAmountMicros !== undefined && args.priceAmountMicros < 0) {
+      throw new Error("priceAmountMicros must be non-negative");
+    }
+
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
     // related tiers must share a group for StoreKit 2's native
     // upgrade/downgrade UI to work. The Apple push-sync (asc.ts)

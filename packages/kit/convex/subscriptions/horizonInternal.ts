@@ -241,8 +241,16 @@ export const recordHorizonStatus = internalMutation({
         });
     // If we found an existing event AND the existing subscription row
     // already references it, the rest of this mutation is a no-op —
-    // the prior cron tick already applied this transition.
+    // the prior cron tick already applied this transition. Bump
+    // `updatedAt` so the row moves to the back of the
+    // `by_project_and_state_and_updated` queue used by
+    // `listHorizonSubscriptions` for paginated reconciliation;
+    // otherwise steady-state rows whose deterministic event id
+    // doesn't change would stay pinned at the front of the cursor and
+    // anything past PER_STATE_CAP would never be revisited (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
     if (existing.lastEventId === eventId) {
+      await ctx.db.patch(existing._id, { updatedAt: now });
       return existing._id;
     }
 

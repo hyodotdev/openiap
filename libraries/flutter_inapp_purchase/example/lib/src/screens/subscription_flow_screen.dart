@@ -316,8 +316,13 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
     try {
       debugPrint('Verifying subscription with IAPKit...');
       final jwsOrToken = purchase.purchaseToken ?? '';
+      // Avoid logging the token itself (or a token-derived prefix) —
+      // ASN v2 JWS payloads and Play purchase tokens are sensitive
+      // and would land in adb / Xcode console + any centralized log
+      // collector. Log presence + length only (PR #124
+      // (https://github.com/hyodotdev/openiap/pull/124) review).
       debugPrint(
-          'Token for verification: ${jwsOrToken.substring(0, jwsOrToken.length > 50 ? 50 : jwsOrToken.length)}...');
+          'Token for verification: present=${jwsOrToken.isNotEmpty}, length=${jwsOrToken.length}');
 
       final result = await _iap.verifyPurchaseWithProvider(
         provider: PurchaseVerificationProvider.Iapkit,
@@ -329,7 +334,11 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
         ),
       );
 
-      debugPrint('IAPKit verification result: $result');
+      // Don't log the full result object — it contains the upstream
+      // verification payload which can include the token, productId,
+      // and the kit project context. Log only the high-level outcome.
+      debugPrint(
+          'IAPKit verification completed: hasIapkit=${result.iapkit != null}');
 
       if (result.iapkit != null) {
         final iapkitResult = result.iapkit!;

@@ -312,10 +312,18 @@ async function runRecompute(
   // Kicks off the paginated recompute. The first page processes
   // RECOMPUTE_PAGE_SIZE rows and either schedules itself for the
   // next page or commits to subscriptionStats when isDone.
+  //
+  // `runStartedAt` is the watermark for stale-write detection: the
+  // final commit aborts if any subscription row has been written
+  // since this timestamp, because the incremental path's
+  // `applyStatsTransition` will have already updated subscriptionStats
+  // for those writes and our paged snapshot would clobber them with
+  // older counts.
   await runRecomputePageInline(ctx, {
     projectId,
     cursor: null,
     accumulator: [],
+    runStartedAt: Date.now(),
   });
 }
 
@@ -325,6 +333,7 @@ async function runRecomputePageInline(
     projectId: Id<"projects">;
     cursor: string | null;
     accumulator: Array<RecomputeBucket & { currency: string }>;
+    runStartedAt: number;
   },
 ): Promise<void> {
   // Build periodByProductId from the per-platform product index.
@@ -414,7 +423,29 @@ async function runRecomputePageInline(
         projectId: args.projectId,
         cursor: result.continueCursor,
         accumulator: nextAccumulator,
+        runStartedAt: args.runStartedAt,
       },
+    );
+    return;
+  }
+
+  // Concurrent-write detection. If any subscription row was updated
+  // since the recompute started, the incremental path
+  // (applySubscriptionEvent / recordHorizonStatus) has already
+  // applied that delta to subscriptionStats — our paged snapshot is
+  // stale and must NOT overwrite it. Abort the commit; the next
+  // cron tick will pick this project back up. Convex mutations are
+  // transactional, so this read + the delete/insert below run in a
+  // single serialized txn — no further race window.
+  const concurrentWrite = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_project_and_updated", (q) =>
+      q.eq("projectId", args.projectId).gt("updatedAt", args.runStartedAt),
+    )
+    .first();
+  if (concurrentWrite) {
+    console.info(
+      `[subscriptionStats] aborting recompute commit for project=${args.projectId} — subscription updated at ${concurrentWrite.updatedAt} > runStartedAt=${args.runStartedAt}; incremental path is authoritative.`,
     );
     return;
   }
@@ -466,6 +497,7 @@ export const runRecomputePage = internalMutation({
     projectId: v.id("projects"),
     cursor: v.union(v.string(), v.null()),
     accumulator: recomputeAccumulator,
+    runStartedAt: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
