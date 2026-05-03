@@ -318,10 +318,15 @@ async function maybeFetchSubscriptionInfo(
     );
 
     const data = response.data;
-    const expiry =
-      data.lineItems?.[0]?.expiryTime ??
-      // Fallback: pre-v2 format had `expiryTimeMillis` at the root.
-      undefined;
+    // `subscriptionsv2.get` always returns the v2 shape with
+    // per-line-item `expiryTime`; the legacy `purchases.subscriptions.get`
+    // had a root-level `expiryTimeMillis`, but we never call that
+    // endpoint here. The earlier comment hinted at a fallback that was
+    // never wired (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
+    // review). Resolve to undefined when no line item exists — the
+    // caller already treats missing expiry as "use the wall-clock
+    // dedup path".
+    const expiry = data.lineItems?.[0]?.expiryTime ?? undefined;
     const renews = data.lineItems?.[0]?.autoRenewingPlan?.recurringPrice
       ? data.lineItems?.[0]?.expiryTime
       : undefined;

@@ -177,11 +177,6 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
           debugPrint('✅ Purchase detected as successful, updating UI...');
           debugPrint('  _isProcessing before setState: $_isProcessing');
 
-          // Mark as processed
-          if (transactionKey.isNotEmpty) {
-            _processedTransactionIds.add(transactionKey);
-          }
-
           // Update UI immediately
           if (mounted) {
             setState(() {
@@ -201,19 +196,39 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
           // side and reflects the canonical state back here. We do this before
           // `finishTransaction` so a failed verification doesn't quietly
           // acknowledge a non-validated purchase.
+          var verificationOk = true;
           if (_verificationMethod == VerificationMethod.iapkit) {
-            await _verifyPurchaseWithIAPKit(purchase);
+            verificationOk = await _verifyPurchaseWithIAPKit(purchase);
+          }
+
+          if (!verificationOk) {
+            debugPrint(
+                '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true');
+            // Leave the transaction unfinished so the platform retries on the
+            // next foreground (and don't mark `transactionKey` processed —
+            // the next listener emit gets a fresh chance).
+            return;
           }
 
           // Acknowledge/finish the transaction
+          var finishedOk = false;
           try {
             debugPrint('Calling finishTransaction...');
             await _iap.finishTransaction(
               purchase: purchase,
             );
             debugPrint('Transaction finished successfully');
+            finishedOk = true;
           } catch (e) {
             debugPrint('Error finishing transaction: $e');
+          }
+
+          // Only mark this transactionKey processed once verification AND
+          // finishTransaction have both succeeded; otherwise a transient
+          // failure would permanently short-circuit retries for the rest
+          // of the session.
+          if (finishedOk && transactionKey.isNotEmpty) {
+            _processedTransactionIds.add(transactionKey);
           }
 
           // Refresh subscriptions after a short delay to ensure transaction is processed
@@ -290,7 +305,11 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
   /// reuse the same `verifyPurchaseWithProvider` API but the canonical state
   /// IAPKit returns (`Active` / `InGracePeriod` / `InBillingRetry` / `Expired`)
   /// is the value-add for renewals.
-  Future<void> _verifyPurchaseWithIAPKit(Purchase purchase) async {
+  ///
+  /// Returns `true` only on a positive `isValid` from the kit response. The
+  /// caller is expected to skip `finishTransaction` on `false` so an unverified
+  /// or refunded purchase is never silently acknowledged.
+  Future<bool> _verifyPurchaseWithIAPKit(Purchase purchase) async {
     final apiKey = IapConstants.iapkitApiKey;
     debugPrint('IAPKit API key configured: ${apiKey.isNotEmpty}');
 
@@ -317,26 +336,33 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
         final statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
         final stateText = iapkitResult.state.value;
 
-        if (!mounted) return;
-        setState(() {
-          _purchaseResult = '''
+        if (mounted) {
+          setState(() {
+            _purchaseResult = '''
 $_purchaseResult
 
 $statusEmoji IAPKit Verification
 Valid: ${iapkitResult.isValid}
 State: $stateText
 Store: ${iapkitResult.store.value}
-          '''
-              .trim();
-        });
+            '''
+                .trim();
+          });
+        }
+        return iapkitResult.isValid;
       }
+      // No iapkit payload returned — treat as unverified rather than as
+      // a silent pass.
+      return false;
     } catch (e) {
       debugPrint('IAPKit verification failed: $e');
-      if (!mounted) return;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\n❌ IAPKit verification failed: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              '$_purchaseResult\n\n❌ IAPKit verification failed: $e';
+        });
+      }
+      return false;
     }
   }
 

@@ -76,6 +76,15 @@ function runAppleScenario(
       currency: normalized.currency,
       priceAmountMicros: normalized.priceAmountMicros,
     });
+    // Fail loudly when the state machine returns no next-state on a step
+    // that expects forward progress; the prior `transition.next ?? current`
+    // would silently keep the old `current` and let same-state assertions
+    // (e.g. Active → Active on DID_RENEW) pass without exercising the
+    // transition.
+    expect(
+      transition.next,
+      `step ${index} produced no next state`,
+    ).toBeTruthy();
     current = transition.next ?? current;
     expect(current?.state, `step ${index} state`).toBe(step.expect.state);
     expect(transition.active, `step ${index} active`).toBe(step.expect.active);
@@ -111,6 +120,15 @@ function runGoogleScenario(steps: GoogleStep[], productId = "premium_monthly") {
       currency: normalized.currency,
       priceAmountMicros: normalized.priceAmountMicros,
     });
+    // Fail loudly when the state machine returns no next-state on a step
+    // that expects forward progress; the prior `transition.next ?? current`
+    // would silently keep the old `current` and let same-state assertions
+    // (e.g. Active → Active on DID_RENEW) pass without exercising the
+    // transition.
+    expect(
+      transition.next,
+      `step ${index} produced no next state`,
+    ).toBeTruthy();
     current = transition.next ?? current;
     expect(current?.state, `google step ${index} state`).toBe(
       step.expect.state,
@@ -122,6 +140,12 @@ function runGoogleScenario(steps: GoogleStep[], productId = "premium_monthly") {
       expect(current?.willRenew, `google step ${index} willRenew`).toBe(
         step.expect.willRenew,
       );
+    }
+    if (step.expect.cancellationReason !== undefined) {
+      expect(
+        current?.cancellationReason,
+        `google step ${index} cancellationReason`,
+      ).toBe(step.expect.cancellationReason);
     }
   }
   return current;
@@ -174,8 +198,8 @@ describe("conformance: Apple lifecycle scenarios", () => {
     expect(entitlementActive(final!)).toBe(false);
   });
 
-  it("billing-retry → recovery", () => {
-    runAppleScenario([
+  it("grace-period → recovery", () => {
+    const final = runAppleScenario([
       {
         payload: applePayload("SUBSCRIBED", "INITIAL_BUY", "b-1"),
         transaction: { originalTransactionId: "2", expiresDate: FUTURE },
@@ -195,10 +219,11 @@ describe("conformance: Apple lifecycle scenarios", () => {
         expect: { state: "Active", active: true, willRenew: true },
       },
     ]);
+    expect(entitlementActive(final!)).toBe(true);
   });
 
   it("refund flow flips state to Refunded and de-entitles", () => {
-    runAppleScenario([
+    const final = runAppleScenario([
       {
         payload: applePayload("SUBSCRIBED", "INITIAL_BUY", "r-1"),
         transaction: { originalTransactionId: "3", expiresDate: FUTURE },
@@ -214,12 +239,15 @@ describe("conformance: Apple lifecycle scenarios", () => {
         },
       },
     ]);
+    // The state machine flagged this user as not entitled — verify the
+    // entitlement helper agrees instead of trusting it implicitly.
+    expect(entitlementActive(final!)).toBe(false);
   });
 });
 
 describe("conformance: Google lifecycle scenarios", () => {
   it("purchase → renew → on-hold → recovered", () => {
-    runGoogleScenario([
+    const final = runGoogleScenario([
       {
         payload: googleSubPayload("g-1", 4, "tok-1"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
@@ -241,10 +269,11 @@ describe("conformance: Google lifecycle scenarios", () => {
         expect: { state: "Active", active: true },
       },
     ]);
+    expect(entitlementActive(final!)).toBe(true);
   });
 
   it("voided purchase flips to Refunded", () => {
-    runGoogleScenario([
+    const final = runGoogleScenario([
       {
         payload: googleSubPayload("v-1", 4, "tok-vp"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
@@ -259,10 +288,11 @@ describe("conformance: Google lifecycle scenarios", () => {
         expect: { state: "Refunded", active: false },
       },
     ]);
+    expect(entitlementActive(final!)).toBe(false);
   });
 
   it("paused → resumed", () => {
-    runGoogleScenario([
+    const final = runGoogleScenario([
       {
         payload: googleSubPayload("p-1", 4, "tok-p"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },
@@ -283,6 +313,7 @@ describe("conformance: Google lifecycle scenarios", () => {
         expect: { state: "Active", active: true },
       },
     ]);
+    expect(entitlementActive(final!)).toBe(true);
   });
 });
 

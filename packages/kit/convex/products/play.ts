@@ -8,6 +8,16 @@ import { internal } from "../_generated/api";
 import { getProjectByApiKey } from "../purchases/shared";
 import { coerceBillingPeriod } from "./sync";
 
+/**
+ * Per-product upstream rejection reported back to the dashboard. Used
+ * inside `pushSyncProductsGoogle`'s `failures` array; extracted so the
+ * shape stays in lockstep across every site that pushes into it.
+ */
+export interface ProductSyncFailure {
+  productId: string;
+  reason: string;
+}
+
 // Google Play Developer API client + push-sync action.
 //
 // Auth: reuses the same per-project service-account JSON kit already
@@ -21,13 +31,27 @@ import { coerceBillingPeriod } from "./sync";
 //   - inappproducts.patch  → kit → Play (update existing)
 //   - monetization.subscriptions.list/insert → subscription products
 // The `pushSyncProductsGoogle` action drives both directions.
-//
-// NOTE on action duration: same caveat as pushSyncProductsAppleIOS
-// — this handler walks the project's catalog sequentially with
-// per-page Promise.all fan-out. Convex actions have a 10-minute
-// hard ceiling. Typical commercial apps (<100 SKUs) finish well
-// inside that bound; catalogs >500 SKUs may need a batched +
-// scheduler-chained variant. Tracked as a follow-up.
+
+/**
+ * Pull, push, or two-way sync the project's product catalog with
+ * Google Play's Android Publisher API.
+ *
+ * `direction = "pull"`: import every IAP / subscription that exists
+ * upstream into kit. `direction = "push"`: promote every kit-side row
+ * with `state: "Draft"` to Play. `direction = "both"` (default): pull
+ * first, then push so the catalog converges.
+ *
+ * NOTE on action duration: same caveat as `pushSyncProductsAppleIOS`
+ * — this handler walks the project's catalog sequentially with
+ * per-page Promise.all fan-out. Convex actions have a 10-minute hard
+ * ceiling. Typical commercial apps (<100 SKUs) finish well inside that
+ * bound; catalogs >500 SKUs may need a batched + scheduler-chained
+ * variant. Tracked as a follow-up.
+ *
+ * @returns Counts of `pulled` / `pushed` rows plus a `failures` list
+ *          carrying per-product upstream rejection reasons so the
+ *          dashboard can render them.
+ */
 export const pushSyncProductsGoogle = action({
   args: {
     apiKey: v.string(),
@@ -46,7 +70,7 @@ export const pushSyncProductsGoogle = action({
   ): Promise<{
     pulled: number;
     pushed: number;
-    failures: Array<{ productId: string; reason: string }>;
+    failures: ProductSyncFailure[];
   }> => {
     const project = await getProjectByApiKey(ctx, args.apiKey);
     if (!project.androidPackageName) {
@@ -89,7 +113,7 @@ export const pushSyncProductsGoogle = action({
     const androidpublisher = google.androidpublisher({ version: "v3", auth });
     const packageName = project.androidPackageName;
     const direction = args.direction ?? "both";
-    const failures: Array<{ productId: string; reason: string }> = [];
+    const failures: ProductSyncFailure[] = [];
     let pulled = 0;
     let pushed = 0;
 
@@ -338,18 +362,24 @@ export const pushSyncProductsGoogle = action({
           });
           for (const sub of subs.data.subscriptions ?? []) {
             if (!sub.productId) continue;
-            const { priceAmountMicros, currency } = pickSubBasePlanPrice(sub);
+            const { priceAmountMicros, currency, basePlanId } =
+              pickSubBasePlanPrice(sub);
             const offers = collectPlaySubscriptionOffers(sub);
-            // Pick the active base plan's billingPeriod so MRR
-            // normalization in metricsSummary has a recurring period
-            // to divide / multiply against. A subscription product
-            // can have multiple base plans (monthly + yearly + …);
-            // prefer the one matched by pickSubBasePlanPrice (the
-            // USD / first-active plan). Without this billingPeriod
-            // stays undefined on the synced row and the dashboard
-            // headline shows 0 MRR for every Play subscription.
-            const billingPeriod = offers.find(
-              (o) => o.kind === "BasePlan",
+            // Pick the billingPeriod from the *same* base plan whose
+            // price we just selected (`basePlanId` returned by
+            // pickSubBasePlanPrice). If we can't find that exact plan
+            // in `offers`, fall back to the first BasePlan row — but
+            // this fallback only triggers when basePlanId is missing,
+            // which means the subscription has no price at all.
+            // Without the basePlanId match, mixed monthly + yearly
+            // products would pair the yearly USD price with the
+            // monthly duration and break MRR normalization.
+            const billingPeriod = (
+              basePlanId
+                ? offers.find(
+                    (o) => o.kind === "BasePlan" && o.id === basePlanId,
+                  )
+                : offers.find((o) => o.kind === "BasePlan")
             )?.duration;
             await ctx.runMutation(internal.products.sync.upsertFromStore, {
               projectId: project._id,
@@ -594,11 +624,23 @@ function pickPlayCurrency(
 function pickSubBasePlanPrice(sub: androidpublisher_v3.Schema$Subscription): {
   priceAmountMicros?: number;
   currency?: string;
+  // The basePlanId of the plan whose price we picked, so the caller
+  // can pull `billingPeriod` from the *same* plan instead of guessing
+  // (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review:
+  // mixed monthly + yearly base plans previously paired the yearly
+  // USD price with the monthly billingPeriod, breaking MRR
+  // normalization).
+  basePlanId?: string;
 } {
-  const candidates: Array<androidpublisher_v3.Schema$Money> = [];
+  type Candidate = {
+    price: androidpublisher_v3.Schema$Money;
+    basePlanId?: string;
+  };
+  const candidates: Candidate[] = [];
   for (const plan of sub.basePlans ?? []) {
+    const basePlanId = plan.basePlanId ?? undefined;
     for (const region of plan.regionalConfigs ?? []) {
-      if (region.price) candidates.push(region.price);
+      if (region.price) candidates.push({ price: region.price, basePlanId });
     }
   }
   if (candidates.length === 0) return {};
@@ -606,10 +648,11 @@ function pickSubBasePlanPrice(sub: androidpublisher_v3.Schema$Subscription): {
   // recognizable in a dashboard. The operator can edit per-region
   // prices in Play Console; this just picks a stable display value.
   const preferred =
-    candidates.find((p) => p.currencyCode === "USD") ?? candidates[0];
+    candidates.find((c) => c.price.currencyCode === "USD") ?? candidates[0];
   return {
-    priceAmountMicros: moneyToMicros(preferred),
-    currency: preferred.currencyCode ?? undefined,
+    priceAmountMicros: moneyToMicros(preferred.price),
+    currency: preferred.price.currencyCode ?? undefined,
+    basePlanId: preferred.basePlanId,
   };
 }
 
@@ -724,20 +767,29 @@ function collectPlaySubscriptionOffers(
   return out;
 }
 
+/**
+ * Convert a Google `Money` proto into the integer micros (1/1,000,000
+ * of the currency unit) representation kit stores on every product row.
+ *
+ * `units` is a BigInt-as-string in the Play proto, so the micros
+ * multiplication is done in BigInt to avoid IEEE 754 precision loss on
+ * large currency values (>2^53). The nanos → micros conversion is
+ * BigInt division which truncates (not `Math.round`, which would push
+ * `999_999_999` nanos up to a full 1_000_000 micros and silently add 1
+ * micro to sub-unit prices). Truncation matches how Google Play Console
+ * stores price points internally — Play uses micros as the canonical
+ * unit, so any rounding here would re-introduce drift we just cleaned
+ * up. Resolves to `undefined` when the input has no `units`, when the
+ * BigInt parse throws (malformed `units` string), or when the resulting
+ * micros exceed `Number.MAX_SAFE_INTEGER` (≈ USD 9 billion — kit treats
+ * those rows as price-unknown rather than silently corrupting them).
+ *
+ * PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix.
+ */
 export function moneyToMicros(
   money: androidpublisher_v3.Schema$Money | undefined,
 ): number | undefined {
   if (!money?.units) return undefined;
-  // Google's `Money` proto: `units` is a BigInt-as-string. Do the
-  // micros multiplication in BigInt to avoid precision loss for
-  // large currency values (>2^53). PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix.
-  //
-  // The nanos → micros conversion is BigInt division which truncates
-  // (not Math.round, which would push 999_999_999 nanos up to a full
-  // 1_000_000 micros and silently add 1 micro to sub-unit prices).
-  // Truncation matches how Google Play Console actually stores price
-  // points internally (Play uses micros as the canonical unit), so any
-  // rounding here would only re-introduce drift we just cleaned up.
   try {
     const microsBigInt =
       BigInt(money.units) * 1_000_000n + BigInt(money.nanos ?? 0) / 1_000n;
@@ -761,9 +813,13 @@ export function moneyToMicros(
   }
 }
 
-// Stable basePlanId per billing period — Play's product detail page
-// shows this id, so something descriptive beats "monthly" hardcoded
-// for non-monthly billing.
+/**
+ * Map an ISO 8601 billing-period string (`P1W` / `P1M` / `P1Y` / etc.)
+ * to a stable, descriptive basePlanId for the Play console. Play's
+ * product detail page surfaces this id verbatim, so "yearly" /
+ * "weekly" reads better than the default "monthly" hardcoded fallback
+ * we used before. Unknown / undefined periods collapse to `"monthly"`.
+ */
 export function basePlanIdForPeriod(period: string | undefined): string {
   switch (period) {
     case "P1W":

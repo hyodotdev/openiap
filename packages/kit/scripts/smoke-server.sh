@@ -30,17 +30,23 @@ if [[ ! -f "$DIST/index.html" ]]; then
   exit 1
 fi
 
+# Per-process log file via mktemp so parallel CI matrix jobs don't
+# interleave their writes into a shared `/tmp/openiap-kit-smoke.log`
+# and cross-contaminate each other's failure output.
+LOG_FILE="$(mktemp /tmp/openiap-kit-smoke.XXXXXX.log)"
+
 # Run the binary in the background with placeholder env.
 CONVEX_URL="https://placeholder-build-1.convex.cloud" \
 STATIC_ROOT="$DIST" \
 PORT="$PORT" \
-"$BINARY" > /tmp/openiap-kit-smoke.log 2>&1 &
+"$BINARY" > "$LOG_FILE" 2>&1 &
 PID=$!
 
-# Always clean up the child, even on failure.
+# Always clean up the child + temp log, even on failure.
 cleanup() {
   kill "$PID" 2>/dev/null || true
   wait "$PID" 2>/dev/null || true
+  rm -f "$LOG_FILE"
 }
 trap cleanup EXIT
 
@@ -55,7 +61,7 @@ for _ in $(seq 1 20); do
   if ! kill -0 "$PID" 2>/dev/null; then
     echo "smoke: server process exited before /health responded" >&2
     echo "---- server log ----" >&2
-    cat /tmp/openiap-kit-smoke.log >&2 || true
+    cat "$LOG_FILE" >&2 || true
     exit 1
   fi
   sleep 0.25
@@ -83,7 +89,7 @@ probe "/api/v1" "200"
 
 if [[ "$fail" -ne 0 ]]; then
   echo "---- server log ----" >&2
-  cat /tmp/openiap-kit-smoke.log >&2 || true
+  cat "$LOG_FILE" >&2 || true
   exit 1
 fi
 
@@ -95,7 +101,7 @@ fi
 if [[ "${SKIP_BROWSER_SMOKE:-0}" != "1" ]]; then
   if ! SMOKE_URL="http://localhost:${PORT}/" bun run "$ROOT_DIR/scripts/smoke-browser.ts"; then
     echo "---- server log ----" >&2
-    cat /tmp/openiap-kit-smoke.log >&2 || true
+    cat "$LOG_FILE" >&2 || true
     exit 1
   fi
 fi

@@ -252,15 +252,26 @@ class _SseWebhookListener implements WebhookListener {
     final response = await request.close();
     if (response.statusCode != 200) {
       // 4xx responses (401 INVALID_API_KEY, 412 *_NOT_CONFIGURED)
-      // will never succeed on retry — flip _closed so the
-      // reconnect loop exits instead of spamming the server with
-      // permanently-failing requests. 5xx falls through to the
-      // normal back-off + reconnect because those are transient.
-      // Mirrors the same behaviour as the Godot client.
-      if (response.statusCode >= 400 && response.statusCode < 500) {
+      // will never succeed on retry — surface the failure to the
+      // listener BEFORE flipping `_closed`, then close the loop so
+      // we don't spam the server with permanently-failing requests.
+      // The earlier ordering (`_closed = true` before throwing)
+      // tripped `_emitError`'s `if (_closed)` guard and silently
+      // swallowed terminal 401/412s. 5xx falls through to the normal
+      // back-off + reconnect because those are transient. Mirrors the
+      // Godot client's behaviour.
+      final status = response.statusCode;
+      final isTerminal = status >= 400 && status < 500;
+      if (isTerminal) {
+        _emitError(
+          WebhookListenerError(
+            'TRANSPORT_ERROR',
+            'SSE stream returned $status (terminal — not reconnecting)',
+          ),
+        );
         _closed = true;
       }
-      throw HttpException('SSE stream returned ${response.statusCode}');
+      throw HttpException('SSE stream returned $status');
     }
 
     final completer = Completer<void>();

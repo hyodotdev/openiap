@@ -103,8 +103,9 @@ export const listHorizonSubscriptions = internalQuery({
     // limit. The `Promise.all` runs every state query in parallel
     // under one Convex query budget; without `.take()`, a single
     // project with > ~10k Active subs could exceed the limit and
-    // stall every Horizon cron tick.
-    const PER_STATE_CAP = 5_000;
+    // stall every Horizon cron tick. 5 states × 6_000 = 30k reads,
+    // leaving ~10k of the 40k budget for downstream filtering.
+    const PER_STATE_CAP = 6_000;
     const perState = await Promise.all(
       STATES.map((state) =>
         ctx.db
@@ -115,6 +116,19 @@ export const listHorizonSubscriptions = internalQuery({
           .take(PER_STATE_CAP),
       ),
     );
+    // Surface cap-hits in logs so the operator can see when a project
+    // outgrows the per-tick reconciliation budget — at that point the
+    // tail end of the bucket goes unreconciled until the population
+    // drops back below the cap (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
+    // review). A future change can paginate this across cron ticks; for
+    // now visibility is the priority so the truncation isn't silent.
+    STATES.forEach((state, i) => {
+      if (perState[i].length === PER_STATE_CAP) {
+        console.warn(
+          `[horizon-reconciler] project=${args.projectId} state=${state} hit PER_STATE_CAP=${PER_STATE_CAP}; tail subscriptions are not reconciled this tick.`,
+        );
+      }
+    });
     return perState
       .flat()
       .filter((sub) => sub.platform === "Android")

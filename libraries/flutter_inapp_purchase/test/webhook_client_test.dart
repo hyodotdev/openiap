@@ -37,6 +37,31 @@ void main() {
       );
     });
 
+    test('parses TestNotification without purchaseToken', () {
+      // TestNotification is the one payload shape kit ingests without a
+      // purchaseToken — Apple's "send a test notification" button + the
+      // dashboard's "Live test" button both emit it. Regression-guard
+      // here so a future tightening of "required fields" doesn't turn
+      // valid test webhooks back into MALFORMED_EVENT.
+      final raw = jsonEncode({
+        'id': 'uuid-test',
+        'type': 'TestNotification',
+        'source': 'AppleAppStoreServerNotificationsV2',
+        'platform': 'IOS',
+        'environment': 'Sandbox',
+        'projectId': 'p-1',
+        'occurredAt': 1,
+        'receivedAt': 2,
+        // no purchaseToken — intentional
+      });
+      final event = parseWebhookEventData(raw)!;
+      expect(event.type, WebhookEventType.TestNotification);
+      // `purchaseToken` is nullable on the generated WebhookEvent
+      // because TestNotification is the one shape kit ingests without
+      // it; the parser must not synthesize an empty string.
+      expect(event.purchaseToken, isNull);
+    });
+
     test('rejects payloads with unknown event types', () {
       // PR #123 (https://github.com/hyodotdev/openiap/pull/123) review: lenient mapping to a synthetic `Unknown` enum
       // hides spec drift between kit and the SDK consumers. Generated
