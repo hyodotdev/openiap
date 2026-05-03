@@ -250,7 +250,13 @@ class _SseWebhookListener implements WebhookListener {
     _pendingRequest = request;
 
     final response = await request.close();
-    if (response.statusCode != 200) {
+    // Accept any 2xx — kit returns 200 today but a future server /
+    // intermediate proxy might return 201/202/204 and the spec
+    // considers all of them success. The terminal-vs-transient split
+    // below cares about the 4xx / 5xx boundary, so any non-2xx is
+    // treated as failure (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       // 4xx responses (401 INVALID_API_KEY, 412 *_NOT_CONFIGURED)
       // will never succeed on retry — surface the failure to the
       // listener BEFORE flipping `_closed`, then close the loop so

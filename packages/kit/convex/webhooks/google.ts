@@ -335,22 +335,50 @@ async function maybeFetchSubscriptionInfo(
     // `subscriptionsv2.get` always returns the v2 shape with
     // per-line-item `expiryTime`; the legacy `purchases.subscriptions.get`
     // had a root-level `expiryTimeMillis`, but we never call that
-    // endpoint here. The earlier comment hinted at a fallback that was
-    // never wired (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
-    // review). Resolve to undefined when no line item exists — the
-    // caller already treats missing expiry as "use the wall-clock
-    // dedup path".
-    const expiry = data.lineItems?.[0]?.expiryTime ?? undefined;
+    // endpoint here.
+    //
+    // Pick the line item whose `expiryTime` matches the notification's
+    // purchaseToken — Subscriptions V2 supports multi-line-item bundles
+    // (base plan + add-ons), and just taking `lineItems[0]` would
+    // mis-attribute the expiry / autoRenew of one entitlement to
+    // another. When we can't resolve a specific match we fall back to
+    // the longest-dated line item so the dashboard at least shows the
+    // user-relevant "subscription is good through" date (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    const lineItems = data.lineItems ?? [];
+    // Capture into a local so the closure inside `.find` keeps the
+    // narrowed non-null type (TS loses narrowing across the lambda
+    // boundary even though the early-return above already proved
+    // `subscriptionNotification` is set).
+    const notificationToken = payload.subscriptionNotification.purchaseToken;
+    const matched =
+      lineItems.find(
+        (li) =>
+          (li as { latestSuccessfulOrderId?: string })
+            .latestSuccessfulOrderId === notificationToken,
+      ) ??
+      // `expiryTime` is an ISO string; max-by sorts by Date.parse order.
+      lineItems.reduce<(typeof lineItems)[number] | undefined>((acc, li) => {
+        if (!li.expiryTime) return acc;
+        const score = Date.parse(li.expiryTime);
+        if (!Number.isFinite(score)) return acc;
+        const accScore = acc?.expiryTime
+          ? Date.parse(acc.expiryTime)
+          : -Infinity;
+        return score > accScore ? li : acc;
+      }, undefined) ??
+      lineItems[0];
+    const expiry = matched?.expiryTime ?? undefined;
     // `autoRenewingPlan` presence is the authoritative v2 indicator
     // that auto-renewal is scheduled. Gating `renews` on
     // `recurringPrice` (the previous check) misses subscriptions in a
     // free-trial phase where the current price is 0 but renewal is
     // still on the calendar (PR #124
     // (https://github.com/hyodotdev/openiap/pull/124) review).
-    const renews = data.lineItems?.[0]?.autoRenewingPlan
-      ? (data.lineItems?.[0]?.expiryTime ?? undefined)
+    const renews = matched?.autoRenewingPlan
+      ? (expiry ?? undefined)
       : undefined;
-    const recurring = data.lineItems?.[0]?.autoRenewingPlan?.recurringPrice;
+    const recurring = matched?.autoRenewingPlan?.recurringPrice;
 
     return {
       state: data.subscriptionState ?? undefined,

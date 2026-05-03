@@ -142,7 +142,13 @@ export function kitApi(options: KitApiOptions) {
     // Either way, kit defaults only apply when the caller hasn't set
     // the same name.
     const headers = mergeHeaders(init?.headers, init?.body != null);
-    const response = await fetchImpl(`${baseUrl}${path}`, {
+    // Prepend a leading slash if `path` is missing one. Today's
+    // call sites all hard-code the leading "/", but normalizing here
+    // makes the helper safe for future additions and matches the
+    // already-stripped `baseUrl` (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const response = await fetchImpl(`${baseUrl}${normalizedPath}`, {
       ...init,
       headers,
     });
