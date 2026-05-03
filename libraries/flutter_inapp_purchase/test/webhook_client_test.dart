@@ -38,7 +38,7 @@ void main() {
     });
 
     test('rejects payloads with unknown event types', () {
-      // PR #123 review: lenient mapping to a synthetic `Unknown` enum
+      // PR #123 (https://github.com/hyodotdev/openiap/pull/123) review: lenient mapping to a synthetic `Unknown` enum
       // hides spec drift between kit and the SDK consumers. Generated
       // `WebhookEventType.fromJson` throws for unknown values; the
       // parser catches that and returns null so the SSE listener can

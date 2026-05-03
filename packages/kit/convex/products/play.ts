@@ -730,7 +730,7 @@ export function moneyToMicros(
   if (!money?.units) return undefined;
   // Google's `Money` proto: `units` is a BigInt-as-string. Do the
   // micros multiplication in BigInt to avoid precision loss for
-  // large currency values (>2^53). PR #124 review fix.
+  // large currency values (>2^53). PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix.
   //
   // The nanos → micros conversion is BigInt division which truncates
   // (not Math.round, which would push 999_999_999 nanos up to a full

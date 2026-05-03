@@ -16,7 +16,7 @@ COPY packages/gql/package.json ./packages/gql/
 COPY packages/apple/package.json ./packages/apple/
 COPY packages/google/package.json ./packages/google/
 COPY packages/docs/package.json ./packages/docs/
-# `mcp-server` is a workspace member (added in PR #124). Without
+# `mcp-server` is a workspace member (added in PR #124 (https://github.com/hyodotdev/openiap/pull/124)). Without
 # its package.json bun's workspace resolver disagrees with the
 # root lockfile and `--frozen-lockfile` rejects the install with
 # "lockfile had changes, but lockfile is frozen".
@@ -33,7 +33,7 @@ COPY packages/kit ./packages/kit
 # local node_modules (e.g. `vite`, `@vitejs/plugin-react`) instead of
 # fully hoisting. Pull kit's local node_modules from the deps stage
 # AFTER the source COPY so it isn't clobbered. Without this the
-# build fails with `vite: command not found` (PR #124 review
+# build fails with `vite: command not found` (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review
 # fallout).
 COPY --from=deps /app/packages/kit/node_modules ./packages/kit/node_modules
 WORKDIR /app/packages/kit

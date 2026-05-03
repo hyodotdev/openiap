@@ -262,7 +262,7 @@ describe("mapGoogleSubscriptionNotificationType", () => {
   it("maps the documented numeric codes to spec event types", () => {
     // RTDN code reference:
     // https://developer.android.com/google/play/billing/rtdn-reference#sub
-    // Codes 1 / 4 were swapped in an earlier draft (caught in PR #123
+    // Codes 1 / 4 were swapped in an earlier draft (caught in PR #123 (https://github.com/hyodotdev/openiap/pull/123)
     // review). 1 = RECOVERED, 4 = PURCHASED. 7 = RESTARTED maps to
     // Uncanceled (auto-renew re-enabled), not Started.
     expect(mapGoogleSubscriptionNotificationType(1)).toBe(

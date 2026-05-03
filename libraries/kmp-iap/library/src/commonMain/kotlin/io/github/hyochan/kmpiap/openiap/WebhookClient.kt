@@ -85,7 +85,7 @@ object WebhookEventParser {
 
             // The generated `fromJson` companion factories throw on
             // unknown enum values. We catch the throw at the outer
-            // level (PR #123 review: prefer fail-fast over silently
+            // level (PR #123 (https://github.com/hyodotdev/openiap/pull/123) review: prefer fail-fast over silently
             // mapping unknown types to a synthetic `Unknown` value).
             WebhookEvent(
                 cancellationReason =

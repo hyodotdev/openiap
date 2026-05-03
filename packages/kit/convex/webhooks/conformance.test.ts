@@ -276,7 +276,7 @@ describe("conformance: Google lifecycle scenarios", () => {
       {
         // Resume in real RTDN comes back as RECOVERED (1) — pause-
         // schedule-changed (11) is only the schedule update, not the
-        // actual end-of-pause signal. PR #123 review caught the
+        // actual end-of-pause signal. PR #123 (https://github.com/hyodotdev/openiap/pull/123) review caught the
         // earlier draft mapping that treated 11 as Resumed.
         payload: googleSubPayload("p-3", 1, "tok-p"),
         subscriptionInfo: { state: "SUBSCRIPTION_STATE_ACTIVE" },

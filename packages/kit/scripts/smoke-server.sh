@@ -88,7 +88,7 @@ if [[ "$fail" -ne 0 ]]; then
 fi
 
 # HTTP probes pass even when the SPA bundle is broken at runtime
-# (PR #120 shipped a chunk-cycle crash that left a 200 response and a
+# (PR #120 (https://github.com/hyodotdev/openiap/pull/120) shipped a chunk-cycle crash that left a 200 response and a
 # blank page). Run a headless-browser smoke to catch that class of
 # failure. Skipped when SKIP_BROWSER_SMOKE=1 (e.g. dev iteration where
 # Playwright + chromium aren't installed yet).

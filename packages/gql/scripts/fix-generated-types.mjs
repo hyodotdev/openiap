@@ -13,7 +13,7 @@ const schemaFiles = [
   // webhook.graphql adds `webhookEventsSince` to the Query interface
   // and marks it `# Future` so it gets the Promise<> wrap that all
   // async query fields require. Without this entry, the marker would
-  // be silently ignored — caught in PR #123 review.
+  // be silently ignored — caught in PR #123 (https://github.com/hyodotdev/openiap/pull/123) review.
   resolve(__dirname, '../src/webhook.graphql'),
 ];
 const schemaDefinitionFiles = [

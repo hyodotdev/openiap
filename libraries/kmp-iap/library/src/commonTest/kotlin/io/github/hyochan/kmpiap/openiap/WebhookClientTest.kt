@@ -37,7 +37,7 @@ class WebhookClientTest {
     fun returnsNullForEmptyOrMalformedInput() {
         assertNull(WebhookEventParser.parse(""))
         assertNull(WebhookEventParser.parse("not json"))
-        // Required fields missing → fail-fast (PR #123 review fix:
+        // Required fields missing → fail-fast (PR #123 (https://github.com/hyodotdev/openiap/pull/123) review fix:
         // we no longer silently default to empty strings).
         assertNull(
             WebhookEventParser.parse("""{"type":"SubscriptionRenewed"}"""),
@@ -47,7 +47,7 @@ class WebhookClientTest {
     @Test
     fun returnsNullForUnseenEventTypes() {
         // Unknown event types are now rejected rather than mapped to a
-        // synthetic `Unknown` enum value — PR #123 review correctly
+        // synthetic `Unknown` enum value — PR #123 (https://github.com/hyodotdev/openiap/pull/123) review correctly
         // flagged that lenient parsing hides spec drift between kit
         // and the SDK consumers.
         val raw = """

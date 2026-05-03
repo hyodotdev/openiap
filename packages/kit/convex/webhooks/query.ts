@@ -73,7 +73,7 @@ export const findEventCursor = query({
 // the cursor — the tie-break that lets pagination advance past a
 // `receivedAt` cohort larger than `limit`. Without it, a burst of
 // 500+ events sharing one `receivedAt` would stick the cursor at
-// the same value forever (PR #124 review fix).
+// the same value forever (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix).
 export const webhookEventsSince = query({
   args: {
     apiKey: v.string(),
@@ -87,7 +87,7 @@ export const webhookEventsSince = query({
       // Convex auto-assigned `_creationTime` (epoch ms, monotonic per
       // doc insert). Surfaced so SDKs can checkpoint reliably even
       // when two events share the same `receivedAt` — the wall-clock
-      // tie-breaker is not unique under burst writes (PR #124 review
+      // tie-breaker is not unique under burst writes (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review
       // fix). The Convex doc id (`_id`) is also surfaced for the same
       // reason; `id` (sourceNotificationId) stays the spec-stable
       // identifier consumers gate on.

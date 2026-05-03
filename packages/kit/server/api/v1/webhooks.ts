@@ -346,7 +346,7 @@ const HEARTBEAT_MS = 25_000;
 // Drop fields the client doesn't need over the wire. `rawSignedPayload`
 // holds the original JWS / Pub/Sub envelope including the upstream
 // signature. Until kit grows per-purchaser SSE auth (tracked as
-// follow-up — see PR #124 review), the SSE feed is gated only by the
+// follow-up — see PR #124 (https://github.com/hyodotdev/openiap/pull/124) review), the SSE feed is gated only by the
 // project API key, so any holder of that key would otherwise see
 // every other customer's signed payload. The client doesn't need it
 // for normal reconciliation flows: `purchaseToken` + `productId` are
@@ -453,7 +453,7 @@ webhooks.get("/stream/:apiKey", async (c) => {
     // subscription time and won't refresh them as cursors advance —
     // attaching `onUpdate` with the original cursor would create a
     // 500-row result window that never moves forward, so new events
-    // beyond the initial batch would never reach the consumer (PR #124
+    // beyond the initial batch would never reach the consumer (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
     // review fix). Draining first, then pinning the live tail at
     // "now", sidesteps that limitation.
     const liveStart = Date.now();
@@ -685,7 +685,7 @@ webhooks.get("/stream/:apiKey", async (c) => {
 // regardless of how many events the project has accumulated. The prior
 // implementation scanned the first 500 events and silently fell back
 // to "now" for anything beyond that — projects with > 500 events
-// would lose every replay-on-reconnect (PR #124 review fix).
+// would lose every replay-on-reconnect (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix).
 //
 // Returns `{ sinceMs, afterCreationTime }` so the SSE handler can pass
 // both to `webhookEventsSince` and resume strictly past the last

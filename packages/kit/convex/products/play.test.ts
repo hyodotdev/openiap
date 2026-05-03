@@ -24,7 +24,7 @@ describe("moneyToMicros", () => {
   it("truncates nanos / 1000 conversion (sub-micro fraction is dropped, not rounded up)", () => {
     // 999_999_999 nanos / 1000 = 999_999.999 → truncates to 999_999
     // micros. We deliberately don't round up to 1_000_000; rounding
-    // would silently push prices across the unit boundary (PR #124
+    // would silently push prices across the unit boundary (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
     // review — "999_999_999 nanos rounding up to a full unit"), and
     // Play stores prices in micros internally so truncation matches
     // the canonical representation.

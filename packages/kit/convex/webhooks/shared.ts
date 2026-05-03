@@ -438,7 +438,7 @@ export type GoogleSubscriptionInfo = {
 
 // RTDN numeric codes per
 // https://developer.android.com/google/play/billing/rtdn-reference#sub
-// Codes 1 and 4 were swapped in an earlier draft (caught in PR #123
+// Codes 1 and 4 were swapped in an earlier draft (caught in PR #123 (https://github.com/hyodotdev/openiap/pull/123)
 // review) — `1 = RECOVERED` and `4 = PURCHASED`. Code 7 = RESTARTED
 // means the user re-enabled auto-renew while the subscription was
 // still in its active period, which matches the

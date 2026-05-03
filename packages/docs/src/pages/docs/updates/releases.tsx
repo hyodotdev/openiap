@@ -143,7 +143,7 @@ function Releases() {
                 rel="noopener noreferrer"
                 className="external-link"
               >
-                PR #105
+                PR #105 (https://github.com/hyodotdev/openiap/pull/105)
               </a>{' '}
               for the full diff.
             </p>
@@ -1562,7 +1562,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  PR #80
+                  PR #80 (https://github.com/hyodotdev/openiap/pull/80)
                 </a>
               </li>
             </ul>

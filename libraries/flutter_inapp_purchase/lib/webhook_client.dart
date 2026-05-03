@@ -57,7 +57,7 @@ WebhookEvent? parseWebhookEventData(String raw) {
   // generated Dart `fromJson` factories only accept the kebab-case
   // wire form (`apple-app-store-server-notifications-v2`). Normalize
   // each enum field here so consumers don't have to know about the
-  // representational difference. PR #123 review caught this drift.
+  // representational difference. PR #123 (https://github.com/hyodotdev/openiap/pull/123) review caught this drift.
   return _decodeWithFallback(decoded);
 }
 

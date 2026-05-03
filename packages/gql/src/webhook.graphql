@@ -236,6 +236,6 @@ type WebhookEvent {
 # internal to kit that reads `webhookEvents`. Exposing them here
 # would force every device-side IAP implementation to declare a
 # `webhookEvent` listener / `webhookEventsSince` method even though
-# the actual transport is HTTP, not GraphQL. PR #123 review caught
+# the actual transport is HTTP, not GraphQL. PR #123 (https://github.com/hyodotdev/openiap/pull/123) review caught
 # the earlier draft surfacing them as required interface methods on
 # the KMP / Dart / Swift IAP classes.
