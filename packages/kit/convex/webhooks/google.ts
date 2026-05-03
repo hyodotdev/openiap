@@ -303,7 +303,27 @@ async function maybeFetchSubscriptionInfo(
       if (!fileContent?.content) {
         return null;
       }
-      const credentials = JSON.parse(fileContent.content);
+      // Wrap the parse in a try/catch and surface a structured
+      // ConvexError on failure. SyntaxError from a malformed service-
+      // account upload would otherwise reach the route layer as an
+      // un-mapped exception and 500 the Pub/Sub push, sending Google
+      // into a retry loop on a permanent config error. ConvexError
+      // → mapWebhookError → 400 so Pub/Sub gives up and the operator
+      // sees the actionable code (PR #124
+      // (https://github.com/hyodotdev/openiap/pull/124) review).
+      let credentials: Record<string, unknown>;
+      try {
+        credentials = JSON.parse(fileContent.content) as Record<
+          string,
+          unknown
+        >;
+      } catch {
+        throw new ConvexError({
+          code: "INVALID_SERVICE_ACCOUNT_JSON",
+          message:
+            "Google Play service account JSON is malformed — re-upload the file generated from Google Cloud Console.",
+        });
+      }
       const auth = new google.auth.GoogleAuth({
         credentials,
         scopes: ["https://www.googleapis.com/auth/androidpublisher"],
