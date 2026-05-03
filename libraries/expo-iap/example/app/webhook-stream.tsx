@@ -90,16 +90,18 @@ export default function WebhookStreamScreen() {
     try {
       // Mirror the Pub/Sub envelope the dashboard's "Live test" button uses.
       // See packages/kit/src/pages/auth/organization/project/webhooks.tsx.
+      // `Buffer` is not a global in RN / Expo (it's a Node API); use the
+      // browser-style btoa(unescape(encodeURIComponent(...))) wrapper so
+      // unicode-safe base64 works under Hermes / JSC without polyfills.
+      const dataJson = JSON.stringify({
+        version: '1.0',
+        packageName: 'com.example.app',
+        eventTimeMillis: String(Date.now()),
+        testNotification: {version: '1.0'},
+      });
       const payload = {
         message: {
-          data: Buffer.from(
-            JSON.stringify({
-              version: '1.0',
-              packageName: 'com.example.app',
-              eventTimeMillis: String(Date.now()),
-              testNotification: {version: '1.0'},
-            }),
-          ).toString('base64'),
+          data: btoa(unescape(encodeURIComponent(dataJson))),
           messageId: `expo-test-${Date.now()}`,
           publishTime: new Date().toISOString(),
         },
@@ -212,7 +214,10 @@ export default function WebhookStreamScreen() {
               {'\n'}
               subscriptionState: {item.subscriptionState ?? '—'}
               {'\n'}
-              receivedAt: {item.receivedAt ?? '—'}
+              receivedAt:{' '}
+              {item.receivedAt
+                ? new Date(item.receivedAt).toLocaleString()
+                : '—'}
             </Text>
           </View>
         )}
