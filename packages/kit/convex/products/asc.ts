@@ -125,6 +125,24 @@ const ASC_FETCH_TIMEOUT_MS = 30_000;
 
 type AscToken = { value: string; expiresAt: number };
 
+/**
+ * Thrown by `AscClient.call` on any non-OK ASC response. The status
+ * code is preserved so callers can branch on it — e.g. ignore 409
+ * Conflict on retried `createSubLocalization` / `createIapLocalization`
+ * pushes (the upstream resource already exists, the next step still
+ * applies). Earlier behaviour threw a generic `Error` and forced the
+ * caller to substring-match the message; this is the typed version.
+ */
+export class AscApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AscApiError";
+  }
+}
+
 class AscClient {
   private cached: AscToken | null = null;
 
@@ -195,9 +213,9 @@ class AscClient {
       // signature" without context. Surface a targeted hint so the
       // operator stops debugging the JWT and starts checking the
       // *kind* of key they uploaded.
-      if (response.status === 401) {
-        throw new Error(
-          `ASC ${path} returned 401: ${errorMessage}\n` +
+      const message =
+        response.status === 401
+          ? `ASC ${path} returned 401: ${errorMessage}\n` +
             "HINT: ASC REST endpoints (/v1/apps/.../inAppPurchasesV2, " +
             "subscriptionGroups, …) require the App Store Connect API " +
             "Team Key (or Individual Key) — found under Users and " +
@@ -207,12 +225,13 @@ class AscClient {
             "the App Store Server API (receipt verification). Both " +
             "are .p8 files but Apple scopes them separately. Re-upload " +
             "the .p8 generated under 'App Store Connect API' and use " +
-            "ITS Issuer ID + Key ID in the dashboard.",
-        );
-      }
-      throw new Error(
-        `ASC ${path} returned ${response.status}: ${errorMessage}`,
-      );
+            "ITS Issuer ID + Key ID in the dashboard."
+          : `ASC ${path} returned ${response.status}: ${errorMessage}`;
+      // Use a typed AscApiError so callers can branch on
+      // `.status === 409` to ignore "already exists" replays during
+      // retried localization / price-schedule pushes (PR #124
+      // (https://github.com/hyodotdev/openiap/pull/124) review).
+      throw new AscApiError(response.status, message);
     }
     return parsed as T;
   }
@@ -1342,11 +1361,17 @@ export const pushSyncProductsAppleIOS = action({
                   description: row.description ?? row.title,
                 });
               } catch (error) {
-                recordFailure({
-                  productId: `${row.productId} (localization)`,
-                  reason:
-                    error instanceof Error ? error.message : String(error),
-                });
+                // 409 Conflict means the en-US localization already
+                // exists from a prior partial sync. That's a benign
+                // retry — fall through to the price-setting step
+                // instead of marking the whole product failed.
+                if (!(error instanceof AscApiError && error.status === 409)) {
+                  recordFailure({
+                    productId: `${row.productId} (localization)`,
+                    reason:
+                      error instanceof Error ? error.message : String(error),
+                  });
+                }
               }
             }
             // Set the USA price by resolving the operator's USD amount
@@ -1459,11 +1484,16 @@ export const pushSyncProductsAppleIOS = action({
                   description: row.description ?? row.title,
                 });
               } catch (error) {
-                recordFailure({
-                  productId: `${row.productId} (localization)`,
-                  reason:
-                    error instanceof Error ? error.message : String(error),
-                });
+                // Same 409-is-benign rationale as the subscription
+                // localization path — see PR #124
+                // (https://github.com/hyodotdev/openiap/pull/124) review.
+                if (!(error instanceof AscApiError && error.status === 409)) {
+                  recordFailure({
+                    productId: `${row.productId} (localization)`,
+                    reason:
+                      error instanceof Error ? error.message : String(error),
+                  });
+                }
               }
             }
             if (row.priceAmountMicros && (row.currency ?? "USD") === "USD") {

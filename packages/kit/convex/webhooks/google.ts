@@ -258,6 +258,20 @@ export const ingestGoogleRtdn = action({
 // - or the API call fails. We deliberately swallow the failure rather
 //   than hard-fail the webhook: kit's authoritative state can be
 //   reconciled later via `verifyReceipt`.
+/**
+ * `Date.parse` returns NaN for any input it can't parse — and since
+ * `webhookEvents.expiresAt`/`renewsAt` is typed as `v.number()` in the
+ * schema, a NaN reaches Convex's validator and 500s the receiver. This
+ * helper passes only finite numbers through; everything else collapses
+ * to undefined so the downstream path uses the wall-clock dedup
+ * heuristic instead.
+ */
+function parseEpochMs(input: string | undefined | null): number | undefined {
+  if (!input) return undefined;
+  const ms = Date.parse(input);
+  return Number.isFinite(ms) ? ms : undefined;
+}
+
 async function maybeFetchSubscriptionInfo(
   ctx: { runAction: any; runQuery: any },
   projectId: unknown,
@@ -339,8 +353,13 @@ async function maybeFetchSubscriptionInfo(
         : data.canceledStateContext?.systemInitiatedCancellation
           ? "SYSTEM_INITIATED_CANCELLATION"
           : undefined,
-      expiryTimeMillis: expiry ? Date.parse(expiry) : undefined,
-      autoRenewingPlanRenewsTimeMillis: renews ? Date.parse(renews) : undefined,
+      // `Date.parse` returns NaN on malformed input, which would
+      // hit Convex's number validator and 500 the webhook ingest.
+      // Drop NaN to undefined so the receiver path falls back to the
+      // wall-clock dedup heuristic (PR #124
+      // (https://github.com/hyodotdev/openiap/pull/124) review).
+      expiryTimeMillis: parseEpochMs(expiry),
+      autoRenewingPlanRenewsTimeMillis: parseEpochMs(renews),
       currency: recurring?.currencyCode ?? undefined,
       // Use the shared moneyToMicros helper from products/play.ts —
       // same Google `Money` proto, same BigInt overflow concerns.

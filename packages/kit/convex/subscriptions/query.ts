@@ -148,19 +148,34 @@ export const listSubscriptions = query({
     const project = await projectByApiKey(ctx, args.apiKey);
     if (!project) return { items: [], total: 0 };
 
-    // userId is only indexed on its own (by_project_and_user). The
-    // composite indexes for state / productId don't cover userId,
-    // and silently ignoring it would return matches across all
-    // users — a misleading dashboard result. Reject the combo
-    // explicitly so the caller knows to either narrow on userId
-    // alone or fan out their filtering on the client.
-    if (args.userId && (args.state || args.productId)) {
-      throw new Error(
-        "listSubscriptions: userId cannot be combined with state or productId — no index covers all three. Pick userId alone or filter the result client-side.",
-      );
-    }
-
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
+
+    // userId path: subscriptions per user is a small population
+    // (single digits in practice — a user with 50 subscriptions on a
+    // single project is pathological), so we collect the entire
+    // by_project_and_user slice and apply state/productId filters in
+    // memory rather than throwing. Earlier behaviour rejected the
+    // combo with an error, which made the dashboard "filter user X by
+    // state Active" path unusable (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    if (args.userId) {
+      const userRows = await ctx.db
+        .query("subscriptions")
+        .withIndex("by_project_and_user", (q) =>
+          q.eq("projectId", project._id).eq("userId", args.userId),
+        )
+        .order("desc")
+        .collect();
+      const filtered = userRows.filter((sub) => {
+        if (args.state && sub.state !== args.state) return false;
+        if (args.productId && sub.productId !== args.productId) return false;
+        return true;
+      });
+      return {
+        items: filtered.slice(0, limit).map(shapeRow),
+        total: filtered.length,
+      };
+    }
 
     // Pick the most-selective index for the supplied filters. Schema
     // covers single-filter combinations directly; the composite
@@ -193,14 +208,6 @@ export const listSubscriptions = query({
         .query("subscriptions")
         .withIndex("by_project_and_product", (q) =>
           q.eq("projectId", project._id).eq("productId", args.productId!),
-        )
-        .order("desc")
-        .take(limit);
-    } else if (args.userId) {
-      rows = await ctx.db
-        .query("subscriptions")
-        .withIndex("by_project_and_user", (q) =>
-          q.eq("projectId", project._id).eq("userId", args.userId),
         )
         .order("desc")
         .take(limit);
