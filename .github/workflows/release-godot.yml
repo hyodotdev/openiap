@@ -41,7 +41,7 @@ jobs:
         working-directory: libraries/godot-iap
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -69,7 +69,7 @@ jobs:
         working-directory: libraries/godot-iap
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Verify iOS Frameworks
         run: |
@@ -93,7 +93,7 @@ jobs:
         working-directory: libraries/godot-iap
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

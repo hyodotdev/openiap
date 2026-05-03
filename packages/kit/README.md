@@ -209,17 +209,16 @@ SMOKE_PORT=3200 ./scripts/smoke-server.sh
 
 ```bash
 flyctl auth login
-# Source your production env first; do not paste the Convex URL here.
-source .env.production
-flyctl secrets set VITE_KIT_CONVEX_URL="$VITE_KIT_CONVEX_URL"
-flyctl deploy \
-  --build-arg VITE_KIT_CONVEX_URL="$VITE_KIT_CONVEX_URL" \
-  --build-arg VITE_KIT_SENTRY_DSN="$VITE_KIT_SENTRY_DSN"   # optional
+# Fill .env.production from .env.example first.
+bun run deploy:prod
 ```
 
-`VITE_*` values have to be passed as **build args**, not just runtime
+`VITE_*` values have to be passed at **build time**, not just runtime
 secrets — Vite inlines them into the SPA bundle at `bun run build`
-time. Omitting `VITE_KIT_SENTRY_DSN` is fine; the SPA skips Sentry init.
+time. The deploy script sends `VITE_KIT_CONVEX_URL` and
+`VITE_KIT_SENTRY_DSN` as build args, and sends `VITE_KIT_MIXPANEL_TOKEN`
+as a BuildKit secret only to avoid Docker's TOKEN-named ARG/ENV warning.
+Omitting Sentry or Mixpanel is fine; the SPA skips those integrations.
 
 Server-side runtime secrets (read by the compiled Bun binary at boot)
 are set once with `flyctl secrets set`:
@@ -250,7 +249,7 @@ namespace them away from other monorepo secrets):
 | `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy (optional — step skips if absent) |
 | `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Build arg for SPA — visible in deployed JS bundle        |
 | `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional — SPA skips init if absent)  |
-| `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | Build arg for SPA (optional — analytics opt-in)          |
+| `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | BuildKit secret for SPA (optional — analytics opt-in)    |
 
 If `KIT_CONVEX_DEPLOY_KEY` is **not** set, the Convex deploy step
 prints a skip message and exits 0 — you'll need to run

@@ -6,6 +6,7 @@ import { ConvexClient } from "convex/browser";
 
 import { api } from "@/convex";
 import { client, convexUrlForRealtime, handleConvexError } from "../../convex";
+import { drainWebhookEventBatches } from "./webhookStreamDrain";
 
 // Shared reactive client for the SSE webhook stream. We keep a
 // SINGLE WebSocket open to Convex regardless of how many SDK clients
@@ -622,54 +623,22 @@ webhooks.get("/stream/:apiKey", async (c) => {
       try {
         do {
           liveDrainRequested = false;
-          let iterations = 0;
-          while (!aborted) {
-            if (iterations >= DRAIN_MAX_ITERATIONS) {
-              console.warn(
-                "[webhooks/stream] live drain hit DRAIN_MAX_ITERATIONS",
-                { iterations, liveCursor },
-              );
-              break;
-            }
-            iterations += 1;
-            const batch = (await client.query(
-              api.webhooks.query.webhookEventsSince,
-              {
+          const result = await drainWebhookEventBatches({
+            initialCursor: {
+              sinceMs: liveCursor,
+              afterCreationTime: liveCreationCursor,
+            },
+            maxIterations: DRAIN_MAX_ITERATIONS,
+            isAborted: () => aborted,
+            loadBatch: async ({ sinceMs, afterCreationTime, limit }) =>
+              await client.query(api.webhooks.query.webhookEventsSince, {
                 apiKey,
-                sinceMs: liveCursor,
-                afterCreationTime: liveCreationCursor,
-                limit: 500,
-              },
-            )) as Array<Record<string, unknown>>;
-            if (!batch.length) {
-              break;
-            }
-
-            let advanced = false;
-            for (const event of batch) {
-              if (aborted) break;
-              const receivedAt =
-                typeof event.receivedAt === "number" ? event.receivedAt : null;
-              const creationTime =
-                typeof event._creationTime === "number"
-                  ? event._creationTime
-                  : undefined;
-              if (
-                receivedAt !== null &&
-                (receivedAt > liveCursor ||
-                  (receivedAt === liveCursor &&
-                    creationTime !== undefined &&
-                    (liveCreationCursor === undefined ||
-                      creationTime > liveCreationCursor)))
-              ) {
-                liveCursor = receivedAt;
-                liveCreationCursor = creationTime;
-                advanced = true;
-              }
-
-              const id = typeof event.id === "string" ? event.id : null;
-              if (!id || seen.has(id)) continue;
-              seen.add(id);
+                sinceMs,
+                afterCreationTime,
+                limit,
+              }),
+            seen,
+            writeEvent: async (event, id) => {
               await stream
                 .writeSSE({
                   id,
@@ -682,11 +651,16 @@ webhooks.get("/stream/:apiKey", async (c) => {
                 .catch((err) => {
                   console.error("[webhooks/stream] live write failed", err);
                 });
-            }
-            if (!advanced || batch.length < 500) {
-              break;
-            }
-          }
+            },
+            onIterationLimit: ({ iterations, cursor }) => {
+              console.warn(
+                "[webhooks/stream] live drain hit DRAIN_MAX_ITERATIONS",
+                { iterations, liveCursor: cursor.sinceMs },
+              );
+            },
+          });
+          liveCursor = result.cursor.sinceMs;
+          liveCreationCursor = result.cursor.afterCreationTime;
         } while (liveDrainRequested && !aborted);
       } catch (error) {
         console.error("[webhooks/stream] live drain failed", error);

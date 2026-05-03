@@ -170,7 +170,7 @@ export const webhookEventsSince = query({
     if (args.afterCreationTime !== undefined) {
       const boundaryTail = await ctx.db
         .query("webhookEvents")
-        .withIndex("by_project_and_received_and_creation", (q) =>
+        .withIndex("by_project_and_received", (q) =>
           q
             .eq("projectId", project._id)
             .eq("receivedAt", args.sinceMs)
@@ -183,7 +183,7 @@ export const webhookEventsSince = query({
     if (events.length < limit) {
       const postBoundary = await ctx.db
         .query("webhookEvents")
-        .withIndex("by_project_and_received_and_creation", (q) =>
+        .withIndex("by_project_and_received", (q) =>
           q.eq("projectId", project._id).gt("receivedAt", args.sinceMs),
         )
         .order("asc")
@@ -197,7 +197,7 @@ export const webhookEventsSince = query({
       // matches up to the limit.
       const boundary = await ctx.db
         .query("webhookEvents")
-        .withIndex("by_project_and_received_and_creation", (q) =>
+        .withIndex("by_project_and_received", (q) =>
           q.eq("projectId", project._id).eq("receivedAt", args.sinceMs),
         )
         .order("asc")
@@ -234,7 +234,7 @@ export const latestWebhookEventsSince = query({
     const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
     const latest = await ctx.db
       .query("webhookEvents")
-      .withIndex("by_project_and_received_and_creation", (q) =>
+      .withIndex("by_project_and_received", (q) =>
         q.eq("projectId", project._id).gte("receivedAt", args.sinceMs),
       )
       .order("desc")

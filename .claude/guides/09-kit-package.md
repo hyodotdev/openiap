@@ -6,14 +6,14 @@ Hosted receipt-validation SaaS at [kit.openiap.dev](https://kit.openiap.dev) —
 
 `packages/kit` is the only package in this monorepo that is **a deployable application, not a publishable library**. Treat it differently:
 
-| Aspect              | apple/google/gql/docs       | kit                                                |
-| ------------------- | --------------------------- | -------------------------------------------------- |
-| Output              | Library / static site       | Running SaaS (Fly.io machine)                      |
-| Type SSOT           | `packages/gql` (GraphQL IR) | Independent Convex schema                          |
-| Deploy trigger      | Tagged release              | `main` push (paths-filtered to `packages/kit/**`)  |
+| Aspect              | apple/google/gql/docs       | kit                                                    |
+| ------------------- | --------------------------- | ------------------------------------------------------ |
+| Output              | Library / static site       | Running SaaS (Fly.io machine)                          |
+| Type SSOT           | `packages/gql` (GraphQL IR) | Independent Convex schema                              |
+| Deploy trigger      | Tagged release              | `main` push (paths-filtered to `packages/kit/**`)      |
 | GQL type-sync chain | Yes                         | **No** — kit does not consume `@hyodotdev/openiap-gql` |
-| `private: true`     | Mixed                       | Yes — never publish to npm                         |
-| User-facing brand   | `openiap-*`                 | `IAPKit` (managed by OpenIAP)                      |
+| `private: true`     | Mixed                       | Yes — never publish to npm                             |
+| User-facing brand   | `openiap-*`                 | `IAPKit` (managed by OpenIAP)                          |
 
 ## Internal Layout
 
@@ -60,13 +60,13 @@ If the hook fails, fix the underlying issue and re-stage; never bypass with `--n
 
 GitHub Actions secrets (set on `hyodotdev/openiap`):
 
-| Secret                    | Real secret? | Purpose                                                   |
-| ------------------------- | ------------ | --------------------------------------------------------- |
-| `KIT_FLY_API_TOKEN`       | ✅ yes       | `flyctl deploy` auth — keep private                       |
-| `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy (optional — step skips if absent)  |
-| `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Build arg for SPA — visible in deployed JS bundle         |
-| `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional)                              |
-| `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | Build arg for SPA (optional, analytics opt-in)            |
+| Secret                    | Real secret? | Purpose                                                  |
+| ------------------------- | ------------ | -------------------------------------------------------- |
+| `KIT_FLY_API_TOKEN`       | ✅ yes       | `flyctl deploy` auth — keep private                      |
+| `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy (optional — step skips if absent) |
+| `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Build arg for SPA — visible in deployed JS bundle        |
+| `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional)                             |
+| `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | BuildKit secret for SPA (optional, analytics opt-in)     |
 
 `VITE_KIT_*` values are inlined into the SPA bundle at `bun run build`; treat them as public configuration, not secrets.
 
@@ -83,6 +83,6 @@ Monorepo `.vscode/launch.json` has a single kit entry: **🧰 Kit: Dev (Vite + H
 ## When You Touch Kit
 
 - Stay paths-aware. The deploy workflow only fires on `packages/kit/**` changes.
-- Add new env vars to `.env.example` first (template), then `.env.local` (dev) and `.env.production` (manual prod fallback). For `VITE_KIT_*` vars, also update the Dockerfile ARG/ENV pair, the `Deploy` step in `deploy-kit.yml`, and the GitHub secrets.
+- Add new env vars to `.env.example` first (template), then `.env.local` (dev) and `.env.production` (manual prod fallback). For `VITE_KIT_*` vars, also update the Docker build-time injection in `Dockerfile`, the `Deploy` step in `deploy-kit.yml`, and the GitHub secrets. Use BuildKit secrets for TOKEN-named public SPA values to avoid Docker secret-name warnings.
 - For server-runtime-only secrets (Stripe / Resend / GitHub OAuth), use the Convex dashboard, not these files.
 - Keep dashboard text English-only. Inline string literals; do not reintroduce i18next.

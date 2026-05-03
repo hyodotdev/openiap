@@ -515,6 +515,14 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_purchase_token", ["purchaseToken"])
+    // (projectId, receivedAt, _creationTime) — Convex appends
+    // `_creationTime` automatically. Used by the SSE backfill
+    // `webhookEventsSince` query so the boundary-cohort tail past the
+    // millisecond cursor can be walked directly via
+    // `gt("_creationTime", afterCreationTime)` instead of an in-memory
+    // filter that would silently drop pages when a single
+    // millisecond's burst exceeds the take() cap (PR #124
+    // (https://github.com/hyodotdev/openiap/pull/124) review).
     .index("by_project_and_received", ["projectId", "receivedAt"])
     .index("by_received_at", ["receivedAt"])
     // Lookup helper used by the SSE stream's `Last-Event-ID` cursor
@@ -525,18 +533,6 @@ const schema = defineSchema({
     .index("by_project_and_notification_id", [
       "projectId",
       "sourceNotificationId",
-    ])
-    // Composite (projectId, receivedAt, _creationTime) for the SSE
-    // backfill `webhookEventsSince` query — lets the boundary-cohort
-    // tail past the millisecond cursor be walked directly via the
-    // index (`gt("_creationTime", afterCreationTime)`) instead of an
-    // in-memory filter that would silently drop pages when a single
-    // millisecond's burst exceeds the take() cap (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
-    .index("by_project_and_received_and_creation", [
-      "projectId",
-      "receivedAt",
-      "_creationTime",
     ]),
 
   // Dedup table for webhook payloads. Insertion uses
