@@ -141,12 +141,12 @@ export type {
   WebhookListenerError,
   WebhookListenerOptions,
 } from './webhook-client';
-export {iapKitApi, IAPKitApiError} from './kit-api';
+export {kitApi, KitApiError} from './kit-api';
 export type {
-  IAPKitApiOptions,
-  IAPKitSubscription,
-  IAPKitEntitlementsResponse,
-  IAPKitStatusResponse,
+  KitApiOptions,
+  KitSubscription,
+  EntitlementsResponse,
+  StatusResponse,
 } from './kit-api';
 
 // Restore completed transactions (cross-platform)

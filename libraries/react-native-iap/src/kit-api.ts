@@ -4,7 +4,7 @@
 // reachable from both LLM tools and end-user apps without each
 // duplicating the URL layout.
 
-export type IAPKitApiOptions = {
+export type KitApiOptions = {
   apiKey: string;
   baseUrl?: string;
   // Optional fetch override for runtimes without a global (older RN
@@ -12,7 +12,7 @@ export type IAPKitApiOptions = {
   fetchImpl?: (input: string, init?: RequestInit) => Promise<Response>;
 };
 
-export type IAPKitSubscription = {
+export type KitSubscription = {
   id: string;
   productId: string;
   platform: "IOS" | "Android";
@@ -29,15 +29,15 @@ export type IAPKitSubscription = {
   userId?: string;
 };
 
-export type IAPKitEntitlementsResponse = {
+export type EntitlementsResponse = {
   userId: string;
   productIds: string[];
-  subscriptions: IAPKitSubscription[];
+  subscriptions: KitSubscription[];
 };
 
-export type IAPKitStatusResponse = {
+export type StatusResponse = {
   active: boolean;
-  subscription: IAPKitSubscription | null;
+  subscription: KitSubscription | null;
 };
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
@@ -107,18 +107,18 @@ function mergeHeaders(
   return out;
 }
 
-export class IAPKitApiError extends Error {
+export class KitApiError extends Error {
   constructor(
     readonly status: number,
     readonly body: unknown,
     message: string,
   ) {
     super(message);
-    this.name = "IAPKitApiError";
+    this.name = "KitApiError";
   }
 }
 
-export function iapKitApi(options: IAPKitApiOptions) {
+export function kitApi(options: KitApiOptions) {
   const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
   const fetchImpl: (input: string, init?: RequestInit) => Promise<Response> =
     (() => {
@@ -127,7 +127,7 @@ export function iapKitApi(options: IAPKitApiOptions) {
         return (input: string, init?: RequestInit) => fetch(input, init);
       }
       throw new Error(
-        "iapKitApi requires a fetch implementation. Pass `fetchImpl` for runtimes without a global fetch.",
+        "kitApi requires a fetch implementation. Pass `fetchImpl` for runtimes without a global fetch.",
       );
     })();
 
@@ -160,21 +160,21 @@ export function iapKitApi(options: IAPKitApiOptions) {
         // CDN-injected error page, etc.) on a 2xx response would
         // otherwise reach the caller as `parsed = text` and crash
         // on property access via `parsed as T`. Throw a structured
-        // IAPKitApiError instead so callers see a typed failure.
+        // KitApiError instead so callers see a typed failure.
         parseError = error;
       }
     }
     if (!response.ok) {
       // Surface the raw body (text or parsed) on the error path so
       // operators can read the upstream error message verbatim.
-      throw new IAPKitApiError(
+      throw new KitApiError(
         response.status,
         parsed ?? text,
         `kit ${path} returned ${response.status}`,
       );
     }
     if (parseError) {
-      throw new IAPKitApiError(
+      throw new KitApiError(
         response.status,
         text,
         `kit ${path} returned a non-JSON ${response.status} body (${
@@ -192,7 +192,7 @@ export function iapKitApi(options: IAPKitApiOptions) {
     /** GET /v1/subscriptions/status — the `active` boolean is the
      * fastest gate for "is this user paying?". */
     status: (userId: string) =>
-      call<IAPKitStatusResponse>(
+      call<StatusResponse>(
         `/v1/subscriptions/status/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
       ),
 
@@ -200,7 +200,7 @@ export function iapKitApi(options: IAPKitApiOptions) {
      * is entitled to. Use this when feature gating depends on which
      * specific tier the user owns. */
     entitlements: (userId: string) =>
-      call<IAPKitEntitlementsResponse>(
+      call<EntitlementsResponse>(
         `/v1/subscriptions/entitlements/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
       ),
 
