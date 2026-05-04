@@ -53,7 +53,13 @@ ENV VITE_KIT_SENTRY_DSN=${VITE_KIT_SENTRY_DSN}
 # `bun run build:all` cache when the token rotates — without it, GHA / Fly's
 # remote builder would happily reuse the prior layer and ship a stale token.
 ARG VITE_KIT_MIXPANEL_TOKEN_HASH=
+# VITE_KIT_MIXPANEL_TOKEN_HASH must be expanded inside the RUN command
+# string for BuildKit to fold it into the layer cache key — an unused
+# ARG does not affect caching, so the rotation-busting effect would
+# silently disappear if we only declared it above. The build script
+# does not consume the hash; it only exists as a cache fingerprint.
 RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
+    VITE_KIT_MIXPANEL_TOKEN_HASH="${VITE_KIT_MIXPANEL_TOKEN_HASH}" \
     VITE_KIT_MIXPANEL_TOKEN="$(cat /run/secrets/VITE_KIT_MIXPANEL_TOKEN 2>/dev/null || true)" \
     bun run build:all
 

@@ -1,3 +1,5 @@
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -114,37 +116,43 @@ class FetchEventSource implements WebhookEventStream {
   }
 }
 
+function startSseServer(frame: string): Promise<{
+  port: number;
+  close(): Promise<void>;
+}> {
+  return new Promise((resolve, reject) => {
+    const server: Server = createServer((_req, res) => {
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+      });
+      res.write(frame);
+      res.end();
+    });
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as AddressInfo;
+      resolve({
+        port: address.port,
+        close: () =>
+          new Promise<void>((closeResolve) => {
+            server.close(() => closeResolve());
+          }),
+      });
+    });
+  });
+}
+
 describe("connectWebhookStream SSE integration", () => {
   it("receives typed SSE frames from an actual HTTP stream", async () => {
-    const encoder = new TextEncoder();
-    const server = Bun.serve({
-      port: 0,
-      fetch: () =>
-        new Response(
-          new ReadableStream({
-            start(controller) {
-              controller.enqueue(
-                encoder.encode(
-                  [
-                    "id: uuid-typed-sse",
-                    "event: SubscriptionRenewed",
-                    `data: ${JSON.stringify(validEvent)}`,
-                    "",
-                    "",
-                  ].join("\n"),
-                ),
-              );
-              controller.close();
-            },
-          }),
-          {
-            headers: {
-              "content-type": "text/event-stream",
-              "cache-control": "no-cache",
-            },
-          },
-        ),
-    });
+    const frame = [
+      "id: uuid-typed-sse",
+      "event: SubscriptionRenewed",
+      `data: ${JSON.stringify(validEvent)}`,
+      "",
+      "",
+    ].join("\n");
+    const server = await startSseServer(frame);
 
     let listener: { close(): void } | null = null;
     try {
@@ -176,7 +184,7 @@ describe("connectWebhookStream SSE integration", () => {
       expect(event.purchaseToken).toBe("token-typed-sse");
     } finally {
       listener?.close();
-      server.stop(true);
+      await server.close();
     }
   });
 });
