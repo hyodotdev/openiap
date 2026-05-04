@@ -94,6 +94,83 @@ describe("drainWebhookEventBatches", () => {
     });
   });
 
+  it("steps past a saturated millisecond cohort hidden by the query cap", async () => {
+    // Simulate the original webhookEventsSince bug shape: a same-
+    // millisecond burst that fills exactly `limit` rows so the helper
+    // keeps looping, then the next query at (sinceMs, afterCreationTime)
+    // lies and returns []  (mirroring an in-memory filter that drops
+    // the rest of the cohort past the take() cap). Without the
+    // saturated-cohort fallback the helper would declare drain
+    // complete and miss the post-cohort event.
+    const limit = 5;
+    const cohort = Array.from({ length: limit }, (_, index) => ({
+      id: `cohort-${index}`,
+      receivedAt: 5_000,
+      _creationTime: index + 1,
+    }));
+    const postCohort = {
+      id: "post-cohort",
+      receivedAt: 5_001,
+      _creationTime: 100,
+    };
+    const loadBatch = async ({
+      sinceMs,
+      afterCreationTime,
+    }: {
+      sinceMs: number;
+      afterCreationTime?: number;
+      limit: number;
+    }) => {
+      if (sinceMs === 5_000 && afterCreationTime === undefined) {
+        return cohort;
+      }
+      if (sinceMs === 5_000 && afterCreationTime !== undefined) {
+        // The buggy underlying query: claims the cohort is exhausted
+        // even though we've only walked a take()-capped slice.
+        return [];
+      }
+      if (sinceMs >= 5_001) {
+        return [postCohort];
+      }
+      return [];
+    };
+
+    const delivered: string[] = [];
+    const fallbacks: Array<{
+      cursor: { sinceMs: number; afterCreationTime?: number };
+      nextSinceMs: number;
+    }> = [];
+    const result = await drainWebhookEventBatches({
+      initialCursor: { sinceMs: 5_000 },
+      limit,
+      maxIterations: 10,
+      loadBatch,
+      seen: makeSeen(),
+      writeEvent: async (_event, id) => {
+        delivered.push(id);
+      },
+      onSaturatedCohortFallback: ({ cursor, nextSinceMs }) => {
+        fallbacks.push({ cursor, nextSinceMs });
+      },
+    });
+
+    expect(delivered).toEqual([
+      "cohort-0",
+      "cohort-1",
+      "cohort-2",
+      "cohort-3",
+      "cohort-4",
+      "post-cohort",
+    ]);
+    expect(fallbacks).toEqual([
+      {
+        cursor: { sinceMs: 5_000, afterCreationTime: 5 },
+        nextSinceMs: 5_001,
+      },
+    ]);
+    expect(result.cursor.sinceMs).toBe(5_001);
+  });
+
   it("advances the cursor even when duplicate ids are skipped", async () => {
     const events = [
       { id: "already-sent", receivedAt: 2_001, _creationTime: 1 },
@@ -116,5 +193,114 @@ describe("drainWebhookEventBatches", () => {
       sinceMs: 2_002,
       afterCreationTime: 2,
     });
+  });
+
+  it("does NOT bump sinceMs when a full page merely ends at the cursor ms but spans multiple receivedAts", async () => {
+    // Reviewer-flagged edge (coderabbit): a full page whose tail
+    // happens to land at the cursor millisecond is NOT a saturated
+    // cohort — bumping sinceMs there would skip a late-arriving event
+    // at the same ms that the next normal query would have picked up.
+    const limit = 5;
+    const mixedPage = [
+      { id: "mix-0", receivedAt: 8_000, _creationTime: 1 },
+      { id: "mix-1", receivedAt: 8_001, _creationTime: 2 },
+      { id: "mix-2", receivedAt: 8_002, _creationTime: 3 },
+      { id: "mix-3", receivedAt: 8_003, _creationTime: 4 },
+      { id: "mix-4", receivedAt: 8_003, _creationTime: 5 },
+    ];
+    let calls = 0;
+    const loadBatch = async () => {
+      calls += 1;
+      return calls === 1 ? mixedPage : [];
+    };
+
+    let fallbackFired = false;
+    const result = await drainWebhookEventBatches({
+      initialCursor: { sinceMs: 7_999 },
+      limit,
+      maxIterations: 10,
+      loadBatch,
+      seen: makeSeen(),
+      writeEvent: async () => {},
+      onSaturatedCohortFallback: () => {
+        fallbackFired = true;
+      },
+    });
+
+    expect(fallbackFired).toBe(false);
+    expect(result.cursor.sinceMs).toBe(8_003);
+  });
+
+  it("triggers the saturated-cohort fallback even when the page is fully dedup'd", async () => {
+    // Reviewer-flagged edge: gating the fallback on delivered events
+    // would let a full same-ms page of duplicates break early instead
+    // of advancing past the cohort.
+    const limit = 5;
+    const cohort = Array.from({ length: limit }, (_, index) => ({
+      id: `dedup-${index}`,
+      receivedAt: 7_000,
+      _creationTime: index + 1,
+    }));
+    const postCohort = {
+      id: "post-cohort",
+      receivedAt: 7_001,
+      _creationTime: 100,
+    };
+    const loadBatch = async ({
+      sinceMs,
+      afterCreationTime,
+    }: {
+      sinceMs: number;
+      afterCreationTime?: number;
+      limit: number;
+    }) => {
+      if (sinceMs === 7_000 && afterCreationTime === undefined) {
+        return cohort;
+      }
+      if (sinceMs === 7_000 && afterCreationTime !== undefined) {
+        return [];
+      }
+      if (sinceMs >= 7_001) {
+        return [postCohort];
+      }
+      return [];
+    };
+
+    const delivered: string[] = [];
+    const result = await drainWebhookEventBatches({
+      initialCursor: { sinceMs: 7_000 },
+      limit,
+      maxIterations: 10,
+      loadBatch,
+      seen: makeSeen(cohort.map((event) => event.id)),
+      writeEvent: async (_event, id) => {
+        delivered.push(id);
+      },
+    });
+
+    expect(delivered).toEqual(["post-cohort"]);
+    expect(result.cursor.sinceMs).toBe(7_001);
+  });
+
+  it("leaves a failed event eligible for retry by adding to `seen` only after writeEvent succeeds", async () => {
+    const events = [{ id: "will-fail", receivedAt: 9_001, _creationTime: 1 }];
+    const seen = makeSeen();
+    let attempts = 0;
+
+    await expect(
+      drainWebhookEventBatches({
+        initialCursor: { sinceMs: 9_000 },
+        maxIterations: 10,
+        loadBatch: makePagedLoader(events),
+        seen,
+        writeEvent: async () => {
+          attempts += 1;
+          throw new Error("network blip");
+        },
+      }),
+    ).rejects.toThrow("network blip");
+
+    expect(attempts).toBe(1);
+    expect(seen.has("will-fail")).toBe(false);
   });
 });

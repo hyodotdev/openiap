@@ -130,7 +130,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && (bun run dev:convex & bun run dev:server & bun run dev; kill 0)"
+                "npx --yes kill-port 3000 5173 || true && ([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && trap 'kill 0' INT TERM EXIT && (bun run dev:convex & bun run dev:server & bun run dev; wait)"
             ],
             "cwd": "${workspaceFolder}/packages/kit",
             "console": "integratedTerminal"
