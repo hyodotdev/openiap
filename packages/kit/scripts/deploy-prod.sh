@@ -66,7 +66,14 @@ if [ -n "${VITE_KIT_MIXPANEL_TOKEN:-}" ]; then
   # The hash arg is purely a cache buster — BuildKit secret values do
   # not participate in the layer cache key, so without it a token
   # rotation would happily reuse the prior `bun run build:all` layer.
-  MIXPANEL_TOKEN_HASH=$(printf '%s' "$VITE_KIT_MIXPANEL_TOKEN" | shasum -a 256 | cut -c1-16)
+  if command -v sha256sum >/dev/null 2>&1; then
+    MIXPANEL_TOKEN_HASH=$(printf '%s' "$VITE_KIT_MIXPANEL_TOKEN" | sha256sum | cut -c1-16)
+  elif command -v shasum >/dev/null 2>&1; then
+    MIXPANEL_TOKEN_HASH=$(printf '%s' "$VITE_KIT_MIXPANEL_TOKEN" | shasum -a 256 | cut -c1-16)
+  else
+    echo "error: need sha256sum (most Linux) or shasum (macOS) on PATH to hash the Mixpanel token." >&2
+    exit 1
+  fi
   BUILD_FLAGS+=(--build-arg "VITE_KIT_MIXPANEL_TOKEN_HASH=$MIXPANEL_TOKEN_HASH")
   BUILD_FLAGS+=(--build-secret "VITE_KIT_MIXPANEL_TOKEN=$VITE_KIT_MIXPANEL_TOKEN")
 fi

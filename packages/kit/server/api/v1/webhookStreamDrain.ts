@@ -8,6 +8,18 @@ export type WebhookStreamSeenSet = {
   add(id: string): void;
 };
 
+// Minimal contract the helper needs from a webhook event row. The
+// caller may pass through additional fields (the SSE writer reads
+// `type`, the dashboard reads payload bodies etc.); the index
+// signature lets those flow through without forcing every callsite
+// to widen back to `Record<string, unknown>`.
+export type WebhookStreamEvent = {
+  id?: unknown;
+  receivedAt?: unknown;
+  _creationTime?: unknown;
+  [key: string]: unknown;
+};
+
 export type DrainWebhookEventBatchesOptions = {
   initialCursor: WebhookStreamCursor;
   limit?: number;
@@ -15,9 +27,9 @@ export type DrainWebhookEventBatchesOptions = {
   isAborted?: () => boolean;
   loadBatch: (
     cursor: WebhookStreamCursor & { limit: number },
-  ) => Promise<Array<Record<string, unknown>>>;
+  ) => Promise<WebhookStreamEvent[]>;
   seen: WebhookStreamSeenSet;
-  writeEvent: (event: Record<string, unknown>, id: string) => Promise<void>;
+  writeEvent: (event: WebhookStreamEvent, id: string) => Promise<void>;
   onIterationLimit?: (state: {
     iterations: number;
     cursor: WebhookStreamCursor;
@@ -109,7 +121,7 @@ export async function drainWebhookEventBatches(
 
 function advanceCursor(
   cursor: WebhookStreamCursor,
-  event: Record<string, unknown>,
+  event: WebhookStreamEvent,
 ): boolean {
   const receivedAt =
     typeof event.receivedAt === "number" ? event.receivedAt : null;
