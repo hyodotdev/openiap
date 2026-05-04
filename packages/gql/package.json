@@ -18,7 +18,8 @@
     "generate:kotlin": "bun codegen/index.ts kotlin",
     "generate:dart": "bun codegen/index.ts dart",
     "generate:gdscript": "bun codegen/index.ts gdscript",
-    "sync": "bun scripts/sync-to-platforms.mjs"
+    "sync": "bun scripts/sync-to-platforms.mjs",
+    "test": "bun test src"
   },
   "keywords": [
     "graphql",

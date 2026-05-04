@@ -42,6 +42,12 @@ export async function drainWebhookEventBatches(
   let delivered = 0;
   let iterations = 0;
   let hitIterationLimit = false;
+  // Tracks whether the previous iteration delivered events stuck at
+  // `cursor.sinceMs`. Used by the saturated-cohort fallback below so a
+  // single millisecond's burst that exceeds the underlying query's row
+  // cap can still make forward progress instead of declaring drain
+  // complete on the next empty batch.
+  let lastDeliveredReceivedAt: number | null = null;
 
   while (!options.isAborted?.()) {
     if (iterations >= options.maxIterations) {
@@ -53,6 +59,18 @@ export async function drainWebhookEventBatches(
 
     const batch = await options.loadBatch({ ...cursor, limit });
     if (!batch.length) {
+      // Saturated-cohort fallback: if the previous iteration delivered
+      // events at this millisecond and the next query came back empty,
+      // the underlying query may have hidden the rest of that cohort
+      // behind its own row cap (e.g. boundaryTail.take(limit) returning
+      // a partial slice of a same-ms burst). Advance past the
+      // millisecond and try once more before declaring drain complete.
+      if (lastDeliveredReceivedAt === cursor.sinceMs) {
+        cursor.sinceMs += 1;
+        cursor.afterCreationTime = undefined;
+        lastDeliveredReceivedAt = null;
+        continue;
+      }
       break;
     }
 
@@ -71,6 +89,9 @@ export async function drainWebhookEventBatches(
       options.seen.add(id);
       await options.writeEvent(event, id);
       delivered += 1;
+      if (typeof event.receivedAt === "number") {
+        lastDeliveredReceivedAt = event.receivedAt;
+      }
     }
 
     if (!advanced || batch.length < limit) {

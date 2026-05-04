@@ -129,11 +129,16 @@ jobs:
           # runtime rather than failing the build.
           # Mixpanel is passed as a BuildKit secret, not an ARG/ENV pair,
           # so Docker's secret-name check does not flag a public SPA token.
+          # A short hash of the token is also passed as a build arg purely to
+          # bust the layer cache when the token rotates (BuildKit secret values
+          # are not part of the cache key).
           BUILD_FLAGS=(
             --build-arg "VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL"
             --build-arg "VITE_KIT_SENTRY_DSN=$VITE_KIT_SENTRY_DSN"
           )
           if [ -n "$VITE_KIT_MIXPANEL_TOKEN" ]; then
+            MIXPANEL_TOKEN_HASH=$(printf '%s' "$VITE_KIT_MIXPANEL_TOKEN" | sha256sum | cut -c1-16)
+            BUILD_FLAGS+=(--build-arg "VITE_KIT_MIXPANEL_TOKEN_HASH=$MIXPANEL_TOKEN_HASH")
             BUILD_FLAGS+=(--build-secret "VITE_KIT_MIXPANEL_TOKEN=$VITE_KIT_MIXPANEL_TOKEN")
           fi
 

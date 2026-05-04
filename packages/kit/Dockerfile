@@ -48,6 +48,11 @@ ARG VITE_KIT_SENTRY_DSN
 ENV VITE_KIT_SENTRY_DSN=${VITE_KIT_SENTRY_DSN}
 # Mixpanel project token is public by design and baked into the SPA when set,
 # but pass it via BuildKit secret so Docker does not flag TOKEN-named ARG/ENV.
+# BuildKit secret values are not part of the layer cache key, so a non-secret
+# fingerprint of the token is passed as a build arg purely to bust the
+# `bun run build:all` cache when the token rotates — without it, GHA / Fly's
+# remote builder would happily reuse the prior layer and ship a stale token.
+ARG VITE_KIT_MIXPANEL_TOKEN_HASH=
 RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
     VITE_KIT_MIXPANEL_TOKEN="$(cat /run/secrets/VITE_KIT_MIXPANEL_TOKEN 2>/dev/null || true)" \
     bun run build:all

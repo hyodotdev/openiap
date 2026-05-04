@@ -94,6 +94,70 @@ describe("drainWebhookEventBatches", () => {
     });
   });
 
+  it("steps past a saturated millisecond cohort hidden by the query cap", async () => {
+    // Simulate the original webhookEventsSince bug shape: a same-
+    // millisecond burst that fills exactly `limit` rows so the helper
+    // keeps looping, then the next query at (sinceMs, afterCreationTime)
+    // lies and returns []  (mirroring an in-memory filter that drops
+    // the rest of the cohort past the take() cap). Without the
+    // saturated-cohort fallback the helper would declare drain
+    // complete and miss the post-cohort event.
+    const limit = 5;
+    const cohort = Array.from({ length: limit }, (_, index) => ({
+      id: `cohort-${index}`,
+      receivedAt: 5_000,
+      _creationTime: index + 1,
+    }));
+    const postCohort = {
+      id: "post-cohort",
+      receivedAt: 5_001,
+      _creationTime: 100,
+    };
+    const loadBatch = async ({
+      sinceMs,
+      afterCreationTime,
+    }: {
+      sinceMs: number;
+      afterCreationTime?: number;
+      limit: number;
+    }) => {
+      if (sinceMs === 5_000 && afterCreationTime === undefined) {
+        return cohort;
+      }
+      if (sinceMs === 5_000 && afterCreationTime !== undefined) {
+        // The buggy underlying query: claims the cohort is exhausted
+        // even though we've only walked a take()-capped slice.
+        return [];
+      }
+      if (sinceMs >= 5_001) {
+        return [postCohort];
+      }
+      return [];
+    };
+
+    const delivered: string[] = [];
+    const result = await drainWebhookEventBatches({
+      initialCursor: { sinceMs: 5_000 },
+      limit,
+      maxIterations: 10,
+      loadBatch,
+      seen: makeSeen(),
+      writeEvent: async (_event, id) => {
+        delivered.push(id);
+      },
+    });
+
+    expect(delivered).toEqual([
+      "cohort-0",
+      "cohort-1",
+      "cohort-2",
+      "cohort-3",
+      "cohort-4",
+      "post-cohort",
+    ]);
+    expect(result.cursor.sinceMs).toBe(5_001);
+  });
+
   it("advances the cursor even when duplicate ids are skipped", async () => {
     const events = [
       { id: "already-sent", receivedAt: 2_001, _creationTime: 1 },

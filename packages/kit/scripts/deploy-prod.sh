@@ -63,6 +63,11 @@ fi
 if [ -n "${VITE_KIT_MIXPANEL_TOKEN:-}" ]; then
   # Public SPA config, passed as a BuildKit secret to avoid Docker's
   # TOKEN-named ARG/ENV warning while still baking it into the bundle.
+  # The hash arg is purely a cache buster — BuildKit secret values do
+  # not participate in the layer cache key, so without it a token
+  # rotation would happily reuse the prior `bun run build:all` layer.
+  MIXPANEL_TOKEN_HASH=$(printf '%s' "$VITE_KIT_MIXPANEL_TOKEN" | shasum -a 256 | cut -c1-16)
+  BUILD_FLAGS+=(--build-arg "VITE_KIT_MIXPANEL_TOKEN_HASH=$MIXPANEL_TOKEN_HASH")
   BUILD_FLAGS+=(--build-secret "VITE_KIT_MIXPANEL_TOKEN=$VITE_KIT_MIXPANEL_TOKEN")
 fi
 
