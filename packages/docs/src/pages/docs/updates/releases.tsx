@@ -26,6 +26,196 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 5, 2026 — Webhook event streaming + IAPKit kit-api shipped to all SDKs
+    {
+      id: 'releases-2026-05-05',
+      date: new Date('2026-05-05'),
+      element: (
+        <div key="releases-2026-05-05" style={noteCardStyle}>
+          <AnchorLink id="releases-2026-05-05" level="h4">
+            May 5, 2026
+          </AnchorLink>
+
+          <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Webhook event streaming + IAPKit <code>kit-api</code> wired across
+              every SDK
+            </h5>
+            <p
+              style={{
+                marginBottom: '1rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              Picks up the kit hosted backend rollout (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/124"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #124
+              </a>
+              ): every wrapper SDK and both native packages now expose the
+              normalized webhook event stream (App Store Server Notifications v2
+              + Google RTDN, surfaced through <code>kit.openiap.dev</code>'s SSE
+              channel) plus a typed <code>kit-api</code> client for hosted
+              purchase verification, subscription state, and product sync.
+            </p>
+
+            <ul
+              style={{
+                marginBottom: '1rem',
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <strong>packages/gql</strong> — added{' '}
+                <code>webhook.graphql</code> spec, generated webhook event
+                types, <code>connectWebhookStream</code> SSE client, and{' '}
+                <code>kit-api</code> typed client. Spec bumped to{' '}
+                <code>2.1.0</code>.
+              </li>
+              <li>
+                <strong>packages/apple</strong> — <code>Types.swift</code>{' '}
+                regenerated with webhook event payloads + kit-api request /
+                response shapes; <code>OpenIapModule</code> exposes ASN v2
+                normalization helpers used by Convex sync.
+              </li>
+              <li>
+                <strong>packages/google</strong> — <code>Types.kt</code>{' '}
+                regenerated; <code>OpenIapStore</code> emits RTDN-normalized
+                events into the kit pipeline and exposes the same kit-api
+                surface as Apple.
+              </li>
+              <li>
+                <strong>expo-iap</strong> &amp;{' '}
+                <strong>react-native-iap</strong> — added{' '}
+                <code>webhook-client.ts</code>, <code>useWebhookEvents</code>{' '}
+                hook, and <code>kit-api.ts</code>. <code>useIAP</code> now
+                optionally subscribes to the live event stream so receipt
+                updates fan out without polling.
+              </li>
+              <li>
+                <strong>flutter_inapp_purchase</strong> — added{' '}
+                <code>webhook_client.dart</code> with a Dart SSE transport;{' '}
+                <code>types.dart</code> now mirrors the new webhook + kit-api
+                shapes generated from <code>packages/gql</code>.
+              </li>
+              <li>
+                <strong>kmp-iap</strong> — added <code>WebhookClient</code> with
+                platform <code>WebhookTransport</code> implementations
+                (OkHttp-EventSource on Android, NSURLSession on iOS) and{' '}
+                expanded <code>Types.kt</code> for the new payloads.
+              </li>
+              <li>
+                <strong>godot-iap</strong> — added{' '}
+                <code>webhook_client.gd</code> with a GDScript SSE client and
+                regenerated <code>types.gd</code>; the addon now ships with the
+                same kit verification path the other SDKs use.
+              </li>
+            </ul>
+
+            <p
+              style={{
+                marginBottom: 0,
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              The legacy <code>api.iapkit.com</code> redirect still forwards to{' '}
+              <code>kit.openiap.dev</code> until{' '}
+              <strong>August 12, 2026</strong> — apps that pick up these package
+              versions move off the redirect and onto the native webhook stream
+              in one upgrade.
+            </p>
+          </div>
+
+          {/* Package Releases */}
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.1.5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-apple 2.1.5
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap-google 2.1.2
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/react-native-iap-15.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  react-native-iap 15.2.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/expo-iap-4.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  expo-iap 4.2.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/flutter-iap-9.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  flutter_inapp_purchase 9.2.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/kmp-iap-2.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kmp-iap 2.2.4
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-2.2.4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 2.2.4
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // May 4, 2026 — Kit webhook drain helper extraction + CI/BuildKit hardening
     {
       id: 'releases-2026-05-04',
