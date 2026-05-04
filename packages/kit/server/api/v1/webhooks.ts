@@ -658,6 +658,23 @@ webhooks.get("/stream/:apiKey", async (c) => {
                 { iterations, liveCursor: cursor.sinceMs },
               );
             },
+            onSaturatedCohortFallback: ({
+              iterations,
+              cursor,
+              nextSinceMs,
+              limit,
+            }) => {
+              console.warn(
+                "[webhooks/stream] live drain saturated same-ms cohort fallback",
+                {
+                  iterations,
+                  limit,
+                  liveCursor: cursor.sinceMs,
+                  afterCreationTime: cursor.afterCreationTime,
+                  nextLiveCursor: nextSinceMs,
+                },
+              );
+            },
           });
           liveCursor = result.cursor.sinceMs;
           liveCreationCursor = result.cursor.afterCreationTime;

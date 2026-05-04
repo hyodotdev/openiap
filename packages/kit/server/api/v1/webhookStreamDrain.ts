@@ -34,6 +34,12 @@ export type DrainWebhookEventBatchesOptions = {
     iterations: number;
     cursor: WebhookStreamCursor;
   }) => void;
+  onSaturatedCohortFallback?: (state: {
+    iterations: number;
+    cursor: WebhookStreamCursor;
+    nextSinceMs: number;
+    limit: number;
+  }) => void;
 };
 
 export type DrainWebhookEventBatchesResult = {
@@ -43,6 +49,16 @@ export type DrainWebhookEventBatchesResult = {
   hitIterationLimit: boolean;
 };
 
+/**
+ * Drains webhook event pages using a moving `(receivedAt, _creationTime)`
+ * cursor. Events are processed sequentially so the caller can preserve SSE
+ * ordering and backpressure; an event id is added to `seen` only after
+ * `writeEvent` succeeds, leaving failed writes retryable on the next pass.
+ * Abort checks stop further work without throwing, and `maxIterations` bounds
+ * the loop for safety. When the source query appears to truncate a saturated
+ * same-millisecond cohort, the helper reports the fallback and advances
+ * `sinceMs` by one millisecond before retrying.
+ */
 export async function drainWebhookEventBatches(
   options: DrainWebhookEventBatchesOptions,
 ): Promise<DrainWebhookEventBatchesResult> {
@@ -80,6 +96,12 @@ export async function drainWebhookEventBatches(
       // complete. We gate on observation rather than delivery so a
       // full page of dedup'd same-ms events still advances the cursor.
       if (lastObservedReceivedAt === cursor.sinceMs) {
+        options.onSaturatedCohortFallback?.({
+          iterations,
+          cursor: { ...cursor },
+          nextSinceMs: cursor.sinceMs + 1,
+          limit,
+        });
         cursor.sinceMs += 1;
         cursor.afterCreationTime = undefined;
         lastObservedReceivedAt = null;

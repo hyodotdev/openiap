@@ -136,6 +136,10 @@ describe("drainWebhookEventBatches", () => {
     };
 
     const delivered: string[] = [];
+    const fallbacks: Array<{
+      cursor: { sinceMs: number; afterCreationTime?: number };
+      nextSinceMs: number;
+    }> = [];
     const result = await drainWebhookEventBatches({
       initialCursor: { sinceMs: 5_000 },
       limit,
@@ -144,6 +148,9 @@ describe("drainWebhookEventBatches", () => {
       seen: makeSeen(),
       writeEvent: async (_event, id) => {
         delivered.push(id);
+      },
+      onSaturatedCohortFallback: ({ cursor, nextSinceMs }) => {
+        fallbacks.push({ cursor, nextSinceMs });
       },
     });
 
@@ -154,6 +161,12 @@ describe("drainWebhookEventBatches", () => {
       "cohort-3",
       "cohort-4",
       "post-cohort",
+    ]);
+    expect(fallbacks).toEqual([
+      {
+        cursor: { sinceMs: 5_000, afterCreationTime: 5 },
+        nextSinceMs: 5_001,
+      },
     ]);
     expect(result.cursor.sinceMs).toBe(5_001);
   });
