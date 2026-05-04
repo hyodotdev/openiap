@@ -26,6 +26,124 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // May 4, 2026 — Kit webhook drain helper extraction + CI/BuildKit hardening
+    {
+      id: 'releases-2026-05-04',
+      date: new Date('2026-05-04'),
+      element: (
+        <div key="releases-2026-05-04" style={noteCardStyle}>
+          <AnchorLink id="releases-2026-05-04" level="h4">
+            May 4, 2026
+          </AnchorLink>
+
+          <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>
+              Kit webhook drain helper extracted + SSE drain edges hardened
+            </h5>
+            <p
+              style={{
+                marginBottom: '1rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              The SSE live-drain loop in{' '}
+              <code>packages/kit/server/api/v1/webhooks.ts</code> now delegates
+              to a standalone <code>drainWebhookEventBatches</code> helper
+              (preserving the same advance/abort semantics), so cohort and
+              iteration-limit edges are testable in isolation. See{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/125"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #125
+              </a>
+              .
+            </p>
+
+            <ul
+              style={{
+                marginBottom: '1rem',
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <strong>Saturated-cohort fallback</strong> — drain loop now
+                advances when a same-millisecond cohort exceeds the{' '}
+                <code>take()</code> cap. The fallback is gated on a true same-
+                <code>receivedAt</code> cohort (full page, every event shares
+                one <code>receivedAt</code>, that <code>receivedAt</code>{' '}
+                matches <code>cursor.sinceMs</code>) so a mixed full page ending
+                at the cursor ms cannot skip a late-arriving same-ms event.
+              </li>
+              <li>
+                <strong>Write-failure retryability</strong> — event ids are
+                added to <code>seen</code> only after <code>writeEvent</code>{' '}
+                succeeds, so a thrown writer leaves the event eligible for the
+                next drain pass.
+              </li>
+              <li>
+                <strong>Convex index cleanup</strong> — removed the redundant{' '}
+                <code>by_project_and_received_and_creation</code> index. Convex
+                auto-appends <code>_creationTime</code> to every index, so{' '}
+                <code>by_project_and_received</code> already serves both{' '}
+                <code>webhookEventsSince</code> and{' '}
+                <code>latestWebhookEventsSince</code>.
+              </li>
+              <li>
+                <strong>Typed drain events</strong> —{' '}
+                <code>Record&lt;string, unknown&gt;</code> replaced with a{' '}
+                <code>WebhookStreamEvent</code> type that names the fields the
+                helper actually reads (<code>id</code>, <code>receivedAt</code>,{' '}
+                <code>_creationTime</code>).
+              </li>
+              <li>
+                <strong>Real-HTTP SSE integration test</strong> — added for{' '}
+                <code>connectWebhookStream</code> in <code>packages/gql</code>{' '}
+                using <code>http.createServer</code> + a fetch-based{' '}
+                <code>EventSource</code> shim, and wired{' '}
+                <code>packages/gql</code> vitest into CI's <code>test-gql</code>{' '}
+                job (these tests weren't running on PRs before).
+              </li>
+            </ul>
+
+            <p
+              style={{
+                marginBottom: '0.75rem',
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <strong>Build &amp; deploy:</strong>{' '}
+              <code>VITE_KIT_MIXPANEL_TOKEN</code> is now passed as a BuildKit
+              secret (<code>--build-secret</code>) instead of an{' '}
+              <code>ARG</code>/<code>ENV</code> pair, with a{' '}
+              <code>VITE_KIT_MIXPANEL_TOKEN_HASH</code> cache-bust ARG expanded
+              inside the <code>RUN</code> command so token rotations actually
+              invalidate the cached <code>bun run build:all</code> layer.{' '}
+              <code>deploy-prod.sh</code> now prefers <code>sha256sum</code>{' '}
+              with a <code>shasum -a 256</code> fallback for macOS.
+            </p>
+
+            <p
+              style={{
+                marginBottom: 0,
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <strong>CI bumps:</strong> <code>actions/checkout@v4</code> →{' '}
+              <code>v6</code>, <code>docker/setup-buildx-action@v3</code> →{' '}
+              <code>v4</code>, <code>docker/build-push-action@v6</code> →{' '}
+              <code>v7</code>.
+            </p>
+          </div>
+        </div>
+      ),
+    },
+
     // April 25, 2026 — SDK parity patch: wire every type-declared handler end-to-end
     {
       id: 'releases-2026-04-25',
