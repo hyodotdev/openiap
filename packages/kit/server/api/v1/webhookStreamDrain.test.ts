@@ -195,6 +195,42 @@ describe("drainWebhookEventBatches", () => {
     });
   });
 
+  it("does NOT bump sinceMs when a full page merely ends at the cursor ms but spans multiple receivedAts", async () => {
+    // Reviewer-flagged edge (coderabbit): a full page whose tail
+    // happens to land at the cursor millisecond is NOT a saturated
+    // cohort — bumping sinceMs there would skip a late-arriving event
+    // at the same ms that the next normal query would have picked up.
+    const limit = 5;
+    const mixedPage = [
+      { id: "mix-0", receivedAt: 8_000, _creationTime: 1 },
+      { id: "mix-1", receivedAt: 8_001, _creationTime: 2 },
+      { id: "mix-2", receivedAt: 8_002, _creationTime: 3 },
+      { id: "mix-3", receivedAt: 8_003, _creationTime: 4 },
+      { id: "mix-4", receivedAt: 8_003, _creationTime: 5 },
+    ];
+    let calls = 0;
+    const loadBatch = async () => {
+      calls += 1;
+      return calls === 1 ? mixedPage : [];
+    };
+
+    let fallbackFired = false;
+    const result = await drainWebhookEventBatches({
+      initialCursor: { sinceMs: 7_999 },
+      limit,
+      maxIterations: 10,
+      loadBatch,
+      seen: makeSeen(),
+      writeEvent: async () => {},
+      onSaturatedCohortFallback: () => {
+        fallbackFired = true;
+      },
+    });
+
+    expect(fallbackFired).toBe(false);
+    expect(result.cursor.sinceMs).toBe(8_003);
+  });
+
   it("triggers the saturated-cohort fallback even when the page is fully dedup'd", async () => {
     // Reviewer-flagged edge: gating the fallback on delivered events
     // would let a full same-ms page of duplicates break early instead

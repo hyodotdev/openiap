@@ -76,6 +76,13 @@ export async function drainWebhookEventBatches(
   // exceeds the underlying query's row cap can still make forward
   // progress even when the whole page was already in `seen`.
   let lastObservedReceivedAt: number | null = null;
+  // Tighter gate for the saturated-cohort fallback: only true when
+  // the previous page (a) was full (`length === limit`) and (b) every
+  // event sat at `cursor.sinceMs`. A mixed full page that merely ends
+  // at the cursor ms is not evidence of saturation — bumping `sinceMs`
+  // there would risk skipping a late-arriving same-ms event that the
+  // next normal query would have picked up.
+  let lastPageWasSaturatedCohort = false;
 
   while (!options.isAborted?.()) {
     if (iterations >= options.maxIterations) {
@@ -87,15 +94,17 @@ export async function drainWebhookEventBatches(
 
     const batch = await options.loadBatch({ ...cursor, limit });
     if (!batch.length) {
-      // Saturated-cohort fallback: if the previous iteration saw
-      // events stuck at this millisecond and the next query came back
-      // empty, the underlying query may have hidden the rest of that
-      // cohort behind its own row cap (e.g. boundaryTail.take(limit)
-      // returning a partial slice of a same-ms burst). Advance past
-      // the millisecond and try once more before declaring drain
-      // complete. We gate on observation rather than delivery so a
-      // full page of dedup'd same-ms events still advances the cursor.
-      if (lastObservedReceivedAt === cursor.sinceMs) {
+      // Saturated-cohort fallback: if the previous iteration's full
+      // page was pinned to this millisecond and the next query came
+      // back empty, the underlying query may have hidden the rest of
+      // that cohort behind its own row cap (e.g. boundaryTail.take
+      // (limit) returning a partial slice of a same-ms burst).
+      // Advance past the millisecond and try once more before
+      // declaring drain complete.
+      if (
+        lastPageWasSaturatedCohort &&
+        lastObservedReceivedAt === cursor.sinceMs
+      ) {
         options.onSaturatedCohortFallback?.({
           iterations,
           cursor: { ...cursor },
@@ -105,12 +114,21 @@ export async function drainWebhookEventBatches(
         cursor.sinceMs += 1;
         cursor.afterCreationTime = undefined;
         lastObservedReceivedAt = null;
+        lastPageWasSaturatedCohort = false;
         continue;
       }
       break;
     }
 
     let advanced = false;
+    // A page is a "saturated cohort" only when every event in it
+    // shares one receivedAt value. Track the first event's
+    // receivedAt and flip the flag if any later event differs —
+    // comparing against `cursor.sinceMs` doesn't work because
+    // `advanceCursor` bumps the cursor to each event's receivedAt
+    // mid-iteration, making the equality trivially true.
+    let pageReceivedAt: number | null = null;
+    let pageAllSameReceivedAt = true;
     for (const event of batch) {
       if (options.isAborted?.()) break;
 
@@ -119,6 +137,13 @@ export async function drainWebhookEventBatches(
       }
       if (typeof event.receivedAt === "number") {
         lastObservedReceivedAt = event.receivedAt;
+        if (pageReceivedAt === null) {
+          pageReceivedAt = event.receivedAt;
+        } else if (event.receivedAt !== pageReceivedAt) {
+          pageAllSameReceivedAt = false;
+        }
+      } else {
+        pageAllSameReceivedAt = false;
       }
 
       const id = typeof event.id === "string" ? event.id : null;
@@ -133,6 +158,11 @@ export async function drainWebhookEventBatches(
       options.seen.add(id);
       delivered += 1;
     }
+
+    lastPageWasSaturatedCohort =
+      batch.length >= limit &&
+      pageAllSameReceivedAt &&
+      pageReceivedAt === cursor.sinceMs;
 
     if (!advanced || batch.length < limit) {
       break;
