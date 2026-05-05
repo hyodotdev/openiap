@@ -40,6 +40,30 @@ if (typeof dsn === "string" && dsn.length > 0 && onAllowedHost) {
     sendDefaultPii: true,
     environment: mode,
     tracesSampleRate,
+    // The Convex client emits its own promise rejection when the
+    // websocket / fetch backing a query/action layer transiently
+    // fails (browser sleep, network change, server redeploy). The
+    // user-facing path catches these inline (toast, retry), but the
+    // internal rejection still surfaces to `window.onunhandledrejection`
+    // and floods Sentry as `TypeError: Load failed` noise that drowns
+    // out real bugs. Tag those events so triage can filter them out
+    // (or downsample) instead of treating each as a fresh signal.
+    beforeSend: (event, hint) => {
+      const exception = hint?.originalException;
+      const message =
+        (exception instanceof Error ? exception.message : String(exception)) ??
+        "";
+      const isFetchLoadFailed =
+        /Load failed|Failed to fetch|NetworkError/i.test(message);
+      const looksConvex = /convex\.cloud|\/api\/(action|query|mutation)/i.test(
+        message + " " + (event.request?.url ?? ""),
+      );
+      if (isFetchLoadFailed && looksConvex) {
+        event.tags = { ...(event.tags ?? {}), source: "convex-reconnect" };
+        event.fingerprint = ["convex-reconnect-load-failed"];
+      }
+      return event;
+    },
   });
 }
 

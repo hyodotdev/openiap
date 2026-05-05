@@ -29,6 +29,7 @@ import type * as organizations_mutation from "../organizations/mutation.js";
 import type * as organizations_query from "../organizations/query.js";
 import type * as plans from "../plans.js";
 import type * as products_asc from "../products/asc.js";
+import type * as products_jobs from "../products/jobs.js";
 import type * as products_jwt from "../products/jwt.js";
 import type * as products_mutation from "../products/mutation.js";
 import type * as products_play from "../products/play.js";
@@ -106,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   "organizations/query": typeof organizations_query;
   plans: typeof plans;
   "products/asc": typeof products_asc;
+  "products/jobs": typeof products_jobs;
   "products/jwt": typeof products_jwt;
   "products/mutation": typeof products_mutation;
   "products/play": typeof products_play;

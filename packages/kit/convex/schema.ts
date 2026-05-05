@@ -834,6 +834,86 @@ const schema = defineSchema({
       "productId",
     ])
     .index("by_project_and_platform", ["projectId", "platform"]),
+
+  // Async job rows for the product-sync workers
+  // (`runProductSyncIOS` / `runProductSyncAndroid`). Replaces the
+  // original synchronous `pushSyncProductsAppleIOS` / `pushSyncProductsGoogle`
+  // public actions — those held the browser fetch open for the entire
+  // sync (minutes for catalogs >30 SKUs), so iOS Safari aborted with
+  // `TypeError: Load failed` on cellular / backgrounded tabs. The
+  // dashboard now enqueues a job (returns immediately) and subscribes
+  // via `useQuery(getActiveSyncJob)`; the worker runs as a scheduled
+  // internalAction and writes progress / result back to this row.
+  //
+  // Retention: succeeded rows pruned after 7d, failed after 30d
+  // (so operators still have a record after the weekend).
+  // Reaper: `reapStaleProductSyncJobs` cron flips running rows past
+  // `expectedDeadline` to failed("worker timed out") so a crashed
+  // action can't pin the project's "active job" slot forever.
+  productSyncJobs: defineTable({
+    projectId: v.id("projects"),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    direction: v.union(
+      v.literal("pull"),
+      v.literal("push"),
+      v.literal("both"),
+      // Empty kit's local catalog for the platform without touching
+      // the upstream store. The next regular sync re-pulls, so this
+      // is the "blow away the cache" affordance used to recover from
+      // stale state after manual store edits or a bad config push.
+      v.literal("purge-local"),
+    ),
+    dryRun: v.boolean(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("succeeded"),
+      v.literal("failed"),
+    ),
+    progress: v.object({
+      phase: v.string(),
+      current: v.optional(v.number()),
+      total: v.optional(v.number()),
+      failuresCount: v.optional(v.number()),
+    }),
+    result: v.optional(
+      v.object({
+        pulled: v.number(),
+        pushed: v.number(),
+        // Number of kit-side rows the purge-local direction removed.
+        // Always 0 (or unset) for pull/push/both directions.
+        deleted: v.optional(v.number()),
+        failures: v.array(
+          v.object({ productId: v.string(), reason: v.string() }),
+        ),
+        failuresTruncated: v.optional(v.boolean()),
+        plannedWrites: v.optional(
+          v.array(
+            v.object({
+              productId: v.string(),
+              step: v.string(),
+              detail: v.optional(v.string()),
+            }),
+          ),
+        ),
+      }),
+    ),
+    error: v.optional(v.string()),
+    cancelRequested: v.optional(v.boolean()),
+    expectedDeadline: v.optional(v.number()),
+    createdBy: v.optional(v.id("users")),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    // Active job lookup per (project, platform, status). Backs the
+    // dashboard's `getActiveSyncJob` subscription and the
+    // double-enqueue guard inside `enqueueProductSync`.
+    .index("by_project_platform_status", ["projectId", "platform", "status"])
+    .index("by_project_and_created", ["projectId", "createdAt"])
+    // Reaper / pruner scans.
+    .index("by_status_and_deadline", ["status", "expectedDeadline"])
+    .index("by_status_and_completed", ["status", "completedAt"]),
 });
 
 export default schema;

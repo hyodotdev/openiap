@@ -179,10 +179,25 @@ export const readFileAsBase64 = internalAction({
     //   accessCount: (file.accessCount || 0) + 1,
     // });
 
-    // Convert blob to base64 via Buffer (Convex actions run on Node/Bun
-    // — Buffer is available globally and avoids the per-byte loop).
+    // Convex `internalAction`s without `"use node"` run in the V8
+    // isolate runtime where `Buffer` is NOT a global — using it
+    // throws `ReferenceError: Buffer is not defined` at request time
+    // (the prior `Buffer.from(...)` shipped here was the bug behind
+    // the dashboard's "download .p8" failing). Encode via `btoa` on
+    // chunked binary strings so the path stays portable to either
+    // runtime; chunking keeps the call-stack bound below the
+    // String.fromCharCode argument limit for files of any size.
     const arrayBuffer = await blob.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    const bytes = new Uint8Array(arrayBuffer);
+    const CHUNK = 0x8000;
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(
+        null,
+        bytes.subarray(i, i + CHUNK) as unknown as number[],
+      );
+    }
+    const base64 = btoa(binary);
 
     return {
       fileId: file._id,

@@ -346,3 +346,34 @@ export const listDraftAndroidProducts = internalQuery({
       }));
   },
 });
+
+// Bounded delete used by the `purge-local` sync direction. Deletes
+// the project's kit-side product rows for one platform and returns
+// `{ deleted, hasMore }` so the worker can loop until empty without
+// blowing past Convex's per-mutation document budget. Does NOT touch
+// App Store Connect / Play Console — purging upstream is intentionally
+// out of scope (Apple can't fully delete IAPs via API; Play archive
+// risks live-billing breakage). The operator does that in the
+// store's web console if they really need it.
+export const deletePlatformCatalog = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    platform: platformValidator,
+    limit: v.number(),
+  },
+  returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform", (q) =>
+        q.eq("projectId", args.projectId).eq("platform", args.platform),
+      )
+      .take(args.limit + 1);
+    const hasMore = page.length > args.limit;
+    const toDelete = hasMore ? page.slice(0, args.limit) : page;
+    for (const row of toDelete) {
+      await ctx.db.delete(row._id);
+    }
+    return { deleted: toDelete.length, hasMore };
+  },
+});

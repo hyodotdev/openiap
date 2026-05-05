@@ -3,10 +3,16 @@ import { v } from "convex/values";
 import { google } from "googleapis";
 import type { androidpublisher_v3 } from "googleapis";
 
-import { action } from "../_generated/server";
+import { internalAction, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { getProjectByApiKey } from "../purchases/shared";
 import { coerceBillingPeriod } from "./sync";
+
+class ProductSyncCancelledError extends Error {
+  constructor() {
+    super("Sync cancelled by operator");
+    this.name = "ProductSyncCancelledError";
+  }
+}
 
 /**
  * Per-product upstream rejection reported back to the dashboard. Used
@@ -52,403 +58,513 @@ export interface ProductSyncFailure {
  *          carrying per-product upstream rejection reasons so the
  *          dashboard can render them.
  */
-export const pushSyncProductsGoogle = action({
-  args: {
-    apiKey: v.string(),
-    direction: v.optional(
-      v.union(v.literal("pull"), v.literal("push"), v.literal("both")),
-    ),
-  },
-  returns: v.object({
-    pulled: v.number(),
-    pushed: v.number(),
-    failures: v.array(v.object({ productId: v.string(), reason: v.string() })),
-  }),
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    pulled: number;
-    pushed: number;
-    failures: ProductSyncFailure[];
-  }> => {
-    const project = await getProjectByApiKey(ctx, args.apiKey);
-    if (!project.androidPackageName) {
-      throw new Error("Project androidPackageName is not configured");
-    }
-
-    const serviceAccountFile = await ctx.runQuery(
-      internal.files.internal.getGooglePlayFileByProjectInternal,
-      { projectId: project._id },
-    );
-    if (!serviceAccountFile) {
-      throw new Error(
-        "Google Play service account JSON not found — upload it before running push-sync",
-      );
-    }
-    const fileContent = await ctx.runAction(
-      internal.files.internal.readFileAsText,
-      { fileId: serviceAccountFile._id },
-    );
-    if (!fileContent?.content) {
-      throw new Error("Service account JSON file is unreadable");
-    }
-    // Wrap the parse so a malformed JSON upload yields an actionable
-    // config error ("Service account JSON is invalid") instead of a
-    // raw SyntaxError from JSON.parse, which surfaces as a generic
-    // 500 with no operator-friendly hint.
-    let credentials: Record<string, unknown>;
-    try {
-      credentials = JSON.parse(fileContent.content) as Record<string, unknown>;
-    } catch {
-      throw new Error(
-        "Service account JSON is invalid — re-upload the file from Google Cloud Console",
-      );
-    }
-
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+// Worker that drives a single Google Play sync job. See the parallel
+// docstring on `runProductSyncIOS` in `products/asc.ts` — same job
+// lifecycle, same cancel-at-phase-boundary semantics.
+export const runProductSyncAndroid = internalAction({
+  args: { jobId: v.id("productSyncJobs") },
+  handler: async (ctx, args): Promise<void> => {
+    const job = await ctx.runQuery(internal.products.jobs.getJobForWorker, {
+      jobId: args.jobId,
     });
-    const androidpublisher = google.androidpublisher({ version: "v3", auth });
-    const packageName = project.androidPackageName;
-    const direction = args.direction ?? "both";
-    const failures: ProductSyncFailure[] = [];
-    let pulled = 0;
-    let pushed = 0;
+    if (!job) return;
+    if (job.status !== "queued") return;
+    await ctx.runMutation(internal.products.jobs.markJobRunning, {
+      jobId: args.jobId,
+    });
+    const checkCancelled = async () => {
+      const cancelled = await ctx.runQuery(
+        internal.products.jobs.isCancelRequested,
+        { jobId: args.jobId },
+      );
+      if (cancelled) throw new ProductSyncCancelledError();
+    };
+    const reportPhase = async (
+      phase: string,
+      extra?: {
+        current?: number;
+        total?: number;
+        failuresCount?: number;
+      },
+    ) => {
+      await ctx.runMutation(internal.products.jobs.updateJobProgress, {
+        jobId: args.jobId,
+        phase,
+        current: extra?.current,
+        total: extra?.total,
+        failuresCount: extra?.failuresCount,
+      });
+    };
+    if (job.direction === "purge-local") {
+      // enqueue routes purge-local jobs to a different worker; this
+      // branch is unreachable in practice but narrows the type for
+      // the call below.
+      await ctx.runMutation(internal.products.jobs.markJobFailed, {
+        jobId: args.jobId,
+        error: "purge-local routed to wrong worker",
+      });
+      return;
+    }
+    try {
+      const result = await performAndroidSync(ctx, {
+        projectId: job.projectId,
+        direction: job.direction,
+        dryRun: job.dryRun,
+        checkCancelled,
+        reportPhase,
+      });
+      await ctx.runMutation(internal.products.jobs.markJobSucceeded, {
+        jobId: args.jobId,
+        pulled: result.pulled,
+        pushed: result.pushed,
+        failures: result.failures,
+        plannedWrites: result.plannedWrites,
+      });
+    } catch (error) {
+      const cancelled = error instanceof ProductSyncCancelledError;
+      const message = cancelled
+        ? "Cancelled by operator"
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      await ctx.runMutation(internal.products.jobs.markJobFailed, {
+        jobId: args.jobId,
+        error: message,
+      });
+    }
+  },
+});
 
-    // ── PULL: Play → kit ─────────────────────────────────────────
-    if (direction === "pull" || direction === "both") {
-      // One-time products. Play has TWO catalog APIs and apps live in
-      // different ones depending on when/how they were set up:
-      //
-      //   - `inappproducts.list` — legacy v1 endpoint. Apps created
-      //     before the new monetization framework store products here.
-      //   - `monetization.onetimeproducts.list` — new endpoint. Apps
-      //     onboarded under "Manage products" in the modern Play
-      //     Console store products HERE and `inappproducts.list`
-      //     silently returns empty for them. (This is why "Sync with
-      //     Play Console" was only pulling subscriptions for accounts
-      //     using the new console — the one-time products were
-      //     invisible to the legacy endpoint.)
-      //
-      // We hit both, dedupe by SKU, and keep going on either failing
-      // — that way an account that lives entirely in one or the other
-      // still gets a complete pull instead of failing on the missing
-      // half.
-      //
-      // ORDER MATTERS: hit the new monetization API first so its
-      // USD-preferred regional price wins. The legacy
-      // `inappproducts.list` only exposes a single `defaultPrice`
-      // (whatever currency the merchant set in Play Console — often
-      // their home currency) which made products like
-      // `dev.hyo.martie.10bulbs` show up as "AED 3.89" on the
-      // dashboard for an operator using a Korean Play Console where
-      // AED happens to be a regional override. New endpoint runs
-      // first; legacy only fills in skus the new endpoint missed.
-      const seenOneTimeSkus = new Set<string>();
-      try {
-        // Defensive guard: the new monetization API isn't surfaced in
-        // any typed shape by `googleapis` yet, so we cast through
-        // `unknown` and read the (possibly-missing) `onetimeproducts`
-        // property. `androidpublisher.monetization` is documented but
-        // could change shape in a future SDK release; failing soft
-        // (treating it as "no monetization endpoint here") lets the
-        // legacy `inappproducts.list` path below still pull what it
-        // can instead of bailing the entire pull half-done. The
-        // outer try/catch records the failure in the per-product
-        // `failures` array so the operator sees something happened.
-        const monetizationApi = androidpublisher.monetization as
-          | { onetimeproducts?: unknown }
-          | undefined;
-        const onetime = (
-          monetizationApi as unknown as {
-            onetimeproducts?: {
-              list: (params: {
-                packageName: string;
-                pageToken?: string;
-              }) => Promise<{
-                data: {
-                  oneTimeProducts?: Array<{
-                    productId?: string;
-                    listings?: Array<{
-                      languageCode?: string;
-                      title?: string;
-                      description?: string;
-                    }>;
-                    purchaseOptions?: Array<{
-                      state?: string;
-                      purchaseOptionId?: string;
-                      buyOption?: { legacyCompatible?: boolean };
-                      rentOption?: unknown;
-                      // Pricing lives DIRECTLY on the purchaseOption,
-                      // NOT nested inside buyOption. The earlier shape
-                      // (buyOption.regionalPricingAndAvailabilityConfigs)
-                      // was wrong — every one-time product surfaced
-                      // with no price because the lookup never matched.
-                      regionalPricingAndAvailabilityConfigs?: Array<{
-                        regionCode?: string;
-                        // Google's enum: "AVAILABLE",
-                        // "NO_LONGER_AVAILABLE", "AVAILABLE_IF_RELEASED".
-                        // Stale rows from removed regions still ship
-                        // back with a price attached, so without this
-                        // field we'd happily display a price the
-                        // operator turned off years ago.
-                        availability?: string;
-                        price?: {
-                          currencyCode?: string;
-                          units?: string;
-                          nanos?: number;
-                        };
-                      }>;
+async function performAndroidSync(
+  ctx: ActionCtx,
+  options: {
+    projectId: import("../_generated/dataModel").Id<"projects">;
+    direction: "pull" | "push" | "both";
+    dryRun: boolean;
+    checkCancelled: () => Promise<void>;
+    reportPhase: (
+      phase: string,
+      extra?: {
+        current?: number;
+        total?: number;
+        failuresCount?: number;
+      },
+    ) => Promise<void>;
+  },
+): Promise<{
+  pulled: number;
+  pushed: number;
+  failures: ProductSyncFailure[];
+  plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
+}> {
+  const project = await ctx.runQuery(
+    internal.projects.internal.getProjectById,
+    { projectId: options.projectId },
+  );
+  if (!project) {
+    throw new Error("Project not found for sync job");
+  }
+  if (!project.androidPackageName) {
+    throw new Error("Project androidPackageName is not configured");
+  }
+  const args = { direction: options.direction };
+  const { checkCancelled, reportPhase } = options;
+
+  const serviceAccountFile = await ctx.runQuery(
+    internal.files.internal.getGooglePlayFileByProjectInternal,
+    { projectId: project._id },
+  );
+  if (!serviceAccountFile) {
+    throw new Error(
+      "Google Play service account JSON not found — upload it before running push-sync",
+    );
+  }
+  const fileContent = await ctx.runAction(
+    internal.files.internal.readFileAsText,
+    { fileId: serviceAccountFile._id },
+  );
+  if (!fileContent?.content) {
+    throw new Error("Service account JSON file is unreadable");
+  }
+  // Wrap the parse so a malformed JSON upload yields an actionable
+  // config error ("Service account JSON is invalid") instead of a
+  // raw SyntaxError from JSON.parse, which surfaces as a generic
+  // 500 with no operator-friendly hint.
+  let credentials: Record<string, unknown>;
+  try {
+    credentials = JSON.parse(fileContent.content) as Record<string, unknown>;
+  } catch {
+    throw new Error(
+      "Service account JSON is invalid — re-upload the file from Google Cloud Console",
+    );
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+  });
+  const androidpublisher = google.androidpublisher({ version: "v3", auth });
+  const packageName = project.androidPackageName;
+  const direction = args.direction ?? "both";
+  const dryRun = options.dryRun;
+  const failures: ProductSyncFailure[] = [];
+  // Same shape as the iOS sync — read-only preview accumulator. Each
+  // upstream write the PUSH branch would have made gets pushed onto
+  // this list instead, then surfaced through the toast / result
+  // banner so the operator can verify base-plan duration, region
+  // pricing, etc. before committing.
+  const plannedWrites: Array<{
+    productId: string;
+    step: string;
+    detail?: string;
+  }> = [];
+  let pulled = 0;
+  let pushed = 0;
+
+  // ── PULL: Play → kit ─────────────────────────────────────────
+  if (direction === "pull" || direction === "both") {
+    await checkCancelled();
+    await reportPhase("pull-products");
+    // One-time products. Play has TWO catalog APIs and apps live in
+    // different ones depending on when/how they were set up:
+    //
+    //   - `inappproducts.list` — legacy v1 endpoint. Apps created
+    //     before the new monetization framework store products here.
+    //   - `monetization.onetimeproducts.list` — new endpoint. Apps
+    //     onboarded under "Manage products" in the modern Play
+    //     Console store products HERE and `inappproducts.list`
+    //     silently returns empty for them. (This is why "Sync with
+    //     Play Console" was only pulling subscriptions for accounts
+    //     using the new console — the one-time products were
+    //     invisible to the legacy endpoint.)
+    //
+    // We hit both, dedupe by SKU, and keep going on either failing
+    // — that way an account that lives entirely in one or the other
+    // still gets a complete pull instead of failing on the missing
+    // half.
+    //
+    // ORDER MATTERS: hit the new monetization API first so its
+    // USD-preferred regional price wins. The legacy
+    // `inappproducts.list` only exposes a single `defaultPrice`
+    // (whatever currency the merchant set in Play Console — often
+    // their home currency) which made products like
+    // `dev.hyo.martie.10bulbs` show up as "AED 3.89" on the
+    // dashboard for an operator using a Korean Play Console where
+    // AED happens to be a regional override. New endpoint runs
+    // first; legacy only fills in skus the new endpoint missed.
+    const seenOneTimeSkus = new Set<string>();
+    try {
+      // Defensive guard: the new monetization API isn't surfaced in
+      // any typed shape by `googleapis` yet, so we cast through
+      // `unknown` and read the (possibly-missing) `onetimeproducts`
+      // property. `androidpublisher.monetization` is documented but
+      // could change shape in a future SDK release; failing soft
+      // (treating it as "no monetization endpoint here") lets the
+      // legacy `inappproducts.list` path below still pull what it
+      // can instead of bailing the entire pull half-done. The
+      // outer try/catch records the failure in the per-product
+      // `failures` array so the operator sees something happened.
+      const monetizationApi = androidpublisher.monetization as
+        | { onetimeproducts?: unknown }
+        | undefined;
+      const onetime = (
+        monetizationApi as unknown as {
+          onetimeproducts?: {
+            list: (params: {
+              packageName: string;
+              pageToken?: string;
+            }) => Promise<{
+              data: {
+                oneTimeProducts?: Array<{
+                  productId?: string;
+                  listings?: Array<{
+                    languageCode?: string;
+                    title?: string;
+                    description?: string;
+                  }>;
+                  purchaseOptions?: Array<{
+                    state?: string;
+                    purchaseOptionId?: string;
+                    buyOption?: { legacyCompatible?: boolean };
+                    rentOption?: unknown;
+                    // Pricing lives DIRECTLY on the purchaseOption,
+                    // NOT nested inside buyOption. The earlier shape
+                    // (buyOption.regionalPricingAndAvailabilityConfigs)
+                    // was wrong — every one-time product surfaced
+                    // with no price because the lookup never matched.
+                    regionalPricingAndAvailabilityConfigs?: Array<{
+                      regionCode?: string;
+                      // Google's enum: "AVAILABLE",
+                      // "NO_LONGER_AVAILABLE", "AVAILABLE_IF_RELEASED".
+                      // Stale rows from removed regions still ship
+                      // back with a price attached, so without this
+                      // field we'd happily display a price the
+                      // operator turned off years ago.
+                      availability?: string;
+                      price?: {
+                        currencyCode?: string;
+                        units?: string;
+                        nanos?: number;
+                      };
                     }>;
                   }>;
-                  nextPageToken?: string;
-                };
-              }>;
-            };
-          }
-        ).onetimeproducts;
-        if (onetime?.list) {
-          let token: string | undefined;
-          let pageCount = 0;
-          do {
-            const resp = await onetime.list({
-              packageName,
-              ...(token ? { pageToken: token } : {}),
-            });
-            for (const product of resp.data.oneTimeProducts ?? []) {
-              if (!product.productId) continue;
-              if (seenOneTimeSkus.has(product.productId)) continue;
-              seenOneTimeSkus.add(product.productId);
-              const listing = product.listings?.[0];
-              // Walk every purchaseOption × regionalPricingAndAvailabilityConfig
-              // (pricing lives on the option, not inside buyOption).
-              // Two filters before ranking:
-              //   - drop regions explicitly NO_LONGER_AVAILABLE so we
-              //     don't surface stale pricing the operator removed.
-              //   - require the price to have a `units` field — Google
-              //     ships zero-priced placeholder rows for some regions
-              //     and they'd outrank real prices alphabetically.
-              // Ranking: regionCode === "US" first (canonical kit
-              // display currency, deterministically maps to USD),
-              // then any USD-currency region (covers operators who
-              // override the US region price into a non-USD currency
-              // — rare but possible), then the first remaining region
-              // alphabetically by currency for a stable result.
-              const priceCandidates: Array<{
-                regionCode?: string;
-                currencyCode?: string;
-                units?: string;
-                nanos?: number;
-              }> = [];
-              for (const opt of product.purchaseOptions ?? []) {
-                for (const region of opt.regionalPricingAndAvailabilityConfigs ??
-                  []) {
-                  if (region.availability === "NO_LONGER_AVAILABLE") continue;
-                  if (region.price && typeof region.price.units === "string") {
-                    priceCandidates.push({
-                      regionCode: region.regionCode,
-                      currencyCode: region.price.currencyCode,
-                      units: region.price.units,
-                      nanos: region.price.nanos,
-                    });
-                  }
-                }
-              }
-              priceCandidates.sort((a, b) =>
-                (a.currencyCode ?? "").localeCompare(b.currencyCode ?? ""),
-              );
-              const preferred =
-                priceCandidates.find((p) => p.regionCode === "US") ??
-                priceCandidates.find((p) => p.currencyCode === "USD") ??
-                priceCandidates[0];
-              const priceAmountMicros = preferred
-                ? moneyToMicros({
-                    units: preferred.units,
-                    nanos: preferred.nanos,
-                  })
-                : undefined;
-              await ctx.runMutation(internal.products.sync.upsertFromStore, {
-                projectId: project._id,
-                productId: product.productId,
-                platform: "Android",
-                // The new API doesn't carry a "consumable vs.
-                // non-consumable" distinction the same way — Play
-                // tracks consumption at purchase time. Default to
-                // NonConsumable; operators can edit on the kit side.
-                type: "NonConsumable",
-                title: listing?.title ?? product.productId,
-                description: listing?.description ?? undefined,
-                priceAmountMicros,
-                currency: preferred?.currencyCode ?? undefined,
-                storeRef: product.productId,
-                state: "Active",
-              });
-              pulled += 1;
-            }
-            token = resp.data.nextPageToken ?? undefined;
-            pageCount += 1;
-            if (pageCount > 50) break;
-          } while (token);
+                }>;
+                nextPageToken?: string;
+              };
+            }>;
+          };
         }
-      } catch (error) {
-        failures.push({
-          productId: "(play list onetimeproducts)",
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      // Legacy `inappproducts.list` runs SECOND so any sku already
-      // surfaced by the new endpoint (with USD-preferred pricing) wins
-      // via the dedupe set. Only skus invisible to the new endpoint
-      // get filled in here with whatever `defaultPrice` the merchant
-      // set in Play Console.
-      try {
+      ).onetimeproducts;
+      if (onetime?.list) {
         let token: string | undefined;
         let pageCount = 0;
         do {
-          const oneTimes = await androidpublisher.inappproducts.list({
-            packageName,
-            ...(token ? { token } : {}),
-          });
-          for (const product of oneTimes.data.inappproduct ?? []) {
-            if (!product.sku) continue;
-            if (seenOneTimeSkus.has(product.sku)) continue;
-            seenOneTimeSkus.add(product.sku);
-            if (product.purchaseType === "subscription") continue;
-            await ctx.runMutation(internal.products.sync.upsertFromStore, {
-              projectId: project._id,
-              productId: product.sku,
-              platform: "Android",
-              type: mapPlayOneTimeType(product),
-              title: pickPlayTitle(product) ?? product.sku,
-              description: pickPlayDescription(product),
-              priceAmountMicros: parsePlayPriceMicros(product),
-              currency: pickPlayCurrency(product),
-              storeRef: product.sku,
-              state: mapPlayStatus(product.status),
-            });
-            pulled += 1;
-          }
-          token = oneTimes.data.tokenPagination?.nextPageToken ?? undefined;
-          pageCount += 1;
-          if (pageCount > 50) break;
-        } while (token);
-      } catch (error) {
-        // The legacy `inappproducts.list` endpoint is deprecated for
-        // newer Play Console accounts and Google now responds with
-        // "Please migrate to the new publishing API". That message is
-        // expected — the new `monetization.onetimeproducts.list` call
-        // above already covers this account — and surfacing it as a
-        // failure produces a noisy red toast every Sync. Suppress it
-        // when seen; surface anything else.
-        const reason = error instanceof Error ? error.message : String(error);
-        if (!/migrate to the new publishing API/i.test(reason)) {
-          failures.push({
-            productId: "(play list inappproducts)",
-            reason,
-          });
-        }
-      }
-
-      try {
-        let token: string | undefined;
-        let pageCount = 0;
-        do {
-          const subs = await androidpublisher.monetization.subscriptions.list({
+          const resp = await onetime.list({
             packageName,
             ...(token ? { pageToken: token } : {}),
           });
-          for (const sub of subs.data.subscriptions ?? []) {
-            if (!sub.productId) continue;
-            const { priceAmountMicros, currency, basePlanId } =
-              pickSubBasePlanPrice(sub);
-            const offers = collectPlaySubscriptionOffers(sub);
-            // Pick the billingPeriod from the *same* base plan whose
-            // price we just selected (`basePlanId` returned by
-            // pickSubBasePlanPrice). If we can't find that exact plan
-            // in `offers`, fall back to the first BasePlan row — but
-            // this fallback only triggers when basePlanId is missing,
-            // which means the subscription has no price at all.
-            // Without the basePlanId match, mixed monthly + yearly
-            // products would pair the yearly USD price with the
-            // monthly duration and break MRR normalization.
-            const billingPeriod = (
-              basePlanId
-                ? offers.find(
-                    (o) => o.kind === "BasePlan" && o.id === basePlanId,
-                  )
-                : offers.find((o) => o.kind === "BasePlan")
-            )?.duration;
+          for (const product of resp.data.oneTimeProducts ?? []) {
+            if (!product.productId) continue;
+            if (seenOneTimeSkus.has(product.productId)) continue;
+            seenOneTimeSkus.add(product.productId);
+            const listing = product.listings?.[0];
+            // Walk every purchaseOption × regionalPricingAndAvailabilityConfig
+            // (pricing lives on the option, not inside buyOption).
+            // Two filters before ranking:
+            //   - drop regions explicitly NO_LONGER_AVAILABLE so we
+            //     don't surface stale pricing the operator removed.
+            //   - require the price to have a `units` field — Google
+            //     ships zero-priced placeholder rows for some regions
+            //     and they'd outrank real prices alphabetically.
+            // Ranking: regionCode === "US" first (canonical kit
+            // display currency, deterministically maps to USD),
+            // then any USD-currency region (covers operators who
+            // override the US region price into a non-USD currency
+            // — rare but possible), then the first remaining region
+            // alphabetically by currency for a stable result.
+            const priceCandidates: Array<{
+              regionCode?: string;
+              currencyCode?: string;
+              units?: string;
+              nanos?: number;
+            }> = [];
+            for (const opt of product.purchaseOptions ?? []) {
+              for (const region of opt.regionalPricingAndAvailabilityConfigs ??
+                []) {
+                if (region.availability === "NO_LONGER_AVAILABLE") continue;
+                if (region.price && typeof region.price.units === "string") {
+                  priceCandidates.push({
+                    regionCode: region.regionCode,
+                    currencyCode: region.price.currencyCode,
+                    units: region.price.units,
+                    nanos: region.price.nanos,
+                  });
+                }
+              }
+            }
+            priceCandidates.sort((a, b) =>
+              (a.currencyCode ?? "").localeCompare(b.currencyCode ?? ""),
+            );
+            const preferred =
+              priceCandidates.find((p) => p.regionCode === "US") ??
+              priceCandidates.find((p) => p.currencyCode === "USD") ??
+              priceCandidates[0];
+            const priceAmountMicros = preferred
+              ? moneyToMicros({
+                  units: preferred.units,
+                  nanos: preferred.nanos,
+                })
+              : undefined;
             await ctx.runMutation(internal.products.sync.upsertFromStore, {
               projectId: project._id,
-              productId: sub.productId,
+              productId: product.productId,
               platform: "Android",
-              type: "Subscription",
-              title: sub.listings?.[0]?.title ?? sub.productId,
-              description: sub.listings?.[0]?.description ?? undefined,
+              // The new API doesn't carry a "consumable vs.
+              // non-consumable" distinction the same way — Play
+              // tracks consumption at purchase time. Default to
+              // NonConsumable; operators can edit on the kit side.
+              type: "NonConsumable",
+              title: listing?.title ?? product.productId,
+              description: listing?.description ?? undefined,
               priceAmountMicros,
-              currency,
-              storeRef: sub.productId,
+              currency: preferred?.currencyCode ?? undefined,
+              storeRef: product.productId,
               state: "Active",
-              billingPeriod: coerceBillingPeriod(billingPeriod),
-              // Play has no first-class subscription "group" — base
-              // plans on a single subscription product play that role,
-              // and we surface them as `offers[].kind === "BasePlan"`
-              // rows. Leave the ASC-only group fields unset.
-              offers: offers.length ? offers : undefined,
             });
             pulled += 1;
           }
-          token = subs.data.nextPageToken ?? undefined;
+          token = resp.data.nextPageToken ?? undefined;
           pageCount += 1;
           if (pageCount > 50) break;
         } while (token);
-      } catch (error) {
+      }
+    } catch (error) {
+      failures.push({
+        productId: "(play list onetimeproducts)",
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    // Legacy `inappproducts.list` runs SECOND so any sku already
+    // surfaced by the new endpoint (with USD-preferred pricing) wins
+    // via the dedupe set. Only skus invisible to the new endpoint
+    // get filled in here with whatever `defaultPrice` the merchant
+    // set in Play Console.
+    try {
+      let token: string | undefined;
+      let pageCount = 0;
+      do {
+        const oneTimes = await androidpublisher.inappproducts.list({
+          packageName,
+          ...(token ? { token } : {}),
+        });
+        for (const product of oneTimes.data.inappproduct ?? []) {
+          if (!product.sku) continue;
+          if (seenOneTimeSkus.has(product.sku)) continue;
+          seenOneTimeSkus.add(product.sku);
+          if (product.purchaseType === "subscription") continue;
+          await ctx.runMutation(internal.products.sync.upsertFromStore, {
+            projectId: project._id,
+            productId: product.sku,
+            platform: "Android",
+            type: mapPlayOneTimeType(product),
+            title: pickPlayTitle(product) ?? product.sku,
+            description: pickPlayDescription(product),
+            priceAmountMicros: parsePlayPriceMicros(product),
+            currency: pickPlayCurrency(product),
+            storeRef: product.sku,
+            state: mapPlayStatus(product.status),
+          });
+          pulled += 1;
+        }
+        token = oneTimes.data.tokenPagination?.nextPageToken ?? undefined;
+        pageCount += 1;
+        if (pageCount > 50) break;
+      } while (token);
+    } catch (error) {
+      // The legacy `inappproducts.list` endpoint is deprecated for
+      // newer Play Console accounts and Google now responds with
+      // "Please migrate to the new publishing API". That message is
+      // expected — the new `monetization.onetimeproducts.list` call
+      // above already covers this account — and surfacing it as a
+      // failure produces a noisy red toast every Sync. Suppress it
+      // when seen; surface anything else.
+      const reason = error instanceof Error ? error.message : String(error);
+      if (!/migrate to the new publishing API/i.test(reason)) {
         failures.push({
-          productId: "(play list subscriptions)",
-          reason: error instanceof Error ? error.message : String(error),
+          productId: "(play list inappproducts)",
+          reason,
         });
       }
     }
 
-    // ── PUSH: kit → Play for Draft rows ──────────────────────────
-    if (direction === "push" || direction === "both") {
-      const drafts = await ctx.runQuery(
-        internal.products.sync.listDraftAndroidProducts,
-        { projectId: project._id },
-      );
-      for (const row of drafts) {
-        try {
-          // When this row already has a storeRef from a prior partial
-          // sync, run the appropriate update endpoint instead of the
-          // create endpoint — Play returns 409 Conflict on
-          // create-with-existing-productId and ASC's parity step
-          // (asc.ts) does the same patch flow. Listings + price are
-          // both safe to re-push idempotently. Without this, kit-side
-          // edits made after the initial push would silently never
-          // reach Play (PR #124
+    try {
+      let token: string | undefined;
+      let pageCount = 0;
+      do {
+        const subs = await androidpublisher.monetization.subscriptions.list({
+          packageName,
+          ...(token ? { pageToken: token } : {}),
+        });
+        for (const sub of subs.data.subscriptions ?? []) {
+          if (!sub.productId) continue;
+          const { priceAmountMicros, currency, basePlanId } =
+            pickSubBasePlanPrice(sub);
+          const offers = collectPlaySubscriptionOffers(sub);
+          // Pick the billingPeriod from the *same* base plan whose
+          // price we just selected (`basePlanId` returned by
+          // pickSubBasePlanPrice). If we can't find that exact plan
+          // in `offers`, fall back to the first BasePlan row — but
+          // this fallback only triggers when basePlanId is missing,
+          // which means the subscription has no price at all.
+          // Without the basePlanId match, mixed monthly + yearly
+          // products would pair the yearly USD price with the
+          // monthly duration and break MRR normalization.
+          const billingPeriod = (
+            basePlanId
+              ? offers.find((o) => o.kind === "BasePlan" && o.id === basePlanId)
+              : offers.find((o) => o.kind === "BasePlan")
+          )?.duration;
+          await ctx.runMutation(internal.products.sync.upsertFromStore, {
+            projectId: project._id,
+            productId: sub.productId,
+            platform: "Android",
+            type: "Subscription",
+            title: sub.listings?.[0]?.title ?? sub.productId,
+            description: sub.listings?.[0]?.description ?? undefined,
+            priceAmountMicros,
+            currency,
+            storeRef: sub.productId,
+            state: "Active",
+            billingPeriod: coerceBillingPeriod(billingPeriod),
+            // Play has no first-class subscription "group" — base
+            // plans on a single subscription product play that role,
+            // and we surface them as `offers[].kind === "BasePlan"`
+            // rows. Leave the ASC-only group fields unset.
+            offers: offers.length ? offers : undefined,
+          });
+          pulled += 1;
+        }
+        token = subs.data.nextPageToken ?? undefined;
+        pageCount += 1;
+        if (pageCount > 50) break;
+      } while (token);
+    } catch (error) {
+      failures.push({
+        productId: "(play list subscriptions)",
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  // ── PUSH: kit → Play for Draft rows ──────────────────────────
+  if (direction === "push" || direction === "both") {
+    await checkCancelled();
+    await reportPhase("push-drafts", {
+      current: pulled,
+      failuresCount: failures.length,
+    });
+    const drafts = await ctx.runQuery(
+      internal.products.sync.listDraftAndroidProducts,
+      { projectId: project._id },
+    );
+    for (const row of drafts) {
+      try {
+        // When this row already has a storeRef from a prior partial
+        // sync, run the appropriate update endpoint instead of the
+        // create endpoint — Play returns 409 Conflict on
+        // create-with-existing-productId and ASC's parity step
+        // (asc.ts) does the same patch flow. Listings + price are
+        // both safe to re-push idempotently. Without this, kit-side
+        // edits made after the initial push would silently never
+        // reach Play (PR #124
+        // (https://github.com/hyodotdev/openiap/pull/124) review).
+        if (row.storeRef) {
+          // Track whether the patch step succeeded — only flip to
+          // Ready when the upstream actually accepted our changes,
+          // otherwise the row stays Draft and surfaces in the next
+          // sync's drafts list for retry (PR #124
           // (https://github.com/hyodotdev/openiap/pull/124) review).
-          if (row.storeRef) {
-            // Track whether the patch step succeeded — only flip to
-            // Ready when the upstream actually accepted our changes,
-            // otherwise the row stays Draft and surfaces in the next
-            // sync's drafts list for retry (PR #124
-            // (https://github.com/hyodotdev/openiap/pull/124) review).
-            let patchOk = true;
-            if (row.type === "Subscription") {
-              // Subscriptions: patch the listing via
-              // monetization.subscriptions.patch (en-US listing only —
-              // multi-language sync is a future feature). Base-plan
-              // price changes have to go through a separate
-              // monetization.subscriptions.basePlans endpoint, so we
-              // intentionally don't try to mutate price here; that
-              // requires a deactivate+recreate flow Play doesn't allow
-              // in a single call. The dashboard surfaces a hint when
-              // the kit-side row has a different price than the
-              // pulled row so the operator knows to do that step
-              // manually.
+          let patchOk = true;
+          if (row.type === "Subscription") {
+            // Subscriptions: patch the listing via
+            // monetization.subscriptions.patch (en-US listing only —
+            // multi-language sync is a future feature). Base-plan
+            // price changes have to go through a separate
+            // monetization.subscriptions.basePlans endpoint, so we
+            // intentionally don't try to mutate price here; that
+            // requires a deactivate+recreate flow Play doesn't allow
+            // in a single call. The dashboard surfaces a hint when
+            // the kit-side row has a different price than the
+            // pulled row so the operator knows to do that step
+            // manually.
+            if (dryRun) {
+              plannedWrites.push({
+                productId: row.productId,
+                step: "patch subscription listing",
+                detail: `${row.title} (en-US, storeRef=${row.storeRef})`,
+              });
+            } else {
               try {
                 await androidpublisher.monetization.subscriptions.patch({
                   packageName,
@@ -485,10 +601,22 @@ export const pushSyncProductsGoogle = action({
                     error instanceof Error ? error.message : String(error),
                 });
               }
+            }
+          } else {
+            // One-time product: patch listings + price via the
+            // legacy inappproducts.patch endpoint, which accepts a
+            // partial body and merges it.
+            if (dryRun) {
+              plannedWrites.push({
+                productId: row.productId,
+                step: "patch in-app product",
+                detail:
+                  `${row.title} (en-US, storeRef=${row.storeRef})` +
+                  (row.priceAmountMicros !== undefined && row.currency
+                    ? ` · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`
+                    : ""),
+              });
             } else {
-              // One-time product: patch listings + price via the
-              // legacy inappproducts.patch endpoint, which accepts a
-              // partial body and merges it.
               try {
                 await androidpublisher.inappproducts.patch({
                   packageName,
@@ -522,30 +650,47 @@ export const pushSyncProductsGoogle = action({
                 });
               }
             }
-            if (patchOk) {
-              await ctx.runMutation(internal.products.sync.markPushed, {
-                projectId: project._id,
-                productId: row.productId,
-                platform: "Android",
-                storeRef: row.storeRef,
-              });
-              pushed += 1;
-            }
-            continue;
           }
-          if (row.type === "Subscription") {
-            // Reject subscription creates that would land on Play with
-            // no base plan: such a subscription is created in a draft
-            // state that the Play app cannot purchase, which silently
-            // breaks the SDK's `requestPurchase` flow downstream. The
-            // operator must provide both a price and currency at
-            // minimum so we can synthesize a base plan.
-            if (!row.priceAmountMicros || !row.currency) {
-              throw new Error(
-                "Subscription requires priceAmountMicros + currency to mint a Play base plan; otherwise the product will not be purchasable.",
-              );
-            }
-            const basePlanId = basePlanIdForPeriod(row.billingPeriod);
+          if (patchOk && !dryRun) {
+            await ctx.runMutation(internal.products.sync.markPushed, {
+              projectId: project._id,
+              productId: row.productId,
+              platform: "Android",
+              storeRef: row.storeRef,
+            });
+            pushed += 1;
+          } else if (patchOk && dryRun) {
+            pushed += 1;
+          }
+          continue;
+        }
+        if (row.type === "Subscription") {
+          // Reject subscription creates that would land on Play with
+          // no base plan: such a subscription is created in a draft
+          // state that the Play app cannot purchase, which silently
+          // breaks the SDK's `requestPurchase` flow downstream. The
+          // operator must provide both a price and currency at
+          // minimum so we can synthesize a base plan. Validation
+          // applies to dry-run too — we want the operator to see
+          // this error before attempting a real sync.
+          if (!row.priceAmountMicros || !row.currency) {
+            throw new Error(
+              "Subscription requires priceAmountMicros + currency to mint a Play base plan; otherwise the product will not be purchasable.",
+            );
+          }
+          const basePlanId = basePlanIdForPeriod(row.billingPeriod);
+          if (dryRun) {
+            plannedWrites.push({
+              productId: row.productId,
+              step: "create subscription",
+              detail: `${row.title} · base plan ${basePlanId} · ${row.billingPeriod ?? "P1M"} · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} (US)`,
+            });
+            plannedWrites.push({
+              productId: row.productId,
+              step: "activate base plan",
+              detail: basePlanId,
+            });
+          } else {
             await androidpublisher.monetization.subscriptions.create({
               packageName,
               productId: row.productId,
@@ -611,6 +756,18 @@ export const pushSyncProductsGoogle = action({
                 },
               },
             );
+          }
+        } else {
+          if (dryRun) {
+            plannedWrites.push({
+              productId: row.productId,
+              step: "create in-app product",
+              detail:
+                `${row.title} · ${row.type}` +
+                (row.priceAmountMicros !== undefined && row.currency
+                  ? ` · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`
+                  : " · no price set"),
+            });
           } else {
             await androidpublisher.inappproducts.insert({
               packageName,
@@ -642,6 +799,8 @@ export const pushSyncProductsGoogle = action({
               },
             });
           }
+        }
+        if (!dryRun) {
           // Persist storeRef immediately after the create returns,
           // BEFORE flipping state to Ready via markPushed. If the
           // action times out / crashes between create and markPushed,
@@ -662,19 +821,24 @@ export const pushSyncProductsGoogle = action({
             platform: "Android",
             storeRef: row.productId,
           });
-          pushed += 1;
-        } catch (error) {
-          failures.push({
-            productId: row.productId,
-            reason: error instanceof Error ? error.message : String(error),
-          });
         }
+        pushed += 1;
+      } catch (error) {
+        failures.push({
+          productId: row.productId,
+          reason: error instanceof Error ? error.message : String(error),
+        });
       }
     }
+  }
 
-    return { pulled, pushed, failures };
-  },
-});
+  return {
+    pulled,
+    pushed,
+    failures,
+    plannedWrites: dryRun ? plannedWrites : undefined,
+  };
+}
 
 function mapPlayOneTimeType(
   product: androidpublisher_v3.Schema$InAppProduct,
