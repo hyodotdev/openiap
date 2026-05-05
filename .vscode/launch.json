@@ -97,6 +97,34 @@
             "console": "integratedTerminal"
         },
         {
+            // Targets iPad (UDID 00008130-001929642642001C). To switch devices,
+            // run `xcrun xctrace list devices` and replace the UDID below.
+            // -tl:off + -v:n + MlaunchVerbosity=4 + MlaunchExtraArgs surface
+            // per-stage install progress (AFC byte transfer, codesign, launch).
+            // The leading `cd` re-asserts cwd because `bash -lc` reloads the
+            // login profile, which can move the shell out of cwd before
+            // dotnet runs.
+            "name": "🟣 MAUI IAP: iOS",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "cd \"${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example\" && dotnet build OpenIap.Maui.Example.csproj -t:Run -f net9.0-ios -p:RuntimeIdentifier=ios-arm64 -p:_DeviceName=:v2:udid=00008130-001929642642001C -tl:off -v:n -p:MlaunchVerbosity=4 -p:MlaunchExtraArgs=\"-v -v -v\""],
+            "cwd": "${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example",
+            "console": "integratedTerminal"
+        },
+        {
+            // -tl:off + -v:n — same fix as iOS. The terminal logger collapses
+            // every MSBuild target into a rolling counter; turning it off makes
+            // _CompileToDalvik / _InstallApk / etc. stream line-by-line.
+            "name": "🟣 MAUI IAP: Android",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": ["-lc", "cd \"${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example\" && (adb uninstall dev.hyo.openiap.maui.example || true) && dotnet build OpenIap.Maui.Example.csproj -t:Run -f net9.0-android -tl:off -v:n"],
+            "cwd": "${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "🎮 Godot IAP: Open in Editor",
             "type": "node",
             "request": "launch",
@@ -124,13 +152,23 @@
             "console": "integratedTerminal"
         },
         {
+            // Wipes `dist/` and `node_modules/.vite`, then ALWAYS
+            // rebuilds the SPA with `vite build --mode development`
+            // so Hono's static fallback at port 3000 serves a bundle
+            // baked against `.env.local` (dev Convex URL) — never
+            // `.env.production`. Without `--mode development`,
+            // `bun run build` defaults to production mode, loads
+            // `.env.production` AFTER `.env.local`, and the prod URL
+            // wins; that's why localhost:3000 sign-ins were bouncing
+            // through the prod GitHub OAuth App even after wiping
+            // dist (Hyo Dev / martie triage).
             "name": "🧰 Kit: Dev (Vite + Hono + Convex)",
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "npx --yes kill-port 3000 5173 || true && ([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && trap 'kill 0' INT TERM EXIT && (bun run dev:convex & bun run dev:server & bun run dev; wait)"
+                "npx --yes kill-port 3000 5173 || true && rm -rf dist node_modules/.vite && ([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && bunx vite build --mode development && trap 'kill 0' INT TERM EXIT && (bun run dev:convex & bun run dev:server & bun run dev; wait)"
             ],
             "cwd": "${workspaceFolder}/packages/kit",
             "console": "integratedTerminal"
