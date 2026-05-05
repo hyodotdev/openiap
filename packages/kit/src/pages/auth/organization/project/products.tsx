@@ -54,11 +54,23 @@ export default function ProjectProducts() {
 
   // Sync state now lives in `productSyncJobs` and is read reactively
   // via `getActiveSyncJob` per platform — the worker writes progress
-  // back to the row, so the dashboard re-renders without polling. The
-  // local `lastShownJobId*` refs gate the completion toast so a
-  // succeeded job only toasts once even if the row updates again
-  // (e.g. on dismiss).
-  const lastShownJobIdRef = useRef<Record<"IOS" | "Android", string | null>>({
+  // back to the row, so the dashboard re-renders without polling.
+  //
+  // Toast policy: only fire a completion toast for jobs the operator
+  // *actively triggered in this mounted session*. We track the
+  // previous status per platform; a toast fires only on the
+  // transition `running/queued → succeeded/failed`, never on the
+  // first observed status. That way revisiting the page (where the
+  // first observation is already terminal) shows the result banner
+  // but does NOT pop a stale toast for a sync the operator didn't
+  // just run.
+  type JobStatusSnapshot = {
+    jobId: string;
+    status: "queued" | "running" | "succeeded" | "failed";
+  };
+  const prevJobStatusRef = useRef<
+    Record<"IOS" | "Android", JobStatusSnapshot | null>
+  >({
     IOS: null,
     Android: null,
   });
@@ -86,25 +98,35 @@ export default function ProjectProducts() {
     };
   }, [products]);
 
-  // Show success/failure toast exactly once when a job transitions to
-  // a terminal state. The lastShownJobIdRef guard prevents the toast
-  // from re-firing on subsequent reactive updates of the same row.
+  // Toast on the running → terminal transition only.
+  //
+  // Earlier versions used a "shown jobIds" set, which fired on
+  // every fresh mount because the ref reset to empty — landing on
+  // the page with a pre-existing terminal job re-toasted it every
+  // time. The transition rule means: the very first observation
+  // of a job (no matter its status) just records state without
+  // toasting; subsequent observations fire only when the status
+  // crossed from non-terminal to terminal.
   useEffect(() => {
     for (const platform of ["IOS", "Android"] as const) {
       const job = platform === "IOS" ? iosJob : androidJob;
       if (!job) continue;
+      const prev = prevJobStatusRef.current[platform];
       const terminal = job.status === "succeeded" || job.status === "failed";
+      // Update the snapshot before deciding whether to toast — so
+      // even if we don't toast (initial observation, dismissed, or
+      // unchanged status) we still track the latest state.
+      prevJobStatusRef.current[platform] = {
+        jobId: job._id,
+        status: job.status,
+      };
       if (!terminal) continue;
-      // Once the operator has dismissed a terminal job, the row's
-      // `progress.phase` flips to "dismissed". The result banner
-      // already gates on this; the toast effect needs the same
-      // gate or it re-fires the success/failure toast on every
-      // subsequent page reload (because `lastShownJobIdRef` is
-      // in-memory and resets) until the pruner deletes the row
-      // (CodeRabbit review on PR #127).
       if (job.progress.phase === "dismissed") continue;
-      if (lastShownJobIdRef.current[platform] === job._id) continue;
-      lastShownJobIdRef.current[platform] = job._id;
+      // Initial observation (no prev snapshot) OR a new jobId we've
+      // never seen → don't toast. We only toast for the same jobId
+      // when the previous render saw it in a non-terminal state.
+      if (!prev || prev.jobId !== job._id) continue;
+      if (prev.status !== "queued" && prev.status !== "running") continue;
       const label = platform === "IOS" ? "App Store Connect" : "Play Console";
       const result = job.result;
       if (job.status === "succeeded" && result) {
