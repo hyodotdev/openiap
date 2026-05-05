@@ -644,15 +644,18 @@ function formatIsoDuration(iso: string): string {
 
 // Reorder a flat product list so subscriptions sharing the same ASC
 // `subscriptionGroupName` are visually clustered under a single
-// "Subscription Group · {name}" header row. One-time products (no
-// group) and rows missing group metadata pass through unchanged at
-// the bottom — we don't want to invent a synthetic group label for
-// non-subscriptions or for legacy rows synced before group capture
-// landed. Original ordering is preserved within each cluster.
+// "Subscription Group · {name}" header row. One-time products
+// (Consumable / NonConsumable) and any row missing group metadata
+// fall into an "Other products" cluster rendered after the
+// subscription groups so the section breaks are explicit — without
+// the second header, consumables visually inherited the previous
+// "Subscription Group" header and looked like part of it.
+// Original ordering is preserved within each cluster.
 function groupRowsByHierarchy(
   rows: Array<ProductRow>,
 ): Array<
   | { kind: "groupHeader"; id: string; name: string }
+  | { kind: "otherHeader"; id: string }
   | { kind: "row"; row: ProductRow }
 > {
   const buckets = new Map<string, Array<ProductRow>>();
@@ -672,6 +675,7 @@ function groupRowsByHierarchy(
   }
   const out: Array<
     | { kind: "groupHeader"; id: string; name: string }
+    | { kind: "otherHeader"; id: string }
     | { kind: "row"; row: ProductRow }
   > = [];
   for (const name of groupOrder) {
@@ -679,6 +683,14 @@ function groupRowsByHierarchy(
     for (const row of buckets.get(name) ?? []) {
       out.push({ kind: "row", row });
     }
+  }
+  // Only emit the "Other products" delimiter when at least one
+  // subscription group is also rendering — when there are no
+  // groups, the table is just a flat list and the extra header
+  // is noise. With at least one group above, the explicit
+  // delimiter is what visually closes the group section.
+  if (groupOrder.length > 0 && ungrouped.length > 0) {
+    out.push({ kind: "otherHeader", id: "other-products" });
   }
   for (const row of ungrouped) {
     out.push({ kind: "row", row });
@@ -1044,6 +1056,18 @@ function ProductGroup({
                   className="px-4 py-1.5 text-xs uppercase tracking-wide text-muted-foreground"
                 >
                   Subscription Group · {entry.name}
+                </td>
+              </tr>
+            ) : entry.kind === "otherHeader" ? (
+              <tr
+                key={`other:${entry.id}`}
+                className="border-t border-border/50 bg-muted/20"
+              >
+                <td
+                  colSpan={6}
+                  className="px-4 py-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                >
+                  Other products
                 </td>
               </tr>
             ) : (
