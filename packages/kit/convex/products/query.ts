@@ -53,8 +53,15 @@ function shape(product: Doc<"products">) {
     currency: product.currency,
     state: product.state,
     storeRef: product.storeRef,
-    subscriptionGroupId: product.subscriptionGroupId,
-    subscriptionGroupName: product.subscriptionGroupName,
+    // The schema widened these to `string | null` so
+    // `upsertFromStore` can clear stale values via patch (Convex
+    // treats `undefined` as no-op). Coerce back to optional at
+    // the public-query boundary so the dashboard / SDK clients
+    // don't need to handle `null` — pre-existing call sites only
+    // checked `.subscriptionGroupName` for truthiness, which still
+    // works after coercion.
+    subscriptionGroupId: product.subscriptionGroupId ?? undefined,
+    subscriptionGroupName: product.subscriptionGroupName ?? undefined,
     offers: product.offers,
     updatedAt: product.updatedAt,
   };

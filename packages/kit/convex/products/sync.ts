@@ -118,6 +118,20 @@ export const upsertFromStore = internalMutation({
       )
       .unique();
     const now = Date.now();
+    // Subscription group metadata only applies to subscriptions —
+    // explicitly null it out for non-Subscription rows so a row
+    // that flipped types (or that the operator typed a group name
+    // into via the form) doesn't cling to stale data and surface
+    // under the dashboard's "Subscription Group" cluster
+    // (LukasB-DEV report on PR #128). Convex patches treat
+    // `undefined` as a no-op, so the field has to be `null` to
+    // actually clear — schema widened accordingly.
+    const groupId =
+      args.type === "Subscription" ? (args.subscriptionGroupId ?? null) : null;
+    const groupName =
+      args.type === "Subscription"
+        ? (args.subscriptionGroupName ?? null)
+        : null;
     if (existing) {
       await ctx.db.patch(existing._id, {
         type: args.type,
@@ -134,11 +148,18 @@ export const upsertFromStore = internalMutation({
         // than stick to whatever kit cached previously. Same applies
         // to billingPeriod: the upstream is the source of truth.
         billingPeriod: args.billingPeriod,
-        subscriptionGroupId: args.subscriptionGroupId,
-        subscriptionGroupName: args.subscriptionGroupName,
+        subscriptionGroupId: groupId,
+        subscriptionGroupName: groupName,
         offers: args.offers,
         syncedAt: now,
         updatedAt: now,
+        // Preserve `origin` on UPDATE — only set it if absent
+        // (back-fill for rows created before this field existed).
+        // A pulled row touched later by `upsertProduct` keeps
+        // `origin: "store"`; a kit row touched by pull-sync keeps
+        // `origin: "kit"`. The push filter then correctly excludes
+        // pulled-from-store rows even after they're re-touched.
+        ...(existing.origin === undefined ? { origin: "store" as const } : {}),
       });
       return existing._id;
     }
@@ -154,11 +175,12 @@ export const upsertFromStore = internalMutation({
       storeRef: args.storeRef,
       state: args.state,
       billingPeriod: args.billingPeriod,
-      subscriptionGroupId: args.subscriptionGroupId,
-      subscriptionGroupName: args.subscriptionGroupName,
+      subscriptionGroupId: groupId,
+      subscriptionGroupName: groupName,
       offers: args.offers,
       syncedAt: now,
       updatedAt: now,
+      origin: "store",
     });
     return id;
   },
@@ -272,7 +294,22 @@ export const listDraftIosProducts = internalQuery({
       )
       .collect();
     return all
-      .filter((row) => row.state === "Draft")
+      .filter(
+        (row) =>
+          row.state === "Draft" &&
+          // Skip rows that were imported from the upstream store —
+          // ASC's "PREPARE_FOR_SUBMISSION" / "MISSING_METADATA" /
+          // similar states map to kit `Draft`, and re-pushing them on
+          // every sync inflated the `pushed` counter while looping
+          // them back-and-forth between Draft and Ready (LukasB-DEV
+          // report on PR #128). Legacy rows without `origin` set
+          // pass when they have no `storeRef` — pure kit creations
+          // — and partial-sync resumption (kit-created row whose
+          // CREATE succeeded but localization/price failed) keeps
+          // working because those rows have `origin: "kit"` set on
+          // first insert.
+          (row.origin === "kit" || row.storeRef === undefined),
+      )
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,
@@ -282,7 +319,11 @@ export const listDraftIosProducts = internalQuery({
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,
-        subscriptionGroupName: row.subscriptionGroupName,
+        // Coerce nullable schema field back to optional at the
+        // worker boundary — push code branches on
+        // `row.subscriptionGroupName ?? row.productId` and treats
+        // `undefined` correctly; null would slip past the `??`.
+        subscriptionGroupName: row.subscriptionGroupName ?? undefined,
         reviewNote: row.reviewNote,
         storeRef: row.storeRef,
       }));
@@ -332,7 +373,15 @@ export const listDraftAndroidProducts = internalQuery({
     // are correct without the extra filter (PR #124
     // (https://github.com/hyodotdev/openiap/pull/124) review).
     return all
-      .filter((row) => row.state === "Draft")
+      .filter(
+        (row) =>
+          row.state === "Draft" &&
+          // Same `origin === "kit" OR storeRef === undefined` filter
+          // as the iOS query — see comment there. Excludes
+          // pulled-from-Play rows that map to `Draft` and would
+          // otherwise re-push on every sync.
+          (row.origin === "kit" || row.storeRef === undefined),
+      )
       .map((row) => ({
         productId: row.productId,
         platform: row.platform,

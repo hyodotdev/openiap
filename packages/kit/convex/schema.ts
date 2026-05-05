@@ -790,8 +790,17 @@ const schema = defineSchema({
     // pick a default selection within a group. `subscriptionGroupId`
     // is Apple's internal resource id; `subscriptionGroupName` is the
     // human-readable referenceName the operator sees in ASC.
-    subscriptionGroupId: v.optional(v.string()),
-    subscriptionGroupName: v.optional(v.string()),
+    //
+    // Widened to `v.union(v.string(), v.null())` so
+    // `ctx.db.patch({...: null})` actually clears the value when a
+    // row's type changes from Subscription to non-Subscription.
+    // Convex treats `undefined` in patch as a no-op, so passing the
+    // IAP pull path's empty group as `undefined` left stale group
+    // metadata on rows that previously held a subscription — they
+    // kept appearing under the "Subscription Group" cluster in the
+    // dashboard (LukasB-DEV report on PR #128).
+    subscriptionGroupId: v.optional(v.union(v.string(), v.null())),
+    subscriptionGroupName: v.optional(v.union(v.string(), v.null())),
     // Captures the *non-base* monetization variants attached to a
     // subscription: Apple introductory offers (free trial / pay as
     // you go / pay up front) and Play base plan offers (same kinds,
@@ -834,6 +843,24 @@ const schema = defineSchema({
     reviewNote: v.optional(v.string()),
     storeRef: v.optional(v.string()),
     syncedAt: v.optional(v.number()),
+    // Where this row was first inserted from. Set on insert and
+    // never modified afterwards (so a kit-edited pull-imported row
+    // stays `"store"` and a partially-pushed kit row stays `"kit"`).
+    //
+    // Used by the push-sync's `listDraft*Products` queries to skip
+    // rows that came from the upstream store: pulled drafts (Apple
+    // states like `PREPARE_FOR_SUBMISSION` / `MISSING_METADATA` map
+    // to kit `Draft`) would otherwise get re-patched on every sync,
+    // pushed back into ASC, then pulled-and-re-Draft'd, looping
+    // forever and inflating the `pushed` counter (LukasB-DEV
+    // report on PR #128).
+    //
+    // Optional for backwards compat with rows created before this
+    // field existed. Push filter combines it with `storeRef`:
+    // `(origin === "kit" OR storeRef === undefined)` includes both
+    // legacy unpushed rows and partial-sync-resumption cases while
+    // excluding pulled-from-store rows.
+    origin: v.optional(v.union(v.literal("kit"), v.literal("store"))),
     updatedAt: v.number(),
   })
     // Lookup row by (projectId, platform, productId). Apps commonly

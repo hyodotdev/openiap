@@ -115,6 +115,17 @@ export const upsertProduct = mutation({
         state: args.state ?? existing.state,
         storeRef: args.storeRef ?? existing.storeRef,
         updatedAt: now,
+        // ALWAYS claim kit-management on dashboard / MCP edits —
+        // an operator touching the row through this mutation is
+        // explicitly saying "I want this version to land on the
+        // store", which means push-sync should pick it up next
+        // run. Without overwriting, a pulled-then-edited row
+        // would stay `origin: "store"` and silently get skipped
+        // by `listDraft*Products`, dropping the operator's edit.
+        // Reverse direction (pull overwriting kit edits) is
+        // handled in `upsertFromStore`, which only back-fills
+        // `origin` when it's undefined.
+        origin: "kit" as const,
       });
       return { id: existing._id, created: false };
     }
@@ -134,6 +145,7 @@ export const upsertProduct = mutation({
       state: args.state ?? "Draft",
       storeRef: args.storeRef,
       updatedAt: now,
+      origin: "kit",
     });
     return { id, created: true };
   },

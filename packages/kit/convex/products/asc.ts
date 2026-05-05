@@ -426,7 +426,15 @@ class AscClient {
     iapId: string,
     targetMicros: number,
   ): Promise<string | null> {
-    const list = await this.call<AscPricePointListResponse>(
+    // Walk every page of price points — Apple's USA tier list can
+    // exceed `limit=200` (territory- and tier-band-dependent), so a
+    // single-page lookup missed standard tiers like $24.99 / $39.99
+    // / $299.99 that landed beyond the first window and surfaced as
+    // "No ASC price tier matches USD X — pick a published tier" on
+    // an otherwise-valid push (LukasB-DEV report on PR #128).
+    const list = await this.collectAllPages<
+      AscPricePointListResponse["data"][number]
+    >(
       `/v1/inAppPurchases/${encodeURIComponent(iapId)}/pricePoints?filter[territory]=USA&limit=200`,
     );
     return pickPricePointIdMatching(list, targetMicros);
@@ -435,7 +443,9 @@ class AscClient {
     subId: string,
     targetMicros: number,
   ): Promise<string | null> {
-    const list = await this.call<AscPricePointListResponse>(
+    const list = await this.collectAllPages<
+      AscPricePointListResponse["data"][number]
+    >(
       `/v1/subscriptions/${encodeURIComponent(subId)}/pricePoints?filter[territory]=USA&limit=200`,
     );
     return pickPricePointIdMatching(list, targetMicros);
