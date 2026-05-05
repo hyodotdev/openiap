@@ -444,11 +444,12 @@ export const metricsSummary = query({
 // UTC) — same format `revenueMetricsDaily.day` is stored under, so
 // the index range is a direct string comparison.
 //
-// Currency split: the underlying table is keyed by currency because
-// MRR / revenue can't be summed across currencies without an FX
-// conversion (matches the `subscriptionStats` reasoning). The query
-// returns one entry per (day, currency) so the UI can either filter
-// to a single currency or stack the breakdown.
+// Return shape: one entry per rollup row, i.e. one per
+// (day, currency, productId, platform). Aggregation across rows
+// happens client-side (`analytics.tsx`) so the dashboard can switch
+// between filter combinations without re-querying. Summing across
+// currencies is a UI-side concern — `revenueMicros` from a USD row
+// and a EUR row cannot be added without an FX rate.
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 
 export const getRevenueMetrics = query({
@@ -493,11 +494,13 @@ export const getRevenueMetrics = query({
       };
     }
 
-    // Range scan via `by_project_and_day_and_currency`. We don't
-    // anchor on currency in the index range because the dashboard
-    // needs the multi-currency breakdown; filtering is applied in
-    // the loop below.
-    let rows = await ctx.db
+    // Range scan via `by_project_and_day_and_currency`. The index
+    // is `[projectId, day, currency]`, so `eq(projectId).gte(day)
+    // .lte(day)` resolves the entire window in one index hit;
+    // currency / product / platform filters are applied in-memory
+    // afterward (the trailing window is small — typically tens of
+    // rows per project).
+    const allRows = await ctx.db
       .query("revenueMetricsDaily")
       .withIndex("by_project_and_day_and_currency", (q) =>
         q
@@ -507,6 +510,22 @@ export const getRevenueMetrics = query({
       )
       .collect();
 
+    // Populate filter-dropdown choices from the UNFILTERED set so the
+    // UI can keep showing every available currency / product /
+    // platform regardless of which filter is currently active —
+    // otherwise selecting one currency would prune the dropdown to
+    // just that currency and the user could never get back without
+    // clearing.
+    const currencies = new Set<string>();
+    const productIds = new Set<string>();
+    const platforms = new Set<"IOS" | "Android">();
+    for (const row of allRows) {
+      if (row.currency) currencies.add(row.currency);
+      productIds.add(row.productId);
+      platforms.add(row.platform);
+    }
+
+    let rows = allRows;
     if (args.productId) {
       rows = rows.filter((row) => row.productId === args.productId);
     }
@@ -515,15 +534,6 @@ export const getRevenueMetrics = query({
     }
     if (args.platform) {
       rows = rows.filter((row) => row.platform === args.platform);
-    }
-
-    const currencies = new Set<string>();
-    const productIds = new Set<string>();
-    const platforms = new Set<"IOS" | "Android">();
-    for (const row of rows) {
-      if (row.currency) currencies.add(row.currency);
-      productIds.add(row.productId);
-      platforms.add(row.platform);
     }
 
     return {

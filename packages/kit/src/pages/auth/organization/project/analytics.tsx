@@ -139,14 +139,26 @@ export default function ProjectAnalytics() {
     return <PageLoading />;
   }
 
+  // Multi-currency projects: we always pin to a single currency for
+  // chart rendering because revenueMicros can't be summed across
+  // currencies without an FX rate. `selectedCurrency` resolves to
+  // the explicit user choice, falling back to the first available
+  // currency. The currency selector below is REQUIRED (not
+  // clearable) when multiple currencies exist so a user can never
+  // end up in the broken "no currency selected, sum across all"
+  // state — otherwise the totals would mix USD + EUR + JPY into a
+  // single number labeled with one currency code.
   const currency = selectedCurrency ?? metrics.currencies[0] ?? "";
 
   // Client-side filtering. Range is also a client filter now (we
   // fetched the max range above), so flipping range chiclets stays
-  // free — only the chart subtree re-derives.
+  // free — only the chart subtree re-derives. We always filter by
+  // `currency` (the resolved value above), not `selectedCurrency`,
+  // so the default-currency case still produces a single-currency
+  // chart on multi-currency projects.
   const filteredRows = metrics.days.filter((row) => {
     if (row.day < fromDay) return false;
-    if (selectedCurrency && row.currency !== selectedCurrency) return false;
+    if (currency && row.currency !== currency) return false;
     if (selectedProduct && row.productId !== selectedProduct) return false;
     if (platformFilter !== "all" && row.platform !== platformFilter) {
       return false;
@@ -237,11 +249,13 @@ export default function ProjectAnalytics() {
           // Cards reflect the selected range / currency / product
           // (everything except the platform filter — the cards ARE
           // the platform breakdown). Filtering to fromDay matches
-          // what the charts below show.
+          // what the charts below show. Use the resolved `currency`
+          // (not raw `selectedCurrency`) so multi-currency projects
+          // pin to a single currency by default and never sum
+          // mismatched FX into one card.
           const cardRows = metrics.days.filter((row) => {
             if (row.day < fromDay) return false;
-            if (selectedCurrency && row.currency !== selectedCurrency)
-              return false;
+            if (currency && row.currency !== currency) return false;
             if (selectedProduct && row.productId !== selectedProduct)
               return false;
             return true;
@@ -318,11 +332,15 @@ export default function ProjectAnalytics() {
         {metrics.currencies.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Currency:</span>
+            {/* No allowClear: revenue can't be summed across
+                currencies without an FX rate, so the chart must
+                always be pinned to exactly one. We surface the
+                first available currency as the default rather
+                than letting the user end up in a "no currency,
+                sum across" state where amounts would be wrong. */}
             <Select
-              value={selectedCurrency ?? undefined}
-              onChange={(v) => setSelectedCurrency(v || null)}
-              placeholder="All"
-              allowClear
+              value={currency || undefined}
+              onChange={(v) => setSelectedCurrency(v ?? null)}
               className="min-w-[100px]"
               options={metrics.currencies.map((c) => ({ value: c, label: c }))}
             />

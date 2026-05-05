@@ -36,6 +36,16 @@ import type { Doc, Id } from "../_generated/dataModel";
 // quarantine those into manual reconciliation paths instead).
 const TRAILING_DAYS = 3;
 
+// Late-delivery grace days. Bucketing by `occurredAt` (the store-side
+// event time) means we have to scan further back on `receivedAt`
+// than the bucket window itself, otherwise an event that arrived
+// 4 days late but occurred yesterday would not be in this tick's
+// receivedAt scan and would silently undercount yesterday's bucket
+// after the delete-then-insert in `commitBuckets`. Apple ASN v2
+// retries up to 5 days; Google RTDN's Pub/Sub default is 7 days.
+// 7 days covers both stores' published retry policies.
+const LATE_DELIVERY_GRACE_DAYS = 7;
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // UTC day key (YYYY-MM-DD) for an epoch-millis timestamp. Keying in
@@ -87,27 +97,38 @@ const COUNTED_STATES = new Set([
   "InBillingRetry",
 ] as const);
 
-// Daily entry point: schedule per-project recomputes. Mirrors the
-// `recomputeAllSubscriptionStats` pattern so each project gets its
-// own 40k document-read budget rather than sharing the picker's.
+// Tick entry point: schedule per-project recomputes. Each project
+// runs as its own scheduled mutation so the 40k document-read budget
+// is per-project, not shared with the picker.
+//
+// Rotation: walks `revenueMetricsRunStatus.by_run` ascending so the
+// least-recently-processed projects surface first. Each successful
+// per-project recompute upserts its own `revenueMetricsRunStatus`
+// row with `lastRunAt = now`, so the picker self-rotates without
+// piggybacking on the subscription-stats drift cron's freshness
+// signal.
+//
+// Bootstrap: a brand-new project has no `revenueMetricsRunStatus`
+// row yet. Pad the picker from `subscriptionStats` (any project
+// with at least one stats row has had a counted-state sub at some
+// point) so first-time analytics processing happens on the next
+// tick after a project's first sub instead of waiting for some
+// other code path to seed the status table.
 export const recomputeAllRevenueMetrics = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
   },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args) => {
-    const limit = args.batchSize ?? 50;
-    // Walk the same `subscriptionStats.by_updated_at` index the
-    // existing drift cron uses, so the two crons stay in sync on
-    // which projects need attention. A project without
-    // `subscriptionStats` rows has never had a counted-state sub
-    // either, so it has nothing to roll up.
+    const limit = args.batchSize ?? 100;
     const SCAN_CAP = Math.max(limit * 3, 300);
+
     const stale = await ctx.db
-      .query("subscriptionStats")
-      .withIndex("by_updated_at")
+      .query("revenueMetricsRunStatus")
+      .withIndex("by_run")
       .order("asc")
       .take(SCAN_CAP);
+
     const seen = new Set<string>();
     const projects: Id<"projects">[] = [];
     for (const row of stale) {
@@ -116,6 +137,20 @@ export const recomputeAllRevenueMetrics = internalMutation({
       projects.push(row.projectId);
       if (projects.length >= limit) break;
     }
+
+    if (projects.length < limit) {
+      const fresh = await ctx.db
+        .query("subscriptionStats")
+        .withIndex("by_updated_at")
+        .take(SCAN_CAP);
+      for (const row of fresh) {
+        if (seen.has(row.projectId)) continue;
+        seen.add(row.projectId);
+        projects.push(row.projectId);
+        if (projects.length >= limit) break;
+      }
+    }
+
     let scheduled = 0;
     for (const projectId of projects) {
       await ctx.scheduler.runAfter(
@@ -144,13 +179,40 @@ export const recomputeRevenueMetricsForProject = internalMutation({
   args: { projectId: v.id("projects") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await runRecompute(ctx, args.projectId, Date.now());
+    const now = Date.now();
+    await runRecompute(ctx, args.projectId, now);
+    await markRevenueMetricsRun(ctx, args.projectId, now);
     return null;
   },
 });
 
-const WEBHOOK_SCAN_CAP = 20_000;
-const SUBS_SCAN_CAP = 20_000;
+// 15k each gives 30k total reads on the two big scans, leaving the
+// remaining ~10k of the 40k document-read mutation budget for the
+// per-day `existing` lookups inside `commitBuckets`, the implicit
+// index reads, and any project lookups the helpers add later. Set
+// conservatively because hitting the cap silently truncates a
+// project's window — undercounting is worse than slow.
+const WEBHOOK_SCAN_CAP = 15_000;
+const SUBS_SCAN_CAP = 15_000;
+
+async function markRevenueMetricsRun(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  now: number,
+): Promise<void> {
+  const existing = await ctx.db
+    .query("revenueMetricsRunStatus")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .unique();
+  if (existing) {
+    await ctx.db.patch(existing._id, { lastRunAt: now });
+  } else {
+    await ctx.db.insert("revenueMetricsRunStatus", {
+      projectId,
+      lastRunAt: now,
+    });
+  }
+}
 
 export async function runRecompute(
   ctx: MutationCtx,
@@ -172,24 +234,47 @@ export async function runRecompute(
   for (let i = 0; i < TRAILING_DAYS; i++) {
     days.push(utcDayKey(windowStart + i * DAY_MS));
   }
+  const firstDay = days[0];
+  const lastDay = days[days.length - 1];
 
   const buckets = new Map<BucketKey, RollupBucket>();
 
   // ---- Pass 1: webhookEvents → newSubs / renewals / cancellations
   // / refunds / revenueMicros buckets.
+  //
+  // Scan by `receivedAt` (the index we have on webhookEvents) but
+  // bucket by `occurredAt` (the store-side event time). A renewal
+  // that occurred yesterday but arrived today must land in
+  // yesterday's bucket — otherwise a retry-delayed notification
+  // would flip its day on the dashboard, contradicting the
+  // "late notifications fold into their correct day" promise.
+  //
+  // The scan window extends `LATE_DELIVERY_GRACE_DAYS` beyond the
+  // bucket window so an event with `occurredAt` inside the bucket
+  // window but `receivedAt` from a prior tick still gets reread
+  // (after `commitBuckets` deletes the day's existing rows, anything
+  // not rescanned silently drops out of the rebuilt bucket).
+  const eventScanStart = windowStart - LATE_DELIVERY_GRACE_DAYS * DAY_MS;
   const events = await ctx.db
     .query("webhookEvents")
     .withIndex("by_project_and_received", (q) =>
       q
         .eq("projectId", projectId)
-        .gte("receivedAt", windowStart)
+        .gte("receivedAt", eventScanStart)
         .lte("receivedAt", windowEnd),
     )
     .take(WEBHOOK_SCAN_CAP);
 
   for (const event of events) {
     if (!event.productId) continue;
-    const day = utcDayKey(event.receivedAt);
+    const day = utcDayKey(event.occurredAt);
+    // Skip events whose store-side day falls outside the bucket
+    // window. Their bucket row (if any) lives outside the
+    // delete-then-insert window in `commitBuckets`, so writing
+    // here would either duplicate counters or stomp on a row
+    // that wasn't rescanned. Late-by-more-than-grace events are
+    // a rounding error — Apple/Google both quarantine those.
+    if (day < firstDay || day > lastDay) continue;
     const currency = event.currency ?? "";
     // The webhookEvents schema only allows `IOS` / `Android` for
     // `platform`; the Meta Horizon reconciler synthesizes events

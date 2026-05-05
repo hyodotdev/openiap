@@ -470,6 +470,13 @@ async function seedEvent(
   db: MemDb,
   partial: Partial<Doc<"webhookEvents">> & Pick<Doc<"webhookEvents">, "type">,
 ): Promise<void> {
+  // Default `occurredAt` to `receivedAt` if the test only set the
+  // latter — older tests use `receivedAt` to control which day the
+  // event belongs to, and the production code now buckets by
+  // `occurredAt`. Mirroring the values keeps those tests valid
+  // without forcing each one to specify both timestamps.
+  const receivedAt = partial.receivedAt ?? NOW;
+  const occurredAt = partial.occurredAt ?? receivedAt;
   await db.insert("webhookEvents", {
     projectId: PROJECT_ID,
     source: "AppleAppStoreServerNotificationsV2",
@@ -478,9 +485,9 @@ async function seedEvent(
     sourceNotificationId: `notif_${Math.random()}`,
     productId: "sub.monthly",
     currency: "USD",
-    occurredAt: NOW,
-    receivedAt: NOW,
     ...partial,
+    receivedAt,
+    occurredAt,
   });
 }
 
@@ -905,6 +912,63 @@ describe("runRecompute — round-trip integration", () => {
 
     await runRecompute(ctx, PROJECT_ID, NOW);
     expect(await rollupRows(db)).toEqual([]);
+  });
+
+  it("event arrived late (receivedAt > occurredAt) buckets by occurredAt", async () => {
+    // The whole point of separating `occurredAt` from `receivedAt`:
+    // a renewal that fired on D2 but landed in our webhook log today
+    // must contribute to D2's bucket, not today's. Otherwise a
+    // retry-delayed notification visibly flips its day on the
+    // dashboard.
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse(`${D2}T03:00:00Z`),
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+    const rows = await rollupRows(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ day: D2, renewals: 1 });
+  });
+
+  it("event whose occurredAt falls outside the trailing window is skipped", async () => {
+    // receivedAt is in the scan window (yesterday), but occurredAt
+    // is 10 days ago — outside [D2, TODAY]. The bucket for that
+    // older day isn't being recomputed this tick, so writing into
+    // it would either duplicate or stomp on a row not in the
+    // delete-then-insert window. Skip is correct.
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse("2026-03-05T03:00:00Z"),
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+    expect(await rollupRows(db)).toEqual([]);
+  });
+
+  it("event scan reaches back beyond the bucket window for late deliveries", async () => {
+    // receivedAt = D2 - 4 days (well outside the 3-day bucket
+    // window) but occurredAt = D2. Without the LATE_DELIVERY_GRACE
+    // backward extension on the scan, this event would be missed
+    // on every recompute after its tick of arrival, and the
+    // delete-then-insert in commitBuckets would erase it
+    // permanently. Verifies the grace window is wide enough to
+    // catch real Apple ASN v2 / Google RTDN retry tails.
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse(`${D2}T03:00:00Z`),
+      receivedAt: Date.parse(`${D2}T03:00:00Z`) - 4 * 86400000,
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+    const rows = await rollupRows(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ day: D2, newSubs: 1 });
   });
 
   it("rollup rows OUTSIDE window are preserved (not blanket-deleted)", async () => {

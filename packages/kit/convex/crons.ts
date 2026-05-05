@@ -81,20 +81,27 @@ crons.interval(
   { batchSize: 50 },
 );
 
-// Daily revenue rollup. Walks `webhookEvents` over the trailing
-// 3-day window and refreshes the `revenueMetricsDaily` rows that
-// power the Analytics dashboard. Trailing window covers Apple ASN v2
-// and Google RTDN late-arrival retries (real-world p99 < 48h); each
+// Revenue rollup. Walks `webhookEvents` over the trailing 3-day
+// window and refreshes the `revenueMetricsDaily` rows that power
+// the Analytics dashboard. Trailing window covers Apple ASN v2 and
+// Google RTDN late-arrival retries (real-world p99 < 48h); each
 // tick overwrites the trailing window so a webhook arriving up to 3
-// days late still lands in its correct day's bucket. 50 projects
-// per tick share the same self-paginating-via-staleness picker the
-// subscription stats cron uses (one mutation per project, each gets
-// its own 40k document-read budget).
+// days late still lands in its correct day's bucket.
+//
+// 10-minute cadence (vs. daily for the stats drift cron) keeps the
+// dashboard close to real time — at daily cadence with batchSize=50
+// a 500-project deployment cycled in 10 days, which is unacceptable
+// staleness for revenue analytics. The picker walks
+// `revenueMetricsRunStatus.by_run` so it self-rotates regardless
+// of how often it runs; each per-project recompute is its own
+// scheduled mutation with an independent 40k document-read budget.
+// 100 projects × 6 ticks/hour × 24h = 14,400 project-runs/day,
+// which keeps the typical deployment current within minutes.
 crons.interval(
-  "recompute revenue metrics daily",
-  { hours: 24 },
+  "recompute revenue metrics",
+  { minutes: 10 },
   internal.subscriptions.revenueMetrics.recomputeAllRevenueMetrics,
-  { batchSize: 50 },
+  { batchSize: 100 },
 );
 
 // Mark stuck product-sync jobs as failed. Convex caps actions at
