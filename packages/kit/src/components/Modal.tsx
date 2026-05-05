@@ -2,12 +2,27 @@ import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+// Shared modal primitive. Originally co-located in `AuthModal/Modal.tsx`;
+// promoted here so other dialogs (e.g. the destructive
+// PurgeConfirmDialog on the products page) can reuse the focus
+// trap, escape handling, scroll lock, and focus-restore behavior
+// instead of each rebuilding the same a11y plumbing inline.
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
   ariaLabel?: string;
+  // Hide the built-in close (X) button when the consumer supplies
+  // its own dismissal affordance (e.g. a Cancel button in a confirm
+  // dialog). The close button is otherwise nice for the auth
+  // modal's "tap-X" muscle memory.
+  showCloseButton?: boolean;
+  // Override the inner content wrapper's padding. Defaults to
+  // `p-6` to match AuthModal's existing layout; confirm dialogs
+  // typically want a tighter `p-5` or no padding so they can render
+  // their own structured spacing.
+  contentClassName?: string;
 }
 
 export function Modal({
@@ -16,6 +31,8 @@ export function Modal({
   children,
   className = "",
   ariaLabel = "Dialog",
+  showCloseButton = true,
+  contentClassName = "p-6",
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
@@ -116,17 +133,20 @@ export function Modal({
         tabIndex={-1}
         className={`relative w-full max-w-md bg-white dark:bg-[#18181f] rounded-2xl shadow-2xl animate-scale-in focus:outline-none ${className}`}
       >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-10"
-          aria-label="Close modal"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {showCloseButton ? (
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-10"
+            aria-label="Close modal"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
 
         {/* Content */}
-        <div className="relative p-6 max-h-[90vh] overflow-y-auto">
+        <div
+          className={`relative max-h-[90vh] overflow-y-auto ${contentClassName}`}
+        >
           {children}
         </div>
       </div>

@@ -1,4 +1,13 @@
-import { ReactNode, useState } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  ReactNode,
+  useId,
+  useState,
+  type FocusEvent,
+  type ReactElement,
+} from "react";
 import { cn } from "@/lib/utils";
 
 type Side = "top" | "bottom" | "left" | "right";
@@ -7,14 +16,22 @@ type Align = "start" | "center" | "end";
 // Lightweight hover/focus tooltip. Self-contained — no Radix /
 // floating-ui dep — because the only thing we need is a positioned
 // popover that opens on `mouseenter` / `focusin` and closes on
-// `mouseleave` / `focusout`. Anchors against the trigger element via
-// the wrapping `relative` div, so the trigger has to be a single
-// inline-block element (a button, a span); avoid wrapping block
-// elements that fight with `absolute` positioning.
+// `mouseleave` / `focusout`. Anchors against the trigger element
+// via the wrapping `relative` div.
+//
+// A11y plumbing (Copilot review on PR #127):
+// - The trigger element gets `aria-describedby` pointing at a
+//   stable id on the tooltip popover (via `useId` + `cloneElement`),
+//   so screen readers announce the tooltip text alongside the
+//   trigger's own label.
+// - Focus close uses `onBlurCapture` with a `relatedTarget`
+//   containment check — the tooltip stays open while focus moves
+//   between descendants of the wrapper instead of closing the
+//   moment any inner element is blurred.
 //
 // Use a real component (not a `title=` attribute or inline JSX) so
-// the hover affordance is consistent across the app: same delay, same
-// 320px max-width, same border/padding tokens.
+// the hover affordance is consistent across the app: same delay,
+// same widths, same border/padding tokens.
 export function Tooltip({
   children,
   content,
@@ -29,17 +46,50 @@ export function Tooltip({
   widthClass?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const tooltipId = useId();
+
+  // Wire `aria-describedby` onto the first valid React element so
+  // assistive tech announces the tooltip text. Falls through
+  // unchanged when the consumer passes a fragment / text node /
+  // multiple siblings — we don't want to silently swallow those
+  // shapes, the user just gets a tooltip without the SR linkage.
+  const trigger =
+    Children.count(children) === 1 && isValidElement(children)
+      ? cloneElement(
+          children as ReactElement<{ "aria-describedby"?: string }>,
+          {
+            "aria-describedby": tooltipId,
+          },
+        )
+      : children;
+
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    // `relatedTarget` is the element receiving focus next. When it
+    // stays inside the wrapper (e.g. focus moving between two
+    // buttons in the trigger), keep the tooltip open. Closing on
+    // every bubbled blur was prematurely hiding the popover the
+    // moment focus shifted across descendants.
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget.contains(event.relatedTarget)
+    ) {
+      return;
+    }
+    setOpen(false);
+  };
+
   return (
     <div
       className="relative inline-flex"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
+      onBlurCapture={handleBlur}
     >
-      {children}
+      {trigger}
       {open ? (
         <div
+          id={tooltipId}
           role="tooltip"
           // Explicit opaque surfaces — `bg-popover` resolved to a
           // semi-transparent token in this theme, which let the

@@ -688,6 +688,21 @@ async function performAndroidSync(
               "Subscription requires priceAmountMicros + currency to mint a Play base plan; otherwise the product will not be purchasable.",
             );
           }
+          // Play's `regionalConfigs` requires the `currencyCode` to
+          // be the local currency of the `regionCode` it's paired
+          // with — pushing `regionCode: "US"` with a non-USD price
+          // returns a generic 400 from the API and leaves the
+          // operator chasing a confusing error message. Match the
+          // iOS path's currency-validation pattern (asc.ts intro
+          // offer push) and surface an actionable failure here so
+          // the row stays in Draft and the dashboard reports
+          // exactly which SKU failed and why (Gemini review on
+          // PR #127).
+          if (row.currency !== "USD") {
+            throw new Error(
+              `Subscription "${row.productId}" has currency "${row.currency}" but the kit→Play push currently only supports the US region (USD). Set the price in USD on the dashboard, or pre-create the subscription in Play Console with your preferred regional pricing and let the next pull-sync mirror it back into kit.`,
+            );
+          }
           const basePlanId = basePlanIdForPeriod(row.billingPeriod);
           if (dryRun) {
             plannedWrites.push({

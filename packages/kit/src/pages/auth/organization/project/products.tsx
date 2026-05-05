@@ -18,6 +18,7 @@ import {
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
+import { Modal } from "@/components/Modal";
 import { Tooltip } from "@/components/Tooltip";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
 
@@ -252,10 +253,25 @@ export default function ProjectProducts() {
 
   const onCancel = async (jobId: SyncJob["_id"], label: string) => {
     try {
-      await cancelSync({ apiKey: project.apiKey, jobId });
-      toast.message(`${label} sync — cancellation requested`, {
-        duration: 4_000,
-      });
+      const result = await cancelSync({ apiKey: project.apiKey, jobId });
+      // The mutation returns `{ ok: false, reason: "not active" }`
+      // when the job already finished between render and click.
+      // Showing "cancellation requested" in that case is misleading
+      // — the caller didn't actually request anything because the
+      // job was already terminal (Copilot review on PR #127).
+      if (result.ok) {
+        toast.message(`${label} sync — cancellation requested`, {
+          duration: 4_000,
+        });
+      } else if (result.reason === "not active") {
+        toast.message(`${label} sync already finished`, {
+          duration: 4_000,
+        });
+      } else {
+        toast.message(`${label} sync — nothing to cancel`, {
+          duration: 4_000,
+        });
+      }
     } catch (error) {
       toast.error(
         `Cancel failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -757,7 +773,7 @@ function ResetCatalogButton({
       <button
         onClick={onClick}
         disabled={disabled}
-        className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-border hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-border hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <Trash2 className="w-3.5 h-3.5" />
         Reset
@@ -766,13 +782,14 @@ function ResetCatalogButton({
   );
 }
 
-// Lightweight confirm dialog. Inline (not a shared <Modal>) because
-// (a) it's the only confirm dialog in this page and (b) the
-// AuthModal helper isn't exported from `components/`. The warning
-// list here intentionally calls out the two real risks of
-// purge-then-sync: unpushed local edits get overwritten on re-pull,
-// and kit-only Draft rows that never made it to the store
-// disappear permanently.
+// Renders inside the shared <Modal> so the destructive confirm
+// inherits the focus trap, escape handling, scroll lock, and
+// focus-restore behavior — keyboard users can't tab into the table
+// behind the backdrop while this is open (Copilot review on
+// PR #127). The warning list intentionally calls out the two real
+// risks of purge-then-sync: unpushed local edits get overwritten
+// on re-pull, and kit-only Draft rows that never made it to the
+// store disappear permanently.
 function PurgeConfirmDialog({
   open,
   platform,
@@ -786,79 +803,64 @@ function PurgeConfirmDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-  if (!open) return null;
   const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      ariaLabel={`Reset local ${storeLabel} catalog`}
+      showCloseButton={false}
+      contentClassName="p-5"
+      className="bg-card"
     >
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="p-5 space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="rounded-full bg-rose-500/15 p-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
-            </div>
-            <div>
-              <div className="font-medium">
-                Reset local {storeLabel} catalog?
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Deletes all {rowCount} kit-side{" "}
-                {platform === "IOS" ? "iOS" : "Android"} row
-                {rowCount === 1 ? "" : "s"}. {storeLabel} itself is not
-                modified.
-              </p>
-            </div>
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full bg-rose-500/15 p-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
           </div>
-          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 space-y-2">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <p>
-                Local edits not yet pushed to {storeLabel} (price changes,
-                review notes, titles) will be <strong>lost</strong> when the
-                next Sync re-pulls the upstream copy.
-              </p>
-            </div>
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <p>
-                Draft rows that were never pushed upstream will be{" "}
-                <strong>permanently deleted</strong> — they don&apos;t exist on{" "}
-                {storeLabel} so Sync can&apos;t recover them.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="px-3 py-1.5 rounded text-xs border border-border hover:bg-muted/40"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onConfirm}
-              className="px-3 py-1.5 rounded text-xs bg-rose-500/20 text-rose-200 border border-rose-500/40 hover:bg-rose-500/30"
-            >
-              Delete {rowCount} row{rowCount === 1 ? "" : "s"}
-            </button>
+          <div>
+            <div className="font-medium">Reset local {storeLabel} catalog?</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Deletes all {rowCount} kit-side{" "}
+              {platform === "IOS" ? "iOS" : "Android"} row
+              {rowCount === 1 ? "" : "s"}. {storeLabel} itself is not modified.
+            </p>
           </div>
         </div>
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <p>
+              Local edits not yet pushed to {storeLabel} (price changes, review
+              notes, titles) will be <strong>lost</strong> when the next Sync
+              re-pulls the upstream copy.
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <p>
+              Draft rows that were never pushed upstream will be{" "}
+              <strong>permanently deleted</strong> — they don&apos;t exist on{" "}
+              {storeLabel} so Sync can&apos;t recover them.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded text-xs border border-border hover:bg-muted/40"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-3 py-1.5 rounded text-xs bg-rose-500/20 text-rose-700 dark:text-rose-200 border border-rose-500/40 hover:bg-rose-500/30"
+          >
+            Delete {rowCount} row{rowCount === 1 ? "" : "s"}
+          </button>
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -945,13 +947,18 @@ function ProductGroup({
         }}
       />
       {showResult && job ? (
+        // Theme-aware text colors — `-700` for the light surface,
+        // `-200` for the dark surface. The earlier dark-only
+        // palette (`text-rose-200` etc.) was unreadable in light
+        // mode against the bg-tint background (Gemini review on
+        // PR #127).
         <div
           className={`px-4 py-2 border-b border-border flex items-start gap-2 text-xs ${
             job.status === "failed"
-              ? "bg-rose-500/10 text-rose-200"
+              ? "bg-rose-500/10 text-rose-700 dark:text-rose-200"
               : job.result?.failures.length
-                ? "bg-amber-500/10 text-amber-200"
-                : "bg-emerald-500/10 text-emerald-200"
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-200"
+                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
           }`}
         >
           <div className="flex-1">

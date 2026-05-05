@@ -172,27 +172,31 @@ export const enqueueProductSync = mutation({
   }),
   handler: async (ctx, args) => {
     const { project, userId } = await resolveProjectByApiKey(ctx, args.apiKey);
-    const existingActive = await ctx.db
-      .query("productSyncJobs")
-      .withIndex("by_project_platform_status", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("status", "queued"),
-      )
-      .first();
-    const existingRunning = await ctx.db
-      .query("productSyncJobs")
-      .withIndex("by_project_platform_status", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("status", "running"),
-      )
-      .first();
-    const existing = existingActive ?? existingRunning;
-    if (existing) {
-      return { jobId: existing._id, deduped: true };
+    // Atomic dedup via the project's `activeSyncJobIds` lock field.
+    // Reading and writing the project doc lets Convex's OCC collapse
+    // two concurrent enqueue mutations onto the same job: both read
+    // the project, both try to patch, only one commit wins; the
+    // loser retries, sees the lock, and returns the deduped jobId
+    // (Copilot review on PR #127).
+    //
+    // Index-only dedup (the prior implementation) wasn't atomic
+    // because the two queries returned `null` for both concurrent
+    // callers, then both inserted separate `productSyncJobs` rows
+    // and scheduled separate workers — fanning out conflicting
+    // upstream writes.
+    const lockedJobId = project.activeSyncJobIds?.[args.platform];
+    if (lockedJobId) {
+      const lockedJob = await ctx.db.get(lockedJobId);
+      if (
+        lockedJob &&
+        (lockedJob.status === "queued" || lockedJob.status === "running")
+      ) {
+        return { jobId: lockedJob._id, deduped: true };
+      }
+      // Lock points at a stale (terminal) row — fall through to
+      // claim a fresh slot. The worker should have cleared it; this
+      // path covers a crashed worker or a job marked failed via the
+      // reaper.
     }
     const now = Date.now();
     const jobId = await ctx.db.insert("productSyncJobs", {
@@ -204,6 +208,12 @@ export const enqueueProductSync = mutation({
       progress: { phase: "queued" },
       ...(userId ? { createdBy: userId } : {}),
       createdAt: now,
+    });
+    await ctx.db.patch(project._id, {
+      activeSyncJobIds: {
+        ...(project.activeSyncJobIds ?? {}),
+        [args.platform]: jobId,
+      },
     });
     if (args.direction === "purge-local") {
       // Purge runs in this module's V8-isolate runtime — no Apple
@@ -429,6 +439,22 @@ export const markJobSucceeded = internalMutation({
         ...(args.plannedWrites ? { plannedWrites: args.plannedWrites } : {}),
       },
     });
+    // Clear the project's lock so the next enqueue can claim the
+    // slot. Guard against a stale lock pointing at a different job
+    // (e.g. a manual db.patch races with a finished worker) so we
+    // never overwrite a fresh lock with `undefined`.
+    const job = await ctx.db.get(args.jobId);
+    if (job) {
+      const project = await ctx.db.get(job.projectId);
+      if (project && project.activeSyncJobIds?.[job.platform] === args.jobId) {
+        await ctx.db.patch(project._id, {
+          activeSyncJobIds: {
+            ...project.activeSyncJobIds,
+            [job.platform]: undefined,
+          },
+        });
+      }
+    }
   },
 });
 
@@ -465,6 +491,20 @@ export const markJobFailed = internalMutation({
         ...(truncated ? { failuresTruncated: true } : {}),
       },
     });
+    // Mirror `markJobSucceeded` — clear the lock on terminal
+    // failure so the next enqueue isn't blocked by a stuck slot.
+    const job = await ctx.db.get(args.jobId);
+    if (job) {
+      const project = await ctx.db.get(job.projectId);
+      if (project && project.activeSyncJobIds?.[job.platform] === args.jobId) {
+        await ctx.db.patch(project._id, {
+          activeSyncJobIds: {
+            ...project.activeSyncJobIds,
+            [job.platform]: undefined,
+          },
+        });
+      }
+    }
   },
 });
 
@@ -488,6 +528,17 @@ export const reapStaleProductSyncJobs = internalMutation({
         error: "Worker timed out — sync exceeded the 9-minute ceiling",
         progress: { phase: "reaped" },
       });
+      // Clear the project's lock so the next enqueue isn't pinned
+      // by the dead worker.
+      const project = await ctx.db.get(job.projectId);
+      if (project && project.activeSyncJobIds?.[job.platform] === job._id) {
+        await ctx.db.patch(project._id, {
+          activeSyncJobIds: {
+            ...project.activeSyncJobIds,
+            [job.platform]: undefined,
+          },
+        });
+      }
     }
     return { reaped: stale.length };
   },

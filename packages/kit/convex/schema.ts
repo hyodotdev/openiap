@@ -219,6 +219,21 @@ const schema = defineSchema({
     horizonAppId: v.optional(v.union(v.string(), v.null())),
     horizonAppSecret: v.optional(v.union(v.string(), v.null())),
 
+    // Per-platform "active product-sync job" lock. Read-and-patched
+    // inside `enqueueProductSync` so Convex's optimistic concurrency
+    // control collapses two concurrent enqueue mutations onto the
+    // same job — without this, both readers see an empty
+    // `productSyncJobs` index range, both insert separate queued
+    // rows, and the scheduler fans out two competing workers
+    // (Copilot review on PR #127). Cleared by the worker's
+    // success/failure mutation so the next enqueue can claim it.
+    activeSyncJobIds: v.optional(
+      v.object({
+        IOS: v.optional(v.id("productSyncJobs")),
+        Android: v.optional(v.id("productSyncJobs")),
+      }),
+    ),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
