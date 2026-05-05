@@ -457,9 +457,16 @@ export const getRevenueMetrics = query({
     apiKey: v.string(),
     fromDay: v.string(),
     toDay: v.string(),
-    productId: v.optional(v.string()),
-    currency: v.optional(v.string()),
-    platform: v.optional(platformValidator),
+    // Server-side `productId` / `currency` / `platform` filters were
+    // removed because the dashboard does all of that filtering
+    // client-side (the unfiltered fetch is what backs the filter-
+    // dropdown population — narrowing the scan would defeat that),
+    // and a server-side narrowing path was incompatible with that
+    // contract: when a productId was pinned the dropdowns silently
+    // collapsed to that SKU's currencies / platforms only. If a
+    // future caller needs server-side narrowing for a non-dashboard
+    // surface, add a separate query — don't reintroduce these as
+    // optional args on this one.
   },
   returns: v.object({
     days: v.array(
@@ -527,14 +534,12 @@ export const getRevenueMetrics = query({
       );
     }
 
-    // Range scan over `revenueMetricsDaily`. When the caller pins a
-    // specific `productId` we use `by_project_and_product_and_day_and_currency`
-    // (`[projectId, productId, day, currency]`) so the index range
-    // already filters down to a single SKU's rows; otherwise we fall
-    // back to `by_project_and_day_and_currency`
-    // (`[projectId, day, currency]`). Currency / platform filters are
-    // applied in-memory in either case (typically tens of rows after
-    // the index range narrows things down).
+    // Range scan over `revenueMetricsDaily` via
+    // `by_project_and_day_and_currency` (`[projectId, day, currency]`).
+    // The dashboard does all filtering (currency / product /
+    // platform) client-side, so we deliberately return the full
+    // window — narrowing here would prune the data the dashboard
+    // needs to populate its filter dropdowns.
     //
     // Capped at REVENUE_SCAN_CAP to stay under Convex's 32k
     // document-scan limit per query. A 92-day range across a
@@ -544,26 +549,15 @@ export const getRevenueMetrics = query({
     // an amber banner on the dashboard so a partial chart is
     // never silently rendered.
     const REVENUE_SCAN_CAP = 20_000;
-    const allRows = args.productId
-      ? await ctx.db
-          .query("revenueMetricsDaily")
-          .withIndex("by_project_and_product_and_day_and_currency", (q) =>
-            q
-              .eq("projectId", project._id)
-              .eq("productId", args.productId as string)
-              .gte("day", args.fromDay)
-              .lte("day", args.toDay),
-          )
-          .take(REVENUE_SCAN_CAP)
-      : await ctx.db
-          .query("revenueMetricsDaily")
-          .withIndex("by_project_and_day_and_currency", (q) =>
-            q
-              .eq("projectId", project._id)
-              .gte("day", args.fromDay)
-              .lte("day", args.toDay),
-          )
-          .take(REVENUE_SCAN_CAP);
+    const allRows = await ctx.db
+      .query("revenueMetricsDaily")
+      .withIndex("by_project_and_day_and_currency", (q) =>
+        q
+          .eq("projectId", project._id)
+          .gte("day", args.fromDay)
+          .lte("day", args.toDay),
+      )
+      .take(REVENUE_SCAN_CAP);
     const truncated = allRows.length === REVENUE_SCAN_CAP;
     if (truncated) {
       console.warn(
@@ -571,12 +565,10 @@ export const getRevenueMetrics = query({
       );
     }
 
-    // Populate filter-dropdown choices from the UNFILTERED set so the
-    // UI can keep showing every available currency / product /
-    // platform regardless of which filter is currently active —
-    // otherwise selecting one currency would prune the dropdown to
-    // just that currency and the user could never get back without
-    // clearing.
+    // Populate filter-dropdown choices from the unfiltered range
+    // scan so the UI can render every available currency /
+    // productId / platform regardless of which filter the user
+    // currently has active.
     const currencies = new Set<string>();
     const productIds = new Set<string>();
     const platforms = new Set<"IOS" | "Android">();
@@ -586,19 +578,8 @@ export const getRevenueMetrics = query({
       platforms.add(row.platform);
     }
 
-    let rows = allRows;
-    if (args.productId) {
-      rows = rows.filter((row) => row.productId === args.productId);
-    }
-    if (args.currency) {
-      rows = rows.filter((row) => row.currency === args.currency);
-    }
-    if (args.platform) {
-      rows = rows.filter((row) => row.platform === args.platform);
-    }
-
     return {
-      days: rows.map((row) => ({
+      days: allRows.map((row) => ({
         day: row.day,
         currency: row.currency,
         productId: row.productId,
