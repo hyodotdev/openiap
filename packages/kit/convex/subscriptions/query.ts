@@ -435,6 +435,117 @@ export const metricsSummary = query({
   },
 });
 
+// Daily revenue + lifecycle metrics for the Analytics dashboard. Reads
+// pre-computed rollups from `revenueMetricsDaily` (populated by the
+// `recomputeAllRevenueMetrics` cron) so the dashboard never scans the
+// raw webhookEvents log on render.
+//
+// `fromDay` and `toDay` are inclusive ISO date strings (YYYY-MM-DD,
+// UTC) — same format `revenueMetricsDaily.day` is stored under, so
+// the index range is a direct string comparison.
+//
+// Currency split: the underlying table is keyed by currency because
+// MRR / revenue can't be summed across currencies without an FX
+// conversion (matches the `subscriptionStats` reasoning). The query
+// returns one entry per (day, currency) so the UI can either filter
+// to a single currency or stack the breakdown.
+const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
+
+export const getRevenueMetrics = query({
+  args: {
+    apiKey: v.string(),
+    fromDay: v.string(),
+    toDay: v.string(),
+    productId: v.optional(v.string()),
+    currency: v.optional(v.string()),
+    platform: v.optional(platformValidator),
+  },
+  returns: v.object({
+    days: v.array(
+      v.object({
+        day: v.string(),
+        currency: v.string(),
+        productId: v.string(),
+        platform: platformValidator,
+        activeSubs: v.number(),
+        newSubs: v.number(),
+        renewals: v.number(),
+        cancellations: v.number(),
+        refunds: v.number(),
+        revenueMicros: v.number(),
+      }),
+    ),
+    // Available filter values surfaced to the dashboard so the UI
+    // can render dropdowns / chiclets for everything the project
+    // actually has data for, without a second round-trip.
+    currencies: v.array(v.string()),
+    productIds: v.array(v.string()),
+    platforms: v.array(platformValidator),
+  }),
+  handler: async (ctx, args) => {
+    const project = await projectByApiKey(ctx, args.apiKey);
+    if (!project) {
+      return {
+        days: [],
+        currencies: [],
+        productIds: [],
+        platforms: [],
+      };
+    }
+
+    // Range scan via `by_project_and_day_and_currency`. We don't
+    // anchor on currency in the index range because the dashboard
+    // needs the multi-currency breakdown; filtering is applied in
+    // the loop below.
+    let rows = await ctx.db
+      .query("revenueMetricsDaily")
+      .withIndex("by_project_and_day_and_currency", (q) =>
+        q
+          .eq("projectId", project._id)
+          .gte("day", args.fromDay)
+          .lte("day", args.toDay),
+      )
+      .collect();
+
+    if (args.productId) {
+      rows = rows.filter((row) => row.productId === args.productId);
+    }
+    if (args.currency) {
+      rows = rows.filter((row) => row.currency === args.currency);
+    }
+    if (args.platform) {
+      rows = rows.filter((row) => row.platform === args.platform);
+    }
+
+    const currencies = new Set<string>();
+    const productIds = new Set<string>();
+    const platforms = new Set<"IOS" | "Android">();
+    for (const row of rows) {
+      if (row.currency) currencies.add(row.currency);
+      productIds.add(row.productId);
+      platforms.add(row.platform);
+    }
+
+    return {
+      days: rows.map((row) => ({
+        day: row.day,
+        currency: row.currency,
+        productId: row.productId,
+        platform: row.platform,
+        activeSubs: row.activeSubs,
+        newSubs: row.newSubs,
+        renewals: row.renewals,
+        cancellations: row.cancellations,
+        refunds: row.refunds,
+        revenueMicros: row.revenueMicros,
+      })),
+      currencies: Array.from(currencies).sort(),
+      productIds: Array.from(productIds).sort(),
+      platforms: Array.from(platforms).sort(),
+    };
+  },
+});
+
 async function loadPeriodByProductId(
   ctx: QueryCtx,
   projectId: Id<"projects">,

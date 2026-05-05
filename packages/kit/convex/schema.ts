@@ -722,6 +722,13 @@ const schema = defineSchema({
     day: v.string(), // ISO date (YYYY-MM-DD), UTC
     productId: v.string(),
     currency: v.string(),
+    // Platform split is part of the key — same SKU sold on iOS and
+    // Android on the same day produces two distinct rollup rows so
+    // the dashboard can chart per-store revenue. Nullable platform
+    // (the empty `""` sentinel) absorbs events that arrived before
+    // the rollout — kept defensively so a partially-backfilled
+    // window doesn't crash the read path.
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
     activeSubs: v.number(),
     newSubs: v.number(),
     renewals: v.number(),
@@ -736,7 +743,8 @@ const schema = defineSchema({
       "productId",
       "day",
       "currency",
-    ]),
+    ])
+    .index("by_project_and_day_and_platform", ["projectId", "day", "platform"]),
 
   // Unified product catalog. Mirrors what onesub holds in @onesub/providers
   // — the subset of App Store Connect / Play Console that kit can read /

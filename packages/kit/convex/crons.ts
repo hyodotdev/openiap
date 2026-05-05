@@ -81,6 +81,22 @@ crons.interval(
   { batchSize: 50 },
 );
 
+// Daily revenue rollup. Walks `webhookEvents` over the trailing
+// 3-day window and refreshes the `revenueMetricsDaily` rows that
+// power the Analytics dashboard. Trailing window covers Apple ASN v2
+// and Google RTDN late-arrival retries (real-world p99 < 48h); each
+// tick overwrites the trailing window so a webhook arriving up to 3
+// days late still lands in its correct day's bucket. 50 projects
+// per tick share the same self-paginating-via-staleness picker the
+// subscription stats cron uses (one mutation per project, each gets
+// its own 40k document-read budget).
+crons.interval(
+  "recompute revenue metrics daily",
+  { hours: 24 },
+  internal.subscriptions.revenueMetrics.recomputeAllRevenueMetrics,
+  { batchSize: 50 },
+);
+
 // Mark stuck product-sync jobs as failed. Convex caps actions at
 // ~10min; the worker sets `expectedDeadline = startedAt + 9min`,
 // and this reaper flips anything still `running` past
