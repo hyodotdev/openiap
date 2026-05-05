@@ -1,15 +1,29 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQuery, useAction } from "convex/react";
-import { Layers, Loader2, Plus, RefreshCw, ChevronDown } from "lucide-react";
+import {
+  Layers,
+  Loader2,
+  Plus,
+  RefreshCw,
+  ChevronDown,
+  X,
+  Trash2,
+  AlertTriangle,
+  Info,
+  ExternalLink,
+} from "lucide-react";
 
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
+import { Modal } from "@/components/Modal";
+import { Tooltip } from "@/components/Tooltip";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
 
 type ProjectContext = { project: Doc<"projects"> };
+type SyncJob = Doc<"productSyncJobs">;
 
 export default function ProjectProducts() {
   const { project } = useOutletContext<ProjectContext>();
@@ -17,8 +31,17 @@ export default function ProjectProducts() {
     apiKey: project.apiKey,
   });
   const upsert = useMutation(api.products.mutation.upsertProduct);
-  const syncApple = useAction(api.products.asc.pushSyncProductsAppleIOS);
-  const syncGoogle = useAction(api.products.play.pushSyncProductsGoogle);
+  const enqueueSync = useMutation(api.products.jobs.enqueueProductSync);
+  const cancelSync = useMutation(api.products.jobs.cancelProductSync);
+  const dismissJob = useMutation(api.products.jobs.dismissCompletedJob);
+  const iosJob = useQuery(api.products.jobs.getActiveSyncJob, {
+    apiKey: project.apiKey,
+    platform: "IOS",
+  });
+  const androidJob = useQuery(api.products.jobs.getActiveSyncJob, {
+    apiKey: project.apiKey,
+    platform: "Android",
+  });
   const listAscGroups = useAction(
     api.products.asc.listSubscriptionGroupsAppleIOS,
   );
@@ -29,12 +52,16 @@ export default function ProjectProducts() {
   const [ascGroupNames, setAscGroupNames] = useState<string[] | null>(null);
   const [ascGroupLoadFailed, setAscGroupLoadFailed] = useState(false);
 
-  // Per-platform sync state — the button shows a spinner instead of a
-  // separate page-level banner so the affordance lives next to the
-  // action the operator triggered.
-  const [syncingPlatform, setSyncingPlatform] = useState<
-    "IOS" | "Android" | null
-  >(null);
+  // Sync state now lives in `productSyncJobs` and is read reactively
+  // via `getActiveSyncJob` per platform — the worker writes progress
+  // back to the row, so the dashboard re-renders without polling. The
+  // local `lastShownJobId*` refs gate the completion toast so a
+  // succeeded job only toasts once even if the row updates again
+  // (e.g. on dismiss).
+  const lastShownJobIdRef = useRef<Record<"IOS" | "Android", string | null>>({
+    IOS: null,
+    Android: null,
+  });
   // The draft form holds every field the push-sync flow consumes.
   // Optional fields are stored as empty strings here and converted to
   // `undefined` on submit so an unfilled price doesn't end up
@@ -58,6 +85,65 @@ export default function ProjectProducts() {
       android: products.filter((p) => p.platform === "Android"),
     };
   }, [products]);
+
+  // Show success/failure toast exactly once when a job transitions to
+  // a terminal state. The lastShownJobIdRef guard prevents the toast
+  // from re-firing on subsequent reactive updates of the same row.
+  useEffect(() => {
+    for (const platform of ["IOS", "Android"] as const) {
+      const job = platform === "IOS" ? iosJob : androidJob;
+      if (!job) continue;
+      const terminal = job.status === "succeeded" || job.status === "failed";
+      if (!terminal) continue;
+      // Once the operator has dismissed a terminal job, the row's
+      // `progress.phase` flips to "dismissed". The result banner
+      // already gates on this; the toast effect needs the same
+      // gate or it re-fires the success/failure toast on every
+      // subsequent page reload (because `lastShownJobIdRef` is
+      // in-memory and resets) until the pruner deletes the row
+      // (CodeRabbit review on PR #127).
+      if (job.progress.phase === "dismissed") continue;
+      if (lastShownJobIdRef.current[platform] === job._id) continue;
+      lastShownJobIdRef.current[platform] = job._id;
+      const label = platform === "IOS" ? "App Store Connect" : "Play Console";
+      const result = job.result;
+      if (job.status === "succeeded" && result) {
+        const summary =
+          result.deleted !== undefined
+            ? `Deleted ${result.deleted} row${result.deleted === 1 ? "" : "s"}`
+            : `Pulled ${result.pulled}, pushed ${result.pushed}`;
+        const plannedLines = result.plannedWrites?.length
+          ? result.plannedWrites
+              .map(
+                (p) =>
+                  `${p.productId} → ${p.step}${p.detail ? ": " + p.detail : ""}`,
+              )
+              .join("\n")
+          : undefined;
+        if (result.failures.length) {
+          toast.error(`${label} sync — ${summary}`, {
+            description:
+              (plannedLines ? `Planned writes:\n${plannedLines}\n\n` : "") +
+              result.failures
+                .map((f) => `${f.productId}: ${f.reason}`)
+                .join("\n"),
+            duration: 12_000,
+          });
+        } else if (plannedLines) {
+          toast.success(`${label} dry-run — ${summary} (no writes performed)`, {
+            description: plannedLines,
+            duration: 12_000,
+          });
+        } else {
+          toast.success(`${label} sync — ${summary}`);
+        }
+      } else if (job.status === "failed") {
+        toast.error(`${label} sync failed: ${job.error ?? "Unknown error"}`, {
+          duration: 12_000,
+        });
+      }
+    }
+  }, [iosJob, androidJob]);
 
   if (products === undefined) {
     return <PageLoading />;
@@ -112,89 +198,85 @@ export default function ProjectProducts() {
     platform: "IOS" | "Android",
     options?: { dryRun?: boolean },
   ) => {
-    if (syncingPlatform) return;
-    setSyncingPlatform(platform);
+    const activeForPlatform = platform === "IOS" ? iosJob : androidJob;
+    const isActive =
+      activeForPlatform?.status === "queued" ||
+      activeForPlatform?.status === "running";
+    if (isActive) return;
     const label = platform === "IOS" ? "App Store Connect" : "Play Console";
     const dryRun = options?.dryRun === true;
     try {
-      // Dry-run is iOS-only for now — Android push doesn't have an
-      // equivalent skip-writes path yet (we'd need to mirror the same
-      // gating across play.ts). When operator hits "Dry-run" on
-      // Android we just route to a regular sync and surface a notice
-      // explaining the limitation.
-      if (dryRun && platform === "Android") {
-        toast.message(
-          "Dry-run not yet supported for Play Console — running real sync instead.",
-          { duration: 6_000 },
-        );
-      }
-      const result =
-        platform === "IOS"
-          ? await syncApple({
-              apiKey: project.apiKey,
-              direction: "both",
-              ...(dryRun ? { dryRun: true } : {}),
-            })
-          : await syncGoogle({
-              apiKey: project.apiKey,
-              direction: "both",
-            });
-      const summary = `Pulled ${result.pulled}, pushed ${result.pushed}`;
-      const planned:
-        | Array<{
-            productId: string;
-            step: string;
-            detail?: string;
-          }>
-        | undefined =
-        "plannedWrites" in result &&
-        Array.isArray((result as { plannedWrites?: unknown }).plannedWrites)
-          ? (
-              result as {
-                plannedWrites: Array<{
-                  productId: string;
-                  step: string;
-                  detail?: string;
-                }>;
-              }
-            ).plannedWrites
-          : undefined;
-      const plannedLines = planned?.length
-        ? planned
-            .map(
-              (p) =>
-                `${p.productId} → ${p.step}${p.detail ? ": " + p.detail : ""}`,
-            )
-            .join("\n")
-        : undefined;
-      if (result.failures.length) {
-        const failureLines = result.failures
-          .map((f) => `${f.productId}: ${f.reason}`)
-          .join("\n");
-        toast.error(
-          `${label} ${dryRun && platform === "IOS" ? "dry-run" : "sync"} — ${summary}`,
-          {
-            description:
-              (plannedLines ? `Planned writes:\n${plannedLines}\n\n` : "") +
-              failureLines,
-            duration: 12_000,
-          },
-        );
-      } else if (plannedLines) {
-        toast.success(`${label} dry-run — ${summary} (no writes performed)`, {
-          description: plannedLines,
-          duration: 12_000,
-        });
+      const { deduped } = await enqueueSync({
+        apiKey: project.apiKey,
+        platform,
+        direction: "both",
+        ...(dryRun ? { dryRun: true } : {}),
+      });
+      if (deduped) {
+        toast.message(`${label} sync already running`, { duration: 4_000 });
       } else {
-        toast.success(`${label} sync — ${summary}`);
+        toast.message(`${label} sync queued`, { duration: 3_000 });
       }
     } catch (error) {
       toast.error(
         `${label} sync failed: ${error instanceof Error ? error.message : String(error)}`,
         { duration: 12_000 },
       );
-    } finally {
-      setSyncingPlatform(null);
+    }
+  };
+
+  const onPurge = async (platform: "IOS" | "Android") => {
+    const activeForPlatform = platform === "IOS" ? iosJob : androidJob;
+    const isActive =
+      activeForPlatform?.status === "queued" ||
+      activeForPlatform?.status === "running";
+    if (isActive) return;
+    const label = platform === "IOS" ? "App Store Connect" : "Play Console";
+    try {
+      const { deduped } = await enqueueSync({
+        apiKey: project.apiKey,
+        platform,
+        direction: "purge-local",
+      });
+      if (deduped) {
+        toast.message(`${label} reset already running`, { duration: 4_000 });
+      } else {
+        toast.message(`${label} catalog reset queued`, { duration: 3_000 });
+      }
+    } catch (error) {
+      toast.error(
+        `${label} reset failed: ${error instanceof Error ? error.message : String(error)}`,
+        { duration: 12_000 },
+      );
+    }
+  };
+
+  const onCancel = async (jobId: SyncJob["_id"], label: string) => {
+    try {
+      const result = await cancelSync({ apiKey: project.apiKey, jobId });
+      // The mutation returns `{ ok: false, reason: "not active" }`
+      // when the job already finished between render and click.
+      // Showing "cancellation requested" in that case is misleading
+      // — the caller didn't actually request anything because the
+      // job was already terminal (Copilot review on PR #127).
+      if (result.ok) {
+        toast.message(`${label} sync — cancellation requested`, {
+          duration: 4_000,
+        });
+      } else if (result.reason === "not active") {
+        toast.message(`${label} sync already finished`, {
+          duration: 4_000,
+        });
+      } else {
+        toast.message(`${label} sync — nothing to cancel`, {
+          duration: 4_000,
+        });
+      }
+    } catch (error) {
+      toast.error(
+        `Cancel failed: ${error instanceof Error ? error.message : String(error)}`,
+        { duration: 8_000 },
+      );
     }
   };
 
@@ -212,6 +294,8 @@ export default function ProjectProducts() {
           into kit.
         </p>
       </div>
+
+      {project.horizonEnabled ? <HorizonCatalogNotice /> : null}
 
       <div className="border border-border rounded-lg bg-card p-4 space-y-3">
         <div className="grid md:grid-cols-4 gap-3">
@@ -381,20 +465,41 @@ export default function ProjectProducts() {
       <ProductGroup
         platform="IOS"
         rows={grouped.ios}
-        syncing={syncingPlatform === "IOS"}
+        job={iosJob ?? null}
         onSync={() => {
           void onSync("IOS");
         }}
         onDryRun={() => {
           void onSync("IOS", { dryRun: true });
         }}
+        onPurge={() => {
+          void onPurge("IOS");
+        }}
+        onCancel={(jobId) => {
+          void onCancel(jobId, "App Store Connect");
+        }}
+        onDismiss={(jobId) => {
+          void dismissJob({ apiKey: project.apiKey, jobId });
+        }}
       />
       <ProductGroup
         platform="Android"
         rows={grouped.android}
-        syncing={syncingPlatform === "Android"}
+        job={androidJob ?? null}
         onSync={() => {
           void onSync("Android");
+        }}
+        onDryRun={() => {
+          void onSync("Android", { dryRun: true });
+        }}
+        onPurge={() => {
+          void onPurge("Android");
+        }}
+        onCancel={(jobId) => {
+          void onCancel(jobId, "Play Console");
+        }}
+        onDismiss={(jobId) => {
+          void dismissJob({ apiKey: project.apiKey, jobId });
         }}
       />
     </div>
@@ -426,6 +531,37 @@ type ProductRow = {
   }>;
   updatedAt: number;
 };
+
+// Map a job's `progress.phase` to the button label. Adds counts for
+// the pull phases when available so the operator sees forward motion
+// instead of a static "Syncing…" while the worker walks dozens of
+// products.
+function formatJobPhaseLabel(job: SyncJob | null, storeLabel: string): string {
+  if (!job) return `Syncing with ${storeLabel}…`;
+  const phase = job.progress.phase;
+  const current = job.progress.current;
+  switch (phase) {
+    case "queued":
+    case "starting":
+      return `Queued for ${storeLabel}…`;
+    case "pull-iaps":
+      return `Pulling IAPs from ${storeLabel}…`;
+    case "pull-subscriptions":
+      return `Pulling subscriptions${
+        current !== undefined ? ` (${current})` : ""
+      }…`;
+    case "pull-products":
+      return `Pulling from ${storeLabel}…`;
+    case "push-drafts":
+      return `Pushing drafts to ${storeLabel}…`;
+    case "purge-local":
+      return `Resetting kit catalog${
+        current !== undefined ? ` (${current} deleted)` : ""
+      }…`;
+    default:
+      return `Syncing with ${storeLabel}…`;
+  }
+}
 
 // Render a human-readable label for a single offer row. The dashboard
 // shows these as small badges under the subscription title so the
@@ -528,19 +664,231 @@ function groupRowsByHierarchy(
   return out;
 }
 
+// Dry-run skips every POST/PATCH against the upstream store and
+// returns a `plannedWrites` list the toast/banner renders so the
+// operator can verify group, price tier, base plan, billing
+// period, etc. before committing. Apple's ASC catalog can't be
+// fully deleted (Removed != gone from catalog); Play archive is
+// reversible but still affects live billing. Either way, previewing
+// is the safer first step.
+function DryRunButton({
+  onDryRun,
+  disabled,
+  platform,
+}: {
+  onDryRun: () => void;
+  disabled: boolean;
+  platform: "IOS" | "Android";
+}) {
+  const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
+  const constraint =
+    platform === "IOS"
+      ? "Apple won't let you fully delete an IAP once it's in the catalog, so this is the safety check."
+      : "Play archive is reversible but still affects live billing, so this is the safety check.";
+  return (
+    <Tooltip
+      content={
+        <>
+          <div className="font-medium mb-1">Read-only preview</div>
+          <p className="text-muted-foreground leading-relaxed">
+            Walks {storeLabel} like a real sync but{" "}
+            <strong>skips every write</strong> (no products created, no
+            listings, no price changes, no base plan activations). Returns a
+            list of writes the real run would have made so you can verify them
+            before committing — {constraint}
+          </p>
+        </>
+      }
+    >
+      <button
+        onClick={onDryRun}
+        disabled={disabled}
+        className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-border hover:bg-muted/40 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        Dry-run
+      </button>
+    </Tooltip>
+  );
+}
+
+// Meta Horizon doesn't expose a catalog REST API — only
+// `verify_entitlement` (purchase check) and `consume_entitlement`
+// (consumable burn-down) are reachable from the server side. SKU
+// definitions live exclusively in Meta Quest Developer Hub. We
+// surface the constraint here so a Horizon-enabled project's
+// operator doesn't keep looking for a missing "Sync with Meta"
+// button — kit handles entitlements (receipt verification +
+// 6-hour reconciliation cron) but cannot mirror the catalog.
+function HorizonCatalogNotice() {
+  return (
+    <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 flex items-start gap-3 text-xs text-blue-200">
+      <Info className="w-4 h-4 mt-0.5 shrink-0" />
+      <div className="flex-1 space-y-1">
+        <div className="font-medium">Horizon catalog is upstream-only</div>
+        <p className="leading-relaxed">
+          Meta doesn&apos;t expose a catalog API — manage Quest / Horizon SKUs
+          in Meta Quest Developer Hub. kit verifies Horizon receipts and
+          reconciles subscription entitlements every 6 hours, but the SKU list
+          itself can&apos;t be synced.
+        </p>
+        <a
+          href="https://developers.meta.com/horizon/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 underline hover:text-blue-100"
+        >
+          Open Meta Quest Developer Hub
+          <ExternalLink className="w-3 h-3" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// Trigger for the local-purge confirm dialog. Tooltip explains the
+// scope (kit cache only, never store) so the operator isn't scared
+// off by the destructive icon. Disabled state covers both "sync in
+// progress" (would race with the worker) and "nothing to purge".
+function ResetCatalogButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <Tooltip
+      content={
+        <>
+          <div className="font-medium mb-1">Reset local catalog</div>
+          <p className="text-muted-foreground leading-relaxed">
+            Deletes kit&apos;s local rows for this platform.{" "}
+            <strong>Does not modify App Store Connect / Play Console.</strong>{" "}
+            Use this when kit&apos;s cache has drifted from the store and you
+            want a clean re-pull. Run Sync after to re-import.
+          </p>
+        </>
+      }
+    >
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-border hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+        Reset
+      </button>
+    </Tooltip>
+  );
+}
+
+// Renders inside the shared <Modal> so the destructive confirm
+// inherits the focus trap, escape handling, scroll lock, and
+// focus-restore behavior — keyboard users can't tab into the table
+// behind the backdrop while this is open (Copilot review on
+// PR #127). The warning list intentionally calls out the two real
+// risks of purge-then-sync: unpushed local edits get overwritten
+// on re-pull, and kit-only Draft rows that never made it to the
+// store disappear permanently.
+function PurgeConfirmDialog({
+  open,
+  platform,
+  rowCount,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  platform: "IOS" | "Android";
+  rowCount: number;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      ariaLabel={`Reset local ${storeLabel} catalog`}
+      showCloseButton={false}
+      contentClassName="p-5"
+      className="bg-card"
+    >
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full bg-rose-500/15 p-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
+          </div>
+          <div>
+            <div className="font-medium">Reset local {storeLabel} catalog?</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Deletes all {rowCount} kit-side{" "}
+              {platform === "IOS" ? "iOS" : "Android"} row
+              {rowCount === 1 ? "" : "s"}. {storeLabel} itself is not modified.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <p>
+              Local edits not yet pushed to {storeLabel} (price changes, review
+              notes, titles) will be <strong>lost</strong> when the next Sync
+              re-pulls the upstream copy.
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <p>
+              Draft rows that were never pushed upstream will be{" "}
+              <strong>permanently deleted</strong> — they don&apos;t exist on{" "}
+              {storeLabel} so Sync can&apos;t recover them.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded text-xs border border-border hover:bg-muted/40"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-3 py-1.5 rounded text-xs bg-rose-500/20 text-rose-700 dark:text-rose-200 border border-rose-500/40 hover:bg-rose-500/30"
+          >
+            Delete {rowCount} row{rowCount === 1 ? "" : "s"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function ProductGroup({
   platform,
   rows,
-  syncing,
+  job,
   onSync,
   onDryRun,
+  onPurge,
+  onCancel,
+  onDismiss,
 }: {
   platform: "IOS" | "Android";
   rows: Array<ProductRow>;
-  syncing: boolean;
+  job: SyncJob | null;
   onSync: () => void;
   onDryRun?: () => void;
+  onPurge: () => void;
+  onCancel: (jobId: SyncJob["_id"]) => void;
+  onDismiss: (jobId: SyncJob["_id"]) => void;
 }) {
+  const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
+  const isActive = job?.status === "queued" || job?.status === "running";
+  const isTerminal = job?.status === "succeeded" || job?.status === "failed";
+  const dismissed = job?.progress.phase === "dismissed";
+  const showResult = isTerminal && !dismissed;
+  const [purgeOpen, setPurgeOpen] = useState(false);
   return (
     <div className="border border-border rounded-lg bg-card overflow-hidden">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -552,31 +900,94 @@ function ProductGroup({
         </div>
         <div className="flex items-center gap-2">
           {onDryRun && (
-            <button
-              onClick={onDryRun}
-              disabled={syncing}
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-border hover:bg-muted/40 disabled:opacity-60 disabled:cursor-not-allowed"
-              title="Read-only preview — calls ASC for context but skips all writes (no rows created)."
-            >
-              Dry-run
-            </button>
+            <DryRunButton
+              onDryRun={onDryRun}
+              disabled={isActive}
+              platform={platform}
+            />
           )}
+          <ResetCatalogButton
+            disabled={isActive || rows.length === 0}
+            onClick={() => setPurgeOpen(true)}
+          />
+          {isActive && job ? (
+            <button
+              onClick={() => onCancel(job._id)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-border hover:bg-muted/40"
+              title="Cancel takes effect at the next phase boundary"
+            >
+              <X className="w-3.5 h-3.5" />
+              Cancel
+            </button>
+          ) : null}
           <button
             onClick={onSync}
-            disabled={syncing}
+            disabled={isActive}
             className="flex items-center gap-2 px-3 py-1.5 rounded text-xs bg-muted hover:bg-muted/80 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {syncing ? (
+            {isActive ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <RefreshCw className="w-3.5 h-3.5" />
             )}
-            {syncing
-              ? `Syncing with ${platform === "IOS" ? "App Store Connect" : "Play Console"}…`
-              : `Sync with ${platform === "IOS" ? "App Store Connect" : "Play Console"}`}
+            {isActive
+              ? formatJobPhaseLabel(job, storeLabel)
+              : `Sync with ${storeLabel}`}
           </button>
         </div>
       </div>
+      <PurgeConfirmDialog
+        open={purgeOpen}
+        platform={platform}
+        rowCount={rows.length}
+        onClose={() => setPurgeOpen(false)}
+        onConfirm={() => {
+          setPurgeOpen(false);
+          onPurge();
+        }}
+      />
+      {showResult && job ? (
+        // Theme-aware text colors — `-700` for the light surface,
+        // `-200` for the dark surface. The earlier dark-only
+        // palette (`text-rose-200` etc.) was unreadable in light
+        // mode against the bg-tint background (Gemini review on
+        // PR #127).
+        <div
+          className={`px-4 py-2 border-b border-border flex items-start gap-2 text-xs ${
+            job.status === "failed"
+              ? "bg-rose-500/10 text-rose-700 dark:text-rose-200"
+              : job.result?.failures.length
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-200"
+                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+          }`}
+        >
+          <div className="flex-1">
+            {job.status === "succeeded" && job.result ? (
+              <div>
+                {job.result.deleted !== undefined
+                  ? `Reset — deleted ${job.result.deleted} row${
+                      job.result.deleted === 1 ? "" : "s"
+                    }`
+                  : `Last sync — pulled ${job.result.pulled}, pushed ${job.result.pushed}`}
+                {job.result.failures.length
+                  ? `, ${job.result.failures.length} failure${
+                      job.result.failures.length === 1 ? "" : "s"
+                    }`
+                  : ""}
+                {job.result.failuresTruncated ? " (truncated)" : ""}
+              </div>
+            ) : (
+              <div>Last sync failed — {job.error ?? "Unknown error"}</div>
+            )}
+          </div>
+          <button
+            onClick={() => onDismiss(job._id)}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       <table className="w-full text-sm">
         <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
           <tr>

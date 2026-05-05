@@ -183,14 +183,49 @@ if status.active:
           </li>
         </ul>
         <p>
-          The{' '}
+          Sync is asynchronous —{' '}
           <code>
             POST /v1/products/&#123;apiKey&#125;/sync/&#123;ios|android&#125;
           </code>{' '}
-          endpoint returns the count of pulled / pushed rows plus per-product
-          failure messages so the dashboard surfaces upstream rejections
-          (price-tier conflicts, locale issues, missing review notes) without
-          dropping silent failures.
+          enqueues a job and returns <code>&#123; jobId, deduped &#125;</code>{' '}
+          with HTTP 202 immediately. The actual catalog walk (App Store Connect
+          REST or Play Developer API) runs in the background as a Convex
+          internalAction, writing progress and the final result back to a{' '}
+          <code>productSyncJobs</code> row. Earlier kit versions held the HTTP
+          connection open for the entire sync, which iOS Safari aborted on
+          cellular / backgrounded tabs as <code>TypeError: Load failed</code>.
+        </p>
+        <p>Clients poll the job state:</p>
+        <ul>
+          <li>
+            <code>
+              GET /v1/products/&#123;apiKey&#125;/sync/jobs/&#123;jobId&#125;
+            </code>{' '}
+            — current status (<code>queued</code> / <code>running</code> /{' '}
+            <code>succeeded</code> / <code>failed</code>),{' '}
+            <code>progress.phase</code>, and on terminal status the{' '}
+            <code>result</code> object with <code>pulled</code> /{' '}
+            <code>pushed</code> counts and per-product <code>failures</code>{' '}
+            (price-tier conflicts, locale issues, missing review notes). When
+            more than 200 products fail, <code>failuresTruncated: true</code> is
+            set and the array is capped.
+          </li>
+          <li>
+            <code>
+              POST
+              /v1/products/&#123;apiKey&#125;/sync/jobs/&#123;jobId&#125;/cancel
+            </code>{' '}
+            — request a cancel; the worker checks at phase boundaries (PULL.iaps
+            → PULL.subscriptions → PUSH.drafts) and stops within seconds.
+          </li>
+        </ul>
+        <p>
+          Backoff polls at ~3s intervals until <code>status</code> is{' '}
+          <code>succeeded</code> or <code>failed</code>. Most catalogs finish in
+          tens of seconds; large ones in 1–2 minutes. A{' '}
+          <code>reapStaleProductSyncJobs</code> cron flips workers stuck past
+          the 9-minute deadline to <code>failed</code> so a crashed action can't
+          pin the project's "active job" slot.
         </p>
       </section>
 

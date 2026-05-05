@@ -5,7 +5,7 @@ import { Loader2, Check, AlertCircle, AtSign, Send } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/convex";
-import { Modal } from "./Modal";
+import { Modal } from "@/components/Modal";
 
 interface AuthModalProps {
   isOpen: boolean;

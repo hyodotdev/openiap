@@ -81,4 +81,23 @@ crons.interval(
   { batchSize: 50 },
 );
 
+// Mark stuck product-sync jobs as failed. Convex caps actions at
+// ~10min; the worker sets `expectedDeadline = startedAt + 9min`,
+// and this reaper flips anything still `running` past
+// `deadline + 1min` to failed("worker timed out"). Without it, a
+// crashed action permanently pins the project's "active job" slot
+// and the dashboard's button stays disabled forever.
+crons.interval(
+  "reap stale product sync jobs",
+  { minutes: 5 },
+  internal.products.jobs.reapStaleProductSyncJobs,
+);
+
+// Drop succeeded jobs after 7d, failed after 30d.
+crons.interval(
+  "prune product sync jobs past retention",
+  { hours: 6 },
+  internal.products.jobs.pruneProductSyncJobs,
+);
+
 export default crons;

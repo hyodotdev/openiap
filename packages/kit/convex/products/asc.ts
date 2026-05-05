@@ -1,12 +1,23 @@
 "use node";
 import { v } from "convex/values";
 
-import { action, type ActionCtx } from "../_generated/server";
+import { action, internalAction, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
 import { mintAscJwt } from "./jwt";
 import { coerceBillingPeriod } from "./sync";
+
+// Cancel-check at phase boundaries. The worker reads
+// `cancelRequested` between PULL.iaps → PULL.subgroups → PUSH.drafts.
+// Granularity is per-phase, not per-product, but that's enough to
+// stop a runaway sync within seconds on most paths.
+class ProductSyncCancelledError extends Error {
+  constructor() {
+    super("Sync cancelled by operator");
+    this.name = "ProductSyncCancelledError";
+  }
+}
 
 // Resolve App Store Connect API credentials (issuer ID + key ID + .p8
 // key content) for a project. Centralized so the two action handlers
@@ -914,125 +925,279 @@ function extractAscError(parsed: unknown): string {
 // = "Draft" / "Ready" upstream.
 // ---------------------------------------------------------------------------
 
-// NOTE on action duration: this handler runs sequentially across the
-// project's catalog (with mapWithConcurrency=6 fan-out per pull
-// step). Convex actions have a 10-minute hard ceiling. For typical
-// commercial apps with <100 SKUs the round trips finish in ~10-30s
-// even with throttled ASC. Catalogs north of ~500 SKUs may need
-// batching — splitting drafts into chunks and chaining
-// internal.scheduler runs from the kit dashboard. Tracked as a
-// follow-up; not addressed here because v0 SaaS targets the
-// long-tail-of-commercial-apps profile, not multi-thousand-SKU
-// enterprise catalogs.
-export const pushSyncProductsAppleIOS = action({
-  args: {
-    apiKey: v.string(),
-    direction: v.optional(
-      v.union(v.literal("pull"), v.literal("push"), v.literal("both")),
-    ),
-    // Dry-run mode: read-only against ASC. Skips every POST/PATCH
-    // (create subscription / IAP, localization, price schedule, group
-    // create) and instead returns the sequence of write attempts
-    // kit would have made. Lets the operator preview a Sync without
-    // polluting their App Store Connect catalog with test rows that
-    // Apple won't let them delete cleanly.
-    dryRun: v.optional(v.boolean()),
+// Worker that drives a single ASC sync job. Scheduled by
+// `enqueueProductSync` (in `products/jobs.ts`); never called
+// directly by the dashboard / HTTP / SDK paths so the long fetch
+// can never hold a browser connection open.
+//
+// Convex actions cap at ~10 minutes; we set the job's expected
+// deadline at 9 minutes and rely on `reapStaleProductSyncJobs` to
+// flip anything still running 1 minute past that to failed. Within
+// the action body we also poll `isCancelRequested` at phase
+// boundaries (PULL.iaps → PULL.subgroups → PUSH.drafts) so an
+// operator-initiated cancel takes effect within one phase.
+export const runProductSyncIOS = internalAction({
+  args: { jobId: v.id("productSyncJobs") },
+  handler: async (ctx, args): Promise<void> => {
+    const job = await ctx.runQuery(internal.products.jobs.getJobForWorker, {
+      jobId: args.jobId,
+    });
+    if (!job) return;
+    if (job.status !== "queued") return;
+    await ctx.runMutation(internal.products.jobs.markJobRunning, {
+      jobId: args.jobId,
+    });
+    const checkCancelled = async () => {
+      const cancelled = await ctx.runQuery(
+        internal.products.jobs.isCancelRequested,
+        { jobId: args.jobId },
+      );
+      if (cancelled) throw new ProductSyncCancelledError();
+    };
+    const reportPhase = async (
+      phase: string,
+      extra?: {
+        current?: number;
+        total?: number;
+        failuresCount?: number;
+      },
+    ) => {
+      await ctx.runMutation(internal.products.jobs.updateJobProgress, {
+        jobId: args.jobId,
+        phase,
+        current: extra?.current,
+        total: extra?.total,
+        failuresCount: extra?.failuresCount,
+      });
+    };
+    if (job.direction === "purge-local") {
+      // enqueue routes purge-local jobs to a different worker; this
+      // branch is unreachable in practice but narrows the type for
+      // the call below.
+      await ctx.runMutation(internal.products.jobs.markJobFailed, {
+        jobId: args.jobId,
+        error: "purge-local routed to wrong worker",
+      });
+      return;
+    }
+    try {
+      const result = await performIosSync(ctx, {
+        projectId: job.projectId,
+        direction: job.direction,
+        dryRun: job.dryRun,
+        checkCancelled,
+        reportPhase,
+      });
+      await ctx.runMutation(internal.products.jobs.markJobSucceeded, {
+        jobId: args.jobId,
+        pulled: result.pulled,
+        pushed: result.pushed,
+        failures: result.failures,
+        plannedWrites: result.plannedWrites,
+      });
+    } catch (error) {
+      const cancelled = error instanceof ProductSyncCancelledError;
+      const message = cancelled
+        ? "Cancelled by operator"
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      await ctx.runMutation(internal.products.jobs.markJobFailed, {
+        jobId: args.jobId,
+        error: message,
+      });
+    }
   },
-  returns: v.object({
-    pulled: v.number(),
-    pushed: v.number(),
-    failures: v.array(v.object({ productId: v.string(), reason: v.string() })),
-    plannedWrites: v.optional(
-      v.array(
-        v.object({
-          productId: v.string(),
-          step: v.string(),
-          detail: v.optional(v.string()),
-        }),
-      ),
-    ),
-  }),
-  handler: async (
+});
+
+// Shared shape for the per-phase progress callback the worker
+// passes into both `performIosSync` and `performAndroidSync`. Pulled
+// out so the two function signatures stay readable when extended
+// (Gemini review on PR #127).
+interface SyncProgressUpdate {
+  current?: number;
+  total?: number;
+  failuresCount?: number;
+}
+type SyncProgressReporter = (
+  phase: string,
+  extra?: SyncProgressUpdate,
+) => Promise<void>;
+
+interface IosSyncOptions {
+  projectId: import("../_generated/dataModel").Id<"projects">;
+  direction: "pull" | "push" | "both";
+  dryRun: boolean;
+  checkCancelled: () => Promise<void>;
+  reportPhase: SyncProgressReporter;
+}
+
+interface SyncResult {
+  pulled: number;
+  pushed: number;
+  failures: Array<{ productId: string; reason: string }>;
+  plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
+}
+
+async function performIosSync(
+  ctx: ActionCtx,
+  options: IosSyncOptions,
+): Promise<SyncResult> {
+  const project = await ctx.runQuery(
+    internal.projects.internal.getProjectById,
+    { projectId: options.projectId },
+  );
+  if (!project) {
+    throw new Error("Project not found for sync job");
+  }
+  if (!project.iosBundleId) {
+    throw new Error("Project iosBundleId is not configured");
+  }
+  if (!project.iosAppAppleId) {
+    throw new Error("Project iosAppAppleId is required for ASC push-sync");
+  }
+  const args = {
+    direction: options.direction,
+    dryRun: options.dryRun,
+  };
+  const { checkCancelled, reportPhase } = options;
+  // ASC push-sync uses the App Store Connect API key (Team Key /
+  // Individual Key), which is genuinely different from the App Store
+  // Server API key used for receipt verification — Apple scopes them
+  // separately at the gateway. We prefer the dedicated ASC slot when
+  // the operator has populated it, but fall back to the existing
+  // Server API slot so projects that upload a Team Key into the old
+  // (single-slot) workflow keep working without a re-config dance.
+  // The 401 from Apple's gateway is what catches a wrong-kind key
+  // either way — the helpful message in `call()` points the operator
+  // at the right Apple page. The full pair-resolve + .p8-fallback
+  // logic lives in `resolveAscCredentials` so the matching
+  // listSubscriptionGroupsAppleIOS handler stays in lockstep.
+  const { issuerId, keyId, keyContent } = await resolveAscCredentials(
     ctx,
-    args,
-  ): Promise<{
-    pulled: number;
-    pushed: number;
-    failures: Array<{ productId: string; reason: string }>;
-    plannedWrites?: Array<{
-      productId: string;
-      step: string;
-      detail?: string;
-    }>;
-  }> => {
-    const project = await getProjectByApiKey(ctx, args.apiKey);
-    if (!project.iosBundleId) {
-      throw new Error("Project iosBundleId is not configured");
+    project,
+    { detailedErrors: true },
+  );
+  const client = new AscClient(issuerId, keyId, keyContent);
+
+  const direction = args.direction ?? "both";
+  const failures: Array<{ productId: string; reason: string }> = [];
+  let pulled = 0;
+  let pushed = 0;
+  const dryRun = args.dryRun ?? false;
+  const plannedWrites: Array<{
+    productId: string;
+    step: string;
+    detail?: string;
+  }> = [];
+
+  const appIdStr = String(project.iosAppAppleId);
+
+  // ── PULL: ASC → kit catalog ────────────────────────────────────
+  if (direction === "pull" || direction === "both") {
+    await checkCancelled();
+    await reportPhase("pull-iaps");
+    const iaps = await client.listInAppPurchases(appIdStr).catch((error) => {
+      failures.push({
+        productId: "(asc list iaps)",
+        reason: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    });
+    if (iaps) {
+      // Apple throttles ASC pretty aggressively (~50 req/min);
+      // concurrency=6 keeps the pull fast for catalogs with dozens
+      // of IAPs while staying well clear of 429 territory. Switching
+      // from a sequential await loop dropped a 30-IAP pull from
+      // ~30s to ~5s in local testing.
+      const iapResults = await mapWithConcurrency(
+        iaps.data,
+        6,
+        async (item) => {
+          const productId = item.attributes.productId;
+          if (!productId) return null;
+          const type = mapAscIapType(item.attributes.inAppPurchaseType);
+          const pricePoint = await client.iapCurrentPrice(item.id);
+          return { item, productId, type, pricePoint };
+        },
+      );
+      for (const result of iapResults) {
+        if (!result) continue;
+        const { item, productId, type, pricePoint } = result;
+        if (pricePoint instanceof Error) {
+          failures.push({
+            productId: `${productId} (price lookup)`,
+            reason: pricePoint.message,
+          });
+        }
+        const { priceAmountMicros, currency } = parseAssignedPrice(
+          pricePoint instanceof Error ? null : pricePoint,
+          "inAppPurchasePricePoint",
+        );
+        // upsertFromStore runs serially — Convex coalesces writes
+        // anyway and parallel mutations on the same row would race
+        // on the (projectId, platform, productId) lookup.
+        await ctx.runMutation(internal.products.sync.upsertFromStore, {
+          projectId: project._id,
+          productId,
+          platform: "IOS",
+          type,
+          title: item.attributes.name ?? productId,
+          priceAmountMicros,
+          currency,
+          storeRef: item.id,
+          state: mapAscState(item.attributes.state),
+        });
+        pulled += 1;
+      }
     }
-    if (!project.iosAppAppleId) {
-      throw new Error("Project iosAppAppleId is required for ASC push-sync");
-    }
-    // ASC push-sync uses the App Store Connect API key (Team Key /
-    // Individual Key), which is genuinely different from the App Store
-    // Server API key used for receipt verification — Apple scopes them
-    // separately at the gateway. We prefer the dedicated ASC slot when
-    // the operator has populated it, but fall back to the existing
-    // Server API slot so projects that upload a Team Key into the old
-    // (single-slot) workflow keep working without a re-config dance.
-    // The 401 from Apple's gateway is what catches a wrong-kind key
-    // either way — the helpful message in `call()` points the operator
-    // at the right Apple page. The full pair-resolve + .p8-fallback
-    // logic lives in `resolveAscCredentials` so the matching
-    // listSubscriptionGroupsAppleIOS handler stays in lockstep.
-    const { issuerId, keyId, keyContent } = await resolveAscCredentials(
-      ctx,
-      project,
-      { detailedErrors: true },
-    );
-    const client = new AscClient(issuerId, keyId, keyContent);
 
-    const direction = args.direction ?? "both";
-    const failures: Array<{ productId: string; reason: string }> = [];
-    let pulled = 0;
-    let pushed = 0;
-    const dryRun = args.dryRun ?? false;
-    const plannedWrites: Array<{
-      productId: string;
-      step: string;
-      detail?: string;
-    }> = [];
-
-    const appIdStr = String(project.iosAppAppleId);
-
-    // ── PULL: ASC → kit catalog ────────────────────────────────────
-    if (direction === "pull" || direction === "both") {
-      const iaps = await client.listInAppPurchases(appIdStr).catch((error) => {
+    await checkCancelled();
+    await reportPhase("pull-subscriptions", {
+      current: pulled,
+      failuresCount: failures.length,
+    });
+    const groups = await client
+      .listSubscriptionGroups(appIdStr)
+      .catch((error) => {
         failures.push({
-          productId: "(asc list iaps)",
+          productId: "(asc list groups)",
           reason: error instanceof Error ? error.message : String(error),
         });
         return null;
       });
-      if (iaps) {
-        // Apple throttles ASC pretty aggressively (~50 req/min);
-        // concurrency=6 keeps the pull fast for catalogs with dozens
-        // of IAPs while staying well clear of 429 territory. Switching
-        // from a sequential await loop dropped a 30-IAP pull from
-        // ~30s to ~5s in local testing.
-        const iapResults = await mapWithConcurrency(
-          iaps.data,
+    if (groups) {
+      for (const group of groups.data) {
+        const subs = await client
+          .listSubscriptionsInGroup(group.id)
+          .catch((error) => {
+            failures.push({
+              productId: `(asc list subs in group ${group.id})`,
+              reason: error instanceof Error ? error.message : String(error),
+            });
+            return null;
+          });
+        if (!subs) continue;
+        // Same parallelization as the IAP loop above. Within each
+        // sub, price lookup and intro-offer lookup are independent
+        // — fire them as a Promise.all to halve the per-item RTT
+        // before walking on to the upsert.
+        const subResults = await mapWithConcurrency(
+          subs.data,
           6,
-          async (item) => {
-            const productId = item.attributes.productId;
+          async (sub) => {
+            const productId = sub.attributes.productId;
             if (!productId) return null;
-            const type = mapAscIapType(item.attributes.inAppPurchaseType);
-            const pricePoint = await client.iapCurrentPrice(item.id);
-            return { item, productId, type, pricePoint };
+            const [pricePoint, introOffers] = await Promise.all([
+              client.subCurrentPrice(sub.id),
+              client.subIntroductoryOffer(sub.id),
+            ]);
+            return { sub, productId, pricePoint, introOffers };
           },
         );
-        for (const result of iapResults) {
+        for (const result of subResults) {
           if (!result) continue;
-          const { item, productId, type, pricePoint } = result;
+          const { sub, productId, pricePoint, introOffers } = result;
           if (pricePoint instanceof Error) {
             failures.push({
               productId: `${productId} (price lookup)`,
@@ -1041,440 +1206,234 @@ export const pushSyncProductsAppleIOS = action({
           }
           const { priceAmountMicros, currency } = parseAssignedPrice(
             pricePoint instanceof Error ? null : pricePoint,
-            "inAppPurchasePricePoint",
+            "subscriptionPricePoint",
           );
-          // upsertFromStore runs serially — Convex coalesces writes
-          // anyway and parallel mutations on the same row would race
-          // on the (projectId, platform, productId) lookup.
+          if (introOffers instanceof Error) {
+            failures.push({
+              productId: `${productId} (offers lookup)`,
+              reason: introOffers.message,
+            });
+          }
+          const offers = parseIntroOffers(
+            introOffers instanceof Error ? null : introOffers,
+          );
           await ctx.runMutation(internal.products.sync.upsertFromStore, {
             projectId: project._id,
             productId,
             platform: "IOS",
-            type,
-            title: item.attributes.name ?? productId,
+            type: "Subscription",
+            title: sub.attributes.name ?? productId,
             priceAmountMicros,
             currency,
-            storeRef: item.id,
-            state: mapAscState(item.attributes.state),
+            storeRef: sub.id,
+            state: mapAscState(sub.attributes.state),
+            billingPeriod: coerceBillingPeriod(
+              mapAscOfferDurationToIso(
+                sub.attributes.subscriptionPeriod ?? undefined,
+              ),
+            ),
+            subscriptionGroupId: group.id,
+            subscriptionGroupName: group.attributes.referenceName,
+            offers: offers.length ? offers : undefined,
           });
           pulled += 1;
         }
       }
-
-      const groups = await client
-        .listSubscriptionGroups(appIdStr)
-        .catch((error) => {
-          failures.push({
-            productId: "(asc list groups)",
-            reason: error instanceof Error ? error.message : String(error),
-          });
-          return null;
-        });
-      if (groups) {
-        for (const group of groups.data) {
-          const subs = await client
-            .listSubscriptionsInGroup(group.id)
-            .catch((error) => {
-              failures.push({
-                productId: `(asc list subs in group ${group.id})`,
-                reason: error instanceof Error ? error.message : String(error),
-              });
-              return null;
-            });
-          if (!subs) continue;
-          // Same parallelization as the IAP loop above. Within each
-          // sub, price lookup and intro-offer lookup are independent
-          // — fire them as a Promise.all to halve the per-item RTT
-          // before walking on to the upsert.
-          const subResults = await mapWithConcurrency(
-            subs.data,
-            6,
-            async (sub) => {
-              const productId = sub.attributes.productId;
-              if (!productId) return null;
-              const [pricePoint, introOffers] = await Promise.all([
-                client.subCurrentPrice(sub.id),
-                client.subIntroductoryOffer(sub.id),
-              ]);
-              return { sub, productId, pricePoint, introOffers };
-            },
-          );
-          for (const result of subResults) {
-            if (!result) continue;
-            const { sub, productId, pricePoint, introOffers } = result;
-            if (pricePoint instanceof Error) {
-              failures.push({
-                productId: `${productId} (price lookup)`,
-                reason: pricePoint.message,
-              });
-            }
-            const { priceAmountMicros, currency } = parseAssignedPrice(
-              pricePoint instanceof Error ? null : pricePoint,
-              "subscriptionPricePoint",
-            );
-            if (introOffers instanceof Error) {
-              failures.push({
-                productId: `${productId} (offers lookup)`,
-                reason: introOffers.message,
-              });
-            }
-            const offers = parseIntroOffers(
-              introOffers instanceof Error ? null : introOffers,
-            );
-            await ctx.runMutation(internal.products.sync.upsertFromStore, {
-              projectId: project._id,
-              productId,
-              platform: "IOS",
-              type: "Subscription",
-              title: sub.attributes.name ?? productId,
-              priceAmountMicros,
-              currency,
-              storeRef: sub.id,
-              state: mapAscState(sub.attributes.state),
-              billingPeriod: coerceBillingPeriod(
-                mapAscOfferDurationToIso(
-                  sub.attributes.subscriptionPeriod ?? undefined,
-                ),
-              ),
-              subscriptionGroupId: group.id,
-              subscriptionGroupName: group.attributes.referenceName,
-              offers: offers.length ? offers : undefined,
-            });
-            pulled += 1;
-          }
-        }
-      }
     }
+  }
 
-    // ── PUSH: kit → ASC for Draft rows ─────────────────────────────
-    // Each draft becomes a multi-step flow: create → localize → set
-    // price. The first step alone leaves the IAP/sub in an unsubmittable
-    // state because Apple requires both an en-US localization and a
-    // USA price schedule before the row can move past Draft. We do
-    // the whole chain here so a single Sync click takes the catalog
-    // from "kit-only" to "Ready to Submit" in App Store Connect.
-    // Submission itself (screenshot upload + inAppPurchaseSubmissions
-    // POST) is a follow-up because it needs a screenshot file and a
-    // dashboard upload slot we haven't built yet — see TODO below.
-    if (direction === "push" || direction === "both") {
-      const drafts = await ctx.runQuery(
-        internal.products.sync.listDraftIosProducts,
-        { projectId: project._id },
-      );
-      // Cache subscriptionGroup find-or-create results across the
-      // entire push pass so a project with multiple drafts in the
-      // same group (Premium Monthly + Premium Yearly + Premium
-      // Weekly all referencing groupName="Premium") only triggers
-      // one ASC listSubscriptionGroups round-trip — and never two
-      // concurrent create calls racing for the same name.
+  // ── PUSH: kit → ASC for Draft rows ─────────────────────────────
+  // Each draft becomes a multi-step flow: create → localize → set
+  // price. The first step alone leaves the IAP/sub in an unsubmittable
+  // state because Apple requires both an en-US localization and a
+  // USA price schedule before the row can move past Draft. We do
+  // the whole chain here so a single Sync click takes the catalog
+  // from "kit-only" to "Ready to Submit" in App Store Connect.
+  // Submission itself (screenshot upload + inAppPurchaseSubmissions
+  // POST) is a follow-up because it needs a screenshot file and a
+  // dashboard upload slot we haven't built yet — see TODO below.
+  if (direction === "push" || direction === "both") {
+    await checkCancelled();
+    await reportPhase("push-drafts", {
+      current: pulled,
+      failuresCount: failures.length,
+    });
+    const drafts = await ctx.runQuery(
+      internal.products.sync.listDraftIosProducts,
+      { projectId: project._id },
+    );
+    // Cache subscriptionGroup find-or-create results across the
+    // entire push pass so a project with multiple drafts in the
+    // same group (Premium Monthly + Premium Yearly + Premium
+    // Weekly all referencing groupName="Premium") only triggers
+    // one ASC listSubscriptionGroups round-trip — and never two
+    // concurrent create calls racing for the same name.
+    //
+    // Stores the in-flight promise (not the resolved id) so two
+    // drafts that hit the same name concurrently share one ASC
+    // round-trip. Without this the parallel push fan-out below
+    // could race two find-or-create calls for the same group,
+    // ending up with one of them returning a 409.
+    const groupIdCache = new Map<string, Promise<string>>();
+    // Dry-run uses a single up-front listSubscriptionGroups fetch
+    // (read-only) so the per-draft preview rendering doesn't
+    // re-list the groups for each Subscription row in drafts.
+    // Lazy: only fetched on the first Subscription draft we hit
+    // in dry-run, so projects without Sub drafts don't pay the
+    // call at all.
+    let dryRunGroupsCache: Awaited<
+      ReturnType<typeof client.listSubscriptionGroups>
+    > | null = null;
+    const ensureDryRunGroups = async () => {
+      if (!dryRunGroupsCache) {
+        dryRunGroupsCache = await client.listSubscriptionGroups(appIdStr);
+      }
+      return dryRunGroupsCache;
+    };
+    // Bounded-parallel push. ASC throttles aggressively on the
+    // mutation endpoints (createSubscription / createInAppPurchase /
+    // setPriceSchedule) so the previous sequential `for (const row
+    // of drafts)` loop was the safe-but-slow path; a project with
+    // 20 draft products waited 20× the per-draft round-trip. Run
+    // PUSH_CONCURRENCY drafts in parallel and trade some risk of a
+    // 429 (where ASC returns Retry-After we'd surface to the
+    // failures array) for an N× speedup.
+    //
+    // Each draft's create → localize → setPrice steps stay strictly
+    // sequential within `processOneDraft` — ASC rejects ordering
+    // races on a single resource (a localize call landing before
+    // the create propagates returns 409). Cross-draft parallelism
+    // is safe because each upstream resource is independent. The
+    // groupIdCache holds in-flight promises so concurrent drafts in
+    // the same subscription group still issue exactly one
+    // findOrCreate call.
+    //
+    // Concurrency=4 keeps us well under ASC's per-app rate limit
+    // (anecdotally ~10 writes/sec before 429s start) while
+    // delivering ~4× wall-clock improvement on typical catalogs.
+    // mapWithConcurrency preserves input order for the result
+    // array (we don't actually use it; failures + pushed are
+    // accumulated by mutation).
+    const PUSH_CONCURRENCY = 4;
+    const processOneDraft = async (
+      row: (typeof drafts)[number],
+    ): Promise<void> => {
+      // Track failures pushed *for this row* via a row-local flag.
+      // The previous `failuresAtStart = failures.length` snapshot
+      // worked when this loop was sequential, but with
+      // mapWithConcurrency (PUSH_CONCURRENCY=4) the shared
+      // `failures` array can grow because of OTHER concurrent
+      // drafts between the snapshot and the success-gate check —
+      // which would block this draft from calling markPushed even
+      // though every step for THIS row succeeded.
       //
-      // Stores the in-flight promise (not the resolved id) so two
-      // drafts that hit the same name concurrently share one ASC
-      // round-trip. Without this the parallel push fan-out below
-      // could race two find-or-create calls for the same group,
-      // ending up with one of them returning a 409.
-      const groupIdCache = new Map<string, Promise<string>>();
-      // Dry-run uses a single up-front listSubscriptionGroups fetch
-      // (read-only) so the per-draft preview rendering doesn't
-      // re-list the groups for each Subscription row in drafts.
-      // Lazy: only fetched on the first Subscription draft we hit
-      // in dry-run, so projects without Sub drafts don't pay the
-      // call at all.
-      let dryRunGroupsCache: Awaited<
-        ReturnType<typeof client.listSubscriptionGroups>
-      > | null = null;
-      const ensureDryRunGroups = async () => {
-        if (!dryRunGroupsCache) {
-          dryRunGroupsCache = await client.listSubscriptionGroups(appIdStr);
-        }
-        return dryRunGroupsCache;
+      // Use a row-local boolean + a recordFailure helper so each
+      // draft's success gate is independent of cross-draft noise.
+      // A partial setup (create succeeded, localization failed)
+      // still leaves the row in Draft with a populated storeRef
+      // so the next sync resumes step 2 instead of re-creating
+      // the upstream resource.
+      let rowHadFailure = false;
+      const recordFailure = (failure: {
+        productId: string;
+        reason: string;
+      }) => {
+        rowHadFailure = true;
+        failures.push(failure);
       };
-      // Bounded-parallel push. ASC throttles aggressively on the
-      // mutation endpoints (createSubscription / createInAppPurchase /
-      // setPriceSchedule) so the previous sequential `for (const row
-      // of drafts)` loop was the safe-but-slow path; a project with
-      // 20 draft products waited 20× the per-draft round-trip. Run
-      // PUSH_CONCURRENCY drafts in parallel and trade some risk of a
-      // 429 (where ASC returns Retry-After we'd surface to the
-      // failures array) for an N× speedup.
-      //
-      // Each draft's create → localize → setPrice steps stay strictly
-      // sequential within `processOneDraft` — ASC rejects ordering
-      // races on a single resource (a localize call landing before
-      // the create propagates returns 409). Cross-draft parallelism
-      // is safe because each upstream resource is independent. The
-      // groupIdCache holds in-flight promises so concurrent drafts in
-      // the same subscription group still issue exactly one
-      // findOrCreate call.
-      //
-      // Concurrency=4 keeps us well under ASC's per-app rate limit
-      // (anecdotally ~10 writes/sec before 429s start) while
-      // delivering ~4× wall-clock improvement on typical catalogs.
-      // mapWithConcurrency preserves input order for the result
-      // array (we don't actually use it; failures + pushed are
-      // accumulated by mutation).
-      const PUSH_CONCURRENCY = 4;
-      const processOneDraft = async (
-        row: (typeof drafts)[number],
-      ): Promise<void> => {
-        // Track failures pushed *for this row* via a row-local flag.
-        // The previous `failuresAtStart = failures.length` snapshot
-        // worked when this loop was sequential, but with
-        // mapWithConcurrency (PUSH_CONCURRENCY=4) the shared
-        // `failures` array can grow because of OTHER concurrent
-        // drafts between the snapshot and the success-gate check —
-        // which would block this draft from calling markPushed even
-        // though every step for THIS row succeeded.
-        //
-        // Use a row-local boolean + a recordFailure helper so each
-        // draft's success gate is independent of cross-draft noise.
-        // A partial setup (create succeeded, localization failed)
-        // still leaves the row in Draft with a populated storeRef
-        // so the next sync resumes step 2 instead of re-creating
-        // the upstream resource.
-        let rowHadFailure = false;
-        const recordFailure = (failure: {
-          productId: string;
-          reason: string;
-        }) => {
-          rowHadFailure = true;
-          failures.push(failure);
-        };
-        try {
-          if (row.type === "Subscription") {
-            // Resolve the ASC subscriptionGroup from the operator-typed
-            // `subscriptionGroupName`. Find-or-create so the operator
-            // doesn't have to pre-create the group in ASC's web UI; if
-            // they don't pick a name we default to the productId so
-            // there's *some* group rather than a hard failure — but
-            // surface a non-fatal warning since per-product groups
-            // fragment the catalog and break StoreKit 2's
-            // upgrade/downgrade flow between Monthly and Yearly tiers
-            // (those need to share a group). In dry-run, list groups
-            // (read-only) and report which path the real run would
-            // take instead of creating anything.
-            //
-            // Skip both group-resolve and create when this row already
-            // has a storeRef from a prior partially-successful sync —
-            // re-creating would either duplicate or 409 against ASC.
-            const groupName = row.subscriptionGroupName ?? row.productId;
-            if (!row.subscriptionGroupName && !row.storeRef && dryRun) {
-              // Surface the per-product-group warning in dry-run only
-              // so operators see the recommendation while previewing
-              // (the most common time to fix the catalog), but a
-              // production sync isn't blocked or noisy. Pushing into
-              // `failures` would also trip the markPushed gate added
-              // for partial-failure resilience.
-              plannedWrites.push({
-                productId: row.productId,
-                step: "warning: no subscription group name set",
-                detail:
-                  "Falling back to productId so this sub lands in its own group. Pick a shared name (e.g. 'Premium') for related tiers so StoreKit 2 upgrade/downgrade works.",
-              });
-            }
-            let storeRef: string;
-            if (row.storeRef) {
-              storeRef = row.storeRef;
-              if (dryRun) {
-                plannedWrites.push({
-                  productId: row.productId,
-                  step: "skip create (resuming partial sync)",
-                  detail: `existing storeRef=${storeRef}`,
-                });
-              }
-            } else {
-              let groupId: string;
-              if (dryRun) {
-                const groups = await ensureDryRunGroups();
-                const existing = groups.data.find(
-                  (g) => g.attributes.referenceName === groupName,
-                );
-                groupId = existing?.id ?? "(would-create)";
-                plannedWrites.push({
-                  productId: row.productId,
-                  step: existing
-                    ? "use existing subscription group"
-                    : "create subscription group",
-                  detail: groupName,
-                });
-                storeRef = "(would-create)";
-                plannedWrites.push({
-                  productId: row.productId,
-                  step: "create subscription",
-                  detail: `${row.title} · ${mapBillingPeriodToAsc(row.billingPeriod)} · group=${groupName}`,
-                });
-              } else {
-                let cached = groupIdCache.get(groupName);
-                if (!cached) {
-                  cached = client.findOrCreateSubscriptionGroup({
-                    appId: appIdStr,
-                    referenceName: groupName,
-                  });
-                  groupIdCache.set(groupName, cached);
-                  // If the in-flight call rejects, evict the cached
-                  // promise so a follow-up draft can retry instead of
-                  // permanently inheriting the failure.
-                  cached.catch(() => {
-                    if (groupIdCache.get(groupName) === cached) {
-                      groupIdCache.delete(groupName);
-                    }
-                  });
-                }
-                groupId = await cached;
-                const result = await client.createSubscription({
-                  groupId,
-                  productId: row.productId,
-                  name: row.title,
-                  subscriptionPeriod: mapBillingPeriodToAsc(row.billingPeriod),
-                  reviewNote: row.reviewNote,
-                });
-                storeRef = result.data.id;
-                // Persist the upstream id immediately so a subsequent
-                // step's failure doesn't lose the binding (and the
-                // next sync sees this row's storeRef populated and
-                // skips the create call above).
-                await ctx.runMutation(internal.products.sync.markStoreRef, {
-                  projectId: project._id,
-                  productId: row.productId,
-                  platform: "IOS",
-                  storeRef,
-                });
-              }
-            }
-            // Localize so reviewers see the human-readable name +
-            // description instead of just the productId. ASC requires
-            // at least one locale before submission — failing here
-            // doesn't unwind the create (Apple has no rollback) so we
-            // record a failure and let the operator retry / fix in
-            // ASC web.
+      try {
+        if (row.type === "Subscription") {
+          // Resolve the ASC subscriptionGroup from the operator-typed
+          // `subscriptionGroupName`. Find-or-create so the operator
+          // doesn't have to pre-create the group in ASC's web UI; if
+          // they don't pick a name we default to the productId so
+          // there's *some* group rather than a hard failure — but
+          // surface a non-fatal warning since per-product groups
+          // fragment the catalog and break StoreKit 2's
+          // upgrade/downgrade flow between Monthly and Yearly tiers
+          // (those need to share a group). In dry-run, list groups
+          // (read-only) and report which path the real run would
+          // take instead of creating anything.
+          //
+          // Skip both group-resolve and create when this row already
+          // has a storeRef from a prior partially-successful sync —
+          // re-creating would either duplicate or 409 against ASC.
+          const groupName = row.subscriptionGroupName ?? row.productId;
+          if (!row.subscriptionGroupName && !row.storeRef && dryRun) {
+            // Surface the per-product-group warning in dry-run only
+            // so operators see the recommendation while previewing
+            // (the most common time to fix the catalog), but a
+            // production sync isn't blocked or noisy. Pushing into
+            // `failures` would also trip the markPushed gate added
+            // for partial-failure resilience.
+            plannedWrites.push({
+              productId: row.productId,
+              step: "warning: no subscription group name set",
+              detail:
+                "Falling back to productId so this sub lands in its own group. Pick a shared name (e.g. 'Premium') for related tiers so StoreKit 2 upgrade/downgrade works.",
+            });
+          }
+          let storeRef: string;
+          if (row.storeRef) {
+            storeRef = row.storeRef;
             if (dryRun) {
               plannedWrites.push({
                 productId: row.productId,
-                step: "create en-US localization",
-                detail: row.description ?? row.title,
-              });
-            } else {
-              try {
-                await client.createSubLocalization({
-                  subId: storeRef,
-                  name: row.title,
-                  description: row.description ?? row.title,
-                });
-              } catch (error) {
-                // 409 Conflict means the en-US localization already
-                // exists from a prior partial sync. That's a benign
-                // retry — fall through to the price-setting step
-                // instead of marking the whole product failed.
-                if (!(error instanceof AscApiError && error.status === 409)) {
-                  recordFailure({
-                    productId: `${row.productId} (localization)`,
-                    reason:
-                      error instanceof Error ? error.message : String(error),
-                  });
-                }
-              }
-            }
-            // Set the USA price by resolving the operator's USD amount
-            // → Apple's nearest price-point id. We require currency =
-            // "USD" because the dashboard form lets them pick others
-            // but we only know the USA tier ladder here; non-USD prices
-            // are surfaced as an actionable failure rather than silently
-            // mis-priced. In dry-run, skip the lookup (the just-created
-            // subscription resource doesn't exist for read-back) and
-            // just record intent.
-            if (
-              row.priceAmountMicros !== undefined &&
-              (row.currency ?? "USD") === "USD"
-            ) {
-              if (dryRun) {
-                plannedWrites.push({
-                  productId: row.productId,
-                  step: "set USA price",
-                  detail: `USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`,
-                });
-              } else {
-                try {
-                  const pricePointId = await client.findSubUsaPricePointId(
-                    storeRef,
-                    row.priceAmountMicros,
-                  );
-                  if (!pricePointId) {
-                    recordFailure({
-                      productId: `${row.productId} (price)`,
-                      reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
-                    });
-                  } else {
-                    await client.setSubPriceSchedule({
-                      subId: storeRef,
-                      pricePointId,
-                    });
-                  }
-                } catch (error) {
-                  // 409 Conflict means a price schedule already exists
-                  // for the (subscription, startDate=today) pair from a
-                  // prior partial sync — Apple keys schedules by date,
-                  // not by id. Treat as benign retry so the subsequent
-                  // markPushed step still runs (PR #124
-                  // (https://github.com/hyodotdev/openiap/pull/124)
-                  // review).
-                  if (!(error instanceof AscApiError && error.status === 409)) {
-                    recordFailure({
-                      productId: `${row.productId} (price)`,
-                      reason:
-                        error instanceof Error ? error.message : String(error),
-                    });
-                  }
-                }
-              }
-            } else if (row.currency && row.currency !== "USD") {
-              recordFailure({
-                productId: `${row.productId} (price)`,
-                reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
+                step: "skip create (resuming partial sync)",
+                detail: `existing storeRef=${storeRef}`,
               });
             }
-            // Only flip state to Ready when every follow-up step
-            // succeeded. Partial setups stay in Draft (with storeRef
-            // populated) so the next sync resumes the missing pieces.
-            if (!dryRun && !rowHadFailure) {
-              await ctx.runMutation(internal.products.sync.markPushed, {
-                projectId: project._id,
-                productId: row.productId,
-                platform: "IOS",
-                storeRef,
-              });
-            }
-            pushed += 1;
           } else {
-            let storeRef: string;
-            if (row.storeRef) {
-              storeRef = row.storeRef;
-              if (dryRun) {
-                plannedWrites.push({
-                  productId: row.productId,
-                  step: "skip create (resuming partial sync)",
-                  detail: `existing storeRef=${storeRef}`,
-                });
-              }
-            } else if (dryRun) {
+            let groupId: string;
+            if (dryRun) {
+              const groups = await ensureDryRunGroups();
+              const existing = groups.data.find(
+                (g) => g.attributes.referenceName === groupName,
+              );
+              groupId = existing?.id ?? "(would-create)";
+              plannedWrites.push({
+                productId: row.productId,
+                step: existing
+                  ? "use existing subscription group"
+                  : "create subscription group",
+                detail: groupName,
+              });
               storeRef = "(would-create)";
               plannedWrites.push({
                 productId: row.productId,
-                step: "create in-app purchase",
-                detail: `${row.title} · ${row.type}`,
+                step: "create subscription",
+                detail: `${row.title} · ${mapBillingPeriodToAsc(row.billingPeriod)} · group=${groupName}`,
               });
             } else {
-              const result = await client.createInAppPurchase({
-                appId: appIdStr,
+              let cached = groupIdCache.get(groupName);
+              if (!cached) {
+                cached = client.findOrCreateSubscriptionGroup({
+                  appId: appIdStr,
+                  referenceName: groupName,
+                });
+                groupIdCache.set(groupName, cached);
+                // If the in-flight call rejects, evict the cached
+                // promise so a follow-up draft can retry instead of
+                // permanently inheriting the failure.
+                cached.catch(() => {
+                  if (groupIdCache.get(groupName) === cached) {
+                    groupIdCache.delete(groupName);
+                  }
+                });
+              }
+              groupId = await cached;
+              const result = await client.createSubscription({
+                groupId,
                 productId: row.productId,
                 name: row.title,
-                type:
-                  row.type === "Consumable" ? "CONSUMABLE" : "NON_CONSUMABLE",
+                subscriptionPeriod: mapBillingPeriodToAsc(row.billingPeriod),
                 reviewNote: row.reviewNote,
               });
               storeRef = result.data.id;
-              // Same partial-sync resilience as the Subscription
-              // branch — persist the upstream id before the
-              // localization / price steps that may fail.
+              // Persist the upstream id immediately so a subsequent
+              // step's failure doesn't lose the binding (and the
+              // next sync sees this row's storeRef populated and
+              // skips the create call above).
               await ctx.runMutation(internal.products.sync.markStoreRef, {
                 projectId: project._id,
                 productId: row.productId,
@@ -1482,119 +1441,259 @@ export const pushSyncProductsAppleIOS = action({
                 storeRef,
               });
             }
+          }
+          // Localize so reviewers see the human-readable name +
+          // description instead of just the productId. ASC requires
+          // at least one locale before submission — failing here
+          // doesn't unwind the create (Apple has no rollback) so we
+          // record a failure and let the operator retry / fix in
+          // ASC web.
+          if (dryRun) {
+            plannedWrites.push({
+              productId: row.productId,
+              step: "create en-US localization",
+              detail: row.description ?? row.title,
+            });
+          } else {
+            try {
+              await client.createSubLocalization({
+                subId: storeRef,
+                name: row.title,
+                description: row.description ?? row.title,
+              });
+            } catch (error) {
+              // 409 Conflict means the en-US localization already
+              // exists from a prior partial sync. That's a benign
+              // retry — fall through to the price-setting step
+              // instead of marking the whole product failed.
+              if (!(error instanceof AscApiError && error.status === 409)) {
+                recordFailure({
+                  productId: `${row.productId} (localization)`,
+                  reason:
+                    error instanceof Error ? error.message : String(error),
+                });
+              }
+            }
+          }
+          // Set the USA price by resolving the operator's USD amount
+          // → Apple's nearest price-point id. We require currency =
+          // "USD" because the dashboard form lets them pick others
+          // but we only know the USA tier ladder here; non-USD prices
+          // are surfaced as an actionable failure rather than silently
+          // mis-priced. In dry-run, skip the lookup (the just-created
+          // subscription resource doesn't exist for read-back) and
+          // just record intent.
+          if (
+            row.priceAmountMicros !== undefined &&
+            (row.currency ?? "USD") === "USD"
+          ) {
             if (dryRun) {
               plannedWrites.push({
                 productId: row.productId,
-                step: "create en-US localization",
-                detail: row.description ?? row.title,
+                step: "set USA price",
+                detail: `USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`,
               });
             } else {
               try {
-                await client.createIapLocalization({
-                  iapId: storeRef,
-                  name: row.title,
-                  description: row.description ?? row.title,
-                });
+                const pricePointId = await client.findSubUsaPricePointId(
+                  storeRef,
+                  row.priceAmountMicros,
+                );
+                if (!pricePointId) {
+                  recordFailure({
+                    productId: `${row.productId} (price)`,
+                    reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
+                  });
+                } else {
+                  await client.setSubPriceSchedule({
+                    subId: storeRef,
+                    pricePointId,
+                  });
+                }
               } catch (error) {
-                // Same 409-is-benign rationale as the subscription
-                // localization path — see PR #124
-                // (https://github.com/hyodotdev/openiap/pull/124) review.
+                // 409 Conflict means a price schedule already exists
+                // for the (subscription, startDate=today) pair from a
+                // prior partial sync — Apple keys schedules by date,
+                // not by id. Treat as benign retry so the subsequent
+                // markPushed step still runs (PR #124
+                // (https://github.com/hyodotdev/openiap/pull/124)
+                // review).
                 if (!(error instanceof AscApiError && error.status === 409)) {
                   recordFailure({
-                    productId: `${row.productId} (localization)`,
+                    productId: `${row.productId} (price)`,
                     reason:
                       error instanceof Error ? error.message : String(error),
                   });
                 }
               }
             }
-            if (
-              row.priceAmountMicros !== undefined &&
-              (row.currency ?? "USD") === "USD"
-            ) {
-              if (dryRun) {
-                plannedWrites.push({
-                  productId: row.productId,
-                  step: "set USA price",
-                  detail: `USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`,
+          } else if (row.currency && row.currency !== "USD") {
+            recordFailure({
+              productId: `${row.productId} (price)`,
+              reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
+            });
+          }
+          // Only flip state to Ready when every follow-up step
+          // succeeded. Partial setups stay in Draft (with storeRef
+          // populated) so the next sync resumes the missing pieces.
+          if (!dryRun && !rowHadFailure) {
+            await ctx.runMutation(internal.products.sync.markPushed, {
+              projectId: project._id,
+              productId: row.productId,
+              platform: "IOS",
+              storeRef,
+            });
+          }
+          pushed += 1;
+        } else {
+          let storeRef: string;
+          if (row.storeRef) {
+            storeRef = row.storeRef;
+            if (dryRun) {
+              plannedWrites.push({
+                productId: row.productId,
+                step: "skip create (resuming partial sync)",
+                detail: `existing storeRef=${storeRef}`,
+              });
+            }
+          } else if (dryRun) {
+            storeRef = "(would-create)";
+            plannedWrites.push({
+              productId: row.productId,
+              step: "create in-app purchase",
+              detail: `${row.title} · ${row.type}`,
+            });
+          } else {
+            const result = await client.createInAppPurchase({
+              appId: appIdStr,
+              productId: row.productId,
+              name: row.title,
+              type: row.type === "Consumable" ? "CONSUMABLE" : "NON_CONSUMABLE",
+              reviewNote: row.reviewNote,
+            });
+            storeRef = result.data.id;
+            // Same partial-sync resilience as the Subscription
+            // branch — persist the upstream id before the
+            // localization / price steps that may fail.
+            await ctx.runMutation(internal.products.sync.markStoreRef, {
+              projectId: project._id,
+              productId: row.productId,
+              platform: "IOS",
+              storeRef,
+            });
+          }
+          if (dryRun) {
+            plannedWrites.push({
+              productId: row.productId,
+              step: "create en-US localization",
+              detail: row.description ?? row.title,
+            });
+          } else {
+            try {
+              await client.createIapLocalization({
+                iapId: storeRef,
+                name: row.title,
+                description: row.description ?? row.title,
+              });
+            } catch (error) {
+              // Same 409-is-benign rationale as the subscription
+              // localization path — see PR #124
+              // (https://github.com/hyodotdev/openiap/pull/124) review.
+              if (!(error instanceof AscApiError && error.status === 409)) {
+                recordFailure({
+                  productId: `${row.productId} (localization)`,
+                  reason:
+                    error instanceof Error ? error.message : String(error),
                 });
-              } else {
-                try {
-                  const pricePointId = await client.findIapUsaPricePointId(
-                    storeRef,
-                    row.priceAmountMicros,
-                  );
-                  if (!pricePointId) {
-                    recordFailure({
-                      productId: `${row.productId} (price)`,
-                      reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
-                    });
-                  } else {
-                    await client.setIapPriceSchedule({
-                      iapId: storeRef,
-                      pricePointId,
-                    });
-                  }
-                } catch (error) {
-                  // Same 409-is-benign rationale as the subscription
-                  // price schedule path above — Apple keys IAP price
-                  // schedules by (iapId, startDate) so a same-day
-                  // retry hits Conflict. Allow the row to proceed to
-                  // markPushed instead of stalling in Draft.
-                  if (!(error instanceof AscApiError && error.status === 409)) {
-                    recordFailure({
-                      productId: `${row.productId} (price)`,
-                      reason:
-                        error instanceof Error ? error.message : String(error),
-                    });
-                  }
+              }
+            }
+          }
+          if (
+            row.priceAmountMicros !== undefined &&
+            (row.currency ?? "USD") === "USD"
+          ) {
+            if (dryRun) {
+              plannedWrites.push({
+                productId: row.productId,
+                step: "set USA price",
+                detail: `USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`,
+              });
+            } else {
+              try {
+                const pricePointId = await client.findIapUsaPricePointId(
+                  storeRef,
+                  row.priceAmountMicros,
+                );
+                if (!pricePointId) {
+                  recordFailure({
+                    productId: `${row.productId} (price)`,
+                    reason: `No ASC price tier matches USD ${(row.priceAmountMicros / 1_000_000).toFixed(2)} — pick a published tier amount.`,
+                  });
+                } else {
+                  await client.setIapPriceSchedule({
+                    iapId: storeRef,
+                    pricePointId,
+                  });
+                }
+              } catch (error) {
+                // Same 409-is-benign rationale as the subscription
+                // price schedule path above — Apple keys IAP price
+                // schedules by (iapId, startDate) so a same-day
+                // retry hits Conflict. Allow the row to proceed to
+                // markPushed instead of stalling in Draft.
+                if (!(error instanceof AscApiError && error.status === 409)) {
+                  recordFailure({
+                    productId: `${row.productId} (price)`,
+                    reason:
+                      error instanceof Error ? error.message : String(error),
+                  });
                 }
               }
-            } else if (row.currency && row.currency !== "USD") {
-              recordFailure({
-                productId: `${row.productId} (price)`,
-                reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
-              });
             }
-            // Same gate as the Subscription branch — only flip Ready
-            // when no follow-up step recorded a failure for this row.
-            if (!dryRun && !rowHadFailure) {
-              await ctx.runMutation(internal.products.sync.markPushed, {
-                projectId: project._id,
-                productId: row.productId,
-                platform: "IOS",
-                storeRef,
-              });
-            }
-            pushed += 1;
+          } else if (row.currency && row.currency !== "USD") {
+            recordFailure({
+              productId: `${row.productId} (price)`,
+              reason: `Non-USD pricing (${row.currency}) not supported in push yet — set USD on the catalog row or configure other territories in ASC web.`,
+            });
           }
-          // TODO(review-submit): once Settings has an upload slot for a
-          // project-level App Review screenshot
-          // (`apple_iap_review_screenshot` purpose), add a step here:
-          //   1. POST /v1/inAppPurchaseAppStoreReviewScreenshots (reserve)
-          //   2. PUT to the returned upload URL (binary)
-          //   3. PATCH ...screenshots/{id} with sourceFileChecksum
-          //   4. POST /v1/inAppPurchaseSubmissions
-          // Until then, the row stops at "Ready to Submit" in ASC and
-          // the operator hits Submit manually (or via next app version).
-        } catch (error) {
-          recordFailure({
-            productId: row.productId,
-            reason: error instanceof Error ? error.message : String(error),
-          });
+          // Same gate as the Subscription branch — only flip Ready
+          // when no follow-up step recorded a failure for this row.
+          if (!dryRun && !rowHadFailure) {
+            await ctx.runMutation(internal.products.sync.markPushed, {
+              projectId: project._id,
+              productId: row.productId,
+              platform: "IOS",
+              storeRef,
+            });
+          }
+          pushed += 1;
         }
-      };
-      await mapWithConcurrency(drafts, PUSH_CONCURRENCY, processOneDraft);
-    }
-
-    return {
-      pulled,
-      pushed,
-      failures,
-      plannedWrites: dryRun ? plannedWrites : undefined,
+        // TODO(review-submit): once Settings has an upload slot for a
+        // project-level App Review screenshot
+        // (`apple_iap_review_screenshot` purpose), add a step here:
+        //   1. POST /v1/inAppPurchaseAppStoreReviewScreenshots (reserve)
+        //   2. PUT to the returned upload URL (binary)
+        //   3. PATCH ...screenshots/{id} with sourceFileChecksum
+        //   4. POST /v1/inAppPurchaseSubmissions
+        // Until then, the row stops at "Ready to Submit" in ASC and
+        // the operator hits Submit manually (or via next app version).
+      } catch (error) {
+        recordFailure({
+          productId: row.productId,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
     };
-  },
-});
+    await mapWithConcurrency(drafts, PUSH_CONCURRENCY, processOneDraft);
+  }
+
+  return {
+    pulled,
+    pushed,
+    failures,
+    plannedWrites: dryRun ? plannedWrites : undefined,
+  };
+}
 
 // Lightweight read-only action so the dashboard can populate a
 // subscription-group autocomplete without the operator having to copy

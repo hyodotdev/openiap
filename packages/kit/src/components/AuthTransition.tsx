@@ -82,7 +82,7 @@ export function AuthTransition() {
         <BackgroundWrapper>
           <EnsureUserProfile>
             <AuthenticatedPages />
-            <Toaster />
+            <Toaster closeButton />
           </EnsureUserProfile>
         </BackgroundWrapper>
       </Authenticated>
@@ -93,7 +93,7 @@ export function AuthTransition() {
     <Unauthenticated>
       <BackgroundWrapper>
         <PublicPages />
-        <Toaster />
+        <Toaster closeButton />
       </BackgroundWrapper>
     </Unauthenticated>
   );
