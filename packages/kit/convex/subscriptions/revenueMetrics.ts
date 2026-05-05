@@ -23,6 +23,15 @@
 // the same 3-day reprocess window for the same reason. Each cron
 // tick overwrites the trailing 3 days, so a webhook arriving up to
 // 3 days late still gets folded into its correct day's bucket.
+//
+// Scaling pattern: per-project recompute uses the same scheduler-
+// chained pagination as `recomputeSubscriptionStats` so each page
+// gets its own 40k document-read budget. The events pass runs once
+// in the kickoff page; the subscriptions pass walks counted-state
+// rows only (Active / InGracePeriod / InBillingRetry) via
+// `by_project_and_state_and_updated` ordered descending — most-
+// recently-updated first — and chains continuation pages until
+// every state is exhausted before committing.
 
 import { internalMutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
@@ -97,16 +106,23 @@ const COUNTED_STATES = new Set([
   "InBillingRetry",
 ] as const);
 
-// Tick entry point: schedule per-project recomputes. Each project
-// runs as its own scheduled mutation so the 40k document-read budget
-// is per-project, not shared with the picker.
-//
-// Rotation: walks `revenueMetricsRunStatus.by_run` ascending so the
-// least-recently-processed projects surface first. Each successful
-// per-project recompute upserts its own `revenueMetricsRunStatus`
-// row with `lastRunAt = now`, so the picker self-rotates without
-// piggybacking on the subscription-stats drift cron's freshness
-// signal.
+// Order matters: pagination cursors index into this list. Adding a
+// state requires a migration of in-flight cursors stored on the
+// scheduler queue, so prepend new states to the END of the list,
+// never the middle.
+const COUNTED_STATES_ORDERED = [
+  "Active",
+  "InGracePeriod",
+  "InBillingRetry",
+] as const;
+type CountedState = (typeof COUNTED_STATES_ORDERED)[number];
+
+// Cron picker entry. Walks `revenueMetricsRunStatus.by_run` ascending
+// so the least-recently-processed projects surface first. Each
+// successful per-project recompute upserts its own
+// `revenueMetricsRunStatus` row with `lastRunAt = now`, so the
+// picker self-rotates without piggybacking on the subscription-stats
+// drift cron's freshness signal.
 //
 // Bootstrap: a brand-new project has no `revenueMetricsRunStatus`
 // row yet. Pad the picker from `subscriptionStats` (any project
@@ -164,36 +180,57 @@ export const recomputeAllRevenueMetrics = internalMutation({
   },
 });
 
-// Per-project recompute. Scans the trailing-window slice of
-// `webhookEvents` once and the project's `subscriptions` table once,
-// then writes one rollup row per (day, productId, currency) bucket.
-//
-// Bounded reads:
-//  - webhookEvents: trailing TRAILING_DAYS × per-project event rate.
-//    Capped at WEBHOOK_SCAN_CAP so a runaway-loop project can't
-//    exceed Convex's 40k document-read mutation budget.
-//  - subscriptions: walks the project's full sub list once via
-//    `by_project_and_updated`. Capped at SUBS_SCAN_CAP — projects
-//    past the cap should switch to incremental maintenance in v2.
+// Per-project kickoff. Schedules itself by chaining
+// `recomputeRevenueMetricsPage` mutations, each with its own 40k
+// document-read budget, so a project with arbitrarily many active
+// subscriptions completes without ever exceeding the per-mutation
+// ceiling.
 export const recomputeRevenueMetricsForProject = internalMutation({
   args: { projectId: v.id("projects") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const now = Date.now();
-    await runRecompute(ctx, args.projectId, now);
-    await markRevenueMetricsRun(ctx, args.projectId, now);
+    await runRecompute(ctx, args.projectId, Date.now());
     return null;
   },
 });
 
-// 15k each gives 30k total reads on the two big scans, leaving the
-// remaining ~10k of the 40k document-read mutation budget for the
-// per-day `existing` lookups inside `commitBuckets`, the implicit
-// index reads, and any project lookups the helpers add later. Set
-// conservatively because hitting the cap silently truncates a
-// project's window — undercounting is worse than slow.
+// Cap on the events pass scan. Events arrive at the receivedAt
+// timestamp, so the index range is bounded by the trailing-window
+// + late-delivery-grace span (10 days). Generously sized for
+// realistic SaaS event rates — at 1k events/day a project burns
+// 10k of the cap in 10 days, well clear of the limit.
 const WEBHOOK_SCAN_CAP = 15_000;
-const SUBS_SCAN_CAP = 15_000;
+
+// Per-page subscription scan size. Each page chains via the
+// scheduler so this caps reads PER MUTATION, not per project. A
+// project with 50k active subs paginates across ~10 chained
+// mutations, each comfortably under the 40k document-read budget
+// (page reads + the events pass on page 0 + commit-time existing-
+// row deletes all share the budget).
+const SUBS_PAGE_SIZE = 5_000;
+
+// Validators for the chained-page args. Buckets serialize as a flat
+// array so they survive the scheduler's JSON round-trip; the cursor
+// is a small enum + watermark.
+const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
+const accumulatorValidator = v.array(
+  v.object({
+    day: v.string(),
+    productId: v.string(),
+    currency: v.string(),
+    platform: platformValidator,
+    activeSubs: v.number(),
+    newSubs: v.number(),
+    renewals: v.number(),
+    cancellations: v.number(),
+    refunds: v.number(),
+    revenueMicros: v.number(),
+  }),
+);
+const cursorValidator = v.object({
+  stateIdx: v.number(),
+  updatedBefore: v.union(v.number(), v.null()),
+});
 
 async function markRevenueMetricsRun(
   ctx: MutationCtx,
@@ -214,6 +251,15 @@ async function markRevenueMetricsRun(
   }
 }
 
+// Kickoff: build window, run events pass, then process the first
+// subscriptions page. If all counted states fit in a single page
+// (typical for projects under SUBS_PAGE_SIZE active subs), commit
+// inline. Otherwise schedule continuation pages.
+//
+// Exported so tests can drive it directly without the cron scheduler.
+// In tests with small datasets the inline commit path always
+// triggers; the chained-page path only kicks in for projects that
+// exceed SUBS_PAGE_SIZE in any one counted state.
 export async function runRecompute(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -304,57 +350,147 @@ export async function runRecompute(
   }
 
   // ---- Pass 2: subscriptions → activeSubs end-of-day snapshots.
-  // We need every project sub (not just the trailing window)
-  // because a sub started months ago can still be active "today".
-  // Walk the by_project_and_updated index ascending for index-order
-  // determinism; the activeSubs computation doesn't care about
-  // order, but this avoids surprising tiebreak behaviour if a
-  // future caller pages off the same handle.
-  const subs = await ctx.db
-    .query("subscriptions")
-    .withIndex("by_project_and_updated", (q) => q.eq("projectId", projectId))
-    .take(SUBS_SCAN_CAP);
-  if (subs.length === SUBS_SCAN_CAP) {
-    // Same reasoning as the webhookEvents cap above: an undercounted
-    // `activeSubs` snapshot manifests as a sudden chart drop rather
-    // than an obvious operational failure, so surface the truncation.
-    console.warn(
-      `[revenueMetrics] subscriptions scan hit SUBS_SCAN_CAP=${SUBS_SCAN_CAP} for project=${projectId}; activeSubs snapshot will undercount this tick.`,
-    );
-  }
+  // Walks ONLY counted-state rows via `by_project_and_state_and_updated`
+  // ordered descending — most-recently-updated first. Active subs
+  // tick `updatedAt` on every renewal so descending puts the rows
+  // most likely to satisfy `isActiveAt(...)` at the front of the
+  // page; an under-budget project gets its full picture from a
+  // single page, an over-budget project chains continuations.
+  await processSubsPage(ctx, {
+    projectId,
+    days,
+    windowStart,
+    buckets,
+    cursor: { stateIdx: 0, updatedBefore: null },
+    runStartedAt: now,
+  });
+}
 
-  // Per-day end-of-day boundary timestamps. activeSubs snapshot is
-  // taken at `dayEnd` (start of next UTC day - 1ms) so a sub that
-  // expires at exactly midnight UTC counts toward the day it was
-  // active during, not the day it expired into.
+// Process one page of counted-state subscriptions. Greedily
+// advances through states until either the page fills (chain
+// continuation) or every counted state is exhausted (commit).
+//
+// `buckets` is the live accumulator: pass-1 (events) populated it
+// in the kickoff, this function adds activeSubs contributions and
+// commits at the end of the last page.
+async function processSubsPage(
+  ctx: MutationCtx,
+  args: {
+    projectId: Id<"projects">;
+    days: string[];
+    windowStart: number;
+    buckets: Map<BucketKey, RollupBucket>;
+    cursor: { stateIdx: number; updatedBefore: number | null };
+    runStartedAt: number;
+  },
+): Promise<void> {
+  const { projectId, days, buckets, runStartedAt } = args;
   const dayEnds = days.map((day) => Date.parse(`${day}T23:59:59.999Z`));
 
-  for (const sub of subs) {
-    for (let i = 0; i < days.length; i++) {
-      if (!isActiveAt(sub, dayEnds[i])) continue;
-      // activeSubs key uses the sub's productId + currency + platform
-      // so it composes with the event-driven counters that share the
-      // same bucket key.
-      const currency = sub.currency ?? "";
-      const platform = sub.platform;
-      const key = bucketKey(days[i], sub.productId, currency, platform);
-      const bucket = getOrCreateBucket(
-        buckets,
-        key,
-        days[i],
-        sub.productId,
-        currency,
-        platform,
-      );
-      bucket.activeSubs += 1;
+  let { stateIdx, updatedBefore } = args.cursor;
+  let pageRemaining = SUBS_PAGE_SIZE;
+  let chainContinuation = false;
+
+  while (stateIdx < COUNTED_STATES_ORDERED.length && pageRemaining > 0) {
+    const state: CountedState = COUNTED_STATES_ORDERED[stateIdx];
+    const upperBound = updatedBefore;
+    const requested = pageRemaining;
+    const subs = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_project_and_state_and_updated", (q) => {
+        const base = q.eq("projectId", projectId).eq("state", state);
+        return upperBound === null ? base : base.lt("updatedAt", upperBound);
+      })
+      .order("desc")
+      .take(requested);
+
+    for (const sub of subs) {
+      for (let i = 0; i < days.length; i++) {
+        if (!isActiveAt(sub, dayEnds[i])) continue;
+        const currency = sub.currency ?? "";
+        const platform = sub.platform;
+        const key = bucketKey(days[i], sub.productId, currency, platform);
+        const bucket = getOrCreateBucket(
+          buckets,
+          key,
+          days[i],
+          sub.productId,
+          currency,
+          platform,
+        );
+        bucket.activeSubs += 1;
+      }
+    }
+
+    pageRemaining -= subs.length;
+    if (subs.length < requested) {
+      // Took less than we asked for → state exhausted, advance.
+      stateIdx += 1;
+      updatedBefore = null;
+    } else {
+      // Page is full and the current state may still have rows we
+      // haven't seen. Carry the watermark on this state and chain a
+      // continuation; the next page reads `lt(updatedAt, watermark)`
+      // so we skip the rows we already processed.
+      updatedBefore = subs[subs.length - 1].updatedAt;
+      chainContinuation = true;
+      break;
     }
   }
 
-  // ---- Commit: upsert each bucket, delete any pre-existing row in
-  // the window that's no longer in the recomputed set (otherwise a
-  // sub that switched products would leave a stale bucket behind).
-  await commitBuckets(ctx, projectId, days, buckets, now);
+  if (!chainContinuation && stateIdx >= COUNTED_STATES_ORDERED.length) {
+    // All counted states processed — commit.
+    await commitBuckets(ctx, projectId, days, buckets, runStartedAt);
+    await markRevenueMetricsRun(ctx, projectId, runStartedAt);
+    return;
+  }
+
+  // More work to do. Serialize the accumulator + cursor and chain
+  // a fresh mutation so the next page gets its own 40k budget.
+  const serialized = Array.from(buckets.values());
+  await ctx.scheduler.runAfter(
+    0,
+    internal.subscriptions.revenueMetrics.recomputeRevenueMetricsPage,
+    {
+      projectId,
+      days,
+      buckets: serialized,
+      cursor: { stateIdx, updatedBefore },
+      runStartedAt,
+    },
+  );
 }
+
+// Continuation page handler. Rehydrates the accumulator from the
+// scheduler args and resumes pagination from the saved cursor.
+export const recomputeRevenueMetricsPage = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    days: v.array(v.string()),
+    buckets: accumulatorValidator,
+    cursor: cursorValidator,
+    runStartedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const buckets = new Map<BucketKey, RollupBucket>();
+    for (const row of args.buckets) {
+      const key = bucketKey(row.day, row.productId, row.currency, row.platform);
+      buckets.set(key, { ...row });
+    }
+    const todayStart = startOfUtcDay(args.runStartedAt);
+    const windowStart = todayStart - (TRAILING_DAYS - 1) * DAY_MS;
+    await processSubsPage(ctx, {
+      projectId: args.projectId,
+      days: args.days,
+      windowStart,
+      buckets,
+      cursor: args.cursor,
+      runStartedAt: args.runStartedAt,
+    });
+    return null;
+  },
+});
 
 function getOrCreateBucket(
   buckets: Map<BucketKey, RollupBucket>,
@@ -442,20 +578,28 @@ async function commitBuckets(
   // Delete every existing row in the window first, then insert the
   // freshly computed set. Cleaner than a per-key upsert/delete diff
   // because the window is bounded (TRAILING_DAYS × productCount ×
-  // currencyCount) — typically tens of rows per project, not
-  // thousands.
-  for (const day of days) {
-    const existing = await ctx.db
-      .query("revenueMetricsDaily")
-      .withIndex("by_project_and_day_and_currency", (q) =>
-        q.eq("projectId", projectId).eq("day", day),
-      )
-      .collect();
-    for (const row of existing) {
-      await ctx.db.delete(row._id);
-    }
-  }
+  // currencyCount × platformCount) — typically tens of rows per
+  // project, not thousands.
+  //
+  // Both the per-day queries and the delete batches dispatch with
+  // `Promise.all` so the round trips overlap. Convex still
+  // serializes the underlying writes within the mutation
+  // transaction, but firing them concurrently shaves the wall-clock
+  // for the commit phase down to roughly one round-trip per day
+  // instead of (existing-row-count × days).
+  const existingPerDay = await Promise.all(
+    days.map((day) =>
+      ctx.db
+        .query("revenueMetricsDaily")
+        .withIndex("by_project_and_day_and_currency", (q) =>
+          q.eq("projectId", projectId).eq("day", day),
+        )
+        .collect(),
+    ),
+  );
+  await Promise.all(existingPerDay.flat().map((row) => ctx.db.delete(row._id)));
 
+  const inserts: Array<Promise<unknown>> = [];
   for (const bucket of buckets.values()) {
     // Skip empty buckets — happens when a sub became active mid-day
     // but was later refunded so its (newSubs, refunds) net to zero
@@ -471,19 +615,22 @@ async function commitBuckets(
     ) {
       continue;
     }
-    await ctx.db.insert("revenueMetricsDaily", {
-      projectId,
-      day: bucket.day,
-      productId: bucket.productId,
-      currency: bucket.currency,
-      platform: bucket.platform,
-      activeSubs: bucket.activeSubs,
-      newSubs: bucket.newSubs,
-      renewals: bucket.renewals,
-      cancellations: bucket.cancellations,
-      refunds: bucket.refunds,
-      revenueMicros: bucket.revenueMicros,
-      updatedAt: now,
-    });
+    inserts.push(
+      ctx.db.insert("revenueMetricsDaily", {
+        projectId,
+        day: bucket.day,
+        productId: bucket.productId,
+        currency: bucket.currency,
+        platform: bucket.platform,
+        activeSubs: bucket.activeSubs,
+        newSubs: bucket.newSubs,
+        renewals: bucket.renewals,
+        cancellations: bucket.cancellations,
+        refunds: bucket.refunds,
+        revenueMicros: bucket.revenueMicros,
+        updatedAt: now,
+      }),
+    );
   }
+  await Promise.all(inserts);
 }

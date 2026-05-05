@@ -108,8 +108,13 @@ export default function ProjectAnalytics() {
   // chart's first/last column to half-cover when the user's tz is
   // far from UTC, surfacing as a "missing yesterday" off-by-one.
   const { maxFromDay, toDay } = useMemo(() => {
-    const today = utcDayKey(Date.now());
-    const from = utcDayKey(Date.now() - (MAX_RANGE_DAYS - 1) * DAY_MS);
+    // Capture `now` once so the `today` and `from` keys derive from
+    // the same instant — calling `Date.now()` twice on either side
+    // of midnight UTC could return values whose `utcDayKey` differs
+    // by a day, producing a one-day-too-narrow window.
+    const now = Date.now();
+    const today = utcDayKey(now);
+    const from = utcDayKey(now - (MAX_RANGE_DAYS - 1) * DAY_MS);
     return { maxFromDay: from, toDay: today };
   }, [MAX_RANGE_DAYS]);
 
