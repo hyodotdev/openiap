@@ -287,14 +287,8 @@ describe("isActiveAt", () => {
     expect(isActiveAt(sub, dayEnd)).toBe(true);
   });
 
-  it("Expired / Revoked / Refunded / Paused → false even if still in window", () => {
-    for (const state of [
-      "Expired",
-      "Revoked",
-      "Refunded",
-      "Paused",
-      "Unknown",
-    ] as const) {
+  it("Revoked / Refunded / Paused / Unknown → false even if still in window", () => {
+    for (const state of ["Revoked", "Refunded", "Paused", "Unknown"] as const) {
       const sub = makeSub({
         state,
         startedAt: Date.UTC(2026, 2, 1),
@@ -304,7 +298,38 @@ describe("isActiveAt", () => {
     }
   });
 
-  it("undefined expiresAt + counted state → still active (matches steady-state semantics)", () => {
+  it("Expired with expiresAt > dayEnd → true (still active on the snapshot day)", () => {
+    // The whole point of including `Expired` in COUNTED_STATES: a
+    // sub that was active at end-of-day on a historical day, then
+    // expired later, must contribute to that historical day's
+    // activeSubs count.
+    const sub = makeSub({
+      state: "Expired",
+      startedAt: Date.UTC(2026, 2, 1),
+      expiresAt: Date.UTC(2026, 3, 1), // April 1, after dayEnd (March 15)
+    });
+    expect(isActiveAt(sub, dayEnd)).toBe(true);
+  });
+
+  it("Expired with expiresAt <= dayEnd → false (already gone by snapshot)", () => {
+    const sub = makeSub({
+      state: "Expired",
+      startedAt: Date.UTC(2026, 2, 1),
+      expiresAt: Date.UTC(2026, 2, 10), // March 10, before dayEnd
+    });
+    expect(isActiveAt(sub, dayEnd)).toBe(false);
+  });
+
+  it("Expired with no expiresAt timestamp → false (defensive: no anchor for transition day)", () => {
+    const sub = makeSub({
+      state: "Expired",
+      startedAt: Date.UTC(2026, 2, 1),
+      expiresAt: undefined,
+    });
+    expect(isActiveAt(sub, dayEnd)).toBe(false);
+  });
+
+  it("undefined expiresAt + Active counted state → still active (matches steady-state semantics)", () => {
     const sub = makeSub({
       state: "Active",
       startedAt: Date.UTC(2026, 2, 1),
@@ -829,11 +854,32 @@ describe("runRecompute — round-trip integration", () => {
     expect(byDay.get(TODAY)).toBe(1);
   });
 
-  it("expired sub does not contribute to activeSubs even if window-overlapping", async () => {
+  it("Expired sub with expiresAt past the window contributes to activeSubs (was active on those days)", async () => {
+    // Sub expired April 1 — past every day in our window
+    // [TODAY-2, TODAY] which is centered on March 15. The sub was
+    // genuinely active at end-of-day on each of those days, so it
+    // must contribute to the activeSubs snapshot for them.
     await seedSub(db, {
       state: "Expired",
       startedAt: Date.UTC(2026, 1, 1),
       expiresAt: Date.UTC(2026, 3, 1),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+    const rows = await rollupRows(db);
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row.activeSubs).toBe(1);
+    }
+  });
+
+  it("Expired sub whose expiry predates the window does not contribute", async () => {
+    // Expired well before the rollup window — no day in
+    // [TODAY-2, TODAY] saw this sub as active.
+    await seedSub(db, {
+      state: "Expired",
+      startedAt: Date.UTC(2026, 1, 1),
+      expiresAt: Date.UTC(2026, 2, 10), // March 10, before D2=March 13
     });
 
     await runRecompute(ctx, PROJECT_ID, NOW);

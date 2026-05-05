@@ -165,11 +165,22 @@ export default function ProjectAnalytics() {
   //   2. The platform cards always show the full breakdown
   //      (All / iOS / Android), regardless of which filter is
   //      active — so the cards need the unfiltered data anyway.
-  const metrics = useQuery(api.subscriptions.query.getRevenueMetrics, {
-    apiKey: project.apiKey,
-    fromDay: maxFromDay,
-    toDay,
-  });
+  // `useQuery` in convex/react does not deep-compare its args
+  // between renders — an inline `{ ... }` literal allocates a new
+  // object every render and the underlying `convex.watchQuery`
+  // re-subscribes even when the values are identical. Memoise the
+  // args object so the subscription is only torn down and rebuilt
+  // when one of the actual inputs changes. The `now` tick stays
+  // off the dep list because `maxFromDay` / `toDay` are derived
+  // from it via `utcDayKey(...)` and only change at UTC midnight.
+  const queryArgs = useMemo(
+    () => ({ apiKey: project.apiKey, fromDay: maxFromDay, toDay }),
+    [project.apiKey, maxFromDay, toDay],
+  );
+  const metrics = useQuery(
+    api.subscriptions.query.getRevenueMetrics,
+    queryArgs,
+  );
 
   // The loading-state early return has to live below ALL hooks so
   // React's rules-of-hooks (every hook called in the same order on
@@ -207,17 +218,28 @@ export default function ProjectAnalytics() {
   // so the default-currency case still produces a single-currency
   // chart on multi-currency projects.
   //
-  // We deliberately KEEP rows older than `fromDay` in `filteredRows`
+  // We deliberately KEEP rows older than `fromDay` in the row sets
   // (only attribute / range filters are applied here). `aggregateByDay`
   // uses those older rows to seed the `activeSubs` carry-forward at
   // the start of the chart — without them, a project with active
   // subscriptions but no events in the selected range would dip
   // visually to zero on the first day.
   //
+  // Two parallel pipelines:
+  //   - `revenueRows`: pinned to `currency` because `revenueMicros`
+  //     can't be summed across currencies without an FX rate.
+  //   - `lifecycleRows`: NOT pinned to currency. activeSubs / new /
+  //     renewals / cancellations / refunds are counts, not money,
+  //     and aggregating them across currencies gives the correct
+  //     project-wide total. Pinning them to a single currency would
+  //     make the "All platforms" card under-report on multi-currency
+  //     projects (the user pays in USD, but the count of cancels is
+  //     a single project-wide number regardless of where they paid).
+  //
   // Memoised so the per-minute `now` tick (which only changes
   // `fromDay` / `toDay` once per UTC day) doesn't re-run the full
   // filter / aggregate / bucket pipeline on every render.
-  const filteredRows = useMemo(
+  const revenueRows = useMemo(
     () =>
       metricsDays.filter((row) => {
         if (currency && row.currency !== currency) return false;
@@ -229,14 +251,47 @@ export default function ProjectAnalytics() {
       }),
     [metricsDays, currency, selectedProduct, platformFilter],
   );
-
-  const dailySeries = useMemo(
-    () => aggregateByDay(filteredRows, range.days, fromDay),
-    [filteredRows, range.days, fromDay],
+  const lifecycleRows = useMemo(
+    () =>
+      metricsDays.filter((row) => {
+        if (selectedProduct && row.productId !== selectedProduct) return false;
+        if (platformFilter !== "all" && row.platform !== platformFilter) {
+          return false;
+        }
+        return true;
+      }),
+    [metricsDays, selectedProduct, platformFilter],
   );
+
+  const revenueDaily = useMemo(
+    () => aggregateByDay(revenueRows, range.days, fromDay),
+    [revenueRows, range.days, fromDay],
+  );
+  const lifecycleDaily = useMemo(
+    () => aggregateByDay(lifecycleRows, range.days, fromDay),
+    [lifecycleRows, range.days, fromDay],
+  );
+  const revenueSeries = useMemo(
+    () => bucketByPeriod(revenueDaily, periodId),
+    [revenueDaily, periodId],
+  );
+  const lifecycleSeries = useMemo(
+    () => bucketByPeriod(lifecycleDaily, periodId),
+    [lifecycleDaily, periodId],
+  );
+
+  // Final chart series merges the lifecycle counters (cross-currency)
+  // with the revenue total (currency-pinned) per bucket. Same
+  // bucket-period axis on both sides means we can join positionally
+  // since `bucketByPeriod` produces deterministic output for a
+  // given `periodId` / `range`.
   const series = useMemo(
-    () => bucketByPeriod(dailySeries, periodId),
-    [dailySeries, periodId],
+    () =>
+      lifecycleSeries.map((row, i) => ({
+        ...row,
+        revenueMicros: revenueSeries[i]?.revenueMicros ?? 0,
+      })),
+    [lifecycleSeries, revenueSeries],
   );
 
   const totals = useMemo(
@@ -271,16 +326,18 @@ export default function ProjectAnalytics() {
       ? ((totals.cancellations + totals.refunds) / totals.activeSubsLast) * 100
       : 0;
 
-  // Platform-card totals: one filter pass over `metrics.days`
-  // (without platform narrowing — the cards ARE the platform
-  // breakdown), then `totalsForPlatform` for each card variant.
-  // The prior implementation did this filter and `totalsForPlatform`
-  // walk three times *per render* inside `PLATFORM_CARDS.map`
-  // because of the per-minute `now` tick. Memoising collapses that
-  // to one filter + three small reductions, only re-running when a
-  // filter the cards actually depend on changes.
+  // Platform-card totals. Lifecycle counters (activeSubs / newSubs)
+  // come from a currency-unfiltered pass — the cards reflect the
+  // project-wide story, so pinning to one currency would
+  // under-count the "All platforms" total on multi-currency
+  // projects. Revenue stays currency-filtered for the FX reason.
   const platformTotals = useMemo(() => {
-    const baseRows = metricsDays.filter((row) => {
+    const lifecycleBaseRows = metricsDays.filter((row) => {
+      if (row.day < fromDay) return false;
+      if (selectedProduct && row.productId !== selectedProduct) return false;
+      return true;
+    });
+    const revenueBaseRows = metricsDays.filter((row) => {
       if (row.day < fromDay) return false;
       if (currency && row.currency !== currency) return false;
       if (selectedProduct && row.productId !== selectedProduct) return false;
@@ -291,10 +348,13 @@ export default function ProjectAnalytics() {
       { revenueMicros: number; activeSubs: number; newSubs: number }
     >();
     for (const card of PLATFORM_CARDS) {
-      byFilter.set(
-        card.filter,
-        totalsForPlatform(baseRows, card.filter, currency),
-      );
+      const lifecycle = lifecycleForPlatform(lifecycleBaseRows, card.filter);
+      const revenue = revenueForPlatform(revenueBaseRows, card.filter);
+      byFilter.set(card.filter, {
+        revenueMicros: revenue,
+        activeSubs: lifecycle.activeSubs,
+        newSubs: lifecycle.newSubs,
+      });
     }
     return byFilter;
   }, [metricsDays, fromDay, currency, selectedProduct]);
@@ -960,37 +1020,28 @@ function bucketLabelFor(
   };
 }
 
-// Per-platform totals for the platform cards. Run on the unaggregated
-// `metrics.days` so the card numbers stay correct regardless of the
-// selected platform filter (the cards ARE the filter — they always
-// show the breakdown). `currency` is just for display formatting; the
-// rows have already been filtered to the selected currency upstream.
-function totalsForPlatform(
+// Per-platform lifecycle totals (activeSubs / newSubs) for the
+// platform cards. Walks an UNFILTERED-by-currency row set so the
+// "All platforms" card shows the project-wide count rather than
+// just the active-currency slice. The rollup table is keyed by
+// `(day, productId, currency, platform)`, so a multi-product /
+// multi-currency project has many rows for the same day+platform;
+// activeSubs are summed across siblings on the most-recent day per
+// platform (newSubs are summed across all matching rows).
+function lifecycleForPlatform(
   rows: Array<{
     platform: Platform;
     activeSubs: number;
     newSubs: number;
-    revenueMicros: number;
     day: string;
   }>,
   filter: PlatformFilter,
-  _currency: string,
-): { revenueMicros: number; activeSubs: number; newSubs: number } {
+): { activeSubs: number; newSubs: number } {
   const matching =
     filter === "all" ? rows : rows.filter((r) => r.platform === filter);
-  // For activeSubs, sum every product/currency row that lands on the
-  // most recent day per platform. The rollup table is keyed by
-  // `(day, productId, currency, platform)`, so a multi-product
-  // project has multiple rows for the same day+platform — keeping
-  // only the first row encountered (the prior bug) silently
-  // undercounted projects with >1 product. Summing across days
-  // would inflate by N, so we still take only the LAST day's snapshot
-  // per platform.
   const lastByPlatform = new Map<Platform, { day: string; active: number }>();
-  let revenueMicros = 0;
   let newSubs = 0;
   for (const row of matching) {
-    revenueMicros += row.revenueMicros;
     newSubs += row.newSubs;
     const prior = lastByPlatform.get(row.platform);
     if (!prior || row.day > prior.day) {
@@ -999,14 +1050,26 @@ function totalsForPlatform(
         active: row.activeSubs,
       });
     } else if (row.day === prior.day) {
-      // Same platform + same day = different (product, currency)
-      // tuple. Sum its activeSubs into the platform's total.
       prior.active += row.activeSubs;
     }
   }
   let activeSubs = 0;
   for (const v of lastByPlatform.values()) activeSubs += v.active;
-  return { revenueMicros, activeSubs, newSubs };
+  return { activeSubs, newSubs };
+}
+
+// Per-platform revenue total for the platform cards. Walks a
+// CURRENCY-FILTERED row set because `revenueMicros` can't be
+// summed across currencies without an FX rate.
+function revenueForPlatform(
+  rows: Array<{ platform: Platform; revenueMicros: number }>,
+  filter: PlatformFilter,
+): number {
+  const matching =
+    filter === "all" ? rows : rows.filter((r) => r.platform === filter);
+  let revenueMicros = 0;
+  for (const row of matching) revenueMicros += row.revenueMicros;
+  return revenueMicros;
 }
 
 function utcDayKey(ts: number): string {

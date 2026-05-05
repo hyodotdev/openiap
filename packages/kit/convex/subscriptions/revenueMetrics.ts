@@ -90,20 +90,30 @@ export type RollupBucket = {
   revenueMicros: number;
 };
 
+// States that are "counted" for the activeSubs scan over the
+// trailing window. `Expired` is included intentionally: a sub
+// that was active two days ago but has since expired must still
+// contribute to the activeSubs snapshot for those earlier days
+// (`isActiveAt` filters it back out for the days after its
+// expiry). Without it, the historical activeSubs line would
+// retro-actively drop subs as they aged out, even though they
+// were genuinely active on the days the chart is showing.
 const COUNTED_STATES = new Set([
   "Active",
   "InGracePeriod",
   "InBillingRetry",
+  "Expired",
 ] as const);
 
 // Order matters: pagination cursors index into this list. Adding a
 // state requires a migration of in-flight cursors stored on the
-// scheduler queue, so prepend new states to the END of the list,
+// scheduler queue, so append new states to the END of the list,
 // never the middle.
 const COUNTED_STATES_ORDERED = [
   "Active",
   "InGracePeriod",
   "InBillingRetry",
+  "Expired",
 ] as const;
 type CountedState = (typeof COUNTED_STATES_ORDERED)[number];
 
@@ -848,10 +858,21 @@ export function applyEventToBucket(
 export function isActiveAt(sub: Doc<"subscriptions">, dayEnd: number): boolean {
   if (sub.startedAt > dayEnd) return false;
   if (!COUNTED_STATES.has(sub.state as "Active")) return false;
-  if (typeof sub.expiresAt === "number" && sub.expiresAt <= dayEnd) {
-    return false;
+  // Expiry-driven cutoff. When `expiresAt` is set we treat it as
+  // authoritative regardless of state: an Active sub past its
+  // expiry shouldn't count, and an Expired sub before its expiry
+  // SHOULD count (the snapshot day predates the expiry — that's
+  // the entire reason `Expired` is in COUNTED_STATES).
+  if (typeof sub.expiresAt === "number") {
+    return sub.expiresAt > dayEnd;
   }
-  return true;
+  // No expiry timestamp on file. The non-Expired counted states
+  // (Active / InGracePeriod / InBillingRetry) treat that as
+  // "still active indefinitely" — the steady-state semantics.
+  // For Expired, we have no day at which the sub stopped being
+  // active, so we conservatively count it as inactive for every
+  // day in the window rather than guessing.
+  return sub.state !== "Expired";
 }
 
 async function commitBuckets(
