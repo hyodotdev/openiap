@@ -762,6 +762,14 @@ const schema = defineSchema({
   // the picker that touches `subscriptionStats.updatedAt` last
   // controls rotation for both, and a deployment that skews the two
   // cadences ends up reprocessing the same projects.
+  //
+  // INVARIANT: at most one row per `projectId`. Convex has no unique
+  // constraint, so callers must look the row up via `by_project`
+  // and patch it instead of inserting a second one — see
+  // `markRevenueMetricsRun` in `subscriptions/revenueMetrics.ts`
+  // for the canonical upsert pattern. Two rows for the same project
+  // would let the `by_run` picker double-pick that project until
+  // both rows rotate to the head, wasting budget.
   revenueMetricsRunStatus: defineTable({
     projectId: v.id("projects"),
     lastRunAt: v.number(),

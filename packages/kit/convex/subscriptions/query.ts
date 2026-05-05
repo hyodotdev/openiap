@@ -494,12 +494,46 @@ export const getRevenueMetrics = query({
       };
     }
 
+    // Reject ranges past the dashboard's longest preset (90 days)
+    // before issuing the index scan. A misbehaving client can
+    // otherwise request `fromDay = "1970-01-01"` and force the
+    // server to materialize every rollup row in the project. The
+    // 90-day cap matches `RANGES` in `analytics.tsx`; widening
+    // there should bump this in lockstep.
+    const MAX_RANGE_DAYS = 92;
+    if (args.fromDay > args.toDay) {
+      throw new Error(
+        `getRevenueMetrics: fromDay (${args.fromDay}) is after toDay (${args.toDay}).`,
+      );
+    }
+    const fromMs = Date.parse(`${args.fromDay}T00:00:00.000Z`);
+    const toMs = Date.parse(`${args.toDay}T00:00:00.000Z`);
+    if (Number.isNaN(fromMs) || Number.isNaN(toMs)) {
+      throw new Error(
+        `getRevenueMetrics: invalid ISO date(s) fromDay=${args.fromDay} toDay=${args.toDay}.`,
+      );
+    }
+    const spanDays = Math.round((toMs - fromMs) / 86_400_000) + 1;
+    if (spanDays > MAX_RANGE_DAYS) {
+      throw new Error(
+        `getRevenueMetrics: span of ${spanDays} days exceeds MAX_RANGE_DAYS=${MAX_RANGE_DAYS}.`,
+      );
+    }
+
     // Range scan via `by_project_and_day_and_currency`. The index
     // is `[projectId, day, currency]`, so `eq(projectId).gte(day)
     // .lte(day)` resolves the entire window in one index hit;
     // currency / product / platform filters are applied in-memory
-    // afterward (the trailing window is small — typically tens of
-    // rows per project).
+    // afterward.
+    //
+    // Capped at REVENUE_SCAN_CAP — same number `metricsSummary` uses
+    // for its FALLBACK_SCAN_CAP / ROLLING_SCAN_CAP — to stay under
+    // Convex's 32k document-scan limit per query. A 92-day range
+    // across a maximalist project (30 SKUs × 3 currencies × 2
+    // platforms = 180 rows/day → ~16.5k rows for 92 days) fits
+    // comfortably; truncation at the cap surfaces as the warning
+    // below so we never silently render a partial chart.
+    const REVENUE_SCAN_CAP = 10_000;
     const allRows = await ctx.db
       .query("revenueMetricsDaily")
       .withIndex("by_project_and_day_and_currency", (q) =>
@@ -508,7 +542,12 @@ export const getRevenueMetrics = query({
           .gte("day", args.fromDay)
           .lte("day", args.toDay),
       )
-      .collect();
+      .take(REVENUE_SCAN_CAP);
+    if (allRows.length === REVENUE_SCAN_CAP) {
+      console.warn(
+        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} range=${args.fromDay}..${args.toDay}; chart will undercount the tail.`,
+      );
+    }
 
     // Populate filter-dropdown choices from the UNFILTERED set so the
     // UI can keep showing every available currency / product /

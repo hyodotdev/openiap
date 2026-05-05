@@ -367,8 +367,16 @@ class MemQuery {
   }
 
   filter(_cb: unknown): MemQuery {
+    // No-op `.filter()` would let a future production code path that
+    // narrows results via `.filter()` silently pass against the
+    // in-memory harness while real Convex returned a different set.
+    // Throw so the next caller is forced to wire predicate support
+    // up explicitly instead of running a green test on a broken
+    // assumption.
     void _cb;
-    return this;
+    throw new Error(
+      "MemQuery.filter is not implemented — wire it up before adding a .filter() call to production code under test.",
+    );
   }
 
   async first(): Promise<Row | null> {
