@@ -184,19 +184,17 @@ export const recomputeRevenueMetricsForProject = internalMutation({
   },
 });
 
-// Cap on the events pass scan. Events arrive at the receivedAt
-// timestamp, so the index range is bounded by the trailing-window
-// + late-delivery-grace span (10 days). Generously sized for
-// realistic SaaS event rates — at 1k events/day a project burns
-// 10k of the cap in 10 days, well clear of the limit.
-const WEBHOOK_SCAN_CAP = 15_000;
+// Per-page event scan size. The webhookEvents pass paginates via
+// the scheduler so this caps reads PER MUTATION, not per project.
+// A noisy project that emits 50k events in the trailing 3-day
+// window paginates across ~10 chained mutations, each well under
+// the 32k document-read budget.
+const EVENTS_PAGE_SIZE = 5_000;
 
 // Per-page subscription scan size. Each page chains via the
 // scheduler so this caps reads PER MUTATION, not per project. A
 // project with 50k active subs paginates across ~10 chained
-// mutations, each comfortably under the 32k document-read budget
-// (page reads + the events pass on page 0 + commit-time existing-
-// row deletes all share the budget).
+// mutations, each comfortably under the 32k document-read budget.
 const SUBS_PAGE_SIZE = 5_000;
 
 // Number of accumulator buckets above which the commit phase
@@ -210,12 +208,27 @@ const SUBS_PAGE_SIZE = 5_000;
 // buckets and gets its own write budget.
 const COMMIT_INLINE_BUCKET_LIMIT = 500;
 
+// Per-day commit safety margin under Convex's 8192-writes-per-
+// mutation budget. Single-mutation per-day commits do
+// `existing.length` deletes + `nonZero.length` inserts, so any day
+// whose `existing + nonZero` exceeds this limit splits into a
+// delete pass on the kickoff mutation followed by chained
+// `commitRevenueMetricsDayInsertChunk` mutations of size
+// `INSERT_CHUNK_SIZE` each. 7000 leaves headroom for the
+// existing-row read pass and the `markRevenueMetricsRun` upsert.
+const COMMIT_DAY_WRITES_LIMIT = 7_000;
+const INSERT_CHUNK_SIZE = 3_500;
+
 // Validators for the chained-page args. Buckets serialize as a flat
 // array so they survive the scheduler's JSON round-trip; the cursor
-// is the state index + the opaque cursor returned by Convex's
-// `paginate(...)` API (stable across `updatedAt` ties because it
-// includes the row `_id`, which a hand-rolled `lt(updatedAt, ...)`
-// watermark would silently skip when two rows share a timestamp).
+// is a tagged union covering both phases of the recompute pipeline
+// (events scan first, then subscriptions scan) so a single
+// scheduled `recomputeRevenueMetricsPage` handler can resume from
+// either phase. Cursors come from Convex's `paginate(...)` API,
+// which includes the row `_id` as a stable tiebreaker (a
+// hand-rolled `lt(receivedAt, ...)` / `lt(updatedAt, ...)`
+// watermark would silently skip rows that share a timestamp at the
+// page boundary).
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 const bucketValidator = v.object({
   day: v.string(),
@@ -230,15 +243,17 @@ const bucketValidator = v.object({
   revenueMicros: v.number(),
 });
 const accumulatorValidator = v.array(bucketValidator);
-const cursorValidator = v.object({
-  stateIdx: v.number(),
-  // Opaque Convex pagination cursor for the current state. `null`
-  // means "start of state" (or "state finished" if `stateIdx` is
-  // also advancing). Using Convex's pagination cursor instead of a
-  // hand-rolled `updatedAt` watermark guarantees ordering stability
-  // when multiple subscriptions share an `updatedAt` timestamp.
-  paginationCursor: v.union(v.string(), v.null()),
-});
+const cursorValidator = v.union(
+  v.object({
+    phase: v.literal("events"),
+    paginationCursor: v.union(v.string(), v.null()),
+  }),
+  v.object({
+    phase: v.literal("subs"),
+    stateIdx: v.number(),
+    paginationCursor: v.union(v.string(), v.null()),
+  }),
+);
 
 async function markRevenueMetricsRun(
   ctx: MutationCtx,
@@ -259,15 +274,19 @@ async function markRevenueMetricsRun(
   }
 }
 
-// Kickoff: build window, run events pass, then process the first
-// subscriptions page. If all counted states fit in a single page
-// (typical for projects under SUBS_PAGE_SIZE active subs), commit
-// inline. Otherwise schedule continuation pages.
+// Kickoff: build window, then start the events-pagination phase.
+// Events scan paginates through `webhookEvents`; once exhausted the
+// pipeline transitions to the subscriptions phase, which paginates
+// through counted-state rows; once that's exhausted the commit
+// phase fans out per-day mutations. Each phase reads its accumulator
+// from / writes back to a single buckets map carried through the
+// scheduler chain.
 //
 // Exported so tests can drive it directly without the cron scheduler.
-// In tests with small datasets the inline commit path always
-// triggers; the chained-page path only kicks in for projects that
-// exceed SUBS_PAGE_SIZE in any one counted state.
+// In tests with small datasets every phase completes in one page
+// inline; the chained-page path only kicks in once the per-mutation
+// EVENTS_PAGE_SIZE / SUBS_PAGE_SIZE / COMMIT_INLINE_BUCKET_LIMIT
+// thresholds are exceeded.
 export async function runRecompute(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -288,32 +307,57 @@ export async function runRecompute(
   for (let i = 0; i < TRAILING_DAYS; i++) {
     days.push(utcDayKey(windowStart + i * DAY_MS));
   }
+
+  const buckets = new Map<BucketKey, RollupBucket>();
+  await processEventsPage(ctx, {
+    projectId,
+    days,
+    windowStart,
+    windowEnd,
+    buckets,
+    paginationCursor: null,
+    runStartedAt: now,
+  });
+}
+
+// Process one page of `webhookEvents`. Buckets accumulate event-
+// driven counters (newSubs / renewals / cancellations / refunds /
+// revenueMicros) from `occurredAt`; `activeSubs` lands later in
+// `processSubsPage`. When the events scan finishes, transitions
+// to the subscriptions phase by calling `processSubsPage` directly.
+//
+// Scan by `receivedAt` (the index we have on webhookEvents) but
+// bucket by `occurredAt` (the store-side event time). A renewal
+// that occurred yesterday but arrived today must land in
+// yesterday's bucket — otherwise a retry-delayed notification
+// would flip its day on the dashboard.
+//
+// Scan window matches the bucket window exactly. The webhook
+// receivers in `webhooks/apple.ts` and `webhooks/google.ts` set
+// `receivedAt` to the HTTP receive time and `occurredAt` to the
+// store-side timestamp (Apple `signedDate` / Google
+// `eventTimeMillis`), so by construction `receivedAt >=
+// occurredAt`: any event whose `occurredAt` lands in
+// `[windowStart, windowEnd]` necessarily has `receivedAt` in the
+// same range too.
+async function processEventsPage(
+  ctx: MutationCtx,
+  args: {
+    projectId: Id<"projects">;
+    days: string[];
+    windowStart: number;
+    windowEnd: number;
+    buckets: Map<BucketKey, RollupBucket>;
+    paginationCursor: string | null;
+    runStartedAt: number;
+  },
+): Promise<void> {
+  const { projectId, days, windowStart, windowEnd, buckets, runStartedAt } =
+    args;
   const firstDay = days[0];
   const lastDay = days[days.length - 1];
 
-  const buckets = new Map<BucketKey, RollupBucket>();
-
-  // ---- Pass 1: webhookEvents → newSubs / renewals / cancellations
-  // / refunds / revenueMicros buckets.
-  //
-  // Scan by `receivedAt` (the index we have on webhookEvents) but
-  // bucket by `occurredAt` (the store-side event time). A renewal
-  // that occurred yesterday but arrived today must land in
-  // yesterday's bucket — otherwise a retry-delayed notification
-  // would flip its day on the dashboard, contradicting the
-  // "late notifications fold into their correct day" promise.
-  //
-  // Scan window matches the bucket window exactly. The webhook
-  // receivers in `webhooks/apple.ts` and `webhooks/google.ts` set
-  // `receivedAt` to the HTTP receive time and `occurredAt` to the
-  // store-side timestamp (Apple `signedDate` / Google
-  // `eventTimeMillis`), so by construction `receivedAt >=
-  // occurredAt`: any event whose `occurredAt` lands in
-  // `[windowStart, windowEnd]` necessarily has `receivedAt` in the
-  // same range too. Scanning further back on `receivedAt` would
-  // only read older rows that the `day < firstDay` filter below
-  // immediately discards, burning the read budget for nothing.
-  const events = await ctx.db
+  const result = await ctx.db
     .query("webhookEvents")
     .withIndex("by_project_and_received", (q) =>
       q
@@ -321,19 +365,9 @@ export async function runRecompute(
         .gte("receivedAt", windowStart)
         .lte("receivedAt", windowEnd),
     )
-    .take(WEBHOOK_SCAN_CAP);
-  if (events.length === WEBHOOK_SCAN_CAP) {
-    // Hitting the cap means the scan was truncated and the project's
-    // bucket counters are undercounted for this tick. Surface to
-    // ops via the standard Convex log stream — silent truncation
-    // would manifest as flat-line analytics that look like a quiet
-    // day rather than a budget breach.
-    console.warn(
-      `[revenueMetrics] webhookEvents scan hit WEBHOOK_SCAN_CAP=${WEBHOOK_SCAN_CAP} for project=${projectId}; results truncated, bucket counters will undercount this tick.`,
-    );
-  }
+    .paginate({ numItems: EVENTS_PAGE_SIZE, cursor: args.paginationCursor });
 
-  for (const event of events) {
+  for (const event of result.page) {
     if (!event.productId) continue;
     const day = utcDayKey(event.occurredAt);
     // Skip events whose store-side day falls outside the bucket
@@ -361,21 +395,32 @@ export async function runRecompute(
     applyEventToBucket(bucket, event);
   }
 
-  // ---- Pass 2: subscriptions → activeSubs end-of-day snapshots.
-  // Walks ONLY counted-state rows via `by_project_and_state_and_updated`
-  // ordered descending — most-recently-updated first. Active subs
-  // tick `updatedAt` on every renewal so descending puts the rows
-  // most likely to satisfy `isActiveAt(...)` at the front of the
-  // page; an under-budget project gets its full picture from a
-  // single page, an over-budget project chains continuations.
-  await processSubsPage(ctx, {
-    projectId,
-    days,
-    windowStart,
-    buckets,
-    cursor: { stateIdx: 0, paginationCursor: null },
-    runStartedAt: now,
-  });
+  if (result.isDone) {
+    // Events exhausted — transition to the subscriptions phase.
+    await processSubsPage(ctx, {
+      projectId,
+      days,
+      windowStart,
+      buckets,
+      cursor: { stateIdx: 0, paginationCursor: null },
+      runStartedAt,
+    });
+    return;
+  }
+
+  // More events to read. Serialize the accumulator + cursor and
+  // chain a fresh events page.
+  await ctx.scheduler.runAfter(
+    0,
+    internal.subscriptions.revenueMetrics.recomputeRevenueMetricsPage,
+    {
+      projectId,
+      days,
+      buckets: Array.from(buckets.values()),
+      cursor: { phase: "events", paginationCursor: result.continueCursor },
+      runStartedAt,
+    },
+  );
 }
 
 // Process one page of counted-state subscriptions. Greedily
@@ -464,14 +509,15 @@ async function processSubsPage(
       projectId,
       days,
       buckets: serialized,
-      cursor: { stateIdx, paginationCursor },
+      cursor: { phase: "subs", stateIdx, paginationCursor },
       runStartedAt,
     },
   );
 }
 
 // Continuation page handler. Rehydrates the accumulator from the
-// scheduler args and resumes pagination from the saved cursor.
+// scheduler args and dispatches to the right phase based on the
+// tagged cursor.
 export const recomputeRevenueMetricsPage = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -489,12 +535,27 @@ export const recomputeRevenueMetricsPage = internalMutation({
     }
     const todayStart = startOfUtcDay(args.runStartedAt);
     const windowStart = todayStart - (TRAILING_DAYS - 1) * DAY_MS;
+    if (args.cursor.phase === "events") {
+      await processEventsPage(ctx, {
+        projectId: args.projectId,
+        days: args.days,
+        windowStart,
+        windowEnd: args.runStartedAt,
+        buckets,
+        paginationCursor: args.cursor.paginationCursor,
+        runStartedAt: args.runStartedAt,
+      });
+      return null;
+    }
     await processSubsPage(ctx, {
       projectId: args.projectId,
       days: args.days,
       windowStart,
       buckets,
-      cursor: args.cursor,
+      cursor: {
+        stateIdx: args.cursor.stateIdx,
+        paginationCursor: args.cursor.paginationCursor,
+      },
       runStartedAt: args.runStartedAt,
     });
     return null;
@@ -528,34 +589,120 @@ export const commitRevenueMetricsDay = internalMutation({
         q.eq("projectId", args.projectId).eq("day", args.day),
       )
       .collect();
-    await Promise.all(existing.map((row) => ctx.db.delete(row._id)));
+    const nonZero = args.buckets.filter((b) => !isAllZeroBucket(b));
 
-    const inserts: Array<Promise<unknown>> = [];
-    for (const bucket of args.buckets) {
-      if (isAllZeroBucket(bucket)) continue;
-      inserts.push(
-        ctx.db.insert("revenueMetricsDaily", {
-          projectId: args.projectId,
-          day: bucket.day,
-          productId: bucket.productId,
-          currency: bucket.currency,
-          platform: bucket.platform,
-          activeSubs: bucket.activeSubs,
-          newSubs: bucket.newSubs,
-          renewals: bucket.renewals,
-          cancellations: bucket.cancellations,
-          refunds: bucket.refunds,
-          revenueMicros: bucket.revenueMicros,
-          updatedAt: args.runStartedAt,
-        }),
+    // Stay under Convex's 8192-writes-per-mutation budget. Single
+    // mutation does `existing.length` deletes + `nonZero.length`
+    // inserts; if that combined sum exceeds COMMIT_DAY_WRITES_LIMIT
+    // we delete inline (existing.length is already bounded by the
+    // budget — a project that has stored more than 7000 rows for
+    // one day is pathological enough to trip Convex's hard ceiling
+    // on the prior commit, so this branch shouldn't be reached
+    // in practice) and fan inserts out across chained chunk
+    // mutations of size INSERT_CHUNK_SIZE.
+    if (existing.length + nonZero.length <= COMMIT_DAY_WRITES_LIMIT) {
+      await Promise.all(existing.map((row) => ctx.db.delete(row._id)));
+      await Promise.all(
+        nonZero.map((bucket) => insertBucket(ctx, args, bucket)),
+      );
+      await markRevenueMetricsRun(ctx, args.projectId, args.runStartedAt);
+      return null;
+    }
+
+    if (existing.length > COMMIT_DAY_WRITES_LIMIT) {
+      // Bigger than the per-mutation write budget can absorb in
+      // one shot. We could split the deletes across chained
+      // mutations too, but a single day's existing-row count
+      // crossing 7k requires somewhere north of 3500 distinct
+      // (productId, currency, platform) tuples already on disk
+      // for the same UTC day — operationally implausible for the
+      // SaaS workloads this dashboard targets, and it would have
+      // tripped the Convex write limit on the commit that wrote
+      // those rows in the first place. Surface the impossible
+      // state rather than silently succeeding with a partial
+      // delete.
+      throw new Error(
+        `commitRevenueMetricsDay: existing row count ${existing.length} for project=${args.projectId} day=${args.day} exceeds COMMIT_DAY_WRITES_LIMIT=${COMMIT_DAY_WRITES_LIMIT}; manual intervention required.`,
       );
     }
-    await Promise.all(inserts);
 
+    await Promise.all(existing.map((row) => ctx.db.delete(row._id)));
+    for (let i = 0; i < nonZero.length; i += INSERT_CHUNK_SIZE) {
+      const chunk = nonZero.slice(i, i + INSERT_CHUNK_SIZE);
+      await ctx.scheduler.runAfter(
+        0,
+        internal.subscriptions.revenueMetrics
+          .commitRevenueMetricsDayInsertChunk,
+        {
+          projectId: args.projectId,
+          day: args.day,
+          buckets: chunk,
+          runStartedAt: args.runStartedAt,
+        },
+      );
+    }
     await markRevenueMetricsRun(ctx, args.projectId, args.runStartedAt);
     return null;
   },
 });
+
+// Insert chunk for the per-day fan-out path. Used only when the
+// per-day commit's `existing + nonZero` would have exceeded
+// COMMIT_DAY_WRITES_LIMIT: the kickoff `commitRevenueMetricsDay`
+// performs the deletes and schedules these chunks afterwards. Each
+// chunk gets its own 8192-writes budget, so a project with
+// ~10k buckets/day fans out across ~3 chained chunks instead of
+// blowing the limit. `markRevenueMetricsRun` is OCC-safe across
+// the parallel chunks; the kickoff calls it too so even a 0-row
+// inserted-chunk path still marks the run.
+export const commitRevenueMetricsDayInsertChunk = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    day: v.string(),
+    buckets: accumulatorValidator,
+    runStartedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await Promise.all(
+      args.buckets.map((bucket) => insertBucket(ctx, args, bucket)),
+    );
+    await markRevenueMetricsRun(ctx, args.projectId, args.runStartedAt);
+    return null;
+  },
+});
+
+function insertBucket(
+  ctx: MutationCtx,
+  args: { projectId: Id<"projects">; runStartedAt: number },
+  bucket: {
+    day: string;
+    productId: string;
+    currency: string;
+    platform: Platform;
+    activeSubs: number;
+    newSubs: number;
+    renewals: number;
+    cancellations: number;
+    refunds: number;
+    revenueMicros: number;
+  },
+): Promise<Id<"revenueMetricsDaily">> {
+  return ctx.db.insert("revenueMetricsDaily", {
+    projectId: args.projectId,
+    day: bucket.day,
+    productId: bucket.productId,
+    currency: bucket.currency,
+    platform: bucket.platform,
+    activeSubs: bucket.activeSubs,
+    newSubs: bucket.newSubs,
+    renewals: bucket.renewals,
+    cancellations: bucket.cancellations,
+    refunds: bucket.refunds,
+    revenueMicros: bucket.revenueMicros,
+    updatedAt: args.runStartedAt,
+  });
+}
 
 // Decide whether to commit inline (small projects) or fan out one
 // scheduled mutation per day (large projects). The threshold is
