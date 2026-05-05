@@ -50,9 +50,23 @@ if (typeof dsn === "string" && dsn.length > 0 && onAllowedHost) {
     // (or downsample) instead of treating each as a fresh signal.
     beforeSend: (event, hint) => {
       const exception = hint?.originalException;
-      const message =
-        (exception instanceof Error ? exception.message : String(exception)) ??
-        "";
+      // Sentry events occasionally arrive with no `originalException`
+      // (programmatic captureMessage, late-bound rejections that
+      // lost their cause), only an `event.message` /
+      // `logentry.message`. Build the classifier input from every
+      // available source so reconnect noise gets tagged regardless
+      // of where the message lives (CodeRabbit review on PR #127).
+      const message = [
+        exception instanceof Error
+          ? exception.message
+          : typeof exception === "string"
+            ? exception
+            : "",
+        event.message ?? "",
+        event.logentry?.message ?? "",
+      ]
+        .filter(Boolean)
+        .join(" ");
       const isFetchLoadFailed =
         /Load failed|Failed to fetch|NetworkError/i.test(message);
       const looksConvex = /convex\.cloud|\/api\/(action|query|mutation)/i.test(

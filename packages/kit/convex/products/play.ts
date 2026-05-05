@@ -135,28 +135,38 @@ export const runProductSyncAndroid = internalAction({
   },
 });
 
-async function performAndroidSync(
-  ctx: ActionCtx,
-  options: {
-    projectId: import("../_generated/dataModel").Id<"projects">;
-    direction: "pull" | "push" | "both";
-    dryRun: boolean;
-    checkCancelled: () => Promise<void>;
-    reportPhase: (
-      phase: string,
-      extra?: {
-        current?: number;
-        total?: number;
-        failuresCount?: number;
-      },
-    ) => Promise<void>;
-  },
-): Promise<{
+// See parallel definitions in `products/asc.ts`. Kept inline here
+// (rather than imported across modules) because both files declare
+// `"use node"` and Convex treats the module boundary as the runtime
+// boundary; importing this from a non-`"use node"` module would
+// pull `googleapis` into the V8 isolate runtime (Gemini review on
+// PR #127).
+interface AndroidSyncProgressUpdate {
+  current?: number;
+  total?: number;
+  failuresCount?: number;
+}
+interface AndroidSyncOptions {
+  projectId: import("../_generated/dataModel").Id<"projects">;
+  direction: "pull" | "push" | "both";
+  dryRun: boolean;
+  checkCancelled: () => Promise<void>;
+  reportPhase: (
+    phase: string,
+    extra?: AndroidSyncProgressUpdate,
+  ) => Promise<void>;
+}
+interface AndroidSyncResult {
   pulled: number;
   pushed: number;
   failures: ProductSyncFailure[];
   plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
-}> {
+}
+
+async function performAndroidSync(
+  ctx: ActionCtx,
+  options: AndroidSyncOptions,
+): Promise<AndroidSyncResult> {
   const project = await ctx.runQuery(
     internal.projects.internal.getProjectById,
     { projectId: options.projectId },

@@ -158,8 +158,12 @@ products.post("/:apiKey/sync/:platform", async (c) => {
   const apiKey = c.req.param("apiKey");
   const platformParam = c.req.param("platform");
   const direction =
-    (c.req.query("direction") as "pull" | "push" | "both" | undefined) ??
-    "both";
+    (c.req.query("direction") as
+      | "pull"
+      | "push"
+      | "both"
+      | "purge-local"
+      | undefined) ?? "both";
   const dryRun = c.req.query("dryRun") === "true";
   if (platformParam !== "ios" && platformParam !== "android") {
     return c.json(
@@ -201,9 +205,11 @@ products.post("/:apiKey/sync/:platform", async (c) => {
 // catalogs in 1-2 min. SSE is a future option; polling kept simple
 // for v1.
 products.get("/:apiKey/sync/jobs/:jobId", async (c) => {
+  const apiKey = c.req.param("apiKey");
   const jobId = c.req.param("jobId");
   try {
     const job = await client.query(api.products.jobs.getSyncJobById, {
+      apiKey,
       jobId: jobId as Id<"productSyncJobs">,
     });
     if (!job) {
@@ -231,9 +237,11 @@ products.get("/:apiKey/sync/jobs/:jobId", async (c) => {
 // Operator-initiated cancel. The worker checks `cancelRequested`
 // at phase boundaries.
 products.post("/:apiKey/sync/jobs/:jobId/cancel", async (c) => {
+  const apiKey = c.req.param("apiKey");
   const jobId = c.req.param("jobId");
   try {
     const result = await client.mutation(api.products.jobs.cancelProductSync, {
+      apiKey,
       jobId: jobId as Id<"productSyncJobs">,
     });
     return c.json(result);

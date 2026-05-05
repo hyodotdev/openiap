@@ -21,6 +21,13 @@ export const PRODUCT_SYNC_REAPER_GRACE_MS = 60 * 1_000;
 export const PRODUCT_SYNC_SUCCEEDED_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
 export const PRODUCT_SYNC_FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 export const PRODUCT_SYNC_FAILURES_CAP = 200;
+// Batch size for the reaper / pruner crons. Sized to comfortably
+// fit Convex's per-mutation document budget — enough rows that one
+// tick can clear a typical backlog, but not so many that a
+// pathological deployment with thousands of stuck jobs blows past
+// the budget mid-run.
+export const PRODUCT_SYNC_REAPER_BATCH = 50;
+export const PRODUCT_SYNC_PRUNER_BATCH = 100;
 
 // Cap the failures array stored on the job row so a runaway sync
 // (every product fails for the same upstream config reason) doesn't
@@ -47,14 +54,19 @@ const directionValidator = v.union(
   v.literal("purge-local"),
 );
 
-async function requireProjectMember(
+// Auth gate: presence of a valid `apiKey` is sufficient (matches the
+// existing pattern in `products/mutation.ts upsertProduct` and the
+// HTTP routes in `server/api/v1/products.ts`). The dashboard call
+// path is also authenticated via Convex Auth — when a logged-in
+// user makes the call we record their `userId` on `createdBy` for
+// audit trail, but a missing user (server-to-server HTTP path)
+// must NOT block the call. Earlier versions required
+// `getAuthUserId` and broke the documented HTTP API entirely
+// (Copilot review on PR #127).
+async function resolveProjectByApiKey(
   ctx: QueryCtx,
   apiKey: string,
-): Promise<{ project: Doc<"projects">; userId: Id<"users"> }> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw createError(ErrorCode.NOT_AUTHENTICATED);
-  }
+): Promise<{ project: Doc<"projects">; userId: Id<"users"> | null }> {
   const project = await ctx.db
     .query("projects")
     .withIndex("by_api_key", (q) => q.eq("apiKey", apiKey))
@@ -62,44 +74,51 @@ async function requireProjectMember(
   if (!project) {
     throw createError(ErrorCode.PROJECT_NOT_FOUND);
   }
-  const membership = await ctx.db
-    .query("organizationMembers")
-    .withIndex("by_org_and_user", (q) =>
-      q.eq("organizationId", project.organizationId).eq("userId", userId),
-    )
-    .first();
-  if (!membership) {
-    throw createError(ErrorCode.NOT_ORGANIZATION_MEMBER);
+  let userId: Id<"users"> | null = null;
+  try {
+    userId = await getAuthUserId(ctx);
+  } catch {
+    userId = null;
+  }
+  // Best-effort membership confirmation when a user IS present
+  // — refuse to honor a logged-in user calling another org's
+  // apiKey. Without a logged-in user we trust the apiKey as the
+  // sole credential (server-side caller, MCP tool, SDK).
+  if (userId) {
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("organizationId", project.organizationId).eq("userId", userId),
+      )
+      .first();
+    if (!membership) {
+      throw createError(ErrorCode.NOT_ORGANIZATION_MEMBER);
+    }
   }
   return { project, userId };
 }
 
-async function requireJobAccess(
+// Authenticate `(apiKey, jobId)` together: resolve the project from
+// the apiKey, then verify the job belongs to that project. This
+// ensures the apiKey acts as a per-project capability — a stolen
+// jobId from one project can't be cancelled / read by another
+// project's apiKey.
+async function resolveJobByApiKey(
   ctx: QueryCtx,
+  apiKey: string,
   jobId: Id<"productSyncJobs">,
-): Promise<{ job: Doc<"productSyncJobs">; userId: Id<"users"> }> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw createError(ErrorCode.NOT_AUTHENTICATED);
-  }
+): Promise<{ job: Doc<"productSyncJobs">; project: Doc<"projects"> }> {
+  const { project } = await resolveProjectByApiKey(ctx, apiKey);
   const job = await ctx.db.get(jobId);
   if (!job) {
     throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
   }
-  const project = await ctx.db.get(job.projectId);
-  if (!project) {
-    throw createError(ErrorCode.PROJECT_NOT_FOUND);
+  if (job.projectId !== project._id) {
+    // Treat cross-project lookups as not-found rather than 403 to
+    // avoid leaking job existence across projects.
+    throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
   }
-  const membership = await ctx.db
-    .query("organizationMembers")
-    .withIndex("by_org_and_user", (q) =>
-      q.eq("organizationId", project.organizationId).eq("userId", userId),
-    )
-    .first();
-  if (!membership) {
-    throw createError(ErrorCode.NOT_ORGANIZATION_MEMBER);
-  }
-  return { job, userId };
+  return { job, project };
 }
 
 // Latest job (any status) for a project+platform — drives the
@@ -110,22 +129,29 @@ export const getActiveSyncJob = query({
     platform: platformValidator,
   },
   handler: async (ctx, args) => {
-    const { project } = await requireProjectMember(ctx, args.apiKey);
+    const { project } = await resolveProjectByApiKey(ctx, args.apiKey);
+    // Composite index `by_project_platform_created` narrows the
+    // index range to just this (project, platform) — replaces the
+    // earlier `by_project_and_created` + in-memory `.filter()`
+    // which scanned every job for the project before discarding
+    // the wrong-platform rows (Gemini review).
     return await ctx.db
       .query("productSyncJobs")
-      .withIndex("by_project_and_created", (q) =>
-        q.eq("projectId", project._id),
+      .withIndex("by_project_platform_created", (q) =>
+        q.eq("projectId", project._id).eq("platform", args.platform),
       )
-      .filter((q) => q.eq(q.field("platform"), args.platform))
       .order("desc")
       .first();
   },
 });
 
 export const getSyncJobById = query({
-  args: { jobId: v.id("productSyncJobs") },
+  args: {
+    apiKey: v.string(),
+    jobId: v.id("productSyncJobs"),
+  },
   handler: async (ctx, args) => {
-    const { job } = await requireJobAccess(ctx, args.jobId);
+    const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
     return job;
   },
 });
@@ -145,7 +171,7 @@ export const enqueueProductSync = mutation({
     deduped: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const { project, userId } = await requireProjectMember(ctx, args.apiKey);
+    const { project, userId } = await resolveProjectByApiKey(ctx, args.apiKey);
     const existingActive = await ctx.db
       .query("productSyncJobs")
       .withIndex("by_project_platform_status", (q) =>
@@ -176,7 +202,7 @@ export const enqueueProductSync = mutation({
       dryRun: args.dryRun ?? false,
       status: "queued",
       progress: { phase: "queued" },
-      createdBy: userId,
+      ...(userId ? { createdBy: userId } : {}),
       createdAt: now,
     });
     if (args.direction === "purge-local") {
@@ -277,9 +303,12 @@ export const runProductSyncPurgeLocal = internalAction({
 // phase boundaries — granularity is per-phase, not per-product, but
 // that's enough to stop a runaway sync within seconds on most paths.
 export const cancelProductSync = mutation({
-  args: { jobId: v.id("productSyncJobs") },
+  args: {
+    apiKey: v.string(),
+    jobId: v.id("productSyncJobs"),
+  },
   handler: async (ctx, args) => {
-    const { job } = await requireJobAccess(ctx, args.jobId);
+    const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
     if (job.status !== "queued" && job.status !== "running") {
       return { ok: false, reason: "not active" as const };
     }
@@ -288,24 +317,23 @@ export const cancelProductSync = mutation({
   },
 });
 
-// Soft-dismiss a finished job from the dashboard. Doesn't delete the
-// row (the pruner handles retention) — just makes a future
-// `getActiveSyncJob` skip it.
-//
-// Implemented via a tombstone field instead of a status change so
-// audit-style queries can still see succeeded/failed history.
+// Soft-dismiss a finished job from the dashboard. Doesn't delete
+// the row (the pruner handles retention) — sets
+// `progress.phase = "dismissed"` so the dashboard's result-banner
+// gate (`progress.phase === "dismissed"`, see products.tsx
+// `<ProductGroup>` renderer) and the toast effect both hide the
+// row. We avoid `cancelRequested` here so the worker's cancel
+// semantics stay distinct from operator dismiss.
 export const dismissCompletedJob = mutation({
-  args: { jobId: v.id("productSyncJobs") },
+  args: {
+    apiKey: v.string(),
+    jobId: v.id("productSyncJobs"),
+  },
   handler: async (ctx, args) => {
-    const { job } = await requireJobAccess(ctx, args.jobId);
+    const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
     if (job.status !== "succeeded" && job.status !== "failed") {
       return { ok: false as const };
     }
-    // Reuse `cancelRequested` as a dismissal marker would muddle
-    // semantics; instead we shift `completedAt` into the past so the
-    // active-job query (ordered desc by createdAt) still sees newer
-    // jobs while the dashboard filter on the client treats this row
-    // as "dismissed" via `dismissed: true`.
     await ctx.db.patch(job._id, {
       progress: { ...job.progress, phase: "dismissed" },
     });
@@ -423,7 +451,12 @@ export const markJobFailed = internalMutation({
       error: args.error,
       progress: {
         phase: "failed",
-        failuresCount: failures.length,
+        // Match `markJobSucceeded`'s "true count" semantics —
+        // `progress.failuresCount` is the raw upstream count, not
+        // the truncated slice's length, so analytics readers see
+        // the same number on both terminal states (CodeRabbit
+        // review on PR #127).
+        failuresCount: rawFailures.length,
       },
       result: {
         pulled: args.pulled ?? 0,
@@ -447,7 +480,7 @@ export const reapStaleProductSyncJobs = internalMutation({
       .withIndex("by_status_and_deadline", (q) =>
         q.eq("status", "running").lt("expectedDeadline", cutoff),
       )
-      .take(50);
+      .take(PRODUCT_SYNC_REAPER_BATCH);
     for (const job of stale) {
       await ctx.db.patch(job._id, {
         status: "failed",
@@ -472,13 +505,13 @@ export const pruneProductSyncJobs = internalMutation({
       .withIndex("by_status_and_completed", (q) =>
         q.eq("status", "succeeded").lt("completedAt", succeededCutoff),
       )
-      .take(100);
+      .take(PRODUCT_SYNC_PRUNER_BATCH);
     const failed = await ctx.db
       .query("productSyncJobs")
       .withIndex("by_status_and_completed", (q) =>
         q.eq("status", "failed").lt("completedAt", failedCutoff),
       )
-      .take(100);
+      .take(PRODUCT_SYNC_PRUNER_BATCH);
     for (const row of [...succeeded, ...failed]) {
       await ctx.db.delete(row._id);
     }

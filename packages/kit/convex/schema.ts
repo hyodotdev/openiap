@@ -910,6 +910,17 @@ const schema = defineSchema({
     // dashboard's `getActiveSyncJob` subscription and the
     // double-enqueue guard inside `enqueueProductSync`.
     .index("by_project_platform_status", ["projectId", "platform", "status"])
+    // Composite (projectId, platform, createdAt) — backs
+    // `getActiveSyncJob` so the latest job per platform is a
+    // direct index range scan instead of "fetch every job for the
+    // project, then in-memory filter by platform". Without this,
+    // the query degraded with the table size on multi-platform
+    // projects (Gemini review on PR #127).
+    .index("by_project_platform_created", [
+      "projectId",
+      "platform",
+      "createdAt",
+    ])
     .index("by_project_and_created", ["projectId", "createdAt"])
     // Reaper / pruner scans.
     .index("by_status_and_deadline", ["status", "expectedDeadline"])

@@ -94,6 +94,14 @@ export default function ProjectProducts() {
       if (!job) continue;
       const terminal = job.status === "succeeded" || job.status === "failed";
       if (!terminal) continue;
+      // Once the operator has dismissed a terminal job, the row's
+      // `progress.phase` flips to "dismissed". The result banner
+      // already gates on this; the toast effect needs the same
+      // gate or it re-fires the success/failure toast on every
+      // subsequent page reload (because `lastShownJobIdRef` is
+      // in-memory and resets) until the pruner deletes the row
+      // (CodeRabbit review on PR #127).
+      if (job.progress.phase === "dismissed") continue;
       if (lastShownJobIdRef.current[platform] === job._id) continue;
       lastShownJobIdRef.current[platform] = job._id;
       const label = platform === "IOS" ? "App Store Connect" : "Play Console";
@@ -244,7 +252,7 @@ export default function ProjectProducts() {
 
   const onCancel = async (jobId: SyncJob["_id"], label: string) => {
     try {
-      await cancelSync({ jobId });
+      await cancelSync({ apiKey: project.apiKey, jobId });
       toast.message(`${label} sync — cancellation requested`, {
         duration: 4_000,
       });
@@ -455,7 +463,7 @@ export default function ProjectProducts() {
           void onCancel(jobId, "App Store Connect");
         }}
         onDismiss={(jobId) => {
-          void dismissJob({ jobId });
+          void dismissJob({ apiKey: project.apiKey, jobId });
         }}
       />
       <ProductGroup
@@ -475,7 +483,7 @@ export default function ProjectProducts() {
           void onCancel(jobId, "Play Console");
         }}
         onDismiss={(jobId) => {
-          void dismissJob({ jobId });
+          void dismissJob({ apiKey: project.apiKey, jobId });
         }}
       />
     </div>

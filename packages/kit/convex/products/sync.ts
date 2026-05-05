@@ -363,6 +363,15 @@ export const deletePlatformCatalog = internalMutation({
   },
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
   handler: async (ctx, args) => {
+    // Guard against `limit <= 0` — Convex would happily run
+    // `.take(1)` (limit + 1 = 1) and the worker loop reads
+    // `hasMore` to keep iterating, which combined with `deleted = 0`
+    // traps the purge worker in a non-progressing loop until the
+    // 9-min reaper kills it (CodeRabbit critical finding on
+    // PR #127).
+    if (!Number.isInteger(args.limit) || args.limit < 1) {
+      throw new Error("limit must be a positive integer");
+    }
     const page = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform", (q) =>

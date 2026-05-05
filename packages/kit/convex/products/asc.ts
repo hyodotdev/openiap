@@ -1010,28 +1010,39 @@ export const runProductSyncIOS = internalAction({
   },
 });
 
-async function performIosSync(
-  ctx: ActionCtx,
-  options: {
-    projectId: import("../_generated/dataModel").Id<"projects">;
-    direction: "pull" | "push" | "both";
-    dryRun: boolean;
-    checkCancelled: () => Promise<void>;
-    reportPhase: (
-      phase: string,
-      extra?: {
-        current?: number;
-        total?: number;
-        failuresCount?: number;
-      },
-    ) => Promise<void>;
-  },
-): Promise<{
+// Shared shape for the per-phase progress callback the worker
+// passes into both `performIosSync` and `performAndroidSync`. Pulled
+// out so the two function signatures stay readable when extended
+// (Gemini review on PR #127).
+interface SyncProgressUpdate {
+  current?: number;
+  total?: number;
+  failuresCount?: number;
+}
+type SyncProgressReporter = (
+  phase: string,
+  extra?: SyncProgressUpdate,
+) => Promise<void>;
+
+interface IosSyncOptions {
+  projectId: import("../_generated/dataModel").Id<"projects">;
+  direction: "pull" | "push" | "both";
+  dryRun: boolean;
+  checkCancelled: () => Promise<void>;
+  reportPhase: SyncProgressReporter;
+}
+
+interface SyncResult {
   pulled: number;
   pushed: number;
   failures: Array<{ productId: string; reason: string }>;
   plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
-}> {
+}
+
+async function performIosSync(
+  ctx: ActionCtx,
+  options: IosSyncOptions,
+): Promise<SyncResult> {
   const project = await ctx.runQuery(
     internal.projects.internal.getProjectById,
     { projectId: options.projectId },

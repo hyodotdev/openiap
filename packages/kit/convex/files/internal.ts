@@ -186,18 +186,23 @@ export const readFileAsBase64 = internalAction({
     // the dashboard's "download .p8" failing). Encode via `btoa` on
     // chunked binary strings so the path stays portable to either
     // runtime; chunking keeps the call-stack bound below the
-    // String.fromCharCode argument limit for files of any size.
+    // `String.fromCharCode` argument limit for files of any size,
+    // and accumulating the chunks in an array before `join("")`
+    // avoids the O(n²) string-concatenation behavior of `binary +=`
+    // on multi-megabyte uploads (Copilot review on PR #127).
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     const CHUNK = 0x8000;
-    let binary = "";
+    const chunks: string[] = [];
     for (let i = 0; i < bytes.length; i += CHUNK) {
-      binary += String.fromCharCode.apply(
-        null,
-        bytes.subarray(i, i + CHUNK) as unknown as number[],
+      chunks.push(
+        String.fromCharCode.apply(
+          null,
+          bytes.subarray(i, i + CHUNK) as unknown as number[],
+        ),
       );
     }
-    const base64 = btoa(binary);
+    const base64 = btoa(chunks.join(""));
 
     return {
       fileId: file._id,
