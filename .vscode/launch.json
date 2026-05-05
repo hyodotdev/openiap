@@ -2,6 +2,28 @@
     "version": "0.2.0",
     "configurations": [
         {
+            // Wipes `dist/` and `node_modules/.vite`, then ALWAYS
+            // rebuilds the SPA with `vite build --mode development`
+            // so Hono's static fallback at port 3000 serves a bundle
+            // baked against `.env.local` (dev Convex URL) — never
+            // `.env.production`. Without `--mode development`,
+            // `bun run build` defaults to production mode, loads
+            // `.env.production` AFTER `.env.local`, and the prod URL
+            // wins; that's why localhost:3000 sign-ins were bouncing
+            // through the prod GitHub OAuth App even after wiping
+            // dist (Hyo Dev / martie triage).
+            "name": "🧰 Kit: Dev (Vite + Hono + Convex)",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "npx --yes kill-port 3000 5173 || true && rm -rf dist node_modules/.vite && ([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && bunx vite build --mode development && trap 'kill 0' INT TERM EXIT && (bun run dev:convex & bun run dev:server & bun run dev; wait)"
+            ],
+            "cwd": "${workspaceFolder}/packages/kit",
+            "console": "integratedTerminal"
+        },
+        {
             "type": "node-terminal",
             "request": "launch",
             "name": "🍎 Open Apple (iOS) in Xcode",
@@ -149,28 +171,6 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": ["-lc", "adb uninstall dev.hyo.martie || true && ./gradlew :example:composeApp:installDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
             "cwd": "${workspaceFolder}/libraries/kmp-iap",
-            "console": "integratedTerminal"
-        },
-        {
-            // Wipes `dist/` and `node_modules/.vite`, then ALWAYS
-            // rebuilds the SPA with `vite build --mode development`
-            // so Hono's static fallback at port 3000 serves a bundle
-            // baked against `.env.local` (dev Convex URL) — never
-            // `.env.production`. Without `--mode development`,
-            // `bun run build` defaults to production mode, loads
-            // `.env.production` AFTER `.env.local`, and the prod URL
-            // wins; that's why localhost:3000 sign-ins were bouncing
-            // through the prod GitHub OAuth App even after wiping
-            // dist (Hyo Dev / martie triage).
-            "name": "🧰 Kit: Dev (Vite + Hono + Convex)",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "bash",
-            "runtimeArgs": [
-                "-lc",
-                "npx --yes kill-port 3000 5173 || true && rm -rf dist node_modules/.vite && ([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && bunx vite build --mode development && trap 'kill 0' INT TERM EXIT && (bun run dev:convex & bun run dev:server & bun run dev; wait)"
-            ],
-            "cwd": "${workspaceFolder}/packages/kit",
             "console": "integratedTerminal"
         }
     ]

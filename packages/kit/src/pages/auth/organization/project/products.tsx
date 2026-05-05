@@ -74,6 +74,13 @@ export default function ProjectProducts() {
     IOS: null,
     Android: null,
   });
+  // Job ids the operator triggered FROM THIS MOUNT (Sync / Dry-run /
+  // Reset clicks). Result banner + completion toast both gate on
+  // this so a stale terminal job from a previous session — left
+  // over after a code edit / HMR reload / page revisit — doesn't
+  // re-surface as if a sync had just happened. Reset on remount so
+  // the gate is automatic and never sticky.
+  const sessionTriggeredJobIdsRef = useRef<Set<string>>(new Set());
   // The draft form holds every field the push-sync flow consumes.
   // Optional fields are stored as empty strings here and converted to
   // `undefined` on submit so an unfilled price doesn't end up
@@ -127,6 +134,12 @@ export default function ProjectProducts() {
       // when the previous render saw it in a non-terminal state.
       if (!prev || prev.jobId !== job._id) continue;
       if (prev.status !== "queued" && prev.status !== "running") continue;
+      // Belt-and-braces: only toast for jobs the operator triggered
+      // FROM THIS MOUNT. Without this gate a sync started in another
+      // tab that completes while this tab is open would also pop a
+      // toast here, which the operator would read as "did I just
+      // run that?".
+      if (!sessionTriggeredJobIdsRef.current.has(job._id)) continue;
       const label = platform === "IOS" ? "App Store Connect" : "Play Console";
       const result = job.result;
       if (job.status === "succeeded" && result) {
@@ -228,12 +241,13 @@ export default function ProjectProducts() {
     const label = platform === "IOS" ? "App Store Connect" : "Play Console";
     const dryRun = options?.dryRun === true;
     try {
-      const { deduped } = await enqueueSync({
+      const { jobId, deduped } = await enqueueSync({
         apiKey: project.apiKey,
         platform,
         direction: "both",
         ...(dryRun ? { dryRun: true } : {}),
       });
+      sessionTriggeredJobIdsRef.current.add(jobId);
       if (deduped) {
         toast.message(`${label} sync already running`, { duration: 4_000 });
       } else {
@@ -255,11 +269,12 @@ export default function ProjectProducts() {
     if (isActive) return;
     const label = platform === "IOS" ? "App Store Connect" : "Play Console";
     try {
-      const { deduped } = await enqueueSync({
+      const { jobId, deduped } = await enqueueSync({
         apiKey: project.apiKey,
         platform,
         direction: "purge-local",
       });
+      sessionTriggeredJobIdsRef.current.add(jobId);
       if (deduped) {
         toast.message(`${label} reset already running`, { duration: 4_000 });
       } else {
@@ -488,6 +503,9 @@ export default function ProjectProducts() {
         platform="IOS"
         rows={grouped.ios}
         job={iosJob ?? null}
+        triggeredInSession={
+          !!iosJob?._id && sessionTriggeredJobIdsRef.current.has(iosJob._id)
+        }
         onSync={() => {
           void onSync("IOS");
         }}
@@ -508,6 +526,10 @@ export default function ProjectProducts() {
         platform="Android"
         rows={grouped.android}
         job={androidJob ?? null}
+        triggeredInSession={
+          !!androidJob?._id &&
+          sessionTriggeredJobIdsRef.current.has(androidJob._id)
+        }
         onSync={() => {
           void onSync("Android");
         }}
@@ -902,6 +924,7 @@ function ProductGroup({
   platform,
   rows,
   job,
+  triggeredInSession,
   onSync,
   onDryRun,
   onPurge,
@@ -911,6 +934,7 @@ function ProductGroup({
   platform: "IOS" | "Android";
   rows: Array<ProductRow>;
   job: SyncJob | null;
+  triggeredInSession: boolean;
   onSync: () => void;
   onDryRun?: () => void;
   onPurge: () => void;
@@ -921,7 +945,11 @@ function ProductGroup({
   const isActive = job?.status === "queued" || job?.status === "running";
   const isTerminal = job?.status === "succeeded" || job?.status === "failed";
   const dismissed = job?.progress.phase === "dismissed";
-  const showResult = isTerminal && !dismissed;
+  // Result banner only surfaces for jobs the operator triggered
+  // FROM THIS MOUNT — stale terminal jobs from prior sessions
+  // (HMR reload, page revisit) stay hidden so the operator can't
+  // mistake them for a sync that just ran.
+  const showResult = isTerminal && !dismissed && triggeredInSession;
   const [purgeOpen, setPurgeOpen] = useState(false);
   return (
     <div className="border border-border rounded-lg bg-card overflow-hidden">
@@ -1049,25 +1077,37 @@ function ProductGroup({
             entry.kind === "groupHeader" ? (
               <tr
                 key={`group:${entry.id}`}
-                className="border-t border-border/50 bg-muted/20"
+                className="border-t-2 border-l-4 border-blue-500/60 border-t-blue-500/30 bg-blue-500/10"
               >
                 <td
                   colSpan={6}
-                  className="px-4 py-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
                 >
-                  Subscription Group · {entry.name}
+                  <span className="inline-flex items-center gap-2">
+                    <span className="text-blue-700 dark:text-blue-300">
+                      Subscription Group
+                    </span>
+                    <span className="text-blue-700/40 dark:text-blue-300/40">
+                      ·
+                    </span>
+                    <span className="font-mono normal-case tracking-normal text-foreground">
+                      {entry.name}
+                    </span>
+                  </span>
                 </td>
               </tr>
             ) : entry.kind === "otherHeader" ? (
               <tr
                 key={`other:${entry.id}`}
-                className="border-t border-border/50 bg-muted/20"
+                className="border-t-2 border-l-4 border-amber-500/50 border-t-amber-500/30 bg-amber-500/10"
               >
                 <td
                   colSpan={6}
-                  className="px-4 py-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
                 >
-                  Other products
+                  <span className="text-amber-700 dark:text-amber-300">
+                    Other products
+                  </span>
                 </td>
               </tr>
             ) : (
