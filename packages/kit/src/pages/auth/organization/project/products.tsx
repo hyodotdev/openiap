@@ -64,9 +64,14 @@ export default function ProjectProducts() {
   // first observation is already terminal) shows the result banner
   // but does NOT pop a stale toast for a sync the operator didn't
   // just run.
+  // Pull the field types straight off `SyncJob` (= `Doc<"productSyncJobs">`)
+  // so the snapshot stays in lockstep with the schema — adding a new
+  // status literal in `convex/schema.ts` automatically widens the
+  // local type instead of silently drifting (Gemini SSOT review on
+  // PR #128).
   type JobStatusSnapshot = {
-    jobId: string;
-    status: "queued" | "running" | "succeeded" | "failed";
+    jobId: SyncJob["_id"];
+    status: SyncJob["status"];
   };
   const prevJobStatusRef = useRef<
     Record<"IOS" | "Android", JobStatusSnapshot | null>
