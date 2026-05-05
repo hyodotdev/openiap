@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 /tmp/add_kmp_tabs.py)"
+      "Bash(python3 /tmp/add_kmp_tabs.py)",
+      "Bash(awk:*)"
     ]
   }
 }
