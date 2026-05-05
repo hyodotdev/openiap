@@ -21,9 +21,9 @@
                 </VerticalStackLayout>
 
                 <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
-                    <HorizontalStackLayout Spacing="6">
-                        <Label Text="Store Connection:" FontAttributes="Bold" />
-                        <Label x:Name="ConnectionLabel" Text="❌ Disconnected" />
+                    <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
+                        <Label Text="Store Connection:" FontAttributes="Bold" VerticalOptions="Center" />
+                        <Label x:Name="ConnectionLabel" Text="❌ Disconnected" VerticalOptions="Center" />
                     </HorizontalStackLayout>
                 </Border>
 

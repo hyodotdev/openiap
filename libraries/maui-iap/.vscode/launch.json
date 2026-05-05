@@ -39,7 +39,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && (adb uninstall dev.hyo.openiap.maui.example || true) && dotnet build -t:Run -f net9.0-android"
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && (adb uninstall dev.hyo.martie || true) && dotnet build -t:Run -f net9.0-android"
       ],
       "console": "integratedTerminal",
       "env": {

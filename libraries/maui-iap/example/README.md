@@ -38,7 +38,7 @@ cd libraries/maui-iap/example/OpenIap.Maui.Example
 dotnet build -t:Run -f net9.0-ios
 
 # Android (real device or emulator)
-adb uninstall dev.hyo.openiap.maui.example || true
+adb uninstall dev.hyo.martie || true
 dotnet build -t:Run -f net9.0-android
 
 # macCatalyst

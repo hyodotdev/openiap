@@ -326,7 +326,7 @@ public partial class PurchaseFlowPage : ContentPage
                         Google = new VerifyPurchaseGoogleOptions
                         {
                             Sku = common.ProductId,
-                            PackageName = "dev.hyo.openiap.maui.example",
+                            PackageName = "dev.hyo.martie",
                             PurchaseToken = common.PurchaseToken ?? string.Empty,
                             AccessToken = string.Empty,
                         },

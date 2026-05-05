@@ -11,7 +11,11 @@
     <LangVersion>12.0</LangVersion>
 
     <ApplicationTitle>OpenIAP MAUI Example</ApplicationTitle>
-    <ApplicationId>dev.hyo.openiap.maui.example</ApplicationId>
+    <!-- Match the App Store Connect / Play Console record that owns the
+         dev.hyo.martie.* SKUs (same bundle ID used by expo-iap, react-native-iap,
+         flutter_inapp_purchase, kmp-iap example apps). StoreKit / Billing only
+         resolve products owned by the running app's bundle ID. -->
+    <ApplicationId>dev.hyo.martie</ApplicationId>
     <ApplicationIdGuid>4F8D0D6E-1F8F-4D7C-9A1A-9A1A9A1A9A1A</ApplicationIdGuid>
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
