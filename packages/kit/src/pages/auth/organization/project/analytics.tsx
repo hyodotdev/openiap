@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { Select } from "antd";
@@ -107,24 +107,33 @@ export default function ProjectAnalytics() {
   // writes (both use UTC); using local-day here would cause the
   // chart's first/last column to half-cover when the user's tz is
   // far from UTC, surfacing as a "missing yesterday" off-by-one.
+  //
+  // `now` is held in state and refreshed every minute so a user who
+  // leaves the dashboard open across a UTC midnight rollover gets a
+  // re-render that picks up the new day. `useMemo` keys on `now`,
+  // but `utcDayKey(now)` only changes once per day, so the chart
+  // doesn't refetch every minute — Convex's `useQuery` deep-equals
+  // the args object, and the day-key string is stable inside the
+  // same UTC day.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const { maxFromDay, toDay } = useMemo(() => {
-    // Capture `now` once so the `today` and `from` keys derive from
-    // the same instant — calling `Date.now()` twice on either side
-    // of midnight UTC could return values whose `utcDayKey` differs
-    // by a day, producing a one-day-too-narrow window.
-    const now = Date.now();
     const today = utcDayKey(now);
     const from = utcDayKey(now - (MAX_RANGE_DAYS - 1) * DAY_MS);
     return { maxFromDay: from, toDay: today };
-  }, [MAX_RANGE_DAYS]);
+  }, [now, MAX_RANGE_DAYS]);
 
   // Per-range start day, derived without re-querying. Slicing the
   // unfiltered fetch in JS keeps the page below from flashing on
   // range/period clicks; only the bottom (charts + summary cards)
   // re-derives.
   const fromDay = useMemo(
-    () => utcDayKey(Date.now() - (range.days - 1) * DAY_MS),
-    [range],
+    () => utcDayKey(now - (range.days - 1) * DAY_MS),
+    [now, range],
   );
 
   // Fetch unfiltered for the maximum range — all filtering (range,

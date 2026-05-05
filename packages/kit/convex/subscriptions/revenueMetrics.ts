@@ -45,16 +45,6 @@ import type { Doc, Id } from "../_generated/dataModel";
 // quarantine those into manual reconciliation paths instead).
 const TRAILING_DAYS = 3;
 
-// Late-delivery grace days. Bucketing by `occurredAt` (the store-side
-// event time) means we have to scan further back on `receivedAt`
-// than the bucket window itself, otherwise an event that arrived
-// 4 days late but occurred yesterday would not be in this tick's
-// receivedAt scan and would silently undercount yesterday's bucket
-// after the delete-then-insert in `commitBuckets`. Apple ASN v2
-// retries up to 5 days; Google RTDN's Pub/Sub default is 7 days.
-// 7 days covers both stores' published retry policies.
-const LATE_DELIVERY_GRACE_DAYS = 7;
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // UTC day key (YYYY-MM-DD) for an epoch-millis timestamp. Keying in
@@ -313,18 +303,22 @@ export async function runRecompute(
   // would flip its day on the dashboard, contradicting the
   // "late notifications fold into their correct day" promise.
   //
-  // The scan window extends `LATE_DELIVERY_GRACE_DAYS` beyond the
-  // bucket window so an event with `occurredAt` inside the bucket
-  // window but `receivedAt` from a prior tick still gets reread
-  // (after `commitBuckets` deletes the day's existing rows, anything
-  // not rescanned silently drops out of the rebuilt bucket).
-  const eventScanStart = windowStart - LATE_DELIVERY_GRACE_DAYS * DAY_MS;
+  // Scan window matches the bucket window exactly. The webhook
+  // receivers in `webhooks/apple.ts` and `webhooks/google.ts` set
+  // `receivedAt` to the HTTP receive time and `occurredAt` to the
+  // store-side timestamp (Apple `signedDate` / Google
+  // `eventTimeMillis`), so by construction `receivedAt >=
+  // occurredAt`: any event whose `occurredAt` lands in
+  // `[windowStart, windowEnd]` necessarily has `receivedAt` in the
+  // same range too. Scanning further back on `receivedAt` would
+  // only read older rows that the `day < firstDay` filter below
+  // immediately discards, burning the read budget for nothing.
   const events = await ctx.db
     .query("webhookEvents")
     .withIndex("by_project_and_received", (q) =>
       q
         .eq("projectId", projectId)
-        .gte("receivedAt", eventScanStart)
+        .gte("receivedAt", windowStart)
         .lte("receivedAt", windowEnd),
     )
     .take(WEBHOOK_SCAN_CAP);

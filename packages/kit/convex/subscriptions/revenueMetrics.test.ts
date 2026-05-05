@@ -981,19 +981,19 @@ describe("runRecompute — round-trip integration", () => {
     expect(await rollupRows(db)).toEqual([]);
   });
 
-  it("event scan reaches back beyond the bucket window for late deliveries", async () => {
-    // receivedAt = D2 - 4 days (well outside the 3-day bucket
-    // window) but occurredAt = D2. Without the LATE_DELIVERY_GRACE
-    // backward extension on the scan, this event would be missed
-    // on every recompute after its tick of arrival, and the
-    // delete-then-insert in commitBuckets would erase it
-    // permanently. Verifies the grace window is wide enough to
-    // catch real Apple ASN v2 / Google RTDN retry tails.
+  it("late-arrival event with receivedAt at end of window still buckets by occurredAt", async () => {
+    // The webhook receivers in `webhooks/apple.ts` and
+    // `webhooks/google.ts` always set `receivedAt >= occurredAt`,
+    // so an event whose `occurredAt` falls inside the trailing
+    // window necessarily has `receivedAt` inside it too. This test
+    // is the realistic shape: a renewal that occurred on D2 but
+    // didn't land in our DB until TODAY (Apple/Google retry tail).
+    // The bucket should attribute to D2.
     await seedEvent(db, {
       type: "SubscriptionStarted",
       priceAmountMicros: 9_990_000,
       occurredAt: Date.parse(`${D2}T03:00:00Z`),
-      receivedAt: Date.parse(`${D2}T03:00:00Z`) - 4 * 86400000,
+      receivedAt: Date.parse(`${TODAY}T11:00:00Z`),
     });
 
     await runRecompute(ctx, PROJECT_ID, NOW);
