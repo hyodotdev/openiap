@@ -54,14 +54,38 @@ export default function ProjectProducts() {
 
   // Sync state now lives in `productSyncJobs` and is read reactively
   // via `getActiveSyncJob` per platform — the worker writes progress
-  // back to the row, so the dashboard re-renders without polling. The
-  // local `lastShownJobId*` refs gate the completion toast so a
-  // succeeded job only toasts once even if the row updates again
-  // (e.g. on dismiss).
-  const lastShownJobIdRef = useRef<Record<"IOS" | "Android", string | null>>({
+  // back to the row, so the dashboard re-renders without polling.
+  //
+  // Toast policy: only fire a completion toast for jobs the operator
+  // *actively triggered in this mounted session*. We track the
+  // previous status per platform; a toast fires only on the
+  // transition `running/queued → succeeded/failed`, never on the
+  // first observed status. That way revisiting the page (where the
+  // first observation is already terminal) shows the result banner
+  // but does NOT pop a stale toast for a sync the operator didn't
+  // just run.
+  // Pull the field types straight off `SyncJob` (= `Doc<"productSyncJobs">`)
+  // so the snapshot stays in lockstep with the schema — adding a new
+  // status literal in `convex/schema.ts` automatically widens the
+  // local type instead of silently drifting (Gemini SSOT review on
+  // PR #128).
+  type JobStatusSnapshot = {
+    jobId: SyncJob["_id"];
+    status: SyncJob["status"];
+  };
+  const prevJobStatusRef = useRef<
+    Record<"IOS" | "Android", JobStatusSnapshot | null>
+  >({
     IOS: null,
     Android: null,
   });
+  // Job ids the operator triggered FROM THIS MOUNT (Sync / Dry-run /
+  // Reset clicks). Result banner + completion toast both gate on
+  // this so a stale terminal job from a previous session — left
+  // over after a code edit / HMR reload / page revisit — doesn't
+  // re-surface as if a sync had just happened. Reset on remount so
+  // the gate is automatic and never sticky.
+  const sessionTriggeredJobIdsRef = useRef<Set<string>>(new Set());
   // The draft form holds every field the push-sync flow consumes.
   // Optional fields are stored as empty strings here and converted to
   // `undefined` on submit so an unfilled price doesn't end up
@@ -86,25 +110,41 @@ export default function ProjectProducts() {
     };
   }, [products]);
 
-  // Show success/failure toast exactly once when a job transitions to
-  // a terminal state. The lastShownJobIdRef guard prevents the toast
-  // from re-firing on subsequent reactive updates of the same row.
+  // Toast on the running → terminal transition only.
+  //
+  // Earlier versions used a "shown jobIds" set, which fired on
+  // every fresh mount because the ref reset to empty — landing on
+  // the page with a pre-existing terminal job re-toasted it every
+  // time. The transition rule means: the very first observation
+  // of a job (no matter its status) just records state without
+  // toasting; subsequent observations fire only when the status
+  // crossed from non-terminal to terminal.
   useEffect(() => {
     for (const platform of ["IOS", "Android"] as const) {
       const job = platform === "IOS" ? iosJob : androidJob;
       if (!job) continue;
+      const prev = prevJobStatusRef.current[platform];
       const terminal = job.status === "succeeded" || job.status === "failed";
+      // Update the snapshot before deciding whether to toast — so
+      // even if we don't toast (initial observation, dismissed, or
+      // unchanged status) we still track the latest state.
+      prevJobStatusRef.current[platform] = {
+        jobId: job._id,
+        status: job.status,
+      };
       if (!terminal) continue;
-      // Once the operator has dismissed a terminal job, the row's
-      // `progress.phase` flips to "dismissed". The result banner
-      // already gates on this; the toast effect needs the same
-      // gate or it re-fires the success/failure toast on every
-      // subsequent page reload (because `lastShownJobIdRef` is
-      // in-memory and resets) until the pruner deletes the row
-      // (CodeRabbit review on PR #127).
       if (job.progress.phase === "dismissed") continue;
-      if (lastShownJobIdRef.current[platform] === job._id) continue;
-      lastShownJobIdRef.current[platform] = job._id;
+      // Initial observation (no prev snapshot) OR a new jobId we've
+      // never seen → don't toast. We only toast for the same jobId
+      // when the previous render saw it in a non-terminal state.
+      if (!prev || prev.jobId !== job._id) continue;
+      if (prev.status !== "queued" && prev.status !== "running") continue;
+      // Belt-and-braces: only toast for jobs the operator triggered
+      // FROM THIS MOUNT. Without this gate a sync started in another
+      // tab that completes while this tab is open would also pop a
+      // toast here, which the operator would read as "did I just
+      // run that?".
+      if (!sessionTriggeredJobIdsRef.current.has(job._id)) continue;
       const label = platform === "IOS" ? "App Store Connect" : "Play Console";
       const result = job.result;
       if (job.status === "succeeded" && result) {
@@ -206,12 +246,13 @@ export default function ProjectProducts() {
     const label = platform === "IOS" ? "App Store Connect" : "Play Console";
     const dryRun = options?.dryRun === true;
     try {
-      const { deduped } = await enqueueSync({
+      const { jobId, deduped } = await enqueueSync({
         apiKey: project.apiKey,
         platform,
         direction: "both",
         ...(dryRun ? { dryRun: true } : {}),
       });
+      sessionTriggeredJobIdsRef.current.add(jobId);
       if (deduped) {
         toast.message(`${label} sync already running`, { duration: 4_000 });
       } else {
@@ -233,11 +274,12 @@ export default function ProjectProducts() {
     if (isActive) return;
     const label = platform === "IOS" ? "App Store Connect" : "Play Console";
     try {
-      const { deduped } = await enqueueSync({
+      const { jobId, deduped } = await enqueueSync({
         apiKey: project.apiKey,
         platform,
         direction: "purge-local",
       });
+      sessionTriggeredJobIdsRef.current.add(jobId);
       if (deduped) {
         toast.message(`${label} reset already running`, { duration: 4_000 });
       } else {
@@ -466,6 +508,9 @@ export default function ProjectProducts() {
         platform="IOS"
         rows={grouped.ios}
         job={iosJob ?? null}
+        triggeredInSession={
+          !!iosJob?._id && sessionTriggeredJobIdsRef.current.has(iosJob._id)
+        }
         onSync={() => {
           void onSync("IOS");
         }}
@@ -486,6 +531,10 @@ export default function ProjectProducts() {
         platform="Android"
         rows={grouped.android}
         job={androidJob ?? null}
+        triggeredInSession={
+          !!androidJob?._id &&
+          sessionTriggeredJobIdsRef.current.has(androidJob._id)
+        }
         onSync={() => {
           void onSync("Android");
         }}
@@ -622,15 +671,18 @@ function formatIsoDuration(iso: string): string {
 
 // Reorder a flat product list so subscriptions sharing the same ASC
 // `subscriptionGroupName` are visually clustered under a single
-// "Subscription Group · {name}" header row. One-time products (no
-// group) and rows missing group metadata pass through unchanged at
-// the bottom — we don't want to invent a synthetic group label for
-// non-subscriptions or for legacy rows synced before group capture
-// landed. Original ordering is preserved within each cluster.
+// "Subscription Group · {name}" header row. One-time products
+// (Consumable / NonConsumable) and any row missing group metadata
+// fall into an "Other products" cluster rendered after the
+// subscription groups so the section breaks are explicit — without
+// the second header, consumables visually inherited the previous
+// "Subscription Group" header and looked like part of it.
+// Original ordering is preserved within each cluster.
 function groupRowsByHierarchy(
   rows: Array<ProductRow>,
 ): Array<
   | { kind: "groupHeader"; id: string; name: string }
+  | { kind: "otherHeader"; id: string }
   | { kind: "row"; row: ProductRow }
 > {
   const buckets = new Map<string, Array<ProductRow>>();
@@ -650,6 +702,7 @@ function groupRowsByHierarchy(
   }
   const out: Array<
     | { kind: "groupHeader"; id: string; name: string }
+    | { kind: "otherHeader"; id: string }
     | { kind: "row"; row: ProductRow }
   > = [];
   for (const name of groupOrder) {
@@ -657,6 +710,14 @@ function groupRowsByHierarchy(
     for (const row of buckets.get(name) ?? []) {
       out.push({ kind: "row", row });
     }
+  }
+  // Only emit the "Other products" delimiter when at least one
+  // subscription group is also rendering — when there are no
+  // groups, the table is just a flat list and the extra header
+  // is noise. With at least one group above, the explicit
+  // delimiter is what visually closes the group section.
+  if (groupOrder.length > 0 && ungrouped.length > 0) {
+    out.push({ kind: "otherHeader", id: "other-products" });
   }
   for (const row of ungrouped) {
     out.push({ kind: "row", row });
@@ -868,6 +929,7 @@ function ProductGroup({
   platform,
   rows,
   job,
+  triggeredInSession,
   onSync,
   onDryRun,
   onPurge,
@@ -877,6 +939,7 @@ function ProductGroup({
   platform: "IOS" | "Android";
   rows: Array<ProductRow>;
   job: SyncJob | null;
+  triggeredInSession: boolean;
   onSync: () => void;
   onDryRun?: () => void;
   onPurge: () => void;
@@ -887,7 +950,11 @@ function ProductGroup({
   const isActive = job?.status === "queued" || job?.status === "running";
   const isTerminal = job?.status === "succeeded" || job?.status === "failed";
   const dismissed = job?.progress.phase === "dismissed";
-  const showResult = isTerminal && !dismissed;
+  // Result banner only surfaces for jobs the operator triggered
+  // FROM THIS MOUNT — stale terminal jobs from prior sessions
+  // (HMR reload, page revisit) stay hidden so the operator can't
+  // mistake them for a sync that just ran.
+  const showResult = isTerminal && !dismissed && triggeredInSession;
   const [purgeOpen, setPurgeOpen] = useState(false);
   return (
     <div className="border border-border rounded-lg bg-card overflow-hidden">
@@ -1015,13 +1082,37 @@ function ProductGroup({
             entry.kind === "groupHeader" ? (
               <tr
                 key={`group:${entry.id}`}
-                className="border-t border-border/50 bg-muted/20"
+                className="border-t-2 border-l-4 border-blue-500/60 border-t-blue-500/30 bg-blue-500/10"
               >
                 <td
                   colSpan={6}
-                  className="px-4 py-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
                 >
-                  Subscription Group · {entry.name}
+                  <span className="inline-flex items-center gap-2">
+                    <span className="text-blue-700 dark:text-blue-300">
+                      Subscription Group
+                    </span>
+                    <span className="text-blue-700/40 dark:text-blue-300/40">
+                      ·
+                    </span>
+                    <span className="font-mono normal-case tracking-normal text-foreground">
+                      {entry.name}
+                    </span>
+                  </span>
+                </td>
+              </tr>
+            ) : entry.kind === "otherHeader" ? (
+              <tr
+                key={`other:${entry.id}`}
+                className="border-t-2 border-l-4 border-amber-500/50 border-t-amber-500/30 bg-amber-500/10"
+              >
+                <td
+                  colSpan={6}
+                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+                >
+                  <span className="text-amber-700 dark:text-amber-300">
+                    Other products
+                  </span>
                 </td>
               </tr>
             ) : (
