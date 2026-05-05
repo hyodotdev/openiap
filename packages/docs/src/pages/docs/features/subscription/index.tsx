@@ -249,6 +249,35 @@ if (subscription.discountsIOS != null) {
   }
 }`}</CodeBlock>
                     ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// KMP iOS target
+var iapStore = OpenIapStore.shared
+
+// Fetch subscription products
+iapStore.fetchProducts(
+    skus = new[] { "premium_monthly" },
+    type = ProductQueryType.Subs
+)
+
+var subscription = iapStore.iosProducts
+    .filterIsInstance<ProductIOS>()
+    .find { it.id == "premium_monthly" }
+
+// Check for introductory offer
+subscription?.subscriptionInfoIOS?.introductoryOffer?.let { introOffer ->
+    println("Intro offer: \${introOffer.displayPrice}")
+    println("Payment mode: \${introOffer.paymentMode}")
+    println("Period: \${introOffer.period.unit} x \${introOffer.periodCount}")
+}
+
+// Check for promotional offers
+subscription?.discountsIOS?.forEach { discount ->
+    println("Promo: \${discount.identifier} - \${discount.localizedPrice}")
+}`}</CodeBlock>
+                    ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Fetch subscription products
 var request = ProductRequest.new()
@@ -393,6 +422,29 @@ if (isEligible) {
 final isEligible = await iap.isEligibleForIntroOfferIOS('premium_monthly');
 if (isEligible) {
   print(displayIntroOffer(subscription));
+}`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// KMP iOS target
+fun displayIntroOffer(subscription: ProductIOS): String? {
+    var offer = subscription.subscriptionInfoIOS?.introductoryOffer
+        ?: return null
+
+    return when (offer.paymentMode) {
+        "free-trial" -> "\${offer.periodCount} \${offer.period.unit.lowercase()}(s) free trial"
+        "pay-as-you-go" -> "\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
+        "pay-up-front" -> "\${offer.displayPrice} for first \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
+        else -> null
+    }
+}
+
+// Check eligibility
+var isEligible = iapStore.isEligibleForIntroOfferIOS(sku = "premium_monthly")
+if (isEligible) {
+    subscription?.let { displayIntroOffer(it)?.let(::println) }
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -607,6 +659,35 @@ suspend fun purchaseWithPromoOffer(
   );
 }`}</CodeBlock>
                     ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`// KMP iOS target
+Task PurchaseWithPromoOfferAsync(String SubscriptionId, String OfferId) {
+    // 1. Generate signature on your backend
+    var nonce = java.util.UUID.randomUUID().toString()
+    var timestamp = System.currentTimeMillis()
+
+    var signatureResponse = generateSignatureOnServer(
+        productId = subscriptionId,
+        offerId = offerId,
+        nonce = nonce,
+        timestamp = timestamp
+    )
+
+    // 2. Purchase with the promotional offer
+    iapStore.requestPurchase(
+        sku = subscriptionId,
+        type = ProductQueryType.Subs,
+        withOffer = DiscountOfferInputIOS(
+            identifier = offerId,
+            keyIdentifier = signatureResponse.keyIdentifier,
+            nonce = nonce,
+            signature = signatureResponse.signature,
+            timestamp = timestamp
+        ),
+        autoFinish = false
+    )
+}`}</CodeBlock>
+                    ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`func purchase_with_promo_offer(subscription_id: String, offer_id: String) -> void:
     # 1. Generate signature on your backend
@@ -718,6 +799,18 @@ suspend fun purchaseSubscription(subscriptionId: String) {
   // iOS: Simply request purchase
   // Intro offer is applied automatically when eligible
   await iap.requestSubscription(sku: subscriptionId);
+}`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`// KMP iOS target
+Task PurchaseSubscriptionAsync(String SubscriptionId) {
+    // Simply request purchase
+    // Intro offer is applied automatically when eligible
+    iapStore.requestPurchase(
+        sku = subscriptionId,
+        type = ProductQueryType.Subs,
+        autoFinish = false
+    )
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -837,6 +930,27 @@ data class PricingPhaseAndroid(
   final String offerToken;      // Required for purchase
   final PricingPhasesAndroid pricingPhases;
 }`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class SubscriptionOfferDetailsAndroid(
+    var basePlanId: String,       // Base plan identifier
+    var offerId = null,  // Offer ID (null for base plan)
+    var offerTags: List<String>,  // Tags for categorization
+    var offerToken: String,       // Required for purchase
+    var pricingPhases: PricingPhasesAndroid
+)
+
+data class PricingPhaseAndroid(
+    var formattedPrice: String,      // e.g., "$9.99"
+    var priceAmountMicros: Long,     // Price in micros
+    var priceCurrencyCode: String,   // e.g., "USD"
+    var billingPeriod: String,       // e.g., "P1M" (1 month)
+    var billingCycleCount: Int,      // Number of cycles
+    var recurrenceMode: Int          // 1=infinite, 2=finite, 3=non-recurring
+)`}</CodeBlock>
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`class_name SubscriptionOfferDetailsAndroid
@@ -1000,6 +1114,43 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
       }
     }
   }
+}`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var iapStore = OpenIapStore.getInstance(context)
+
+// Fetch subscription products
+var request = ProductRequest(
+    skus = new[] { "premium_monthly" },
+    type = ProductQueryType.Subs
+)
+iapStore.fetchProducts(request)
+
+// Access Android offer details
+var subscriptions = iapStore.subscriptions.value
+    .filterIsInstance<ProductSubscriptionAndroid>()
+
+var subscription = subscriptions.find { it.id == "premium_monthly" }
+
+subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
+    println("Base Plan: \${offer.basePlanId}")
+    println("Offer ID: \${offer.offerId ?: "Base plan"}")
+    println("Offer Token: \${offer.offerToken}")
+
+    // Check pricing phases
+    offer.pricingPhases.pricingPhaseList.forEach { phase ->
+        when {
+            phase.priceAmountMicros == 0L ->
+                println("Free trial: \${phase.billingPeriod}")
+            phase.recurrenceMode == 2 ->
+                println("Intro: \${phase.formattedPrice} for \${phase.billingPeriod}")
+            else ->
+                println("Regular: \${phase.formattedPrice} per \${phase.billingPeriod}")
+        }
+    }
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -1181,6 +1332,44 @@ suspend fun purchaseSubscription(subscriptionId: String) {
     sku: subscriptionId,
     subscriptionOffers: subscriptionOffers, // Required
   );
+}`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`Task PurchaseSubscriptionAsync(String SubscriptionId) {
+    var subscription = iapStore.subscriptions.value
+        .filterIsInstance<ProductSubscriptionAndroid>()
+        .find { it.id == subscriptionId }
+        ?: return
+
+    // Build subscriptionOffers from fetched data
+    var subscriptionOffers = subscription.subscriptionOfferDetailsAndroid
+        ?.mapNotNull { offer ->
+            offer.offerToken?.let { token ->
+                AndroidSubscriptionOfferInput(
+                    sku = subscriptionId,
+                    offerToken = token
+                )
+            }
+        } ?: emptyList()
+
+    if (subscriptionOffers.isEmpty()) {
+        println("No subscription offers available")
+        return
+    }
+
+    var props = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Subscription(
+            RequestSubscriptionPropsByPlatforms(
+                android = RequestSubscriptionAndroidProps(
+                    skus = new[] { subscriptionId },
+                    subscriptionOffers = subscriptionOffers // Required
+                )
+            )
+        ),
+        type = ProductQueryType.Subs
+    )
+
+    iapStore.requestPurchase(props)
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -1491,6 +1680,50 @@ void onPurchaseSuccess(PurchasedItem purchase) {
     basePlanId: actualBasePlanId,
     productId: purchase.productId,
   );
+}`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`// 1. Store basePlanId BEFORE calling requestPurchase
+var purchasedBasePlanId = null
+
+Task HandlePurchaseAsync(String BasePlanId) {
+    var offers = subscription.subscriptionOfferDetailsAndroid ?: return
+    var offer = offers.find { it.basePlanId == basePlanId && it.offerId == null }
+
+    // Store it before purchase
+    purchasedBasePlanId = basePlanId
+
+    iapStore.requestPurchase(
+        RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Subscription(
+                RequestSubscriptionPropsByPlatforms(
+                    android = RequestSubscriptionAndroidProps(
+                        skus = new[] { subscriptionGroupId },
+                        subscriptionOffers = new[] { 
+                            AndroidSubscriptionOfferInput(
+                                sku = subscriptionGroupId,
+                                offerToken = offer?.offerToken ?: ""
+                             }
+                        )
+                    )
+                )
+            ),
+            type = ProductQueryType.Subs
+        )
+    )
+}
+
+// 2. Use YOUR tracked value in purchase callback
+fun onPurchaseSuccess(purchase: PurchaseAndroid) {
+    // DON'T use purchase.currentPlanId - it may be wrong!
+    var actualBasePlanId = purchasedBasePlanId
+
+    // Save to your backend
+    saveToBackend(
+        purchaseToken = purchase.purchaseToken,
+        basePlanId = actualBasePlanId,
+        productId = purchase.productId
+    )
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -1852,6 +2085,61 @@ Future<void> purchaseWithOffer(
       ),
     ],
   );
+}`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`enum class OfferType { Base, Introductory, Promotional }
+
+fun selectOffer(
+    subscription: ProductSubscriptionAndroid,
+    offerType: OfferType
+): SubscriptionOfferDetailsAndroid? {
+    var offers = subscription.subscriptionOfferDetailsAndroid ?: return null
+
+    return when (offerType) {
+        OfferType.Base -> offers.find { it.offerId == null }
+        OfferType.Introductory -> offers.find { offer ->
+            offer.pricingPhases.pricingPhaseList.any { phase ->
+                phase.priceAmountMicros == 0L || phase.recurrenceMode == 2
+            }
+        }
+        OfferType.Promotional -> offers.find { offer ->
+            offer.offerTags.any { it.contains("promo", true) }
+        }
+    }
+}
+
+// Purchase with selected offer
+Task PurchaseWithOfferAsync(String SubscriptionId, OfferType OfferType) {
+    var subscription = iapStore.subscriptions.value
+        .filterIsInstance<ProductSubscriptionAndroid>()
+        .find { it.id == subscriptionId }
+        ?: return
+
+    var selectedOffer = selectOffer(subscription, offerType)
+        ?: run {
+            println("Selected offer not found")
+            return
+        }
+
+    var props = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Subscription(
+            RequestSubscriptionPropsByPlatforms(
+                android = RequestSubscriptionAndroidProps(
+                    skus = new[] { subscriptionId },
+                    subscriptionOffers = new[] { 
+                        AndroidSubscriptionOfferInput(
+                            sku = subscriptionId,
+                            offerToken = selectedOffer.offerToken
+                         }
+                    )
+                )
+            )
+        ),
+        type = ProductQueryType.Subs
+    )
+
+    iapStore.requestPurchase(props)
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -2236,6 +2524,20 @@ Future<bool> verifySubscription(ProductPurchase purchase) async {
   }
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`Task<Boolean> VerifySubscriptionAsync(PurchaseAndroid Purchase){
+    return try {
+        var result = iapStore.verifyPurchase(
+            purchase = purchase,
+            serverUrl = "https://your-server.com/api/verify-android"
+        )
+        result.isValid
+    } catch (e: Exception) {
+        println("Verification error: \${e.message}")
+        false
+    }
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`func verify_subscription(purchase: Purchase) -> bool:
     var props = VerifyPurchaseProps.new()
@@ -2354,6 +2656,25 @@ for (final subscription in activeSubscriptions) {
   if (subscription.expirationDate != null) {
     print('Expires: \${subscription.expirationDate}');
   }
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Check if user has any active subscription
+var hasActive = iapStore.hasActiveSubscriptions()
+if (hasActive) {
+    println("User has premium access")
+}
+
+// Get all active subscriptions
+var activeSubscriptions = iapStore.getActiveSubscriptions()
+activeSubscriptions.forEach { subscription ->
+    println("Active subscription: \${subscription.productId}")
+    subscription.expirationDate?.let { expiration ->
+        println("Expires: $expiration")
+    }
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -2772,6 +3093,67 @@ Future<void> checkFromActiveSubscriptions() async {
   }
 }`}</CodeBlock>
                     ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`// Note: subscriptionStatusIOS is iOS-only
+// For KMP iOS target:
+Task<Pair<Boolean, String>> CheckSubscriptionStatusAsync(String Sku){
+    var statuses = iapStore.subscriptionStatusIOS(sku = sku)
+
+    for (status in statuses) {
+        return when (status.state) {
+            "subscribed" -> {
+                println("✅ Active subscription")
+                true to "active"
+            }
+            "expired" -> {
+                println("❌ Subscription expired")
+                false to "expired"
+            }
+            "revoked" -> {
+                println("💰 Subscription was refunded")
+                false to "refunded"
+            }
+            "inGracePeriod" -> {
+                println("⚠️ Billing issue - grace period active")
+                true to "grace_period"
+            }
+            "inBillingRetryPeriod" -> {
+                println("🔄 Billing retry in progress")
+                true to "billing_retry"
+            }
+            else -> continue
+        }
+    }
+
+    return false to "unknown"
+}
+
+// Using ActiveSubscription for quick checks (works on iOS)
+Task CheckFromActiveSubscriptionsAsync() {
+    var subs = iapStore.getActiveSubscriptions()
+
+    for (sub in subs) {
+        var renewalInfo = sub.renewalInfoIOS
+
+        // Check if cancelled
+        var isCancelled = renewalInfo?.willAutoRenew == false
+
+        // Check expiration reason
+        var expirationReason = renewalInfo?.expirationReason
+
+        // Check if expired
+        var isExpired = sub.expirationDateIOS?.let {
+            it < System.currentTimeMillis()
+        } ?: false
+
+        println("Product: \${sub.productId}")
+        println("  Active: \${sub.isActive}")
+        println("  Cancelled: $isCancelled")
+        println("  Expired: $isExpired")
+        expirationReason?.let { println("  Expiration Reason: $it") }
+    }
+}`}</CodeBlock>
+                    ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Method 1: Using subscription_status_ios for detailed state
 func check_subscription_status(sku: String) -> Dictionary:
@@ -3077,6 +3459,52 @@ Future<Map<String, dynamic>> checkAndroidSubscription() async {
   };
 }`}</CodeBlock>
                     ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`// Client-side: Can only check if purchase exists
+Task<Map<String, Any>> CheckAndroidSubscriptionAsync(){
+    var purchases = iapStore.getAvailablePurchases()
+
+    var subscriptionPurchases = purchases.filter {
+        it.productId.contains("subscription")
+    }
+
+    if (subscriptionPurchases.isEmpty()) {
+        println("No subscription purchases found")
+        return mapOf("hasAccess" to false)
+    }
+
+    // ⚠️ Purchase exists, but client cannot determine:
+    // - If it's expired
+    // - If it's been refunded
+    // - If it's cancelled
+    // Must verify on server for accurate status
+
+    var purchase = subscriptionPurchases.first()
+    println("Purchase found: \${purchase.productId}")
+    println("Purchase token: \${purchase.purchaseToken}")
+
+    // Send to server for verification
+    var serverResult = withContext(Dispatchers.IO) {
+        verifyOnServer(
+            purchaseToken = purchase.purchaseToken ?: "",
+            productId = purchase.productId,
+            packageName = purchase.packageNameAndroid ?: ""
+        )
+    }
+
+    // Server uses Google Play Developer API to get:
+    // - expiryTimeMillis
+    // - cancelReason (0=user, 1=system, 2=replaced, 3=developer)
+    // - paymentState
+    // - acknowledgementState
+
+    return mapOf(
+        "hasAccess" to serverResult.isActive,
+        "status" to serverResult.status,
+        "expiresAt" to serverResult.expiryTimeMillis
+    )
+}`}</CodeBlock>
+                    ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`# Client-side: Can only check if purchase exists
 func check_android_subscription() -> Dictionary:
@@ -3305,6 +3733,15 @@ final iap = FlutterInappPurchase.instance;
 // Open subscription management page
 Future<void> manageSubscriptions() async {
   await iap.deepLinkToSubscriptions();
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Open subscription management page
+fun manageSubscriptions() {
+    iapStore.deepLinkToSubscriptions()
 }`}</CodeBlock>
             ),
             gdscript: (

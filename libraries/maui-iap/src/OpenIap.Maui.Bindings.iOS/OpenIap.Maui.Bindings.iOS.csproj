@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <RootNamespace>Hyo.OpenIap.Maui.Bindings.iOS</RootNamespace>
+    <AssemblyName>Hyo.OpenIap.Maui.Bindings.iOS</AssemblyName>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <IsBindingProject>true</IsBindingProject>
+    <!-- Embed the xcframework into the binding assembly's manifest. .NET-for-iOS
+         extracts and links it at the consuming app's build time. Required for
+         both ProjectReference consumers AND published NuGet — without it, the
+         consuming app's clang++ can't find _OBJC_CLASS_$_OpenIapModule. -->
+    <NoBindingEmbedding>false</NoBindingEmbedding>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The xcframework is produced by packages/apple/scripts/build-xcframework.sh -->
+    <NativeReference Include="..\..\..\..\packages\apple\.build\xcframework\OpenIAP.xcframework"
+                     Kind="Framework"
+                     SmartLink="True"
+                     ForceLoad="True" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Tell the iOS binding generator which file is the [BaseType]-decorated
+         API definition vs which is the supporting C# code. -->
+    <Compile Remove="ApiDefinition.cs;StructsAndEnums.cs" />
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+</Project>

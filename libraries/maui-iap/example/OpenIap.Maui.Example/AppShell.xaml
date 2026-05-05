@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:pages="clr-namespace:OpenIap.Maui.Example.Pages"
+       x:Class="OpenIap.Maui.Example.AppShell"
+       Title="OpenIap MAUI Examples"
+       FlyoutBehavior="Disabled">
+
+    <ShellContent Title="OpenIap MAUI Examples"
+                  ContentTemplate="{DataTemplate pages:HomePage}"
+                  Route="home" />
+
+</Shell>

@@ -47,6 +47,12 @@ var promotedProductPublisher: AnyPublisher<String, Never>`}</CodeBlock>
           dart: (
             <CodeBlock language="dart">{`Stream<String> get promotedProductStream; // iOS only`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// iOS only - not available on Android`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
       <p>Registers a listener for App Store promoted product events.</p>
@@ -155,6 +161,11 @@ final subscription = FlutterInappPurchase.promotedProductIOS.listen((productId) 
 
 // Cleanup when done
 subscription.cancel();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`// .NET MAUI — see Hyo.OpenIap.Maui.OpenIap.Instance.
+// The full operation surface lives on Hyo.OpenIap.QueryResolver /
+// MutationResolver / SubscriptionResolver (auto-generated from the schema).`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

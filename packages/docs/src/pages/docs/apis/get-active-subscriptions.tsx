@@ -64,6 +64,9 @@ function GetActiveSubscriptions() {
           dart: (
             <CodeBlock language="dart">{`Future<List<ActiveSubscription>> getActiveSubscriptions({List<String>? subscriptionIds});`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<List<ActiveSubscription>> GetActiveSubscriptionsAsync(List<String>? SubscriptionIds = null)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array[ActiveSubscription]`}</CodeBlock>
           ),
@@ -199,6 +202,12 @@ function SubscriptionStatus() {
           ),
           dart: (
             <CodeBlock language="dart">{`final subscriptions = await FlutterInappPurchase.instance.getActiveSubscriptions();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var subscriptions = await ((QueryResolver)OpenIap.Instance).GetActiveSubscriptionsAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var subscriptions = await iap.get_active_subscriptions()`}</CodeBlock>

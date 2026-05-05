@@ -222,6 +222,30 @@ await FlutterInappPurchase.instance.requestPurchase(
   ),
 );`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Standard in-app purchase
+await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = new[] { "premium" })
+        ),
+        type = ProductQueryType.InApp
+    )
+)
+
+// Subscription purchase
+await ((QueryResolver)OpenIap.Instance).RequestPurchaseAsync(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = new[] { "monthly_sub" })
+        ),
+        type = ProductQueryType.Subs
+    )
+)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Standard in-app purchase
 var props = RequestPurchaseProps.new()

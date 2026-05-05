@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.Components.PurchaseSummaryRow">
+    <Border Padding="16,12"
+            StrokeShape="RoundRectangle 12"
+            Stroke="#E1E7EF"
+            BackgroundColor="#F7F9FC"
+            Margin="0,0,0,12">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                <Label x:Name="ProductIdLabel"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="#1A1A1A"
+                       LineBreakMode="TailTruncation" />
+                <Label x:Name="TransactionIdLabel"
+                       FontSize="13"
+                       TextColor="#5F6470"
+                       LineBreakMode="TailTruncation" />
+            </VerticalStackLayout>
+            <Border Grid.Column="1"
+                    x:Name="BadgeBorder"
+                    Padding="10,4"
+                    StrokeShape="RoundRectangle 999"
+                    Stroke="Transparent"
+                    BackgroundColor="#9E9E9E"
+                    VerticalOptions="Center">
+                <Label x:Name="PlatformLabel"
+                       FontSize="12"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+            </Border>
+        </Grid>
+        <Border.GestureRecognizers>
+            <TapGestureRecognizer Tapped="OnTapped" />
+        </Border.GestureRecognizers>
+    </Border>
+</ContentView>

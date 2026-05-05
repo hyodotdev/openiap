@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.Pages.AlternativeBillingPage"
+             Title="Alternative Billing"
+             BackgroundColor="White">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Alternative Billing" FontSize="22" FontAttributes="Bold" TextColor="#1A1A1A" />
+                <Label Text="Android: User Choice Billing / External Offer / External Payments. iOS: External Purchase Link."
+                       FontSize="14" TextColor="#5F6470" />
+            </VerticalStackLayout>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Android" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Probe the External Offer availability and surface the User-Choice Billing dialog. Requires Play Billing 7+." FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button Text="Check External Offer Availability (Android)"
+                    BackgroundColor="#FF9800"
+                    TextColor="White"
+                    CornerRadius="10"
+                    Padding="14,10"
+                    Clicked="OnCheckExternalOfferClicked" />
+            <Button Text="Check User Choice Billing Availability (Android)"
+                    BackgroundColor="#FFC107"
+                    TextColor="#1A1A1A"
+                    CornerRadius="10"
+                    Padding="14,10"
+                    Clicked="OnCheckUserChoiceClicked" />
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC" Margin="0,12,0,0">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="iOS" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Present the External Purchase Link sheet (StoreKit external purchase APIs, iOS 16.1 / 18+)." FontSize="13" TextColor="#5F6470" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Entry x:Name="ExternalUrlEntry"
+                   Text="https://example.com/checkout"
+                   Placeholder="External purchase URL"
+                   FontSize="14" />
+            <Button Text="Present External Purchase Link (iOS)"
+                    BackgroundColor="#FF9800"
+                    TextColor="White"
+                    CornerRadius="10"
+                    Padding="14,10"
+                    Clicked="OnPresentExternalLinkClicked" />
+            <Button Text="Check Eligibility for Custom Link (iOS 18.1+)"
+                    BackgroundColor="#FFC107"
+                    TextColor="#1A1A1A"
+                    CornerRadius="10"
+                    Padding="14,10"
+                    Clicked="OnCheckEligibilityClicked" />
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#FFFBE6" IsVisible="False" x:Name="ResultPanel">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Result" FontAttributes="Bold" />
+                    <Label x:Name="ResultLabel" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

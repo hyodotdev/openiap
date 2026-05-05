@@ -378,6 +378,30 @@ enum ExternalPurchaseNoticeAction {
   dismissed('dismissed');
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Result from presenting external purchase link (iOS-only via KMP)
+data class ExternalPurchaseLinkResultIOS(
+    var success: Boolean,
+    var error = null
+)
+
+// Result from presenting notice sheet (iOS 17.4+)
+data class ExternalPurchaseNoticeResultIOS(
+    var result: ExternalPurchaseNoticeAction,
+    var error = null,
+    // External purchase token returned when result == Continue
+    var externalPurchaseToken = null
+)
+
+// User action on notice sheet
+enum class ExternalPurchaseNoticeAction(var rawValue: String) {
+    Continue("continue"),
+    Dismissed("dismissed")
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Result from presenting external purchase link
 class_name ExternalPurchaseLinkResultIOS
@@ -549,6 +573,36 @@ Future<void> handleExternalPurchase(String externalUrl) async {
     print('Failed: \${linkResult.error}');
   }
 }`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`// External purchase is iOS-only. For iOS targets in KMP:
+Task HandleExternalPurchaseAsync(String ExternalUrl) {
+    // Step 1: Check if external purchase is available
+    var canPresent = await ((QueryResolver)OpenIap.Instance).CanPresentExternalPurchaseNoticeIOSAsync()
+    if (!canPresent) {
+        println("External purchase not available on this device")
+        return
+    }
+
+    // Step 2: Present Apple's compliance notice sheet
+    var noticeResult = await ((QueryResolver)OpenIap.Instance).PresentExternalPurchaseNoticeSheetIOSAsync()
+    if (noticeResult.result == ExternalPurchaseNoticeAction.Dismissed) {
+        println("User dismissed the notice sheet")
+        return
+    }
+
+    // Step 3: Open external purchase link
+    var linkResult = await ((QueryResolver)OpenIap.Instance).PresentExternalPurchaseLinkIOSAsync(externalUrl)
+    if (linkResult.success) {
+        println("User redirected to external payment")
+        // Implement deep linking to handle return from payment
+    } else {
+        println("Failed: \${linkResult.error}")
+    }
+}
+
+// For Android: Use alternative billing APIs instead
+// See: checkAlternativeBillingAvailability, showAlternativeBillingDialog`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`func handle_external_purchase(external_url: String):

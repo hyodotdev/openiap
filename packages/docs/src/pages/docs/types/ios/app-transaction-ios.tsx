@@ -239,6 +239,27 @@ function AppTransactionIos() {
   });
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class AppTransaction(
+    var bundleId: String,
+    var appVersion: String,
+    var originalAppVersion: String,
+    var originalPurchaseDate: Long,  // epoch ms
+    var deviceVerification: String,
+    var deviceVerificationNonce: String,
+    var environment: String,  // "Sandbox" | "Production"
+    var signedDate: Long,  // epoch ms
+    var appId: Long,
+    var appVersionId: Long,
+    var preorderDate = null,
+    // iOS 18.4+ properties
+    var appTransactionId = null,
+    var originalPlatform = null
+)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name AppTransaction
 
@@ -331,6 +352,24 @@ if (appTransaction != null) {
   if (appTransaction.originalPlatform != null) {
     print('Originally purchased on: \${appTransaction.originalPlatform}');
   }
+}`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Get app transaction (iOS only via KMP)
+var appTransaction = await ((QueryResolver)OpenIap.Instance).GetAppTransactionIOSAsync()
+
+appTransaction?.let { transaction ->
+    println("Bundle ID: \${transaction.bundleId}")
+    println("Original version: \${transaction.originalAppVersion}")
+    println("Environment: \${transaction.environment}")
+
+    // Check if user originally purchased on a different platform (iOS 18.4+)
+    transaction.originalPlatform?.let { platform ->
+        println("Originally purchased on: $platform")
+    }
 }`}</CodeBlock>
             ),
             gdscript: (

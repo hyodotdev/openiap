@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.Pages.WebhookStreamPage"
+             Title="Webhook Stream"
+             BackgroundColor="White">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Webhook Stream" FontSize="22" FontAttributes="Bold" TextColor="#1A1A1A" />
+                <Label Text="Connects to the IAPKit SSE endpoint and renders incoming WebhookEvent payloads. Use this to validate webhook plumbing without a live transaction."
+                       FontSize="14" TextColor="#5F6470" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="SSE URL" FontAttributes="Bold" />
+                <Entry x:Name="UrlEntry"
+                       Text="https://kit.openiap.dev/v1/webhooks/stream"
+                       FontSize="14" />
+                <Label Text="Optional bearer token (Authorization header)" FontAttributes="Bold" Margin="0,6,0,0" />
+                <Entry x:Name="TokenEntry" Placeholder="iapkit_*" FontSize="14" />
+            </VerticalStackLayout>
+
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Connect"
+                        BackgroundColor="#0EA5E9"
+                        TextColor="White"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnConnectClicked" />
+                <Button Text="Disconnect"
+                        BackgroundColor="#6C757D"
+                        TextColor="White"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnDisconnectClicked" />
+                <Button Text="Clear"
+                        BackgroundColor="#E5EAF1"
+                        TextColor="#1A1A1A"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnClearClicked" />
+            </HorizontalStackLayout>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="0" BackgroundColor="#0B1220">
+                <Editor x:Name="LogEditor"
+                        IsReadOnly="True"
+                        HeightRequest="380"
+                        BackgroundColor="Transparent"
+                        TextColor="#E2E8F0"
+                        FontFamily="Menlo"
+                        FontSize="12" />
+            </Border>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Tips:" FontAttributes="Bold" />
+                    <Label Text="• kit.openiap.dev streams Apple ASSN v2 + Google RTDN events as JSON over SSE." />
+                    <Label Text="• Issue a sandbox test notification from App Store Connect to see test-notification events here." />
+                    <Label Text="• On Android, force a sandbox subscription change to fan out a webhook." />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

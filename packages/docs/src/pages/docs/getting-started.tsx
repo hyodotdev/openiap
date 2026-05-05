@@ -300,6 +300,41 @@ await iap.requestPurchaseWithBuilder(
   },
 );`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var store = OpenIapStore(context)
+
+// 1. Open the store connection on app start.
+store.initConnection(null)
+
+// 2. Fetch products by SKU.
+var products = store.fetchProducts(
+    ProductRequest(
+        skus = new[] { "com.app.premium" },
+        type = ProductQueryType.InApp
+    )
+)
+
+// 3. Listen for purchase results.
+scope.launch {
+    store.purchaseUpdates.collect { purchase ->
+        // Verify on your backend, grant entitlement, then finish.
+        store.finishTransaction(purchase, isConsumable = false)
+    }
+}
+
+// 4. Initiate a purchase.
+store.requestPurchase(
+    RequestPurchaseProps(
+        request = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(skus = new[] { "com.app.premium" })
+        ),
+        type = ProductQueryType.InApp
+    )
+)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# 1. Open the store connection on app start.
 await iap.init_connection()

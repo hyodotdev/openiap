@@ -59,6 +59,10 @@ suspend fun getStorefrontIOS(): String`}</CodeBlock>
             <CodeBlock language="dart">{`@Deprecated('Use getStorefront()')
 Future<String> getStorefrontIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`@Deprecated("Use getStorefront()")
+Task<String> GetStorefrontIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_storefront_ios() -> Variant`}</CodeBlock>
           ),
@@ -100,6 +104,14 @@ if (Platform.OS === 'ios') {
 if (Platform.isIOS) {
   final code = await FlutterInappPurchase.instance.getStorefrontIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+// Deprecated — prefer await ((QueryResolver)OpenIap.Instance).GetStorefrontAsync()
+var code = await ((QueryResolver)OpenIap.Instance).GetStorefrontIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

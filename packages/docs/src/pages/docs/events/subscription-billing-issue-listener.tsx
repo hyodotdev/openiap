@@ -56,6 +56,15 @@ val subscriptionBillingIssueListener: Flow<Purchase>`}</CodeBlock>
           dart: (
             <CodeBlock language="dart">{`Stream<Purchase> get subscriptionBillingIssueListener;`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Callback approach (Play Billing 8.1+)
+fun addSubscriptionBillingIssueListener(
+    listener: OpenIapSubscriptionBillingIssueListener
+)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`signal subscription_billing_issue(purchase: Purchase)`}</CodeBlock>
           ),
@@ -156,6 +165,22 @@ final subscription =
 
 // Cleanup when the widget disposes
 subscription.cancel();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var openIapStore = OpenIapStore(context)
+
+// Play Billing Library 8.1+
+var listener: (Purchase) -> Unit = { purchase ->
+    println("Billing issue on \${purchase.productId}")
+    showBillingIssueBanner(purchase)
+}
+await ((QueryResolver)OpenIap.Instance).AddSubscriptionBillingIssueListenerAsync(listener)
+
+// Cleanup when the view disappears
+await ((QueryResolver)OpenIap.Instance).RemoveSubscriptionBillingIssueListenerAsync(listener)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`iap.subscription_billing_issue.connect(_on_billing_issue)

@@ -242,6 +242,19 @@ listener.events.listen((event) {
   }
 });`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Pure parser + types live in commonMain. Wire your platform's HTTP
+// client to webhookStreamUrl(apiKey = "...") and feed each SSE
+// data frame to WebhookEventParser.parse().
+var event = WebhookEventParser.parse(rawJson) ?: return
+when (event.type) {
+    WebhookEventType.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
+    else -> Unit
+}`}</CodeBlock>
+            ),
             kotlin: (
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.openiap.WebhookEventParser
 import io.github.hyochan.kmpiap.openiap.webhookStreamUrl

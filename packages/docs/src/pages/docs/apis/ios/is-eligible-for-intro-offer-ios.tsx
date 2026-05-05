@@ -52,6 +52,9 @@ function IsEligibleForIntroOfferIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> isEligibleForIntroOfferIOS(String groupID);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> IsEligibleForIntroOfferIOSAsync(String GroupID)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func is_eligible_for_intro_offer_ios(group_id: String) -> Variant`}</CodeBlock>
           ),
@@ -104,6 +107,13 @@ if (Platform.OS === 'ios') {
   final ok = await FlutterInappPurchase.instance
       .isEligibleForIntroOfferIOS('com.app.subgroup');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var ok = await ((QueryResolver)OpenIap.Instance).IsEligibleForIntroOfferIOSAsync(groupID = "com.app.subgroup")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

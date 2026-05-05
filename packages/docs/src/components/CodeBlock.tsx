@@ -11,6 +11,7 @@ interface CodeBlockProps {
     | 'dart'
     | 'xml'
     | 'gdscript'
+    | 'csharp'
     | 'bash'
     | 'json'
     | 'yaml'
@@ -178,6 +179,8 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
         return 'xml';
       case 'gdscript':
         return 'gd';
+      case 'csharp':
+        return 'cs';
       case 'bash':
         return 'sh';
       case 'json':
@@ -315,7 +318,8 @@ function highlightCode(element: HTMLElement, language: string) {
     language === 'swift' ||
     language === 'kotlin' ||
     language === 'dart' ||
-    language === 'gdscript'
+    language === 'gdscript' ||
+    language === 'csharp'
   ) {
     // Swift, Kotlin, and Dart syntax highlighting
     const lines = text.split('\n');
@@ -379,6 +383,10 @@ function highlightCode(element: HTMLElement, language: string) {
             // GDScript keywords
             keywords =
               'func|var|const|class|class_name|extends|signal|enum|static|onready|export|preload|load|if|elif|else|for|while|match|break|continue|pass|return|await|yield|true|false|null|self|void|int|float|bool|String|Array|Dictionary|Vector2|Vector3|Object|Node|and|or|not|in|is|as';
+          } else if (language === 'csharp') {
+            // C# keywords (covers MAUI / .NET 8 idioms used in the docs).
+            keywords =
+              'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|init|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|yield|when|nameof|with';
           } else {
             // Dart keywords
             keywords =

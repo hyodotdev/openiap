@@ -72,6 +72,9 @@ interface MutationFinishTransactionArgs {
           gdscript: (
             <CodeBlock language="gdscript">{`func finish_transaction(purchase: Purchase, is_consumable: bool = false) -> void`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<VoidResult> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null);`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 
@@ -185,6 +188,14 @@ kmpIAP.finishTransaction(
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`await iap.finish_transaction(purchase, false)`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+await ((MutationResolver)OpenIap.Instance).FinishTransactionAsync(
+    purchase: new PurchaseInput(purchase),
+    isConsumable: true);`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

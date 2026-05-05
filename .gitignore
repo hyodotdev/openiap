@@ -133,3 +133,28 @@ godot-cpp/
 libraries/*/docs/.docusaurus/
 libraries/*/docs/.cache-loader/
 libraries/*/docs/build/
+
+# .NET MAUI / dotnet (maui-iap)
+# Build outputs — every csproj writes here; tens of thousands of files.
+**/bin/
+**/obj/
+# IDE / Visual Studio scratch
+.vs/
+*.user
+*.suo
+*.userprefs
+# NuGet artifacts (released via the workflow, not committed)
+*.nupkg
+*.snupkg
+# MSBuild structured logs and binlogs
+*.binlog
+# .NET workload + local SDK config (machine-specific)
+**/.dotnet/
+# MAUI XAML hot-reload temp files
+*.xaml.lock
+# Xamarin / .NET-for-iOS device-deploy intermediates
+*.app.dSYM/
+*.ipa
+*.maui.bundle/
+# Resx generated designer code (per-build artifact)
+*.resx.designer.cs

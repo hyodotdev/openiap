@@ -44,6 +44,13 @@ val purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
           dart: (
             <CodeBlock language="dart">{`Stream<PurchaseError> get purchaseErrorStream;`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Flow approach
+var purchaseErrors: Flow<PurchaseError>`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
       <p>Registers a listener for purchase error events.</p>
@@ -199,6 +206,38 @@ final subscription = FlutterInappPurchase.purchaseError.listen((error) {
 
 // Cleanup when done
 subscription.cancel();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Using Flow
+lifecycleScope.launch {
+    openIapStore.purchaseErrors.collect { error ->
+        println("Purchase error: \${error.code} - \${error.message}")
+
+        when (error.code) {
+            OpenIapError.UserCancelled -> {
+                // User cancelled - no action needed
+            }
+            OpenIapError.AlreadyOwned -> {
+                // Restore purchases instead
+                await ((QueryResolver)OpenIap.Instance).RestorePurchasesAsync()
+            }
+            OpenIapError.NetworkError -> {
+                showRetryDialog()
+            }
+            else -> {
+                showErrorMessage(error.message)
+            }
+        }
+    }
+}
+
+// Or with callback
+openIapStore.setPurchaseErrorListener { error ->
+    println("Purchase error: \${error.code}")
+}`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

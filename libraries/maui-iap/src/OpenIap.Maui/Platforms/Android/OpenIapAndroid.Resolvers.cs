@@ -1,0 +1,283 @@
+// Resolver-method implementations for OpenIapAndroid. Split from the
+// listener / wiring code in OpenIapAndroid.cs purely for file size.
+
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+using Hyo.OpenIap;
+using OpenIapMauiShim = global::Dev.Hyo.Openiap.Maui.OpenIapMauiShim;
+
+namespace Hyo.OpenIap.Maui.Platforms.Android;
+
+internal sealed partial class OpenIapAndroid
+{
+    // ====================================================================
+    // MutationResolver
+    // ====================================================================
+
+    public Task<bool> InitConnectionAsync(InitConnectionConfig? config = null)
+    {
+        var json = config is null ? null : JsonSerializer.Serialize(config, JsonOptions.Default);
+        return InvokeBool(cb => _shim.InitConnection(json, cb));
+    }
+
+    public Task<bool> EndConnectionAsync()
+        => InvokeBool(cb => _shim.EndConnection(cb));
+
+    public Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params)
+    {
+        var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
+        return Invoke(cb => _shim.RequestPurchase(json, cb))
+            .ContinueWith(t => DecodeRequestPurchaseResult(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
+    {
+        // PurchaseInput wraps Purchase; serialize the inner record so the wire
+        // shape stays a flat Purchase JSON object (matches what the shim expects).
+        var json = JsonSerializer.Serialize(purchase.Value, JsonOptions.Default);
+        var consumable = isConsumable.HasValue ? Java.Lang.Boolean.ValueOf(isConsumable.Value) : null;
+        return Invoke(cb => _shim.FinishTransaction(json, consumable, cb))
+            .ContinueWith(t => DecodeStringValue(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<string> RestorePurchasesAsync()
+        => Invoke(cb => _shim.RestorePurchases(cb))
+            .ContinueWith(t => DecodeStringValue(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+
+    public Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null)
+    {
+        var json = options is null ? null : JsonSerializer.Serialize(options, JsonOptions.Default);
+        return Invoke(cb => _shim.DeepLinkToSubscriptions(json, cb))
+            .ContinueWith(t => DecodeStringValue(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options)
+    {
+        var json = JsonSerializer.Serialize(options, JsonOptions.Default);
+        return Invoke(cb => _shim.ValidateReceipt(json, cb))
+            .ContinueWith(t => DecodeVerifyPurchaseResult(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options)
+    {
+        var json = JsonSerializer.Serialize(options, JsonOptions.Default);
+        return Invoke(cb => _shim.VerifyPurchase(json, cb))
+            .ContinueWith(t => DecodeVerifyPurchaseResult(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<VerifyPurchaseWithProviderResult> VerifyPurchaseWithProviderAsync(VerifyPurchaseWithProviderProps options)
+    {
+        var json = JsonSerializer.Serialize(options, JsonOptions.Default);
+        return Invoke(cb => _shim.VerifyPurchaseWithProvider(json, cb))
+            .ContinueWith(t =>
+            {
+                var result = JsonSerializer.Deserialize<VerifyPurchaseWithProviderResult>(t.Result, JsonOptions.Default)
+                    ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty verifyPurchaseWithProvider result");
+                return result;
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    // ---- Android-only mutations -----------------------------------------
+
+    public Task<bool> AcknowledgePurchaseAndroidAsync(string purchaseToken)
+        => InvokeBool(cb => _shim.AcknowledgePurchaseAndroid(purchaseToken, cb));
+
+    public Task<bool> ConsumePurchaseAndroidAsync(string purchaseToken)
+        => InvokeBool(cb => _shim.ConsumePurchaseAndroid(purchaseToken, cb));
+
+    public Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync()
+        => InvokeBool(cb => _shim.CheckAlternativeBillingAvailabilityAndroid(cb));
+
+    public Task<string?> CreateAlternativeBillingTokenAndroidAsync()
+        => Invoke(cb => _shim.CreateAlternativeBillingTokenAndroid(cb))
+            .ContinueWith(t => DecodeNullableString(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+
+    public Task<bool> ShowAlternativeBillingDialogAndroidAsync()
+        => InvokeBool(cb => _shim.ShowAlternativeBillingDialogAndroid(cb));
+
+    public Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program)
+    {
+        var json = JsonSerializer.Serialize(program, JsonOptions.Default);
+        return Invoke(cb => _shim.IsBillingProgramAvailableAndroid(json, cb))
+            .ContinueWith(t =>
+            {
+                var result = JsonSerializer.Deserialize<BillingProgramAvailabilityResultAndroid>(t.Result, JsonOptions.Default)
+                    ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty isBillingProgramAvailable result");
+                return result;
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program)
+    {
+        var json = JsonSerializer.Serialize(program, JsonOptions.Default);
+        return Invoke(cb => _shim.CreateBillingProgramReportingDetailsAndroid(json, cb))
+            .ContinueWith(t =>
+            {
+                var result = JsonSerializer.Deserialize<BillingProgramReportingDetailsAndroid>(t.Result, JsonOptions.Default)
+                    ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty createBillingProgramReportingDetails result");
+                return result;
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params)
+    {
+        var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
+        return InvokeBool(cb => _shim.LaunchExternalLinkAndroid(json, cb));
+    }
+
+    // ---- iOS-only mutations (return defaults / throw not-supported) -----
+
+    public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");
+    public Task<bool> ClearTransactionIOSAsync() => NotSupportedIOS<bool>("clearTransactionIOS");
+    public Task<bool> PresentCodeRedemptionSheetIOSAsync() => NotSupportedIOS<bool>("presentCodeRedemptionSheetIOS");
+    public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => NotSupportedIOS<ExternalPurchaseLinkResultIOS>("presentExternalPurchaseLinkIOS");
+    public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => NotSupportedIOS<ExternalPurchaseNoticeResultIOS>("presentExternalPurchaseNoticeSheetIOS");
+    public Task<bool> RequestPurchaseOnPromotedProductIOSAsync() => NotSupportedIOS<bool>("requestPurchaseOnPromotedProductIOS");
+    public Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType) => NotSupportedIOS<ExternalPurchaseCustomLinkNoticeResultIOS>("showExternalPurchaseCustomLinkNoticeIOS");
+    public Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync() => NotSupportedIOS<IReadOnlyList<PurchaseIOS>>("showManageSubscriptionsIOS");
+    public Task<bool> SyncIOSAsync() => NotSupportedIOS<bool>("syncIOS");
+
+    // ====================================================================
+    // QueryResolver
+    // ====================================================================
+
+    public Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params)
+    {
+        var json = JsonSerializer.Serialize(@params, JsonOptions.Default);
+        return Invoke(cb => _shim.FetchProducts(json, cb))
+            .ContinueWith(t => DecodeFetchProductsResult(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null)
+    {
+        var json = options is null ? null : JsonSerializer.Serialize(options, JsonOptions.Default);
+        return Invoke(cb => _shim.GetAvailablePurchases(json, cb))
+            .ContinueWith(t => (IReadOnlyList<Purchase>)DecodeItems<Purchase>(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
+    {
+        var json = subscriptionIds is null ? null : JsonSerializer.Serialize(subscriptionIds, JsonOptions.Default);
+        return Invoke(cb => _shim.GetActiveSubscriptions(json, cb))
+            .ContinueWith(t => (IReadOnlyList<ActiveSubscription>)DecodeItems<ActiveSubscription>(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
+    {
+        var json = subscriptionIds is null ? null : JsonSerializer.Serialize(subscriptionIds, JsonOptions.Default);
+        return InvokeBool(cb => _shim.HasActiveSubscriptions(json, cb));
+    }
+
+    public Task<string> GetStorefrontAsync()
+        => Invoke(cb => _shim.GetStorefront(cb))
+            .ContinueWith(t => DecodeStringValue(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+
+    // ---- iOS-only queries (defaults / throw not-supported) --------------
+
+    public Task<bool> CanPresentExternalPurchaseNoticeIOSAsync() => Task.FromResult(false);
+    public Task<PurchaseIOS?> CurrentEntitlementIOSAsync(string sku) => Task.FromResult<PurchaseIOS?>(null);
+    public Task<IReadOnlyList<PurchaseIOS>> GetAllTransactionsIOSAsync() => Task.FromResult<IReadOnlyList<PurchaseIOS>>(Array.Empty<PurchaseIOS>());
+    public Task<AppTransaction?> GetAppTransactionIOSAsync() => Task.FromResult<AppTransaction?>(null);
+    public Task<ExternalPurchaseCustomLinkTokenResultIOS> GetExternalPurchaseCustomLinkTokenIOSAsync(ExternalPurchaseCustomLinkTokenTypeIOS tokenType) => NotSupportedIOS<ExternalPurchaseCustomLinkTokenResultIOS>("getExternalPurchaseCustomLinkTokenIOS");
+    public Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync() => Task.FromResult<IReadOnlyList<PurchaseIOS>>(Array.Empty<PurchaseIOS>());
+    public Task<ProductIOS?> GetPromotedProductIOSAsync() => Task.FromResult<ProductIOS?>(null);
+    public Task<string?> GetReceiptDataIOSAsync() => Task.FromResult<string?>(null);
+    public Task<string> GetStorefrontIOSAsync() => GetStorefrontAsync();
+    public Task<string?> GetTransactionJwsIOSAsync(string sku) => Task.FromResult<string?>(null);
+    public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync() => Task.FromResult(false);
+    public Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId) => Task.FromResult(false);
+    public Task<bool> IsTransactionVerifiedIOSAsync(string sku) => Task.FromResult(false);
+    public Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku) => Task.FromResult<PurchaseIOS?>(null);
+    public Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku) => Task.FromResult<IReadOnlyList<SubscriptionStatusIOS>>(Array.Empty<SubscriptionStatusIOS>());
+    public Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options) => NotSupportedIOS<VerifyPurchaseResultIOS>("validateReceiptIOS");
+
+    // ====================================================================
+    // Decode helpers
+    // ====================================================================
+
+    private static Task<T> NotSupportedIOS<T>(string api)
+        => Task.FromException<T>(OpenIapErrorMapper.Wrap(ErrorCode.FeatureNotSupported, $"{api} is iOS-only"));
+
+    private Task<bool> InvokeBool(Action<OpenIapMauiShim.IResultCallback> dispatch)
+        => Invoke(dispatch).ContinueWith(t => DecodeBoolValue(t.Result), TaskContinuationOptions.OnlyOnRanToCompletion);
+
+    private static bool DecodeBoolValue(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return false;
+        var env = JsonSerializer.Deserialize<ValueEnvelope<bool>>(json, JsonOptions.Default);
+        return env?.Value ?? false;
+    }
+
+    private static string DecodeStringValue(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return string.Empty;
+        var env = JsonSerializer.Deserialize<ValueEnvelope<string>>(json, JsonOptions.Default);
+        return env?.Value ?? string.Empty;
+    }
+
+    private static string? DecodeNullableString(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        var env = JsonSerializer.Deserialize<ValueEnvelope<string?>>(json, JsonOptions.Default);
+        return env?.Value;
+    }
+
+    private static List<T> DecodeItems<T>(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return new List<T>();
+        var env = JsonSerializer.Deserialize<ItemsEnvelope<T>>(json, JsonOptions.Default);
+        return env?.Items ?? new List<T>();
+    }
+
+    private static FetchProductsResult DecodeFetchProductsResult(string json)
+    {
+        var env = JsonSerializer.Deserialize<FetchProductsEnvelope>(json, JsonOptions.Default)
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty fetchProducts result");
+        return env.Kind switch
+        {
+            "products" => new FetchProductsResultProducts(DecodeArrayAs<Product>(env.Items)),
+            "subscriptions" => new FetchProductsResultSubscriptions(DecodeArrayAs<ProductSubscription>(env.Items)),
+            "all" => new FetchProductsResultAll(DecodeArrayAs<ProductOrSubscription>(env.Items)),
+            _ => throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, $"Unknown fetchProducts kind: {env.Kind}"),
+        };
+    }
+
+    private static RequestPurchaseResult? DecodeRequestPurchaseResult(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        var env = JsonSerializer.Deserialize<RequestPurchaseEnvelope>(json, JsonOptions.Default);
+        if (env is null) return null;
+        return env.Kind switch
+        {
+            "purchase" => new RequestPurchaseResultPurchase(env.Value?.Deserialize<Purchase>(JsonOptions.Default)),
+            "purchases" => new RequestPurchaseResultPurchases(DecodeArrayAs<Purchase>(env.Items)),
+            "none" => null,
+            _ => null,
+        };
+    }
+
+    private static VerifyPurchaseResult DecodeVerifyPurchaseResult(string json)
+    {
+        var result = JsonSerializer.Deserialize<VerifyPurchaseResult>(json, JsonOptions.Default);
+        return result ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty verifyPurchase result");
+    }
+
+    private static IReadOnlyList<T>? DecodeArrayAs<T>(JsonArray? array)
+    {
+        if (array is null) return null;
+        var list = new List<T>(array.Count);
+        foreach (var item in array)
+        {
+            if (item is null) continue;
+            var typed = item.Deserialize<T>(JsonOptions.Default);
+            if (typed is not null) list.Add(typed);
+        }
+        return list;
+    }
+}

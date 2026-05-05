@@ -70,6 +70,9 @@ function GetExternalPurchaseCustomLinkTokenIOS() {
   ExternalPurchaseCustomLinkTokenTypeIOS tokenType,
 );`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<ExternalPurchaseCustomLinkTokenResultIOS> GetExternalPurchaseCustomLinkTokenIOSAsync(ExternalPurchaseCustomLinkTokenTypeIOS TokenType)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant`}</CodeBlock>
           ),
@@ -131,6 +134,15 @@ if (Platform.OS === 'ios') {
         ExternalPurchaseCustomLinkTokenTypeIOS.acquisition,
       );
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var token = await ((QueryResolver)OpenIap.Instance).GetExternalPurchaseCustomLinkTokenIOSAsync(
+    tokenType = ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION
+)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

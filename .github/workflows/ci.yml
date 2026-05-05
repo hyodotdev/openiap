@@ -33,6 +33,7 @@ jobs:
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
+              - 'libraries/maui-iap/src/OpenIap.Maui/Types.cs'
             android:
               - 'packages/google/**'
               - 'packages/gql/**'
@@ -87,6 +88,8 @@ jobs:
           test -f src/generated/Types.kt || exit 1
           test -f src/generated/Types.swift || exit 1
           test -f src/generated/types.dart || exit 1
+          test -f src/generated/types.gd || exit 1
+          test -f src/generated/Types.cs || exit 1
 
       - name: Run tests
         working-directory: packages/gql

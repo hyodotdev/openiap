@@ -57,6 +57,9 @@ function ShowManageSubscriptionsIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<List<PurchaseIOS>> showManageSubscriptionsIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<List<PurchaseIOS>> ShowManageSubscriptionsIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func show_manage_subscriptions_ios() -> Variant`}</CodeBlock>
           ),
@@ -98,6 +101,13 @@ if (Platform.OS === 'ios') {
   final changed = await FlutterInappPurchase.instance
       .showManageSubscriptionsIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var changed = await ((QueryResolver)OpenIap.Instance).ShowManageSubscriptionsIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

@@ -64,6 +64,10 @@ suspend fun requestPurchaseOnPromotedProductIOS(): Boolean`}</CodeBlock>
             <CodeBlock language="dart">{`@Deprecated('Use promotedProductListenerIOS + requestPurchase instead')
 Future<bool> requestPurchaseOnPromotedProductIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`@Deprecated("Use promotedProductListenerIOS + requestPurchase instead")
+Task<Boolean> RequestPurchaseOnPromotedProductIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func request_purchase_on_promoted_product_ios() -> Variant`}</CodeBlock>
           ),
@@ -104,6 +108,14 @@ if (Platform.OS === 'ios') {
 if (Platform.isIOS) {
   await FlutterInappPurchase.instance.requestPurchaseOnPromotedProductIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+await ((QueryResolver)OpenIap.Instance).RequestPurchaseOnPromotedProductIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

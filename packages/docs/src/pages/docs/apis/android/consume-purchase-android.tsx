@@ -66,6 +66,9 @@ function ConsumePurchaseAndroid() {
           dart: (
             <CodeBlock language="dart">{`Future<bool> consumePurchaseAndroid(String purchaseToken);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<Boolean> ConsumePurchaseAsync(String PurchaseToken)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func consume_purchase_android(purchase_token: String) -> bool`}</CodeBlock>
           ),
@@ -117,6 +120,12 @@ if (Platform.OS === 'android') {
     purchase.purchaseToken,
   );
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+await ((QueryResolver)OpenIap.Instance).ConsumePurchaseAsync(purchase.purchaseToken)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

@@ -55,6 +55,9 @@ struct ExternalPurchaseNoticeResultIOS {
           dart: (
             <CodeBlock language="dart">{`Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func present_external_purchase_notice_sheet_ios() -> Variant`}</CodeBlock>
           ),
@@ -120,6 +123,13 @@ if (Platform.OS === 'ios') {
   final result = await FlutterInappPurchase.instance
       .presentExternalPurchaseNoticeSheetIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var result = await ((QueryResolver)OpenIap.Instance).PresentExternalPurchaseNoticeSheetIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

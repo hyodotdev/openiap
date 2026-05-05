@@ -59,6 +59,9 @@ function GetStorefront() {
           dart: (
             <CodeBlock language="dart">{`Future<String> getStorefront();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<String> GetStorefrontAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_storefront() -> String`}</CodeBlock>
           ),
@@ -116,6 +119,12 @@ function StorefrontBadge() {
           ),
           dart: (
             <CodeBlock language="dart">{`final countryCode = await FlutterInappPurchase.instance.getStorefront();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var countryCode = await ((QueryResolver)OpenIap.Instance).GetStorefrontAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var country_code = await iap.get_storefront()`}</CodeBlock>

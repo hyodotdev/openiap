@@ -169,6 +169,25 @@ final allProducts = await FlutterInappPurchase.instance.fetchProducts(
   type: ProductQueryType.all,
 );`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Fetch in-app purchases (default)
+var inappProducts = await ((QueryResolver)OpenIap.Instance).FetchProductsAsync(
+    ProductRequest(skus = new[] { "product1", "product2" })
+)
+
+// Fetch only subscriptions
+var subscriptions = await ((QueryResolver)OpenIap.Instance).FetchProductsAsync(
+    ProductRequest(skus = new[] { "sub1", "sub2" }, type = ProductQueryType.Subs)
+)
+
+// Fetch all products (both in-app and subscriptions)
+var allProducts = await ((QueryResolver)OpenIap.Instance).FetchProductsAsync(
+    ProductRequest(skus = new[] { "product1", "sub1" }, type = ProductQueryType.All)
+)`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Fetch in-app purchases (default)
 var request = ProductRequest.new()

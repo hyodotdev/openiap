@@ -46,6 +46,13 @@ const FRAMEWORKS: FrameworkRow[] = [
     description:
       'KMP / Compose Multiplatform via the `kmp-iap` library. Flow-based API on top of OpenIAP, with CocoaPods integration for iOS targets and shared business logic across platforms.',
   },
+  {
+    to: '/docs/setup/maui',
+    name: '.NET MAUI',
+    language: 'C#',
+    description:
+      '.NET MAUI / C# 12 via the `maui-iap` library (Hyo.OpenIap.Maui). Shares the same OpenIAP API surface as the other libraries; ships generated `Types.cs` from `packages/gql` and binds to packages/google (AAR) on Android and packages/apple (xcframework) on iOS.',
+  },
 ];
 
 function SetupIndex() {

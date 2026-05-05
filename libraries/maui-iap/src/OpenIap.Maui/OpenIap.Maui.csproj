@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <UseMaui>true</UseMaui>
+    <!-- Library — apps using us bring their own Maui.Controls reference. -->
+    <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
+    <!-- SingleProject auto-includes only the matching Platforms/<TFM>/ folder.
+         We need iOS sources to also compile under macCatalyst, so opt out and
+         manage Compile globs ourselves below. -->
+    <SingleProject>false</SingleProject>
+    <EnableDefaultMauiItems>false</EnableDefaultMauiItems>
+    <RootNamespace>Hyo.OpenIap.Maui</RootNamespace>
+    <AssemblyName>Hyo.OpenIap.Maui</AssemblyName>
+    <PackageId>Hyo.OpenIap.Maui</PackageId>
+    <Title>OpenIAP for .NET MAUI</Title>
+    <Description>OpenIAP — unified in-app purchases for .NET MAUI (iOS / Android). Mirrors the OpenIAP GraphQL schema and shares the same API surface as react-native-iap, expo-iap, flutter_inapp_purchase, and kmp-iap.</Description>
+    <Authors>hyodotdev</Authors>
+    <RepositoryUrl>https://github.com/hyodotdev/openiap</RepositoryUrl>
+    <PackageProjectUrl>https://www.openiap.dev</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>iap;in-app-purchase;maui;dotnet;android;ios;openiap</PackageTags>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>CS1591;CS1573</NoWarn>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Hide platform-specific source from non-platform builds so the .NET-only
+         contract (interfaces + types) compiles cleanly without referencing
+         StoreKit / BillingClient APIs. -->
+    <Compile Remove="Platforms/**/*.cs" />
+    <None Include="Platforms/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <Compile Include="Platforms/Android/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <!-- iOS resolver compiles for macCatalyst too — same xcframework, same StoreKit surface. -->
+    <Compile Include="Platforms/iOS/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <Compile Include="Platforms/MacCatalyst/**/*.cs" />
+  </ItemGroup>
+
+  <!-- Native bindings: wire each per its supported TFMs.
+       PrivateAssets=none ⇒ the binding DLL flows transitively to consumers
+       at runtime; combined with the IncludeBindingsInNuPkg target below it
+       also lands in the .nupkg under lib/<tfm>/. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="none" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <ProjectReference Include="..\OpenIap.Maui.Bindings.iOS\OpenIap.Maui.Bindings.iOS.csproj" PrivateAssets="none" />
+  </ItemGroup>
+
+  <!-- Ship the binding DLL alongside Hyo.OpenIap.Maui.dll in lib/<tfm>/.
+       Without this, ProjectReference outputs are NOT copied into the nupkg
+       and consumers would get NotImplementedException at runtime. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeBindingsInNuPkg</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="IncludeBindingsInNuPkg" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.Android' or '%(ReferenceCopyLocalPaths.Filename)' == 'Hyo.OpenIap.Maui.Bindings.iOS'" />
+    </ItemGroup>
+  </Target>
+
+</Project>

@@ -49,6 +49,9 @@ function GetTransactionJwsIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<String?> getTransactionJwsIOS(String sku);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<String?> GetTransactionJwsIOSAsync(String Sku)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_transaction_jws_ios(sku: String) -> String`}</CodeBlock>
           ),
@@ -99,6 +102,13 @@ if (Platform.OS === 'ios') {
   final jws = await FlutterInappPurchase.instance
       .getTransactionJwsIOS('com.app.premium');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var jws = await ((QueryResolver)OpenIap.Instance).GetTransactionJwsIOSAsync(sku = "com.app.premium")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

@@ -74,6 +74,15 @@ suspend fun launchExternalLink(
   LaunchExternalLinkParamsAndroid params,
 );`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`// Returns true if launched successfully
+// Throws OpenIapError.NotPrepared if billing client not ready
+Task<Boolean> LaunchExternalLinkAsync(Activity Activity, LaunchExternalLinkParamsAndroid Params)// LaunchExternalLinkParamsAndroid:
+// - billingProgram: BillingProgramAndroid
+// - launchMode: ExternalLinkLaunchModeAndroid
+// - linkType: ExternalLinkTypeAndroid
+// - linkUri: String`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func launch_external_link_android(
     params: LaunchExternalLinkParamsAndroid
@@ -185,6 +194,20 @@ if (Platform.OS === 'android') {
     ),
   );
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+await ((QueryResolver)OpenIap.Instance).LaunchExternalLinkAsync(
+    activity,
+    LaunchExternalLinkParamsAndroid(
+        billingProgram = BillingProgramAndroid.ExternalOffer,
+        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+        linkUri = "https://example.com/offer"
+    )
+)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

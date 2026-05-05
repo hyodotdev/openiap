@@ -1,0 +1,137 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug iOS Simulator (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run the \"Install MAUI Workload (sudo)\" launch entry first.'; exit 1; }; out=$(dotnet build -t:Run -f net9.0-ios 2>&1); status=$?; echo \"$out\"; if echo \"$out\" | grep -q 'requires Xcode'; then echo ''; echo '⚠️  Your iOS workload pack does not match the installed Xcode. Run the \"Update MAUI Workload (sudo) — fixes Xcode mismatch\" launch entry.'; fi; exit $status"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Debug iOS Device (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run the \"Install MAUI Workload (sudo)\" launch entry first.'; exit 1; }; out=$(dotnet build -t:Run -f net9.0-ios -p:RuntimeIdentifier=ios-arm64 -p:_DeviceName=Default 2>&1); status=$?; echo \"$out\"; if echo \"$out\" | grep -q 'requires Xcode'; then echo ''; echo '⚠️  Your iOS workload pack does not match the installed Xcode. Run the \"Update MAUI Workload (sudo) — fixes Xcode mismatch\" launch entry.'; fi; exit $status"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Debug Android (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && (adb uninstall dev.hyo.openiap.maui.example || true) && dotnet build -t:Run -f net9.0-android"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Debug macCatalyst (MAUI)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/example/OpenIap.Maui.Example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && dotnet build -t:Run -f net9.0-maccatalyst"
+      ],
+      "console": "integratedTerminal",
+      "env": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+      }
+    },
+    {
+      "name": "Build Library (net9.0)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/src/OpenIap.Maui",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet build -f net9.0"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Build Library (all targets)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/src/OpenIap.Maui",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && dotnet build"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Sync Types (gql → maui)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/../../packages/gql",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "bun run generate"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Install MAUI Workload (sudo)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "sudo dotnet workload install maui"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Update MAUI Workload (sudo) — fixes Xcode mismatch",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "sudo dotnet workload update"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Clean (bin + obj)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "find . -type d \\( -name bin -o -name obj \\) -prune -exec rm -rf {} + && echo '✅ cleaned'"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+name: OpenIAPWrapper
+options:
+  bundleIdPrefix: dev.hyo.openiap
+  deploymentTarget:
+    iOS: "15.0"
+    macOS: "14.0"
+    tvOS: "16.0"
+    watchOS: "8.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    BUILD_LIBRARY_FOR_DISTRIBUTION: YES
+    SKIP_INSTALL: NO
+    DEFINES_MODULE: YES
+    APPLICATION_EXTENSION_API_ONLY: NO
+    SUPPORTS_MACCATALYST: YES
+    DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: NO
+    GENERATE_INFOPLIST_FILE: YES
+    PRODUCT_BUNDLE_IDENTIFIER: dev.hyo.openiap.OpenIAP
+    MARKETING_VERSION: "1.2.5"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  OpenIAP:
+    type: framework
+    platform: iOS
+    supportedDestinations: [iOS, macCatalyst]
+    sources:
+      - path: ../Sources
+        type: group
+    settings:
+      base:
+        PRODUCT_NAME: OpenIAP
+        PRODUCT_BUNDLE_IDENTIFIER: dev.hyo.openiap.OpenIAP
+        SWIFT_INSTALL_OBJC_HEADER: YES
+        SWIFT_OBJC_INTERFACE_HEADER_NAME: OpenIAP-Swift.h
+        SWIFT_EMIT_MODULE_INTERFACE: YES

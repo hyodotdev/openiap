@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.Pages.HomePage"
+             Title="OpenIap MAUI Examples"
+             BackgroundColor="White">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,24,20,40" Spacing="12">
+
+            <!-- Header (mirrors app/index.tsx renderHeader) -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="6" Margin="0,0,0,24">
+                <Label Text="OpenIap MAUI Examples"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#000"
+                       HorizontalTextAlignment="Center" />
+                <Label x:Name="StorefrontLabel"
+                       Text="Best Practice Implementations"
+                       FontSize="18"
+                       TextColor="#333"
+                       HorizontalTextAlignment="Center" />
+                <Label Text="These examples demonstrate C# 12 / .NET MAUI approaches to in-app purchases with:&#x0a;• Sealed-record discriminated unions (no manual casting)&#x0a;• Async/await purchase flow&#x0a;• IObservable&lt;Purchase&gt; / IObservable&lt;PurchaseError&gt; streams&#x0a;• Same OpenIAP API surface as RN / Expo / Flutter / KMP / Godot"
+                       FontSize="16"
+                       TextColor="#333"
+                       LineHeight="1.4"
+                       HorizontalTextAlignment="Center"
+                       Margin="0,16,0,0" />
+            </VerticalStackLayout>
+
+            <!-- Menu buttons (mirror MENU_ITEMS with the same colors / icons / order) -->
+            <Button Text="📱 All Products"
+                    BackgroundColor="#FF6B6B"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnAllProductsClicked" />
+            <Label Text="View all items at once"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
+            <Button Text="🛒 In-App Purchase Flow"
+                    BackgroundColor="#007AFF"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnPurchaseFlowClicked" />
+            <Label Text="One-time products"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
+            <Button Text="🔄 Subscription Flow"
+                    BackgroundColor="#28A745"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnSubscriptionFlowClicked" />
+            <Label Text="Recurring subscriptions"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
+            <Button Text="📦 Available Purchases"
+                    BackgroundColor="#9C27B0"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnAvailablePurchasesClicked" />
+            <Label Text="View past purchases"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
+            <Button Text="🎁 Offer Code Redemption"
+                    BackgroundColor="#6C757D"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnOfferCodeClicked" />
+            <Label Text="Redeem promo codes"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
+            <Button Text="🌐 Alternative Billing"
+                    BackgroundColor="#FF9800"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnAlternativeBillingClicked" />
+            <Label Text="External payment links"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
+            <Button Text="📡 Webhook Stream"
+                    BackgroundColor="#0EA5E9"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HeightRequest="68"
+                    CornerRadius="12"
+                    Clicked="OnWebhookStreamClicked" />
+            <Label Text="IAPKit SSE + test notification"
+                   FontSize="13"
+                   TextColor="#666"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-6,0,6" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

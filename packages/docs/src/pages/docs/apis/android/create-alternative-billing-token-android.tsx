@@ -57,6 +57,11 @@ suspend fun createAlternativeBillingToken(): String?`}</CodeBlock>
           dart: (
             <CodeBlock language="dart">{`Future<String?> createAlternativeBillingTokenAndroid();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`// Token must be reported to Google Play backend within 24 hours
+// Returns token string, or null if creation failed
+Task<String?> CreateAlternativeBillingTokenAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func create_alternative_billing_token_android() -> String`}</CodeBlock>
           ),
@@ -95,6 +100,12 @@ if (Platform.OS === 'android') {
   final token = await FlutterInappPurchase.instance
       .createAlternativeBillingTokenAndroid();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var token = await ((QueryResolver)OpenIap.Instance).CreateAlternativeBillingTokenAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

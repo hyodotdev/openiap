@@ -49,6 +49,9 @@ function CurrentEntitlementIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<PurchaseIOS?> currentEntitlementIOS(String sku);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<PurchaseIOS?> CurrentEntitlementIOSAsync(String Sku)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func current_entitlement_ios(sku: String) -> Variant`}</CodeBlock>
           ),
@@ -102,6 +105,13 @@ if (Platform.OS === 'ios') {
   final entitlement = await FlutterInappPurchase.instance
       .currentEntitlementIOS('com.app.premium');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var entitlement = await ((QueryResolver)OpenIap.Instance).CurrentEntitlementIOSAsync(sku = "com.app.premium")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

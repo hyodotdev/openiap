@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenIap.Maui.Example.Pages.OfferCodePage"
+             Title="Offer Code Redemption"
+             BackgroundColor="White">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Offer Code Redemption" FontSize="22" FontAttributes="Bold" TextColor="#1A1A1A" />
+                <Label Text="Open the StoreKit redemption sheet so the user can paste a promo code. iOS / macCatalyst only — Android shows a Play-Store hint."
+                       FontSize="14" TextColor="#5F6470" />
+            </VerticalStackLayout>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Platform support" FontAttributes="Bold" />
+                    <Label x:Name="PlatformLabel" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button Text="🎁 Present Code Redemption Sheet"
+                    BackgroundColor="#6C757D"
+                    TextColor="White"
+                    CornerRadius="10"
+                    Padding="14,12"
+                    Clicked="OnPresentClicked" />
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#FFFBE6" IsVisible="False" x:Name="ResultPanel">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Result" FontAttributes="Bold" />
+                    <Label x:Name="ResultLabel" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC" Margin="0,8,0,0">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="How it works:" FontAttributes="Bold" />
+                    <Label Text="1. Tap the button to present the StoreKit redemption sheet." />
+                    <Label Text="2. The user pastes a promo code generated in App Store Connect." />
+                    <Label Text="3. Once redeemed, the resulting purchase arrives via PurchaseUpdated." />
+                    <Label Text="4. Your existing PurchaseUpdated handler validates and finalizes the transaction." />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

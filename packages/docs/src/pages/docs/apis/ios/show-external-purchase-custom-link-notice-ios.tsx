@@ -70,6 +70,9 @@ function ShowExternalPurchaseCustomLinkNoticeIOS() {
   ExternalPurchaseCustomLinkNoticeTypeIOS noticeType,
 );`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS NoticeType)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant`}</CodeBlock>
           ),
@@ -144,6 +147,15 @@ if (Platform.OS === 'ios') {
     ExternalPurchaseCustomLinkNoticeTypeIOS.Browser,
   );
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var result = await ((QueryResolver)OpenIap.Instance).ShowExternalPurchaseCustomLinkNoticeIOSAsync(
+    noticeType = ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
+)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

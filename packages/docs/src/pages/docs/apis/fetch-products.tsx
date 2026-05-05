@@ -124,6 +124,15 @@ type FetchProductsResult =
 # heterogeneous element types.
 func fetch_products(request: ProductRequest) -> Array`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<FetchProductsResult> FetchProductsAsync(ProductRequest request);
+
+// FetchProductsResult is a sealed record union; pattern-match on the variant.
+public abstract record FetchProductsResult;
+public sealed record FetchProductsResultProducts(IReadOnlyList<Product>? Value) : FetchProductsResult;
+public sealed record FetchProductsResultSubscriptions(IReadOnlyList<ProductSubscription>? Value) : FetchProductsResult;
+public sealed record FetchProductsResultAll(IReadOnlyList<ProductOrSubscription>? Value) : FetchProductsResult;`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 
@@ -290,6 +299,23 @@ final List<Product> products = switch (result) {
 request.skus = ["com.app.coins_100", "com.app.premium"]
 request.type = ProductQueryType.IN_APP
 var products = await iap.fetch_products(request)`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var iap = (QueryResolver)OpenIap.Instance;
+
+var result = await iap.FetchProductsAsync(new ProductRequest {
+    Skus = new[] { "com.app.coins_100", "com.app.premium" },
+    Type = ProductQueryType.InApp,
+});
+
+// Pattern-match the sealed result union
+var products = result switch {
+    FetchProductsResultProducts r => r.Value ?? Array.Empty<Product>(),
+    _ => Array.Empty<Product>(),
+};`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

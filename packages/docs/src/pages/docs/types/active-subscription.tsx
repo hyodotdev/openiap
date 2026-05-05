@@ -337,6 +337,22 @@ if (subscription.renewalInfoIOS?.willAutoRenew == false) {
   print('Subscription will not auto-renew');
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Android: read auto-renew status straight off the active subscription.
+// (renewalInfoIOS is iOS-only — see the Swift / KMP tabs for that flow.)
+if (subscription.autoRenewingAndroid == false) {
+    println("Subscription will not auto-renew")
+}
+
+// Use the upgrade/downgrade flow via requestPurchase — Android does not
+// surface a pending upgrade product id directly.
+subscription.basePlanIdAndroid?.let { basePlanId ->
+    println("Active base plan: $basePlanId")
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Check for pending upgrades
 if subscription.renewal_info_ios != null:

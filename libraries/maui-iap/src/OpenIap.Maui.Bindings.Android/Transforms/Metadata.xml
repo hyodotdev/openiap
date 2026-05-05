@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<metadata>
+  <!-- Hide kotlinx.coroutines internals so they don't pollute the public C# surface. -->
+  <attr path="/api/package[@name='kotlinx.coroutines']" name="visibility">private</attr>
+
+  <!-- Disambiguate duplicate C# events on OpenIapStore. The store exposes two
+       legacy listener interfaces (IOpenIapUserChoiceBillingListener / IOpenIapDeveloperProvidedBillingListener)
+       AND two newer single-listener replacements (IUserChoiceBillingListener / IDeveloperProvidedBillingListener).
+       The codegen produces a `UserChoiceBilling` event for both, which collides;
+       rename the legacy add/remove pair so the new replaceable one keeps the
+       canonical name. -->
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='addUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='removeUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingRemoved</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='addDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='removeDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingRemoved</attr>
+</metadata>

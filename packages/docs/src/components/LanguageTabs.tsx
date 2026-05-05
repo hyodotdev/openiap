@@ -1,6 +1,13 @@
 import { useState, type ReactNode } from 'react';
 
-type Language = 'swift' | 'kotlin' | 'typescript' | 'dart' | 'kmp' | 'gdscript';
+type Language =
+  | 'swift'
+  | 'kotlin'
+  | 'typescript'
+  | 'dart'
+  | 'kmp'
+  | 'gdscript'
+  | 'csharp';
 
 interface LanguageTabsProps {
   children: {
@@ -10,6 +17,7 @@ interface LanguageTabsProps {
     dart?: ReactNode;
     kmp?: ReactNode;
     gdscript?: ReactNode;
+    csharp?: ReactNode;
   };
 }
 
@@ -20,6 +28,7 @@ const LANGUAGE_LABELS: Record<Language, string> = {
   dart: 'Dart',
   kmp: 'Kotlin (KMP)',
   gdscript: 'GDScript',
+  csharp: 'C# (MAUI)',
 };
 
 const LANGUAGE_ORDER: Language[] = [
@@ -27,6 +36,7 @@ const LANGUAGE_ORDER: Language[] = [
   'kotlin',
   'typescript',
   'dart',
+  'csharp',
   'kmp',
   'gdscript',
 ];

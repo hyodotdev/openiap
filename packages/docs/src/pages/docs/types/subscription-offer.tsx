@@ -529,6 +529,55 @@ enum SubscriptionPeriodUnit { day, week, month, year, unknown }
 
 enum PaymentMode { freeTrial, payAsYouGo, payUpFront, unknown }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class SubscriptionOffer(
+    // Common fields
+    var id: String,
+    var displayPrice: String,
+    var price: Double,
+    var currency = null,
+    var type: DiscountOfferType,
+    var period = null,
+    var periodCount = null,
+    var paymentMode = null,
+
+    // iOS-specific fields
+    var keyIdentifierIOS = null,
+    var nonceIOS = null,
+    var signatureIOS = null,
+    var timestampIOS = null,
+    var numberOfPeriodsIOS = null,
+    var localizedPriceIOS = null,
+
+    // Android-specific fields
+    var basePlanIdAndroid = null,
+    var offerTokenAndroid = null,
+    var offerTagsAndroid = null,
+    var pricingPhasesAndroid = null,
+    var installmentPlanDetailsAndroid = null
+)
+
+data class InstallmentPlanDetailsAndroid(
+    var commitmentPaymentsCount: Int,
+    var subsequentCommitmentPaymentsCount: Int
+)
+
+data class SubscriptionPeriod(
+    var unit: SubscriptionPeriodUnit,
+    var value: Int
+)
+
+enum class SubscriptionPeriodUnit {
+    Day, Week, Month, Year, Unknown
+}
+
+enum class PaymentMode {
+    FreeTrial, PayAsYouGo, PayUpFront, Unknown
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name SubscriptionOffer
 

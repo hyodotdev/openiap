@@ -56,6 +56,7 @@ create_symlink "libraries/expo-iap/openiap-versions.json" "../../openiap-version
 create_symlink "libraries/flutter_inapp_purchase/openiap-versions.json" "../../openiap-versions.json"
 create_symlink "libraries/godot-iap/openiap-versions.json" "../../openiap-versions.json"
 create_symlink "libraries/kmp-iap/openiap-versions.json" "../../openiap-versions.json"
+create_symlink "libraries/maui-iap/openiap-versions.json" "../../openiap-versions.json"
 
 # Sync generated types from packages/gql to libraries
 echo ""
@@ -80,6 +81,12 @@ fi
 if [ -f "$GQL_GENERATED/types.gd" ]; then
     cp "$GQL_GENERATED/types.gd" "libraries/godot-iap/addons/godot-iap/types.gd"
     echo "  ✓ libraries/godot-iap/addons/godot-iap/types.gd"
+fi
+
+# C# types → maui-iap
+if [ -f "$GQL_GENERATED/Types.cs" ]; then
+    cp "$GQL_GENERATED/Types.cs" "libraries/maui-iap/src/OpenIap.Maui/Types.cs"
+    echo "  ✓ libraries/maui-iap/src/OpenIap.Maui/Types.cs"
 fi
 
 echo "✅ Version files and types synced successfully"

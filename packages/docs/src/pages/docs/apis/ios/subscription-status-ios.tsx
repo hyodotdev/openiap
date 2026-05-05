@@ -53,6 +53,9 @@ function SubscriptionStatusIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<List<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(String Sku)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func subscription_status_ios(sku: String) -> Variant`}</CodeBlock>
           ),
@@ -127,6 +130,13 @@ if (Platform.OS === 'ios') {
   final status = await FlutterInappPurchase.instance
       .subscriptionStatusIOS('com.app.monthly');
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var status = await ((QueryResolver)OpenIap.Instance).SubscriptionStatusIOSAsync(sku = "com.app.monthly")`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

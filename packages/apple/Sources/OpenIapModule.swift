@@ -11,8 +11,15 @@ import AppKit
 
 /// - SeeAlso: https://developer.apple.com/documentation/storekit/in-app_purchase
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+@objc(OpenIapModule)
 public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public static let shared = OpenIapModule()
+
+    /// Objective-C accessor for [OpenIapModule.shared]. Exists so the .NET MAUI
+    /// binding (`OpenIap.Maui.Bindings.iOS`) can surface the singleton via
+    /// `[OpenIapModule sharedInstance]`; Swift's static stored properties
+    /// aren't @objc-bridged automatically.
+    @objc public class func sharedInstance() -> OpenIapModule { shared }
 
     private var updateListenerTask: Task<Void, Error>?
     private var messageListenerTask: Task<Void, Never>?

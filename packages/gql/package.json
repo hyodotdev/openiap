@@ -9,15 +9,17 @@
     "./swift": "./src/generated/Types.swift",
     "./kotlin": "./src/generated/Types.kt",
     "./dart": "./src/generated/types.dart",
-    "./gdscript": "./src/generated/types.gd"
+    "./gdscript": "./src/generated/types.gd",
+    "./csharp": "./src/generated/Types.cs"
   },
   "scripts": {
-    "generate": "bun run generate:ts && bun run generate:swift && bun run generate:kotlin && bun run generate:dart && bun run generate:gdscript && bun run sync",
+    "generate": "bun run generate:ts && bun run generate:swift && bun run generate:kotlin && bun run generate:dart && bun run generate:gdscript && bun run generate:csharp && bun run sync",
     "generate:ts": "graphql-codegen --config codegen.ts && bun scripts/fix-generated-types.mjs",
     "generate:swift": "bun codegen/index.ts swift",
     "generate:kotlin": "bun codegen/index.ts kotlin",
     "generate:dart": "bun codegen/index.ts dart",
     "generate:gdscript": "bun codegen/index.ts gdscript",
+    "generate:csharp": "bun codegen/index.ts csharp",
     "sync": "bun scripts/sync-to-platforms.mjs",
     "test": "vitest run src"
   },

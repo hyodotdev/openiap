@@ -84,6 +84,18 @@ function Events() {
   developerProvidedBillingAndroid, // 8.3.0+
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+enum class IapEvent {
+    PurchaseUpdated,
+    PurchaseError,
+    SubscriptionBillingIssue,
+    UserChoiceBillingAndroid,
+    DeveloperProvidedBillingAndroid // 8.3.0+
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`enum IapEvent {
     PURCHASE_UPDATED = 0,

@@ -1,0 +1,126 @@
+name: CI - maui-iap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'libraries/maui-iap/**'
+      - 'packages/gql/**'
+      - 'packages/google/openiap/src/main/java/dev/hyo/openiap/maui/**'
+      - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
+      - 'packages/apple/wrapper/**'
+      - 'packages/apple/scripts/build-xcframework.sh'
+      - 'openiap-versions.json'
+      - '.github/workflows/ci-maui-iap.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'libraries/maui-iap/**'
+      - 'packages/gql/**'
+      - 'packages/google/openiap/src/main/java/dev/hyo/openiap/maui/**'
+      - 'packages/apple/Sources/OpenIapModule+ObjC.swift'
+      - 'packages/apple/wrapper/**'
+      - 'packages/apple/scripts/build-xcframework.sh'
+      - 'openiap-versions.json'
+      - '.github/workflows/ci-maui-iap.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-check:
+    name: Compile Check (net9.0 shared)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: libraries/maui-iap
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # The shared `net9.0` TFM compiles without the MAUI workload OR native
+      # binding artifacts — keep this fast lane for PR-time feedback. The full
+      # multi-target build runs on macos-latest below once the AAR + xcframework
+      # are produced.
+      - name: Build library (net9.0)
+        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0 --nologo
+
+  android-binding:
+    name: Android binding (net9.0-android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-android --skip-sign-check
+
+      # The Android binding consumes packages/google/openiap/build/outputs/aar/openiap-play-release.aar
+      # which includes the OpenIapMauiShim facade. Rebuild it before the binding csproj.
+      - name: Build Play AAR (with OpenIapMauiShim)
+        working-directory: packages/google
+        run: ./gradlew :openiap:assemblePlayRelease
+
+      - name: Build Android binding + library
+        working-directory: libraries/maui-iap
+        run: |
+          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj --nologo
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0-android --nologo
+
+  ios-binding:
+    name: iOS binding (net9.0-ios + maccatalyst)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui --skip-sign-check
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      # The iOS binding csproj consumes packages/apple/.build/xcframework/OpenIAP.xcframework.
+      # Build it via the wrapper Xcode project produced from packages/apple/wrapper/project.yml.
+      - name: Build OpenIAP.xcframework
+        run: bash packages/apple/scripts/build-xcframework.sh
+
+      - name: Build iOS binding (ios + maccatalyst)
+        working-directory: libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS
+        run: |
+          dotnet build -f net9.0-ios --nologo
+          dotnet build -f net9.0-maccatalyst --nologo
+
+      - name: Build library (ios + maccatalyst)
+        working-directory: libraries/maui-iap/src/OpenIap.Maui
+        run: |
+          dotnet build -f net9.0-ios --nologo
+          dotnet build -f net9.0-maccatalyst --nologo

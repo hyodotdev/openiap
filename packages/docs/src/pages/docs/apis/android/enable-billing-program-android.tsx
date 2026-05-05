@@ -79,6 +79,16 @@ class InitConnectionConfig {
   // ...other fields
 }`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Config field on InitConnectionConfig — wired via initConnection()
+data class InitConnectionConfig(
+    var enableBillingProgramAndroid = null,
+    // ...other fields
+)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`# InitConnectionConfig.enable_billing_program_android: BillingProgramAndroid
 func init_connection(config: InitConnectionConfig) -> bool`}</CodeBlock>
@@ -156,6 +166,16 @@ function App() {
     ),
   );
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+await ((QueryResolver)OpenIap.Instance).InitConnectionAsync(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    )
+)`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

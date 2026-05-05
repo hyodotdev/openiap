@@ -109,6 +109,12 @@ type RequestPurchaseProps =
           gdscript: (
             <CodeBlock language="gdscript">{`func request_purchase(props: RequestPurchaseProps) -> Purchase`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps props);
+
+// Result is event-based — listen via OpenIap.Instance.PurchaseUpdated /
+// PurchaseError. The returned RequestPurchaseResult is for legacy consumers.`}</CodeBlock>
+          ),
         }}
       </LanguageTabs>
 
@@ -362,6 +368,32 @@ props.request.apple = RequestPurchaseIosProps.new()
 props.request.apple.sku = "com.app.premium"
 props.type = ProductQueryType.IN_APP
 await iap.request_purchase(props)`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Subscribe to results FIRST — requestPurchase is event-based.
+OpenIap.Instance.PurchaseUpdated.Subscribe(async purchase => {
+    // 1. Validate on your server, 2. Grant entitlement,
+    // 3. Finish transaction (Android auto-refunds after 3 days otherwise!)
+    await ((MutationResolver)OpenIap.Instance).FinishTransactionAsync(
+        purchase: new PurchaseInput(purchase),
+        isConsumable: true);
+});
+
+OpenIap.Instance.PurchaseError.Subscribe(error => {
+    Console.WriteLine($"{error.Code}: {error.Message}");
+});
+
+// Then request the purchase
+await ((MutationResolver)OpenIap.Instance).RequestPurchaseAsync(new RequestPurchaseProps {
+    RequestPurchase = new RequestPurchasePropsByPlatforms {
+        Ios = new RequestPurchaseIosProps { Sku = "com.app.premium" },
+        Android = new RequestPurchaseAndroidProps { Skus = new[] { "com.app.premium" } },
+    },
+    Type = ProductQueryType.InApp,
+});`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

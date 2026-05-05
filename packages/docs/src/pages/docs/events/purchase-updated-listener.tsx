@@ -47,6 +47,13 @@ val purchaseUpdates: Flow<Purchase>`}</CodeBlock>
           dart: (
             <CodeBlock language="dart">{`Stream<Purchase> get purchaseUpdatedStream;`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Flow approach
+var purchaseUpdates: Flow<Purchase>`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`signal purchase_updated(purchase: Purchase)`}</CodeBlock>
           ),
@@ -166,6 +173,28 @@ final subscription = FlutterInappPurchase.purchaseUpdated.listen((purchase) asyn
 
 // Cleanup when done
 subscription.cancel();`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Using Flow
+lifecycleScope.launch {
+    openIapStore.purchaseUpdates.collect { purchase ->
+        println("Purchase updated: \${purchase.productId}")
+
+        // Validate and deliver
+        if (validateReceipt(purchase)) {
+            deliverProduct(purchase.productId)
+            await ((QueryResolver)OpenIap.Instance).FinishTransactionAsync(purchase, isConsumable = false)
+        }
+    }
+}
+
+// Or with callback
+openIapStore.setPurchaseUpdatedListener { purchase ->
+    println("Purchase updated: \${purchase.productId}")
+}`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# Connect to the signal

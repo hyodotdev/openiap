@@ -182,6 +182,11 @@ final sub = iap.subscriptionBillingIssueListener.listen((purchase) {
 
 await sub.cancel();`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`// .NET MAUI — see Hyo.OpenIap.Maui.OpenIap.Instance.
+// The full operation surface lives on Hyo.OpenIap.QueryResolver /
+// MutationResolver / SubscriptionResolver (auto-generated from the schema).`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# godot-iap signal
 var godot_iap := preload("res://addons/godot-iap/godot_iap.gd").new()

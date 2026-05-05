@@ -180,6 +180,23 @@ Future<void> redeemCode() async {
   }
 }`}</CodeBlock>
                     ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`// KMP iOS target
+var iapStore = OpenIapStore.shared
+
+Task RedeemCodeAsync() {
+    try {
+        var result = iapStore.presentCodeRedemptionSheetIOS()
+        if (result) {
+            println("Code redemption sheet presented successfully")
+            // The system handles the redemption process
+            // Listen for purchase updates via purchaseFlow
+        }
+    } catch (e: Exception) {
+        println("Failed to present code redemption sheet: \${e.message}")
+    }
+}`}</CodeBlock>
+                    ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`func redeem_code() -> void:
     var result = await iap.present_code_redemption_sheet_ios()
@@ -387,6 +404,41 @@ class RedemptionManager {
   }
 }`}</CodeBlock>
                     ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`// KMP iOS target
+class RedemptionManager {
+    private var iapStore = OpenIapStore.shared
+    private var purchaseJob = null
+
+    fun initialize(scope: CoroutineScope) {
+        // Listen for purchases from code redemption
+        purchaseJob = scope.launch {
+            iapStore.purchaseFlow.collect { purchase ->
+                println("Purchase from code redemption: \${purchase.productId}")
+
+                // Verify and finish the transaction
+                var isValid = verifyPurchaseOnServer(purchase)
+                if (isValid) {
+                    iapStore.finishTransaction(purchase, isConsumable = false)
+                    println("Redemption completed successfully")
+                }
+            }
+        }
+    }
+
+    Task RedeemCodeAsync() {
+        try {
+            iapStore.presentCodeRedemptionSheetIOS()
+        } catch (e: Exception) {
+            println("Error: \${e.message}")
+        }
+    }
+
+    fun dispose() {
+        purchaseJob?.cancel()
+    }
+}`}</CodeBlock>
+                    ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`extends Node
 
@@ -529,6 +581,23 @@ Future<void> redeemWithCode(String code) async {
   if (await canLaunchUrl(url)) {
     await launchUrl(url);
   }
+}`}</CodeBlock>
+                    ),
+                    csharp: (
+                      <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// Open Play Store redemption page
+fun openRedeemPage(context: Context) {
+    var intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem"))
+    context.startActivity(intent)
+}
+
+// Open with pre-filled code
+fun redeemWithCode(context: Context, code: String) {
+    var url = "https://play.google.com/redeem?code=\$code"
+    var intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+    context.startActivity(intent)
 }`}</CodeBlock>
                     ),
                     gdscript: (

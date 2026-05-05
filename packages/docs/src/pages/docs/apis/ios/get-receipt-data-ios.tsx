@@ -50,6 +50,9 @@ function GetReceiptDataIOS() {
           dart: (
             <CodeBlock language="dart">{`Future<String?> getReceiptDataIOS();`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`Task<String?> GetReceiptDataIOSAsync()`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func get_receipt_data_ios() -> String`}</CodeBlock>
           ),
@@ -86,6 +89,13 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="dart">{`if (Platform.isIOS) {
   final data = await FlutterInappPurchase.instance.getReceiptDataIOS();
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+var data = await ((QueryResolver)OpenIap.Instance).GetReceiptDataIOSAsync()`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":

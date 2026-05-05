@@ -576,6 +576,49 @@ if (result.isAvailable) {
   );
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+var iapStore = OpenIapStore(context)
+
+// Enable External Payments via InitConnectionConfig
+iapStore.initConnection(
+    InitConnectionConfig(
+        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+    )
+)
+
+// Listen for developer billing selection
+iapStore.addDeveloperProvidedBillingListener { details ->
+    Log.d("IAP", "Token: \${details.externalTransactionToken}")
+    // Report token to Google via your backend within 24 hours
+}
+
+// Check availability (Japan only)
+var result = iapStore.isBillingProgramAvailable(
+    BillingProgramAndroid.ExternalPayments
+)
+if (result.isAvailable) {
+    // Purchase with developer billing option
+    var props = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(
+                    skus = new[] { "product_id" },
+                    developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                        billingProgram = BillingProgramAndroid.ExternalPayments,
+                        linkUri = "https://your-site.com/checkout",
+                        launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
+                    )
+                )
+            )
+        ),
+        type = ProductQueryType.InApp
+    )
+    iapStore.requestPurchase(props)
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Enable External Payments via InitConnectionConfig
 var config = InitConnectionConfig.new()

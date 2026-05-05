@@ -406,6 +406,39 @@ enum DiscountOfferType {
   oneTime,
 }`}</CodeBlock>
             ),
+            csharp: (
+              <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+data class DiscountOffer(
+    // Common fields
+    var id: String?,
+    var displayPrice: String,
+    var price: Double,
+    var currency: String,
+    var type: DiscountOfferType,
+
+    // Android-specific fields
+    var offerTokenAndroid = null,
+    var offerTagsAndroid = null,
+    var fullPriceMicrosAndroid = null,
+    var percentageDiscountAndroid = null,
+    var discountAmountMicrosAndroid = null,
+    var formattedDiscountAmountAndroid = null,
+    var validTimeWindowAndroid = null,
+    var limitedQuantityInfoAndroid = null,
+    var preorderDetailsAndroid = null,
+    var rentalDetailsAndroid = null,
+    var purchaseOptionIdAndroid = null
+)
+
+enum class DiscountOfferType {
+    Introductory,
+    Promotional,
+    WinBack,    // iOS 18+
+    OneTime
+}`}</CodeBlock>
+            ),
             gdscript: (
               <CodeBlock language="gdscript">{`class_name DiscountOffer
 

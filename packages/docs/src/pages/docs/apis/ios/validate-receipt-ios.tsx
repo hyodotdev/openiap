@@ -64,6 +64,10 @@ suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResu
             <CodeBlock language="dart">{`@Deprecated('Use verifyPurchase()')
 Future<VerifyPurchaseResultIOS> validateReceiptIOS(VerifyPurchaseProps options);`}</CodeBlock>
           ),
+          csharp: (
+            <CodeBlock language="csharp">{`@Deprecated("Use verifyPurchase()")
+Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps Options)`}</CodeBlock>
+          ),
           gdscript: (
             <CodeBlock language="gdscript">{`func validate_receipt_ios(options: Dictionary) -> Variant`}</CodeBlock>
           ),
@@ -122,6 +126,14 @@ if (Platform.isIOS) {
     VerifyPurchaseProps(sku: 'com.app.premium'),
   );
 }`}</CodeBlock>
+          ),
+          csharp: (
+            <CodeBlock language="csharp">{`using Hyo.OpenIap;
+using Hyo.OpenIap.Maui;
+
+// kmp-iap (iOS targets only — no-op on Android)
+// Deprecated — prefer verifyPurchase().
+await ((QueryResolver)OpenIap.Instance).ValidateReceiptIOSAsync(options = VerifyPurchaseProps(sku = "com.app.premium"))`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
