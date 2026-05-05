@@ -1,5 +1,7 @@
 import { CreditCard } from "lucide-react";
+import { SiGithub } from "@icons-pack/react-simple-icons";
 import { Link, useNavigate } from "react-router-dom";
+import { KIT_REPO_URL } from "@/lib/constants";
 
 export default function Footer() {
   const navigate = useNavigate();
@@ -152,6 +154,16 @@ export default function Footer() {
             </a>
             . All rights reserved.
           </p>
+          <a
+            href={KIT_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
+            aria-label="View kit source on GitHub"
+          >
+            <SiGithub className="w-4 h-4" aria-hidden="true" />
+            <span>Source on GitHub</span>
+          </a>
         </div>
       </div>
     </footer>

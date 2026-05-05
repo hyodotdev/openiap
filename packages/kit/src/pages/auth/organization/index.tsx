@@ -3,6 +3,8 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { Menu, Building2 } from "lucide-react";
+import { SiGithub } from "@icons-pack/react-simple-icons";
+import { KIT_REPO_URL } from "@/lib/constants";
 import { ThemeDropdown } from "../../../components/ThemeDropdown";
 import { SignOutButton } from "../../../components/SignOutButton";
 import { FreeTransitionNotice } from "../../../components/FreeTransitionNotice";
@@ -172,6 +174,20 @@ export default function OrganizationLayout() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* kit is open source — surface a quick link to the
+                monorepo so contributors / curious operators can
+                get from any dashboard view to the source in one
+                click. Mirrors the footer link on the marketing
+                site. */}
+            <a
+              href={KIT_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View kit source on GitHub"
+              className="p-2 hover:bg-muted/50 rounded transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <SiGithub className="w-4 h-4" aria-hidden="true" />
+            </a>
             <ThemeDropdown />
             <SignOutButton />
           </div>
