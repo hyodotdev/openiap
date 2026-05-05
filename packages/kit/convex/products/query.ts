@@ -38,6 +38,20 @@ const productShape = v.object({
   storeRef: v.optional(v.string()),
   subscriptionGroupId: v.optional(v.string()),
   subscriptionGroupName: v.optional(v.string()),
+  // Subscription billing period — surfaced so the dashboard's
+  // price column can render "USD 9.99 / 1 month" for parity with
+  // the Android base-plan badges. iOS rows that lack a period in
+  // the cached metadata fall back to the bare price.
+  billingPeriod: v.optional(
+    v.union(
+      v.literal("P1W"),
+      v.literal("P1M"),
+      v.literal("P2M"),
+      v.literal("P3M"),
+      v.literal("P6M"),
+      v.literal("P1Y"),
+    ),
+  ),
   offers: v.optional(v.array(offerShape)),
   updatedAt: v.number(),
 });
@@ -62,6 +76,7 @@ function shape(product: Doc<"products">) {
     // works after coercion.
     subscriptionGroupId: product.subscriptionGroupId ?? undefined,
     subscriptionGroupName: product.subscriptionGroupName ?? undefined,
+    billingPeriod: product.billingPeriod,
     offers: product.offers,
     updatedAt: product.updatedAt,
   };

@@ -563,6 +563,7 @@ type ProductRow = {
   storeRef?: string;
   priceAmountMicros?: number;
   currency?: string;
+  billingPeriod?: "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";
   subscriptionGroupId?: string;
   subscriptionGroupName?: string;
   offers?: Array<{
@@ -617,25 +618,57 @@ function formatJobPhaseLabel(job: SyncJob | null, storeLabel: string): string {
 // operator can see at a glance which plans/intros a sub carries
 // without drilling into the raw store data. Distinct from price
 // formatting because some offers (free trials) have no price.
+// Format the price column for a product row. Subscription rows
+// append the billing period ("USD 9.99 / 1 month") so iOS displays
+// the same shape as Play's base-plan badges; other types stay as
+// the bare price.
+function formatPriceWithPeriod(
+  priceAmountMicros: number,
+  currency: string | undefined,
+  billingPeriod: string | undefined,
+): string {
+  const cur = currency ?? "";
+  const amount = (priceAmountMicros / 1_000_000).toFixed(2);
+  const base = `${cur} ${amount}`.trim();
+  const period = billingPeriod ? formatIsoDuration(billingPeriod) : "";
+  return period ? `${base} / ${period}` : base;
+}
+
 function offerLabel(
   offer: ProductRow["offers"] extends Array<infer O> | undefined ? O : never,
 ): string {
   const period = offer.duration ? formatIsoDuration(offer.duration) : "";
+  // Drop the trailing "/ ?" placeholder when an offer's duration
+  // didn't sync through — surfaces as garbage to operators (LukasB
+  // saw "USD 10.99 / ?" on a Play base plan that lost its period
+  // somewhere between Play API and kit cache). Prefer rendering
+  // the bare price + a fallback when period is missing.
   switch (offer.kind) {
     case "BasePlan":
-      return offer.priceAmountMicros !== undefined && offer.currency
-        ? `${offer.currency} ${(offer.priceAmountMicros / 1_000_000).toFixed(2)} / ${period || "?"}`
-        : period || "Base plan";
+      if (offer.priceAmountMicros !== undefined && offer.currency) {
+        const price = `${offer.currency} ${(offer.priceAmountMicros / 1_000_000).toFixed(2)}`;
+        return period ? `${price} / ${period}` : price;
+      }
+      return period || "Base plan";
     case "FreeTrial":
       return period ? `${period} free trial` : "Free trial";
     case "IntroPayUpFront":
-      return offer.priceAmountMicros !== undefined && offer.currency
-        ? `${offer.currency} ${(offer.priceAmountMicros / 1_000_000).toFixed(2)} intro for ${period || "?"}`
-        : "Intro (pay up front)";
+      if (offer.priceAmountMicros !== undefined && offer.currency) {
+        const price = `${offer.currency} ${(offer.priceAmountMicros / 1_000_000).toFixed(2)}`;
+        return period ? `${price} intro for ${period}` : `${price} intro`;
+      }
+      return "Intro (pay up front)";
     case "IntroPayAsYouGo":
-      return offer.priceAmountMicros !== undefined && offer.currency
-        ? `${offer.currency} ${(offer.priceAmountMicros / 1_000_000).toFixed(2)} / ${period || "?"} × ${offer.numberOfPeriods ?? "?"}`
-        : "Intro (pay as you go)";
+      if (offer.priceAmountMicros !== undefined && offer.currency) {
+        const price = `${offer.currency} ${(offer.priceAmountMicros / 1_000_000).toFixed(2)}`;
+        const periods = offer.numberOfPeriods;
+        if (period && periods !== undefined) {
+          return `${price} / ${period} × ${periods}`;
+        }
+        if (period) return `${price} / ${period}`;
+        return periods !== undefined ? `${price} × ${periods}` : price;
+      }
+      return "Intro (pay as you go)";
     case "PromotionalOffer":
       return "Promotional offer";
     default:
@@ -669,57 +702,82 @@ function formatIsoDuration(iso: string): string {
   }
 }
 
-// Reorder a flat product list so subscriptions sharing the same ASC
-// `subscriptionGroupName` are visually clustered under a single
-// "Subscription Group · {name}" header row. One-time products
-// (Consumable / NonConsumable) and any row missing group metadata
-// fall into an "Other products" cluster rendered after the
-// subscription groups so the section breaks are explicit — without
-// the second header, consumables visually inherited the previous
-// "Subscription Group" header and looked like part of it.
-// Original ordering is preserved within each cluster.
+// Reorder a flat product list into a consistent visual hierarchy
+// across iOS and Android:
+//
+//  1. Named iOS subscription groups first ("Subscription Group ·
+//     {name}" header — Apple's mandatory grouping for upgrade /
+//     downgrade UX).
+//  2. Subscriptions that don't carry a group name (always the case
+//     on Android since Play has no equivalent native concept; also
+//     covers iOS rows that pre-date group-name capture). Rendered
+//     under a generic "Subscriptions" header so the section read
+//     stays "subs first, then everything else" on every platform.
+//  3. "Other products" header + Consumable / NonConsumable rows.
+//
+// Without the "Subscriptions" delimiter on Android, subs and IAPs
+// rendered in raw insertion order — IAPs would land on top, the
+// reverse of iOS, and the operator couldn't visually distinguish
+// the two product types. With it the two platforms feel
+// symmetric (LukasB-DEV layout-alignment ask).
+//
+// Original row ordering is preserved within each cluster.
 function groupRowsByHierarchy(
   rows: Array<ProductRow>,
 ): Array<
   | { kind: "groupHeader"; id: string; name: string }
+  | { kind: "subscriptionsHeader"; id: string }
   | { kind: "otherHeader"; id: string }
   | { kind: "row"; row: ProductRow }
 > {
-  const buckets = new Map<string, Array<ProductRow>>();
-  const ungrouped: Array<ProductRow> = [];
-  const groupOrder: string[] = [];
+  const namedBuckets = new Map<string, Array<ProductRow>>();
+  const namedOrder: string[] = [];
+  const unnamedSubs: Array<ProductRow> = [];
+  const others: Array<ProductRow> = [];
   for (const row of rows) {
-    const key = row.subscriptionGroupName;
-    if (!key || row.type !== "Subscription") {
-      ungrouped.push(row);
+    if (row.type !== "Subscription") {
+      others.push(row);
       continue;
     }
-    if (!buckets.has(key)) {
-      buckets.set(key, []);
-      groupOrder.push(key);
+    const name = row.subscriptionGroupName;
+    if (name) {
+      if (!namedBuckets.has(name)) {
+        namedBuckets.set(name, []);
+        namedOrder.push(name);
+      }
+      namedBuckets.get(name)!.push(row);
+      continue;
     }
-    buckets.get(key)!.push(row);
+    unnamedSubs.push(row);
   }
   const out: Array<
     | { kind: "groupHeader"; id: string; name: string }
+    | { kind: "subscriptionsHeader"; id: string }
     | { kind: "otherHeader"; id: string }
     | { kind: "row"; row: ProductRow }
   > = [];
-  for (const name of groupOrder) {
+  for (const name of namedOrder) {
     out.push({ kind: "groupHeader", id: name, name });
-    for (const row of buckets.get(name) ?? []) {
+    for (const row of namedBuckets.get(name) ?? []) {
       out.push({ kind: "row", row });
     }
   }
-  // Only emit the "Other products" delimiter when at least one
-  // subscription group is also rendering — when there are no
-  // groups, the table is just a flat list and the extra header
-  // is noise. With at least one group above, the explicit
-  // delimiter is what visually closes the group section.
-  if (groupOrder.length > 0 && ungrouped.length > 0) {
+  if (unnamedSubs.length > 0) {
+    out.push({ kind: "subscriptionsHeader", id: "subscriptions" });
+    for (const row of unnamedSubs) {
+      out.push({ kind: "row", row });
+    }
+  }
+  // Suppress the "Other products" delimiter when nothing else
+  // rendered above — a flat list of just IAPs needs no header.
+  // With at least one subscription cluster (named or unnamed)
+  // above, the delimiter is what visually closes the subscription
+  // section.
+  const hasSubsAbove = namedOrder.length > 0 || unnamedSubs.length > 0;
+  if (hasSubsAbove && others.length > 0) {
     out.push({ kind: "otherHeader", id: "other-products" });
   }
-  for (const row of ungrouped) {
+  for (const row of others) {
     out.push({ kind: "row", row });
   }
   return out;
@@ -1101,6 +1159,20 @@ function ProductGroup({
                   </span>
                 </td>
               </tr>
+            ) : entry.kind === "subscriptionsHeader" ? (
+              <tr
+                key={`subs:${entry.id}`}
+                className="border-t-2 border-l-4 border-blue-500/60 border-t-blue-500/30 bg-blue-500/10"
+              >
+                <td
+                  colSpan={6}
+                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+                >
+                  <span className="text-blue-700 dark:text-blue-300">
+                    Subscriptions
+                  </span>
+                </td>
+              </tr>
             ) : entry.kind === "otherHeader" ? (
               <tr
                 key={`other:${entry.id}`}
@@ -1163,7 +1235,13 @@ function ProductGroup({
                 </td>
                 <td className="px-4 py-2 text-muted-foreground">
                   {entry.row.priceAmountMicros
-                    ? `${entry.row.currency ?? ""} ${(entry.row.priceAmountMicros / 1_000_000).toFixed(2)}`.trim()
+                    ? formatPriceWithPeriod(
+                        entry.row.priceAmountMicros,
+                        entry.row.currency,
+                        entry.row.type === "Subscription"
+                          ? entry.row.billingPeriod
+                          : undefined,
+                      )
                     : "—"}
                 </td>
               </tr>
