@@ -435,6 +435,170 @@ export const metricsSummary = query({
   },
 });
 
+// Daily revenue + lifecycle metrics for the Analytics dashboard. Reads
+// pre-computed rollups from `revenueMetricsDaily` (populated by the
+// `recomputeAllRevenueMetrics` cron) so the dashboard never scans the
+// raw webhookEvents log on render.
+//
+// `fromDay` and `toDay` are inclusive ISO date strings (YYYY-MM-DD,
+// UTC) — same format `revenueMetricsDaily.day` is stored under, so
+// the index range is a direct string comparison.
+//
+// Return shape: one entry per rollup row, i.e. one per
+// (day, currency, productId, platform). Aggregation across rows
+// happens client-side (`analytics.tsx`) so the dashboard can switch
+// between filter combinations without re-querying. Summing across
+// currencies is a UI-side concern — `revenueMicros` from a USD row
+// and a EUR row cannot be added without an FX rate.
+const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
+
+export const getRevenueMetrics = query({
+  args: {
+    apiKey: v.string(),
+    fromDay: v.string(),
+    toDay: v.string(),
+    // Server-side `productId` / `currency` / `platform` filters were
+    // removed because the dashboard does all of that filtering
+    // client-side (the unfiltered fetch is what backs the filter-
+    // dropdown population — narrowing the scan would defeat that),
+    // and a server-side narrowing path was incompatible with that
+    // contract: when a productId was pinned the dropdowns silently
+    // collapsed to that SKU's currencies / platforms only. If a
+    // future caller needs server-side narrowing for a non-dashboard
+    // surface, add a separate query — don't reintroduce these as
+    // optional args on this one.
+  },
+  returns: v.object({
+    days: v.array(
+      v.object({
+        day: v.string(),
+        currency: v.string(),
+        productId: v.string(),
+        platform: platformValidator,
+        activeSubs: v.number(),
+        newSubs: v.number(),
+        renewals: v.number(),
+        cancellations: v.number(),
+        refunds: v.number(),
+        revenueMicros: v.number(),
+      }),
+    ),
+    // Available filter values surfaced to the dashboard so the UI
+    // can render dropdowns / chiclets for everything the project
+    // actually has data for, without a second round-trip.
+    currencies: v.array(v.string()),
+    productIds: v.array(v.string()),
+    platforms: v.array(platformValidator),
+    // True when the underlying scan hit `REVENUE_SCAN_CAP` and the
+    // returned rows are a partial view of the requested window. The
+    // dashboard surfaces this as a banner so a truncated chart is
+    // visible to the operator instead of silently rendering a
+    // partial tail.
+    truncated: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const project = await projectByApiKey(ctx, args.apiKey);
+    if (!project) {
+      return {
+        days: [],
+        currencies: [],
+        productIds: [],
+        platforms: [],
+        truncated: false,
+      };
+    }
+
+    // Reject ranges past the dashboard's longest preset (90 days)
+    // before issuing the index scan. A misbehaving client can
+    // otherwise request `fromDay = "1970-01-01"` and force the
+    // server to materialize every rollup row in the project. The
+    // 90-day cap matches `RANGES` in `analytics.tsx`; widening
+    // there should bump this in lockstep.
+    const MAX_RANGE_DAYS = 92;
+    if (args.fromDay > args.toDay) {
+      throw new Error(
+        `getRevenueMetrics: fromDay (${args.fromDay}) is after toDay (${args.toDay}).`,
+      );
+    }
+    const fromMs = Date.parse(`${args.fromDay}T00:00:00.000Z`);
+    const toMs = Date.parse(`${args.toDay}T00:00:00.000Z`);
+    if (Number.isNaN(fromMs) || Number.isNaN(toMs)) {
+      throw new Error(
+        `getRevenueMetrics: invalid ISO date(s) fromDay=${args.fromDay} toDay=${args.toDay}.`,
+      );
+    }
+    const spanDays = Math.round((toMs - fromMs) / 86_400_000) + 1;
+    if (spanDays > MAX_RANGE_DAYS) {
+      throw new Error(
+        `getRevenueMetrics: span of ${spanDays} days exceeds MAX_RANGE_DAYS=${MAX_RANGE_DAYS}.`,
+      );
+    }
+
+    // Range scan over `revenueMetricsDaily` via
+    // `by_project_and_day_and_currency` (`[projectId, day, currency]`).
+    // The dashboard does all filtering (currency / product /
+    // platform) client-side, so we deliberately return the full
+    // window — narrowing here would prune the data the dashboard
+    // needs to populate its filter dropdowns.
+    //
+    // Capped at REVENUE_SCAN_CAP to stay under Convex's 32k
+    // document-scan limit per query. A 92-day range across a
+    // maximalist project (30 SKUs × 3 currencies × 2 platforms =
+    // 180 rows/day → ~16.5k rows for 92 days) fits inside this
+    // cap; truncation surfaces as the `truncated` flag below and
+    // an amber banner on the dashboard so a partial chart is
+    // never silently rendered.
+    const REVENUE_SCAN_CAP = 20_000;
+    const allRows = await ctx.db
+      .query("revenueMetricsDaily")
+      .withIndex("by_project_and_day_and_currency", (q) =>
+        q
+          .eq("projectId", project._id)
+          .gte("day", args.fromDay)
+          .lte("day", args.toDay),
+      )
+      .take(REVENUE_SCAN_CAP);
+    const truncated = allRows.length === REVENUE_SCAN_CAP;
+    if (truncated) {
+      console.warn(
+        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} range=${args.fromDay}..${args.toDay}; chart will undercount the tail.`,
+      );
+    }
+
+    // Populate filter-dropdown choices from the unfiltered range
+    // scan so the UI can render every available currency /
+    // productId / platform regardless of which filter the user
+    // currently has active.
+    const currencies = new Set<string>();
+    const productIds = new Set<string>();
+    const platforms = new Set<"IOS" | "Android">();
+    for (const row of allRows) {
+      if (row.currency) currencies.add(row.currency);
+      productIds.add(row.productId);
+      platforms.add(row.platform);
+    }
+
+    return {
+      days: allRows.map((row) => ({
+        day: row.day,
+        currency: row.currency,
+        productId: row.productId,
+        platform: row.platform,
+        activeSubs: row.activeSubs,
+        newSubs: row.newSubs,
+        renewals: row.renewals,
+        cancellations: row.cancellations,
+        refunds: row.refunds,
+        revenueMicros: row.revenueMicros,
+      })),
+      currencies: Array.from(currencies).sort(),
+      productIds: Array.from(productIds).sort(),
+      platforms: Array.from(platforms).sort(),
+      truncated,
+    };
+  },
+});
+
 async function loadPeriodByProductId(
   ctx: QueryCtx,
   projectId: Id<"projects">,

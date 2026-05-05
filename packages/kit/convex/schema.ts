@@ -722,6 +722,14 @@ const schema = defineSchema({
     day: v.string(), // ISO date (YYYY-MM-DD), UTC
     productId: v.string(),
     currency: v.string(),
+    // Platform split is part of the key — same SKU sold on iOS and
+    // Android on the same day produces two distinct rollup rows so
+    // the dashboard can chart per-store revenue. The populator only
+    // ever writes `IOS` or `Android` (the upstream `webhookEvents`
+    // and `subscriptions` schemas enforce the same union), so the
+    // validator stays strict — there is no legacy / sentinel
+    // value to absorb.
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
     activeSubs: v.number(),
     newSubs: v.number(),
     renewals: v.number(),
@@ -730,6 +738,13 @@ const schema = defineSchema({
     revenueMicros: v.number(),
     updatedAt: v.number(),
   })
+    // Primary range-scan index for the dashboard read path. Layout
+    // `[projectId, day, currency]` lets `getRevenueMetrics` do
+    // `eq(projectId).gte(day).lte(day)` for a project's full
+    // window in one index hit; product / platform / currency
+    // filters are applied in-memory afterward (the trailing
+    // window is small enough — TRAILING_DAYS × productCount ×
+    // currencyCount × platformCount, typically tens of rows).
     .index("by_project_and_day_and_currency", ["projectId", "day", "currency"])
     .index("by_project_and_product_and_day_and_currency", [
       "projectId",
@@ -737,6 +752,30 @@ const schema = defineSchema({
       "day",
       "currency",
     ]),
+
+  // Per-project picker state for the `recomputeAllRevenueMetrics`
+  // cron. Walked by `lastRunAt` ascending so the picker rotates
+  // through every project regardless of how many subs / events the
+  // project has. Kept in a dedicated table (rather than piggybacking
+  // on `subscriptionStats.updatedAt`) so the revenue cron rotates
+  // independently of the subscription-stats drift cron — otherwise
+  // the picker that touches `subscriptionStats.updatedAt` last
+  // controls rotation for both, and a deployment that skews the two
+  // cadences ends up reprocessing the same projects.
+  //
+  // INVARIANT: at most one row per `projectId`. Convex has no unique
+  // constraint, so callers must look the row up via `by_project`
+  // and patch it instead of inserting a second one — see
+  // `markRevenueMetricsRun` in `subscriptions/revenueMetrics.ts`
+  // for the canonical upsert pattern. Two rows for the same project
+  // would let the `by_run` picker double-pick that project until
+  // both rows rotate to the head, wasting budget.
+  revenueMetricsRunStatus: defineTable({
+    projectId: v.id("projects"),
+    lastRunAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_run", ["lastRunAt"]),
 
   // Unified product catalog. Mirrors what onesub holds in @onesub/providers
   // — the subset of App Store Connect / Play Console that kit can read /

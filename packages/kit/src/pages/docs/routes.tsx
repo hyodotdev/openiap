@@ -7,6 +7,7 @@ import VerificationApplePage from "./sections/verification-apple";
 import VerificationGooglePage from "./sections/verification-google";
 import VerificationHorizonPage from "./sections/verification-horizon";
 import ApiReferencePage from "./sections/api";
+import AnalyticsPage from "./sections/analytics";
 import OperationsPage from "./sections/operations";
 import AiAssistantsPage from "./sections/ai-assistants";
 import ReleaseNotesPage from "./sections/release-notes";
@@ -41,6 +42,7 @@ export const docsChildRoutes = (
       <Route path="horizon" element={<VerificationHorizonPage />} />
     </Route>
     <Route path="api" element={<ApiReferencePage />} />
+    <Route path="analytics" element={<AnalyticsPage />} />
     <Route path="operations" element={<OperationsPage />} />
     <Route path="ai-assistants" element={<AiAssistantsPage />} />
     <Route path="release-notes" element={<ReleaseNotesPage />} />

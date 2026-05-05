@@ -58,6 +58,11 @@ export const DOCS_NAV: DocsNavEntry[] = [
     summary: "POST /v1/purchase/verify — request shapes, responses, errors.",
   },
   {
+    slug: "analytics",
+    title: "Analytics",
+    summary: "Revenue / MRR / churn dashboard — requires webhook integration.",
+  },
+  {
     slug: "operations",
     title: "Operations",
     summary: "Rate limits, correlation IDs, /health, structured logs.",

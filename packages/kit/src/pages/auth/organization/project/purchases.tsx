@@ -316,32 +316,36 @@ export default function ProjectPurchases() {
       </p>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {statConfig.map((stat) => (
-          <div
-            key={stat.key}
-            className={cn(
-              "bg-card border border-border rounded-xl p-4 shadow-sm",
-              "relative overflow-hidden",
-              "cursor-pointer transition hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-            )}
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              if (stat.key === "total") {
-                resetFilters();
-              } else if (stat.key === "apple") {
-                applyStoreFilter("apple");
-              } else if (stat.key === "google") {
-                applyStoreFilter("google");
-              } else if (stat.key === "valid") {
-                applyValidityFilter(true);
-              } else if (stat.key === "invalid") {
-                applyValidityFilter(false);
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
+        {statConfig.map((stat) => {
+          // Determine which card matches the currently-active filter
+          // so the selected card is visually distinct from hover (the
+          // prior styling only highlighted on hover, so users couldn't
+          // tell which card they had already clicked).
+          const isActive =
+            stat.key === "total"
+              ? !storeFilter && isValidFilter === undefined
+              : stat.key === "apple"
+                ? storeFilter === "apple"
+                : stat.key === "google"
+                  ? storeFilter === "google"
+                  : stat.key === "valid"
+                    ? isValidFilter === true
+                    : isValidFilter === false;
+          return (
+            <div
+              key={stat.key}
+              className={cn(
+                "bg-card border rounded-xl p-4 shadow-sm",
+                "relative overflow-hidden",
+                "cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                isActive
+                  ? "border-primary ring-2 ring-primary/20"
+                  : "border-border hover:border-primary/50",
+              )}
+              role="button"
+              aria-pressed={isActive}
+              tabIndex={0}
+              onClick={() => {
                 if (stat.key === "total") {
                   resetFilters();
                 } else if (stat.key === "apple") {
@@ -353,26 +357,42 @@ export default function ProjectPurchases() {
                 } else if (stat.key === "invalid") {
                   applyValidityFilter(false);
                 }
-              }
-            }}
-            aria-label={STATS_LABELS[stat.key]}
-          >
-            <div
-              className={cn(
-                "absolute inset-0 bg-gradient-to-br opacity-80 pointer-events-none",
-                stat.accent,
-              )}
-            ></div>
-            <div className="relative">
-              <p className="text-sm text-muted-foreground">
-                {STATS_LABELS[stat.key]}
-              </p>
-              <p className="text-3xl font-semibold mt-2">
-                {cardValues[stat.key].toLocaleString()}
-              </p>
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  if (stat.key === "total") {
+                    resetFilters();
+                  } else if (stat.key === "apple") {
+                    applyStoreFilter("apple");
+                  } else if (stat.key === "google") {
+                    applyStoreFilter("google");
+                  } else if (stat.key === "valid") {
+                    applyValidityFilter(true);
+                  } else if (stat.key === "invalid") {
+                    applyValidityFilter(false);
+                  }
+                }
+              }}
+              aria-label={STATS_LABELS[stat.key]}
+            >
+              <div
+                className={cn(
+                  "absolute inset-0 bg-gradient-to-br opacity-80 pointer-events-none",
+                  stat.accent,
+                )}
+              ></div>
+              <div className="relative">
+                <p className="text-sm text-muted-foreground">
+                  {STATS_LABELS[stat.key]}
+                </p>
+                <p className="text-3xl font-semibold mt-2">
+                  {cardValues[stat.key].toLocaleString()}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm">
