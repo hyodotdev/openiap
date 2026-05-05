@@ -159,10 +159,15 @@ describe("applyEventToBucket", () => {
     expect(bucket.cancellations).toBe(0);
   });
 
-  it("Uncancel without prior cancel clamps at 0 (no negative cancellations)", () => {
+  it("Uncancel without same-day cancel produces a negative bucket (cross-day offset)", () => {
+    // The day-bucket counter is intentionally allowed to go
+    // negative: a cancel on day N and an uncancel on day N+1 must
+    // still net to zero when the dashboard sums per-day rollup
+    // rows into a weekly / monthly bucket. Clamping here would
+    // silently drop the offset.
     const bucket = emptyBucket();
     applyEventToBucket(bucket, makeEvent({ type: "SubscriptionUncanceled" }));
-    expect(bucket.cancellations).toBe(0);
+    expect(bucket.cancellations).toBe(-1);
   });
 
   it("PurchaseRefunded → refunds++", () => {

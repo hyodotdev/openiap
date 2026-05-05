@@ -536,8 +536,13 @@ export function applyEventToBucket(
     case "SubscriptionCanceled":
       // User-initiated cancellations. Counted only when the user
       // turned off renewal — uncancellations are caught by
-      // `SubscriptionUncanceled` so a cancel-then-uncancel pair
-      // within the same window is net-zero in the chart.
+      // `SubscriptionUncanceled`. The day-bucket counter is allowed
+      // to go negative on its own: an uncancel that arrives on a
+      // different day than the original cancel must still net to
+      // zero when the dashboard sums across a weekly / monthly
+      // bucket (or across multiple per-day rollup rows for the
+      // same period). Clamping at zero per-day would silently lose
+      // cross-day cancel/uncancel pairs.
       bucket.cancellations += 1;
       break;
     case "SubscriptionUncanceled":
@@ -555,8 +560,13 @@ export function applyEventToBucket(
       // existing `metricsSummary` live counters instead.
       break;
   }
-  if (bucket.cancellations < 0) bucket.cancellations = 0;
-  if (bucket.revenueMicros < 0) bucket.revenueMicros = 0;
+  // No clamps. `cancellations` is intentionally allowed to go
+  // negative (cross-day uncancel offset, see above). `revenueMicros`
+  // never decreases under the current event mapping — refunds bump
+  // the `refunds` counter, not `revenueMicros` — so a clamp would
+  // be dead code; if a future event type ever subtracts revenue,
+  // the same cross-period reasoning applies and a clamp would hide
+  // the offset.
 }
 
 export function isActiveAt(sub: Doc<"subscriptions">, dayEnd: number): boolean {

@@ -163,8 +163,14 @@ export default function ProjectAnalytics() {
   // `currency` (the resolved value above), not `selectedCurrency`,
   // so the default-currency case still produces a single-currency
   // chart on multi-currency projects.
+  //
+  // We deliberately KEEP rows older than `fromDay` in `filteredRows`
+  // (only attribute / range filters are applied here). `aggregateByDay`
+  // uses those older rows to seed the `activeSubs` carry-forward at
+  // the start of the chart — without them, a project with active
+  // subscriptions but no events in the selected range would dip
+  // visually to zero on the first day.
   const filteredRows = metrics.days.filter((row) => {
-    if (row.day < fromDay) return false;
     if (currency && row.currency !== currency) return false;
     if (selectedProduct && row.productId !== selectedProduct) return false;
     if (platformFilter !== "all" && row.platform !== platformFilter) {
@@ -697,7 +703,22 @@ function aggregateByDay(
   }
   const fromTs = Date.parse(`${fromDay}T00:00:00.000Z`);
   const result: Array<DailyRow & { dayKey: string }> = [];
+
+  // Seed `lastActive` from the most-recent pre-`fromDay` snapshot
+  // so a project with active subs but no events in the selected
+  // range doesn't visibly dip to zero on the first chart day. The
+  // caller passes through pre-range rows for exactly this reason;
+  // pick the latest one whose day is strictly older than `fromDay`.
   let lastActive = 0;
+  let seedDay = "";
+  for (const [day, row] of byDay) {
+    if (day >= fromDay) continue;
+    if (day > seedDay) {
+      seedDay = day;
+      lastActive = row.activeSubs;
+    }
+  }
+
   for (let i = 0; i < rangeDays; i++) {
     const dayKey = utcDayKey(fromTs + i * DAY_MS);
     const entry = byDay.get(dayKey);
@@ -855,8 +876,14 @@ function totalsForPlatform(
 ): { revenueMicros: number; activeSubs: number; newSubs: number } {
   const matching =
     filter === "all" ? rows : rows.filter((r) => r.platform === filter);
-  // For activeSubs, take the LAST day's snapshot per platform and sum.
-  // Otherwise summing across days would multiply by N and inflate.
+  // For activeSubs, sum every product/currency row that lands on the
+  // most recent day per platform. The rollup table is keyed by
+  // `(day, productId, currency, platform)`, so a multi-product
+  // project has multiple rows for the same day+platform — keeping
+  // only the first row encountered (the prior bug) silently
+  // undercounted projects with >1 product. Summing across days
+  // would inflate by N, so we still take only the LAST day's snapshot
+  // per platform.
   const lastByPlatform = new Map<Platform, { day: string; active: number }>();
   let revenueMicros = 0;
   let newSubs = 0;
@@ -869,6 +896,10 @@ function totalsForPlatform(
         day: row.day,
         active: row.activeSubs,
       });
+    } else if (row.day === prior.day) {
+      // Same platform + same day = different (product, currency)
+      // tuple. Sum its activeSubs into the platform's total.
+      prior.active += row.activeSubs;
     }
   }
   let activeSubs = 0;
