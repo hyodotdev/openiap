@@ -482,6 +482,12 @@ export const getRevenueMetrics = query({
     currencies: v.array(v.string()),
     productIds: v.array(v.string()),
     platforms: v.array(platformValidator),
+    // True when the underlying scan hit `REVENUE_SCAN_CAP` and the
+    // returned rows are a partial view of the requested window. The
+    // dashboard surfaces this as a banner so a truncated chart is
+    // visible to the operator instead of silently rendering a
+    // partial tail.
+    truncated: v.boolean(),
   }),
   handler: async (ctx, args) => {
     const project = await projectByApiKey(ctx, args.apiKey);
@@ -491,6 +497,7 @@ export const getRevenueMetrics = query({
         currencies: [],
         productIds: [],
         platforms: [],
+        truncated: false,
       };
     }
 
@@ -543,7 +550,8 @@ export const getRevenueMetrics = query({
           .lte("day", args.toDay),
       )
       .take(REVENUE_SCAN_CAP);
-    if (allRows.length === REVENUE_SCAN_CAP) {
+    const truncated = allRows.length === REVENUE_SCAN_CAP;
+    if (truncated) {
       console.warn(
         `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} range=${args.fromDay}..${args.toDay}; chart will undercount the tail.`,
       );
@@ -591,6 +599,7 @@ export const getRevenueMetrics = query({
       currencies: Array.from(currencies).sort(),
       productIds: Array.from(productIds).sort(),
       platforms: Array.from(platforms).sort(),
+      truncated,
     };
   },
 });

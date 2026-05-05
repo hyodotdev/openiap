@@ -155,7 +155,16 @@ export default function ProjectAnalytics() {
   // end up in the broken "no currency selected, sum across all"
   // state — otherwise the totals would mix USD + EUR + JPY into a
   // single number labeled with one currency code.
-  const currency = selectedCurrency ?? metrics.currencies[0] ?? "";
+  //
+  // Empty-project case (no rollup rows yet) leaves both
+  // `selectedCurrency` and `metrics.currencies[0]` undefined; we
+  // resolve to "" deliberately and let the `EmptyState` below take
+  // over rendering — the chart subtree is gated on
+  // `metrics.days.length > 0` so a "" currency never reaches the
+  // axis labels.
+  const currency =
+    selectedCurrency ??
+    (metrics.currencies.length > 0 ? metrics.currencies[0] : "");
 
   // Client-side filtering. Range is also a client filter now (we
   // fetched the max range above), so flipping range chiclets stays
@@ -255,6 +264,25 @@ export default function ProjectAnalytics() {
           </p>
         </div>
       </div>
+
+      {metrics.truncated && (
+        // Server hit `REVENUE_SCAN_CAP` on the rollup scan, so the
+        // chart below is showing a partial view of the requested
+        // range. Surface this so an operator doesn't read flat
+        // numbers as a real revenue trough — they're a query-budget
+        // truncation, not a business signal.
+        <div className="border border-amber-500/40 bg-amber-500/10 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium mb-1">Analytics partially loaded</p>
+            <p className="text-muted-foreground">
+              This range exceeded the per-query scan limit. Numbers below cover
+              the most-recent slice of the window; tighten the range (7d / 30d)
+              to load every row, or narrow by product / currency.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         {PLATFORM_CARDS.map((card) => {
