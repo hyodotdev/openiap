@@ -37,14 +37,37 @@ async function resolveAscCredentials(
   project: Awaited<ReturnType<typeof getProjectByApiKey>>,
   options: { detailedErrors?: boolean } = {},
 ): Promise<AscCredentials> {
-  // Resolve as a *pair* — never mix the new ASC Issuer ID with the
-  // legacy Server API Key ID (or vice versa). If only one of the
-  // new fields is populated the operator is mid-migration; in that
-  // case fall back to the legacy pair entirely so we don't sign a
-  // request with mismatched identifiers Apple will reject as 401.
-  const useAsc = project.iosAscIssuerId && project.iosAscKeyId;
+  // Apple uses ONE Issuer ID per team across both API gateways
+  // (App Store Server API + App Store Connect API), so the
+  // Settings UI deliberately exposes a single shared Issuer ID
+  // input that writes to `iosAppStoreIssuerId` — `iosAscIssuerId`
+  // is never populated through the UI and only exists for
+  // backwards-compat with the brief window when both were
+  // separate inputs.
+  //
+  // The Key IDs are NOT shared: `iosAppStoreKeyId` is the In-App
+  // Purchase key (receipt verification) and `iosAscKeyId` is the
+  // App Store Connect API Team / Individual key (catalog
+  // management). They authenticate against different gateways and
+  // every Apple-issued key has a unique 10-char id.
+  //
+  // Pair-resolution rule: if `iosAscKeyId` is set, sign with the
+  // ASC pair (issuer falls back to the shared `iosAppStoreIssuerId`
+  // when `iosAscIssuerId` is missing). If `iosAscKeyId` is missing,
+  // fall back to the legacy single-slot Server API pair so projects
+  // mid-migration still work — `call()` surfaces a wrong-kind 401
+  // hint when Apple rejects a Server-API key on an ASC endpoint.
+  //
+  // Earlier the gate required BOTH `iosAscIssuerId` AND
+  // `iosAscKeyId` to be set, which never happened in production
+  // (UI doesn't expose the Issuer field). The fallback then sent
+  // the JWT with `kid: iosAppStoreKeyId` (Server API key id) but
+  // signed with the ASC private key, and Apple rejected every
+  // request with a 401 across all production deployments
+  // (LukasB-DEV's report on PR #127).
+  const useAsc = !!project.iosAscKeyId;
   const issuerId = useAsc
-    ? project.iosAscIssuerId
+    ? (project.iosAscIssuerId ?? project.iosAppStoreIssuerId)
     : project.iosAppStoreIssuerId;
   const keyId = useAsc ? project.iosAscKeyId : project.iosAppStoreKeyId;
   if (!issuerId || !keyId) {
