@@ -35,6 +35,8 @@ type ProjectContext = { project: Doc<"projects"> };
 type Platform = "IOS" | "Android";
 type PlatformFilter = "all" | Platform;
 
+const DAY_MS = 86_400_000;
+
 const RANGES = [
   { id: "7d", label: "Last 7 days", days: 7 },
   { id: "30d", label: "Last 30 days", days: 30 },
@@ -107,7 +109,7 @@ export default function ProjectAnalytics() {
   // far from UTC, surfacing as a "missing yesterday" off-by-one.
   const { maxFromDay, toDay } = useMemo(() => {
     const today = utcDayKey(Date.now());
-    const from = utcDayKey(Date.now() - (MAX_RANGE_DAYS - 1) * 86400000);
+    const from = utcDayKey(Date.now() - (MAX_RANGE_DAYS - 1) * DAY_MS);
     return { maxFromDay: from, toDay: today };
   }, [MAX_RANGE_DAYS]);
 
@@ -116,7 +118,7 @@ export default function ProjectAnalytics() {
   // range/period clicks; only the bottom (charts + summary cards)
   // re-derives.
   const fromDay = useMemo(
-    () => utcDayKey(Date.now() - (range.days - 1) * 86400000),
+    () => utcDayKey(Date.now() - (range.days - 1) * DAY_MS),
     [range],
   );
 
@@ -205,8 +207,8 @@ export default function ProjectAnalytics() {
           Analytics
         </h2>
         <p className="text-sm text-muted-foreground">
-          Revenue and subscription lifecycle metrics, rolled up daily from
-          ingested webhook events. Updated every 24h on a trailing 3-day window
+          Revenue and subscription lifecycle metrics, rolled up from ingested
+          webhook events. Refreshed every ~10 minutes on a trailing 3-day window
           — late Apple ASN v2 / Google RTDN notifications fold into their
           correct day automatically.
         </p>
@@ -647,8 +649,8 @@ function EmptyState() {
       <p className="text-sm font-medium mb-1">No data yet for this range</p>
       <p className="text-xs text-muted-foreground max-w-md mx-auto">
         Analytics roll up daily from ingested Apple ASN v2 / Google RTDN webhook
-        events. Once your first webhook arrives, the next cron tick (within 24h)
-        will populate this view.
+        events. Once your first webhook arrives, the next cron tick (within 10
+        min) will populate this view.
       </p>
     </div>
   );
@@ -692,7 +694,7 @@ function aggregateByDay(
   const result: Array<DailyRow & { dayKey: string }> = [];
   let lastActive = 0;
   for (let i = 0; i < rangeDays; i++) {
-    const dayKey = utcDayKey(fromTs + i * 86400000);
+    const dayKey = utcDayKey(fromTs + i * DAY_MS);
     const entry = byDay.get(dayKey);
     if (entry) {
       lastActive = entry.activeSubs;
@@ -813,7 +815,7 @@ function bucketLabelFor(
   if (period === "weekly") {
     // Start of ISO week (Monday). UTC day 1=Mon … 0=Sun.
     const weekday = (date.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
-    const monday = new Date(date.getTime() - weekday * 86400000);
+    const monday = new Date(date.getTime() - weekday * DAY_MS);
     const key = utcDayKey(monday.getTime());
     return {
       bucketKey: key,

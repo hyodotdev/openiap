@@ -264,6 +264,16 @@ export async function runRecompute(
         .lte("receivedAt", windowEnd),
     )
     .take(WEBHOOK_SCAN_CAP);
+  if (events.length === WEBHOOK_SCAN_CAP) {
+    // Hitting the cap means the scan was truncated and the project's
+    // bucket counters are undercounted for this tick. Surface to
+    // ops via the standard Convex log stream — silent truncation
+    // would manifest as flat-line analytics that look like a quiet
+    // day rather than a budget breach.
+    console.warn(
+      `[revenueMetrics] webhookEvents scan hit WEBHOOK_SCAN_CAP=${WEBHOOK_SCAN_CAP} for project=${projectId}; results truncated, bucket counters will undercount this tick.`,
+    );
+  }
 
   for (const event of events) {
     if (!event.productId) continue;
@@ -304,6 +314,14 @@ export async function runRecompute(
     .query("subscriptions")
     .withIndex("by_project_and_updated", (q) => q.eq("projectId", projectId))
     .take(SUBS_SCAN_CAP);
+  if (subs.length === SUBS_SCAN_CAP) {
+    // Same reasoning as the webhookEvents cap above: an undercounted
+    // `activeSubs` snapshot manifests as a sudden chart drop rather
+    // than an obvious operational failure, so surface the truncation.
+    console.warn(
+      `[revenueMetrics] subscriptions scan hit SUBS_SCAN_CAP=${SUBS_SCAN_CAP} for project=${projectId}; activeSubs snapshot will undercount this tick.`,
+    );
+  }
 
   // Per-day end-of-day boundary timestamps. activeSubs snapshot is
   // taken at `dayEnd` (start of next UTC day - 1ms) so a sub that
