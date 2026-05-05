@@ -204,32 +204,50 @@ const WEBHOOK_SCAN_CAP = 15_000;
 // Per-page subscription scan size. Each page chains via the
 // scheduler so this caps reads PER MUTATION, not per project. A
 // project with 50k active subs paginates across ~10 chained
-// mutations, each comfortably under the 40k document-read budget
+// mutations, each comfortably under the 32k document-read budget
 // (page reads + the events pass on page 0 + commit-time existing-
 // row deletes all share the budget).
 const SUBS_PAGE_SIZE = 5_000;
 
+// Number of accumulator buckets above which the commit phase
+// chains per-day mutations instead of running inline. Below this
+// threshold, a single commit fits comfortably under Convex's 8192
+// writes-per-mutation budget (each bucket is one delete + one
+// insert = 2 ops, plus the per-day existing-row scan reads). For
+// large multi-product projects (e.g. 100 SKUs × 5 currencies × 2
+// platforms × 3 days = 3000 buckets → 6000 ops, breaking the cap),
+// we split by day so each commit mutation handles one day's
+// buckets and gets its own write budget.
+const COMMIT_INLINE_BUCKET_LIMIT = 500;
+
 // Validators for the chained-page args. Buckets serialize as a flat
 // array so they survive the scheduler's JSON round-trip; the cursor
-// is a small enum + watermark.
+// is the state index + the opaque cursor returned by Convex's
+// `paginate(...)` API (stable across `updatedAt` ties because it
+// includes the row `_id`, which a hand-rolled `lt(updatedAt, ...)`
+// watermark would silently skip when two rows share a timestamp).
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
-const accumulatorValidator = v.array(
-  v.object({
-    day: v.string(),
-    productId: v.string(),
-    currency: v.string(),
-    platform: platformValidator,
-    activeSubs: v.number(),
-    newSubs: v.number(),
-    renewals: v.number(),
-    cancellations: v.number(),
-    refunds: v.number(),
-    revenueMicros: v.number(),
-  }),
-);
+const bucketValidator = v.object({
+  day: v.string(),
+  productId: v.string(),
+  currency: v.string(),
+  platform: platformValidator,
+  activeSubs: v.number(),
+  newSubs: v.number(),
+  renewals: v.number(),
+  cancellations: v.number(),
+  refunds: v.number(),
+  revenueMicros: v.number(),
+});
+const accumulatorValidator = v.array(bucketValidator);
 const cursorValidator = v.object({
   stateIdx: v.number(),
-  updatedBefore: v.union(v.number(), v.null()),
+  // Opaque Convex pagination cursor for the current state. `null`
+  // means "start of state" (or "state finished" if `stateIdx` is
+  // also advancing). Using Convex's pagination cursor instead of a
+  // hand-rolled `updatedAt` watermark guarantees ordering stability
+  // when multiple subscriptions share an `updatedAt` timestamp.
+  paginationCursor: v.union(v.string(), v.null()),
 });
 
 async function markRevenueMetricsRun(
@@ -361,7 +379,7 @@ export async function runRecompute(
     days,
     windowStart,
     buckets,
-    cursor: { stateIdx: 0, updatedBefore: null },
+    cursor: { stateIdx: 0, paginationCursor: null },
     runStartedAt: now,
   });
 }
@@ -380,31 +398,28 @@ async function processSubsPage(
     days: string[];
     windowStart: number;
     buckets: Map<BucketKey, RollupBucket>;
-    cursor: { stateIdx: number; updatedBefore: number | null };
+    cursor: { stateIdx: number; paginationCursor: string | null };
     runStartedAt: number;
   },
 ): Promise<void> {
   const { projectId, days, buckets, runStartedAt } = args;
   const dayEnds = days.map((day) => Date.parse(`${day}T23:59:59.999Z`));
 
-  let { stateIdx, updatedBefore } = args.cursor;
+  let { stateIdx, paginationCursor } = args.cursor;
   let pageRemaining = SUBS_PAGE_SIZE;
   let chainContinuation = false;
 
   while (stateIdx < COUNTED_STATES_ORDERED.length && pageRemaining > 0) {
     const state: CountedState = COUNTED_STATES_ORDERED[stateIdx];
-    const upperBound = updatedBefore;
-    const requested = pageRemaining;
-    const subs = await ctx.db
+    const result = await ctx.db
       .query("subscriptions")
-      .withIndex("by_project_and_state_and_updated", (q) => {
-        const base = q.eq("projectId", projectId).eq("state", state);
-        return upperBound === null ? base : base.lt("updatedAt", upperBound);
-      })
+      .withIndex("by_project_and_state_and_updated", (q) =>
+        q.eq("projectId", projectId).eq("state", state),
+      )
       .order("desc")
-      .take(requested);
+      .paginate({ numItems: pageRemaining, cursor: paginationCursor });
 
-    for (const sub of subs) {
+    for (const sub of result.page) {
       for (let i = 0; i < days.length; i++) {
         if (!isActiveAt(sub, dayEnds[i])) continue;
         const currency = sub.currency ?? "";
@@ -422,31 +437,31 @@ async function processSubsPage(
       }
     }
 
-    pageRemaining -= subs.length;
-    if (subs.length < requested) {
-      // Took less than we asked for → state exhausted, advance.
+    pageRemaining -= result.page.length;
+    if (result.isDone) {
+      // State exhausted, advance to next state with a fresh cursor.
       stateIdx += 1;
-      updatedBefore = null;
+      paginationCursor = null;
     } else {
-      // Page is full and the current state may still have rows we
-      // haven't seen. Carry the watermark on this state and chain a
-      // continuation; the next page reads `lt(updatedAt, watermark)`
-      // so we skip the rows we already processed.
-      updatedBefore = subs[subs.length - 1].updatedAt;
-      chainContinuation = true;
-      break;
+      // Convex's `continueCursor` is opaque and includes a stable
+      // tiebreaker (the row `_id`), so subsequent pages won't drop
+      // rows that share an `updatedAt` with the page boundary.
+      paginationCursor = result.continueCursor;
+      if (pageRemaining <= 0) {
+        chainContinuation = true;
+        break;
+      }
     }
   }
 
   if (!chainContinuation && stateIdx >= COUNTED_STATES_ORDERED.length) {
     // All counted states processed — commit.
-    await commitBuckets(ctx, projectId, days, buckets, runStartedAt);
-    await markRevenueMetricsRun(ctx, projectId, runStartedAt);
+    await commitOrSchedulePerDay(ctx, projectId, days, buckets, runStartedAt);
     return;
   }
 
   // More work to do. Serialize the accumulator + cursor and chain
-  // a fresh mutation so the next page gets its own 40k budget.
+  // a fresh mutation so the next page gets its own 32k read budget.
   const serialized = Array.from(buckets.values());
   await ctx.scheduler.runAfter(
     0,
@@ -455,7 +470,7 @@ async function processSubsPage(
       projectId,
       days,
       buckets: serialized,
-      cursor: { stateIdx, updatedBefore },
+      cursor: { stateIdx, paginationCursor },
       runStartedAt,
     },
   );
@@ -491,6 +506,126 @@ export const recomputeRevenueMetricsPage = internalMutation({
     return null;
   },
 });
+
+// Commit one day's worth of recomputed buckets. Used by the
+// scheduler-chained commit path for projects whose total bucket
+// count exceeds COMMIT_INLINE_BUCKET_LIMIT and would otherwise
+// blow Convex's 8192-writes-per-mutation budget on a single
+// commit. Each per-day commit:
+//   - reads existing rollup rows for THIS day (bounded by
+//     productCount × currencyCount × platformCount)
+//   - deletes them and inserts the recomputed non-zero buckets
+//   - upserts `revenueMetricsRunStatus` so the picker rotates
+//     even if some other day's commit ran later or never
+// Multiple per-day commits run in parallel; OCC retries make the
+// shared `revenueMetricsRunStatus` upsert race-safe.
+export const commitRevenueMetricsDay = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    day: v.string(),
+    buckets: accumulatorValidator,
+    runStartedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("revenueMetricsDaily")
+      .withIndex("by_project_and_day_and_currency", (q) =>
+        q.eq("projectId", args.projectId).eq("day", args.day),
+      )
+      .collect();
+    await Promise.all(existing.map((row) => ctx.db.delete(row._id)));
+
+    const inserts: Array<Promise<unknown>> = [];
+    for (const bucket of args.buckets) {
+      if (isAllZeroBucket(bucket)) continue;
+      inserts.push(
+        ctx.db.insert("revenueMetricsDaily", {
+          projectId: args.projectId,
+          day: bucket.day,
+          productId: bucket.productId,
+          currency: bucket.currency,
+          platform: bucket.platform,
+          activeSubs: bucket.activeSubs,
+          newSubs: bucket.newSubs,
+          renewals: bucket.renewals,
+          cancellations: bucket.cancellations,
+          refunds: bucket.refunds,
+          revenueMicros: bucket.revenueMicros,
+          updatedAt: args.runStartedAt,
+        }),
+      );
+    }
+    await Promise.all(inserts);
+
+    await markRevenueMetricsRun(ctx, args.projectId, args.runStartedAt);
+    return null;
+  },
+});
+
+// Decide whether to commit inline (small projects) or fan out one
+// scheduled mutation per day (large projects). The threshold is
+// expressed in total bucket count because each bucket contributes
+// at most 2 writes (one delete of the prior row + one insert of
+// the new row); 500 buckets × 2 = 1000 writes per day worst-case
+// is comfortably under Convex's 8192-writes-per-mutation budget
+// even with the per-day existing-row reads.
+async function commitOrSchedulePerDay(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  days: string[],
+  buckets: Map<BucketKey, RollupBucket>,
+  runStartedAt: number,
+): Promise<void> {
+  if (buckets.size <= COMMIT_INLINE_BUCKET_LIMIT) {
+    await commitBuckets(ctx, projectId, days, buckets, runStartedAt);
+    await markRevenueMetricsRun(ctx, projectId, runStartedAt);
+    return;
+  }
+
+  // Group buckets by day so each scheduled mutation receives only
+  // its own slice. Args size per scheduled mutation is therefore
+  // bounded by the per-day bucket count (productCount ×
+  // currencyCount × platformCount), well under the ~1MB scheduler
+  // arg limit at any realistic SaaS scale.
+  const bucketsByDay = new Map<string, RollupBucket[]>();
+  for (const day of days) bucketsByDay.set(day, []);
+  for (const bucket of buckets.values()) {
+    const list = bucketsByDay.get(bucket.day);
+    if (list) list.push(bucket);
+  }
+
+  for (const day of days) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.subscriptions.revenueMetrics.commitRevenueMetricsDay,
+      {
+        projectId,
+        day,
+        buckets: bucketsByDay.get(day) ?? [],
+        runStartedAt,
+      },
+    );
+  }
+}
+
+function isAllZeroBucket(bucket: {
+  activeSubs: number;
+  newSubs: number;
+  renewals: number;
+  cancellations: number;
+  refunds: number;
+  revenueMicros: number;
+}): boolean {
+  return (
+    bucket.activeSubs === 0 &&
+    bucket.newSubs === 0 &&
+    bucket.renewals === 0 &&
+    bucket.cancellations === 0 &&
+    bucket.refunds === 0 &&
+    bucket.revenueMicros === 0
+  );
+}
 
 function getOrCreateBucket(
   buckets: Map<BucketKey, RollupBucket>,
@@ -615,16 +750,7 @@ async function commitBuckets(
     // but was later refunded so its (newSubs, refunds) net to zero
     // and it wasn't active at end-of-day either. No row beats an
     // all-zero row in storage / scan cost.
-    if (
-      bucket.activeSubs === 0 &&
-      bucket.newSubs === 0 &&
-      bucket.renewals === 0 &&
-      bucket.cancellations === 0 &&
-      bucket.refunds === 0 &&
-      bucket.revenueMicros === 0
-    ) {
-      continue;
-    }
+    if (isAllZeroBucket(bucket)) continue;
     inserts.push(
       ctx.db.insert("revenueMetricsDaily", {
         projectId,

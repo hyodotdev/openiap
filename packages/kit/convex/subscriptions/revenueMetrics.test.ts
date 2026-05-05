@@ -402,6 +402,24 @@ class MemQuery {
     }
     return this.rows[0] ?? null;
   }
+
+  // Minimal stand-in for Convex's `paginate({ numItems, cursor })`.
+  // Cursor is the offset as a string. Real Convex returns an opaque
+  // cursor that includes a stable tiebreaker (the row `_id`); the
+  // test fixtures here are too small to ever exercise the
+  // tiebreaker, so an offset is sufficient to round-trip the
+  // production code path without forcing tests to wire up Convex's
+  // full pagination contract.
+  async paginate(opts: {
+    numItems: number;
+    cursor: string | null;
+  }): Promise<{ page: Row[]; isDone: boolean; continueCursor: string }> {
+    const start = opts.cursor === null ? 0 : Number.parseInt(opts.cursor, 10);
+    const end = start + opts.numItems;
+    const page = this.rows.slice(start, end);
+    const isDone = end >= this.rows.length;
+    return { page, isDone, continueCursor: String(end) };
+  }
 }
 
 class MemDb {
