@@ -527,29 +527,43 @@ export const getRevenueMetrics = query({
       );
     }
 
-    // Range scan via `by_project_and_day_and_currency`. The index
-    // is `[projectId, day, currency]`, so `eq(projectId).gte(day)
-    // .lte(day)` resolves the entire window in one index hit;
-    // currency / product / platform filters are applied in-memory
-    // afterward.
+    // Range scan over `revenueMetricsDaily`. When the caller pins a
+    // specific `productId` we use `by_project_and_product_and_day_and_currency`
+    // (`[projectId, productId, day, currency]`) so the index range
+    // already filters down to a single SKU's rows; otherwise we fall
+    // back to `by_project_and_day_and_currency`
+    // (`[projectId, day, currency]`). Currency / platform filters are
+    // applied in-memory in either case (typically tens of rows after
+    // the index range narrows things down).
     //
-    // Capped at REVENUE_SCAN_CAP — same number `metricsSummary` uses
-    // for its FALLBACK_SCAN_CAP / ROLLING_SCAN_CAP — to stay under
-    // Convex's 32k document-scan limit per query. A 92-day range
-    // across a maximalist project (30 SKUs × 3 currencies × 2
-    // platforms = 180 rows/day → ~16.5k rows for 92 days) fits
-    // comfortably; truncation at the cap surfaces as the warning
-    // below so we never silently render a partial chart.
-    const REVENUE_SCAN_CAP = 10_000;
-    const allRows = await ctx.db
-      .query("revenueMetricsDaily")
-      .withIndex("by_project_and_day_and_currency", (q) =>
-        q
-          .eq("projectId", project._id)
-          .gte("day", args.fromDay)
-          .lte("day", args.toDay),
-      )
-      .take(REVENUE_SCAN_CAP);
+    // Capped at REVENUE_SCAN_CAP to stay under Convex's 32k
+    // document-scan limit per query. A 92-day range across a
+    // maximalist project (30 SKUs × 3 currencies × 2 platforms =
+    // 180 rows/day → ~16.5k rows for 92 days) fits inside this
+    // cap; truncation surfaces as the `truncated` flag below and
+    // an amber banner on the dashboard so a partial chart is
+    // never silently rendered.
+    const REVENUE_SCAN_CAP = 20_000;
+    const allRows = args.productId
+      ? await ctx.db
+          .query("revenueMetricsDaily")
+          .withIndex("by_project_and_product_and_day_and_currency", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("productId", args.productId as string)
+              .gte("day", args.fromDay)
+              .lte("day", args.toDay),
+          )
+          .take(REVENUE_SCAN_CAP)
+      : await ctx.db
+          .query("revenueMetricsDaily")
+          .withIndex("by_project_and_day_and_currency", (q) =>
+            q
+              .eq("projectId", project._id)
+              .gte("day", args.fromDay)
+              .lte("day", args.toDay),
+          )
+          .take(REVENUE_SCAN_CAP);
     const truncated = allRows.length === REVENUE_SCAN_CAP;
     if (truncated) {
       console.warn(

@@ -37,6 +37,26 @@ type PlatformFilter = "all" | Platform;
 
 const DAY_MS = 86_400_000;
 
+// Stable empty defaults. The kickoff render before `useQuery`
+// returns has `metrics === undefined`; we still need to invoke
+// every memo in the same order on that render so React's
+// rules-of-hooks stay satisfied. Sharing these constants keeps the
+// memo dependency identity stable across renders so the memos
+// don't recompute when the empty defaults are passed in.
+const EMPTY_DAYS: ReadonlyArray<{
+  day: string;
+  currency: string;
+  productId: string;
+  platform: Platform;
+  activeSubs: number;
+  newSubs: number;
+  renewals: number;
+  cancellations: number;
+  refunds: number;
+  revenueMicros: number;
+}> = [];
+const EMPTY_STRINGS: ReadonlyArray<string> = [];
+
 const RANGES = [
   { id: "7d", label: "Last 7 days", days: 7 },
   { id: "30d", label: "Last 30 days", days: 30 },
@@ -151,9 +171,14 @@ export default function ProjectAnalytics() {
     toDay,
   });
 
-  if (metrics === undefined) {
-    return <PageLoading />;
-  }
+  // The loading-state early return has to live below ALL hooks so
+  // React's rules-of-hooks (every hook called in the same order on
+  // every render) stays satisfied — the memos below would
+  // otherwise be conditional on `metrics !== undefined`. We work
+  // off a stable empty default until the real data arrives, then
+  // bail to `<PageLoading />` after the hooks have been registered.
+  const metricsDays = metrics?.days ?? EMPTY_DAYS;
+  const metricsCurrencies = metrics?.currencies ?? EMPTY_STRINGS;
 
   // Multi-currency projects: we always pin to a single currency for
   // chart rendering because revenueMicros can't be summed across
@@ -166,14 +191,14 @@ export default function ProjectAnalytics() {
   // single number labeled with one currency code.
   //
   // Empty-project case (no rollup rows yet) leaves both
-  // `selectedCurrency` and `metrics.currencies[0]` undefined; we
+  // `selectedCurrency` and `metricsCurrencies[0]` undefined; we
   // resolve to "" deliberately and let the `EmptyState` below take
   // over rendering — the chart subtree is gated on
-  // `metrics.days.length > 0` so a "" currency never reaches the
+  // `metricsDays.length > 0` so a "" currency never reaches the
   // axis labels.
   const currency =
     selectedCurrency ??
-    (metrics.currencies.length > 0 ? metrics.currencies[0] : "");
+    (metricsCurrencies.length > 0 ? metricsCurrencies[0] : "");
 
   // Client-side filtering. Range is also a client filter now (we
   // fetched the max range above), so flipping range chiclets stays
@@ -188,36 +213,54 @@ export default function ProjectAnalytics() {
   // the start of the chart — without them, a project with active
   // subscriptions but no events in the selected range would dip
   // visually to zero on the first day.
-  const filteredRows = metrics.days.filter((row) => {
-    if (currency && row.currency !== currency) return false;
-    if (selectedProduct && row.productId !== selectedProduct) return false;
-    if (platformFilter !== "all" && row.platform !== platformFilter) {
-      return false;
-    }
-    return true;
-  });
+  //
+  // Memoised so the per-minute `now` tick (which only changes
+  // `fromDay` / `toDay` once per UTC day) doesn't re-run the full
+  // filter / aggregate / bucket pipeline on every render.
+  const filteredRows = useMemo(
+    () =>
+      metricsDays.filter((row) => {
+        if (currency && row.currency !== currency) return false;
+        if (selectedProduct && row.productId !== selectedProduct) return false;
+        if (platformFilter !== "all" && row.platform !== platformFilter) {
+          return false;
+        }
+        return true;
+      }),
+    [metricsDays, currency, selectedProduct, platformFilter],
+  );
 
-  const dailySeries = aggregateByDay(filteredRows, range.days, fromDay);
-  const series = bucketByPeriod(dailySeries, periodId);
+  const dailySeries = useMemo(
+    () => aggregateByDay(filteredRows, range.days, fromDay),
+    [filteredRows, range.days, fromDay],
+  );
+  const series = useMemo(
+    () => bucketByPeriod(dailySeries, periodId),
+    [dailySeries, periodId],
+  );
 
-  const totals = series.reduce(
-    (acc, row) => {
-      acc.newSubs += row.newSubs;
-      acc.renewals += row.renewals;
-      acc.cancellations += row.cancellations;
-      acc.refunds += row.refunds;
-      acc.revenueMicros += row.revenueMicros;
-      acc.activeSubsLast = row.activeSubs;
-      return acc;
-    },
-    {
-      newSubs: 0,
-      renewals: 0,
-      cancellations: 0,
-      refunds: 0,
-      revenueMicros: 0,
-      activeSubsLast: 0,
-    },
+  const totals = useMemo(
+    () =>
+      series.reduce(
+        (acc, row) => {
+          acc.newSubs += row.newSubs;
+          acc.renewals += row.renewals;
+          acc.cancellations += row.cancellations;
+          acc.refunds += row.refunds;
+          acc.revenueMicros += row.revenueMicros;
+          acc.activeSubsLast = row.activeSubs;
+          return acc;
+        },
+        {
+          newSubs: 0,
+          renewals: 0,
+          cancellations: 0,
+          refunds: 0,
+          revenueMicros: 0,
+          activeSubsLast: 0,
+        },
+      ),
+    [series],
   );
 
   // Churn = (cancellations + refunds) / activeSubs at end of window.
@@ -227,6 +270,38 @@ export default function ProjectAnalytics() {
     totals.activeSubsLast > 0
       ? ((totals.cancellations + totals.refunds) / totals.activeSubsLast) * 100
       : 0;
+
+  // Platform-card totals: one filter pass over `metrics.days`
+  // (without platform narrowing — the cards ARE the platform
+  // breakdown), then `totalsForPlatform` for each card variant.
+  // The prior implementation did this filter and `totalsForPlatform`
+  // walk three times *per render* inside `PLATFORM_CARDS.map`
+  // because of the per-minute `now` tick. Memoising collapses that
+  // to one filter + three small reductions, only re-running when a
+  // filter the cards actually depend on changes.
+  const platformTotals = useMemo(() => {
+    const baseRows = metricsDays.filter((row) => {
+      if (row.day < fromDay) return false;
+      if (currency && row.currency !== currency) return false;
+      if (selectedProduct && row.productId !== selectedProduct) return false;
+      return true;
+    });
+    const byFilter = new Map<
+      PlatformFilter,
+      { revenueMicros: number; activeSubs: number; newSubs: number }
+    >();
+    for (const card of PLATFORM_CARDS) {
+      byFilter.set(
+        card.filter,
+        totalsForPlatform(baseRows, card.filter, currency),
+      );
+    }
+    return byFilter;
+  }, [metricsDays, fromDay, currency, selectedProduct]);
+
+  if (metrics === undefined) {
+    return <PageLoading />;
+  }
 
   return (
     <div className="space-y-6">
@@ -296,21 +371,11 @@ export default function ProjectAnalytics() {
       <div className="grid gap-4 md:grid-cols-3">
         {PLATFORM_CARDS.map((card) => {
           const active = platformFilter === card.filter;
-          // Cards reflect the selected range / currency / product
-          // (everything except the platform filter — the cards ARE
-          // the platform breakdown). Filtering to fromDay matches
-          // what the charts below show. Use the resolved `currency`
-          // (not raw `selectedCurrency`) so multi-currency projects
-          // pin to a single currency by default and never sum
-          // mismatched FX into one card.
-          const cardRows = metrics.days.filter((row) => {
-            if (row.day < fromDay) return false;
-            if (currency && row.currency !== currency) return false;
-            if (selectedProduct && row.productId !== selectedProduct)
-              return false;
-            return true;
-          });
-          const cardTotals = totalsForPlatform(cardRows, card.filter, currency);
+          const cardTotals = platformTotals.get(card.filter) ?? {
+            revenueMicros: 0,
+            activeSubs: 0,
+            newSubs: 0,
+          };
           return (
             <div
               key={card.key}
