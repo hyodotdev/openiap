@@ -2,7 +2,15 @@
 
   <PropertyGroup>
     <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
-    <UseMaui>true</UseMaui>
+    <!-- UseMaui only activates on platform TFMs (android/ios/maccatalyst).
+         The shared `net9.0` build is contract-only — IOpenIap, generated
+         Types, factory dispatch — and references no MAUI Controls types,
+         so it doesn't need the MAUI workload at restore/build time.
+         Keeping UseMaui unconditional makes the shared TFM require
+         `maui-android` (and the multi-target restore also walks into
+         Bindings.iOS, requiring iOS workload packs) — which defeats the
+         purpose of having a workload-free fast lane in CI. -->
+    <UseMaui Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != ''">true</UseMaui>
     <!-- Library — apps using us bring their own Maui.Controls reference. -->
     <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
     <!-- SingleProject auto-includes only the matching Platforms/<TFM>/ folder.

@@ -47,20 +47,17 @@ jobs:
           dotnet-version: '9.0.x'
 
       # The shared `net9.0` build is the fast lane — no AAR / xcframework, no
-      # MAUI workload. We DO need the lightweight `android` workload though:
-      # OpenIap.Maui.csproj has a conditional ProjectReference to
-      # Bindings.Android.csproj, and MSBuild's project-graph evaluation
-      # (which runs even when `-f net9.0` filters the build to the shared TFM)
-      # loads the referenced csproj — Bindings.Android targets
-      # `net9.0-android` and triggers NETSDK1147 without the workload.
-      # Conditional ProjectReferences gate the *build*, not the *graph load*,
-      # so the workload is mandatory regardless of TFM filter. The `android`
-      # workload alone is ~20s vs ~2min for full `maui`.
-      - name: Install android workload
-        run: dotnet workload install android --skip-sign-check
-
+      # MAUI workload, no native binding csprojs in the project graph. Two
+      # things make this work:
+      #   1. `<UseMaui>` is conditional on having a platform identifier in
+      #      OpenIap.Maui.csproj, so the net9.0 TFM doesn't activate MAUI.
+      #   2. `-p:TargetFramework=net9.0` (instead of `-f net9.0`) does an
+      #      inner-build that filters restore to JUST that TFM. Without it,
+      #      the implicit restore walks ALL TFMs in the multi-target list
+      #      and loads the conditional ProjectReferences to Bindings.Android
+      #      / Bindings.iOS for evaluation — which require workloads.
       - name: Build library (net9.0)
-        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0 --nologo
+        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFramework=net9.0 --nologo
 
   android-binding:
     name: Android binding (net9.0-android)
