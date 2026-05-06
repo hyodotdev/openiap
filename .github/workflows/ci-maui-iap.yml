@@ -51,13 +51,15 @@ jobs:
       # things make this work:
       #   1. `<UseMaui>` is conditional on having a platform identifier in
       #      OpenIap.Maui.csproj, so the net9.0 TFM doesn't activate MAUI.
-      #   2. `-p:TargetFramework=net9.0` (instead of `-f net9.0`) does an
-      #      inner-build that filters restore to JUST that TFM. Without it,
-      #      the implicit restore walks ALL TFMs in the multi-target list
-      #      and loads the conditional ProjectReferences to Bindings.Android
-      #      / Bindings.iOS for evaluation — which require workloads.
+      #   2. `-p:TargetFrameworks=net9.0` (PLURAL — overrides the project's
+      #      `<TargetFrameworks>` list to a single TFM). This must be plural,
+      #      not `-p:TargetFramework=net9.0` (singular) or `-f net9.0`: those
+      #      filter the inner BUILD but leave the implicit RESTORE walking
+      #      all 4 TFMs in the multi-target list, which loads the conditional
+      #      ProjectReferences to Bindings.Android / Bindings.iOS for
+      #      restore-time evaluation and triggers NETSDK1147 / NETSDK1178.
       - name: Build library (net9.0)
-        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFramework=net9.0 --nologo
+        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
 
   android-binding:
     name: Android binding (net9.0-android)

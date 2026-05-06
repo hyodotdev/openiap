@@ -51,8 +51,11 @@ jobs:
       # The shared `net9.0` build catches Types.cs / public-API regressions
       # without needing the MAUI / android / ios workloads. Two things make
       # this work — see ci-maui-iap.yml for the same pattern with details.
+      # Note: `-p:TargetFrameworks=...` is PLURAL (overrides the project's
+      # multi-target list); the singular `-p:TargetFramework=...` and `-f`
+      # leave the implicit restore walking all TFMs.
       - name: Build library (net9.0)
-        run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFramework=net9.0
+        run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0
 
   validate-multitarget:
     name: Validate (net9.0-android / net9.0-ios / net9.0-maccatalyst)
