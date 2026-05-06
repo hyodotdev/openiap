@@ -48,9 +48,14 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
-      # The cross-platform `net9.0` build does not require the MAUI
-      # workload — it's the fast lane that catches Types.cs / public-API
-      # regressions.
+      # The shared `net9.0` build catches Types.cs / public-API regressions.
+      # MSBuild's project-graph evaluation loads the conditional ProjectReference
+      # to Bindings.Android.csproj (which targets net9.0-android) even when
+      # building only the shared TFM, so the lightweight `android` workload
+      # must be present — see ci-maui-iap.yml for the same gotcha.
+      - name: Install android workload
+        run: dotnet workload install android --skip-sign-check
+
       - name: Build library (net9.0)
         run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0
 

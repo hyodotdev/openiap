@@ -46,10 +46,19 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      # The shared `net9.0` TFM compiles without the MAUI workload OR native
-      # binding artifacts — keep this fast lane for PR-time feedback. The full
-      # multi-target build runs on macos-latest below once the AAR + xcframework
-      # are produced.
+      # The shared `net9.0` build is the fast lane — no AAR / xcframework, no
+      # MAUI workload. We DO need the lightweight `android` workload though:
+      # OpenIap.Maui.csproj has a conditional ProjectReference to
+      # Bindings.Android.csproj, and MSBuild's project-graph evaluation
+      # (which runs even when `-f net9.0` filters the build to the shared TFM)
+      # loads the referenced csproj — Bindings.Android targets
+      # `net9.0-android` and triggers NETSDK1147 without the workload.
+      # Conditional ProjectReferences gate the *build*, not the *graph load*,
+      # so the workload is mandatory regardless of TFM filter. The `android`
+      # workload alone is ~20s vs ~2min for full `maui`.
+      - name: Install android workload
+        run: dotnet workload install android --skip-sign-check
+
       - name: Build library (net9.0)
         run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0 --nologo
 
