@@ -5,15 +5,11 @@
 
 #nullable enable
 
-// CA1416 fires on every call to a binding method marked iOS 16+ / 17.4+ / 18.1+
-// because the analyzer can't see through `cb => _module.Foo(cb)` lambdas to
-// the OperatingSystem.IsIOSVersionAtLeast(...) guards we add at the resolver
-// entry. Each call below is guarded — disable the analyzer for this file.
-#pragma warning disable CA1416
-
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -23,6 +19,21 @@ using Hyo.OpenIap.Maui.Bindings.iOS;
 
 namespace Hyo.OpenIap.Maui.Platforms.iOS;
 
+// Class is constructed only under #if IOS / MACCATALYST and the project's
+// SupportedOSPlatformVersion is 15.0 — declare that floor explicitly so the
+// CA1416 analyzer doesn't flag iOS 13/15-baseline binding calls.
+//
+// Methods that call iOS 16+ / 17.4+ / 18.1+ binding APIs each guard with
+// OperatingSystem.IsIOSVersionAtLeast(...) at entry (e.g. PresentExternalPurchaseLinkIOSAsync,
+// GetAppTransactionIOSAsync). The CA1416 analyzer cannot see through the
+// `cb => _module.Foo(cb)` lambda-callback shape, so the guard is correct at
+// runtime but the analyzer still warns — narrow the suppression to this class.
+[SupportedOSPlatform("ios15.0")]
+[SupportedOSPlatform("maccatalyst15.0")]
+[SuppressMessage(
+    "Interoperability",
+    "CA1416",
+    Justification = "Each iOS-16+/17.4+/18.1+ entry method has an explicit OperatingSystem.IsIOSVersionAtLeast guard; CA1416 cannot follow the binding's lambda-callback pattern through to those guards.")]
 internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
 {
     private readonly OpenIapModule _module = OpenIapModule.SharedInstance();

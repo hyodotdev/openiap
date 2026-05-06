@@ -33,6 +33,12 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
 
     public OpenIapAndroid()
     {
+        // Application.Context is the process-scoped singleton context owned by
+        // the Android framework — its lifetime IS the process lifetime, so
+        // capturing it here cannot leak (unlike capturing an Activity context,
+        // which is the actual context-leak antipattern). This is the
+        // recommended Android pattern for app-scoped singletons that need a
+        // Context but no Activity-bound APIs.
         var ctx = global::Android.App.Application.Context
             ?? throw new InvalidOperationException("Android.App.Application.Context is null; OpenIapAndroid requires an initialised app context.");
         _shim = new OpenIapMauiShim(ctx);

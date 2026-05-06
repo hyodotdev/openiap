@@ -549,10 +549,17 @@ export class CSharpPlugin extends CodegenPlugin {
 // ============================================================================
 // XML escaping for /// <summary> docs
 // ============================================================================
+//
+// Only `&`, `<`, `>` are mandatory inside XML element content per the W3C XML
+// 1.0 spec — `'` and `"` are only required inside attribute values. We escape
+// all five for defensive completeness so the helper is safe to reuse from any
+// XML emission site (attribute or content) without auditing the call shape.
 
 function escapeXml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
