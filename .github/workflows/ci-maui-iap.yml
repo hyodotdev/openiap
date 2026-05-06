@@ -90,11 +90,18 @@ jobs:
         working-directory: packages/google
         run: ./gradlew :openiap:assemblePlayRelease
 
+      # `-p:TargetFrameworks=net9.0-android` (PLURAL) is required for the
+      # second build — the singular `-f net9.0-android` filters the inner
+      # build but leaves the implicit restore walking ALL 4 TFMs in the
+      # project's multi-target list. That makes restore load the
+      # Bindings.iOS conditional ProjectReference for net9.0-ios, which
+      # needs `Microsoft.iOS.Sdk.net9.0_X.Y` packs that aren't part of
+      # the `maui-android` workload installed above.
       - name: Build Android binding + library
         working-directory: libraries/maui-iap
         run: |
           dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj --nologo
-          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0-android --nologo
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android --nologo
 
   ios-binding:
     name: iOS binding (net9.0-ios + maccatalyst)
@@ -121,14 +128,17 @@ jobs:
       - name: Build OpenIAP.xcframework
         run: bash packages/apple/scripts/build-xcframework.sh
 
+      # `-p:TargetFrameworks=...` (PLURAL) — see the android-binding job
+      # comment for the rationale. Cross-TFM restore-walk is the same
+      # gotcha here even though the iOS runner has more workloads installed.
       - name: Build iOS binding (ios + maccatalyst)
         working-directory: libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS
         run: |
-          dotnet build -f net9.0-ios --nologo
-          dotnet build -f net9.0-maccatalyst --nologo
+          dotnet build -p:TargetFrameworks=net9.0-ios --nologo
+          dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo
 
       - name: Build library (ios + maccatalyst)
         working-directory: libraries/maui-iap/src/OpenIap.Maui
         run: |
-          dotnet build -f net9.0-ios --nologo
-          dotnet build -f net9.0-maccatalyst --nologo
+          dotnet build -p:TargetFrameworks=net9.0-ios --nologo
+          dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo
