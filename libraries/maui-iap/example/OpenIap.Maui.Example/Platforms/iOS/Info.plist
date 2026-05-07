@@ -8,6 +8,10 @@
     <array>
         <string>itms-apps</string>
     </array>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+    </array>
     <key>UILaunchStoryboardName</key>
     <string>MauiSplash</string>
     <key>UISupportedInterfaceOrientations</key>

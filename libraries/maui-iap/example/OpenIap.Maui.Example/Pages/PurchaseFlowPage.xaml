@@ -23,18 +23,19 @@
 
                 <!-- Connection status -->
                 <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
-                    <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
-                        <Label Text="Store Connection:" FontAttributes="Bold" VerticalOptions="Center" />
-                        <Label x:Name="ConnectionLabel" Text="❌ Disconnected" VerticalOptions="Center" />
-                    </HorizontalStackLayout>
+                    <Label x:Name="ConnectionLabel"
+                           Text="❌ Disconnected"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"
+                           VerticalOptions="Center" />
                 </Border>
 
                 <!-- Storefront panel -->
                 <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
                     <VerticalStackLayout Spacing="8">
                         <HorizontalStackLayout Spacing="6">
-                            <Label Text="Storefront:" FontAttributes="Bold" />
-                            <Label x:Name="StorefrontValueLabel" Text="Not available" />
+                            <Label Text="Storefront:" FontAttributes="Bold" TextColor="#1A1A1A" />
+                            <Label x:Name="StorefrontValueLabel" Text="Not available" TextColor="#5F6470" />
                         </HorizontalStackLayout>
                         <Label x:Name="StorefrontErrorLabel"
                                IsVisible="False"
@@ -54,7 +55,7 @@
                 <!-- Verification method picker -->
                 <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
                     <VerticalStackLayout Spacing="6">
-                        <Label Text="Purchase Verification:" FontAttributes="Bold" />
+                        <Label Text="Purchase Verification:" FontAttributes="Bold" TextColor="#1A1A1A" />
                         <Button x:Name="VerificationButton"
                                 Text="❌ None (Skip)"
                                 BackgroundColor="#1A1A1A"
@@ -99,9 +100,9 @@
                         Padding="14"
                         BackgroundColor="#FFFBE6">
                     <VerticalStackLayout Spacing="6">
-                        <Label Text="Latest Status" FontAttributes="Bold" />
-                        <Label x:Name="ResultLabel" />
-                        <Label x:Name="LatestPurchaseHeader" Text="Latest Purchase" FontAttributes="Bold" Margin="0,8,0,0" IsVisible="False" />
+                        <Label Text="Latest Status" FontAttributes="Bold" TextColor="#1A1A1A" />
+                        <Label x:Name="ResultLabel" TextColor="#1A1A1A" />
+                        <Label x:Name="LatestPurchaseHeader" Text="Latest Purchase" FontAttributes="Bold" TextColor="#1A1A1A" Margin="0,8,0,0" IsVisible="False" />
                         <components:PurchaseSummaryRow x:Name="LatestPurchaseRow" IsVisible="False" />
                         <Button Text="📋 Copy Message"
                                 BackgroundColor="#1A1A1A"
@@ -127,12 +128,12 @@
                 <!-- Instructions -->
                 <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC" Margin="0,8,0,0">
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="How to test:" FontAttributes="Bold" />
-                        <Label Text="1. Make sure you're signed in with a Sandbox account" />
-                        <Label Text="2. Products must be configured in App Store Connect / Play Console" />
-                        <Label Text="3. Tap &quot;Purchase&quot; to initiate the transaction" />
-                        <Label Text="4. The transaction is processed via the PurchaseUpdated stream" />
-                        <Label Text="5. Server-side receipt validation is recommended for production" />
+                        <Label Text="How to test:" FontAttributes="Bold" TextColor="#1A1A1A" />
+                        <Label Text="1. Make sure you're signed in with a Sandbox account" TextColor="#5F6470" />
+                        <Label Text="2. Products must be configured in App Store Connect / Play Console" TextColor="#5F6470" />
+                        <Label Text="3. Tap &quot;Purchase&quot; to initiate the transaction" TextColor="#5F6470" />
+                        <Label Text="4. The transaction is processed via the PurchaseUpdated stream" TextColor="#5F6470" />
+                        <Label Text="5. Server-side receipt validation is recommended for production" TextColor="#5F6470" />
                     </VerticalStackLayout>
                 </Border>
 

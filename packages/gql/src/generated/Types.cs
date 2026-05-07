@@ -2257,8 +2257,10 @@ public interface PurchaseCommon
 public abstract record Product : ProductOrSubscription;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]
-[JsonDerivedType(typeof(Product), "Product")]
-[JsonDerivedType(typeof(ProductSubscription), "ProductSubscription")]
+[JsonDerivedType(typeof(ProductAndroid), "ProductAndroid")]
+[JsonDerivedType(typeof(ProductIOS), "ProductIOS")]
+[JsonDerivedType(typeof(ProductSubscriptionAndroid), "ProductSubscriptionAndroid")]
+[JsonDerivedType(typeof(ProductSubscriptionIOS), "ProductSubscriptionIOS")]
 public abstract record ProductOrSubscription;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]

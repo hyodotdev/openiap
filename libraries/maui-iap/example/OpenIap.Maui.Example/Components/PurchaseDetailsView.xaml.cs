@@ -45,6 +45,7 @@ public partial class PurchaseDetailsView : ContentView
                 Text = row.Value,
                 FontSize = 13,
                 TextColor = Color.FromArgb("#1F1F1F"),
+                LineBreakMode = LineBreakMode.WordWrap,
             });
             stack.Children.Add(new BoxView
             {

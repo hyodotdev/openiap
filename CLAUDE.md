@@ -129,13 +129,35 @@ bun run compile
 claude --context knowledge/_claude-context/context.md
 ```
 
-## Available Skills (Slash Commands)
+## Codex Compatibility
+
+`AGENTS.md` is a symlink to this file, so Codex reads the same root project
+instructions as Claude Code. The `.claude/commands/` files remain the workflow
+SSOT for slash-command-style tasks.
+
+Codex supports Skills through `SKILL.md` folders. This repo provides a
+Codex-compatible local skill at `.codex/skills/openiap-workflows/` that maps the
+Claude slash-command workflows to Codex natural-language requests.
+
+Install it into your local Codex home when needed:
+
+```bash
+./.codex/scripts/install-skills.sh
+```
+
+After installation, ask Codex normally (for example, "review PR 65" or
+"resolve issue 88"), or explicitly mention `$openiap-workflows`.
+
+## Available Skills (Slash Commands / Codex Workflows)
 
 | Skill | Description | Usage |
 |-------|-------------|-------|
 | `/review-pr` | Review PR comments, fix issues, resolve threads | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code` | Audit code against knowledge rules and latest APIs | `/audit-code` |
 | `/compile-knowledge` | Compile knowledge base for Claude context | `/compile-knowledge` |
+| `/resolve-issue` | Analyze an issue, label it, and fix/comment | `/resolve-issue 88` |
+| `/verify-all` | Run the full monorepo health check | `/verify-all` |
+| `/commit` | Branch, commit, push, and optionally create PR | `/commit --all --pr` |
 
 ### /review-pr Workflow
 

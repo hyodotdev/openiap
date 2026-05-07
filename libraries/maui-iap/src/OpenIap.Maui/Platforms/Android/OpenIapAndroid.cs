@@ -46,10 +46,20 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     }
 
     /// <summary>
-    /// Host MAUI app should forward Activity lifecycle events here; the
-    /// Activity is required for purchase flow + external link launches.
+    /// Host MAUI apps may forward Activity lifecycle events here. The Android
+    /// implementation also refreshes MAUI's current Activity before operations
+    /// that require it, so the common case works without app-level wiring.
     /// </summary>
     public void SetActivity(global::Android.App.Activity? activity) => _shim.SetActivity(activity);
+
+    private void RefreshCurrentActivity()
+    {
+        var activity = global::Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+        if (activity is not null)
+        {
+            SetActivity(activity);
+        }
+    }
 
     public IObservable<Purchase> PurchaseUpdated => _purchaseUpdated;
     public IObservable<PurchaseError> PurchaseError => _purchaseError;
@@ -117,6 +127,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
         {
             if (error is not null)
             {
+                Console.WriteLine($"[OpenIapAndroid] shim callback error: {error.GetType().Name}: {error.Message}");
                 tcs.TrySetException(MapThrowable(error));
             }
             else
@@ -125,17 +136,28 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
             }
         });
         try { dispatch(cb); }
-        catch (Exception e) { tcs.TrySetException(MapThrowable(e)); }
+        catch (Exception e)
+        {
+            Console.WriteLine($"[OpenIapAndroid] shim dispatch threw: {e.GetType().Name}: {e.Message}");
+            tcs.TrySetException(MapThrowable(e));
+        }
         return tcs.Task;
     }
 
     private static OpenIapException MapThrowable(Exception e)
     {
-        // OpenIapMauiShim re-throws OpenIapError subclasses directly; their
-        // localized message is the original `code: message` string in many
-        // cases. The first-pass mapping just stuffs everything into a
-        // generic Unknown error and lets DebugMessage carry the raw text;
-        // fine-grained code parsing is best-effort below.
+        if (e is global::Dev.Hyo.Openiap.OpenIapError iapErr)
+        {
+            var productId = iapErr is global::Dev.Hyo.Openiap.OpenIapError.ProductNotFound notFound
+                ? notFound.ProductId
+                : null;
+            return OpenIapErrorMapper.Wrap(
+                iapErr.Code,
+                iapErr.Message ?? iapErr.Code,
+                productId,
+                iapErr.DebugMessage);
+        }
+
         var raw = e.Message ?? e.GetType().Name;
         var code = raw.Contains("not-prepared", StringComparison.OrdinalIgnoreCase)
             ? ErrorCode.NotPrepared

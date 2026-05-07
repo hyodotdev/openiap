@@ -9,7 +9,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run the \"Install MAUI Workload (sudo)\" launch entry first.'; exit 1; }; out=$(dotnet build -t:Run -f net9.0-ios 2>&1); status=$?; echo \"$out\"; if echo \"$out\" | grep -q 'requires Xcode'; then echo ''; echo '⚠️  Your iOS workload pack does not match the installed Xcode. Run the \"Update MAUI Workload (sudo) — fixes Xcode mismatch\" launch entry.'; fi; exit $status"
+        "\"${workspaceFolder}/.vscode/run_ios_simulator.sh\""
       ],
       "console": "integratedTerminal",
       "env": {
@@ -24,7 +24,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run the \"Install MAUI Workload (sudo)\" launch entry first.'; exit 1; }; out=$(dotnet build -t:Run -f net9.0-ios -p:RuntimeIdentifier=ios-arm64 -p:_DeviceName=Default 2>&1); status=$?; echo \"$out\"; if echo \"$out\" | grep -q 'requires Xcode'; then echo ''; echo '⚠️  Your iOS workload pack does not match the installed Xcode. Run the \"Update MAUI Workload (sudo) — fixes Xcode mismatch\" launch entry.'; fi; exit $status"
+        "\"${workspaceFolder}/.vscode/run_ios_device.sh\""
       ],
       "console": "integratedTerminal",
       "env": {
@@ -39,7 +39,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "dotnet workload list | grep -q '^maui' || { echo '❌ MAUI workload missing. Run: sudo dotnet workload install maui (or use the \"Install MAUI Workload (sudo)\" launch entry).'; exit 1; } && (adb uninstall dev.hyo.martie || true) && dotnet build -t:Run -f net9.0-android"
+        "\"${workspaceFolder}/.vscode/run_android.sh\""
       ],
       "console": "integratedTerminal",
       "env": {

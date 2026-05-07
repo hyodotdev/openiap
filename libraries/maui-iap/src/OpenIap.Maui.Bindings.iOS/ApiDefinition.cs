@@ -36,7 +36,7 @@ interface OpenIapModule
 
     [Export("fetchProductsWithSkus:type:completion:")]
     [Async]
-    void FetchProducts(string[] skus, [NullAllowed] string type, Action<NSObject[]?, NSError?> completion);
+    void FetchProducts(string[] skus, [NullAllowed] string type, Action<NSArray?, NSError?> completion);
 
     [Export("getPromotedProductIOSWithCompletion:")]
     [Async]
@@ -69,6 +69,10 @@ interface OpenIapModule
     [Export("getAvailablePurchasesWithCompletion:")]
     [Async]
     void GetAvailablePurchases(Action<NSArray?, NSError?> completion);
+
+    [Export("getAvailablePurchasesWithOptions:completion:")]
+    [Async]
+    void GetAvailablePurchasesWithOptions([NullAllowed] NSDictionary options, Action<NSArray?, NSError?> completion);
 
     [Export("getAllTransactionsIOSWithCompletion:")]
     [Async]

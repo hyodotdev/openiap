@@ -46,7 +46,11 @@ internal static class OpenIapErrorMapper
         };
     }
 
-    public static PurchaseError FromCodeMessage(string code, string message, string? productId = null)
+    public static PurchaseError FromCodeMessage(
+        string code,
+        string message,
+        string? productId = null,
+        string? debugMessage = null)
     {
         var ec = TryParseErrorCode(code);
         return new PurchaseError
@@ -54,14 +58,29 @@ internal static class OpenIapErrorMapper
             Code = ec,
             Message = message,
             ProductId = productId,
+            DebugMessage = debugMessage,
         };
     }
 
-    public static OpenIapException Wrap(string code, string message, string? productId = null)
-        => new(FromCodeMessage(code, message, productId));
+    public static OpenIapException Wrap(
+        string code,
+        string message,
+        string? productId = null,
+        string? debugMessage = null)
+        => new(FromCodeMessage(code, message, productId, debugMessage));
 
-    public static OpenIapException Wrap(ErrorCode code, string message, string? productId = null)
-        => new(new PurchaseError { Code = code, Message = message, ProductId = productId });
+    public static OpenIapException Wrap(
+        ErrorCode code,
+        string message,
+        string? productId = null,
+        string? debugMessage = null)
+        => new(new PurchaseError
+        {
+            Code = code,
+            Message = message,
+            ProductId = productId,
+            DebugMessage = debugMessage,
+        });
 
     private static ErrorCode TryParseErrorCode(string raw)
     {

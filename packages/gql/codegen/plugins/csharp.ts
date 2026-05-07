@@ -310,14 +310,17 @@ export class CSharpPlugin extends CodegenPlugin {
   generateUnion(irUnion: IRUnion): void {
     this.emitDoc(irUnion.description);
 
-    // Emit JsonDerivedType for the IMMEDIATE union members only (concrete
-    // records OR other unions). Nested unions inherit from this union so the
-    // chain ProductOrSubscription → Product → ProductIOS is real C#
-    // inheritance and `is Product` pattern matching just works.
-    const immediate = [...irUnion.members].map((m) => m.name).sort();
+    // Register every transitive concrete descendant for STJ polymorphic
+    // dispatch. STJ matches the discriminator value to a registered type and
+    // constructs it directly — there is no multi-level recursive lookup, so a
+    // nested chain like ProductOrSubscription → Product → ProductIOS must
+    // expose ProductIOS as a `[JsonDerivedType]` of ProductOrSubscription too.
+    // Mirrors the Dart codegen's flatten so the wire format is uniformly
+    // leaf-`__typename` (e.g. "ProductIOS") for every abstract ancestor.
+    const concrete = this.flattenUnionMembers(irUnion).sort();
 
     this.emit(`[JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]`);
-    for (const name of immediate) {
+    for (const name of concrete) {
       this.emit(`[JsonDerivedType(typeof(${name}), "${name}")]`);
     }
     // Concrete members implement any shared interface directly. We don't
@@ -328,6 +331,19 @@ export class CSharpPlugin extends CodegenPlugin {
     const inheritance = parent ? ` : ${parent}` : '';
     this.emit(`public abstract record ${irUnion.name}${inheritance};`);
     this.emit('');
+  }
+
+  private flattenUnionMembers(irUnion: IRUnion): string[] {
+    const out: string[] = [];
+    for (const member of irUnion.members) {
+      const nested = this.schema.unions.find((u) => u.name === member.name);
+      if (nested) {
+        out.push(...this.flattenUnionMembers(nested));
+      } else {
+        out.push(member.name);
+      }
+    }
+    return out;
   }
 
   // ============================================================================

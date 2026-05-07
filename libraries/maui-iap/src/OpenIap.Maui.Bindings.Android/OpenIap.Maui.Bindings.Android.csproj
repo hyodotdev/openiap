@@ -40,6 +40,55 @@
     <AndroidLibrary Include="..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-play-release.aar" Bind="true" />
   </ItemGroup>
 
+  <!-- Google Play Billing 8.3.0 — pulled directly from Google Maven so we get
+       the same Java classes that openiap-play-release.aar was compiled
+       against. Microsoft's `Xamarin.Android.Google.BillingClient` NuGet at
+       8.x upgrades AndroidX to 2.10 (NU1107 vs MAUI 9's pinned 2.8.7), and
+       the 7.x NuGet is missing 8.x APIs the AAR uses (e.g.
+       BillingClient.Builder.enableAutoServiceReconnection() — runtime
+       NoSuchMethodError). The Maven route avoids the NuGet resolver and
+       keeps MAUI's AndroidX pins intact. -->
+  <ItemGroup>
+    <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="8.3.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.android.billingclient:billing-ktx" Version="8.3.0" Repository="Google" Bind="false" />
+    <!-- billing 8.x's runtime uses DataTransport for telemetry and several
+         Play Services modules. Pulled directly from Google Maven so the
+         classes land in the APK without going through Microsoft NuGets
+         (which would force AndroidX 2.10 → NU1107 vs MAUI 9). -->
+    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-api" Version="3.0.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-backend-cct" Version="3.1.8" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.datatransport:transport-runtime" Version="3.1.8" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-base" Version="18.5.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-basement" Version="18.9.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-location" Version="19.0.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-tasks" Version="18.2.0" Repository="Google" Bind="false" />
+
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.2.10" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.9.0" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.9.0" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.9.0" />
+  </ItemGroup>
+
+  <!-- gson is already embedded inside openiap-play-release.aar's libs/ via
+       Gradle `implementation` — adding it again as Maven causes R8 "Type
+       defined multiple times" at dex time. AndroidX (Activity, Core,
+       Annotation, Fragment, Collection, etc.) come in via MAUI's own
+       AndroidX/Activity NuGets at 2.8.x — the verifier can't see those as
+       Maven coordinates so we tell it to skip them. -->
+  <ItemGroup>
+    <AndroidIgnoredJavaDependency Include="com.google.code.gson:gson:2.10.1" />
+    <AndroidIgnoredJavaDependency Include="androidx.activity:activity:1.2.3" />
+    <AndroidIgnoredJavaDependency Include="androidx.annotation:annotation:1.3.0" />
+    <AndroidIgnoredJavaDependency Include="androidx.collection:collection:1.0.0" />
+    <AndroidIgnoredJavaDependency Include="androidx.core:core:1.2.0" />
+    <AndroidIgnoredJavaDependency Include="androidx.fragment:fragment:1.1.0" />
+    <AndroidIgnoredJavaDependency Include="javax.inject:javax.inject:1" />
+    <AndroidIgnoredJavaDependency Include="com.google.firebase:firebase-encoders:17.0.0" />
+    <AndroidIgnoredJavaDependency Include="com.google.firebase:firebase-encoders-proto:16.0.0" />
+    <AndroidIgnoredJavaDependency Include="com.google.firebase:firebase-encoders-json:18.0.0" />
+    <AndroidIgnoredJavaDependency Include="com.google.android.gms:play-services-places-placereport:17.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <TransformFile Include="Transforms\Metadata.xml" />
     <TransformFile Include="Transforms\EnumFields.xml" />

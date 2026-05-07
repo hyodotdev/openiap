@@ -395,14 +395,20 @@ class OpenIapMauiShim(context: Context) {
     }
 
     /**
-     * OpenIapError doesn't expose a `toJson()` (it's an `Exception` subclass).
-     * Build the canonical `{code, message, productId?}` payload that the
-     * generated `PurchaseError` record expects.
+     * OpenIapError doesn't expose the generated `PurchaseError` JSON directly
+     * (it's an `Exception` subclass). Build the canonical payload that the
+     * generated C# record expects.
      */
     private fun encodeError(e: OpenIapError): Map<String, Any?> {
+        val productId = when (e) {
+            is OpenIapError.ProductNotFound -> e.productId
+            else -> null
+        }
         return mapOf(
             "code" to e.code,
             "message" to e.message,
+            "productId" to productId,
+            "debugMessage" to e.debugMessage,
         )
     }
 

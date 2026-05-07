@@ -23,6 +23,7 @@ public partial class PurchaseFlowPage : ContentPage
     private IDisposable? _errorSub;
     private bool _refreshingPurchases;
     private bool _storefrontLoading;
+    private bool _didFetch;
 
     public PurchaseFlowPage()
     {
@@ -40,42 +41,35 @@ public partial class PurchaseFlowPage : ContentPage
         await ConnectAndFetchAsync();
     }
 
-    protected override void OnDisappearing()
+    protected override async void OnDisappearing()
     {
         base.OnDisappearing();
         _purchaseSub?.Dispose();
         _errorSub?.Dispose();
         _purchaseSub = _errorSub = null;
+        await IapLifecycle.EndConnectionQuietlyAsync(nameof(PurchaseFlowPage));
     }
 
     private async Task ConnectAndFetchAsync()
     {
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
-            var query = (QueryResolver)Iap.Instance;
-
-            await mutate.InitConnectionAsync();
+            await IapLifecycle.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 
-            await RefreshStorefrontAsync();
-
-            var result = await query.FetchProductsAsync(new ProductRequest
-            {
-                Skus = Constants.ProductIds,
-                Type = ProductQueryType.InApp,
-            });
-            _products.Clear();
-            if (result is FetchProductsResultProducts r && r.Value is not null)
-            {
-                _products.AddRange(r.Value);
-            }
-            await RefreshAvailablePurchasesAsync();
-
-            RenderProducts();
             ContentScroll.IsVisible = true;
             LoadingView.IsVisible = false;
+
+            if (_didFetch) return;
+            _didFetch = true;
+
+            ProductsCountLabel.Text = "Loading products...";
+            RenderPurchases();
+
+            _ = RefreshStorefrontAsync(showAlert: false);
+            _ = LoadProductsAsync();
+            _ = RefreshAvailablePurchasesAsync(showAlert: false);
         }
         catch (Exception ex)
         {
@@ -83,16 +77,40 @@ public partial class PurchaseFlowPage : ContentPage
         }
     }
 
-    private async Task RefreshStorefrontAsync()
+    private async Task LoadProductsAsync()
+    {
+        try
+        {
+            var query = (QueryResolver)Iap.Instance;
+            var result = await query.FetchProductsAsync(new ProductRequest
+            {
+                Skus = Constants.ProductIds,
+                Type = ProductQueryType.InApp,
+            }).WaitAsync(TimeSpan.FromSeconds(20));
+            _products.Clear();
+            if (result is FetchProductsResultProducts r && r.Value is not null)
+            {
+                _products.AddRange(r.Value);
+            }
+
+            RenderProducts();
+        }
+        catch (Exception ex)
+        {
+            ProductsCountLabel.Text = $"Failed to load products: {ErrorUtils.ExtractErrorMessage(ex)}";
+        }
+    }
+
+    private async Task RefreshStorefrontAsync(bool showAlert = true)
     {
         if (_storefrontLoading) return;
         _storefrontLoading = true;
         StorefrontRefreshButton.IsEnabled = false;
-        StorefrontRefreshButton.Text = "Refreshing storefront…";
+        StorefrontRefreshButton.Text = "Refreshing storefront...";
         try
         {
             var query = (QueryResolver)Iap.Instance;
-            var storefront = await query.GetStorefrontAsync();
+            var storefront = await query.GetStorefrontAsync().WaitAsync(TimeSpan.FromSeconds(10));
             StorefrontValueLabel.Text = string.IsNullOrEmpty(storefront) ? "Not available" : storefront;
             StorefrontErrorLabel.IsVisible = false;
         }
@@ -101,6 +119,10 @@ public partial class PurchaseFlowPage : ContentPage
             StorefrontValueLabel.Text = "Unavailable";
             StorefrontErrorLabel.Text = ErrorUtils.ExtractErrorMessage(ex);
             StorefrontErrorLabel.IsVisible = true;
+            if (showAlert)
+            {
+                await DisplayAlert("Storefront", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            }
         }
         finally
         {
@@ -110,16 +132,19 @@ public partial class PurchaseFlowPage : ContentPage
         }
     }
 
-    private async Task RefreshAvailablePurchasesAsync()
+    private async Task RefreshAvailablePurchasesAsync(bool showAlert = true)
     {
         if (_refreshingPurchases) return;
         _refreshingPurchases = true;
         RefreshPurchasesButton.IsEnabled = false;
-        RefreshPurchasesButton.Text = "Refreshing purchases…";
+        RefreshPurchasesButton.Text = "Refreshing purchases...";
         try
         {
             var query = (QueryResolver)Iap.Instance;
-            var purchases = await query.GetAvailablePurchasesAsync(null);
+            var purchases = await query.GetAvailablePurchasesAsync(new PurchaseOptions
+            {
+                OnlyIncludeActiveItemsIOS = true,
+            }).WaitAsync(TimeSpan.FromSeconds(20));
             _availablePurchases.Clear();
             // Deduplicate by productId, keeping the most recent transaction.
             var deduped = purchases
@@ -127,10 +152,15 @@ public partial class PurchaseFlowPage : ContentPage
                 .Select(g => g.OrderByDescending(p => ((PurchaseCommon)p).TransactionDate).First());
             _availablePurchases.AddRange(deduped);
             RenderPurchases();
+            RenderProducts();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            PurchasesCountLabel.Text = "Could not refresh purchases";
+            if (showAlert)
+            {
+                await DisplayAlert("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            }
         }
         finally
         {
@@ -281,12 +311,15 @@ public partial class PurchaseFlowPage : ContentPage
 
     private async Task HandlePurchaseAsync(string sku)
     {
+        if (_isProcessing) return;
+
         _isProcessing = true;
-        UpdateResult($"Processing purchase…");
+        UpdateResult("Processing purchase...");
+        RenderProducts();
         try
         {
             var mutate = (MutationResolver)Iap.Instance;
-            await mutate.RequestPurchaseAsync(new RequestPurchaseProps
+            var requestTask = mutate.RequestPurchaseAsync(new RequestPurchaseProps
             {
                 RequestPurchase = new RequestPurchasePropsByPlatforms
                 {
@@ -295,12 +328,52 @@ public partial class PurchaseFlowPage : ContentPage
                 },
                 Type = ProductQueryType.InApp,
             });
+            _ = ObservePurchaseRequestAsync(requestTask);
+            await Task.CompletedTask;
         }
         catch (Exception ex)
         {
             _isProcessing = false;
             UpdateResult($"Purchase failed: {ErrorUtils.ExtractErrorMessage(ex)}");
             RenderProducts();
+        }
+    }
+
+    private async Task ObservePurchaseRequestAsync(Task<RequestPurchaseResult?> requestTask)
+    {
+        try
+        {
+            var result = await requestTask;
+            if (result is RequestPurchaseResultPurchase { Value: { } purchase })
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    if (_isProcessing)
+                    {
+                        OnPurchase(purchase);
+                    }
+                });
+            }
+            else
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    if (!_isProcessing) return;
+                    _isProcessing = false;
+                    UpdateResult("Purchase request completed without a purchase result.");
+                    RenderProducts();
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (!_isProcessing) return;
+                _isProcessing = false;
+                UpdateResult($"Purchase failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+                RenderProducts();
+            });
         }
     }
 
@@ -311,6 +384,7 @@ public partial class PurchaseFlowPage : ContentPage
         _lastPurchase = purchase;
         _isProcessing = false;
         UpdateResult($"Purchase completed successfully (state: {common.PurchaseState.ToJson()}).");
+        RenderProducts();
 
         // Step 4: verify purchase (3 methods).
         if (_verification != VerificationMethod.Ignore && !string.IsNullOrEmpty(common.ProductId))
@@ -369,24 +443,33 @@ public partial class PurchaseFlowPage : ContentPage
             }
         }
 
-        // Step 6: finish transaction.
+        var consumable = Constants.ConsumableProductIdSet.Contains(common.ProductId);
+        _ = FinishPurchaseTransactionAsync(purchase, consumable);
+
+        // Step 5: refresh available purchases to update the UI without blocking
+        // the success path on slow StoreKit Transaction.all enumeration.
+        _ = RefreshAvailablePurchasesAsync(showAlert: false);
+        RenderProducts();
+        await DisplayAlert("Success", "Purchase completed successfully!", "OK");
+    }
+
+    private static async Task FinishPurchaseTransactionAsync(Purchase purchase, bool isConsumable)
+    {
         try
         {
             var mutate = (MutationResolver)Iap.Instance;
-            var consumable = Constants.ConsumableProductIdSet.Contains(common.ProductId);
             await mutate.FinishTransactionAsync(
                 purchase: new PurchaseInput(purchase),
-                isConsumable: consumable);
+                isConsumable: isConsumable).WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (TimeoutException)
+        {
+            Console.WriteLine("[PurchaseFlow] finishTransaction timed out; continuing UI flow");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[PurchaseFlow] finishTransaction failed: {ex.Message}");
         }
-
-        // Step 5: refresh available purchases to update the UI.
-        await RefreshAvailablePurchasesAsync();
-        RenderProducts();
-        await DisplayAlert("Success", "Purchase completed successfully!", "OK");
     }
 
     private void OnPurchaseError(PurchaseError error)

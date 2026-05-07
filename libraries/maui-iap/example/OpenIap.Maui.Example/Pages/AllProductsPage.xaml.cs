@@ -1,6 +1,7 @@
 using Hyo.OpenIap;
 using Hyo.OpenIap.Maui;
 using OpenIap.Maui.Example.Utils;
+using System.Text.Json;
 
 namespace OpenIap.Maui.Example.Pages;
 
@@ -9,6 +10,11 @@ namespace OpenIap.Maui.Example.Pages;
 // sections, and opens a details overlay with type-narrowed information.
 public partial class AllProductsPage : ContentPage
 {
+    private static readonly JsonSerializerOptions PrettyJson = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+    };
+
     private readonly List<Product> _products = new();
     private readonly List<ProductSubscription> _subscriptions = new();
 
@@ -23,14 +29,19 @@ public partial class AllProductsPage : ContentPage
         await ConnectAndFetchAsync();
     }
 
+    protected override async void OnDisappearing()
+    {
+        base.OnDisappearing();
+        await IapLifecycle.EndConnectionQuietlyAsync(nameof(AllProductsPage));
+    }
+
     private async Task ConnectAndFetchAsync()
     {
         try
         {
-            var mutate = (MutationResolver)Iap.Instance;
             var query = (QueryResolver)Iap.Instance;
 
-            await mutate.InitConnectionAsync();
+            await IapLifecycle.InitConnectionAsync();
             ConnectionLabel.Text = "✅ Connected";
             ConnectionLabel.TextColor = Color.FromArgb("#4CAF50");
 
@@ -214,16 +225,17 @@ public partial class AllProductsPage : ContentPage
                 if (p is ProductIOS pios)
                 {
                     AppendRow("Is Family Shareable:", pios.IsFamilyShareableIOS ? "Yes" : "No");
-                    if (pios.SubscriptionOffers is { Count: > 0 } iosOffers)
-                    {
-                        AppendRow($"Subscription Offers ({iosOffers.Count}):",
-                            string.Join(", ", iosOffers.Select(o => o.Id)));
-                    }
+                    AppendSubscriptionInfoIOS(pios.SubscriptionInfoIOS);
+                    AppendSubscriptionOffers(pios.SubscriptionOffers);
                 }
                 else if (p is ProductAndroid pand)
                 {
                     AppendRow("Name (Android):", pand.NameAndroid);
+                    AppendOneTimeOffers(pand.OneTimePurchaseOfferDetailsAndroid);
+                    AppendDiscountOffers(pand.DiscountOffers);
+                    AppendSubscriptionOffers(pand.SubscriptionOffers);
                 }
+                AppendRawJson(item);
                 break;
             case ProductSubscription s:
                 var sc = (ProductCommon)s;
@@ -234,19 +246,219 @@ public partial class AllProductsPage : ContentPage
                 AppendRow("Currency:", sc.Currency ?? "N/A");
                 AppendRow("Type:", sc.Type.ToJson());
                 AppendRow("Platform:", sc.Platform.ToJson());
-                if (s is ProductSubscriptionIOS sios && sios.SubscriptionPeriodUnitIOS is { } unit)
+                if (s is ProductSubscriptionIOS sios)
                 {
-                    AppendRow("Subscription Period (iOS):",
-                        $"{sios.SubscriptionPeriodNumberIOS} {unit.ToJson()}");
+                    AppendRow("Is Family Shareable:", sios.IsFamilyShareableIOS ? "Yes" : "No");
+                    if (sios.SubscriptionPeriodUnitIOS is { } unit)
+                    {
+                        AppendRow("Subscription Period (iOS):",
+                            $"{sios.SubscriptionPeriodNumberIOS} {unit.ToJson()}");
+                    }
+                    AppendDiscountsIOS(sios.DiscountsIOS);
+                    AppendSubscriptionInfoIOS(sios.SubscriptionInfoIOS);
+                    AppendSubscriptionOffers(sios.SubscriptionOffers);
                 }
-                if (s is ProductSubscriptionAndroid sand && sand.SubscriptionOfferDetailsAndroid is { Count: > 0 } offers)
+                if (s is ProductSubscriptionAndroid sand)
                 {
-                    AppendRow($"Subscription Offers ({offers.Count}):",
-                        string.Join(", ", offers.Select(o => o.BasePlanId)));
+                    AppendRow("Name (Android):", sand.NameAndroid);
+                    AppendAndroidSubscriptionOfferDetails(sand.SubscriptionOfferDetailsAndroid);
+                    AppendDiscountOffers(sand.DiscountOffers);
+                    AppendSubscriptionOffers(sand.SubscriptionOffers);
                 }
+                AppendRawJson(item);
                 break;
         }
         DetailsOverlay.IsVisible = true;
+    }
+
+    private void AppendDiscountsIOS(IReadOnlyList<DiscountIOS>? discounts)
+    {
+        if (discounts is not { Count: > 0 }) return;
+        AppendSection($"iOS Discounts ({discounts.Count})");
+        foreach (var discount in discounts)
+        {
+            AppendOfferTitle(discount.Identifier);
+            AppendOfferDetail($"Type: {discount.Type}");
+            AppendOfferDetail($"Price: {discount.LocalizedPrice ?? discount.Price}");
+            AppendOfferDetail($"Payment Mode: {discount.PaymentMode.ToJson()}");
+            AppendOfferDetail($"Periods: {discount.NumberOfPeriods}");
+        }
+    }
+
+    private void AppendSubscriptionInfoIOS(SubscriptionInfoIOS? info)
+    {
+        if (info is null) return;
+        AppendSection("iOS Subscription Info");
+        AppendOfferDetail($"Group ID: {info.SubscriptionGroupId}");
+        AppendOfferDetail($"Period: {info.SubscriptionPeriod.Value} {info.SubscriptionPeriod.Unit.ToJson()}");
+        if (info.IntroductoryOffer is { } intro)
+        {
+            AppendOfferTitle("Introductory Offer");
+            AppendOfferDetail($"Price: {intro.DisplayPrice}");
+            AppendOfferDetail($"Mode: {intro.PaymentMode.ToJson()}");
+            AppendOfferDetail($"Periods: {intro.PeriodCount}");
+        }
+        if (info.PromotionalOffers is { Count: > 0 } promos)
+        {
+            AppendOfferTitle($"Promotional Offers ({promos.Count})");
+            foreach (var promo in promos)
+            {
+                AppendOfferDetail($"ID: {promo.Id}");
+                AppendOfferDetail($"Price: {promo.DisplayPrice}");
+                AppendOfferDetail($"Mode: {promo.PaymentMode.ToJson()}");
+            }
+        }
+    }
+
+    private void AppendOneTimeOffers(IReadOnlyList<ProductAndroidOneTimePurchaseOfferDetail>? offers)
+    {
+        if (offers is not { Count: > 0 }) return;
+        AppendSection($"One-Time Purchase Offers ({offers.Count})");
+        foreach (var offer in offers)
+        {
+            AppendOfferTitle(offer.OfferId ?? offer.PurchaseOptionId ?? "Offer");
+            AppendOfferDetail($"Price: {offer.FormattedPrice}");
+            AppendOfferDetail($"Full Price (micros): {offer.FullPriceMicros}");
+            AppendOfferDetail($"Discount: {offer.DiscountDisplayInfo?.DiscountAmount?.FormattedDiscountAmount}");
+            AppendOfferDetail($"Percentage: {offer.DiscountDisplayInfo?.PercentageDiscount}");
+            AppendOfferDetail($"Release: {FormatMillis(offer.PreorderDetailsAndroid?.PreorderReleaseTimeMillis)}");
+            AppendOfferDetail($"Rental Period: {offer.RentalDetailsAndroid?.RentalExpirationPeriod}");
+            AppendOfferDetail($"Tags: {FormatList(offer.OfferTags)}");
+        }
+    }
+
+    private void AppendDiscountOffers(IReadOnlyList<DiscountOffer>? offers)
+    {
+        if (offers is not { Count: > 0 }) return;
+        AppendSection($"Discount Offers ({offers.Count})");
+        foreach (var offer in offers)
+        {
+            AppendOfferTitle(offer.Id ?? "Offer");
+            AppendOfferDetail($"Price: {offer.DisplayPrice}");
+            AppendOfferDetail($"Full Price (micros): {offer.FullPriceMicrosAndroid}");
+            AppendOfferDetail($"Discount: {offer.FormattedDiscountAmountAndroid}");
+            AppendOfferDetail($"Percentage: {offer.PercentageDiscountAndroid}");
+            AppendOfferDetail($"Valid: {FormatMillis(offer.ValidTimeWindowAndroid?.StartTimeMillis)} - {FormatMillis(offer.ValidTimeWindowAndroid?.EndTimeMillis)}");
+            AppendOfferDetail($"Remaining: {offer.LimitedQuantityInfoAndroid?.RemainingQuantity} / {offer.LimitedQuantityInfoAndroid?.MaximumQuantity}");
+            AppendOfferDetail($"Release: {FormatMillis(offer.PreorderDetailsAndroid?.PreorderReleaseTimeMillis)}");
+            AppendOfferDetail($"Rental Period: {offer.RentalDetailsAndroid?.RentalExpirationPeriod}");
+            AppendOfferDetail($"Tags: {FormatList(offer.OfferTagsAndroid)}");
+        }
+    }
+
+    private void AppendAndroidSubscriptionOfferDetails(IReadOnlyList<ProductSubscriptionAndroidOfferDetails>? offers)
+    {
+        if (offers is not { Count: > 0 }) return;
+        AppendSection($"Android Subscription Offer Details ({offers.Count})");
+        foreach (var offer in offers)
+        {
+            AppendOfferTitle(offer.BasePlanId + (string.IsNullOrEmpty(offer.OfferId) ? string.Empty : $" - {offer.OfferId}"));
+            AppendOfferDetail($"Offer Token: {TrimMiddle(offer.OfferToken)}");
+            AppendOfferDetail($"Tags: {FormatList(offer.OfferTags)}");
+            foreach (var phase in offer.PricingPhases.PricingPhaseList)
+            {
+                AppendOfferDetail($"Price: {phase.FormattedPrice} · Period: {phase.BillingPeriod} · Cycles: {phase.BillingCycleCount} · Recurrence: {phase.RecurrenceMode}");
+            }
+        }
+    }
+
+    private void AppendSubscriptionOffers(IReadOnlyList<SubscriptionOffer>? offers)
+    {
+        if (offers is not { Count: > 0 }) return;
+        AppendSection($"Subscription Offers ({offers.Count})");
+        foreach (var offer in offers)
+        {
+            var title = offer.BasePlanIdAndroid ?? offer.Id;
+            if (!string.IsNullOrEmpty(offer.BasePlanIdAndroid) && offer.Id != offer.BasePlanIdAndroid)
+            {
+                title += $" - {offer.Id}";
+            }
+            AppendOfferTitle(title);
+            AppendOfferDetail($"Price: {offer.DisplayPrice}");
+            AppendOfferDetail($"Payment Mode: {offer.PaymentMode?.ToJson()}");
+            if (offer.Period is not null)
+            {
+                AppendOfferDetail($"Period: {offer.Period.Value} {offer.Period.Unit.ToJson()}");
+            }
+            AppendOfferDetail($"Period Count: {offer.PeriodCount}");
+            AppendOfferDetail($"Tags: {FormatList(offer.OfferTagsAndroid)}");
+            foreach (var phase in offer.PricingPhasesAndroid?.PricingPhaseList ?? Array.Empty<PricingPhaseAndroid>())
+            {
+                AppendOfferDetail($"Price: {phase.FormattedPrice} · Period: {phase.BillingPeriod} · Cycles: {phase.BillingCycleCount} · Recurrence: {phase.RecurrenceMode}");
+            }
+        }
+    }
+
+    private void AppendRawJson(object item)
+    {
+        try
+        {
+            AppendSection("Raw Product JSON");
+            AppendOfferDetail(JsonSerializer.Serialize(item, item.GetType(), PrettyJson));
+        }
+        catch (Exception ex)
+        {
+            AppendOfferDetail($"Unable to serialize product: {ex.Message}");
+        }
+    }
+
+    private void AppendSection(string title)
+    {
+        DetailsContent.Children.Add(new Label
+        {
+            Text = title,
+            FontSize = 15,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#1A1A1A"),
+            Margin = new Thickness(0, 18, 0, 4),
+        });
+    }
+
+    private void AppendOfferTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return;
+        DetailsContent.Children.Add(new Label
+        {
+            Text = title,
+            FontSize = 13,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#333333"),
+            Margin = new Thickness(0, 8, 0, 0),
+        });
+    }
+
+    private void AppendOfferDetail(string? detail)
+    {
+        if (string.IsNullOrWhiteSpace(detail)) return;
+        DetailsContent.Children.Add(new Label
+        {
+            Text = detail,
+            FontSize = 12,
+            TextColor = Color.FromArgb("#555555"),
+            FontFamily = detail.TrimStart().StartsWith("{", StringComparison.Ordinal) ? "Menlo" : null,
+        });
+    }
+
+    private static string? FormatMillis(string? millis)
+    {
+        if (string.IsNullOrWhiteSpace(millis) || !long.TryParse(millis, out var value)) return null;
+        try
+        {
+            return DateTimeOffset.FromUnixTimeMilliseconds(value).LocalDateTime.ToString("d");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? FormatList(IReadOnlyList<string>? values) =>
+        values is { Count: > 0 } ? string.Join(", ", values) : null;
+
+    private static string TrimMiddle(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= 24) return value ?? string.Empty;
+        return $"{value[..12]}...{value[^8..]}";
     }
 
     private void AppendRow(string label, string? value)

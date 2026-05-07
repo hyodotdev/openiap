@@ -19,7 +19,9 @@ public static class BuildPurchaseRows
         // and PurchaseAndroid implement. The abstract `Purchase` union type
         // intentionally exposes no fields directly.
         var common = (PurchaseCommon)purchase;
+        var transactionId = ResolveTransactionId(purchase);
         Push(rows, "id", common.Id);
+        Push(rows, "transactionId", transactionId);
         Push(rows, "productId", common.ProductId);
         Push(rows, "platform", common.Platform.ToJson());
         Push(rows, "ids", FormatList(common.Ids));
@@ -27,7 +29,6 @@ public static class BuildPurchaseRows
         Push(rows, "purchaseState", Capitalize(common.PurchaseState.ToJson()));
         Push(rows, "quantity", common.Quantity.ToString());
         Push(rows, "isAutoRenewing", FormatBoolean(common.IsAutoRenewing));
-        Push(rows, "currentPlanId", common.CurrentPlanId);
 
         switch (purchase)
         {
@@ -80,6 +81,14 @@ public static class BuildPurchaseRows
         Push(rows, "purchaseToken", common.PurchaseToken);
         return rows;
     }
+
+    public static string ResolveTransactionId(Purchase purchase) =>
+        purchase switch
+        {
+            PurchaseIOS ios when !string.IsNullOrEmpty(ios.TransactionId) => ios.TransactionId,
+            PurchaseAndroid android when !string.IsNullOrEmpty(android.TransactionId) => android.TransactionId,
+            _ => ((PurchaseCommon)purchase).Id,
+        };
 
     private static void Push(List<PurchaseDetailRow> rows, string label, object? value)
     {

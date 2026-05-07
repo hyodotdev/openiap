@@ -26,10 +26,11 @@
                         StrokeShape="RoundRectangle 12"
                         Padding="14"
                         BackgroundColor="#F7F9FC">
-                    <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
-                        <Label Text="Store Connection:" FontAttributes="Bold" VerticalOptions="Center" />
-                        <Label x:Name="ConnectionLabel" Text="❌ Disconnected" VerticalOptions="Center" />
-                    </HorizontalStackLayout>
+                    <Label x:Name="ConnectionLabel"
+                           Text="❌ Disconnected"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"
+                           VerticalOptions="Center" />
                 </Border>
 
                 <!-- In-App products -->

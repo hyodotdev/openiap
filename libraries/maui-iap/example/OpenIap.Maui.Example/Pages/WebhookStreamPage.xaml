@@ -5,25 +5,29 @@
              Title="Webhook Stream"
              BackgroundColor="White">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="14">
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
+        <VerticalStackLayout Grid.Row="0" Padding="20" Spacing="6">
+            <Label Text="Webhook Stream" FontSize="22" FontAttributes="Bold" TextColor="#000" />
+            <Label Text="SSE → /v1/webhooks/stream/{apiKey}"
+                   FontSize="13"
+                   FontFamily="Menlo"
+                   TextColor="#444" />
+        </VerticalStackLayout>
 
-            <VerticalStackLayout Spacing="6">
-                <Label Text="Webhook Stream" FontSize="22" FontAttributes="Bold" TextColor="#1A1A1A" />
-                <Label Text="Connects to the IAPKit SSE endpoint and renders incoming WebhookEvent payloads. Use this to validate webhook plumbing without a live transaction."
-                       FontSize="14" TextColor="#5F6470" />
-            </VerticalStackLayout>
+        <VerticalStackLayout Grid.Row="1" Padding="20,0,20,8" Spacing="6">
+            <Label Text="Base URL" FontAttributes="Bold" />
+            <Entry x:Name="BaseUrlEntry"
+                   Text="https://kit.openiap.dev"
+                   FontSize="14" />
+            <Label Text="IAPKit API Key" FontAttributes="Bold" Margin="0,6,0,0" />
+            <Entry x:Name="ApiKeyEntry" Placeholder="iapkit_*" FontSize="14" />
+            <Label x:Name="EndpointLabel"
+                   Text="api key: MISSING"
+                   FontSize="12"
+                   TextColor="#888" />
+        </VerticalStackLayout>
 
-            <VerticalStackLayout Spacing="6">
-                <Label Text="SSE URL" FontAttributes="Bold" />
-                <Entry x:Name="UrlEntry"
-                       Text="https://kit.openiap.dev/v1/webhooks/stream"
-                       FontSize="14" />
-                <Label Text="Optional bearer token (Authorization header)" FontAttributes="Bold" Margin="0,6,0,0" />
-                <Entry x:Name="TokenEntry" Placeholder="iapkit_*" FontSize="14" />
-            </VerticalStackLayout>
-
-            <HorizontalStackLayout Spacing="8">
+        <HorizontalStackLayout Grid.Row="2" Spacing="8" Padding="20,4,20,8">
                 <Button Text="Connect"
                         BackgroundColor="#0EA5E9"
                         TextColor="White"
@@ -42,28 +46,33 @@
                         CornerRadius="10"
                         Padding="14,10"
                         Clicked="OnClearClicked" />
-            </HorizontalStackLayout>
+                <Button x:Name="TriggerButton"
+                        Text="Trigger test notification"
+                        BackgroundColor="#34C759"
+                        TextColor="White"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Clicked="OnTriggerTestClicked" />
+        </HorizontalStackLayout>
 
-            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="0" BackgroundColor="#0B1220">
-                <Editor x:Name="LogEditor"
-                        IsReadOnly="True"
-                        HeightRequest="380"
-                        BackgroundColor="Transparent"
-                        TextColor="#E2E8F0"
-                        FontFamily="Menlo"
-                        FontSize="12" />
-            </Border>
-
-            <Border Stroke="#E1E7EF" StrokeShape="RoundRectangle 12" Padding="14" BackgroundColor="#F7F9FC">
+        <Grid Grid.Row="3" RowDefinitions="Auto,*" Padding="20,0,20,20">
+            <Border x:Name="StatusPanel" StrokeShape="RoundRectangle 8" Padding="12" BackgroundColor="#F0F0F0" Margin="0,0,0,8">
                 <VerticalStackLayout Spacing="4">
-                    <Label Text="Tips:" FontAttributes="Bold" />
-                    <Label Text="• kit.openiap.dev streams Apple ASSN v2 + Google RTDN events as JSON over SSE." />
-                    <Label Text="• Issue a sandbox test notification from App Store Connect to see test-notification events here." />
-                    <Label Text="• On Android, force a sandbox subscription change to fan out a webhook." />
+                    <Label x:Name="StatusLabel" Text="Status: idle" FontAttributes="Bold" TextColor="#222" />
+                    <Label x:Name="StatusMessageLabel" FontSize="12" TextColor="#444" IsVisible="False" />
                 </VerticalStackLayout>
             </Border>
 
-        </VerticalStackLayout>
-    </ScrollView>
+            <Border Grid.Row="1" Stroke="#E1E7EF" StrokeShape="RoundRectangle 10" Padding="0" BackgroundColor="#F7F8FA">
+                <Editor x:Name="LogEditor"
+                        IsReadOnly="True"
+                        BackgroundColor="Transparent"
+                        TextColor="#444"
+                        FontFamily="Menlo"
+                        FontSize="12"
+                        Text="No events yet. Connect, then trigger a test notification or wait for a real Apple / Google webhook." />
+            </Border>
+        </Grid>
+    </Grid>
 
 </ContentPage>

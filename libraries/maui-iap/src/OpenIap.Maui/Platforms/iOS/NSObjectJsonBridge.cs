@@ -22,7 +22,7 @@ internal static class NSObjectJsonBridge
             NSNumber n => NumberToNode(n),
             NSArray a => ArrayToNode(a),
             NSDictionary d => DictToNode(d),
-            NSDate d => JsonValue.Create((d.SecondsSince1970)),
+            NSDate d => JsonValue.Create((long)(d.SecondsSince1970 * 1000)),
             _ => JsonValue.Create(value.ToString()),
         };
     }
@@ -33,9 +33,17 @@ internal static class NSObjectJsonBridge
         var json = new JsonObject();
         foreach (var key in dict.Keys)
         {
+            if (key?.ToString() != "__typename") continue;
+            json["__typename"] = ToJsonNode(dict.ObjectForKey(key));
+            break;
+        }
+
+        foreach (var key in dict.Keys)
+        {
             if (key is null) continue;
             var k = key.ToString();
             if (k is null) continue;
+            if (k == "__typename") continue;
             var v = dict.ObjectForKey(key);
             json[k] = ToJsonNode(v);
         }

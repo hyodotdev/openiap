@@ -47,9 +47,69 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
     private NSObject? _purchaseErrorToken;
     private NSObject? _promotedProductToken;
     private NSObject? _billingIssueToken;
+    private readonly Action<NSDictionary> _purchaseUpdatedCallback;
+    private readonly Action<NSDictionary> _purchaseErrorCallback;
+    private readonly Action<NSString?> _promotedProductCallback;
+    private readonly Action<NSDictionary> _billingIssueCallback;
 
     public OpenIapIOS()
     {
+        _purchaseUpdatedCallback = dict =>
+        {
+            try
+            {
+                var node = NSObjectJsonBridge.DictToObject(dict);
+                if (node is null) return;
+                var p = node.Deserialize<Purchase>(JsonOptions.Default);
+                if (p is not null) _purchaseUpdated.OnNext(p);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OpenIapIOS] purchaseUpdated listener failed: {ex.Message}");
+            }
+        };
+
+        _purchaseErrorCallback = dict =>
+        {
+            try
+            {
+                var node = NSObjectJsonBridge.DictToObject(dict);
+                var err = OpenIapErrorMapper.FromJson(node?.ToJsonString() ?? string.Empty);
+                _purchaseError.OnNext(err);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OpenIapIOS] purchaseError listener failed: {ex.Message}");
+            }
+        };
+
+        _promotedProductCallback = sku =>
+        {
+            try
+            {
+                if (sku is not null) _promotedProductIOS.OnNext((string)sku);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OpenIapIOS] promotedProduct listener failed: {ex.Message}");
+            }
+        };
+
+        _billingIssueCallback = dict =>
+        {
+            try
+            {
+                var node = NSObjectJsonBridge.DictToObject(dict);
+                if (node is null) return;
+                var p = node.Deserialize<Purchase>(JsonOptions.Default);
+                if (p is not null) _subscriptionBillingIssue.OnNext(p);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OpenIapIOS] billingIssue listener failed: {ex.Message}");
+            }
+        };
+
         WireListeners();
     }
 
@@ -62,41 +122,14 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
 
     private void WireListeners()
     {
-        _purchaseUpdatedToken = _module.AddPurchaseUpdatedListener(dict =>
-        {
-            var node = NSObjectJsonBridge.DictToObject(dict);
-            if (node is null) return;
-            try
-            {
-                var p = node.Deserialize<Purchase>(JsonOptions.Default);
-                if (p is not null) _purchaseUpdated.OnNext(p);
-            }
-            catch (JsonException) { }
-        });
-
-        _purchaseErrorToken = _module.AddPurchaseErrorListener(dict =>
-        {
-            var node = NSObjectJsonBridge.DictToObject(dict);
-            var err = OpenIapErrorMapper.FromJson(node?.ToJsonString() ?? string.Empty);
-            _purchaseError.OnNext(err);
-        });
-
-        _promotedProductToken = _module.AddPromotedProductListener(sku =>
-        {
-            if (sku is not null) _promotedProductIOS.OnNext((string)sku);
-        });
-
-        _billingIssueToken = _module.AddSubscriptionBillingIssueListener(dict =>
-        {
-            var node = NSObjectJsonBridge.DictToObject(dict);
-            if (node is null) return;
-            try
-            {
-                var p = node.Deserialize<Purchase>(JsonOptions.Default);
-                if (p is not null) _subscriptionBillingIssue.OnNext(p);
-            }
-            catch (JsonException) { }
-        });
+        // Each listener body is wrapped in catch (Exception) so a managed
+        // exception thrown from a Swift block trampoline (libdispatch worker)
+        // can never escape into mono's native unwind path — that path has no
+        // managed handler and aborts the process with SIGABRT.
+        _purchaseUpdatedToken = _module.AddPurchaseUpdatedListener(_purchaseUpdatedCallback);
+        _purchaseErrorToken = _module.AddPurchaseErrorListener(_purchaseErrorCallback);
+        _promotedProductToken = _module.AddPromotedProductListener(_promotedProductCallback);
+        _billingIssueToken = _module.AddSubscriptionBillingIssueListener(_billingIssueCallback);
     }
 
     // ====================================================================
@@ -108,7 +141,12 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
         // The ObjC bridge has no config arg; iOS doesn't use the Android-only
         // billing-program/alternative-billing fields anyway.
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _module.InitConnection((ok, err) => Complete(tcs, ok, err));
+        Console.WriteLine("[OpenIapIOS] InitConnectionAsync dispatch");
+        _module.InitConnection((ok, err) =>
+        {
+            Console.WriteLine($"[OpenIapIOS] InitConnectionAsync callback: ok={ok}, err={err?.LocalizedDescription ?? "nil"}");
+            Complete(tcs, ok, err);
+        });
         return tcs.Task;
     }
 
@@ -138,11 +176,15 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
                 ProductTypeWireString(@params.Type),
                 (result, err) =>
                 {
-                    if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-                    var node = result is NSDictionary d ? NSObjectJsonBridge.DictToObject(d) : null;
-                    if (node is null) { tcs.TrySetResult(null); return; }
-                    var purchase = node.Deserialize<Purchase>(JsonOptions.Default);
-                    tcs.TrySetResult(purchase is null ? null : new RequestPurchaseResultPurchase(purchase));
+                    try
+                    {
+                        if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+                        var node = result is NSDictionary d ? NSObjectJsonBridge.DictToObject(d) : null;
+                        if (node is null) { tcs.TrySetResult(null); return; }
+                        var purchase = node.Deserialize<Purchase>(JsonOptions.Default);
+                        tcs.TrySetResult(purchase is null ? null : new RequestPurchaseResultPurchase(purchase));
+                    }
+                    catch (Exception ex) { tcs.TrySetException(ex); }
                 });
             return tcs.Task;
         }
@@ -203,11 +245,15 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
                 winBackId!,
                 (result, err) =>
                 {
-                    if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-                    var node = result is NSDictionary d ? NSObjectJsonBridge.DictToObject(d) : null;
-                    if (node is null) { tcs.TrySetResult(null); return; }
-                    var purchase = node.Deserialize<Purchase>(JsonOptions.Default);
-                    tcs.TrySetResult(purchase is null ? null : new RequestPurchaseResultPurchase(purchase));
+                    try
+                    {
+                        if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+                        var node = result is NSDictionary d ? NSObjectJsonBridge.DictToObject(d) : null;
+                        if (node is null) { tcs.TrySetResult(null); return; }
+                        var purchase = node.Deserialize<Purchase>(JsonOptions.Default);
+                        tcs.TrySetResult(purchase is null ? null : new RequestPurchaseResultPurchase(purchase));
+                    }
+                    catch (Exception ex) { tcs.TrySetException(ex); }
                 });
             return tcs.Task;
         }
@@ -226,14 +272,20 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
             return tcs.Task;
         }
 
+        Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync dispatch: id={p.Id}, productId={p.ProductId}, consumable={isConsumable ?? false}");
         _module.FinishTransaction(
             p.Id,
             p.ProductId,
             isConsumable ?? false,
             err =>
             {
-                if (err is not null) tcs.TrySetException(MapNSError(err));
-                else tcs.TrySetResult(p.Id);
+                try
+                {
+                    Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync callback: id={p.Id}, err={err?.LocalizedDescription ?? "nil"}");
+                    if (err is not null) tcs.TrySetException(MapNSError(err));
+                    else tcs.TrySetResult(p.Id);
+                }
+                catch (Exception ex) { tcs.TrySetException(ex); }
             });
         return tcs.Task;
     }
@@ -243,8 +295,12 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _module.RestorePurchases(err =>
         {
-            if (err is not null) tcs.TrySetException(MapNSError(err));
-            else tcs.TrySetResult(string.Empty);
+            try
+            {
+                if (err is not null) tcs.TrySetException(MapNSError(err));
+                else tcs.TrySetResult(string.Empty);
+            }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
         return tcs.Task;
     }
@@ -254,8 +310,12 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _module.DeepLinkToSubscriptions(err =>
         {
-            if (err is not null) tcs.TrySetException(MapNSError(err));
-            else tcs.TrySetResult(string.Empty);
+            try
+            {
+                if (err is not null) tcs.TrySetException(MapNSError(err));
+                else tcs.TrySetResult(string.Empty);
+            }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
         return tcs.Task;
     }
@@ -269,15 +329,15 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
         var tcs = new TaskCompletionSource<VerifyPurchaseResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         _module.VerifyPurchase(sku, (dict, err) =>
         {
-            if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-            var node = NSObjectJsonBridge.DictToObject(dict);
             try
             {
+                if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+                var node = NSObjectJsonBridge.DictToObject(dict);
                 var typed = node?.Deserialize<VerifyPurchaseResultIOS>(JsonOptions.Default);
                 if (typed is not null) tcs.TrySetResult(typed);
                 else tcs.TrySetException(OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "verifyPurchase returned no payload"));
             }
-            catch (JsonException jx) { tcs.TrySetException(jx); }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
         return tcs.Task;
     }
@@ -290,10 +350,10 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
         var tcs = new TaskCompletionSource<VerifyPurchaseWithProviderResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         _module.VerifyPurchaseWithProvider(providerEnum.ToJson(), apiKey, jws, (dict, err) =>
         {
-            if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-            var node = NSObjectJsonBridge.DictToObject(dict);
             try
             {
+                if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+                var node = NSObjectJsonBridge.DictToObject(dict);
                 var typed = node?.Deserialize<RequestVerifyPurchaseWithIapkitResult>(JsonOptions.Default);
                 tcs.TrySetResult(new VerifyPurchaseWithProviderResult
                 {
@@ -301,7 +361,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
                     Iapkit = typed,
                 });
             }
-            catch (JsonException jx) { tcs.TrySetException(jx); }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
         return tcs.Task;
     }
@@ -357,29 +417,54 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
     public Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params)
     {
         var tcs = new TaskCompletionSource<FetchProductsResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Console.WriteLine($"[OpenIapIOS] FetchProductsAsync dispatch: skus={@params.Skus.Count}, type={@params.Type?.ToJson() ?? "null"}");
         _module.FetchProducts(@params.Skus.ToArray(), @params.Type?.ToJson(), (arr, err) =>
         {
-            if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-            var array = NSObjectJsonBridge.ArrayToArray(NSArray.FromNSObjects(arr ?? Array.Empty<NSObject>()));
             try
             {
-                // The bridge always returns a [Product] list — for `subs` query, ProductSubscriptionIOS;
-                // for `inApp`, ProductIOS; for `all`, a mix. Use the request's type to pick the result variant.
+                Console.WriteLine($"[OpenIapIOS] FetchProductsAsync callback: arr.count={arr?.Count ?? 0}, err={err?.LocalizedDescription ?? "nil"}");
+                if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+                var array = NSObjectJsonBridge.ArrayToArray(arr);
+                if (array is not null)
+                {
+                    for (int i = 0; i < array.Count; i++)
+                    {
+                        var item = array[i];
+                        var id = item is JsonObject obj ? obj["id"]?.ToString() : "?";
+                        var typename = item is JsonObject t ? t["__typename"]?.ToString() : "?";
+                        Console.WriteLine($"[OpenIapIOS]   item[{i}]: id={id} __typename={typename}");
+                    }
+                }
+                // The Swift bridge tags every encoded dict with `__typename` (the
+                // leaf type name) so polymorphic deserialization picks the right
+                // concrete record at any abstract ancestor in the union chain.
                 FetchProductsResult result = @params.Type switch
                 {
                     ProductQueryType.Subs => new FetchProductsResultSubscriptions(DeserializeArray<ProductSubscription>(array)),
                     ProductQueryType.InApp => new FetchProductsResultProducts(DeserializeArray<Product>(array)),
                     _ => new FetchProductsResultAll(DeserializeArray<ProductOrSubscription>(array)),
                 };
+                int count = result switch
+                {
+                    FetchProductsResultProducts r => r.Value?.Count ?? 0,
+                    FetchProductsResultSubscriptions s => s.Value?.Count ?? 0,
+                    FetchProductsResultAll a => a.Value?.Count ?? 0,
+                    _ => -1,
+                };
+                Console.WriteLine($"[OpenIapIOS] FetchProductsAsync deserialized → {result.GetType().Name} ({count} items)");
                 tcs.TrySetResult(result);
             }
-            catch (JsonException jx) { tcs.TrySetException(jx); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OpenIapIOS] FetchProductsAsync callback threw: {ex}");
+                tcs.TrySetException(ex);
+            }
         });
         return tcs.Task;
     }
 
     public Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null)
-        => InvokeArray<Purchase>(cb => _module.GetAvailablePurchases(cb));
+        => InvokeArray<Purchase>(cb => _module.GetAvailablePurchasesWithOptions(ToPurchaseOptionsDictionary(options), cb));
 
     public Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
         => InvokeArray<ActiveSubscription>(cb => _module.GetActiveSubscriptions(cb))
@@ -453,26 +538,76 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
 
     private static void Complete(TaskCompletionSource<bool> tcs, bool ok, NSError? err)
     {
-        if (err is not null) tcs.TrySetException(MapNSError(err));
-        else tcs.TrySetResult(ok);
+        try
+        {
+            if (err is not null) tcs.TrySetException(MapNSError(err));
+            else tcs.TrySetResult(ok);
+        }
+        catch (Exception ex) { tcs.TrySetException(ex); }
     }
 
     private static OpenIapException MapNSError(NSError err)
     {
-        var code = err.Domain == "OpenIAP" ? err.LocalizedDescription : err.LocalizedDescription;
-        return OpenIapErrorMapper.Wrap(ErrorCode.Unknown, code ?? err.Domain ?? "iOS error");
+        var message = GetNSErrorString(err, "message")
+            ?? err.LocalizedDescription
+            ?? err.Domain
+            ?? "iOS error";
+        var code = GetNSErrorString(err, "code");
+        var productId = GetNSErrorString(err, "productId");
+        var debugMessage = GetNSErrorString(err, "debugMessage");
+
+        if (!string.IsNullOrWhiteSpace(code))
+            return OpenIapErrorMapper.Wrap(code, message, productId, debugMessage);
+
+        return err.Domain == "OpenIAP"
+            ? OpenIapErrorMapper.Wrap(message, message, productId, debugMessage)
+            : OpenIapErrorMapper.Wrap(ErrorCode.Unknown, message, productId, debugMessage);
+    }
+
+    private static string? GetNSErrorString(NSError err, string key)
+    {
+        using var nsKey = new NSString(key);
+        return err.UserInfo?.ObjectForKey(nsKey)?.ToString();
     }
 
     private static string? ProductTypeWireString(ProductQueryType type)
         => type == ProductQueryType.Subs ? "subs" : type == ProductQueryType.InApp ? "in-app" : null;
 
+    private static NSDictionary ToPurchaseOptionsDictionary(PurchaseOptions? options)
+    {
+        var alsoPublish = options?.AlsoPublishToEventListenerIOS ?? false;
+        var includeSuspended = options?.IncludeSuspendedAndroid ?? false;
+        var onlyActive = options?.OnlyIncludeActiveItemsIOS ?? true;
+
+        return NSDictionary.FromObjectsAndKeys(
+            new NSObject[]
+            {
+                NSNumber.FromBoolean(alsoPublish),
+                NSNumber.FromBoolean(includeSuspended),
+                NSNumber.FromBoolean(onlyActive),
+            },
+            new NSObject[]
+            {
+                new NSString("alsoPublishToEventListenerIOS"),
+                new NSString("includeSuspendedAndroid"),
+                new NSString("onlyIncludeActiveItemsIOS"),
+            });
+    }
+
+    // Every Invoke* helper wraps its callback body in catch (Exception) so a
+    // managed exception thrown on the libdispatch worker that runs the Swift
+    // block trampoline cannot escape into mono's native unwind path.
     private Task<bool> InvokeBool(Action<Action<bool, NSError?>> dispatch)
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         dispatch((ok, err) =>
         {
-            if (err is not null) tcs.TrySetException(MapNSError(err));
-            else tcs.TrySetResult(ok);
+            try
+            {
+                if (err is not null) tcs.TrySetException(MapNSError(err));
+                else tcs.TrySetResult(ok);
+            }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
         return tcs.Task;
     }
@@ -482,8 +617,12 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
         var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         dispatch((s, err) =>
         {
-            if (err is not null) tcs.TrySetException(MapNSError(err));
-            else tcs.TrySetResult(s);
+            try
+            {
+                if (err is not null) tcs.TrySetException(MapNSError(err));
+                else tcs.TrySetResult(s);
+            }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
         return tcs.Task;
     }
@@ -491,11 +630,23 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
     private Task<IReadOnlyList<T>> InvokeArray<T>(Action<Action<NSArray?, NSError?>> dispatch)
     {
         var tcs = new TaskCompletionSource<IReadOnlyList<T>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> dispatch");
         dispatch((arr, err) =>
         {
-            if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-            var node = NSObjectJsonBridge.ArrayToArray(arr);
-            tcs.TrySetResult(DeserializeArray<T>(node) ?? new List<T>());
+            try
+            {
+                Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> callback: arr.count={arr?.Count ?? 0}, err={err?.LocalizedDescription ?? "nil"}");
+                if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+                var node = NSObjectJsonBridge.ArrayToArray(arr);
+                var list = DeserializeArray<T>(node) ?? new List<T>();
+                Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> deserialized {list.Count} items");
+                tcs.TrySetResult(list);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> threw: {ex}");
+                tcs.TrySetException(ex);
+            }
         });
         return tcs.Task;
     }
@@ -509,20 +660,20 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
         var tcs = new TaskCompletionSource<T?>(TaskCreationOptions.RunContinuationsAsynchronously);
         dispatch((obj, err) =>
         {
-            if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
-            if (obj is not NSDictionary dict)
-            {
-                if (required) tcs.TrySetException(OpenIapErrorMapper.Wrap(ErrorCode.Unknown, $"Expected NSDictionary for {typeof(T).Name}"));
-                else tcs.TrySetResult(null);
-                return;
-            }
-            var node = NSObjectJsonBridge.DictToObject(dict);
             try
             {
+                if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
+                if (obj is not NSDictionary dict)
+                {
+                    if (required) tcs.TrySetException(OpenIapErrorMapper.Wrap(ErrorCode.Unknown, $"Expected NSDictionary for {typeof(T).Name}"));
+                    else tcs.TrySetResult(null);
+                    return;
+                }
+                var node = NSObjectJsonBridge.DictToObject(dict);
                 var typed = node?.Deserialize<T>(JsonOptions.Default);
                 tcs.TrySetResult(typed);
             }
-            catch (JsonException jx) { tcs.TrySetException(jx); }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
         return tcs.Task;
     }
@@ -531,15 +682,24 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver
     {
         if (array is null) return null;
         var list = new List<T>(array.Count);
+        int idx = 0;
         foreach (var node in array)
         {
-            if (node is null) continue;
+            if (node is null) { idx++; continue; }
             try
             {
                 var typed = node.Deserialize<T>(JsonOptions.Default);
                 if (typed is not null) list.Add(typed);
+                else Console.WriteLine($"[OpenIapIOS] DeserializeArray<{typeof(T).Name}>[{idx}] returned null");
             }
-            catch (JsonException) { /* skip malformed item */ }
+            // STJ raises JsonException for missing/unknown discriminators and
+            // NotSupportedException when an abstract type can't be constructed.
+            // Either way the safe action is to drop the malformed item.
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OpenIapIOS] DeserializeArray<{typeof(T).Name}>[{idx}] failed: {ex.GetType().Name}: {ex.Message}");
+            }
+            idx++;
         }
         return list;
     }

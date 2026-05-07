@@ -121,30 +121,24 @@
             "console": "integratedTerminal"
         },
         {
-            // Targets iPad (UDID 00008130-001929642642001C). To switch devices,
-            // run `xcrun xctrace list devices` and replace the UDID below.
-            // -tl:off + -v:n + MlaunchVerbosity=4 + MlaunchExtraArgs surface
-            // per-stage install progress (AFC byte transfer, codesign, launch).
-            // The leading `cd` re-asserts cwd because `bash -lc` reloads the
-            // login profile, which can move the shell out of cwd before
-            // dotnet runs.
+            // Uses the first USB-connected iOS device from ios-deploy.
+            // Set MAUI_IOS_DEVICE=<udid> only when multiple devices are attached.
             "name": "🟣 MAUI IAP: iOS",
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "cd \"${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example\" && dotnet build OpenIap.Maui.Example.csproj -t:Run -f net9.0-ios -p:RuntimeIdentifier=ios-arm64 -p:_DeviceName=00008130-001929642642001C -tl:off -v:n -p:MlaunchVerbosity=4 -p:MlaunchExtraArgs=\"-v -v -v\""],
+            "runtimeArgs": ["-lc", "\"${workspaceFolder}/libraries/maui-iap/.vscode/run_ios_device.sh\""],
             "cwd": "${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example",
             "console": "integratedTerminal"
         },
         {
-            // -tl:off + -v:n — same fix as iOS. The terminal logger collapses
-            // every MSBuild target into a rolling counter; turning it off makes
-            // _CompileToDalvik / _InstallApk / etc. stream line-by-line.
+            // Uses the first USB-connected Android device from adb.
+            // Set MAUI_ANDROID_DEVICE=<serial> only when multiple devices are attached.
             "name": "🟣 MAUI IAP: Android",
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "cd \"${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example\" && (adb uninstall dev.hyo.openiap.maui.example || true) && dotnet build OpenIap.Maui.Example.csproj -t:Run -f net9.0-android -tl:off -v:n"],
+            "runtimeArgs": ["-lc", "\"${workspaceFolder}/libraries/maui-iap/.vscode/run_android.sh\""],
             "cwd": "${workspaceFolder}/libraries/maui-iap/example/OpenIap.Maui.Example",
             "console": "integratedTerminal"
         },

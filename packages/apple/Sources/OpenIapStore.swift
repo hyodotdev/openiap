@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import StoreKit
 
 /// Convenience store for OpenIapModule with managed listeners and state

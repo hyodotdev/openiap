@@ -133,7 +133,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
       ...config.android,
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#000000',
       },
       package: 'dev.hyo.martie',
     },

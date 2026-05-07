@@ -21,10 +21,10 @@ OpenIAP for **.NET MAUI** — unified in-app purchases on iOS, Android, and macC
 
 ## Install
 
-> Requires .NET 8 SDK and the MAUI workload (`dotnet workload install maui`).
+> Requires .NET 9 SDK and the MAUI workload (`dotnet workload install maui`).
 
 ```xml
-<PackageReference Include="Hyo.OpenIap.Maui" Version="0.1.0" />
+<PackageReference Include="Hyo.OpenIap.Maui" Version="1.0.0" />
 ```
 
 > NuGet release is pending. For now, reference the project directly:

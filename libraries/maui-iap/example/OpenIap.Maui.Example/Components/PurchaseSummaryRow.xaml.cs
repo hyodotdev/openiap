@@ -1,4 +1,5 @@
 using Hyo.OpenIap;
+using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Components;
 
@@ -29,7 +30,7 @@ public partial class PurchaseSummaryRow : ContentView
         // PurchaseIOS and PurchaseAndroid implement.
         var common = (PurchaseCommon)purchase;
         row.ProductIdLabel.Text = common.ProductId;
-        var transactionId = common.Id;
+        var transactionId = BuildPurchaseRows.ResolveTransactionId(purchase);
         row.TransactionIdLabel.Text = $"Transaction: {(string.IsNullOrEmpty(transactionId) ? "N/A" : transactionId)}";
 
         var platform = common.Platform.ToJson().ToLowerInvariant();

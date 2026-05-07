@@ -13,4 +13,14 @@
   <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='removeUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingRemoved</attr>
   <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='addDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingAdded</attr>
   <attr path="/api/package[@name='dev.hyo.openiap.store']/class[@name='OpenIapStore']/method[@name='removeDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingRemoved</attr>
+
+  <!-- OpenIapModule has the same duplicate-event problem: addX/removeX (legacy
+       multi-listener API) AND setX (single-listener replacement) both reduce
+       to the same event name in the binding generator. Rename the legacy
+       multi-listener pair so the single-listener `set` keeps the canonical
+       UserChoiceBilling / DeveloperProvidedBilling event name. -->
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='addUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='removeUserChoiceBillingListener']" name="eventName">LegacyUserChoiceBillingRemoved</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='addDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingAdded</attr>
+  <attr path="/api/package[@name='dev.hyo.openiap']/class[@name='OpenIapModule']/method[@name='removeDeveloperProvidedBillingListener']" name="eventName">LegacyDeveloperProvidedBillingRemoved</attr>
 </metadata>

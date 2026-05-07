@@ -64,7 +64,6 @@ import dev.hyo.openiap.utils.BillingConverters.toPurchase
 import dev.hyo.openiap.utils.BillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.fromBillingState
 import dev.hyo.openiap.utils.toActiveSubscription
-import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.Dispatchers
@@ -211,42 +210,55 @@ class OpenIapModule(
                 }
                 ProductQueryType.All -> {
                     // Query both types and combine results
-                    val allProducts = mutableListOf<Product>()
+                    val allItems = mutableListOf<ProductOrSubscription>()
                     val processedIds = mutableSetOf<String>()
+                    var firstQueryError: Throwable? = null
 
                     // First, get all INAPP products
                     val inAppDetails = runCatching {
                         queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.INAPP)
+                    }.onFailure { error ->
+                        firstQueryError = firstQueryError ?: error
                     }.getOrDefault(emptyList())
 
                     for (detail in inAppDetails) {
                         val product = detail.toInAppProduct()
-                        allProducts.add(product)
+                        allItems.add(ProductOrSubscription.ProductItem(product))
                         processedIds.add(detail.productId)
                     }
 
                     // Then, get subscription products (only add if not already processed as INAPP)
                     val subsDetails = runCatching {
                         queryProductDetails(client, productManager, params.skus, BillingClient.ProductType.SUBS)
+                    }.onFailure { error ->
+                        firstQueryError = firstQueryError ?: error
                     }.getOrDefault(emptyList())
 
                     for (detail in subsDetails) {
                         if (detail.productId !in processedIds) {
-                            // Keep subscription as ProductSubscription, but convert to Product for return
                             val subProduct = detail.toSubscriptionProduct()
-                            allProducts.add(subProduct.toProduct())
+                            allItems.add(ProductOrSubscription.ProductSubscriptionItem(subProduct))
                         }
                     }
 
-                    // Return products in the order they were requested if SKUs provided
-                    val orderedProducts = if (params.skus.isNotEmpty()) {
-                        val productMap = allProducts.associateBy { it.id }
-                        params.skus.mapNotNull { productMap[it] }
-                    } else {
-                        allProducts
+                    if (allItems.isEmpty()) {
+                        firstQueryError?.let { throw it }
                     }
 
-                    FetchProductsResultProducts(orderedProducts)
+                    // Return products in the order they were requested if SKUs provided
+                    val orderedItems = if (params.skus.isNotEmpty()) {
+                        val itemMap = allItems.associateBy { item ->
+                            when (item) {
+                                is ProductOrSubscription.ProductItem -> item.value.id
+                                is ProductOrSubscription.ProductSubscriptionItem -> item.value.id
+                            }
+                        }
+                        params.skus.mapNotNull { itemMap[it] }
+                    } else {
+                        allItems
+                    }
+
+                    FetchProductsResultAll(orderedItems)
                 }
             }
         }
@@ -1465,7 +1477,8 @@ class OpenIapModule(
                     .enableOneTimeProducts()
                     .build()
             )
-            .enableAutoServiceReconnection()
+
+        enableAutoServiceReconnectionIfAvailable(builder)
 
         // Enable alternative billing if requested
         // This requires proper Google Play Console configuration
@@ -1631,6 +1644,24 @@ class OpenIapModule(
 
         billingClient = builder.build()
         OpenIapLog.d("=== buildBillingClient END ===", TAG)
+    }
+
+    /**
+     * Billing Library 8.0+ can automatically reconnect to the billing service,
+     * but MAUI/Xamarin hosts can accidentally package an older BillingClient
+     * through NuGet/Java dependency resolution. A direct method call would crash
+     * the app with NoSuchMethodError before OpenIAP can surface a typed error.
+     */
+    private fun enableAutoServiceReconnectionIfAvailable(builder: BillingClient.Builder) {
+        try {
+            val method = builder.javaClass.getMethod("enableAutoServiceReconnection")
+            method.invoke(builder)
+            OpenIapLog.d("✓ Auto service reconnection enabled", TAG)
+        } catch (e: NoSuchMethodException) {
+            OpenIapLog.w("Auto service reconnection unavailable. Requires Billing Library 8.0+.", TAG)
+        } catch (e: Throwable) {
+            OpenIapLog.w("Failed to enable auto service reconnection: ${e.message}", TAG)
+        }
     }
 
     private fun initBillingClient(
