@@ -338,28 +338,24 @@ class HybridRnIap : HybridRnIapSpec() {
             val products: List<ProductCommon> = try {
                 when (queryType) {
                     ProductQueryType.All -> {
-                        // Fetch both InApp and Subs products
-                        val byId = mutableMapOf<String, ProductCommon>()
-
-                        listOf(ProductQueryType.InApp, ProductQueryType.Subs).forEach { kind ->
-                            RnIapLog.payload(
-                                "fetchProducts.native",
-                                mapOf("skus" to skusList, "type" to kind.rawValue)
-                            )
-                            val fetched = openIap.fetchProducts(ProductRequest(skusList, kind)).productsOrEmpty()
-                            RnIapLog.result(
-                                "fetchProducts.native",
-                                fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
-                            )
-
-                            // Collect products by ID (no duplicates possible in Play Billing)
-                            fetched.forEach { product ->
-                                byId.putIfAbsent(product.id, product)
-                            }
-                        }
-
-                        // Return products in the same order as input skusList
-                        skusList.mapNotNull { byId[it] }
+                        collectAllQueryProducts(
+                            skusList = skusList,
+                            fetchKind = { kind ->
+                                RnIapLog.payload(
+                                    "fetchProducts.native",
+                                    mapOf("skus" to skusList, "type" to kind.rawValue)
+                                )
+                                val fetched = openIap.fetchProducts(ProductRequest(skusList, kind)).productsOrEmpty()
+                                RnIapLog.result(
+                                    "fetchProducts.native",
+                                    fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
+                                )
+                                fetched
+                            },
+                            onFailure = { kind, error ->
+                                RnIapLog.failure("fetchProducts.native[${kind.rawValue}]", error)
+                            },
+                        )
                     }
                     else -> {
                         RnIapLog.payload(

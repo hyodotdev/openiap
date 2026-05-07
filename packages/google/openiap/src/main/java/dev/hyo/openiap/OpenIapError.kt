@@ -14,20 +14,12 @@ sealed class OpenIapError : Exception() {
      * the exact argument the store rejected.
      */
     open val debugMessage: String? = null
-    open val responseCode: Int? = null
-    open val productIds: List<String> = emptyList()
-    open val productType: String? = null
-    open val isEmptyProductList: Boolean? = null
 
-    fun toJSON(): Map<String, Any?> = mapOf(
+    open fun toJSON(): Map<String, Any?> = mapOf(
         "code" to toCode(this),
         "message" to (this.message ?: ""),
         "platform" to "android",
         "debugMessage" to debugMessage,
-        "responseCode" to responseCode,
-        "productIds" to productIds,
-        "productType" to productType,
-        "isEmptyProductList" to isEmptyProductList,
     )
 
     class ProductNotFound(val productId: String) : OpenIapError() {
@@ -181,7 +173,7 @@ sealed class OpenIapError : Exception() {
             productIds: List<String> = emptyList(),
             productType: String? = null,
             isEmptyProductList: Boolean? = null,
-        ): OpenIapError = QueryProductFailure(
+        ): QueryProductFailure = QueryProductFailure(
             responseCode = responseCode,
             debugMessage = debugMessage,
             productIds = productIds,
@@ -191,14 +183,21 @@ sealed class OpenIapError : Exception() {
     }
 
     data class QueryProductFailure(
-        override val responseCode: Int? = null,
+        val responseCode: Int? = null,
         override val debugMessage: String? = null,
-        override val productIds: List<String> = emptyList(),
-        override val productType: String? = null,
-        override val isEmptyProductList: Boolean? = null,
+        val productIds: List<String> = emptyList(),
+        val productType: String? = null,
+        val isEmptyProductList: Boolean? = null,
     ) : OpenIapError() {
         override val code: String = QueryProduct.CODE
         override val message: String = QueryProduct.MESSAGE
+
+        override fun toJSON(): Map<String, Any?> = super.toJSON() + mapOf(
+            "responseCode" to responseCode,
+            "productIds" to productIds,
+            "productType" to productType,
+            "isEmptyProductList" to isEmptyProductList,
+        )
     }
 
     object EmptySkuList : OpenIapError() {

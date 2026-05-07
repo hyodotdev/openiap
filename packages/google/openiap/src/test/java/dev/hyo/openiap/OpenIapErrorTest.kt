@@ -2,6 +2,7 @@ package dev.hyo.openiap
 
 import com.android.billingclient.api.BillingClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -138,6 +139,18 @@ class OpenIapErrorTest {
         assertEquals(listOf("premium_monthly", "lifetime"), json["productIds"])
         assertEquals(BillingClient.ProductType.SUBS, json["productType"])
         assertEquals(true, json["isEmptyProductList"])
+    }
+
+    @Test
+    fun `non QueryProduct errors do not serialize query diagnostics`() {
+        val json = OpenIapError.PurchaseFailed("Billing failed").toJSON()
+
+        assertEquals(ErrorCode.PurchaseError.rawValue, json["code"])
+        assertEquals("Billing failed", json["debugMessage"])
+        assertFalse(json.containsKey("responseCode"))
+        assertFalse(json.containsKey("productIds"))
+        assertFalse(json.containsKey("productType"))
+        assertFalse(json.containsKey("isEmptyProductList"))
     }
 
     @Test

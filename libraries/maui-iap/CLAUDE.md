@@ -31,7 +31,7 @@ libraries/maui-iap/
 ├── README.md                       — public-facing intro, install
 ├── CLAUDE.md                       — this file
 ├── CONVENTION.md                   — C# / MAUI conventions
-├── openiap-versions.json           — symlink to repo-root version manifest
+├── openiap-versions.json           — symlink for native spec/apple/google versions
 └── src/
     └── OpenIap.Maui/
         ├── OpenIap.Maui.csproj     — multi-target (net9.0 + ios/android/maccatalyst)

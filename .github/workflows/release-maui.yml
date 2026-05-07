@@ -125,7 +125,15 @@ jobs:
       - name: Calculate new version
         id: version
         run: |
-          CURRENT_VERSION=$(jq -r '.maui' openiap-versions.json)
+          CSPROJ=libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
+          CURRENT_VERSION=$(sed -n -E 's|.*<PackageVersion>([^<]+)</PackageVersion>.*|\1|p' "$CSPROJ" | head -n 1)
+          if [ -z "$CURRENT_VERSION" ]; then
+            CURRENT_VERSION=$(sed -n -E 's|.*<Version>([^<]+)</Version>.*|\1|p' "$CSPROJ" | head -n 1)
+          fi
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "❌ Unable to read MAUI package version from $CSPROJ"
+            exit 1
+          fi
           echo "Current version: $CURRENT_VERSION"
 
           VERSION_TYPE="${{ inputs.version }}"
@@ -186,34 +194,22 @@ jobs:
             echo "✓ Tag maui-iap-$VERSION does not exist, proceeding with release"
           fi
 
-      - name: Update version in openiap-versions.json
-        if: steps.version.outputs.skip_version_commit != 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          jq --arg version "$VERSION" '.maui = $version' openiap-versions.json > openiap-versions.tmp
-          mv openiap-versions.tmp openiap-versions.json
-          echo "Updated openiap-versions.json:"
-          cat openiap-versions.json
-
-      - name: Sync version files
-        if: steps.version.outputs.skip_version_commit != 'true'
-        run: ./scripts/sync-versions.sh
-
-      - name: Update <Version> in OpenIap.Maui.csproj
+      - name: Update package version in OpenIap.Maui.csproj
         if: steps.version.outputs.skip_version_commit != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           CSPROJ=libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
-          if grep -q "<Version>" "$CSPROJ"; then
+          if grep -q "<PackageVersion>" "$CSPROJ"; then
+            sed -i '' -E "s|<PackageVersion>[^<]*</PackageVersion>|<PackageVersion>$VERSION</PackageVersion>|" "$CSPROJ"
+          elif grep -q "<Version>" "$CSPROJ"; then
             sed -i '' -E "s|<Version>[^<]*</Version>|<Version>$VERSION</Version>|" "$CSPROJ"
           else
-            # Insert immediately after the first opening <PropertyGroup>.
+            # Insert immediately after PackageId so package metadata stays grouped.
             awk -v ver="$VERSION" '
-              !inserted && /<PropertyGroup>/ {
+              !inserted && /<PackageId>/ {
                 print
-                print "    <Version>" ver "</Version>"
+                print "    <PackageVersion>" ver "</PackageVersion>"
                 inserted = 1
                 next
               }
@@ -221,7 +217,7 @@ jobs:
             ' "$CSPROJ" > "$CSPROJ.tmp"
             mv "$CSPROJ.tmp" "$CSPROJ"
           fi
-          echo "Updated csproj <Version> to $VERSION"
+          echo "Updated csproj package version to $VERSION"
 
       - name: Commit version updates
         if: steps.version.outputs.skip_version_commit != 'true'
@@ -231,7 +227,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add openiap-versions.json packages/*/openiap-versions.json libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
+          git add libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
 
           if git diff --staged --quiet; then
             echo "No version changes to commit"
@@ -239,25 +235,8 @@ jobs:
             git commit -m "chore(maui): bump version to $VERSION"
             for i in 1 2 3; do
               if ! git pull --rebase origin main; then
-                echo "⚠️ Rebase conflict, auto-resolving openiap-versions.json"
-                for conflict_file in $(git diff --name-only --diff-filter=U); do
-                  if [[ "$conflict_file" == *"openiap-versions.json" ]]; then
-                    git show HEAD:"$conflict_file" > /tmp/theirs.json 2>/dev/null || true
-                    if [ -s /tmp/theirs.json ]; then
-                      jq --arg version "$VERSION" '.maui = $version' /tmp/theirs.json > /tmp/merged.json
-                      cp /tmp/merged.json "$conflict_file"
-                    else
-                      git checkout --theirs "$conflict_file" 2>/dev/null || git checkout --ours "$conflict_file"
-                    fi
-                    git add "$conflict_file"
-                  else
-                    echo "❌ Unexpected conflict in $conflict_file"
-                    exit 1
-                  fi
-                done
-                cp openiap-versions.json packages/docs/openiap-versions.json
-                git add packages/docs/openiap-versions.json
-                GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
+                echo "❌ Rebase conflict while updating MAUI package version"
+                exit 1
               fi
               if git push origin main; then
                 echo "✅ Pushed version update"
