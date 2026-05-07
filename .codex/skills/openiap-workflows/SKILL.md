@@ -1,0 +1,69 @@
+---
+name: openiap-workflows
+description: Use for OpenIAP monorepo work that should follow the repository's Claude slash-command workflows, including review-pr, audit-code, compile-knowledge, verify-all, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from CLAUDE.md/AGENTS.md.
+---
+
+# OpenIAP Workflows
+
+Use this skill when the user asks Codex to perform an OpenIAP repo workflow that
+previously lived under `.claude/commands`, such as reviewing a PR, resolving an
+issue, auditing code, compiling knowledge, verifying the monorepo, or committing
+and opening a PR.
+
+## Source Of Truth
+
+Before changing code, read the root `AGENTS.md` or `CLAUDE.md`; they are linked
+in this repo. Then read the relevant detailed files:
+
+- Package and library rules: `knowledge/internal/*.md`
+- Package conventions: `packages/*/CONVENTION.md`
+- Library conventions: `libraries/*/CLAUDE.md`
+- Workflow details: `.claude/commands/*.md`
+
+Do not duplicate or reinterpret those rules when a file already covers the
+specific package or workflow.
+
+## Command Mapping
+
+Codex does not need Claude slash-command syntax. If the user says any of these
+natural-language requests, execute the matching workflow:
+
+- Review PR comments, fix review feedback, or "review-pr": read
+  `.claude/commands/review-pr.md`.
+- Audit code, check latest APIs, or "audit-code": read
+  `.claude/commands/audit-code.md`.
+- Compile knowledge or rebuild AI context: read
+  `.claude/commands/compile-knowledge.md`.
+- Resolve a GitHub issue: read `.claude/commands/resolve-issue.md`.
+- Verify all, health check, or pre-PR verification: read
+  `.claude/commands/verify-all.md`.
+- Commit, push, or create PR: read `.claude/commands/commit.md`.
+
+When a command file gives a sequence, follow it unless the user's newest
+instruction narrows the scope.
+
+## Non-Negotiables
+
+- Read relevant knowledge and package convention files before editing package or
+  library code.
+- Never hand-edit generated files unless the workflow explicitly says to verify
+  generated output after running the generator.
+- For GraphQL schema/API changes, follow the SDK Parity Checklist in
+  `knowledge/internal/04-platform-packages.md`.
+- Run the package-specific verification commands for touched paths.
+- For Android package work, compile both Play and Horizon variants when relevant.
+- For docs/API/type docs changes, run `bun audit:docs` or the documented audit
+  command before pushing.
+- Keep commits in Angular Conventional Commits format:
+  `<type>(<scope>): <subject>`.
+
+## GitHub Review Threads
+
+For PR review feedback, use the GitHub app tools or `gh` as needed to inspect
+inline review threads. Fix valid findings in the current PR, reply to the
+specific inline comment with the plain commit hash, and resolve only threads
+that are fixed or outdated per `.claude/commands/review-pr.md`.
+
+Do not reply with "will address later" for valid correctness or operational
+findings. Implement the fix in the current PR unless the finding is wrong on
+the merits, and explain the concrete repo evidence when pushing back.
