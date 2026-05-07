@@ -123,11 +123,11 @@ function Releases() {
 
     // May 7, 2026 — non-Godot SDK parity + native API wiring guardrails
     {
-      id: 'apple-2-1-6-google-2-1-3-sdk-parity',
+      id: 'apple-2-1-6-google-2-1-4-sdk-parity',
       date: new Date('2026-05-07'),
       element: (
-        <div key="apple-2-1-6-google-2-1-3-sdk-parity" style={noteCardStyle}>
-          <AnchorLink id="apple-2-1-6-google-2-1-3-sdk-parity" level="h4">
+        <div key="apple-2-1-6-google-2-1-4-sdk-parity" style={noteCardStyle}>
+          <AnchorLink id="apple-2-1-6-google-2-1-4-sdk-parity" level="h4">
             May 7, 2026 — Non-Godot SDK parity patch releases
           </AnchorLink>
 
@@ -168,12 +168,15 @@ function Releases() {
               to the unified method for backward compatibility.
             </li>
             <li>
-              <strong>openiap-google 2.1.3</strong> — wires Play and Horizon
+              <strong>openiap-google 2.1.4</strong> — wires Play and Horizon
               handler bundles for <code>getStorefront</code>, legacy alternative
               billing helpers, and Billing Programs APIs such as{' '}
               <code>isBillingProgramAvailableAndroid</code>,{' '}
               <code>launchExternalLinkAndroid</code>, and{' '}
-              <code>createBillingProgramReportingDetailsAndroid</code>.
+              <code>createBillingProgramReportingDetailsAndroid</code>. This
+              release also improves Android <code>QueryProduct</code> failures
+              with Billing response code, debug message, queried product IDs,
+              product type, and empty-result diagnostics.
             </li>
             <li>
               <strong>Example parity</strong> — Expo, React Native classic,
@@ -236,11 +239,11 @@ function Releases() {
               </li>
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.3"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/google-2.1.4"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  openiap-google 2.1.3
+                  openiap-google 2.1.4
                 </a>
               </li>
               <li>

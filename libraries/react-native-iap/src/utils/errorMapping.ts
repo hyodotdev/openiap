@@ -51,6 +51,9 @@ export interface PurchaseErrorProps {
   debugMessage?: string;
   code?: ErrorCode | string | number;
   productId?: string;
+  productIds?: string[];
+  productType?: string;
+  isEmptyProductList?: boolean;
   platform?: IapPlatform;
 }
 
@@ -59,6 +62,9 @@ export interface PurchaseError extends Error {
   debugMessage?: string;
   code?: ErrorCode;
   productId?: string;
+  productIds?: string[];
+  productType?: string;
+  isEmptyProductList?: boolean;
   platform?: IapPlatform;
 }
 
@@ -137,6 +143,9 @@ export const createPurchaseError = (
   error.debugMessage = props.debugMessage;
   error.code = errorCode;
   error.productId = props.productId;
+  error.productIds = props.productIds;
+  error.productType = props.productType;
+  error.isEmptyProductList = props.isEmptyProductList;
   error.platform = props.platform;
   return error;
 };
@@ -158,6 +167,9 @@ export const createPurchaseErrorFromPlatform = (
     debugMessage: errorData.debugMessage,
     code: errorCode,
     productId: errorData.productId,
+    productIds: errorData.productIds,
+    productType: errorData.productType,
+    isEmptyProductList: errorData.isEmptyProductList,
     platform,
   });
 };

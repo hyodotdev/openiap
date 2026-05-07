@@ -402,6 +402,7 @@ class OpenIapMauiModule(context: Context) {
      * generated C# record expects.
      */
     private fun encodeError(e: OpenIapError): Map<String, Any?> {
+        val diagnostics = e.toJSON()
         val productId = when (e) {
             is OpenIapError.ProductNotFound -> e.productId
             else -> null
@@ -411,6 +412,10 @@ class OpenIapMauiModule(context: Context) {
             "message" to e.message,
             "productId" to productId,
             "debugMessage" to e.debugMessage,
+            "responseCode" to diagnostics["responseCode"],
+            "productIds" to diagnostics["productIds"],
+            "productType" to diagnostics["productType"],
+            "isEmptyProductList" to diagnostics["isEmptyProductList"],
         )
     }
 

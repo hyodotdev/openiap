@@ -10,6 +10,9 @@ export interface IapError {
   responseCode?: number;
   debugMessage?: string;
   productId?: string;
+  productIds?: string[];
+  productType?: string;
+  isEmptyProductList?: boolean;
   [key: string]: any; // Allow additional platform-specific fields
 }
 

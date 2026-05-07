@@ -116,6 +116,31 @@ class OpenIapErrorTest {
     }
 
     @Test
+    fun `QueryProduct carries billing diagnostics when provided`() {
+        val error = OpenIapError.QueryProduct(
+            responseCode = BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+            debugMessage = "Invalid product ID",
+            productIds = listOf("premium_monthly", "lifetime"),
+            productType = BillingClient.ProductType.SUBS,
+            isEmptyProductList = true,
+        )
+        val json = error.toJSON()
+
+        assertEquals(ErrorCode.QueryProduct.rawValue, error.code)
+        assertEquals("Failed to query product", error.message)
+        assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, error.responseCode)
+        assertEquals("Invalid product ID", error.debugMessage)
+        assertEquals(listOf("premium_monthly", "lifetime"), error.productIds)
+        assertEquals(BillingClient.ProductType.SUBS, error.productType)
+        assertEquals(true, error.isEmptyProductList)
+        assertEquals(BillingClient.BillingResponseCode.DEVELOPER_ERROR, json["responseCode"])
+        assertEquals("Invalid product ID", json["debugMessage"])
+        assertEquals(listOf("premium_monthly", "lifetime"), json["productIds"])
+        assertEquals(BillingClient.ProductType.SUBS, json["productType"])
+        assertEquals(true, json["isEmptyProductList"])
+    }
+
+    @Test
     fun `EmptySkuList has correct code and message`() {
         val error = OpenIapError.EmptySkuList
         assertEquals(ErrorCode.EmptySkuList.rawValue, error.code)

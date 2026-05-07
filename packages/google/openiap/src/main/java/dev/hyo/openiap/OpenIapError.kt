@@ -14,12 +14,20 @@ sealed class OpenIapError : Exception() {
      * the exact argument the store rejected.
      */
     open val debugMessage: String? = null
+    open val responseCode: Int? = null
+    open val productIds: List<String> = emptyList()
+    open val productType: String? = null
+    open val isEmptyProductList: Boolean? = null
 
     fun toJSON(): Map<String, Any?> = mapOf(
         "code" to toCode(this),
         "message" to (this.message ?: ""),
         "platform" to "android",
         "debugMessage" to debugMessage,
+        "responseCode" to responseCode,
+        "productIds" to productIds,
+        "productType" to productType,
+        "isEmptyProductList" to isEmptyProductList,
     )
 
     class ProductNotFound(val productId: String) : OpenIapError() {
@@ -166,6 +174,31 @@ sealed class OpenIapError : Exception() {
         override val message = MESSAGE
 
         const val MESSAGE = "Failed to query product"
+
+        operator fun invoke(
+            responseCode: Int? = null,
+            debugMessage: String? = null,
+            productIds: List<String> = emptyList(),
+            productType: String? = null,
+            isEmptyProductList: Boolean? = null,
+        ): OpenIapError = QueryProductFailure(
+            responseCode = responseCode,
+            debugMessage = debugMessage,
+            productIds = productIds,
+            productType = productType,
+            isEmptyProductList = isEmptyProductList,
+        )
+    }
+
+    data class QueryProductFailure(
+        override val responseCode: Int? = null,
+        override val debugMessage: String? = null,
+        override val productIds: List<String> = emptyList(),
+        override val productType: String? = null,
+        override val isEmptyProductList: Boolean? = null,
+    ) : OpenIapError() {
+        override val code: String = QueryProduct.CODE
+        override val message: String = QueryProduct.MESSAGE
     }
 
     object EmptySkuList : OpenIapError() {

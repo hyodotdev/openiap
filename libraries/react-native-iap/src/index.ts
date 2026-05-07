@@ -816,7 +816,18 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
     return convertedProducts as FetchProductsResult;
   } catch (error) {
     RnIapConsole.error('[fetchProducts] Failed:', error);
-    throw error;
+    const parsedError = parseErrorStringToJsonObj(error);
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+      productId: parsedError.productId,
+      productIds: parsedError.productIds,
+      productType: parsedError.productType,
+      isEmptyProductList: parsedError.isEmptyProductList,
+      platform: Platform.OS === 'ios' ? 'ios' : 'android',
+    });
   }
 };
 

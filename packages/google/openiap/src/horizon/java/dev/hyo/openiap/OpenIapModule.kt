@@ -574,7 +574,13 @@ class OpenIapModule(
 
                     client.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
                         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                            val err = OpenIapError.QueryProduct
+                            val err = OpenIapError.QueryProduct(
+                                responseCode = billingResult.responseCode,
+                                debugMessage = billingResult.debugMessage,
+                                productIds = missing,
+                                productType = desiredType,
+                                isEmptyProductList = productDetailsList.isNullOrEmpty()
+                            )
                             purchaseErrorListeners.forEach { listener -> runCatching { listener.onPurchaseError(err) } }
                             consumePurchaseCallback(Result.success(emptyList()))
                             return@queryProductDetailsAsync

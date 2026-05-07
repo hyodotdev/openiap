@@ -180,15 +180,7 @@ class HybridRnIap : HybridRnIapSpec() {
                                 "purchaseErrorListener",
                                 mapOf("code" to code, "message" to message)
                             )
-                            sendPurchaseError(
-                                NitroPurchaseResult(
-                                    responseCode = -1.0,
-                                    debugMessage = null,
-                                    code = code,
-                                    message = message,
-                                    purchaseToken = null
-                                )
-                            )
+                            sendPurchaseError(toErrorResult(e))
                         }.onFailure { RnIapLog.failure("purchaseErrorListener", it) }
                     })
                     openIap.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { details ->
@@ -343,46 +335,50 @@ class HybridRnIap : HybridRnIapSpec() {
             val queryType = parseProductQueryType(type)
             val skusList = skus.toList()
 
-            val products: List<ProductCommon> = when (queryType) {
-                ProductQueryType.All -> {
-                    // Fetch both InApp and Subs products
-                    val byId = mutableMapOf<String, ProductCommon>()
+            val products: List<ProductCommon> = try {
+                when (queryType) {
+                    ProductQueryType.All -> {
+                        // Fetch both InApp and Subs products
+                        val byId = mutableMapOf<String, ProductCommon>()
 
-                    listOf(ProductQueryType.InApp, ProductQueryType.Subs).forEach { kind ->
+                        listOf(ProductQueryType.InApp, ProductQueryType.Subs).forEach { kind ->
+                            RnIapLog.payload(
+                                "fetchProducts.native",
+                                mapOf("skus" to skusList, "type" to kind.rawValue)
+                            )
+                            val fetched = openIap.fetchProducts(ProductRequest(skusList, kind)).productsOrEmpty()
+                            RnIapLog.result(
+                                "fetchProducts.native",
+                                fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
+                            )
+
+                            // Collect products by ID (no duplicates possible in Play Billing)
+                            fetched.forEach { product ->
+                                byId.putIfAbsent(product.id, product)
+                            }
+                        }
+
+                        // Return products in the same order as input skusList
+                        skusList.mapNotNull { byId[it] }
+                    }
+                    else -> {
                         RnIapLog.payload(
                             "fetchProducts.native",
-                            mapOf("skus" to skusList, "type" to kind.rawValue)
+                            mapOf("skus" to skusList, "type" to queryType.rawValue)
                         )
-                        val fetched = openIap.fetchProducts(ProductRequest(skusList, kind)).productsOrEmpty()
+                        val fetched = openIap.fetchProducts(ProductRequest(skusList, queryType)).productsOrEmpty()
                         RnIapLog.result(
                             "fetchProducts.native",
                             fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
                         )
 
-                        // Collect products by ID (no duplicates possible in Play Billing)
-                        fetched.forEach { product ->
-                            byId.putIfAbsent(product.id, product)
-                        }
+                        // Preserve input order for non-All queries
+                        val byId = fetched.associateBy { it.id }
+                        skusList.mapNotNull { byId[it] }
                     }
-
-                    // Return products in the same order as input skusList
-                    skusList.mapNotNull { byId[it] }
                 }
-                else -> {
-                    RnIapLog.payload(
-                        "fetchProducts.native",
-                        mapOf("skus" to skusList, "type" to queryType.rawValue)
-                    )
-                    val fetched = openIap.fetchProducts(ProductRequest(skusList, queryType)).productsOrEmpty()
-                    RnIapLog.result(
-                        "fetchProducts.native",
-                        fetched.map { mapOf("id" to it.id, "type" to it.type.rawValue) }
-                    )
-
-                    // Preserve input order for non-All queries
-                    val byId = fetched.associateBy { it.id }
-                    skusList.mapNotNull { byId[it] }
-                }
+            } catch (e: OpenIAPError) {
+                throw OpenIapException(toErrorJson(e))
             }
 
             products.forEach { p -> productTypeBySku[p.id] = p.type.rawValue }
@@ -1943,27 +1939,29 @@ class HybridRnIap : HybridRnIapSpec() {
         val message = messageOverride?.takeIf { it.isNotBlank() }
             ?: error.message?.takeIf { it.isNotBlank() }
             ?: OpenIAPError.Companion.defaultMessage(code)
+        val diagnostics = error.toJSON()
+        val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
+        val productIds = diagnostics["productIds"] as? List<*>
+        val productType = diagnostics["productType"] as? String
+        val isEmptyProductList = diagnostics["isEmptyProductList"] as? Boolean
 
-        val errorMap = mutableMapOf<String, Any>(
+        val errorMap = mutableMapOf<String, Any?>(
             "code" to code,
             "message" to message
         )
 
-        errorMap["responseCode"] = -1
-        debugMessage?.let { errorMap["debugMessage"] = it } ?: error.message?.let { errorMap["debugMessage"] = it }
+        errorMap["responseCode"] = responseCode ?: -1
+        debugMessage
+            ?.let { errorMap["debugMessage"] = it }
+            ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
+            ?: error.message?.let { errorMap["debugMessage"] = it }
         productId?.let { errorMap["productId"] = it }
+        if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
+        productType?.let { errorMap["productType"] = it }
+        isEmptyProductList?.let { errorMap["isEmptyProductList"] = it }
 
         return try {
-            val jsonPairs = errorMap.map { (key, value) ->
-                val valueStr = when (value) {
-                    is String -> "\"${value.replace("\"", "\\\"")}\""
-                    is Number -> value.toString()
-                    is Boolean -> value.toString()
-                    else -> "\"$value\""
-                }
-                "\"$key\":$valueStr"
-            }
-            "{${jsonPairs.joinToString(",")}}"
+            JSONObject(errorMap).toString()
         } catch (e: Exception) {
             "$code: $message"
         }
@@ -2026,9 +2024,12 @@ class HybridRnIap : HybridRnIapSpec() {
         val message = messageOverride?.takeIf { it.isNotBlank() }
             ?: error.message?.takeIf { it.isNotBlank() }
             ?: OpenIAPError.Companion.defaultMessage(code)
+        val diagnostics = error.toJSON()
+        val responseCode = (diagnostics["responseCode"] as? Number)?.toDouble()
+        val diagnosticMessage = diagnostics["debugMessage"] as? String
         return NitroPurchaseResult(
-            responseCode = -1.0,
-            debugMessage = debugMessage ?: error.message,
+            responseCode = responseCode ?: -1.0,
+            debugMessage = debugMessage ?: diagnosticMessage ?: error.message,
             code = code,
             message = message,
             purchaseToken = null

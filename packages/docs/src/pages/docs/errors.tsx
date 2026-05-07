@@ -198,6 +198,16 @@ var debug_message: Variant = null # Raw diagnostic from the billing layer`}</Cod
           </tbody>
         </table>
 
+        <div className="info-note">
+          <strong>Android diagnostics:</strong> <code>QueryProduct</code> errors
+          from <code>openiap-google</code> 2.1.4 and later include the Google
+          Play Billing <code>responseCode</code>, <code>debugMessage</code>,
+          requested <code>productIds</code>, requested <code>productType</code>,
+          and <code>isEmptyProductList</code> when available. Use these
+          diagnostics to distinguish Play Console product setup issues from
+          transient BillingClient failures.
+        </div>
+
         <h3>Network & Service Errors</h3>
         <table className="error-table">
           <thead>
