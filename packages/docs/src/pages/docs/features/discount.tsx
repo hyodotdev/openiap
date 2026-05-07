@@ -246,6 +246,7 @@ data class LimitedQuantityInfoAndroid(
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
+using System.Collections.Generic;
 
 public sealed record ProductAndroidOneTimePurchaseOfferDetail
 {
@@ -438,6 +439,7 @@ for (final product in products) {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
+using System;
 using OpenIap.Maui;
 using System.Linq;
 
@@ -811,6 +813,7 @@ fun ProductCard(
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System.Linq;
 
 public sealed record ProductCardViewModel
 {
@@ -1036,6 +1039,7 @@ fun checkOfferValidity(offer: ProductAndroidOneTimePurchaseOfferDetail): OfferVa
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
+using System;
 
 public sealed record OfferValidity(bool IsValid, string Message);
 
@@ -1355,6 +1359,7 @@ async function purchaseWithOffer(
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 using System.Linq;
 
 async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)

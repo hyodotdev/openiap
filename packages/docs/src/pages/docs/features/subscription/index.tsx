@@ -430,6 +430,7 @@ if (isEligible) {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
 string? DisplayIntroOffer(ProductSubscriptionIOS subscription)
 {
@@ -680,6 +681,7 @@ suspend fun purchaseWithPromoOffer(
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
 async Task PurchaseWithPromoOfferAsync(string subscriptionId, string offerId)
 {
@@ -969,6 +971,7 @@ data class PricingPhaseAndroid(
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
+using System.Collections.Generic;
 
 public sealed record ProductSubscriptionAndroidOfferDetails
 {
@@ -1156,6 +1159,7 @@ if (subscription.subscriptionOfferDetailsAndroid != null) {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 using System.Linq;
 
 // Fetch subscription products
@@ -1379,6 +1383,7 @@ suspend fun purchaseSubscription(subscriptionId: String) {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 using System.Linq;
 
 async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionAndroid subscription)
@@ -1725,6 +1730,7 @@ void onPurchaseSuccess(PurchasedItem purchase) {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 using System.Linq;
 
 // 1. Store basePlanId BEFORE calling requestPurchase.
@@ -2140,6 +2146,7 @@ Future<void> purchaseWithOffer(
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 using System.Linq;
 
 public enum OfferType
@@ -2589,6 +2596,7 @@ Future<bool> verifySubscription(ProductPurchase purchase) async {
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
+using System;
 
 async Task<bool> VerifySubscriptionAsync(PurchaseAndroid purchase)
 {
@@ -2728,6 +2736,7 @@ for (final subscription in activeSubscriptions) {
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
 // Check if user has any active subscription
 var hasActive = await ((QueryResolver)Iap.Instance).HasActiveSubscriptionsAsync();
@@ -3168,6 +3177,7 @@ Future<void> checkFromActiveSubscriptions() async {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 
 // Note: subscriptionStatusIOS is iOS-only.
 async Task<(bool IsActive, string Status)> CheckSubscriptionStatusAsync(string sku)
@@ -3532,6 +3542,7 @@ Future<Map<String, dynamic>> checkAndroidSubscription() async {
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
+using System;
 using System.Linq;
 
 public sealed record SubscriptionAccessResult(

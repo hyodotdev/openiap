@@ -171,11 +171,11 @@ function App() {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((QueryResolver)Iap.Instance).InitConnectionAsync(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
-    )
-)`}</CodeBlock>
+await ((MutationResolver)Iap.Instance).InitConnectionAsync(
+    new InitConnectionConfig
+    {
+        EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
+    });`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":

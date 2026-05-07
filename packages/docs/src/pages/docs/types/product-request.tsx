@@ -175,18 +175,23 @@ using OpenIap.Maui;
 
 // Fetch in-app purchases (default)
 var inappProducts = await ((QueryResolver)Iap.Instance).FetchProductsAsync(
-    ProductRequest(skus = new[] { "product1", "product2" })
-)
+    new ProductRequest { Skus = new[] { "product1", "product2" } });
 
 // Fetch only subscriptions
 var subscriptions = await ((QueryResolver)Iap.Instance).FetchProductsAsync(
-    ProductRequest(skus = new[] { "sub1", "sub2" }, type = ProductQueryType.Subs)
-)
+    new ProductRequest
+    {
+        Skus = new[] { "sub1", "sub2" },
+        Type = ProductQueryType.Subs,
+    });
 
 // Fetch all products (both in-app and subscriptions)
 var allProducts = await ((QueryResolver)Iap.Instance).FetchProductsAsync(
-    ProductRequest(skus = new[] { "product1", "sub1" }, type = ProductQueryType.All)
-)`}</CodeBlock>
+    new ProductRequest
+    {
+        Skus = new[] { "product1", "sub1" },
+        Type = ProductQueryType.All,
+    });`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Fetch in-app purchases (default)
