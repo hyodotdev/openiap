@@ -22,7 +22,17 @@ fun consumePurchaseAndroid()      // Don't add Android suffix
 fun buildModuleAndroid()          // Don't add Android suffix
 ```
 
-**Exception**: Only add `Android` suffix when the function is part of a cross-platform API that has platform-specific variants (e.g., `ProductAndroid`, `PurchaseAndroid` types that contrast with iOS types).
+**Exception**: Generated GraphQL operation names and generated handler fields
+must keep the schema name exactly, including `Android` when the operation is
+Android-only. For example, `MutationHandlers.checkAlternativeBillingAvailabilityAndroid`
+is generated from `packages/gql/src/api-android.graphql` and must be wired under
+that name; the hand-written implementation it delegates to should still be
+suffix-free, such as `checkAlternativeBillingAvailability()`.
+
+Only add `Android` suffix when the identifier is part of a cross-platform API
+that has platform-specific variants (e.g., `ProductAndroid`, `PurchaseAndroid`
+types that contrast with iOS types), or when it is a generated GraphQL
+operation/handler identifier that must match the schema.
 
 ### Enum Values
 - Enum values in this codebase must use **kebab-case** (e.g., `non-consumable`, `in-app`, `user-cancelled`)

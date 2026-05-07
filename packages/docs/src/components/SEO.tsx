@@ -14,7 +14,7 @@ const BASE_URL = 'https://openiap.dev';
 const DEFAULT_TITLE = 'OpenIAP - Unified Specification for In-App Purchases';
 const DEFAULT_DESCRIPTION =
   'OpenIAP is a unified specification for in-app purchases across platforms, frameworks, and emerging technologies. Standardizing IAP implementations to reduce fragmentation.';
-const DEFAULT_IMAGE = '/og-image.png';
+const DEFAULT_IMAGE = '/og-image.webp';
 
 function SEO({
   title,

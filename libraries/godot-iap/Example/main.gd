@@ -75,6 +75,10 @@ func _setup_store_panel() -> void:
 	if buy_30_btn:
 		buy_30_btn.pressed.connect(_on_buy_30_bulbs_pressed)
 
+	var buy_certified_btn = store_panel.get_node_or_null("VBoxContainer/BuyCertifiedButton")
+	if buy_certified_btn:
+		buy_certified_btn.pressed.connect(_on_buy_certified_pressed)
+
 	var buy_premium_btn = store_panel.get_node_or_null("VBoxContainer/BuyPremiumButton")
 	if buy_premium_btn:
 		buy_premium_btn.pressed.connect(_on_buy_premium_pressed)
@@ -186,6 +190,10 @@ func _on_buy_30_bulbs_pressed() -> void:
 	IapManager.purchase_30_bulbs()
 
 
+func _on_buy_certified_pressed() -> void:
+	IapManager.purchase_certified()
+
+
 func _on_buy_premium_pressed() -> void:
 	if not is_premium:
 		IapManager.purchase_premium()
@@ -281,6 +289,7 @@ func update_ui() -> void:
 func _update_store_panel_buttons() -> void:
 	_update_button_text("VBoxContainer/Buy10BulbsButton", IapManager.PRODUCT_10_BULBS, "10 Bulbs")
 	_update_button_text("VBoxContainer/Buy30BulbsButton", IapManager.PRODUCT_30_BULBS, "30 Bulbs")
+	_update_button_text("VBoxContainer/BuyCertifiedButton", IapManager.PRODUCT_CERTIFIED, "Certified")
 	_update_button_text("VBoxContainer/BuyPremiumButton", IapManager.PRODUCT_PREMIUM, "Premium")
 	_update_button_text("VBoxContainer/BuyPremiumYearButton", IapManager.PRODUCT_PREMIUM_YEAR, "Premium Year")
 

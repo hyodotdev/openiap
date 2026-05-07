@@ -58,10 +58,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-private val SUBSCRIPTION_IDS = listOf(
-    "dev.hyo.martie.premium",
-    "dev.hyo.martie.premium_year"
-)
+private val SUBSCRIPTION_IDS = SubscriptionProductIds
 
 /**
  * Helper function to format epoch milliseconds to LocalDateTime string

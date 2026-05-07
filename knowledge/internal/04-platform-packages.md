@@ -116,6 +116,28 @@ swift build  # Verifies ObjC bridge compiles
 
 When the GraphQL schema in [`packages/gql`](../../packages/gql) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
 
+The mechanical guardrail for this checklist is:
+
+```bash
+bun run audit:parity
+```
+
+This audit treats `libraries/expo-iap/example` as the non-Godot example SSOT
+and fails when:
+
+- a new non-Godot library appears under `libraries/` without explicit parity
+  coverage or exclusion
+- an Expo example route or product ID is not represented by the other SDK
+  examples and native Apple/Google examples
+- a GraphQL Query/Mutation/Subscription operation is added or removed without
+  updating the operation parity registry
+- generated types or shared TS runtime helpers drift from `packages/gql`
+
+Run it after type generation and before opening a PR for SDK/API/example
+changes. If it fails for a newly introduced operation or feature, update the
+missing SDK bridge/example/test coverage first, then update the parity registry
+in [`scripts/audit-non-godot-parity.mjs`](../../scripts/audit-non-godot-parity.mjs).
+
 ### The bug pattern
 
 A symptom like "interface exists in `types.dart` / `types.ts` / `Types.kt` but calling it does nothing / throws" means one or more of these layers is missing:

@@ -38,16 +38,15 @@ import {CONSUMABLE_PRODUCT_IDS} from '../src/utils/constants';
  * - User completes purchase on external website
  * - Must implement deep link to return to app
  *
- * Android (Alternative Billing Only):
- * - Step 1: Check availability with checkAlternativeBillingAvailabilityAndroid()
- * - Step 2: Show information dialog with showAlternativeBillingDialogAndroid()
- * - Step 3: Process payment in your payment system
- * - Step 4: Create token with createAlternativeBillingTokenAndroid()
- * - Must report token to Google Play backend within 24 hours
+ * Android (Billing Programs API - 8.2.0+):
+ * - Step 1: Check availability with isBillingProgramAvailableAndroid()
+ * - Step 2: Launch external link with launchExternalLinkAndroid()
+ * - Step 3: Create reporting details with createBillingProgramReportingDetailsAndroid()
+ * - Must report external transaction token to Google Play backend within 24 hours
  * - No onPurchaseUpdated callback
  *
- * Android (User Choice Billing):
- * - Call requestPurchase() normally
+ * Android (User Choice Billing - 7.0+):
+ * - Call requestPurchase() with enableBillingProgramAndroid: 'user-choice-billing'
  * - Google shows selection dialog automatically
  * - If user selects Google Play: onPurchaseUpdated callback
  * - If user selects alternative: No callback (manual flow required)

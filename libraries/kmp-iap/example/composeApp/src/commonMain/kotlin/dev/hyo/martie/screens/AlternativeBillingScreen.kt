@@ -29,7 +29,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-private val PRODUCT_IDS = listOf("dev.hyo.martie.10bulbs", "dev.hyo.martie.30bulbs")
+private val PRODUCT_IDS = ConsumableProductIds
 
 /**
  * Alternative Billing Example
@@ -42,26 +42,18 @@ private val PRODUCT_IDS = listOf("dev.hyo.martie.10bulbs", "dev.hyo.martie.30bul
  * - User completes purchase on external website
  * - Must implement deep link to return to app
  *
- * Android (Alternative Billing Only):
- * - Step 1: Check availability with checkAlternativeBillingAvailabilityAndroid()
- * - Step 2: Show information dialog with showAlternativeBillingDialogAndroid()
- * - Step 3: Process payment in your payment system
- * - Step 4: Create token with createAlternativeBillingTokenAndroid()
- * - Must report token to Google Play backend within 24 hours
+ * Android (Billing Programs API - 8.2.0+):
+ * - Step 1: Check availability with isBillingProgramAvailableAndroid()
+ * - Step 2: Launch external link with launchExternalLinkAndroid()
+ * - Step 3: Create reporting details with createBillingProgramReportingDetailsAndroid()
+ * - Must report external transaction token to Google Play backend within 24 hours
  * - No onPurchaseUpdated callback
  *
- * Android (User Choice Billing):
- * - Call requestPurchase() normally
+ * Android (User Choice Billing - 7.0+):
+ * - Call requestPurchase() with enableBillingProgramAndroid = UserChoiceBilling
  * - Google shows selection dialog automatically
  * - If user selects Google Play: onPurchaseUpdated callback
  * - If user selects alternative: No callback (manual flow required)
- *
- * Android (External Payments - Billing Library 8.3.0+):
- * - Japan only - side-by-side choice billing
- * - Enable with InitConnectionConfig.enableBillingProgramAndroid
- * - Use developerBillingOption in requestPurchase
- * - Listen via developerProvidedBillingListener for external token
- * - Report externalTransactionToken to Google within 24 hours
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -284,55 +276,50 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
-    // Handle Android External Offer / Alternative Billing (3-step flow)
-    fun handleAndroidExternalOffer(product: ProductCommon) {
+    // Handle Android Billing Programs API (8.2.0+)
+    fun handleAndroidBillingPrograms(product: ProductCommon) {
         scope.launch {
             isProcessing = true
-            purchaseResult = "Checking alternative billing availability..."
+            purchaseResult = "Checking billing program availability..."
 
             try {
-                // Step 1: Check availability
-                val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
+                val availability = kmpIapInstance.isBillingProgramAvailableAndroid(billingProgram)
 
-                if (!isAvailable) {
-                    purchaseResult = "❌ Alternative billing not available"
+                if (!availability.isAvailable) {
+                    purchaseResult = "❌ Billing program not available\n\nProgram: ${availability.billingProgram.rawValue}"
                     isProcessing = false
                     return@launch
                 }
 
-                purchaseResult = "Showing information dialog..."
+                purchaseResult = "Launching external link..."
 
-                // Step 2: Show information dialog
-                val userAccepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
+                val linkUri = externalUrl.ifBlank { "https://openiap.dev/purchase/${product.id}" }
+                kmpIapInstance.launchExternalLinkAndroid(
+                    LaunchExternalLinkParamsAndroid(
+                        billingProgram = billingProgram,
+                        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+                        linkUri = linkUri
+                    )
+                )
 
-                if (!userAccepted) {
-                    purchaseResult = "ℹ️ User cancelled"
-                    isProcessing = false
-                    return@launch
-                }
+                purchaseResult = "Creating reporting token..."
 
-                purchaseResult = "Creating token..."
+                val details = kmpIapInstance.createBillingProgramReportingDetailsAndroid(billingProgram)
 
-                // Step 2.5: In production, process payment here with your payment system
+                purchaseResult = """
+                    ✅ Billing Programs API flow completed
 
-                // Step 3: Create token (after successful payment)
-                val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
+                    Product: ${product.id}
+                    Program: ${details.billingProgram.rawValue}
+                    URL: $linkUri
+                    Token: ${details.externalTransactionToken.take(30)}...
 
-                if (token != null) {
-                    purchaseResult = """
-                        ✅ External Offer billing completed (DEMO)
-
-                        Product: ${product.id}
-                        Token: ${token.take(20)}...
-
-                        ⚠️ Important:
-                        1. Process payment with your payment system
-                        2. Report token to Google Play backend within 24 hours
-                        3. No onPurchaseUpdated callback
-                    """.trimIndent()
-                } else {
-                    purchaseResult = "❌ Failed to create reporting token"
-                }
+                    ⚠️ Important:
+                    1. Process payment on your external site
+                    2. Report token to Google Play backend within 24 hours
+                    3. No onPurchaseUpdated callback
+                """.trimIndent()
             } catch (e: Exception) {
                 purchaseResult = "❌ Error: ${e.message}"
             } finally {
@@ -373,77 +360,6 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
-    // Handle Android External Payments (Billing Library 8.3.0+ - Japan only)
-    fun handleAndroidExternalPayments(product: ProductCommon) {
-        scope.launch {
-            isProcessing = true
-            purchaseResult = "Showing side-by-side choice dialog..."
-
-            try {
-                kmpIapInstance.requestPurchase {
-                    type = ProductType.InApp
-                    android {
-                        skus = listOf(product.id)
-                        developerBillingOption = DeveloperBillingOptionParamsAndroid(
-                            billingProgram = BillingProgramAndroid.ExternalPayments,
-                            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-                            linkUri = externalUrl
-                        )
-                    }
-                }
-
-                purchaseResult = """
-                    🔄 External Payments dialog shown
-
-                    Product: ${product.id}
-                    External URL: $externalUrl
-
-                    If user selects:
-                    - Google Play: onPurchaseUpdated callback
-                    - Developer billing: developerProvidedBillingListener callback
-
-                    ⚠️ Japan users only
-                    ⚠️ Billing Library 8.3.0+ required
-                """.trimIndent()
-            } catch (e: Exception) {
-                purchaseResult = "❌ Error: ${e.message}"
-                isProcessing = false
-            }
-        }
-    }
-
-    // Handle Android External Content Link (8.2.0+)
-    fun handleAndroidExternalContentLink(product: ProductCommon) {
-        scope.launch {
-            isProcessing = true
-            purchaseResult = "Launching external content link..."
-
-            try {
-                kmpIapInstance.launchExternalLinkAndroid(
-                    LaunchExternalLinkParamsAndroid(
-                        billingProgram = BillingProgramAndroid.ExternalContentLink,
-                        launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
-                        linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
-                        linkUri = externalUrl
-                    )
-                )
-
-                purchaseResult = """
-                    🔄 External Content Link launched
-
-                    Product: ${product.id}
-                    External URL: $externalUrl
-
-                    ⚠️ Billing Library 8.2.0+ required
-                    ⚠️ No purchase callback - handle via deep link
-                """.trimIndent()
-            } catch (e: Exception) {
-                purchaseResult = "❌ Error: ${e.message}"
-                isProcessing = false
-            }
-        }
-    }
-
     // Handle purchase based on platform and billing program
     fun handlePurchase(product: ProductCommon) {
         if (currentPlatform == "iOS") {
@@ -451,9 +367,9 @@ fun AlternativeBillingScreen(navController: NavController) {
         } else if (currentPlatform == "Android") {
             when (billingProgram) {
                 BillingProgramAndroid.UserChoiceBilling -> handleAndroidUserChoiceBilling(product)
-                BillingProgramAndroid.ExternalOffer -> handleAndroidExternalOffer(product)
-                BillingProgramAndroid.ExternalPayments -> handleAndroidExternalPayments(product)
-                BillingProgramAndroid.ExternalContentLink -> handleAndroidExternalContentLink(product)
+                BillingProgramAndroid.ExternalOffer,
+                BillingProgramAndroid.ExternalPayments,
+                BillingProgramAndroid.ExternalContentLink -> handleAndroidBillingPrograms(product)
                 BillingProgramAndroid.Unspecified -> {
                     purchaseResult = "❌ Please select a billing program"
                 }
@@ -534,9 +450,10 @@ fun AlternativeBillingScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // External URL Input (iOS and Android External Payments/Content Link)
+                // External URL Input (iOS and Android Billing Programs)
                 val needsExternalUrl = currentPlatform == "iOS" ||
                     (currentPlatform == "Android" && billingProgram in listOf(
+                        BillingProgramAndroid.ExternalOffer,
                         BillingProgramAndroid.ExternalPayments,
                         BillingProgramAndroid.ExternalContentLink
                     ))
@@ -675,7 +592,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(8.dp))
                     ModeSelectorOption(
                         title = "External Offer (8.2.0+)",
-                        description = "Only your payment system available. 3-step manual flow required.",
+                        description = "Launch an external offer and create reporting details.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalOffer,
                         onClick = {
                             billingProgram = BillingProgramAndroid.ExternalOffer
@@ -686,7 +603,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(8.dp))
                     ModeSelectorOption(
                         title = "External Payments (8.3.0+, Japan)",
-                        description = "Side-by-side choice in purchase dialog. Japan users only.",
+                        description = "External payments program with reporting details. Japan users only.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalPayments,
                         onClick = {
                             billingProgram = BillingProgramAndroid.ExternalPayments
@@ -697,7 +614,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(8.dp))
                     ModeSelectorOption(
                         title = "External Content Link (8.2.0+)",
-                        description = "Launch external link for digital content offers.",
+                        description = "Launch an external content link and create reporting details.",
                         isSelected = billingProgram == BillingProgramAndroid.ExternalContentLink,
                         onClick = {
                             billingProgram = BillingProgramAndroid.ExternalContentLink

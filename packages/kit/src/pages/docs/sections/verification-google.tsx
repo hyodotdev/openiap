@@ -72,23 +72,23 @@ export default function VerificationGooglePage() {
 
       <h3 className="mt-8 text-lg font-semibold">Visual walkthrough</h3>
       <DocsScreenshot
-        src="/guides/%5BAndroid%5D%201.%20Create%20JSON%20Key.png"
+        src="/guides/%5BAndroid%5D%201.%20Create%20JSON%20Key.webp"
         alt="Google Cloud Console — create JSON key for service account"
         caption="1. In the service account's Keys tab, click Add key → Create new key → JSON. Save the file — Google won't let you download it again."
       />
       <DocsScreenshot
-        src="/guides/%5BAndroid%5D%203.%20Invite%20Service%20Account.png"
+        src="/guides/%5BAndroid%5D%203.%20Invite%20Service%20Account.webp"
         alt="Google Play Console — invite the service account"
         caption="2. In Google Play Console → Users & permissions, click Invite new users and paste the service account's email (it's in the JSON, under client_email)."
       />
       <DocsScreenshot
-        src="/guides/%5BAndroid%5D%202.%20Add%20Permission%20when%20inviting%20service%20account.png"
+        src="/guides/%5BAndroid%5D%202.%20Add%20Permission%20when%20inviting%20service%20account.webp"
         alt="Grant least-privilege permissions to the service account"
         caption="3. Grant View financial data, orders, and cancellation survey responses + Manage orders and subscriptions. Nothing else — IAPKit never needs release-management permissions."
       />
 
       <DocsScreenshot
-        src="/docs/screenshots/android-config.png"
+        src="/docs/screenshots/android-config.webp"
         alt="Android Configuration card"
         caption="The service account file's name and size confirm it was uploaded. Delete the row to replace it."
       />

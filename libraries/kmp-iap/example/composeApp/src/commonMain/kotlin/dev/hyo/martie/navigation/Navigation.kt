@@ -10,11 +10,13 @@ import dev.hyo.martie.screens.*
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
+    object AllProducts : Screen("all-products")
     object PurchaseFlow : Screen("purchase-flow")
     object SubscriptionFlow : Screen("subscription-flow")
     object AvailablePurchases : Screen("available-purchases")
     object OfferCode : Screen("offer-code")
     object AlternativeBilling : Screen("alternative-billing")
+    object WebhookStream : Screen("webhook-stream")
 }
 
 @Composable
@@ -27,6 +29,9 @@ fun AppNavigation(
     ) {
         composable(Screen.Home.route) {
             HomeScreen(navController)
+        }
+        composable(Screen.AllProducts.route) {
+            AllProductsScreen(navController)
         }
         composable(Screen.PurchaseFlow.route) {
             PurchaseFlowScreen(navController)
@@ -42,6 +47,9 @@ fun AppNavigation(
         }
         composable(Screen.AlternativeBilling.route) {
             AlternativeBillingScreen(navController)
+        }
+        composable(Screen.WebhookStream.route) {
+            WebhookStreamScreen(navController)
         }
     }
 }

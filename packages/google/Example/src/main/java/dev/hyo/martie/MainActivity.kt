@@ -54,7 +54,7 @@ fun AppNavigation(store: OpenIapStore) {
 
     val startRoute = remember {
         val route = (context as? android.app.Activity)?.intent?.getStringExtra("openiap_route")
-        if (route in setOf("home", "purchase_flow", "subscription_flow", "available_purchases", "offer_code", "alternative_billing")) route!! else "home"
+        if (route in setOf("home", "purchase_flow", "subscription_flow", "available_purchases", "offer_code", "alternative_billing", "webhook_stream")) route!! else "home"
     }
 
     // Provide the shared store to all screens via IapContext
@@ -89,6 +89,10 @@ fun AppNavigation(store: OpenIapStore) {
 
         composable("alternative_billing") {
             AlternativeBillingScreen(navController)
+        }
+
+        composable("webhook_stream") {
+            WebhookStreamScreen(navController)
         }
     }
     }

@@ -33,6 +33,18 @@ describe('Home Component', () => {
     expect(getByText('expo-iap Examples')).toBeDefined();
   });
 
+  it('should render the full example menu', () => {
+    const {getByText} = render(<Home />);
+
+    expect(getByText('📱 All Products')).toBeDefined();
+    expect(getByText('🛒 In-App Purchase Flow')).toBeDefined();
+    expect(getByText('🔄 Subscription Flow')).toBeDefined();
+    expect(getByText('📦 Available Purchases')).toBeDefined();
+    expect(getByText('🎁 Offer Code Redemption')).toBeDefined();
+    expect(getByText('🌐 Alternative Billing')).toBeDefined();
+    expect(getByText('📡 Webhook Stream')).toBeDefined();
+  });
+
   it('should render on iOS platform', async () => {
     // Mock Platform.OS to be iOS
     Object.defineProperty(Platform, 'OS', {

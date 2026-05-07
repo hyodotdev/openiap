@@ -470,7 +470,7 @@ function Announcements() {
         <div key="2025-12-09" style={cardStyle}>
           <div style={headerStyle}>
             <img
-              src="/iapkit.png"
+              src="/iapkit.webp"
               alt="IAPKit"
               style={{ width: '48px', height: '48px', borderRadius: '10px' }}
             />
@@ -541,7 +541,7 @@ function Announcements() {
             }}
           >
             <img
-              src="/iapkit-love.png"
+              src="/iapkit-love.webp"
               alt="OpenIAP + IAPKit"
               style={{
                 width: '100%',
@@ -642,7 +642,7 @@ function Announcements() {
             }}
           >
             <img
-              src="/announcements/horizon.png"
+              src="/announcements/horizon.webp"
               alt="OpenIAP + Meta Horizon OS"
               style={{
                 width: '100%',

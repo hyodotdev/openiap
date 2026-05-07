@@ -1,5 +1,10 @@
 import React from 'react';
+import {render} from '@testing-library/react-native';
 import RootLayout from '../app/_layout';
+
+jest.mock('@expo/react-native-action-sheet', () => ({
+  ActionSheetProvider: ({children}: {children?: React.ReactNode}) => children,
+}));
 
 // Mock expo-router
 jest.mock('expo-router', () => {
@@ -28,5 +33,22 @@ describe('RootLayout', () => {
   it('should return a valid React element', () => {
     const component = RootLayout();
     expect(React.isValidElement(component)).toBe(true);
+  });
+
+  it('should register every example route', () => {
+    const {getByTestId} = render(<RootLayout />);
+
+    [
+      'index',
+      'all-products',
+      'purchase-flow',
+      'subscription-flow',
+      'available-purchases',
+      'offer-code',
+      'alternative-billing',
+      'webhook-stream',
+    ].forEach((route) => {
+      expect(getByTestId(route)).toBeDefined();
+    });
   });
 });

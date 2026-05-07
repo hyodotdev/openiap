@@ -38,6 +38,11 @@ describe('Core Functions Tests', () => {
       expect(ExpoIap.getStorefront).toBeDefined();
       expect(typeof ExpoIap.getStorefront).toBe('function');
     });
+
+    it('should export connectWebhookStream function', () => {
+      expect(ExpoIap.connectWebhookStream).toBeDefined();
+      expect(typeof ExpoIap.connectWebhookStream).toBe('function');
+    });
   });
 
   describe('Event Listeners', () => {
@@ -73,6 +78,28 @@ describe('Core Functions Tests', () => {
     it('should export acknowledgePurchaseAndroid', () => {
       expect(ExpoIap.acknowledgePurchaseAndroid).toBeDefined();
       expect(typeof ExpoIap.acknowledgePurchaseAndroid).toBe('function');
+    });
+
+    it('should export Billing Programs Android functions', () => {
+      expect(ExpoIap.isBillingProgramAvailableAndroid).toBeDefined();
+      expect(typeof ExpoIap.isBillingProgramAvailableAndroid).toBe('function');
+      expect(ExpoIap.launchExternalLinkAndroid).toBeDefined();
+      expect(typeof ExpoIap.launchExternalLinkAndroid).toBe('function');
+      expect(ExpoIap.createBillingProgramReportingDetailsAndroid).toBeDefined();
+      expect(typeof ExpoIap.createBillingProgramReportingDetailsAndroid).toBe(
+        'function',
+      );
+    });
+
+    it('should keep legacy alternative billing Android functions exported', () => {
+      expect(ExpoIap.checkAlternativeBillingAvailabilityAndroid).toBeDefined();
+      expect(typeof ExpoIap.checkAlternativeBillingAvailabilityAndroid).toBe(
+        'function',
+      );
+      expect(ExpoIap.createAlternativeBillingTokenAndroid).toBeDefined();
+      expect(typeof ExpoIap.createAlternativeBillingTokenAndroid).toBe(
+        'function',
+      );
     });
   });
 

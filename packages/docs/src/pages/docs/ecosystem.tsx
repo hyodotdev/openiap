@@ -23,7 +23,7 @@ function Ecosystem() {
 
       <section>
         <img
-          src="/ecosystem.png"
+          src="/ecosystem.webp"
           alt="OpenIAP Ecosystem"
           style={{
             width: '100%',
@@ -53,7 +53,7 @@ function Ecosystem() {
           onClick={() => setIsModalOpen(false)}
         >
           <img
-            src="/ecosystem.png"
+            src="/ecosystem.webp"
             alt="OpenIAP Ecosystem"
             style={{
               maxWidth: '95vw',

@@ -861,9 +861,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     // MARK: - Store Information
 
-    /// Deprecated. Use cross-platform `getStorefront` instead.
-    /// See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
-    public func getStorefrontIOS() async throws -> String {
+    /// Return the user's storefront country code.
+    /// See: https://www.openiap.dev/docs/apis/get-storefront
+    public func getStorefront() async throws -> String {
         try await ensureConnection()
         guard let storefront = await Storefront.current else {
             let error = makePurchaseError(code: .unknown)
@@ -871,6 +871,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             throw error
         }
         return storefront.countryCode
+    }
+
+    /// Deprecated. Use cross-platform `getStorefront` instead.
+    /// See: https://www.openiap.dev/docs/apis/ios/get-storefront-ios
+    public func getStorefrontIOS() async throws -> String {
+        try await getStorefront()
     }
 
     /// Get the app transaction that represents the user's purchase of the app

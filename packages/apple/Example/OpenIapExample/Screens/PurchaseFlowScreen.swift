@@ -41,7 +41,7 @@ struct PurchaseFlowScreen: View {
     private let productIds: [String] = [
         "dev.hyo.martie.10bulbs",
         "dev.hyo.martie.30bulbs",
-        "dev.hyo.martie.premium"
+        "dev.hyo.martie.certified"
     ]
     
     var body: some View {

@@ -18,6 +18,7 @@
 		C0E1F5FC2C8F1AB000123456 /* SubscriptionFlowScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E1F5FB2C8F1AB000123456 /* SubscriptionFlowScreen.swift */; };
 		C0E1F5FE2C8F1AB500123456 /* AvailablePurchasesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E1F5FD2C8F1AB500123456 /* AvailablePurchasesScreen.swift */; };
 		C0E1F6002C8F1ABA00123456 /* OfferCodeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E1F5FF2C8F1ABA00123456 /* OfferCodeScreen.swift */; };
+		C0E2F7012D30000000000001 /* WebhookStreamScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E2F7002D30000000000001 /* WebhookStreamScreen.swift */; };
 		C0E1F6042C8F1AC500123456 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E1F6032C8F1AC500123456 /* AppColors.swift */; };
 		C0E1F6072C8F1AD000123456 /* OpenIAP in Frameworks */ = {isa = PBXBuildFile; productRef = C0E1F6062C8F1AD000123456 /* OpenIAP */; };
 		C0IAC0012D10000000000001 /* IapCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0IAC0002D10000000000001 /* IapCompat.swift */; };
@@ -52,6 +53,7 @@
 		C0E1F5FB2C8F1AB000123456 /* SubscriptionFlowScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionFlowScreen.swift; sourceTree = "<group>"; };
 		C0E1F5FD2C8F1AB500123456 /* AvailablePurchasesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvailablePurchasesScreen.swift; sourceTree = "<group>"; };
 		C0E1F5FF2C8F1ABA00123456 /* OfferCodeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfferCodeScreen.swift; sourceTree = "<group>"; };
+		C0E2F7002D30000000000001 /* WebhookStreamScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookStreamScreen.swift; sourceTree = "<group>"; };
 		C0E1F6032C8F1AC500123456 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		C0IAC0002D10000000000001 /* IapCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IapCompat.swift; sourceTree = "<group>"; };
 		C0UI10012D00000000000001 /* FeatureCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureCard.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 				C0E1F5FB2C8F1AB000123456 /* SubscriptionFlowScreen.swift */,
 				C0E1F5FD2C8F1AB500123456 /* AvailablePurchasesScreen.swift */,
 				C0E1F5FF2C8F1ABA00123456 /* OfferCodeScreen.swift */,
+				C0E2F7002D30000000000001 /* WebhookStreamScreen.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -259,6 +262,7 @@
 				C0E1F5FC2C8F1AB000123456 /* SubscriptionFlowScreen.swift in Sources */,
 				C0E1F5FE2C8F1AB500123456 /* AvailablePurchasesScreen.swift in Sources */,
 				C0E1F6002C8F1ABA00123456 /* OfferCodeScreen.swift in Sources */,
+				C0E2F7012D30000000000001 /* WebhookStreamScreen.swift in Sources */,
 				C0E1F6042C8F1AC500123456 /* AppColors.swift in Sources */,
 				C0IAC0012D10000000000001 /* IapCompat.swift in Sources */,
 				C0E1F5E92C8F1A9400123456 /* OpenIapExampleApp.swift in Sources */,

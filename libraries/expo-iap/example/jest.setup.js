@@ -73,11 +73,19 @@ jest.mock('../../src', () => {
 
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
+    connectWebhookStream: jest.fn(() => ({
+      close: jest.fn(),
+    })),
 
     // Android functions
     deepLinkToSubscriptionsAndroid: jest.fn(),
     validateReceiptAndroid: jest.fn(),
     acknowledgePurchaseAndroid: jest.fn(),
+    checkAlternativeBillingAvailabilityAndroid: jest.fn(),
+    createAlternativeBillingTokenAndroid: jest.fn(),
+    isBillingProgramAvailableAndroid: jest.fn(),
+    launchExternalLinkAndroid: jest.fn(),
+    createBillingProgramReportingDetailsAndroid: jest.fn(),
 
     // Event listeners
     purchaseUpdatedListener: jest.fn(),
@@ -164,11 +172,19 @@ jest.mock('expo-iap', () => {
 
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
+    connectWebhookStream: jest.fn(() => ({
+      close: jest.fn(),
+    })),
 
     // Android functions
     deepLinkToSubscriptionsAndroid: jest.fn(),
     validateReceiptAndroid: jest.fn(),
     acknowledgePurchaseAndroid: jest.fn(),
+    checkAlternativeBillingAvailabilityAndroid: jest.fn(),
+    createAlternativeBillingTokenAndroid: jest.fn(),
+    isBillingProgramAvailableAndroid: jest.fn(),
+    launchExternalLinkAndroid: jest.fn(),
+    createBillingProgramReportingDetailsAndroid: jest.fn(),
 
     // Event listeners
     purchaseUpdatedListener: jest.fn(),

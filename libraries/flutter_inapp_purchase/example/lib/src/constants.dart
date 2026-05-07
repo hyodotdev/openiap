@@ -5,6 +5,8 @@ class IapConstants {
   // IAPKit API Key for purchase verification
   // Get your API key from https://kit.openiap.dev
   static String get iapkitApiKey => dotenv.env['IAPKIT_API_KEY'] ?? '';
+  static String get iapkitBaseUrl =>
+      dotenv.env['IAPKIT_BASE_URL'] ?? 'https://kit.openiap.dev';
 
   // Consumable Product IDs
   static const List<String> consumableProductIds = [

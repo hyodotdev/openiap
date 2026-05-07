@@ -25,8 +25,6 @@ import androidx.navigation.NavController
 import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.navigation.Screen
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.getCurrentPlatform
-import io.github.hyochan.kmpiap.openiap.IapPlatform
 import kotlinx.coroutines.launch
 
 @Composable
@@ -38,13 +36,11 @@ fun HomeScreen(navController: NavController) {
     val kmpIAP = remember { KmpIAP() }
     
     LaunchedEffect(Unit) {
-        if (getCurrentPlatform() == IapPlatform.Ios) {
-            try {
-                val storefront = kmpIAP.getStorefrontIOS()
-                storefrontInfo = "Storefront: $storefront"
-            } catch (e: Exception) {
-                // Ignore
-            }
+        try {
+            val storefront = kmpIAP.getStorefront()
+            storefrontInfo = "Storefront: $storefront"
+        } catch (e: Exception) {
+            // Ignore
         }
     }
 
@@ -111,6 +107,13 @@ fun HomeScreen(navController: NavController) {
         // Navigation Cards
         NavigationCard(
             icon = Icons.Default.ShoppingCart,
+            title = "All Products",
+            subtitle = "View all items at once",
+            onClick = { navController.navigate(Screen.AllProducts.route) }
+        )
+
+        NavigationCard(
+            icon = Icons.Default.ShoppingCart,
             title = "In-App Purchase Flow",
             subtitle = "Test one-time product purchases",
             onClick = { navController.navigate(Screen.PurchaseFlow.route) }
@@ -142,6 +145,13 @@ fun HomeScreen(navController: NavController) {
             title = "Alternative Billing",
             subtitle = "Test alternative billing methods (iOS & Android)",
             onClick = { navController.navigate(Screen.AlternativeBilling.route) }
+        )
+
+        NavigationCard(
+            icon = Icons.Default.Notifications,
+            title = "Webhook Stream",
+            subtitle = "IAPKit SSE listener",
+            onClick = { navController.navigate(Screen.WebhookStream.route) }
         )
 
         Spacer(modifier = Modifier.height(32.dp))

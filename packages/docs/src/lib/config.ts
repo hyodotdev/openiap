@@ -3,13 +3,13 @@
 // =============================================================================
 // Change the logo here for seasonal themes (e.g., Christmas, Halloween, etc.)
 // Default: '/logo.webp'
-// Christmas: '/openiap-santa.png'
+// Christmas: '/openiap-santa.webp'
 // =============================================================================
 
 export const LOGO_PATH = '/logo.webp';
 
 // Seasonal logos (uncomment when needed)
-// export const LOGO_PATH = '/openiap-santa.png'; // Christmas
+// export const LOGO_PATH = '/openiap-santa.webp'; // Christmas
 
 // =============================================================================
 // IAPKit Configuration

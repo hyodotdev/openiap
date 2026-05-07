@@ -25,9 +25,11 @@ import {
   type Purchase,
   type PurchaseError,
   type VerifyPurchaseWithProviderProps,
-  type ProductSubscriptionAndroidOfferDetails,
+  type SubscriptionOffer,
   ErrorCode,
 } from 'react-native-iap';
+// IAPKit API Key - Set this in your environment or replace with your actual key
+const IAPKIT_API_KEY = process.env.EXPO_PUBLIC_IAPKIT_API_KEY || '';
 import Loading from '../components/Loading';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../constants/products';
 import {getErrorMessage} from '../utils/errorUtils';
@@ -36,9 +38,6 @@ import {
   type VerificationMethod,
 } from '../hooks/useVerificationMethod';
 import PurchaseSummaryRow from '../components/PurchaseSummaryRow';
-import AndroidOneTimeOfferDetails from '../components/AndroidOneTimeOfferDetails';
-// IAPKit API Key - Set this in your environment or replace with your actual key
-const IAPKIT_API_KEY = process.env.EXPO_PUBLIC_IAPKIT_API_KEY || '';
 
 type ExtendedPurchase = Purchase & {
   purchaseTokenAndroid?: string;
@@ -374,10 +373,9 @@ function SubscriptionFlow({
                 // Android subscription replacement
                 const targetSubWithDetails =
                   targetSubscription as ProductSubscriptionAndroid;
-                const androidOffers =
-                  targetSubWithDetails.subscriptionOfferDetailsAndroid;
+                const androidOffers = targetSubWithDetails.subscriptionOffers;
                 const targetOffer = androidOffers?.find(
-                  (offer) => offer.basePlanId === targetBasePlanId,
+                  (offer) => offer.basePlanIdAndroid === targetBasePlanId,
                 );
 
                 if (!targetOffer) {
@@ -423,15 +421,15 @@ function SubscriptionFlow({
                   skus: [targetProductId],
                   currentBasePlanId,
                   targetBasePlanId,
-                  offerToken: targetOffer.offerToken,
+                  offerToken: targetOffer.offerTokenAndroid,
                   replacementMode,
                   purchaseToken: tokenString
                     ? `<${tokenString.substring(0, 10)}...>`
                     : 'missing',
                   allOffers: androidOffers?.map((o) => ({
-                    basePlanId: o.basePlanId,
-                    offerId: o.offerId,
-                    offerToken: o.offerToken?.substring(0, 20) + '...',
+                    basePlanId: o.basePlanIdAndroid,
+                    offerId: o.id,
+                    offerToken: o.offerTokenAndroid?.substring(0, 20) + '...',
                   })),
                 });
 
@@ -443,7 +441,7 @@ function SubscriptionFlow({
                       subscriptionOffers: [
                         {
                           sku: targetProductId,
-                          offerToken: targetOffer.offerToken,
+                          offerToken: targetOffer.offerTokenAndroid ?? '',
                         },
                       ],
                       replacementMode: replacementMode,
@@ -494,18 +492,17 @@ function SubscriptionFlow({
 
     const jsonString = JSON.stringify(selectedSubscription, null, 2);
 
-    // Check for Android offers
+    // Check for subscription offers (cross-platform)
     const hasSubscriptionOffers =
-      selectedSubscription.platform === 'android' &&
-      'subscriptionOfferDetailsAndroid' in selectedSubscription &&
-      selectedSubscription.subscriptionOfferDetailsAndroid &&
-      selectedSubscription.subscriptionOfferDetailsAndroid.length > 0;
+      'subscriptionOffers' in selectedSubscription &&
+      selectedSubscription.subscriptionOffers &&
+      selectedSubscription.subscriptionOffers.length > 0;
 
-    const hasOneTimeOffers =
-      selectedSubscription.platform === 'android' &&
-      'oneTimePurchaseOfferDetailsAndroid' in selectedSubscription &&
-      selectedSubscription.oneTimePurchaseOfferDetailsAndroid &&
-      selectedSubscription.oneTimePurchaseOfferDetailsAndroid.length > 0;
+    // Check for discount offers (cross-platform)
+    const hasDiscountOffers =
+      'discountOffers' in selectedSubscription &&
+      selectedSubscription.discountOffers &&
+      selectedSubscription.discountOffers.length > 0;
 
     return (
       <View style={styles.modalContent}>
@@ -522,85 +519,155 @@ function SubscriptionFlow({
             {selectedSubscription.displayPrice}
           </Text>
 
-          {/* Android Subscription Offers */}
+          {/* Subscription Offers (Cross-platform) */}
           {hasSubscriptionOffers && (
             <View style={styles.offersSection}>
               <Text style={styles.offersSectionTitle}>
                 Subscription Offers (
-                {
-                  (selectedSubscription as ProductSubscriptionAndroid)
-                    .subscriptionOfferDetailsAndroid.length
-                }
-                )
+                {selectedSubscription.subscriptionOffers!.length})
               </Text>
-              {(
-                selectedSubscription as ProductSubscriptionAndroid
-              ).subscriptionOfferDetailsAndroid.map(
-                (
-                  offer: ProductSubscriptionAndroidOfferDetails,
-                  index: number,
-                ) => (
-                  <View key={offer.offerToken} style={styles.offerCard}>
+              {selectedSubscription.subscriptionOffers!.map(
+                (offer: SubscriptionOffer, index: number) => (
+                  <View
+                    key={offer.offerTokenAndroid || offer.id || index}
+                    style={styles.offerCard}
+                  >
                     <Text style={styles.offerTitle}>
-                      Offer {index + 1}
-                      {offer.offerId ? ` (${offer.offerId})` : ''}
+                      {offer.id || `Offer ${index + 1}`}
                     </Text>
 
-                    <Text style={styles.offerDetailLabel}>Base Plan ID:</Text>
-                    <Text style={styles.offerValue}>{offer.basePlanId}</Text>
+                    <Text style={styles.offerDetailLabel}>Price:</Text>
+                    <Text style={styles.offerValue}>{offer.displayPrice}</Text>
 
-                    {offer.pricingPhases.pricingPhaseList.length > 0 && (
+                    <Text style={styles.offerDetailLabel}>Type:</Text>
+                    <Text style={styles.offerValue}>{offer.type}</Text>
+
+                    {offer.paymentMode && (
                       <>
                         <Text style={styles.offerDetailLabel}>
-                          Pricing Phases:
+                          Payment Mode:
                         </Text>
-                        {offer.pricingPhases.pricingPhaseList.map(
-                          (phase, phaseIndex) => (
-                            <View key={phaseIndex} style={styles.pricingPhase}>
-                              <Text style={styles.phaseText}>
-                                Phase {phaseIndex + 1}: {phase.formattedPrice} /{' '}
-                                {phase.billingPeriod}
-                              </Text>
-                              <Text style={styles.phaseDetail}>
-                                Cycles: {phase.billingCycleCount}, Mode:{' '}
-                                {phase.recurrenceMode}
-                              </Text>
-                            </View>
-                          ),
-                        )}
-                      </>
-                    )}
-
-                    {offer.offerTags.length > 0 && (
-                      <>
-                        <Text style={styles.offerDetailLabel}>Tags:</Text>
                         <Text style={styles.offerValue}>
-                          {offer.offerTags.join(', ')}
+                          {offer.paymentMode}
                         </Text>
                       </>
                     )}
 
-                    <Text style={styles.offerDetailLabel}>Offer Token:</Text>
-                    <Text
-                      style={[styles.offerValue, styles.offerTokenText]}
-                      numberOfLines={2}
-                    >
-                      {offer.offerToken}
-                    </Text>
+                    {offer.period && (
+                      <>
+                        <Text style={styles.offerDetailLabel}>Period:</Text>
+                        <Text style={styles.offerValue}>
+                          {offer.period.value} {offer.period.unit}
+                        </Text>
+                      </>
+                    )}
+
+                    {offer.basePlanIdAndroid && (
+                      <>
+                        <Text style={styles.offerDetailLabel}>
+                          Base Plan ID:
+                        </Text>
+                        <Text style={styles.offerValue}>
+                          {offer.basePlanIdAndroid}
+                        </Text>
+                      </>
+                    )}
+
+                    {offer.pricingPhasesAndroid?.pricingPhaseList &&
+                      offer.pricingPhasesAndroid.pricingPhaseList.length >
+                        0 && (
+                        <>
+                          <Text style={styles.offerDetailLabel}>
+                            Pricing Phases:
+                          </Text>
+                          {offer.pricingPhasesAndroid.pricingPhaseList.map(
+                            (phase, phaseIndex) => (
+                              <View
+                                key={phaseIndex}
+                                style={styles.pricingPhase}
+                              >
+                                <Text style={styles.phaseText}>
+                                  Phase {phaseIndex + 1}: {phase.formattedPrice}{' '}
+                                  / {phase.billingPeriod}
+                                </Text>
+                                <Text style={styles.phaseDetail}>
+                                  Cycles: {phase.billingCycleCount}, Mode:{' '}
+                                  {phase.recurrenceMode}
+                                </Text>
+                              </View>
+                            ),
+                          )}
+                        </>
+                      )}
+
+                    {Array.isArray(offer.offerTagsAndroid) &&
+                      offer.offerTagsAndroid.length > 0 && (
+                        <>
+                          <Text style={styles.offerDetailLabel}>Tags:</Text>
+                          <Text style={styles.offerValue}>
+                            {offer.offerTagsAndroid.join(', ')}
+                          </Text>
+                        </>
+                      )}
+
+                    {offer.offerTokenAndroid && (
+                      <>
+                        <Text style={styles.offerDetailLabel}>
+                          Offer Token:
+                        </Text>
+                        <Text
+                          style={[styles.offerValue, styles.offerTokenText]}
+                          numberOfLines={2}
+                        >
+                          {offer.offerTokenAndroid}
+                        </Text>
+                      </>
+                    )}
                   </View>
                 ),
               )}
             </View>
           )}
 
-          {/* Android One-Time Purchase Offers */}
-          {hasOneTimeOffers && (
-            <AndroidOneTimeOfferDetails
-              offers={
-                (selectedSubscription as ProductSubscriptionAndroid)
-                  .oneTimePurchaseOfferDetailsAndroid ?? []
-              }
-            />
+          {/* Discount Offers (Cross-platform) */}
+          {hasDiscountOffers && (
+            <View style={styles.offersSection}>
+              <Text style={styles.offersSectionTitle}>
+                Discount Offers ({selectedSubscription.discountOffers!.length})
+              </Text>
+              {selectedSubscription.discountOffers!.map((offer, idx) => (
+                <View key={offer.id || idx} style={styles.offerCard}>
+                  <Text style={styles.offerTitle}>
+                    {offer.id || `Offer ${idx + 1}`}
+                  </Text>
+                  <Text style={styles.offerDetailLabel}>Price:</Text>
+                  <Text style={styles.offerValue}>{offer.displayPrice}</Text>
+                  {offer.fullPriceMicrosAndroid && (
+                    <>
+                      <Text style={styles.offerDetailLabel}>
+                        Full Price (micros):
+                      </Text>
+                      <Text style={styles.offerValue}>
+                        {offer.fullPriceMicrosAndroid}
+                      </Text>
+                    </>
+                  )}
+                  {offer.percentageDiscountAndroid && (
+                    <Text style={styles.offerValueDiscount}>
+                      {offer.percentageDiscountAndroid}% off
+                    </Text>
+                  )}
+                  {offer.formattedDiscountAmountAndroid && (
+                    <>
+                      <Text style={styles.offerDetailLabel}>Discount:</Text>
+                      <Text style={styles.offerValueDiscount}>
+                        {offer.formattedDiscountAmountAndroid}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              ))}
+            </View>
           )}
 
           {/* Raw JSON Section */}
@@ -684,16 +751,23 @@ function SubscriptionFlow({
   };
 
   const renderSubscriptionPrice = (subscription: ProductSubscription) => {
+    // Use cross-platform subscriptionOffers first
     if (
-      'subscriptionOfferDetailsAndroid' in subscription &&
-      subscription.subscriptionOfferDetailsAndroid
+      'subscriptionOffers' in subscription &&
+      subscription.subscriptionOffers
     ) {
-      const offers = subscription.subscriptionOfferDetailsAndroid;
+      const offers = subscription.subscriptionOffers;
       if (offers && offers.length > 0) {
         const firstOffer = offers[0];
-        if (firstOffer && firstOffer.pricingPhases) {
-          const pricingPhaseList = firstOffer.pricingPhases.pricingPhaseList;
-          if (pricingPhaseList && pricingPhaseList.length > 0) {
+        // Use displayPrice from offer if available
+        if (firstOffer?.displayPrice) {
+          return firstOffer.displayPrice;
+        }
+        // Fallback to pricingPhasesAndroid
+        if (firstOffer?.pricingPhasesAndroid?.pricingPhaseList) {
+          const pricingPhaseList =
+            firstOffer.pricingPhasesAndroid.pricingPhaseList;
+          if (pricingPhaseList.length > 0) {
             const firstPhase = pricingPhaseList[0];
             if (firstPhase) {
               return firstPhase.formattedPrice;
@@ -1456,7 +1530,88 @@ function SubscriptionFlow({
   );
 }
 
+/**
+ * ============================================================================
+ * Subscription Flow Container
+ * ============================================================================
+ *
+ * This component demonstrates the complete subscription lifecycle with proper
+ * handling of platform-specific differences between iOS and Android.
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ PLATFORM COMPARISON - Subscription Data Availability                    │
+ * ├─────────────────────────────┬─────────────┬─────────────┬──────────────┤
+ * │ Information                 │ iOS Client  │ Android     │ Server       │
+ * ├─────────────────────────────┼─────────────┼─────────────┼──────────────┤
+ * │ Auto-renew status           │ ✅ willAutoRenew │ ✅ isAutoRenewing │ ✅    │
+ * │ Next renewal product        │ ✅ autoRenewPreference │ ❌    │ ✅           │
+ * │ Pending upgrade/downgrade   │ ✅ pendingUpgradeProductId │ ❌ │ ✅        │
+ * │ Expiration reason           │ ✅ expirationReason │ ❌      │ ✅           │
+ * │ Grace period status         │ ✅ gracePeriodExpirationDate │ ❌ │ ✅      │
+ * │ Billing retry status        │ ✅ isInBillingRetry │ ❌      │ ✅           │
+ * │ Renewal date                │ ✅ renewalDate │ ❌         │ ✅           │
+ * │ Detailed subscription state │ ✅           │ ❌          │ ✅           │
+ * └─────────────────────────────┴─────────────┴─────────────┴──────────────┘
+ *
+ * 💡 Key Takeaway: iOS provides rich subscription data client-side via
+ *    renewalInfoIOS, while Android requires server-side calls for details.
+ *
+ * ============================================================================
+ * SUBSCRIPTION LIFECYCLE FLOWS
+ * ============================================================================
+ *
+ * 1. ON APP LAUNCH
+ *    ├─ iOS: initConnection → getAvailablePurchases → check transactionState
+ *    │       → validate with server → update entitlements → finishTransaction
+ *    └─ Android: initConnection → getAvailablePurchases → for pending purchases
+ *                → validate → acknowledge → grant entitlements
+ *
+ * 2. NEW PURCHASE FLOW
+ *    ├─ iOS: requestPurchase → purchaseUpdatedListener receives PurchaseIOS
+ *    │       → check transactionState (purchased/pending/failed/deferred)
+ *    │       → validate → deliver → finishTransaction
+ *    └─ Android: requestPurchase → purchaseUpdatedListener receives PurchaseAndroid
+ *                → check purchaseState (0=pending, 1=purchased, 2=failed)
+ *                → validate → acknowledge → grant entitlements
+ *
+ * 3. CHECKING SUBSCRIPTION STATUS
+ *    ├─ iOS: getActiveSubscriptions → check renewalInfoIOS:
+ *    │       • willAutoRenew = false → show renewal prompt
+ *    │       • isInBillingRetry = true → show payment issue
+ *    │       • pendingUpgradeProductId → show pending change
+ *    └─ Android: getActiveSubscriptions → check isActive
+ *                (detailed info requires server-side API call)
+ *
+ * 4. DETECTING CANCELLATIONS
+ *    ├─ iOS: willAutoRenew = false (user still has access until expirationDate)
+ *    └─ Android: isAutoRenewing = false (access until expiry)
+ *
+ * 5. HANDLING EXPIRATION
+ *    └─ getActiveSubscriptions returns empty → revoke access → show re-subscribe
+ *
+ * 6. RESTORING PURCHASES
+ *    ├─ iOS: getAvailablePurchases → StoreKit fetches from Apple ID history
+ *    │       → validate each → grant access → finishTransaction
+ *    └─ Android: getAvailablePurchases → returns cached purchases
+ *                → validate each → grant access
+ *
+ * ============================================================================
+ * WHEN TO VALIDATE (Server-side recommended)
+ * ============================================================================
+ * • After purchase — Verify the purchase is legitimate
+ * • On restore — Check current status (active/cancelled/refunded/expired)
+ * • Periodically for active subscriptions — Detect refunds and cancellations
+ * • On app launch — Sync subscription state with server
+ *
+ * ⚠️ REFUND EDGE CASE: Refunds bypass client entirely. Server-side validation
+ *    with App Store Server Notifications V2 (iOS) or RTDN (Android) is required.
+ *
+ * ============================================================================
+ */
 function SubscriptionFlowContainer() {
+  // ──────────────────────────────────────────────────────────────────────────
+  // State
+  // ──────────────────────────────────────────────────────────────────────────
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState('');
@@ -1476,6 +1631,14 @@ function SubscriptionFlowContainer() {
   const fetchedProductsOnceRef = useRef(false);
   const statusAutoCheckedRef = useRef(false);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // STEP 1: INIT CONNECTION + SUBSCRIBE TO EVENTS
+  // ──────────────────────────────────────────────────────────────────────────
+  // useIAP hook automatically:
+  // - Calls initConnection() on mount
+  // - Sets up purchase event listeners (onPurchaseSuccess, onPurchaseError)
+  // - Provides activeSubscriptions state for easy status checking
+  // - Cleans up on unmount
   const {
     connected,
     subscriptions,
@@ -1486,6 +1649,12 @@ function SubscriptionFlowContainer() {
     verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
+    // ────────────────────────────────────────────────────────────────────────
+    // STEP 2: NEW PURCHASE FLOW - Success Handler
+    // ────────────────────────────────────────────────────────────────────────
+    // Called when purchaseUpdatedListener receives a successful purchase.
+    // iOS: Check transactionState (purchased/pending/failed/deferred)
+    // Android: Check purchaseState (0=pending, 1=purchased, 2=failed)
     onPurchaseSuccess: async (purchase: Purchase) => {
       const {purchaseToken, ...safePurchase} = purchase || {};
       console.log('Purchase successful (redacted):', safePurchase);
@@ -1510,20 +1679,19 @@ function SubscriptionFlowContainer() {
           JSON.stringify(purchaseData, null, 2),
         );
 
-        // Map offerToken to basePlanId using fetched subscription data
+        // Map offerToken to basePlanId using fetched subscription data (cross-platform)
         if (purchaseData.offerToken) {
           const premiumSub = subscriptions.find(
             (s) => s.id === 'dev.hyo.martie.premium',
           ) as ProductSubscriptionAndroid;
-          const matchingOffer =
-            premiumSub?.subscriptionOfferDetailsAndroid?.find(
-              (offer) => offer.offerToken === purchaseData.offerToken,
-            );
-          if (matchingOffer?.basePlanId) {
-            setLastPurchasedPlan(matchingOffer.basePlanId);
+          const matchingOffer = premiumSub?.subscriptionOffers?.find(
+            (offer) => offer.offerTokenAndroid === purchaseData.offerToken,
+          );
+          if (matchingOffer?.basePlanIdAndroid) {
+            setLastPurchasedPlan(matchingOffer.basePlanIdAndroid);
             console.log(
               'Detected plan from offerToken (Android):',
-              matchingOffer.basePlanId,
+              matchingOffer.basePlanIdAndroid,
             );
           } else {
             // Fallback if we can't find the matching offer
@@ -1548,7 +1716,17 @@ function SubscriptionFlowContainer() {
 
       const productId = purchase.productId ?? '';
 
-      // Verify purchase based on selected method (use ref for current value)
+      // ──────────────────────────────────────────────────────────────────────
+      // STEP 3: VERIFY PURCHASE
+      // ──────────────────────────────────────────────────────────────────────
+      // Choose verification method:
+      // - 'ignore': Skip verification (testing only - NOT for production)
+      // - 'local': Direct API verification with Apple/Google
+      // - 'iapkit': Server-side verification via IAPKit (recommended)
+      //
+      // ⚠️ Server-side validation is recommended for production:
+      // - iOS: App Store Server API + App Store Server Notifications V2
+      // - Android: Google Play Developer API + RTDN
       const currentVerificationMethod = verificationMethodRef.current;
       console.log('[SubscriptionFlow] About to verify purchase:', {
         verificationMethod: currentVerificationMethod,
@@ -1570,7 +1748,7 @@ function SubscriptionFlowContainer() {
                 // NOTE: accessToken must be obtained from your backend server
                 // that has authenticated with Google Play Developer API
                 accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-                packageName: 'dev.nicklasw.expoiapexample',
+                packageName: 'dev.hyo.martie',
                 purchaseToken: purchase.purchaseToken ?? '',
                 isSub: true,
               },
@@ -1679,6 +1857,23 @@ function SubscriptionFlowContainer() {
         }
       }
 
+      // ──────────────────────────────────────────────────────────────────────
+      // STEP 4: GRANT ENTITLEMENT
+      // ──────────────────────────────────────────────────────────────────────
+      // TODO: In production, update your backend here:
+      // - Save subscription record to database
+      // - Unlock premium features for user
+      // - Update user's subscription status
+      // - Handle subscription tiers/levels
+      // Example: await yourBackend.grantSubscriptionEntitlement(purchase);
+
+      // ──────────────────────────────────────────────────────────────────────
+      // STEP 5: FINISH TRANSACTION
+      // ──────────────────────────────────────────────────────────────────────
+      // CRITICAL: Always finish/acknowledge transactions!
+      // - iOS: finishTransaction removes from StoreKit queue
+      // - Android: Acknowledges purchase (required within 3 days)
+      // - Subscriptions are NOT consumable (isConsumable: false)
       const isConsumable = false;
 
       if (!connectedRef.current) {
@@ -1711,8 +1906,12 @@ function SubscriptionFlowContainer() {
         });
       }
 
+      // ──────────────────────────────────────────────────────────────────────
+      // STEP 6: REFRESH SUBSCRIPTION STATUS
+      // ──────────────────────────────────────────────────────────────────────
+      // After successful purchase, refresh active subscriptions to update UI.
+      // This ensures the user sees their new subscription immediately.
       try {
-        // Refresh active subscriptions after successful purchase
         await getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS);
       } catch (e) {
         console.warn('Failed to refresh subscriptions:', e);
@@ -1720,6 +1919,10 @@ function SubscriptionFlowContainer() {
 
       Alert.alert('Success', 'Purchase completed successfully!');
     },
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Purchase Error Handler
+    // ────────────────────────────────────────────────────────────────────────
     onPurchaseError: (error: PurchaseError) => {
       console.error('Subscription failed:', error);
       setIsProcessing(false);
@@ -1737,6 +1940,11 @@ function SubscriptionFlowContainer() {
     connectedRef.current = connected;
   }, [connected]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // ON APP LAUNCH: Fetch available subscription products
+  // ──────────────────────────────────────────────────────────────────────────
+  // When the store connection is established, fetch subscription products.
+  // This populates the subscriptions array for display.
   useEffect(() => {
     if (connected) {
       if (!fetchedProductsOnceRef.current) {
@@ -1765,10 +1973,14 @@ function SubscriptionFlowContainer() {
         // iOS specific fields
         if (Platform.OS === 'ios' && 'introductoryPricePaymentModeIOS' in sub) {
           console.log(
-            `      • introductoryPricePaymentModeIOS: ${sub.introductoryPricePaymentModeIOS || 'null'}`,
+            `      • introductoryPricePaymentModeIOS: ${
+              sub.introductoryPricePaymentModeIOS || 'null'
+            }`,
           );
           console.log(
-            `      • introductoryPriceIOS: ${sub.introductoryPriceIOS || 'null'}`,
+            `      • introductoryPriceIOS: ${
+              sub.introductoryPriceIOS || 'null'
+            }`,
           );
 
           // Log discountsIOS (already parsed as DiscountIOS[])
@@ -1786,13 +1998,17 @@ function SubscriptionFlowContainer() {
           }
         }
 
-        // Android specific fields
-        if (
-          Platform.OS === 'android' &&
-          'subscriptionOfferDetailsAndroid' in sub
-        ) {
+        // Cross-platform subscription offers
+        if ('subscriptionOffers' in sub && sub.subscriptionOffers) {
           console.log(
-            `      • subscriptionOfferDetailsAndroid: ${sub.subscriptionOfferDetailsAndroid?.length || 0} offer(s)`,
+            `      • subscriptionOffers: ${sub.subscriptionOffers.length || 0} offer(s)`,
+          );
+        }
+
+        // Cross-platform discount offers
+        if ('discountOffers' in sub && sub.discountOffers) {
+          console.log(
+            `      • discountOffers: ${sub.discountOffers.length || 0} offer(s)`,
           );
         }
       });
@@ -1801,12 +2017,24 @@ function SubscriptionFlowContainer() {
     }
   }, [subscriptions]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // CHECKING SUBSCRIPTION STATUS (Step 3 in lifecycle)
+  // ──────────────────────────────────────────────────────────────────────────
+  // Periodically verify subscription status to detect:
+  // - Cancellations (willAutoRenew = false)
+  // - Billing issues (isInBillingRetry = true)
+  // - Pending upgrades/downgrades (pendingUpgradeProductId)
+  // - Grace period status (gracePeriodExpirationDate)
+  //
+  // iOS: Rich data available via renewalInfoIOS
+  // Android: Basic data available; detailed info requires server-side API
   const handleRefreshStatus = useCallback(async () => {
     if (!connected || isCheckingStatus) return;
 
     setIsCheckingStatus(true);
     try {
-      // Refresh active subscriptions
+      // Refresh active subscriptions - this is the key API for status checking
+      // Returns ActiveSubscription[] with platform-specific renewal info
       const activeSubs = await getActiveSubscriptions();
       console.log('\n===== Active Subscriptions Check =====');
       console.log('Total subscriptions:', activeSubs.length);
@@ -1877,7 +2105,10 @@ function SubscriptionFlowContainer() {
             console.log(
               '    🆕 jsonRepresentation:',
               sub.renewalInfoIOS.jsonRepresentation
-                ? `<${sub.renewalInfoIOS.jsonRepresentation.substring(0, 50)}...>`
+                ? `<${sub.renewalInfoIOS.jsonRepresentation.substring(
+                    0,
+                    50,
+                  )}...>`
                 : 'null/undefined',
             );
             console.log(
@@ -1909,6 +2140,17 @@ function SubscriptionFlowContainer() {
     return undefined;
   }, [connected, handleRefreshStatus]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // REQUEST SUBSCRIPTION PURCHASE
+  // ──────────────────────────────────────────────────────────────────────────
+  // Initiates a subscription purchase. Platform-specific handling:
+  //
+  // iOS: Uses sku and optional appAccountToken for user tracking
+  //      StoreKit handles offer eligibility automatically
+  //
+  // Android: Requires subscriptionOffers with offerToken
+  //          Each offer represents a base plan (monthly/yearly) or promotional offer
+  //          The offerToken is obtained from subscriptionOffers (cross-platform type)
   const handleSubscription = useCallback(
     (itemId: string) => {
       setIsProcessing(true);
@@ -1926,14 +2168,13 @@ function SubscriptionFlowContainer() {
             skus: [itemId],
             subscriptionOffers:
               subscription &&
-              'subscriptionOfferDetailsAndroid' in subscription &&
-              (subscription as ProductSubscriptionAndroid)
-                .subscriptionOfferDetailsAndroid
+              'subscriptionOffers' in subscription &&
+              (subscription as ProductSubscriptionAndroid).subscriptionOffers
                 ? (
                     subscription as ProductSubscriptionAndroid
-                  ).subscriptionOfferDetailsAndroid.map((offer) => ({
+                  ).subscriptionOffers.map((offer) => ({
                     sku: itemId,
-                    offerToken: offer.offerToken,
+                    offerToken: offer.offerTokenAndroid ?? '',
                   }))
                 : [],
           },
@@ -1949,6 +2190,10 @@ function SubscriptionFlowContainer() {
     [subscriptions],
   );
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // RESTORING PURCHASES
+  // ──────────────────────────────────────────────────────────────────────────
+  // Retry loading subscriptions (useful when products fail to load initially)
   const handleRetryLoadSubscriptions = useCallback(() => {
     fetchProducts({
       skus: SUBSCRIPTION_PRODUCT_IDS,
@@ -1956,6 +2201,14 @@ function SubscriptionFlowContainer() {
     });
   }, [fetchProducts]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // MANAGE SUBSCRIPTIONS (Deep link to platform settings)
+  // ──────────────────────────────────────────────────────────────────────────
+  // Opens the platform's subscription management screen where users can:
+  // - Cancel subscriptions
+  // - Change subscription plans (upgrade/downgrade)
+  // - Update payment methods
+  // - View subscription history
   const handleManageSubscriptions = useCallback(async () => {
     try {
       await deepLinkToSubscriptions();

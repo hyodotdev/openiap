@@ -86,6 +86,15 @@ export default function Home() {
             <Text style={styles.buttonSubtext}>Browse all available items</Text>
           </TouchableOpacity>
         </Link>
+
+        <Link href={'/webhook-stream' as any} asChild>
+          <TouchableOpacity style={[styles.button, styles.webhookStreamButton]}>
+            <Text style={styles.buttonText}>📡 Webhook Stream</Text>
+            <Text style={styles.buttonSubtext}>
+              IAPKit SSE + test notification
+            </Text>
+          </TouchableOpacity>
+        </Link>
       </View>
     </View>
   );
@@ -153,6 +162,9 @@ const styles = StyleSheet.create({
   },
   allProductsButton: {
     backgroundColor: '#00bcd4',
+  },
+  webhookStreamButton: {
+    backgroundColor: '#0EA5E9',
   },
   buttonText: {
     color: 'black',

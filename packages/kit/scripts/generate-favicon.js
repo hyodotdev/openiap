@@ -9,7 +9,7 @@ const projectRoot = join(__dirname, "..");
 async function generateFavicon() {
   try {
     // Read the logo
-    const logoPath = join(projectRoot, "public", "logo.png");
+    const logoPath = join(projectRoot, "public", "logo.webp");
 
     // Generate multiple favicon sizes
     const sizes = [16, 32, 48, 64, 128, 256];
@@ -20,20 +20,20 @@ async function generateFavicon() {
           fit: "contain",
           background: { r: 255, g: 255, b: 255, alpha: 0 },
         })
-        .toFile(join(projectRoot, "public", `favicon-${size}x${size}.png`));
+        .toFile(join(projectRoot, "public", `favicon-${size}x${size}.webp`));
 
-      console.log(`✓ Generated favicon-${size}x${size}.png`);
+      console.log(`✓ Generated favicon-${size}x${size}.webp`);
     }
 
-    // Generate the main favicon.ico (contains multiple sizes)
+    // Generate the main favicon image.
     await sharp(logoPath)
       .resize(32, 32, {
         fit: "contain",
         background: { r: 255, g: 255, b: 255, alpha: 0 },
       })
-      .toFile(join(projectRoot, "public", "favicon.png"));
+      .toFile(join(projectRoot, "public", "favicon.webp"));
 
-    console.log("✓ Generated favicon.png");
+    console.log("✓ Generated favicon.webp");
 
     // Generate apple-touch-icon
     await sharp(logoPath)
@@ -41,9 +41,9 @@ async function generateFavicon() {
         fit: "contain",
         background: { r: 255, g: 255, b: 255, alpha: 0 },
       })
-      .toFile(join(projectRoot, "public", "apple-touch-icon.png"));
+      .toFile(join(projectRoot, "public", "apple-touch-icon.webp"));
 
-    console.log("✓ Generated apple-touch-icon.png");
+    console.log("✓ Generated apple-touch-icon.webp");
 
     // Generate android chrome icons
     const androidSizes = [192, 512];
@@ -54,10 +54,10 @@ async function generateFavicon() {
           background: { r: 255, g: 255, b: 255, alpha: 0 },
         })
         .toFile(
-          join(projectRoot, "public", `android-chrome-${size}x${size}.png`),
+          join(projectRoot, "public", `android-chrome-${size}x${size}.webp`),
         );
 
-      console.log(`✓ Generated android-chrome-${size}x${size}.png`);
+      console.log(`✓ Generated android-chrome-${size}x${size}.webp`);
     }
 
     // Create manifest.json
@@ -67,14 +67,14 @@ async function generateFavicon() {
       description: "In-App Purchase Receipt Validation",
       icons: [
         {
-          src: "/android-chrome-192x192.png",
+          src: "/android-chrome-192x192.webp",
           sizes: "192x192",
-          type: "image/png",
+          type: "image/webp",
         },
         {
-          src: "/android-chrome-512x512.png",
+          src: "/android-chrome-512x512.webp",
           sizes: "512x512",
-          type: "image/png",
+          type: "image/webp",
         },
       ],
       theme_color: "#a47465",

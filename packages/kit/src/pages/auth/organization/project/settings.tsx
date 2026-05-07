@@ -1714,13 +1714,13 @@ export default function ProjectSettings() {
         title={"How to get your .p8 file:"}
         images={[
           {
-            src: "/guides/[IOS] 1. In-App Purchase Key.png",
+            src: "/guides/[IOS] 1. In-App Purchase Key.webp",
             alt: "In-App Purchase Key location",
             caption:
               "Go to App Store Connect → Users and Access → Integrations → In-App Purchase",
           },
           {
-            src: "/guides/[IOS] 2. Download In-App Purchase Key.png",
+            src: "/guides/[IOS] 2. Download In-App Purchase Key.webp",
             alt: "Download In-App Purchase Key",
             caption:
               "Click 'Generate In-App Purchase Key' or '+' button" +
@@ -1737,7 +1737,7 @@ export default function ProjectSettings() {
         title={"Setup Guide:"}
         images={[
           {
-            src: "/guides/[Android] 1. Create JSON Key.png",
+            src: "/guides/[Android] 1. Create JSON Key.webp",
             alt: "Create JSON Key",
             caption:
               "In the Google Cloud Console go to Service Accounts" +
@@ -1745,7 +1745,7 @@ export default function ProjectSettings() {
               "Click Create service account and follow the steps",
           },
           {
-            src: "/guides/[Android] 2. Add Permission when inviting service account.png",
+            src: "/guides/[Android] 2. Add Permission when inviting service account.webp",
             alt: "Add Permission when inviting service account",
             caption:
               "Go to the Users & Permissions page on the Google Play Console" +
@@ -1753,7 +1753,7 @@ export default function ProjectSettings() {
               "Put an email address for your service account in the email address field and grant the necessary rights:",
           },
           {
-            src: "/guides/[Android] 3. Invite Service Account.png",
+            src: "/guides/[Android] 3. Invite Service Account.webp",
             alt: "Invite Service Account",
             caption: "Click Invite user",
           },

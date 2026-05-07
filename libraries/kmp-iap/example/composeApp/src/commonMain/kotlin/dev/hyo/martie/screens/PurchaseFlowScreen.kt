@@ -57,7 +57,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 
-private val PRODUCT_IDS = listOf("dev.hyo.martie.10bulbs", "dev.hyo.martie.30bulbs")
+private val PRODUCT_IDS = InAppProductIds
 
 /**
  * Verification method for purchase validation
